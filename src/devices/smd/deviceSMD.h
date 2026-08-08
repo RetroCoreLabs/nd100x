@@ -44,7 +44,8 @@ typedef enum {
     DISK_ERR_COMPARER_ERROR,
     DISK_ERR_DRIVE_NOT_SELECTED,
     DISK_ERR_ILLEGAL_WHILE_ACTIVE,
-    DISK_ERR_WRITE_PROTECT_ERROR
+    DISK_ERR_WRITE_PROTECT_ERROR,
+    DISK_ERR_TIMEOUT
 } DiskError;
 
 
@@ -261,7 +262,16 @@ typedef struct {
     int maxUnits;
     DiskInfo* disks;
     DiskInfo* selectedDisk;
-    
+
+    // Per-unit "a seek (M4/M7) has been initiated and not yet consumed" mask.
+    // M6 (Seek Complete Search) waits for the seek-complete pulse of a
+    // PREVIOUSLY initiated seek; with no seek outstanding there is no pulse and
+    // the controller runs into its timeout (status b6). DISC-TEMA section 6
+    // checks exactly this: "Seek Complete Search (with no previous seek),
+    // Status Bit 6b (timeout) is 0 !". Consumed by transfer operations (M0-M3)
+    // and cleared by device clear.
+    uint8_t seekIssuedMask;
+
 } ControllerRegs;
 
 // SMD device data

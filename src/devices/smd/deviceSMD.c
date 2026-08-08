@@ -34,18 +34,37 @@
 
 int smd_debug_enabled = 0;
 
+// Emulated SEEK duration in ticks. Deliberately much longer than the ordinary
+// completion delay (IODELAY_HDD_SMD = 10): the heads must be observably OFF
+// cylinder while a seek (M4/M7) is in flight - DISC-TEMA reads the status
+// register right after the GO and requires b14 (on cylinder) to be 0, then
+// polls until it returns to 1. With only 10 ticks the seek "completed" before
+// the first status read. Still far below any test/driver patience (a real
+// seek is ~30 ms; the controller timeout alone is 500 ms).
+#define SMD_SEEK_TICKS 2000
+
+// Emulated controller-timeout window in ticks (the real card gives up after
+// 500 ms). Used by M6 with no outstanding seek: the controller must stay
+// ACTIVE while it searches, and only then raise timeout (status b6) -
+// DISC-TEMA checks both that active holds during the search and that b6 comes
+// on afterwards ("Status Bit 2b (active) becomes 0 immediately !!" was the
+// failure when the timeout fired instantly).
+#define SMD_TIMEOUT_TICKS 5000
+
 // Local forward declarations for internal helpers
 static void ClearFlipFlops(ControllerRegs *regs);
 static void SetSelectedUnit(ControllerRegs *regs, uint8_t unit);
 static void HandleError(Device *self, DiskError error);
 static void ClearErrors(Device *self);
 static void ExecuteGO(Device *self);
-static long ConvertCHStoLBA(ControllerRegs *regs, int cylinder, int head, int sector);
+static int64_t ConvertCHStoLBA(ControllerRegs *regs, int cylinder, int head, int sector);
 static uint32_t IncrementCoreAddress(ControllerRegs *regs);
 static uint32_t DecrementWordCounter(ControllerRegs *regs);
 static bool SMDReadEnd(Device *self, int drive);
+static bool SMDTimeoutEnd(Device *self, int drive);
 static void FinishOperation(Device *self);
 static bool UnitAttached(Device *self, DiskInfo *disk);
+static bool LoadIsIllegal(Device *self, SMDData *data);
 
 static const char *SMD_OpName(DeviceOperation op) {
     switch (op) {
@@ -391,12 +410,9 @@ static void SMD_Write(Device *self, uint32_t address, uint16_t value)
         else
         {
             // Load Memory Address
-            // ND-11.020.01 sec 2.5, bit 5: "Load of any register while STATUS
-            // BIT 2 is true". Test the status bit, not the control word's
-            // activate bit - the two part company as soon as an operation
-            // completes (SMDReadEnd clears status bit 2 while the control word
-            // still holds bit 2 from the last GO).
-            if (data->statusRegister.bits.active)
+            // Illegal load (status b5) - see LoadIsIllegal for the two
+            // conditions (controller active / unit not on cylinder).
+            if (LoadIsIllegal(self, data))
             {
                 HandleError(self, DISK_ERR_ILLEGAL_WHILE_ACTIVE); // ILLEGAL_WHILE_DRIVE_IS_ACTIVE
                 return;
@@ -427,8 +443,8 @@ static void SMD_Write(Device *self, uint32_t address, uint16_t value)
         break;
 
     case SMD_LOAD_BLOCK_ADDRESS:
-        // Illegal load = status bit 2 true (ND-11.020.01 sec 2.5, bit 5).
-        if (data->statusRegister.bits.active)
+        // Illegal load (status b5) - active or not-on-cylinder, see LoadIsIllegal.
+        if (LoadIsIllegal(self, data))
         {
             HandleError(self, DISK_ERR_ILLEGAL_WHILE_ACTIVE);
             return;
@@ -527,7 +543,12 @@ static void SMD_Write(Device *self, uint32_t address, uint16_t value)
                 data->regs.selectedDisk->diskUnitNotReady = 0;
             }
 
-            data->seekCondition.bits.seekComplete |= (1 << data->regs.selectedUnit);
+            // NOTE: device clear must NOT set the seek-complete bit. The
+            // seek-condition register's seek-complete bits belong to actual
+            // seek completions (M4/M6/M7); DISC-TEMA section 7 reads the seek
+            // condition after a clear "With no previous Initiate-Seek" and
+            // requires bits 0-7 to be ZERO.
+            data->regs.seekIssuedMask = 0;
 
             data->statusRegister.bits.active = 0;
             data->regs.coreAddress = 0;
@@ -544,10 +565,10 @@ static void SMD_Write(Device *self, uint32_t address, uint16_t value)
             // printf("SMD::SMD_LoadControlWord ClearFlipFlops & ClearErrors\n");
         }
 
-        if (data->regs.selectedDisk)
-        {
-            data->regs.selectedDisk->onCylinder = 1;
-        }
+        // (Do NOT force onCylinder=1 here: on-cylinder is drive state that only
+        // seek completion may set. Forcing it on every control-word write made
+        // status b14 permanently 1, which DISC-TEMA catches twice: "Bit 16b (on
+        // cylinder) remained 1" after RTZ and "became 1 immediately" after M4.)
 
         if (data->statusRegister.bits.active)
         {
@@ -577,10 +598,7 @@ static void SMD_Write(Device *self, uint32_t address, uint16_t value)
                 return;
             }
 
-            data->regs.selectedDisk->onCylinder = 1;
             data->regs.selectedDisk->diskUnitNotReady = 0;
-
-
 
             ExecuteGO(self);
             // printf("SMD::ExecuteGo returned\n");
@@ -602,8 +620,9 @@ static void SMD_Write(Device *self, uint32_t address, uint16_t value)
 
         // Illegal load = status bit 2 true (ND-11.020.01 sec 2.5, bit 5). This
         // check was missing entirely; DISC-TEMA caught it as "Error after
-        // Illegal Load (Word Count), Bit 5b was 0 !".
-        if (data->statusRegister.bits.active)
+        // Illegal Load (Word Count), Bit 5b was 0 !". Also raised while the
+        // unit is off cylinder - see LoadIsIllegal.
+        if (LoadIsIllegal(self, data))
         {
             HandleError(self, DISK_ERR_ILLEGAL_WHILE_ACTIVE);
             return;
@@ -869,6 +888,9 @@ static void ExecuteGO(Device *self)
     data->statusRegister.bits.illegalLoad = 0;
     // Abnormal completion (b12) is per-operation for the same reason.
     data->statusRegister.bits.abnormalCompletion = 0;
+    // Timeout (b6) likewise: it reports on the operation that timed out, not on
+    // everything after it.
+    data->statusRegister.bits.timeOut = 0;
 
     // Get information on file size and readonly
     if (self->blockCallbacks.diskInfoFunc)
@@ -927,22 +949,30 @@ static void ExecuteGO(Device *self)
     int head = (data->regs.blockAddressI >> 8) & 0xFF;
     int cylinder = data->regs.blockAddressII;
 
-    // Convert CHS to LBA
-    long lba = ConvertCHStoLBA(&data->regs, cylinder, head, sector);
-    long position = lba * data->regs.selectedDisk->bytesPrSector;
+    // Convert CHS to LBA. 64-bit on purpose: `long` is 32 bits on Windows, and
+    // a deliberately huge cylinder number (DISC-TEMA's illegal-block-address
+    // test) overflowed the byte position into a NEGATIVE value, sailing past
+    // the `position > maxPosition` check - so the illegal address was neither
+    // rejected nor flagged as a seek error.
+    int64_t lba = ConvertCHStoLBA(&data->regs, cylinder, head, sector);
+    int64_t position = lba * data->regs.selectedDisk->bytesPrSector;
 
     // Clear seek complete bit for this drive
     data->seekCondition.bits.seekComplete &= ~(1 << data->regs.selectedUnit);
 
     // Check for address mismatch
-    long maxPosition = ConvertCHStoLBA(&data->regs,
+    int64_t maxPosition = (int64_t)ConvertCHStoLBA(&data->regs,
                                        data->regs.selectedDisk->maxCylinders,
                                        data->regs.selectedDisk->headsPrCylinder,
                                        data->regs.selectedDisk->sectorsPrTrack) *
                        data->regs.selectedDisk->bytesPrSector;
 
+    // Each CHS component is range-checked on its own (the old code compared
+    // HEAD against maxCylinders - a typo that let out-of-range heads through
+    // and never checked the cylinder at all).
     if ((position > maxPosition ||
-         head >= data->regs.selectedDisk->maxCylinders ||
+         cylinder >= data->regs.selectedDisk->maxCylinders ||
+         head >= data->regs.selectedDisk->headsPrCylinder ||
          sector >= data->regs.selectedDisk->sectorsPrTrack) &&
         !data->controlRegister.bits.testMode)
     {
@@ -968,6 +998,13 @@ static void ExecuteGO(Device *self)
 
     uint32_t wordCounter = (uint32_t)(data->regs.wordCounterHI << 16 | data->regs.wordCounter);
     uint32_t coreAddress = (uint32_t)(data->regs.coreAddressHiBits << 16 | data->regs.coreAddress);
+
+    // A transfer operation CONSUMES any outstanding seek: the seek-complete
+    // condition "will last until a transfer command is given" (ND-11.020.01,
+    // seek-condition register), and a subsequent M6 with no NEW seek must time
+    // out (DISC-TEMA section 6).
+    if (data->controlRegister.bits.deviceOperation <= DEVICE_OP_COMPARE_TRANSFER)
+        data->regs.seekIssuedMask &= (uint8_t)~(1 << data->regs.selectedUnit);
 
     // Number of blocks to transfer where each block is blockSizeBytes bytes  (typically 1024)
     uint32_t blockCounter = (wordCounter * 2) / self->blockSizeBytes;
@@ -1166,36 +1203,86 @@ static void ExecuteGO(Device *self)
         // timing (CDC 976x / Fujitsu Eagle: 3600 RPM = 16.67 ms/rev, ~30 ms avg
         // seek, 500 ms seek-timeout). A fast emulated seek (the IODELAY_HDD_SMD
         // delay below) is fine. What matters for DISC-TEMA is the on-cylinder (b14)
-        // STATE TRANSITION, not duration: b14 must be 0 WHILE seeking and return to
-        // 1 when positioned (failures: "b14 remained 1" / "became 1 immediately").
-        // TODO(DISC-TEMA item 2): today onCylinder is set 1 on select/GO and here,
-        // so b14 never drops - non-conformant. Fix = clear onCylinder at M4/M7
-        // start, set it in the completion callback; WHICH event DISC-TEMA polls for
-        // (M6 seek-complete-search / a poll count / the seek-complete interrupt) is
-        // being pinned from a captured DISC-TEMA trace first.
-        // Seek operation initiated
-        data->seekCondition.bits.seekError = 0;
+        // STATE TRANSITION, not duration: b14 must be 0 WHILE seeking (i.e. from GO
+        // until the queued completion callback fires) and 1 when positioned.
+        // DISC-TEMA checks both edges: "became 1 immediately" after M4 and
+        // "remained 1" after M7.
+        // The seek address is validated even in TEST MODE (the global address
+        // check above is test-mode-exempt for the DMA loopback's sake): control
+        // word bit 2 hands the cylinder to the drive's servo, and a cylinder
+        // outside the recording field is a SEEK ERROR whatever mode the
+        // controller is in ("an address greater than the maximum number of
+        // tracks has been selected", seek-condition b11). DISC-TEMA section 7
+        // provokes exactly this and reads the seek condition.
+        if (cylinder >= data->regs.selectedDisk->maxCylinders)
+        {
+            data->seekCondition.bits.seekError = 1;
+            HandleError(self, DISK_ERR_ADDRESS_MISMATCH);
+            FinishOperation(self);
+            return;
+        }
 
-        Device_QueueIODelay(self, IODELAY_HDD_SMD, (IODelayedCallback)SMDReadEnd, data->regs.selectedDisk->unit, self->interruptLevel);
+        data->seekCondition.bits.seekError = 0;
+        data->regs.selectedDisk->onCylinder = 0;               // heads moving
+        data->regs.seekIssuedMask |= (uint8_t)(1 << data->regs.selectedUnit);
+
+        Device_QueueIODelay(self, SMD_SEEK_TICKS, (IODelayedCallback)SMDReadEnd, data->regs.selectedDisk->unit, self->interruptLevel);
         break;
 
     case DEVICE_OP_WRITE_FORMAT:
-        // Format operation
-        // TODO: Implement disk formatting
+        // Format operation. Actual media formatting is not modelled (the image
+        // file needs no physical layout), but the WORD COUNT is validated.
+        // M5's word count is the size of the FORMAT SPECIFICATION the
+        // controller DMA-reads from memory: 2 words of address-field data per
+        // sector, i.e. 2 x sectorsPrTrack words per track (observed live: every
+        // working DISC-TEMA format issues M5 with WC = 44B = 36 = 2x18 on the
+        // 75MB disk - including the deliberate "Write-Incorrect-Format", which
+        // must SUCCEED as a write). A count that is not a whole number of
+        // track specifications leaves the controller waiting for format data
+        // that never lines up with the sector pulses -> the 500 ms controller
+        // timeout, status b6 (DISC-TEMA section 5 provokes this with WC 30000B
+        // and demands "Bit 6b (timeout)").
+        {
+            uint32_t fmtWordsPrTrack = 2u * (uint32_t)data->regs.selectedDisk->sectorsPrTrack;
+            if (fmtWordsPrTrack == 0 || wordCounter == 0 || (wordCounter % fmtWordsPrTrack) != 0)
+            {
+                if (smd_debug_enabled)
+                    fprintf(stderr, "SMD: GO Op=%s Unit=%d WC=%u not k x %u format words -> TIMEOUT\n",
+                            SMD_OpName(DEVICE_OP_WRITE_FORMAT), data->regs.selectedUnit,
+                            wordCounter, fmtWordsPrTrack);
+                HandleError(self, DISK_ERR_TIMEOUT);
+                FinishOperation(self);
+                return;
+            }
+        }
 
         if (smd_debug_enabled)
-            fprintf(stderr, "SMD: GO Op=%s Unit=%d (NOT IMPLEMENTED)\n",
+            fprintf(stderr, "SMD: GO Op=%s Unit=%d (media format not modelled)\n",
                     SMD_OpName(DEVICE_OP_WRITE_FORMAT), data->regs.selectedUnit);
         Device_QueueIODelay(self, IODELAY_HDD_SMD, (IODelayedCallback)SMDReadEnd, data->regs.selectedDisk->unit, self->interruptLevel);
         break;
 
     case DEVICE_OP_SEEK_COMPLETE:
         if (smd_debug_enabled)
-            fprintf(stderr, "SMD: GO Op=%s Unit=%d\n",
-                    SMD_OpName(DEVICE_OP_SEEK_COMPLETE), data->regs.selectedUnit);
+            fprintf(stderr, "SMD: GO Op=%s Unit=%d seekIssued=%d\n",
+                    SMD_OpName(DEVICE_OP_SEEK_COMPLETE), data->regs.selectedUnit,
+                    (data->regs.seekIssuedMask >> data->regs.selectedUnit) & 1);
+        // M6 searches for the seek-complete pulse of a PREVIOUSLY initiated
+        // seek. With no seek outstanding on this unit there is no pulse to
+        // find, and the controller runs into its timeout (status b6) -
+        // DISC-TEMA section 6: "Seek Complete Search (with no previous seek),
+        // Status Bit 6b (timeout) is 0 !". The controller stays ACTIVE for the
+        // whole search window and only then raises the timeout - dropping
+        // active immediately fails "Status Bit 2b (active) becomes 0
+        // immediately !!".
+        if (!(data->regs.seekIssuedMask & (1 << data->regs.selectedUnit)))
+        {
+            Device_QueueIODelay(self, SMD_TIMEOUT_TICKS, (IODelayedCallback)SMDTimeoutEnd, data->regs.selectedDisk->unit, self->interruptLevel);
+            break;
+        }
         regs->selectedDisk->onCylinder = true;
         data->seekCondition.bits.seekError = 0;
-        data->seekCondition.bits.seekComplete = 1 << regs->selectedUnit;
+        data->seekCondition.bits.seekComplete |= (uint16_t)(1 << regs->selectedUnit);
 
         Device_QueueIODelay(self, IODELAY_HDD_SMD, (IODelayedCallback)SMDReadEnd, data->regs.selectedDisk->unit, self->interruptLevel);
         break;
@@ -1204,11 +1291,15 @@ static void ExecuteGO(Device *self)
         if (smd_debug_enabled)
             fprintf(stderr, "SMD: GO Op=%s Unit=%d\n",
                     SMD_OpName(DEVICE_OP_RETURN_TO_ZERO), data->regs.selectedUnit);
+        // RTZ is a seek to cylinder 0: heads move, so on-cylinder DROPS now and
+        // the completion callback restores it (DISC-TEMA: "Error after
+        // Return-To-Zero Seek, Bit 16b (on cylinder) remained 1 !"). The
+        // seek-complete bit is likewise set by the completion, not here.
         data->seekCondition.bits.seekError = 0;
-        regs->selectedDisk->onCylinder = 1;
-        data->seekCondition.bits.seekComplete = 1 << regs->selectedUnit;
+        regs->selectedDisk->onCylinder = 0;
+        data->regs.seekIssuedMask |= (uint8_t)(1 << data->regs.selectedUnit);
 
-        Device_QueueIODelay(self, IODELAY_HDD_SMD, (IODelayedCallback)SMDReadEnd, data->regs.selectedDisk->unit, self->interruptLevel);
+        Device_QueueIODelay(self, SMD_SEEK_TICKS, (IODelayedCallback)SMDReadEnd, data->regs.selectedDisk->unit, self->interruptLevel);
         break;
 
     case DEVICE_OP_RUN_ECC:
@@ -1251,10 +1342,91 @@ static bool SMDReadEnd(Device *self, int drive)
 
     ClearFlipFlops(&data->regs);
 
-    data->seekCondition.bits.seekComplete = 1 << drive;
+    // Completion is operation-aware. Only a completed SEEK (M4/M6/M7) raises
+    // the unit's seek-complete bit and puts the heads back on cylinder; a
+    // completed TRANSFER must NOT set seek-complete (DISC-TEMA section 7 reads
+    // the seek condition "With no previous Initiate-Seek" after transfers and
+    // requires bits 0-7 zero). The control register still holds the operation
+    // of the GO this callback belongs to. |= not =: other units keep their
+    // pending seek-complete state.
+    switch (data->controlRegister.bits.deviceOperation)
+    {
+    case DEVICE_OP_INITIATE_SEEK:
+    case DEVICE_OP_SEEK_COMPLETE:
+        data->seekCondition.bits.seekComplete |= (uint16_t)(1 << drive);
+        if (drive >= 0 && drive < data->regs.maxUnits)
+            data->regs.disks[drive].onCylinder = 1;
+        break;
+    case DEVICE_OP_RETURN_TO_ZERO:
+        // RTZ puts the heads back on cylinder 0 but does NOT raise the
+        // seek-complete condition: the manual ties that condition to "the
+        // initiate seek commands", and DISC-TEMA section 7 reads the seek
+        // condition after an RTZ "With no previous Initiate-Seek" expecting
+        // bits 0-7 zero. (Inferred from that check; the manuals don't state
+        // the RTZ case explicitly.)
+        if (drive >= 0 && drive < data->regs.maxUnits)
+            data->regs.disks[drive].onCylinder = 1;
+        break;
+    default:
+        break;
+    }
 
     if (data->statusRegister.bits.interruptEnabled)
         return true; // returning true triggers GenerateInterrupt()
+    return false;
+}
+
+// Delayed controller-timeout completion (M6 with no outstanding seek): the
+// search window has elapsed with no seek-complete pulse. Raise timeout (b6,
+// with abnormal completion via HandleError) and terminate the operation the
+// same way SMDReadEnd does.
+static bool SMDTimeoutEnd(Device *self, int drive)
+{
+    (void)drive;
+    if (!self)
+        return false;
+    SMDData *data = (SMDData *)self->deviceData;
+    if (!data)
+        return false;
+
+    if (smd_debug_enabled)
+        fprintf(stderr, "SMD: TIMEOUT drive=%d (seek-complete search found no seek)\n", drive);
+
+    HandleError(self, DISK_ERR_TIMEOUT);
+
+    data->statusRegister.bits.active = 0;
+    data->statusRegister.bits.readyForTransfer = 1;
+    ClearFlipFlops(&data->regs);
+
+    if (data->statusRegister.bits.interruptEnabled)
+        return true;
+    return false;
+}
+
+// Is loading a data register (memory address, block address, word counter)
+// illegal right now?  Two conditions, from two sources that we take as
+// complementary rather than conflicting:
+//  - ND-11.020.01 sec 2.5 bit 5: "Load of any register while STATUS BIT 2 is
+//    true" - the controller is ACTIVE. Test the status bit, not the control
+//    word's activate bit - the two part company as soon as an operation
+//    completes (SMDReadEnd clears status bit 2 while the control word still
+//    holds bit 2 from the last GO).
+//  - ND-830005.3 (DISC-TEMA) status-bit table, bit 5: "Illegal load, i.e. load
+//    while the unit is NOT ON CYLINDER". This is what DISC-TEMA section 5
+//    exercises right after a seek: the heads are moving, so a register load
+//    must be refused. Only applies when a real, mounted unit is selected -
+//    with no drive there is no on-cylinder signal at all.
+// The CONTROL WORD register is NOT gated by the on-cylinder condition (only by
+// active, with device-clear excepted) - it has to be loadable off-cylinder,
+// otherwise the seek/RTZ commands that MOVE the heads could never be issued.
+static bool LoadIsIllegal(Device *self, SMDData *data)
+{
+    if (data->statusRegister.bits.active)
+        return true;
+    if (data->regs.selectedDisk &&
+        UnitAttached(self, data->regs.selectedDisk) &&
+        !data->regs.selectedDisk->onCylinder)
+        return true;
     return false;
 }
 
@@ -1327,7 +1499,7 @@ static void ClearFlipFlops(ControllerRegs *regs)
     regs->marFlipFlop = false;
 }
 
-static long ConvertCHStoLBA(ControllerRegs *regs, int cylinder, int head, int sector)
+static int64_t ConvertCHStoLBA(ControllerRegs *regs, int cylinder, int head, int sector)
 {
     if (!regs || !regs->selectedDisk)
         return -1;
@@ -1336,7 +1508,9 @@ static long ConvertCHStoLBA(ControllerRegs *regs, int cylinder, int head, int se
     if ((cylinder == 0) && (head == 0) && (sector == 0))
         return 0; // invalid, but used by SeekToZero
 
-    return (cylinder * regs->selectedDisk->headsPrCylinder + head) * regs->selectedDisk->sectorsPrTrack + (sector); // was (sector-1), but for this BigDisk driver sector 0 is the start sector (not 1)
+    // 64-bit math - see the caller: a huge (illegal) cylinder must produce a
+    // huge positive LBA, not a 32-bit wrap-around.
+    return ((int64_t)cylinder * regs->selectedDisk->headsPrCylinder + head) * regs->selectedDisk->sectorsPrTrack + (sector); // was (sector-1), but for this BigDisk driver sector 0 is the start sector (not 1)
 }
 
 static void ClearErrors(Device *self)
@@ -1422,6 +1596,10 @@ static void HandleError(Device *self, DiskError error)
 
     case DISK_ERR_ILLEGAL_WHILE_ACTIVE: // ILLEGAL_WHILE_DRIVE_IS_ACTIVE
         data->statusRegister.bits.illegalLoad = 1;
+        break;
+
+    case DISK_ERR_TIMEOUT: // 500 ms controller timeout (status b6)
+        data->statusRegister.bits.timeOut = 1;
         break;
     }
 }
@@ -1553,7 +1731,14 @@ Device *CreateSMDDevice(uint8_t thumbwheel)
     // SMD_Boot already used the correct regs.selectedUnit; only the data transfers
     // used this field. Setting it here makes selectedDisk->unit valid everywhere.
     for (int i = 0; i < data->regs.maxUnits; i++)
+    {
         data->regs.disks[i].unit = (uint8_t)i;
+        // A powered-up drive that has loaded its heads sits ON CYLINDER (over
+        // cylinder 0) until a seek moves them. Starting at 0 would make every
+        // register load before the first seek an illegal load (b5 = load while
+        // not on cylinder, ND-830005.3 status-bit table).
+        data->regs.disks[i].onCylinder = 1;
+    }
 
     // blockSizeBytes will be set when a disk is selected (SMD_Boot or ExecuteGO)
 
