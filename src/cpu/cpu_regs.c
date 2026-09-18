@@ -46,7 +46,7 @@ bool setPIL(char newLevel)
 }
 
 // Set and lock PEA
-void setPEA(ushort pea)
+void setPEA(uint16_t pea)
 {
 	if (gPEA_Lock)
 		return;
@@ -55,7 +55,7 @@ void setPEA(ushort pea)
 }
 
 // Set and lock PES
-void setPES(ushort pes)
+void setPES(uint16_t pes)
 {
 	if (gPES_Lock)
 		return;
@@ -64,7 +64,7 @@ void setPES(ushort pes)
 }
 
 // Set and lock PGS
-void setPGS(ushort pgs)
+void setPGS(uint16_t pgs)
 {
 	if (gPGS_Lock)
 		return;
@@ -81,17 +81,17 @@ void setreg(int r, int val)
 {
 	if (r == _STS)
 	{
-		gReg->reg[CurrLEVEL][r] = (ushort)(val & 0x00FF); // Only lower 8 bits
+		gReg->reg[CurrLEVEL][r] = (uint16_t)(val & 0x00FF); // Only lower 8 bits
 	}
 	else
 	{
-		gReg->reg[CurrLEVEL][r] = (ushort)(val & 0xFFFF);
+		gReg->reg[CurrLEVEL][r] = (uint16_t)(val & 0xFFFF);
 	}
 }
 
-ushort getbit(ushort regnum, ushort stsbit)
+uint16_t getbit(uint16_t regnum, uint16_t stsbit)
 {
-	ushort result, tmp;
+	uint16_t result, tmp;
 	if (regnum == _STS)
 	{
 		// Undoocumented, but all 16 STS bits are read
@@ -105,9 +105,9 @@ ushort getbit(ushort regnum, ushort stsbit)
 	return result;
 }
 
-void clrbit(ushort regnum, ushort stsbit)
+void clrbit(uint16_t regnum, uint16_t stsbit)
 {
-	ushort thebit;
+	uint16_t thebit;
 	thebit = (1 << stsbit) ^ 0xFFFF;
 	gReg->reg[CurrLEVEL][regnum] = (thebit & gReg->reg[CurrLEVEL][regnum]);
 }
@@ -117,9 +117,9 @@ void clrbit(ushort regnum, ushort stsbit)
  * This function handles all setting of MSB STS bits
  * NOTE:: PIL handling is done by setPIL function!!
  */
-void setbit_STS_MSB(ushort stsbit, char val)
+void setbit_STS_MSB(uint16_t stsbit, char val)
 {
-	ushort thebit = 0;
+	uint16_t thebit = 0;
 
 	if (val)
 	{
@@ -135,7 +135,7 @@ void setbit_STS_MSB(ushort stsbit, char val)
 
 
 
-void setbit(ushort regnum, ushort stsbit, char val)
+void setbit(uint16_t regnum, uint16_t stsbit, char val)
 {
 
 	if ((regnum == _STS) && (stsbit > 7))
@@ -144,7 +144,7 @@ void setbit(ushort regnum, ushort stsbit, char val)
 		return;
 	}
 
-	ushort thebit = 0;
+	uint16_t thebit = 0;
 	if (val)
 	{
 		thebit = (1 << stsbit);
@@ -163,7 +163,7 @@ void setbit(ushort regnum, ushort stsbit, char val)
 }
 
 
-void AdjustSTS(ushort reg_a, ushort operand, int result)
+void AdjustSTS(uint16_t reg_a, uint16_t operand, int result)
 {
 	/* C (carry) */
 	if (result > 0xFFFF)

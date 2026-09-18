@@ -50,7 +50,7 @@ InstrFunc instr_funcs[65536];
 
 /*********** TODO ***********/
 
-extern ushort io_op(ushort ioadd, ushort regA);
+extern uint16_t io_op(uint16_t ioadd, uint16_t regA);
 extern int IO_Ident(uint16_t level);
 
 /************************************ HELPER FUNCTIONS *************************************/
@@ -67,8 +67,8 @@ bool CheckPriv(void)
 		return true; // memory protection disabled
 
 	// Check ring
-	ushort pcr = gReg->reg_PCR[CurrLEVEL];
-	ushort ring = pcr & 0x03;
+	uint16_t pcr = gReg->reg_PCR[CurrLEVEL];
+	uint16_t ring = pcr & 0x03;
 
 	if ((ring == 2) || (ring == 3))
 		return true;
@@ -80,9 +80,9 @@ bool CheckPriv(void)
 }
 
 
-short signExtend(ushort x)
+short signExtend(uint16_t x)
 {
-	short res = (ushort)x;
+	short res = (uint16_t)x;
 
 	// If negative (bit 7==1), extend high 8 bits with 1's
 	if ((x & 1 << 7) != 0)
@@ -92,7 +92,7 @@ short signExtend(ushort x)
 }
 
 
-ushort do_add(ushort a, ushort b, ushort k)
+uint16_t do_add(uint16_t a, uint16_t b, uint16_t k)
 {
 	int tmp;
 	bool is_diff;
@@ -114,7 +114,7 @@ ushort do_add(ushort a, ushort b, ushort k)
 		setbit(_STS, _Q, 0);
 		//setbit(_STS, _O, 0); NO!
 	}
-	return (ushort)tmp;
+	return (uint16_t)tmp;
 }
 
 
@@ -136,7 +136,7 @@ unsigned int ReadEL(unsigned el)
 }
 
 // write el to memory
-void WriteEL(uint el, ushort value)
+void WriteEL(uint32_t el, uint16_t value)
 {
 	WritePhysicalMemory(el, value, true);
 }
@@ -145,7 +145,7 @@ void WriteEL(uint el, ushort value)
 
 /***************** HELPER INSTRUCTIONS *****************/
 
-void illegal_instr(ushort operand)
+void illegal_instr(uint16_t operand)
 {
 	/*
 	 * --log=cpu:debug logs every illegal-instruction trap.  This is how a guest's
@@ -157,7 +157,7 @@ void illegal_instr(ushort operand)
 	interrupt(14, 1 << 4); /* Illegal Instruction <= WILL TRAP! */
 }
 
-void unimplemented_instr(ushort operand)
+void unimplemented_instr(uint16_t operand)
 {
 	printf("\r\n");
 	printf("--------------------------------\r\n");
@@ -175,7 +175,7 @@ void unimplemented_instr(ushort operand)
 
 /* AAA
  */
-void ndfunc_aaa(ushort operand)
+void ndfunc_aaa(uint16_t operand)
 {
 	short temp;
 
@@ -185,9 +185,9 @@ void ndfunc_aaa(ushort operand)
 
 /* AAB
  */
-void ndfunc_aab(ushort operand)
+void ndfunc_aab(uint16_t operand)
 {
-	ushort temp;
+	uint16_t temp;
 
 	temp = signExtend(operand & 0xFF);
 	gB = do_add(gB, temp, 0);
@@ -195,9 +195,9 @@ void ndfunc_aab(ushort operand)
 
 /* AAT
  */
-void ndfunc_aat(ushort operand)
+void ndfunc_aat(uint16_t operand)
 {
-	ushort temp;
+	uint16_t temp;
 
 	temp = signExtend(operand & 0xFF);
 	gT = do_add(gT, temp, 0);
@@ -205,9 +205,9 @@ void ndfunc_aat(ushort operand)
 
 /* AAX
  */
-void ndfunc_aax(ushort operand)
+void ndfunc_aax(uint16_t operand)
 {
-	ushort temp;
+	uint16_t temp;
 
 	temp = signExtend(operand & 0xFF);
 
@@ -216,7 +216,7 @@ void ndfunc_aax(ushort operand)
 
 /* MON
  */
-void ndfunc_mon(ushort operand)
+void ndfunc_mon(uint16_t operand)
 {
 	uint16_t monitor_number = (operand & 0x1ff);
 
@@ -244,35 +244,35 @@ void ndfunc_mon(ushort operand)
 
 /* SAA
  */
-void ndfunc_saa(ushort operand)
+void ndfunc_saa(uint16_t operand)
 {
 	setreg(_A, signExtend(operand & 0xFF));
 }
 
 /* SAB
  */
-void ndfunc_sab(ushort operand)
+void ndfunc_sab(uint16_t operand)
 {
 	setreg(_B, signExtend(operand & 0xFF));
 }
 
 /* SAT
  */
-void ndfunc_sat(ushort operand)
+void ndfunc_sat(uint16_t operand)
 {
 	setreg(_T, signExtend(operand & 0xFF));
 }
 
 /* SAX
  */
-void ndfunc_sax(ushort operand)
+void ndfunc_sax(uint16_t operand)
 {
 	setreg(_X, signExtend(operand & 0xFF));
 }
 
 /* SHT, SHD, SHA, SAD
  */
-void ndfunc_shifts(ushort operand)
+void ndfunc_shifts(uint16_t operand)
 {
 	uint32_t double_reg;
 
@@ -299,7 +299,7 @@ void ndfunc_shifts(ushort operand)
 
 /* NLZ
  */
-void ndfunc_nlz(ushort operand)
+void ndfunc_nlz(uint16_t operand)
 {
 	if (CurrentFPPType == FPP48)
 		DoNLZ(operand & 0xFF);
@@ -309,7 +309,7 @@ void ndfunc_nlz(ushort operand)
 
 /* DNZ
  */
-void ndfunc_dnz(ushort operand)
+void ndfunc_dnz(uint16_t operand)
 {
 	if (CurrentFPPType == FPP48)
 		DoDNZ(operand & 0xFF);
@@ -319,7 +319,7 @@ void ndfunc_dnz(ushort operand)
 
 /* SRB (Privileged)
  */
-void ndfunc_srb(ushort operand)
+void ndfunc_srb(uint16_t operand)
 {
 	if (!CheckPriv())
 		return;
@@ -330,7 +330,7 @@ void ndfunc_srb(ushort operand)
 
 /* LRB (Privileged)
  */
-void ndfunc_lrb(ushort operand)
+void ndfunc_lrb(uint16_t operand)
 {
 	if (!CheckPriv())
 		return;
@@ -351,13 +351,13 @@ void ndfunc_lrb(ushort operand)
 /// A conditional jump instruction must be specified by means of the 8 mnemonics listed below.
 /// It is illegal to specify CJP or any combinations of, B, | and , X.
 /// </summary>
-void CJP(bool jmp_flag, ushort operand)
+void CJP(bool jmp_flag, uint16_t operand)
 {
 	if (jmp_flag)
 	{
-		ushort old_gPC = gPC - 1;
+		uint16_t old_gPC = gPC - 1;
 
-		ushort temp = signExtend(operand & 0xff);
+		uint16_t temp = signExtend(operand & 0xff);
 
 		/* MICROCODE-VALIDATED 2026-07-20: the address arithmetic must NOT touch STS.
 		 * do_add() writes STS C (and O/Q) as a side effect, but the whole CJP family
@@ -372,7 +372,7 @@ void CJP(bool jmp_flag, ushort operand)
 		 * Plain wrapping 16-bit add - identical arithmetic to the old do_add() call, minus
 		 * the flag write-back.
 		 */
-		gPC = (ushort)((ushort)(gPC - 1) + (ushort)temp);
+		gPC = (uint16_t)((uint16_t)(gPC - 1) + (uint16_t)temp);
 
 		if (DISASM)
 			disasm_userel(old_gPC, gPC);
@@ -386,7 +386,7 @@ void CJP(bool jmp_flag, ushort operand)
 ///
 /// Affected: (P)
 /// </summary>
-void ndfunc_jap(ushort operand)
+void ndfunc_jap(uint16_t operand)
 {
 	bool flag = ((1 << 15) & gA) == 0;
 	CJP(flag, operand);
@@ -399,7 +399,7 @@ void ndfunc_jap(ushort operand)
 ///
 /// Affected: (P)
 /// </summary>
-void ndfunc_jan(ushort operand)
+void ndfunc_jan(uint16_t operand)
 {
 	bool flag = ((1 << 15) & gA) != 0;
 	CJP(flag, operand);
@@ -412,7 +412,7 @@ void ndfunc_jan(ushort operand)
 ///
 /// Affected: (P)
 /// </summary>
-void ndfunc_jaz(ushort operand)
+void ndfunc_jaz(uint16_t operand)
 {
 	/* MICROCODE-VALIDATED 2026-07-20: JAZ does NOT touch STS.
 	 * RASK CS 007310-007313 (ND-110-RASK.LISTING.TXT:12259-12262) is
@@ -435,7 +435,7 @@ void ndfunc_jaz(ushort operand)
 ///
 /// Affected: (P)
 /// </summary>
-void ndfunc_jaf(ushort operand)
+void ndfunc_jaf(uint16_t operand)
 {
 	CJP(gA != 0, operand);
 }
@@ -448,7 +448,7 @@ void ndfunc_jaf(ushort operand)
 /// X is incremented by one, and if the X bit 15 equals zero after the incrementation, the jump takes place.
 /// Affected: (P) and (X)
 /// </summary>
-void ndfunc_jpc(ushort operand)
+void ndfunc_jpc(uint16_t operand)
 {
 	gX++;
 
@@ -463,7 +463,7 @@ void ndfunc_jpc(ushort operand)
 ///
 /// Affected: (P) and(X)
 /// </summary>
-void ndfunc_jnc(ushort operand)
+void ndfunc_jnc(uint16_t operand)
 {
 	gX++;
 	CJP((gX & (1 << 15)) != 0, operand);
@@ -476,7 +476,7 @@ void ndfunc_jnc(ushort operand)
 ///
 /// Affected: (P)
 /// </summary>
-void ndfunc_jxn(ushort operand)
+void ndfunc_jxn(uint16_t operand)
 {
 	CJP((gX & (1 << 15)) != 0, operand);
 }
@@ -488,16 +488,16 @@ void ndfunc_jxn(ushort operand)
 ///
 /// Affected: (P)
 /// </summary>
-void ndfunc_jxz(ushort operand)
+void ndfunc_jxz(uint16_t operand)
 {
 	CJP(gX == 0, operand);
 }
 
 /* JPL
  */
-void ndfunc_jpl(ushort operand)
+void ndfunc_jpl(uint16_t operand)
 {
-	ushort old_gPC = gPC - 1;
+	uint16_t old_gPC = gPC - 1;
 
 	gEA = New_GetEffectiveAddr(operand, &gUseAPT);
 
@@ -530,7 +530,7 @@ void ndfunc_jpl(ushort operand)
 /* SKP
  * Skip instructions, this one interleaves with other instructions so might need some extra checkings.
  */
-void ndfunc_skp(ushort operand)
+void ndfunc_skp(uint16_t operand)
 {
 	if (IsSkip(operand))
 		gPC++;
@@ -549,7 +549,7 @@ void ndfunc_skp(ushort operand)
 ///
 /// The instruction will always have a skip return (no error condition)
 /// </summary>
-void ndfunc_bfill_new(ushort operand)
+void ndfunc_bfill_new(uint16_t operand)
 {
 	(void)operand;
 	bool useAPT = false;
@@ -575,13 +575,13 @@ void ndfunc_bfill_new(ushort operand)
 	gPC++; // Skip return
 }
 
-void ndfunc_bfill(ushort operand)
+void ndfunc_bfill(uint16_t operand)
 {
 	(void)operand;
-	ushort d1, len, addr, i;
-	ushort right = (gT & ((ushort)1 << 15)) ? 1 : 0;	   /* Start with right byte? (LSB) */
-	bool is_apt = (gT & ((ushort)1 << 14)) ? true : false; /* Use APT or not? */
-	ushort thebyte = gA & 0xff;
+	uint16_t d1, len, addr, i;
+	uint16_t right = (gT & ((uint16_t)1 << 15)) ? 1 : 0;	   /* Start with right byte? (LSB) */
+	bool is_apt = (gT & ((uint16_t)1 << 14)) ? true : false; /* Use APT or not? */
+	uint16_t thebyte = gA & 0xff;
 	len = gT & 0x0fff; /* Number of bytes to do */
 	addr = gX;		   /* just in case we do 0 bytes */
 	d1 = gX;
@@ -601,7 +601,7 @@ void ndfunc_bfill(ushort operand)
 
 /* STZ
  */
-void ndfunc_stz(ushort operand)
+void ndfunc_stz(uint16_t operand)
 {
 	gEA = New_GetEffectiveAddr(operand, &gUseAPT);
 	MemoryWrite(0, gEA, gUseAPT, 2);
@@ -609,7 +609,7 @@ void ndfunc_stz(ushort operand)
 
 /* STA
  */
-void ndfunc_sta(ushort operand)
+void ndfunc_sta(uint16_t operand)
 {
 	gEA = New_GetEffectiveAddr(operand, &gUseAPT);
 
@@ -618,7 +618,7 @@ void ndfunc_sta(ushort operand)
 
 /* STT
  */
-void ndfunc_stt(ushort operand)
+void ndfunc_stt(uint16_t operand)
 {
 	gEA = New_GetEffectiveAddr(operand, &gUseAPT);
 	MemoryWrite(gT, gEA, gUseAPT, 2);
@@ -626,7 +626,7 @@ void ndfunc_stt(ushort operand)
 
 /* STX
  */
-void ndfunc_stx(ushort operand)
+void ndfunc_stx(uint16_t operand)
 {
 	gEA = New_GetEffectiveAddr(operand, &gUseAPT);
 	MemoryWrite(gX, gEA, gUseAPT, 2);
@@ -634,7 +634,7 @@ void ndfunc_stx(ushort operand)
 
 /* STD
  */
-void ndfunc_std(ushort operand)
+void ndfunc_std(uint16_t operand)
 {
 	gEA = New_GetEffectiveAddr(operand, &gUseAPT);
 	MemoryWrite(gA, gEA + 0, gUseAPT, 2);
@@ -653,7 +653,7 @@ void ndfunc_std(ushort operand)
  * operand at ea/ea+1). STF on a 32-bit float writes stale T at ea and lands
  * the value one word off - misaligned exactly as on the real CPU.
  */
-void ndfunc_stf(ushort operand)
+void ndfunc_stf(uint16_t operand)
 {
 	gEA = New_GetEffectiveAddr(operand, &gUseAPT);
 	MemoryWrite(gT, gEA + 0, gUseAPT, 2);
@@ -663,7 +663,7 @@ void ndfunc_stf(ushort operand)
 
 /* LDA
  */
-void ndfunc_lda(ushort operand)
+void ndfunc_lda(uint16_t operand)
 {
 	gEA = New_GetEffectiveAddr(operand, &gUseAPT);
 	gA = MemoryRead(gEA, gUseAPT);
@@ -671,7 +671,7 @@ void ndfunc_lda(ushort operand)
 
 /* LDT
  */
-void ndfunc_ldt(ushort operand)
+void ndfunc_ldt(uint16_t operand)
 {
 	gEA = New_GetEffectiveAddr(operand, &gUseAPT);
 	gT = MemoryRead(gEA, gUseAPT);
@@ -679,7 +679,7 @@ void ndfunc_ldt(ushort operand)
 
 /* LDX
  */
-void ndfunc_ldx(ushort operand)
+void ndfunc_ldx(uint16_t operand)
 {
 	gEA = New_GetEffectiveAddr(operand, &gUseAPT);
 	gX = MemoryRead(gEA, gUseAPT);
@@ -687,7 +687,7 @@ void ndfunc_ldx(ushort operand)
 
 /* LDD
  */
-void ndfunc_ldd(ushort operand)
+void ndfunc_ldd(uint16_t operand)
 {
 	gEA = New_GetEffectiveAddr(operand, &gUseAPT);
 
@@ -706,7 +706,7 @@ void ndfunc_ldd(ushort operand)
  * --fpp=32: LDF overwrites T (which the 32-bit FPP never touches) and reads
  * the A,D value one word off - use LDD instead for 32-bit floats.
  */
-void ndfunc_ldf(ushort operand)
+void ndfunc_ldf(uint16_t operand)
 {
 	gEA = New_GetEffectiveAddr(operand, &gUseAPT);
 
@@ -720,39 +720,39 @@ void ndfunc_ldf(ushort operand)
 
 /* STZTX
  */
-void ndfunc_stztx(ushort operand)
+void ndfunc_stztx(uint16_t operand)
 {
 	if (!CheckPriv())
 		return;
 
 	uint8_t displacement = (operand >> 3) & 0x07;
-	uint EL = calcEL(displacement);
+	uint32_t EL = calcEL(displacement);
 	WriteEL(EL, 0);
 
 }
 
 /* STATX
  */
-void ndfunc_statx(ushort operand)
+void ndfunc_statx(uint16_t operand)
 {
 	if (!CheckPriv())
 		return;
 
 	uint8_t displacement = (operand >> 3) & 0x07;
-	uint EL = calcEL(displacement);
+	uint32_t EL = calcEL(displacement);
 	WriteEL(EL, gA);
 
 }
 
 /* STDTX
  */
-void ndfunc_stdtx(ushort operand)
+void ndfunc_stdtx(uint16_t operand)
 {
 	if (!CheckPriv())
 		return;
 
 	uint8_t displacement = (operand >> 3) & 0x07;
-	uint EL = calcEL(displacement);
+	uint32_t EL = calcEL(displacement);
 	WriteEL(EL, gA);
 	WriteEL(EL + 1, gD);
 
@@ -770,7 +770,7 @@ void ndfunc_stdtx(ushort operand)
 ///
 /// Affected: (A)
 /// </summary>
-void ndfunc_ldatx(ushort operand)
+void ndfunc_ldatx(uint16_t operand)
 {
 	if (!CheckPriv())
 		return;
@@ -792,7 +792,7 @@ void ndfunc_ldatx(ushort operand)
 ///
 /// Affected: (X)
 /// </summary>
-void ndfunc_ldxtx(ushort operand)
+void ndfunc_ldxtx(uint16_t operand)
 {
 	if (!CheckPriv())
 		return;
@@ -814,7 +814,7 @@ void ndfunc_ldxtx(ushort operand)
 ///
 /// Affected: (A,D)
 /// </summary>
-void ndfunc_lddtx(ushort operand)
+void ndfunc_lddtx(uint16_t operand)
 {
 
 	if (!CheckPriv())
@@ -840,9 +840,9 @@ void ndfunc_lddtx(ushort operand)
 ///
 /// Affected: (B)
 /// </summary>
-void ndfunc_ldbtx(ushort operand)
+void ndfunc_ldbtx(uint16_t operand)
 {
-	ushort temp;
+	uint16_t temp;
 	unsigned int result;
 
 	if (!CheckPriv())
@@ -866,11 +866,11 @@ void ndfunc_ldbtx(ushort operand)
 ///
 /// Affected: (EL), (P)
 /// </summary>
-void ndfunc_min(ushort operand)
+void ndfunc_min(uint16_t operand)
 {
 	gEA = New_GetEffectiveAddr(operand, &gUseAPT);
 
-	ushort temp = MemoryRead(gEA, gUseAPT);
+	uint16_t temp = MemoryRead(gEA, gUseAPT);
 	temp++;
 	MemoryWrite(temp, gEA, gUseAPT, 2);
 
@@ -880,26 +880,26 @@ void ndfunc_min(ushort operand)
 
 /* ADD
  */
-void ndfunc_add(ushort operand)
+void ndfunc_add(uint16_t operand)
 {
 	gEA = New_GetEffectiveAddr(operand, &gUseAPT);
 
-	ushort eff_word = MemoryRead(gEA, gUseAPT);
+	uint16_t eff_word = MemoryRead(gEA, gUseAPT);
 	gA = do_add(gA, eff_word, 0);
 }
 
 /* SUB
  */
-void ndfunc_sub(ushort operand)
+void ndfunc_sub(uint16_t operand)
 {
 	gEA = New_GetEffectiveAddr(operand, &gUseAPT);
-	ushort eff_word = MemoryRead(gEA, gUseAPT);
+	uint16_t eff_word = MemoryRead(gEA, gUseAPT);
 	gA = do_add(gA, ~eff_word, 1);
 }
 
 /* AND
  */
-void ndfunc_and(ushort operand)
+void ndfunc_and(uint16_t operand)
 {
 	gEA = New_GetEffectiveAddr(operand, &gUseAPT);
 	gA = gA & MemoryRead(gEA, gUseAPT);
@@ -907,7 +907,7 @@ void ndfunc_and(ushort operand)
 
 /* ORA
  */
-void ndfunc_ora(ushort operand)
+void ndfunc_ora(uint16_t operand)
 {
 	gEA = New_GetEffectiveAddr(operand, &gUseAPT);
 	gA = gA | MemoryRead(gEA, gUseAPT);
@@ -921,12 +921,12 @@ void ndfunc_ora(ushort operand)
  * 3-word T/A/D movers in the real microcode (see ndfunc_stf/ndfunc_ldf) and
  * would place the value one word off. Store/load 32-bit floats with STD/LDD.
  */
-void ndfunc_fad(ushort operand)
+void ndfunc_fad(uint16_t operand)
 {
 	gEA = New_GetEffectiveAddr(operand, &gUseAPT);
 
 	if (CurrentFPPType == FPP48) {
-		ushort a[3], b[3], r[3];
+		uint16_t a[3], b[3], r[3];
 
 		a[0] = gT;
 		a[1] = gA;
@@ -939,7 +939,7 @@ void ndfunc_fad(ushort operand)
 		gA = r[1];
 		gD = r[2];
 	} else {
-		ushort a[2], b[2], r[2];
+		uint16_t a[2], b[2], r[2];
 
 		a[0] = gA;
 		a[1] = gD;
@@ -953,12 +953,12 @@ void ndfunc_fad(ushort operand)
 
 /* FSB
  */
-void ndfunc_fsb(ushort operand)
+void ndfunc_fsb(uint16_t operand)
 {
 	gEA = New_GetEffectiveAddr(operand, &gUseAPT);
 
 	if (CurrentFPPType == FPP48) {
-		ushort a[3], b[3], r[3];
+		uint16_t a[3], b[3], r[3];
 
 		a[0] = gT;
 		a[1] = gA;
@@ -971,7 +971,7 @@ void ndfunc_fsb(ushort operand)
 		gA = r[1];
 		gD = r[2];
 	} else {
-		ushort a[2], b[2], r[2];
+		uint16_t a[2], b[2], r[2];
 
 		a[0] = gA;
 		a[1] = gD;
@@ -985,12 +985,12 @@ void ndfunc_fsb(ushort operand)
 
 /* FMU
  */
-void ndfunc_fmu(ushort operand)
+void ndfunc_fmu(uint16_t operand)
 {
 	gEA = New_GetEffectiveAddr(operand, &gUseAPT);
 
 	if (CurrentFPPType == FPP48) {
-		ushort a[3], b[3], r[3];
+		uint16_t a[3], b[3], r[3];
 
 		a[0] = gT;
 		a[1] = gA;
@@ -1003,7 +1003,7 @@ void ndfunc_fmu(ushort operand)
 		gA = r[1];
 		gD = r[2];
 	} else {
-		ushort a[2], b[2], r[2];
+		uint16_t a[2], b[2], r[2];
 
 		a[0] = gA;
 		a[1] = gD;
@@ -1017,12 +1017,12 @@ void ndfunc_fmu(ushort operand)
 
 /* FDV
  */
-void ndfunc_fdv(ushort operand)
+void ndfunc_fdv(uint16_t operand)
 {
 	gEA = New_GetEffectiveAddr(operand, &gUseAPT);
 
 	if (CurrentFPPType == FPP48) {
-		ushort a[3], b[3], r[3];
+		uint16_t a[3], b[3], r[3];
 
 		a[0] = gT;
 		a[1] = gA;
@@ -1038,7 +1038,7 @@ void ndfunc_fdv(ushort operand)
 		gA = r[1];
 		gD = r[2];
 	} else {
-		ushort a[2], b[2], r[2];
+		uint16_t a[2], b[2], r[2];
 
 		a[0] = gA;
 		a[1] = gD;
@@ -1055,9 +1055,9 @@ void ndfunc_fdv(ushort operand)
 
 /* JMP
  */
-void ndfunc_jmp(ushort operand)
+void ndfunc_jmp(uint16_t operand)
 {
-	ushort old_gPC = gPC - 1;
+	uint16_t old_gPC = gPC - 1;
 
 	gEA = New_GetEffectiveAddr(operand, &gUseAPT);
 	gPC = gEA;
@@ -1068,7 +1068,7 @@ void ndfunc_jmp(ushort operand)
 
 /* GECO
  */
-void ndfunc_geco(ushort operand)
+void ndfunc_geco(uint16_t operand)
 {
 	(void)operand;
 	/*
@@ -1538,7 +1538,7 @@ static bool versn_is_nd120(void)
 	return (CurrentCPUType == ND120CX);
 }
 
-void ndfunc_versn(ushort operand)
+void ndfunc_versn(uint16_t operand)
 {
 	(void)operand;
 	/*
@@ -1547,7 +1547,7 @@ void ndfunc_versn(ushort operand)
 	 * so index 15 read one byte past the end of the array.
 	 */
 	int offset = (gA >> 8) & 0x0F;
-	ushort a_in = gA; /* input A (PIL/offset selector) before VERSN overwrites it - for the trace below */
+	uint16_t a_in = gA; /* input A (PIL/offset selector) before VERSN overwrites it - for the trace below */
 
 	// Set D register to the back-wiring PROM byte at the specified offset
 	gD = g_versn.prom[offset];
@@ -1566,7 +1566,7 @@ void ndfunc_versn(ushort operand)
 	// This is what makes TPE print a real "Print number: 3202" / "Print release: D" for the ND-120.
 	if (CurrentCPUType == ND120CX)
 	{
-		gA = (ushort)(((5  & 0x07) << 13)   /* PRINT NUMBER  = 5  => 3202 */
+		gA = (uint16_t)(((5  & 0x07) << 13)   /* PRINT NUMBER  = 5  => 3202 */
 		            | ((20 & 0x1F) << 8)    /* ECO LEVEL     = 20 (straps 6,8,9) */
 		            | (1           << 7)    /* CX/high-speed = 1 */
 		            | ((4  & 0x07) << 4)    /* PRINT RELEASE = 4  => "D" */
@@ -1586,7 +1586,7 @@ void ndfunc_versn(ushort operand)
 		// T register = microprogram version (bits 0-14) with bit 15 SET on an ND-120. SINTRAN's SYSEVAL
 		// distinguishes ND-120 from ND-110 by this bit ("IF T BIT 17 THEN ..."); it is NEVER configurable.
 		// On an ND-120/CX the if-branch above already forced T = 0x800C.
-		gT = (ushort)((g_versn.microcode_version & 0x7FFF) | (versn_is_nd120() ? 0x8000 : 0));
+		gT = (uint16_t)((g_versn.microcode_version & 0x7FFF) | (versn_is_nd120() ? 0x8000 : 0));
 	}
 
 	/* Diagnostic (--log=cpu:debug): log every VERSN so an ND-110-vs-ND-120 boot can be diffed to see
@@ -1641,7 +1641,7 @@ bool UpdateMemoryIO(void)
  * the CPU does not have to pull in the whole device-model header. */
 bool DeviceManager_IotOp(uint8_t devno, uint8_t func, uint16_t *regA, bool *skip);
 
-void ndfunc_iot(ushort operand)
+void ndfunc_iot(uint16_t operand)
 {
 	// ND110 Microcode:
 	// IOT - INSTRUCTION IS PRIVILEGED WHEN RING = 0 OR 1
@@ -1690,7 +1690,7 @@ void ndfunc_iot(ushort operand)
 
 /* IOX (Privileged)
  */
-void ndfunc_iox(ushort operand)
+void ndfunc_iox(uint16_t operand)
 {
 	if (!CheckPriv())
 		return;
@@ -1702,7 +1702,7 @@ void ndfunc_iox(ushort operand)
 
 /* IOXT (Privileged)
  */
-void ndfunc_ioxt(ushort operand)
+void ndfunc_ioxt(uint16_t operand)
 {
 	(void)operand;
 	if (!CheckPriv())
@@ -1720,7 +1720,7 @@ void ndfunc_ioxt(ushort operand)
  *
  * NOTE: Privileged instruction
  */
-void ndfunc_ident(ushort operand)
+void ndfunc_ident(uint16_t operand)
 {
 	if (!CheckPriv())
 		return;
@@ -1749,7 +1749,7 @@ void ndfunc_ident(ushort operand)
 
 /* OPCOM (Privileged)
  */
-void ndfunc_opcom(ushort operand)
+void ndfunc_opcom(uint16_t operand)
 {
 	(void)operand;
 	if (!CheckPriv())
@@ -1763,13 +1763,13 @@ void ndfunc_opcom(ushort operand)
 ///
 /// Note: This instruction results in a no-operation if the A register of the current program level is used
 /// </summary>
-void ndfunc_irw(ushort operand)
+void ndfunc_irw(uint16_t operand)
 {
 	if (!CheckPriv())
 		return;
 
-	ushort level = (operand >> 3) & 0x0F;
-	ushort dr = (operand & 0x07);
+	uint16_t level = (operand >> 3) & 0x0F;
+	uint16_t dr = (operand & 0x07);
 
 	if ((level == CurrLEVEL) && (dr == _A))
 		return; // A on same level, do nothing (Write from A to A on same level== NOP)
@@ -1796,13 +1796,13 @@ void ndfunc_irw(ushort operand)
 /// If bits 0-2 are zero, the status registers on the specified program level will be read into the A register bits 0-7, with bits 8-15 cleared.
 /// The IRR instruction is privileged.
 /// </summary>
-void ndfunc_irr(ushort operand)
+void ndfunc_irr(uint16_t operand)
 {
 	if (!CheckPriv())
 		return;
 
-	ushort level = (operand >> 3) & 0x0F;
-	ushort sr = (operand & 0x07);
+	uint16_t level = (operand >> 3) & 0x0F;
+	uint16_t sr = (operand & 0x07);
 
 	if (sr == 0) // STS
 	{
@@ -1816,7 +1816,7 @@ void ndfunc_irr(ushort operand)
 
 /* EXAM (Privileged)
  */
-void ndfunc_exam(ushort operand)
+void ndfunc_exam(uint16_t operand)
 {
 	(void)operand;
 	if (!CheckPriv())
@@ -1830,7 +1830,7 @@ void ndfunc_exam(ushort operand)
 /* DEPO (Privileged)
  */
 
-void ndfunc_depo(ushort operand)
+void ndfunc_depo(uint16_t operand)
 {
 	(void)operand;
 	if (!CheckPriv())
@@ -1842,7 +1842,7 @@ void ndfunc_depo(ushort operand)
 
 /* POF (Privileged)
  */
-void ndfunc_pof(ushort operand)
+void ndfunc_pof(uint16_t operand)
 {
 	(void)operand;
 
@@ -1853,7 +1853,7 @@ void ndfunc_pof(ushort operand)
 
 /* PIOF (Privileged)
  */
-void ndfunc_piof(ushort operand)
+void ndfunc_piof(uint16_t operand)
 {
 	(void)operand;
 
@@ -1866,7 +1866,7 @@ void ndfunc_piof(ushort operand)
 
 /* PON
  */
-void ndfunc_pon(ushort operand)
+void ndfunc_pon(uint16_t operand)
 {
 	(void)operand;
 	setbit_STS_MSB(_PONI, 1);
@@ -1874,7 +1874,7 @@ void ndfunc_pon(ushort operand)
 
 /* PION
  */
-void ndfunc_pion(ushort operand)
+void ndfunc_pion(uint16_t operand)
 {
 	(void)operand;
 	setbit_STS_MSB(_IONI, 1);
@@ -1885,7 +1885,7 @@ void ndfunc_pion(ushort operand)
 /// <summary>
 /// IOF - Turn off interrupt system
 /// </summary>
-void ndfunc_iof(ushort operand)
+void ndfunc_iof(uint16_t operand)
 {
 	(void)operand;
 	if (!CheckPriv())
@@ -1899,7 +1899,7 @@ void ndfunc_iof(ushort operand)
 ///
 /// Turn on interrupt system
 /// </summary>
-void ndfunc_ion(ushort operand)
+void ndfunc_ion(uint16_t operand)
 {
 	(void)operand;
 	setbit_STS_MSB(_IONI, 1);
@@ -1909,7 +1909,7 @@ void ndfunc_ion(ushort operand)
 
 /* REX (Privileged)
  */
-void ndfunc_rex(ushort operand)
+void ndfunc_rex(uint16_t operand)
 {
 	(void)operand;
 	if (!CheckPriv())
@@ -1920,7 +1920,7 @@ void ndfunc_rex(ushort operand)
 
 /* SEX (Privileged)
  */
-void ndfunc_sex(ushort operand)
+void ndfunc_sex(uint16_t operand)
 {
 	(void)operand;
 	if (!CheckPriv())
@@ -1956,9 +1956,9 @@ void ndfunc_sex(ushort operand)
  * Computes a physical word address from a segment (physical 64K bank) and an offset.
  * address = (seg & 0xFF) << 16 | (offset & 0xFFFF).
  */
-uint nd110_seg_phys(ushort seg, ushort offset)
+uint32_t nd110_seg_phys(uint16_t seg, uint16_t offset)
 {
-	return ((uint)(seg & 0xFF) << 16) | (uint)(offset & 0xFFFF);
+	return ((uint32_t)(seg & 0xFF) << 16) | (uint32_t)(offset & 0xFFFF);
 }
 
 /*
@@ -1971,12 +1971,12 @@ uint nd110_seg_phys(ushort seg, ushort offset)
  * physical page number) - verified against the RASK microcode oracle (see the
  * BankGroupPhysAddr remarks in RetroCore Instructions.ND110Specific.cs).
  */
-uint nd110_bankgroup_phys(ushort bank, ushort index, ushort operand)
+uint32_t nd110_bankgroup_phys(uint16_t bank, uint16_t index, uint16_t operand)
 {
-	ushort delta = (ushort)((operand >> 3) & 0x07);
-	uint ea = (uint)((index + delta) & 0xFFFF);
+	uint16_t delta = (uint16_t)((operand >> 3) & 0x07);
+	uint32_t ea = (uint32_t)((index + delta) & 0xFFFF);
 
-	return ((uint)(bank & 0xFF) << 16) | ea;
+	return ((uint32_t)(bank & 0xFF) << 16) | ea;
 }
 
 
@@ -1986,7 +1986,7 @@ uint nd110_bankgroup_phys(ushort bank, ushort index, ushort operand)
  * NOTE: Privileged instruction
  */
 
-void ndfunc_setpt(ushort operand)
+void ndfunc_setpt(uint16_t operand)
 {
 	(void)operand;
 	if (!CheckPriv())
@@ -2010,13 +2010,13 @@ void ndfunc_setpt(ushort operand)
 	// JXZ * 10 % FINISHED
 	while (gX != 0)
 	{
-		uint EL = 0;
-		uint EffectiveAddress = 0;
+		uint32_t EL = 0;
+		uint32_t EffectiveAddress = 0;
 
 		//  LDDTX 20 <=  A: = (EL), D: = (EL + 1)
 		EL = calcEL(2); // Calculates using X, T and mriDisplacement // oct 020 >>3
-		gA = (ushort)ReadEL(EL);
-		gD = (ushort)ReadEL(EL + 1);
+		gA = (uint16_t)ReadEL(EL);
+		gD = (uint16_t)ReadEL(EL + 1);
 
 		// BSET ZRO 130 DA % PGU - BIT *
 
@@ -2024,24 +2024,24 @@ void ndfunc_setpt(ushort operand)
 
 		// LDBTX 10
 		EL = calcEL(1); // oct 10 >> 3
-		uint elval = ReadEL(EL);
-		gB = (ushort)(((elval + elval) & 0xFFFF) | 0xFE00); // 177000
+		uint32_t elval = ReadEL(EL);
+		gB = (uint16_t)(((elval + elval) & 0xFFFF) | 0xFE00); // 177000
 
 		// 177777					% OLD BUG IN LDBTX
 
 		// STD ,B
-		EffectiveAddress = (uint)(gB & 0xFFFF); // (+displacement, which is 0 here)
+		EffectiveAddress = (uint32_t)(gB & 0xFFFF); // (+displacement, which is 0 here)
 		WriteVirtualMemory(EffectiveAddress, gA, true, WRITEMODE_WORD);
 		WriteVirtualMemory(EffectiveAddress + 1, gD, true, WRITEMODE_WORD);
 
 		//  LDXTX 00 <=  X:= (EL)
-		gX = (ushort)ReadEL(calcEL(0)); // Calculates using X, T and mriDisplacement
+		gX = (uint16_t)ReadEL(calcEL(0)); // Calculates using X, T and mriDisplacement
 
 		// Increase counter
 		cnt++;
 	}
 
-	gX = (ushort)cnt; // Report number of loops in X (undocumented, but testing using "INSTRUCTION - Version: C00 - 1986-10-30" sub-program "SEGMENTS" identified it.
+	gX = (uint16_t)cnt; // Report number of loops in X (undocumented, but testing using "INSTRUCTION - Version: C00 - 1986-10-30" sub-program "SEGMENTS" identified it.
 }
 
 // **************************************************************************************
@@ -2059,7 +2059,7 @@ void ndfunc_setpt(ushort operand)
 ///
 /// Affected: (?)
 /// </summary>
-void ndfunc_clept(ushort operand)
+void ndfunc_clept(uint16_t operand)
 {
 	(void)operand;
 	if (!CheckPriv())
@@ -2133,11 +2133,11 @@ void ndfunc_clept(ushort operand)
 
 	while (1)
 	{
-		ushort nextX;
-		uint elval;
+		uint16_t nextX;
+		uint32_t elval;
 
 		/* 004121-004122 (PATA2): read the next-node pointer at [X] (physical, bank T). */
-		nextX = (ushort)ReadEL(calcEL(0));
+		nextX = (uint16_t)ReadEL(calcEL(0));
 
 		/* 004123: X == 0 ends the walk - but X is still loaded from [X] on this final pass. */
 		if (gX == 0)
@@ -2148,16 +2148,16 @@ void ndfunc_clept(ushort operand)
 
 		/* 004124-004130 (LDBTX 10): page index at [X+1] -> entry address B = 0177000 | (2*index). */
 		elval = ReadEL(calcEL(1));
-		gB = (ushort)(((elval + elval) & 0xFFFF) | 0xFE00); /* 177000 */
+		gB = (uint16_t)(((elval + elval) & 0xFFFF) | 0xFE00); /* 177000 */
 
 		/* 004074 / PATA4 (LDA ,B): read the page-table entry via the ALTERNATIVE page table. */
-		gA = (ushort)ReadVirtualMemory(gB, true);
+		gA = (uint16_t)ReadVirtualMemory(gB, true);
 
 		/* 004075 (JAZ *3): a zero (unused) entry is skipped; a used entry is saved then cleared. */
 		if (gA != 0)
 		{
 			/* 004077 (STATX 20): save the entry to [X+2] (physical, bank T). */
-			WriteEL(calcEL(2), (ushort)gA);
+			WriteEL(calcEL(2), (uint16_t)gA);
 
 			/* 004116 (STZ ,B): clear the page-table entry via the ALTERNATIVE page table. */
 			WriteVirtualMemory(gB, 0, true, WRITEMODE_WORD);
@@ -2181,15 +2181,15 @@ void ndfunc_clept(ushort operand)
 ///
 /// Affected: (?)
 /// </summary>
-void ndfunc_clnreent(ushort operand)
+void ndfunc_clnreent(uint16_t operand)
 {
 	(void)operand;
-	ushort a_reg;
-	ushort x_reg;
-	ushort t_reg;
-	ushort r1;	/* page-table clear cursor (APT-relative) */
-	ushort r2;	/* bitmap read cursor */
-	ushort r3;	/* bitmap end (exclusive) */
+	uint16_t a_reg;
+	uint16_t x_reg;
+	uint16_t t_reg;
+	uint16_t r1;	/* page-table clear cursor (APT-relative) */
+	uint16_t r2;	/* bitmap read cursor */
+	uint16_t r3;	/* bitmap end (exclusive) */
 
 	if (!CheckPriv())
 		return;
@@ -2218,7 +2218,7 @@ void ndfunc_clnreent(ushort operand)
 	 * 004132: the S3SG1 prologue leaves Q = A + 1, so F = Q + 1 = A + 2.  If A + 2 == 0
 	 * the instruction does nothing and returns (RASK LISTING 9460 / 9467, cond0 -> CONTINUE).
 	 */
-	if ((ushort)(a_reg + 2) == 0)
+	if ((uint16_t)(a_reg + 2) == 0)
 		return;
 
 	/*
@@ -2226,25 +2226,25 @@ void ndfunc_clnreent(ushort operand)
 	 * but the rest of CLNR1 uses the fixed APT base 0177000 instead, so this read is a side
 	 * effect only - it is kept so the memory-access trace matches the microcode oracle.
 	 */
-	(void)ReadVirtualMemory((ushort)(a_reg + 2), true);
+	(void)ReadVirtualMemory((uint16_t)(a_reg + 2), true);
 
 	/*
 	 * 004135-004141: R1 = 0177000 (octal) APT-relative page-table base; R2 = X + 25 (octal)
 	 *                bitmap read cursor; R3 = X + T + 1 bitmap end (last bitmap word at X + T).
 	 */
 	r1 = 0xFE00;				/* 0177000 octal */
-	r2 = (ushort)(x_reg + 0x15);		/* + 025 octal (= 21 decimal) */
-	r3 = (ushort)(x_reg + t_reg + 1);
+	r2 = (uint16_t)(x_reg + 0x15);		/* + 025 octal (= 21 decimal) */
+	r3 = (uint16_t)(x_reg + t_reg + 1);
 
 	/* Outer loop over the bitmap words (CLNR1 004142..CLNR2 004152, LISTING 9490-9537). */
 	while (r3 != r2)			/* CLNR2: bitmap exhausted -> done */
 	{
-		ushort addr = r2;		/* 004142: address = old R2, then R2++ */
-		ushort word;
+		uint16_t addr = r2;		/* 004142: address = old R2, then R2++ */
+		uint16_t word;
 		int bit;
 
-		r2 = (ushort)(r2 + 1);
-		word = (ushort)ReadVirtualMemory(addr, true);	/* 004143 */
+		r2 = (uint16_t)(r2 + 1);
+		word = (uint16_t)ReadVirtualMemory(addr, true);	/* 004143 */
 
 		if (word == 0)
 		{
@@ -2252,7 +2252,7 @@ void ndfunc_clnreent(ushort operand)
 			 * CLNR5 004156: a zero bitmap word clears nothing; skip its 16 entries
 			 * (R1 += 040 octal = 32 = 16 entries * 2-word stride).
 			 */
-			r1 = (ushort)(r1 + 0x20);
+			r1 = (uint16_t)(r1 + 0x20);
 			continue;
 		}
 
@@ -2266,7 +2266,7 @@ void ndfunc_clnreent(ushort operand)
 		{
 			if ((word & (1 << bit)) != 0)
 				WriteVirtualMemory(r1, 0, true, WRITEMODE_WORD);	/* 004155 */
-			r1 = (ushort)(r1 + 2);		/* 004153: 2-word stride per entry */
+			r1 = (uint16_t)(r1 + 2);		/* 004153: 2-word stride per entry */
 		}
 	}
 }
@@ -2289,16 +2289,16 @@ void ndfunc_clnreent(ushort operand)
 ///
 /// Affected: (?)
 /// </summary>
-void ndfunc_chreent_pages(ushort operand)
+void ndfunc_chreent_pages(uint16_t operand)
 {
 	(void)operand;
-	ushort prog_d;
-	ushort prog_x;
-	ushort prog_t;
-	ushort prev_seg;
-	ushort prev_off;
-	ushort seg;
-	ushort off;
+	uint16_t prog_d;
+	uint16_t prog_x;
+	uint16_t prog_t;
+	uint16_t prev_seg;
+	uint16_t prev_off;
+	uint16_t seg;
+	uint16_t off;
 
 	if (!CheckPriv())
 		return;
@@ -2335,11 +2335,11 @@ void ndfunc_chreent_pages(ushort operand)
 
 	for (;;)
 	{
-		ushort link;
-		ushort status;
+		uint16_t link;
+		uint16_t status;
 
 		/* CHRE2 004161: read the link word at segment:offset. */
-		link = (ushort)ReadPhysicalMemory((int)nd110_seg_phys(seg, off), true);
+		link = (uint16_t)ReadPhysicalMemory((int)nd110_seg_phys(seg, off), true);
 
 		/*
 		 * 004162-004163 / CHRE4 004200: a zero link ends the chain -> SKIP return
@@ -2354,7 +2354,7 @@ void ndfunc_chreent_pages(ushort operand)
 		seg = prog_t;		/* 004163: the status/link reads use the descriptor segment T */
 
 		/* 004164-004166: read the status word at T:(link+2) and test WIP (bit 12). */
-		status = (ushort)ReadPhysicalMemory((int)nd110_seg_phys(prog_t, (ushort)(link + 2)), true);
+		status = (uint16_t)ReadPhysicalMemory((int)nd110_seg_phys(prog_t, (uint16_t)(link + 2)), true);
 
 		if ((status & ND110_WIP_BIT) != 0)
 		{
@@ -2363,7 +2363,7 @@ void ndfunc_chreent_pages(ushort operand)
 			 * 004174: DEPOSIT it into the previous slot; 004172-004175: set D/A/X,
 			 * normal return.
 			 */
-			ushort successor = (ushort)ReadPhysicalMemory((int)nd110_seg_phys(prog_t, link), true);
+			uint16_t successor = (uint16_t)ReadPhysicalMemory((int)nd110_seg_phys(prog_t, link), true);
 
 			WritePhysicalMemory((int)nd110_seg_phys(prev_seg, prev_off), successor, true);
 			gD = prev_seg;
@@ -2388,7 +2388,7 @@ void ndfunc_chreent_pages(ushort operand)
 ///
 /// Affected: (?)
 /// </summary>
-void ndfunc_clepu(ushort operand)
+void ndfunc_clepu(uint16_t operand)
 {
 	(void)operand;
 	if (!CheckPriv())
@@ -2439,11 +2439,11 @@ void ndfunc_clepu(ushort operand)
 	 */
 	for (;;)
 	{
-		ushort next_x;
-		uint idx;
+		uint16_t next_x;
+		uint32_t idx;
 
 		/* 004122 (PATA2): next-node pointer at [X], read first (physical, bank T). */
-		next_x = (ushort)ReadEL(calcEL(0));
+		next_x = (uint16_t)ReadEL(calcEL(0));
 
 		/* 004123: X == 0 terminates; load X from [X] on the final pass. */
 		if (gX == 0)
@@ -2454,10 +2454,10 @@ void ndfunc_clepu(ushort operand)
 
 		/* 004124-004130: page index at [X+1] -> entry address B = 0177000 | (2*index). */
 		idx = ReadEL(calcEL(1));
-		gB = (ushort)(((idx + idx) & 0xFFFF) | 0xFE00);	/* 177000 */
+		gB = (uint16_t)(((idx + idx) & 0xFFFF) | 0xFE00);	/* 177000 */
 
 		/* 004074 / PATA4: read the page-table entry via the alternative page table. */
-		gA = (ushort)ReadVirtualMemory(gB, true);
+		gA = (uint16_t)ReadVirtualMemory(gB, true);
 
 		/* 004075 (JAZ *3): skip unused (zero) entries. */
 		if (gA != 0)
@@ -2472,13 +2472,13 @@ void ndfunc_clepu(ushort operand)
 			 */
 			if ((gA & ND110_PGU_BIT) != 0)
 			{
-				uint page = idx & 0x7F;		/* 8 words * 16 bits = 128 pages */
-				uint word = page >> 4;		/* word number (0..7) */
+				uint32_t page = idx & 0x7F;		/* 8 words * 16 bits = 128 pages */
+				uint32_t word = page >> 4;		/* word number (0..7) */
 				int bit = (int)(page & 0x0F);	/* bit within the word */
-				uint table_addr = (uint)((gL + word) & 0xFFFF);
-				ushort tw = (ushort)ReadPhysicalMemory((int)table_addr, true);	/* 004107 EXRQ */
+				uint32_t table_addr = (uint32_t)((gL + word) & 0xFFFF);
+				uint16_t tw = (uint16_t)ReadPhysicalMemory((int)table_addr, true);	/* 004107 EXRQ */
 
-				tw |= (ushort)(1 << bit);					/* 004112 set bit */
+				tw |= (uint16_t)(1 << bit);					/* 004112 set bit */
 				WritePhysicalMemory((int)table_addr, tw, true);			/* 004114 DERQ */
 			}
 
@@ -2522,7 +2522,7 @@ void ndfunc_clepu(ushort operand)
  *
  * Ref ND-06.026.1 EN, page 196. Port of RetroCore WGLOB().
  */
-void ndfunc_wglob(ushort operand)
+void ndfunc_wglob(uint16_t operand)
 {
 	(void)operand;
 	if (!CheckPriv())
@@ -2540,7 +2540,7 @@ void ndfunc_wglob(ushort operand)
  *
  * Ref ND-06.026.1 EN, page 196. Port of RetroCore RGLOB().
  */
-void ndfunc_rglob(ushort operand)
+void ndfunc_rglob(uint16_t operand)
 {
 	(void)operand;
 	if (!CheckPriv())
@@ -2562,30 +2562,30 @@ void ndfunc_rglob(ushort operand)
  * Faithful to RASK microcode INSP1 (ND-110-RASK.LISTING.TXT 10386-10501).
  * Port of RetroCore INSPL().
  */
-void ndfunc_inspl(ushort operand)
+void ndfunc_inspl(uint16_t operand)
 {
 	(void)operand;
-	uint stbnk;
-	uint cmbnk;
-	ushort b_reg;
-	ushort x_reg;
-	ushort t_reg;
-	ushort old_head;
-	ushort marker;
+	uint32_t stbnk;
+	uint32_t cmbnk;
+	uint16_t b_reg;
+	uint16_t x_reg;
+	uint16_t t_reg;
+	uint16_t old_head;
+	uint16_t marker;
 
 	if (!CheckPriv())
 		return;
 
-	stbnk = (uint)(gSTBNK & 0xFF) << 16;
-	cmbnk = (uint)(gCMBUK & 0xFF) << 16;
+	stbnk = (uint32_t)(gSTBNK & 0xFF) << 16;
+	cmbnk = (uint32_t)(gCMBUK & 0xFF) << 16;
 	b_reg = gB;
 	x_reg = gX;
 	t_reg = gT;
 
 	/* 004454-004457: R1 := old page-list head at STBNK[B+7]. */
-	old_head = (ushort)ReadPhysicalMemory((int)(stbnk | (uint)((b_reg + 7) & 0xFFFF)), true);
+	old_head = (uint16_t)ReadPhysicalMemory((int)(stbnk | (uint32_t)((b_reg + 7) & 0xFFFF)), true);
 	/* 004460-004461: new head := X. */
-	WritePhysicalMemory((int)(stbnk | (uint)((b_reg + 7) & 0xFFFF)), x_reg, true);
+	WritePhysicalMemory((int)(stbnk | (uint32_t)((b_reg + 7) & 0xFFFF)), x_reg, true);
 	/* 004462-004464: X's forward link (CMBUK[X]) := old head. */
 	WritePhysicalMemory((int)(cmbnk | x_reg), old_head, true);
 
@@ -2595,21 +2595,21 @@ void ndfunc_inspl(ushort operand)
 		 * 004473-004474 (INSP2, empty list): back link := anchor marker segIndex | 3,
 		 * where segIndex = (B - STSRT) >> 1.
 		 */
-		ushort seg_index = (ushort)(((b_reg - gSTSRT) & 0xFFFF) >> 1);
+		uint16_t seg_index = (uint16_t)(((b_reg - gSTSRT) & 0xFFFF) >> 1);
 
-		marker = (ushort)(seg_index | 3);
+		marker = (uint16_t)(seg_index | 3);
 	}
 	else
 	{
 		/* 004466-004472 (non-empty): X inherits the old head's back link; old head.prev := X. */
-		marker = (ushort)ReadPhysicalMemory((int)(cmbnk | (uint)((old_head + 1) & 0xFFFF)), true);
-		WritePhysicalMemory((int)(cmbnk | (uint)((old_head + 1) & 0xFFFF)), x_reg, true);
+		marker = (uint16_t)ReadPhysicalMemory((int)(cmbnk | (uint32_t)((old_head + 1) & 0xFFFF)), true);
+		WritePhysicalMemory((int)(cmbnk | (uint32_t)((old_head + 1) & 0xFFFF)), x_reg, true);
 	}
 
 	/* 004475-004476 (INSP3): X's back link (CMBUK[X+1]) := marker. */
-	WritePhysicalMemory((int)(cmbnk | (uint)((x_reg + 1) & 0xFFFF)), marker, true);
+	WritePhysicalMemory((int)(cmbnk | (uint32_t)((x_reg + 1) & 0xFFFF)), marker, true);
 	/* 004477-004501: X's tag word (CMBUK[X+3]) := T. */
-	WritePhysicalMemory((int)(cmbnk | (uint)((x_reg + 3) & 0xFFFF)), t_reg, true);
+	WritePhysicalMemory((int)(cmbnk | (uint32_t)((x_reg + 3) & 0xFFFF)), t_reg, true);
 }
 
 /* REMPL - 140503 (privileged)
@@ -2623,27 +2623,27 @@ void ndfunc_inspl(ushort operand)
  * Faithful to RASK microcode REMP1 (ND-110-RASK.LISTING.TXT 10463-10527).
  * Port of RetroCore REMPL().
  */
-void ndfunc_rempl(ushort operand)
+void ndfunc_rempl(uint16_t operand)
 {
 	(void)operand;
-	uint stbnk;
-	uint cmbnk;
-	ushort x_reg;
-	ushort r1;		/* successor */
-	ushort r2;		/* back link / anchor marker */
+	uint32_t stbnk;
+	uint32_t cmbnk;
+	uint16_t x_reg;
+	uint16_t r1;		/* successor */
+	uint16_t r2;		/* back link / anchor marker */
 	bool tail;
 	bool skip_inherit;
 
 	if (!CheckPriv())
 		return;
 
-	stbnk = (uint)(gSTBNK & 0xFF) << 16;
-	cmbnk = (uint)(gCMBUK & 0xFF) << 16;
+	stbnk = (uint32_t)(gSTBNK & 0xFF) << 16;
+	cmbnk = (uint32_t)(gCMBUK & 0xFF) << 16;
 	x_reg = gX;
 
 	/* 004502-004507: R1 := successor (CMBUK[X]); R2 := back link / anchor marker (CMBUK[X+1]). */
-	r1 = (ushort)ReadPhysicalMemory((int)(cmbnk | x_reg), true);
-	r2 = (ushort)ReadPhysicalMemory((int)(cmbnk | (uint)((x_reg + 1) & 0xFFFF)), true);
+	r1 = (uint16_t)ReadPhysicalMemory((int)(cmbnk | x_reg), true);
+	r2 = (uint16_t)ReadPhysicalMemory((int)(cmbnk | (uint32_t)((x_reg + 1) & 0xFFFF)), true);
 
 	tail = ((r2 & 3) != 0);
 	if (tail)
@@ -2653,7 +2653,7 @@ void ndfunc_rempl(ushort operand)
 		 * segment head slot is STBNK[(STSRT + 2*marker) | 7] (== B+7).  Set it to the
 		 * successor.
 		 */
-		uint head_off = (uint)(((gSTSRT + 2 * r2) | 7) & 0xFFFF);
+		uint32_t head_off = (uint32_t)(((gSTSRT + 2 * r2) | 7) & 0xFFFF);
 
 		WritePhysicalMemory((int)(stbnk | head_off), r1, true);
 		skip_inherit = (r1 == 0);
@@ -2667,11 +2667,11 @@ void ndfunc_rempl(ushort operand)
 
 	/* 004521-004523 (REMP3): unless the successor is nil, successor.prev := R2 (predecessor/marker). */
 	if (!skip_inherit)
-		WritePhysicalMemory((int)(cmbnk | (uint)((r1 + 1) & 0xFFFF)), r2, true);
+		WritePhysicalMemory((int)(cmbnk | (uint32_t)((r1 + 1) & 0xFFFF)), r2, true);
 
 	/* 004524-004527 (REMP4): zero the removed entry's forward and back links. */
 	WritePhysicalMemory((int)(cmbnk | x_reg), 0, true);
-	WritePhysicalMemory((int)(cmbnk | (uint)((x_reg + 1) & 0xFFFF)), 0, true);
+	WritePhysicalMemory((int)(cmbnk | (uint32_t)((x_reg + 1) & 0xFFFF)), 0, true);
 }
 
 /* CNREK - 140504 (privileged)
@@ -2689,17 +2689,17 @@ void ndfunc_rempl(ushort operand)
  *
  * Port of RetroCore CNREK().
  */
-void ndfunc_cnrek(ushort operand)
+void ndfunc_cnrek(uint16_t operand)
 {
 	(void)operand;
-	ushort a_reg;
-	ushort x_reg;
-	ushort t_reg;
-	uint stbnk;
-	uint tseg;
-	ushort r1;
-	ushort r2;
-	ushort r3;
+	uint16_t a_reg;
+	uint16_t x_reg;
+	uint16_t t_reg;
+	uint32_t stbnk;
+	uint32_t tseg;
+	uint16_t r1;
+	uint16_t r2;
+	uint16_t r3;
 
 	if (!CheckPriv())
 		return;
@@ -2707,34 +2707,34 @@ void ndfunc_cnrek(ushort operand)
 	a_reg = gA;
 	x_reg = gX;
 	t_reg = gT;
-	stbnk = (uint)(gSTBNK & 0xFF) << 16;
-	tseg = (uint)(t_reg & 0xFF) << 16;
+	stbnk = (uint32_t)(gSTBNK & 0xFF) << 16;
+	tseg = (uint32_t)(t_reg & 0xFF) << 16;
 
 	/* 004530-004531: examine the descriptor at STBNK[A+2] (value unused in this path). */
-	(void)ReadPhysicalMemory((int)(stbnk | (uint)((a_reg + 2) & 0xFFFF)), true);
+	(void)ReadPhysicalMemory((int)(stbnk | (uint32_t)((a_reg + 2) & 0xFFFF)), true);
 
 	/* 004532: A+2 == 0 -> no-op.  004536/004540: X == 0 -> no-op. */
-	if ((ushort)(a_reg + 2) == 0)
+	if ((uint16_t)(a_reg + 2) == 0)
 		return;
 	if (x_reg == 0)
 		return;
 
 	r1 = 0xF800;			/* 0174000 octal - page-table clear base (APT) */
 	r2 = x_reg;			/* first bitmap word */
-	r3 = (ushort)(x_reg + 8);	/* bound = X + 010 octal (8 words) */
+	r3 = (uint16_t)(x_reg + 8);	/* bound = X + 010 octal (8 words) */
 
 	while (r3 != r2)
 	{
-		ushort word;
+		uint16_t word;
 		int bit;
 
 		/* 004541: examine the bitmap word physically in segment T. */
-		word = (ushort)ReadPhysicalMemory((int)(tseg | r2), true);
-		r2 = (ushort)(r2 + 1);
+		word = (uint16_t)ReadPhysicalMemory((int)(tseg | r2), true);
+		r2 = (uint16_t)(r2 + 1);
 
 		if (word == 0)
 		{
-			r1 = (ushort)(r1 + 0x20);	/* all-zero word clears nothing; skip its 16 entries */
+			r1 = (uint16_t)(r1 + 0x20);	/* all-zero word clears nothing; skip its 16 entries */
 			continue;
 		}
 
@@ -2742,7 +2742,7 @@ void ndfunc_cnrek(ushort operand)
 		{
 			if ((word & (1 << bit)) != 0)
 				WriteVirtualMemory(r1, 0, true, WRITEMODE_WORD);	/* 004155 clear via APT */
-			r1 = (ushort)(r1 + 2);
+			r1 = (uint16_t)(r1 + 2);
 		}
 	}
 }
@@ -2761,29 +2761,29 @@ void ndfunc_cnrek(ushort operand)
  * Faithful to RASK microcode CLPK1/CLPK4/CLPK3 (ND-110-RASK.LISTING.TXT 10585-10704).
  * Port of RetroCore CLPT().
  */
-void ndfunc_clpt(ushort operand)
+void ndfunc_clpt(uint16_t operand)
 {
 	(void)operand;
-	uint cmbnk;
+	uint32_t cmbnk;
 	bool clear_mode;
 
 	if (!CheckPriv())
 		return;
 
-	cmbnk = (uint)(gCMBUK & 0xFF) << 16;			/* segment = core-map bank (LDSEG from CMBNK) */
+	cmbnk = (uint32_t)(gCMBUK & 0xFF) << 16;			/* segment = core-map bank (LDSEG from CMBNK) */
 	clear_mode = ((gA & 0x8000) != 0);			/* 004545/004546: bit 15 of A (constant) */
 
 	/* 004543-004544: X == 0 terminates (normal P+1, no writes). */
 	while (gX != 0)
 	{
-		ushort x_reg = gX;
-		ushort entry;
-		ushort b_reg;
+		uint16_t x_reg = gX;
+		uint16_t entry;
+		uint16_t b_reg;
 
 		/* 004545: examine the segment descriptor at (CMBUK : X+3). */
-		entry = (ushort)ReadPhysicalMemory((int)(cmbnk | (uint)((x_reg + 3) & 0xFFFF)), true);
+		entry = (uint16_t)ReadPhysicalMemory((int)(cmbnk | (uint32_t)((x_reg + 3) & 0xFFFF)), true);
 		/* 004546: B := (entry | 0176000) << 1. */
-		b_reg = (ushort)(((entry | 0xFC00) << 1) & 0xFFFF);
+		b_reg = (uint16_t)(((entry | 0xFC00) << 1) & 0xFFFF);
 		gB = b_reg;
 
 		if (clear_mode)
@@ -2794,11 +2794,11 @@ void ndfunc_clpt(ushort operand)
 		else
 		{
 			/* 004550-004553 (bit 15 clear): read APT[B]; if non-zero, deposit it physically to [X+2]. */
-			ushort r3 = (ushort)ReadVirtualMemory(b_reg, true);
+			uint16_t r3 = (uint16_t)ReadVirtualMemory(b_reg, true);
 
 			if (r3 != 0)
 			{
-				WritePhysicalMemory((int)(cmbnk | (uint)((x_reg + 2) & 0xFFFF)), r3, true);
+				WritePhysicalMemory((int)(cmbnk | (uint32_t)((x_reg + 2) & 0xFFFF)), r3, true);
 
 				/*
 				 * 004553 falls through into CLPK4 (004554) whose CONDENABL routes the TRUE
@@ -2853,7 +2853,7 @@ void ndfunc_clpt(ushort operand)
 		}
 
 		/* 004577-004600: advance X := [X] (forward link, physical CMBUK segment). */
-		gX = (ushort)ReadPhysicalMemory((int)(cmbnk | x_reg), true);
+		gX = (uint16_t)ReadPhysicalMemory((int)(cmbnk | x_reg), true);
 	}
 }
 
@@ -2871,44 +2871,44 @@ void ndfunc_clpt(ushort operand)
  *
  * Port of RetroCore EnterPageTable().
  */
-void nd110_enter_page_table(ushort r4_mask)
+void nd110_enter_page_table(uint16_t r4_mask)
 {
-	uint cmbnk = (uint)(gCMBUK & 0xFF) << 16;	/* segment = core-map bank (LDSEG from CMBNK) */
+	uint32_t cmbnk = (uint32_t)(gCMBUK & 0xFF) << 16;	/* segment = core-map bank (LDSEG from CMBNK) */
 
 	/* 004561-004562: X == 0 terminates (nothing entered). */
 	while (gX != 0)
 	{
-		ushort x_reg = gX;
-		ushort word0;
-		ushort word1;
-		ushort b_reg;
+		uint16_t x_reg = gX;
+		uint16_t word0;
+		uint16_t word1;
+		uint16_t b_reg;
 
 		/* 004563-004564: descriptor word0 at [X+2] (physical, CMBUK segment); A := word0 & mask. */
-		word0 = (ushort)ReadPhysicalMemory((int)(cmbnk | (uint)((x_reg + 2) & 0xFFFF)), true);
-		gA = (ushort)(word0 & r4_mask);
+		word0 = (uint16_t)ReadPhysicalMemory((int)(cmbnk | (uint32_t)((x_reg + 2) & 0xFFFF)), true);
+		gA = (uint16_t)(word0 & r4_mask);
 
 		/* 004566: descriptor word1 at [X+3].  004571: B register := (word1 | 0176000) << 1. */
-		word1 = (ushort)ReadPhysicalMemory((int)(cmbnk | (uint)((x_reg + 3) & 0xFFFF)), true);
-		b_reg = (ushort)(((word1 | 0xFC00) << 1) & 0xFFFF);
+		word1 = (uint16_t)ReadPhysicalMemory((int)(cmbnk | (uint32_t)((x_reg + 3) & 0xFFFF)), true);
+		b_reg = (uint16_t)(((word1 | 0xFC00) << 1) & 0xFFFF);
 		gB = b_reg;
 
 		/* 004573: APT[B] := A (masked word0).  004575: APT[B+1] := X >> 2 (physical page frame). */
 		WriteVirtualMemory(b_reg, gA, true, WRITEMODE_WORD);
-		WriteVirtualMemory((ushort)((b_reg + 1) & 0xFFFF), (ushort)(x_reg >> 2), true, WRITEMODE_WORD);
+		WriteVirtualMemory((uint16_t)((b_reg + 1) & 0xFFFF), (uint16_t)(x_reg >> 2), true, WRITEMODE_WORD);
 
 		/* DIAG (--trace-nd110): per-node dump of the page-table entry actually written. */
 		if (nd110_trace_fp != NULL)
 		{
 			fprintf(nd110_trace_fp,
 				"  ENPT node X=%06o w0=%06o w1=%06o -> B=%06o APT[B]=%06o APT[B+1]=%06o shadow=%d PCR=%06o PONI=%d\n",
-				x_reg, word0, word1, b_reg, gA, (ushort)(x_reg >> 2),
+				x_reg, word0, word1, b_reg, gA, (uint16_t)(x_reg >> 2),
 				IsAddressShadowMemory(b_reg, false) ? 1 : 0,
 				gReg->reg_PCR[CurrLEVEL], STS_PONI ? 1 : 0);
 			fflush(nd110_trace_fp);
 		}
 
 		/* 004577-004600: advance X := [X] (forward link, physical CMBUK segment). */
-		gX = (ushort)ReadPhysicalMemory((int)(cmbnk | x_reg), true);
+		gX = (uint16_t)ReadPhysicalMemory((int)(cmbnk | x_reg), true);
 	}
 }
 
@@ -2917,7 +2917,7 @@ void nd110_enter_page_table(ushort r4_mask)
  * Enter a segment's pages into the page tables.  Faithful to RASK ENPK1/REPK2
  * (ND-110-RASK.LISTING.TXT 10634-10704).  Port of RetroCore ENPT().
  */
-void ndfunc_enpt(ushort operand)
+void ndfunc_enpt(uint16_t operand)
 {
 	(void)operand;
 	if (!CheckPriv())
@@ -2933,7 +2933,7 @@ void ndfunc_enpt(ushort operand)
  * reentrant.  Faithful to RASK REPK1/REPK2 (ND-110-RASK.LISTING.TXT 10640-10704).
  * Port of RetroCore REPT().
  */
-void ndfunc_rept(ushort operand)
+void ndfunc_rept(uint16_t operand)
 {
 	(void)operand;
 	if (!CheckPriv())
@@ -2951,21 +2951,21 @@ void ndfunc_rept(ushort operand)
  *
  * Port of RetroCore LBIT().
  */
-void ndfunc_lbit(ushort operand)
+void ndfunc_lbit(uint16_t operand)
 {
 	(void)operand;
-	uint bit_index;
-	uint word_addr;
+	uint32_t bit_index;
+	uint32_t word_addr;
 	int bit_in_word;
-	ushort word;
+	uint16_t word;
 
 	if (!CheckPriv())
 		return;
 
 	bit_index = gA;
-	word_addr = (uint)((gX + (bit_index >> 4)) & 0xFFFF);
+	word_addr = (uint32_t)((gX + (bit_index >> 4)) & 0xFFFF);
 	bit_in_word = (int)(bit_index & 0x0F);
-	word = (ushort)ReadVirtualMemory(word_addr, true);
+	word = (uint16_t)ReadVirtualMemory(word_addr, true);
 	setbit(_STS, _K, (char)((word >> bit_in_word) & 1));
 }
 
@@ -2977,25 +2977,25 @@ void ndfunc_lbit(ushort operand)
  *
  * Port of RetroCore LBITP().
  */
-void ndfunc_lbitp(ushort operand)
+void ndfunc_lbitp(uint16_t operand)
 {
 	(void)operand;
-	uint bit_index;
-	uint bank;
-	uint word_offset;
-	uint phys_addr;
+	uint32_t bit_index;
+	uint32_t bank;
+	uint32_t word_offset;
+	uint32_t phys_addr;
 	int bit_in_word;
-	ushort word;
+	uint16_t word;
 
 	if (!CheckPriv())
 		return;
 
 	bit_index = gA;
-	bank = (uint)(gT & 0xFF);
-	word_offset = (uint)((gX + (bit_index >> 4)) & 0xFFFF);
+	bank = (uint32_t)(gT & 0xFF);
+	word_offset = (uint32_t)((gX + (bit_index >> 4)) & 0xFFFF);
 	phys_addr = (bank << 16) | word_offset;
 	bit_in_word = (int)(bit_index & 0x0F);
-	word = (ushort)ReadPhysicalMemory((int)phys_addr, true);
+	word = (uint16_t)ReadPhysicalMemory((int)phys_addr, true);
 	setbit(_STS, _K, (char)((word >> bit_in_word) & 1));
 }
 
@@ -3007,25 +3007,25 @@ void ndfunc_lbitp(ushort operand)
  *
  * Port of RetroCore SBIT().
  */
-void ndfunc_sbit(ushort operand)
+void ndfunc_sbit(uint16_t operand)
 {
 	(void)operand;
-	uint bit_index;
-	uint word_addr;
+	uint32_t bit_index;
+	uint32_t word_addr;
 	int bit_in_word;
-	ushort word;
+	uint16_t word;
 
 	if (!CheckPriv())
 		return;
 
 	bit_index = gA;
-	word_addr = (uint)((gX + (bit_index >> 4)) & 0xFFFF);
+	word_addr = (uint32_t)((gX + (bit_index >> 4)) & 0xFFFF);
 	bit_in_word = (int)(bit_index & 0x0F);
-	word = (ushort)ReadVirtualMemory(word_addr, true);
+	word = (uint16_t)ReadVirtualMemory(word_addr, true);
 	if (STS_K)
-		word |= (ushort)(1 << bit_in_word);
+		word |= (uint16_t)(1 << bit_in_word);
 	else
-		word &= (ushort)(~(1 << bit_in_word));
+		word &= (uint16_t)(~(1 << bit_in_word));
 	WriteVirtualMemory(word_addr, word, true, WRITEMODE_WORD);
 }
 
@@ -3036,29 +3036,29 @@ void ndfunc_sbit(ushort operand)
  *
  * Port of RetroCore SBITP().
  */
-void ndfunc_sbitp(ushort operand)
+void ndfunc_sbitp(uint16_t operand)
 {
 	(void)operand;
-	uint bit_index;
-	uint bank;
-	uint word_offset;
-	uint phys_addr;
+	uint32_t bit_index;
+	uint32_t bank;
+	uint32_t word_offset;
+	uint32_t phys_addr;
 	int bit_in_word;
-	ushort word;
+	uint16_t word;
 
 	if (!CheckPriv())
 		return;
 
 	bit_index = gA;
-	bank = (uint)(gT & 0xFF);
-	word_offset = (uint)((gX + (bit_index >> 4)) & 0xFFFF);
+	bank = (uint32_t)(gT & 0xFF);
+	word_offset = (uint32_t)((gX + (bit_index >> 4)) & 0xFFFF);
 	phys_addr = (bank << 16) | word_offset;
 	bit_in_word = (int)(bit_index & 0x0F);
-	word = (ushort)ReadPhysicalMemory((int)phys_addr, true);
+	word = (uint16_t)ReadPhysicalMemory((int)phys_addr, true);
 	if (STS_K)
-		word |= (ushort)(1 << bit_in_word);
+		word |= (uint16_t)(1 << bit_in_word);
 	else
-		word &= (ushort)(~(1 << bit_in_word));
+		word &= (uint16_t)(~(1 << bit_in_word));
 	WritePhysicalMemory((int)phys_addr, word, true);
 }
 
@@ -3070,25 +3070,25 @@ void ndfunc_sbitp(ushort operand)
  *
  * Port of RetroCore LBYTP().
  */
-void ndfunc_lbytp(ushort operand)
+void ndfunc_lbytp(uint16_t operand)
 {
 	(void)operand;
-	uint bank;
-	uint word_offset;
-	uint phys_addr;
-	ushort memval;
+	uint32_t bank;
+	uint32_t word_offset;
+	uint32_t phys_addr;
+	uint16_t memval;
 
 	if (!CheckPriv())
 		return;
 
-	bank = (uint)(gD & 0xFF);
-	word_offset = (uint)((gT + (gX >> 1)) & 0xFFFF);
+	bank = (uint32_t)(gD & 0xFF);
+	word_offset = (uint32_t)((gT + (gX >> 1)) & 0xFFFF);
 	phys_addr = (bank << 16) | word_offset;
-	memval = (ushort)ReadPhysicalMemory((int)phys_addr, true);
+	memval = (uint16_t)ReadPhysicalMemory((int)phys_addr, true);
 	if ((gX & 1) != 0)
-		gA = (ushort)(memval & 0xFF);		/* odd byte  -> low  */
+		gA = (uint16_t)(memval & 0xFF);		/* odd byte  -> low  */
 	else
-		gA = (ushort)((memval >> 8) & 0xFF);	/* even byte -> high */
+		gA = (uint16_t)((memval >> 8) & 0xFF);	/* even byte -> high */
 }
 
 /* SBYTP - 140515 (privileged)
@@ -3099,27 +3099,27 @@ void ndfunc_lbytp(ushort operand)
  *
  * Port of RetroCore SBYTP().
  */
-void ndfunc_sbytp(ushort operand)
+void ndfunc_sbytp(uint16_t operand)
 {
 	(void)operand;
-	uint bank;
-	uint word_offset;
-	uint phys_addr;
-	ushort memval;
+	uint32_t bank;
+	uint32_t word_offset;
+	uint32_t phys_addr;
+	uint16_t memval;
 	unsigned char b;
 
 	if (!CheckPriv())
 		return;
 
-	bank = (uint)(gD & 0xFF);
-	word_offset = (uint)((gT + (gX >> 1)) & 0xFFFF);
+	bank = (uint32_t)(gD & 0xFF);
+	word_offset = (uint32_t)((gT + (gX >> 1)) & 0xFFFF);
 	phys_addr = (bank << 16) | word_offset;
-	memval = (ushort)ReadPhysicalMemory((int)phys_addr, true);
+	memval = (uint16_t)ReadPhysicalMemory((int)phys_addr, true);
 	b = (unsigned char)(gA & 0xFF);
 	if ((gX & 1) != 0)
-		memval = (ushort)((memval & 0xFF00) | b);		/* odd byte  -> low  */
+		memval = (uint16_t)((memval & 0xFF00) | b);		/* odd byte  -> low  */
 	else
-		memval = (ushort)((memval & 0x00FF) | (b << 8));	/* even byte -> high */
+		memval = (uint16_t)((memval & 0x00FF) | (b << 8));	/* even byte -> high */
 	WritePhysicalMemory((int)phys_addr, memval, true);
 }
 
@@ -3133,20 +3133,20 @@ void ndfunc_sbytp(ushort operand)
  *
  * Port of RetroCore TSETP().
  */
-void ndfunc_tsetp(ushort operand)
+void ndfunc_tsetp(uint16_t operand)
 {
 	(void)operand;
-	uint bank;
-	uint offset;
-	uint phys_addr;
+	uint32_t bank;
+	uint32_t offset;
+	uint32_t phys_addr;
 
 	if (!CheckPriv())
 		return;
 
-	bank = (uint)(gT & 0xFF);
-	offset = (uint)(gX & 0xFFFF);
+	bank = (uint32_t)(gT & 0xFF);
+	offset = (uint32_t)(gX & 0xFFFF);
 	phys_addr = (bank << 16) | offset;
-	gA = (ushort)ReadPhysicalMemory((int)phys_addr, true);
+	gA = (uint16_t)ReadPhysicalMemory((int)phys_addr, true);
 	WritePhysicalMemory((int)phys_addr, 0xFFFF, true);
 }
 
@@ -3157,18 +3157,18 @@ void ndfunc_tsetp(ushort operand)
  *
  * Port of RetroCore RDUSP().
  */
-void ndfunc_rdusp(ushort operand)
+void ndfunc_rdusp(uint16_t operand)
 {
 	(void)operand;
-	uint bank;
-	uint offset;
+	uint32_t bank;
+	uint32_t offset;
 
 	if (!CheckPriv())
 		return;
 
-	bank = (uint)(gT & 0xFF);
-	offset = (uint)(gX & 0xFFFF);
-	gA = (ushort)ReadPhysicalMemory((int)((bank << 16) | offset), true);
+	bank = (uint32_t)(gT & 0xFF);
+	offset = (uint32_t)(gX & 0xFFFF);
+	gA = (uint16_t)ReadPhysicalMemory((int)((bank << 16) | offset), true);
 }
 
 /*
@@ -3181,16 +3181,16 @@ void ndfunc_rdusp(ushort operand)
  */
 
 /* LASB - 140700 + (delta << 3) (privileged): A := STBNK[B + delta]. */
-void ndfunc_lasb(ushort operand)
+void ndfunc_lasb(uint16_t operand)
 {
 	if (!CheckPriv())
 		return;
 
-	gA = (ushort)ReadPhysicalMemory((int)nd110_bankgroup_phys(gSTBNK, gB, operand), true);
+	gA = (uint16_t)ReadPhysicalMemory((int)nd110_bankgroup_phys(gSTBNK, gB, operand), true);
 }
 
 /* SASB - 140701 + (delta << 3) (privileged): STBNK[B + delta] := A. */
-void ndfunc_sasb(ushort operand)
+void ndfunc_sasb(uint16_t operand)
 {
 	if (!CheckPriv())
 		return;
@@ -3199,16 +3199,16 @@ void ndfunc_sasb(ushort operand)
 }
 
 /* LACB - 140702 + (delta << 3) (privileged): A := CMBUK[X + delta]. */
-void ndfunc_lacb(ushort operand)
+void ndfunc_lacb(uint16_t operand)
 {
 	if (!CheckPriv())
 		return;
 
-	gA = (ushort)ReadPhysicalMemory((int)nd110_bankgroup_phys(gCMBUK, gX, operand), true);
+	gA = (uint16_t)ReadPhysicalMemory((int)nd110_bankgroup_phys(gCMBUK, gX, operand), true);
 }
 
 /* SACB - 140703 + (delta << 3) (privileged): CMBUK[X + delta] := A. */
-void ndfunc_sacb(ushort operand)
+void ndfunc_sacb(uint16_t operand)
 {
 	if (!CheckPriv())
 		return;
@@ -3217,25 +3217,25 @@ void ndfunc_sacb(ushort operand)
 }
 
 /* LXSB - 140704 + (delta << 3) (privileged): X := STBNK[B + delta]. */
-void ndfunc_lxsb(ushort operand)
+void ndfunc_lxsb(uint16_t operand)
 {
 	if (!CheckPriv())
 		return;
 
-	gX = (ushort)ReadPhysicalMemory((int)nd110_bankgroup_phys(gSTBNK, gB, operand), true);
+	gX = (uint16_t)ReadPhysicalMemory((int)nd110_bankgroup_phys(gSTBNK, gB, operand), true);
 }
 
 /* LXCB - 140705 + (delta << 3) (privileged): X := CMBUK[X + delta]. */
-void ndfunc_lxcb(ushort operand)
+void ndfunc_lxcb(uint16_t operand)
 {
 	if (!CheckPriv())
 		return;
 
-	gX = (ushort)ReadPhysicalMemory((int)nd110_bankgroup_phys(gCMBUK, gX, operand), true);
+	gX = (uint16_t)ReadPhysicalMemory((int)nd110_bankgroup_phys(gCMBUK, gX, operand), true);
 }
 
 /* SZSB - 140706 + (delta << 3) (privileged): STBNK[B + delta] := 0. */
-void ndfunc_szsb(ushort operand)
+void ndfunc_szsb(uint16_t operand)
 {
 	if (!CheckPriv())
 		return;
@@ -3244,7 +3244,7 @@ void ndfunc_szsb(ushort operand)
 }
 
 /* SZCB - 140707 + (delta << 3) (privileged): CMBUK[X + delta] := 0. */
-void ndfunc_szcb(ushort operand)
+void ndfunc_szcb(uint16_t operand)
 {
 	if (!CheckPriv())
 		return;
@@ -3297,10 +3297,10 @@ void ndfunc_szcb(ushort operand)
  * Reading the frame with UseAPT=0 while PTM=1 (split I/D space) fetches a word
  * from the CODE page where SMAX should be, producing a bogus stack overflow.
  */
-void ndfunc_init(ushort operand)
+void ndfunc_init(uint16_t operand)
 {
 	(void)operand;
-	ushort demand, start, maxsize, flag;
+	uint16_t demand, start, maxsize, flag;
 
 	demand = MemoryRead(gPC + 0, 0);
 	start = MemoryRead(gPC + 1, 0);
@@ -3334,10 +3334,10 @@ void ndfunc_init(ushort operand)
  * ADDR+3: Normal return
  *
  */
-void ndfunc_entr(ushort operand)
+void ndfunc_entr(uint16_t operand)
 {
 	(void)operand;
-	ushort oldB, demand, smax, stp;
+	uint16_t oldB, demand, smax, stp;
 	demand = MemoryRead(gPC + 0, 0);
 	smax = MemoryRead(gB - 125, 1); /* SMAX */
 	if ((gB + demand - 122) > (smax))
@@ -3357,7 +3357,7 @@ void ndfunc_entr(ushort operand)
 
 /* LEAVE
  */
-void ndfunc_leave(ushort operand)
+void ndfunc_leave(uint16_t operand)
 {
 	(void)operand;
 	gPC = MemoryRead(gB - 128, 1);
@@ -3366,10 +3366,10 @@ void ndfunc_leave(ushort operand)
 
 /* ELEAV
  */
-void ndfunc_eleav(ushort operand)
+void ndfunc_eleav(uint16_t operand)
 {
 	(void)operand;
-	ushort tmp;
+	uint16_t tmp;
 	tmp = MemoryRead(gB - 128, 1) - 1;
 	MemoryWrite(tmp, gB - 128, 1, 2); /* LINK */
 	MemoryWrite(gA, gB - 123, 1, 2);  /* A ==> ERRCODE */
@@ -3391,12 +3391,12 @@ void ndfunc_eleav(ushort operand)
 ///
 /// Affected: (A)
 /// </summary>
-void ndfunc_lbyt(ushort operand)
+void ndfunc_lbyt(uint16_t operand)
 {
 	(void)operand;
 
-	ushort offset = gX >> 1;
-	ushort memval = MemoryRead(gT + offset, true);
+	uint16_t offset = gX >> 1;
+	uint16_t memval = MemoryRead(gT + offset, true);
 
 	if ((gX & 1) != 0)
 	{ /* ODD BYTE = LOW */
@@ -3419,22 +3419,22 @@ void ndfunc_lbyt(ushort operand)
 ///
 /// Affected: (EL)
 /// </summary>
-void ndfunc_sbyt(ushort operand)
+void ndfunc_sbyt(uint16_t operand)
 {
 	(void)operand;
 
-	ushort offset = gX >> 1; /* same as divide by 2 */
+	uint16_t offset = gX >> 1; /* same as divide by 2 */
 
 	if ((gX & 1) != 0)
 
 	{
 		// Odd byte, write LSB value
-		WriteVirtualMemory((uint)(gT + offset), gA, true, WRITEMODE_LSB);
+		WriteVirtualMemory((uint32_t)(gT + offset), gA, true, WRITEMODE_LSB);
 	}
 	else
 	{
 		// Even byte, write MSB value
-		WriteVirtualMemory((uint)(gT + offset), gA, true, WRITEMODE_MSB);
+		WriteVirtualMemory((uint32_t)(gT + offset), gA, true, WRITEMODE_MSB);
 	}
 }
 
@@ -3452,20 +3452,20 @@ void ndfunc_sbyt(ushort operand)
 ///
 /// Affected: (X)
 /// </summary>
-void ndfunc_mix3(ushort operand)
+void ndfunc_mix3(uint16_t operand)
 {
 	(void)operand;
-	gX = (ushort)((gA - 1) * 3);
+	gX = (uint16_t)((gA - 1) * 3);
 }
 
 /*********************** REGISTER OPERANDS ***********************/
 
 // Math register operations
-void regop(ushort operand)
+void regop(uint16_t operand)
 { /* SWAP RAND REXO RORA RADD RCLR EXIT RDCR RING RSUB */
 	int RAD, CLD, CM1, tmp;
-	ushort sr, dr, source, destination;
-	ushort old_gPC = gPC-1;
+	uint16_t sr, dr, source, destination;
+	uint16_t old_gPC = gPC-1;
 
 	RAD = ((operand & 0x0400) >> 10);
 	CM1 = ((operand & 0x0080) >> 7);
@@ -3489,24 +3489,24 @@ void regop(ushort operand)
 		{
 		case 0:								/* SWAP: dr <- source (CM1->~source), sr <- old dr (CLD->0) */
 		{
-			ushort old_dr = (dr == 0) ? 0 : (ushort)(gReg->reg[CurrLEVEL][dr] & 0xFFFF);
-			ushort new_dr = (CM1) ? (ushort)~source : source;
-			ushort new_sr = (CLD) ? 0 : old_dr;
+			uint16_t old_dr = (dr == 0) ? 0 : (uint16_t)(gReg->reg[CurrLEVEL][dr] & 0xFFFF);
+			uint16_t new_dr = (CM1) ? (uint16_t)~source : source;
+			uint16_t new_sr = (CLD) ? 0 : old_dr;
 			if (dr != 0) gReg->reg[CurrLEVEL][dr] = new_dr;      /* discard write to register 0 (=STS) */
 			if (sr != 0) gReg->reg[CurrLEVEL][sr] = new_sr;      /* discard write to register 0 (=STS) */
 			break;
 		}
 		case 1: /* RAND: dr <- dest & (CM1?~src:src) */
-			if (dr != 0) gReg->reg[CurrLEVEL][dr] = (ushort)(destination & ((CM1) ? (ushort)~source : source));
+			if (dr != 0) gReg->reg[CurrLEVEL][dr] = (uint16_t)(destination & ((CM1) ? (uint16_t)~source : source));
 			break;
 		case 2: /* REXO: plain = dest ^ src; but CM1 is OR-of-complement (dest | ~src), NOT XOR - the RASK
 		         * REXO;CM1;CLD=0 routes through REX02 (ALUF,ORAB). CLD (dest=0) yields ~src / src for free. */
 			if (dr != 0)
-				gReg->reg[CurrLEVEL][dr] = (CM1) ? (ushort)(destination | (ushort)~source)
-				                                : (ushort)(destination ^ source);
+				gReg->reg[CurrLEVEL][dr] = (CM1) ? (uint16_t)(destination | (uint16_t)~source)
+				                                : (uint16_t)(destination ^ source);
 			break;
 		case 3: /* RORA: dr <- dest | (CM1?~src:src) */
-			if (dr != 0) gReg->reg[CurrLEVEL][dr] = (ushort)(destination | ((CM1) ? (ushort)~source : source));
+			if (dr != 0) gReg->reg[CurrLEVEL][dr] = (uint16_t)(destination | ((CM1) ? (uint16_t)~source : source));
 			break;
 		}
 		break;
@@ -3527,7 +3527,7 @@ void regop(ushort operand)
 		case 7: /* NOOP */
 			break;
 		}
-		if (dr != 0) gReg->reg[CurrLEVEL][dr] = (ushort)(tmp & 0xFFFF); /* discard write to register 0 (=STS) */
+		if (dr != 0) gReg->reg[CurrLEVEL][dr] = (uint16_t)(tmp & 0xFFFF); /* discard write to register 0 (=STS) */
 		break;
 	}
 
@@ -3550,7 +3550,7 @@ void regop(ushort operand)
  * NOTE:: STS need to be checked.
  * NOTE:: Privileged instructions
  */
-void DoMCL(ushort instr)
+void DoMCL(uint16_t instr)
 {
 	if (!CheckPriv())
 		return;
@@ -3587,7 +3587,7 @@ void DoMCL(ushort instr)
  * NOTE:: STS need to be checked.
  * NOTE:: Privileged instructions
  */
-void DoMST(ushort instr)
+void DoMST(uint16_t instr)
 {
 	if (!CheckPriv())
 		return;
@@ -3623,12 +3623,12 @@ void DoMST(ushort instr)
  *
  * NOTE: Privileged instructions
  */
-void DoTRA(ushort instr)
+void DoTRA(uint16_t instr)
 {
 	if (!CheckPriv())
 		return;
 
-	ushort temp, level;
+	uint16_t temp, level;
 	switch (instr & 0x0F)
 	{
 	case 00: /* TRA PANS */
@@ -3714,7 +3714,7 @@ void DoTRA(ushort instr)
 	           * the NOTLOAD path instead of trying an IOX microcode download) with bit 15 SET on an ND-120
 	           * so it matches the ND-120 segment. nd100x has no real WCS; this mirrors RetroCore
 	           * ReadControlStore (commit 24ad44fd8). Without it an ND-120 aborts at RESTART.NPL 035551. */
-		gA = (ushort)(0x13 | (versn_is_nd120() ? 0x8000 : 0));
+		gA = (uint16_t)(0x13 | (versn_is_nd120() ? 0x8000 : 0));
 		break;
 	default: /* These registers dont exist, so just return 0 for now FIXME: Check correct behaviour.*/
 			 // gA = 0;
@@ -3726,9 +3726,9 @@ void DoTRA(ushort instr)
 /*
  * DoEXR - Run instruction in source register
  */
-void DoEXR(ushort instr)
+void DoEXR(uint16_t instr)
 {
-	ushort sr, exr_instr;
+	uint16_t sr, exr_instr;
 	sr = (instr >> 3) & 0x07;
 	if (sr)
 		exr_instr = gReg->reg[CurrLEVEL][sr];
@@ -3753,13 +3753,13 @@ void DoEXR(ushort instr)
  *
  * NOTE:: Privileged instructions
  */
-void DoWAIT(ushort instr)
+void DoWAIT(uint16_t instr)
 {
 	(void)instr;
 	if (!CheckPriv())
 		return;
 
-	ushort temp;
+	uint16_t temp;
 	if (!STS_IONI)
 	{
 		// If the interrupt system is OFF
@@ -3789,7 +3789,7 @@ void DoWAIT(ushort instr)
  * Unconditionally stops the emulator.
  * A register = process exit code.
  */
-void ndfunc_halt(ushort operand)
+void ndfunc_halt(uint16_t operand)
 {
 	(void)operand;
 	printf("\r\nHALT opcode at PIL[%d] PC[%6o] A[%6o]\r\n", gPIL, gPC, gA);
@@ -3799,7 +3799,7 @@ void ndfunc_halt(ushort operand)
 
 /* LWCS (Privileged)
  */
-void ndfunc_lwcs(ushort instr)
+void ndfunc_lwcs(uint16_t instr)
 {
 	(void)instr;
 	// LWCS is a no-operation on the ND-110
@@ -3826,12 +3826,12 @@ extern void ProcessTerminalLamp(void);
  *
  * NOTE: Privileged instructions
  */
-void DoTRR(ushort instr)
+void DoTRR(uint16_t instr)
 {
 	if (!CheckPriv())
 		return;
 
-	ushort temp, level;
+	uint16_t temp, level;
 	switch (instr & 0x0F)
 	{
 	case 00: // TRR PANC
@@ -3905,14 +3905,14 @@ void DoTRR(ushort instr)
  *
  *  Uses the alternative pagetable!
  */
-void DoSRB(ushort operand)
+void DoSRB(uint16_t operand)
 {
 
 	if (!CheckPriv())
 		return;
 
-	ushort lvl, addr;
-	ushort sts_temp;
+	uint16_t lvl, addr;
+	uint16_t sts_temp;
 
 	lvl = ((operand & 0x0078) >> 3);
 	addr = gX;
@@ -3953,13 +3953,13 @@ void DoSRB(ushort operand)
 ///
 /// The LBR instruction is privileged
 /// </summary>
-void DoLRB(ushort operand)
+void DoLRB(uint16_t operand)
 {
 
 	if (!CheckPriv())
 		return;
 
-	ushort lvl, addr;
+	uint16_t lvl, addr;
 
 	lvl = ((operand & 0x0078) >> 3);
 	addr = gX;
@@ -3979,9 +3979,9 @@ void DoLRB(ushort operand)
 
 }
 
-bool IsSkip(ushort instr)
+bool IsSkip(uint16_t instr)
 {
-	ushort sr, dr, source, desti;
+	uint16_t sr, dr, source, desti;
 	signed short ss, sd, sgr, ovf;
 	char z, o, c, s;
 	sr = (instr >> 3) & 0x07;
@@ -3997,7 +3997,7 @@ bool IsSkip(ushort instr)
 	ovf = (sd & ~ss & ~sgr) | (~sd & ss & sgr);
 	o = (ovf < 0) ? 1 : 0;
 	c = ((desti - source) < 0) ? 0 : 1;
-	s = ((ushort)(sd - ss) >> 15) & 0x01;
+	s = ((uint16_t)(sd - ss) >> 15) & 0x01;
 
 	/* And use these to do the skipping, so we try and follow ND behaviour */
 	switch ((instr >> 8) & 0x07)
@@ -4038,9 +4038,9 @@ bool IsSkip(ushort instr)
 	return false;
 }
 
-void do_bops(ushort operand)
+void do_bops(uint16_t operand)
 {
-	ushort bn, dr, desti;
+	uint16_t bn, dr, desti;
 	bn = ((operand & 0x0078) >> 3);
 	dr = (operand & 0x0007);
 
@@ -4105,15 +4105,15 @@ void do_bops(ushort operand)
 	}
 }
 
-ushort ShiftReg(ushort reg, ushort instr)
+uint16_t ShiftReg(uint16_t reg, uint16_t instr)
 {
 	bool isneg = ((instr & 0x0020) >> 5) ? 1 : 0;
 	/* Right-shift count is the two's complement of the 6-bit field, but the hardware shift counter is
 	 * only 5 BITS, so it wraps mod 32: field 040 octal (= 32) loads as 0 -> NO shift (register unchanged,
 	 * M preserved). Oracle-validated (RetroCore CpuND100.Fetch, commit 135a2ff28). Fields 041..077
 	 * (counts 31..1) already fit and are unaffected. M-on-count-0 is already correct here (tmp inits to M). */
-	ushort offset = (isneg) ? (ushort)((~((instr & 0x003F) | 0xFFC0) + 1) & 0x1F) : (instr & 0x003F);
-	ushort shifttype = ((instr >> 9) & 0x03);
+	uint16_t offset = (isneg) ? (uint16_t)((~((instr & 0x003F) | 0xFFC0) + 1) & 0x1F) : (instr & 0x003F);
+	uint16_t shifttype = ((instr >> 9) & 0x03);
 	int i, tmp, msb;
 	int m = getbit(_STS, _M);
 	tmp = m; /* just in case.. */
@@ -4145,13 +4145,13 @@ ushort ShiftReg(ushort reg, ushort instr)
 /* The A:D register pair is exactly 32 bits; do the arithmetic in uint32_t.
  * (It used ulong, 64-bit native and 32-bit on wasm, and shifted an int
  * into bit 31, which is undefined behaviour.) */
-uint32_t ShiftDoubleReg(uint32_t reg, ushort instr)
+uint32_t ShiftDoubleReg(uint32_t reg, uint16_t instr)
 {
 	bool isneg = ((instr & 0x0020) >> 5) ? 1 : 0;
 	/* 5-bit shift-counter wrap: field 040 octal (=32) -> 0 = NO shift (SAD register pair unchanged, M
 	 * preserved). Oracle-validated (RetroCore 135a2ff28). See ShiftReg for the full note. */
-	ushort offset = (isneg) ? (ushort)((~((instr & 0x003F) | 0xFFC0) + 1) & 0x1F) : (instr & 0x003F);
-	ushort shifttype = ((instr >> 9) & 0x03);
+	uint16_t offset = (isneg) ? (uint16_t)((~((instr & 0x003F) | 0xFFC0) + 1) & 0x1F) : (instr & 0x003F);
+	uint16_t shifttype = ((instr >> 9) & 0x03);
 	int i;
 	uint32_t tmp, msb;
 	uint32_t m = (uint32_t)getbit(_STS, _M);
@@ -4185,7 +4185,7 @@ uint32_t ShiftDoubleReg(uint32_t reg, ushort instr)
  * DoIDENT
  * Handles IDENT PLxx instructions
  */
-void DoIDENT(ushort priolevel)
+void DoIDENT(uint16_t priolevel)
 {
 
 	int id = IO_Ident(priolevel);
@@ -4229,7 +4229,7 @@ void DoIDENT(ushort priolevel)
 ///  However, the translation will use the alternative page table when PTM is on (Page Table Modus) (status register bit 0 is 1) and the paging system is on, PON.
 /// </summary>
 
-void DoRDUS(ushort instr)
+void DoRDUS(uint16_t instr)
 {
 	(void)instr;
 	gA = MemoryRead(gT, true);
@@ -4250,7 +4250,7 @@ void DoRDUS(ushort instr)
 ///
 /// The old content of the memory address is always read from the memory, and never from the cache, Data is written both to memory and cache.
 /// </summary>
-void DoTSET(ushort instr)
+void DoTSET(uint16_t instr)
 {
 	(void)instr;
 	// regs.currentRegisters.A = (ushort)cpu.ReadVirtualMemory(regs.currentRegisters.T, PageTable.AlternativePageTable);
@@ -4283,13 +4283,13 @@ void DoTSET(ushort instr)
 ///
 /// Format: MOVEW
 /// </summary>
-void DoMOVEW(ushort instr)
+void DoMOVEW(uint16_t instr)
 {
 	unsigned int sourceAddress = gD;
 	unsigned int destinationAddress = gT;
-	ushort cnt = gL;
+	uint16_t cnt = gL;
 
-	ushort displacement = (instr & 0x00F);
+	uint16_t displacement = (instr & 0x00F);
 
 	// Check if source and destination are in physical memory
 	bool isSourcePhysical = false;
@@ -4325,7 +4325,7 @@ void DoMOVEW(ushort instr)
 	}
 
 	// Warning: In the loop of read/write below, PageFault can occur, and the instruction can be restarted.
-	ushort temp = 0;
+	uint16_t temp = 0;
 
 	while (cnt > 0)
 	{
@@ -4344,15 +4344,15 @@ void DoMOVEW(ushort instr)
 			WritePhysicalMemory(destinationAddress, temp, true);
 			break;
 		case 3: // move from APT to PT
-			temp = (ushort)MemoryRead(sourceAddress, true);
+			temp = (uint16_t)MemoryRead(sourceAddress, true);
 			MemoryWrite(temp, destinationAddress, false, 2);
 			break;
 		case 4: // move from APT to APT
-			temp = (ushort)MemoryRead(sourceAddress, true);
+			temp = (uint16_t)MemoryRead(sourceAddress, true);
 			MemoryWrite(temp, destinationAddress, true, 2);
 			break;
 		case 5: // move from APT to physical memory
-			temp = (ushort)MemoryRead(sourceAddress, true);
+			temp = (uint16_t)MemoryRead(sourceAddress, true);
 			WritePhysicalMemory(destinationAddress, temp, true);
 			break;
 		case 6: // move from physical memory to PT
@@ -4402,14 +4402,14 @@ void DoMOVEW(ushort instr)
 /*
  * MOVB instruction. TODO:: Fix edge case and document params here...
  */
-void DoMOVB(ushort instr)
+void DoMOVB(uint16_t instr)
 {
 	(void)instr;
-	ushort source, dest, lens, lend, len, s_lr, d_lr, s_apt, d_apt;
+	uint16_t source, dest, lens, lend, len, s_lr, d_lr, s_apt, d_apt;
 	int dir; /* direction, 0=low to high, 1 = high to low */
 	int i;
-	ushort thebyte;
-	ushort addr_d, addr_s;
+	uint16_t thebyte;
+	uint16_t addr_d, addr_s;
 
 	addr_d = 0;
 	addr_s = 0;
@@ -4502,13 +4502,13 @@ void DoMOVB(ushort instr)
 /*
  * MOVBF instruction. TODO:: ALL
  */
-void DoMOVBF(ushort instr)
+void DoMOVBF(uint16_t instr)
 {
 	(void)instr;
-	ushort source, dest, lens, lend, len, s_lr, d_lr, s_apt, d_apt;
+	uint16_t source, dest, lens, lend, len, s_lr, d_lr, s_apt, d_apt;
 	int i;
-	ushort thebyte;
-	ushort addr_d, addr_s;
+	uint16_t thebyte;
+	uint16_t addr_d, addr_s;
 	source = gA;
 	dest = gX;
 	bool overlap;
@@ -4526,7 +4526,7 @@ void DoMOVBF(ushort instr)
 
 	if (source > dest)
 		overlap = false;
-	else if ((ushort)((ushort)(ceil(len / 2)) + source - 1) > dest)
+	else if ((uint16_t)((uint16_t)(ceil(len / 2)) + source - 1) > dest)
 		overlap = true;
 	else
 		overlap = false;
@@ -4583,7 +4583,7 @@ void DoMOVBF(ushort instr)
 #endif
 
 
-void add_A_mem(ushort eff_addr, bool UseAPT)
+void add_A_mem(uint16_t eff_addr, bool UseAPT)
 {
 	int temp, data, oldreg;
 	oldreg = gA;
@@ -4751,7 +4751,7 @@ void doMoveBytes(bool checkOverlapping)
 /*
  * MOVB
  */
-void ndfunc_movb(ushort instr)
+void ndfunc_movb(uint16_t instr)
 {
 	(void)instr;
 	doMoveBytes(false);
@@ -4760,13 +4760,13 @@ void ndfunc_movb(ushort instr)
 /*
  * MOVBF instruction.
  */
-void ndfunc_movbf(ushort instr)
+void ndfunc_movbf(uint16_t instr)
 {
 	(void)instr;
 	doMoveBytes(true);
 }
 
-void sub_A_mem(ushort eff_addr, bool UseAPT)
+void sub_A_mem(uint16_t eff_addr, bool UseAPT)
 {
 	int temp, data, oldreg;
 	oldreg = gA;
@@ -4806,15 +4806,15 @@ void sub_A_mem(ushort eff_addr, bool UseAPT)
 /*
  * RDIV
  */
-void rdiv_org(ushort instr)
+void rdiv_org(uint16_t instr)
 {
-	sshort divider;
+	int16_t divider;
 	int dividend;
 	div_t result3; /* stdlib.h */
 	/* :TODO: Apparently Carry can be set too. CHECK that... Might be RAD=1??? */
 	/* Overflow and division with zero also need to be fixed!! */
 	/* :NOTE: The way it is described in the manual, we assume this is a fraction (numerator/denominator and return a quotient and remainder as per manual */
-	divider = ((instr & 0x0038) >> 3) ? (sshort)gReg->reg[gPIL][((instr & 0x0038) >> 3)] : 0;
+	divider = ((instr & 0x0038) >> 3) ? (int16_t)gReg->reg[gPIL][((instr & 0x0038) >> 3)] : 0;
 
 	if (divider == 0)
 	{
@@ -4849,7 +4849,7 @@ void rdiv_org(ushort instr)
 
 /// Affected: (A), (D), Z,C, O, Q
 /// </summary>
-void rdiv(ushort instr)
+void rdiv(uint16_t instr)
 {
 	/* FAITHFUL to RASK RDIV6 (CS 000430-000463); oracle-validated (RetroCore 4c29170d1). The success
 	 * "loop path" results are UNCHANGED (what SINTRAN depends on); only the ERROR paths and the
@@ -4861,7 +4861,7 @@ void rdiv(ushort instr)
 	short divisor = ((instr & 0x0038) >> 3) ? (short)gReg->reg[gPIL][((instr & 0x0038) >> 3)] : 0;
 
 	int dividendNegative = (dividend < 0);
-	ushort origLow = gD; /* low word the microcode negates at CS 000434 (`-B`) */
+	uint16_t origLow = gD; /* low word the microcode negates at CS 000434 (`-B`) */
 
 	/* CS 000434 (NEGATIVE DIVIDEND): negate the 32-bit dividend to its magnitude; STS,EA latches the
 	 * flags of the LOW-word (D) two's-complement negation. This precedes the STS save that brackets the
@@ -4877,8 +4877,8 @@ void rdiv(ushort instr)
 
 	/* Operand magnitudes via UNSIGNED arithmetic (correct even for 0x80000000 / -32768). */
 	unsigned int dividendMag = dividendNegative ? (0u - (unsigned int)dividend) : (unsigned int)dividend;
-	ushort divisorMag = (ushort)((divisor < 0) ? (0u - (unsigned int)(int)divisor) : (unsigned int)(int)divisor);
-	ushort dividendMagHigh = (ushort)(dividendMag >> 16);
+	uint16_t divisorMag = (uint16_t)((divisor < 0) ? (0u - (unsigned int)(int)divisor) : (unsigned int)(int)divisor);
+	uint16_t dividendMagHigh = (uint16_t)(dividendMag >> 16);
 
 	/* CS 000436 RDIV2 overflow PRE-CHECK: A := |dividend|_high - |divisor| (written back, ALUD,B). If
 	 * |dividend|_high >= |divisor| (unsigned, no borrow) OR divisor == 0, the quotient cannot fit 16
@@ -4886,8 +4886,8 @@ void rdiv(ushort instr)
 	 * The quotient/remainder are NEVER computed on this path. */
 	if (divisorMag == 0 || dividendMagHigh >= divisorMag)
 	{
-		gA = (ushort)(dividendMagHigh - divisorMag);
-		gD = (ushort)(dividendMag & 0xFFFF);
+		gA = (uint16_t)(dividendMagHigh - divisorMag);
+		gD = (uint16_t)(dividendMag & 0xFFFF);
 		setbit(_STS, _Z, 1);
 		return;
 	}
@@ -4898,8 +4898,8 @@ void rdiv(ushort instr)
 
 	/* Quotient sign = sign(AD) XOR sign(SRCE); remainder sign = dividend sign (CS 000456). */
 	int quotientNegative = dividendNegative ^ (divisor < 0);
-	gA = quotientNegative ? (ushort)(0u - quotientMag) : (ushort)quotientMag;
-	gD = dividendNegative ? (ushort)(0u - remainderMag) : (ushort)remainderMag;
+	gA = quotientNegative ? (uint16_t)(0u - quotientMag) : (uint16_t)quotientMag;
+	gD = dividendNegative ? (uint16_t)(0u - remainderMag) : (uint16_t)remainderMag;
 
 	/* CS 000457 RDIV5 sign check: Z on SIGNED overflow (positive q > 32767, negative q > 32768 - so a
 	 * -32768 quotient is VALID and does NOT set Z, unlike a naive |q| >= 32768 test). */
@@ -4910,7 +4910,7 @@ void rdiv(ushort instr)
 /*
  * RMPY
  */
-void rmpy_org(ushort instr)
+void rmpy_org(uint16_t instr)
 {
 	/* :TODO: Apparently Carry can be set too. CHECK that... Might be RAD=1??? */
 	int a, b, result;
@@ -4928,8 +4928,8 @@ void rmpy_org(ushort instr)
 		setbit(_STS, _Q, 0);
 		setbit(_STS, _O, 0);
 	}
-	gA = (sshort)((result & 0xffff0000) >> 16);
-	gD = (sshort)(result & 0x0000ffff);
+	gA = (int16_t)((result & 0xffff0000) >> 16);
+	gD = (int16_t)(result & 0x0000ffff);
 }
 
 /// <summary>
@@ -4948,7 +4948,7 @@ void rmpy_org(ushort instr)
 ///
 /// Affected: (A),(D), C,O,Q
 /// </summary>
-void rmpy(ushort instr)
+void rmpy(uint16_t instr)
 {
 	int minusCnt = 0;
 	short source_value = (short)((instr & 0x0038) >> 3) ? (short)gReg->reg[gPIL][((instr & 0x0038) >> 3)] : 0;
@@ -4989,21 +4989,21 @@ void rmpy(ushort instr)
 	/* else (minusCnt 0 or 2): same-sign result -> microcode writes NO status; leave C/O/Q/M unchanged. */
 
 	// set A and D registers
-	gA = (ushort)((result >> 16) & 0xFFFF);
-	gD = (ushort)(result & 0xFFFF);
+	gA = (uint16_t)((result >> 16) & 0xFFFF);
+	gD = (uint16_t)(result & 0xFFFF);
 }
 
 /*
  * MPY
  */
-void mpy(ushort operand)
+void mpy(uint16_t operand)
 {
 	int a, b, result;
-	a = (sshort)gA;
+	a = (int16_t)gA;
 
 	gEA = New_GetEffectiveAddr(operand, &gUseAPT);
-	ushort mem = MemoryRead(gEA, gUseAPT);
-	b = (sshort)mem;
+	uint16_t mem = MemoryRead(gEA, gUseAPT);
+	b = (int16_t)mem;
 
 	setbit(_STS, _Q, 0);
 
@@ -5014,7 +5014,7 @@ void mpy(ushort operand)
 		setbit(_STS, _Q, 1);
 		setbit(_STS, _O, 1);
 	}
-	gA = (sshort)result;
+	gA = (int16_t)result;
 }
 
 
@@ -5022,16 +5022,16 @@ void mpy(ushort operand)
 /************************ BCD instructions *************************/
 
 /* BCD registers and helper functions */
-ushort D1 = 0;
-ushort D2 = 0;
+uint16_t D1 = 0;
+uint16_t D2 = 0;
 
-void GetBCD(ushort address)
+void GetBCD(uint16_t address)
 {
 	D1 = MemoryRead(address, true);
 	D2 = MemoryRead((address + 1) & 0xFFFF, true);
 }
 
-void StoreBCD(ushort address)
+void StoreBCD(uint16_t address)
 {
 	MemoryWrite(address, D1, true, WRITEMODE_WORD);
 	MemoryWrite((address + 1) & 0xFFFF, D2, true, WRITEMODE_WORD);

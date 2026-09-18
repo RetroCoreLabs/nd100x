@@ -164,7 +164,7 @@ uint32_t ND_Memsize = 4u * ND_WORDS_PER_MB;   // 2097152 words
 struct CpuRegs *gReg = NULL;
 
 uint64_t  instr_counter = 0;
-ushort STARTADDR = 0;
+uint16_t STARTADDR = 0;
 int DISASM = 0;
 int gCpuExitCode = 0;
 int CPU_TRACE = 0;
@@ -183,7 +183,7 @@ int BSD_DEBUG = 0;
 unsigned short bsd_kstk_min = BSD_KSTK_TOP;
 uint64_t CPU_MAX_INSTR = 0;
 int CPU_BREAKPOINT_ENABLED = 0;
-ushort CPU_BREAKPOINT_ADDR = 0;
+uint16_t CPU_BREAKPOINT_ADDR = 0;
 int CPU_RING_DUMP_SIZE = 0;
 
 
@@ -232,7 +232,7 @@ int cpu_trace_nd110_set(const char *path)
 	return 0;
 }
 
-void do_op(ushort operand, bool isEXR)
+void do_op(uint16_t operand, bool isEXR)
 {
 
 	if (!isEXR)
@@ -259,7 +259,7 @@ void do_op(ushort operand, bool isEXR)
 		{
 			fprintf(nd110_trace_fp,
 				"ND110OP %06o at %06o A=%06o T=%06o X=%06o D=%06o B=%06o STBNK=%06o STSRT=%06o CMBUK=%06o\n",
-				operand, (ushort)(gPC - 1), gA, gT, gX, gD, gB, gSTBNK, gSTSRT, gCMBUK);
+				operand, (uint16_t)(gPC - 1), gA, gT, gX, gD, gB, gSTBNK, gSTSRT, gCMBUK);
 			fflush(nd110_trace_fp);
 		}
 	}
@@ -280,12 +280,12 @@ void do_op(ushort operand, bool isEXR)
  * to use for the actual use of the address supplied
  * See Manual ND.06.014, Page 34
  */
-ushort New_GetEffectiveAddr(ushort instr, bool *use_apt)
+uint16_t New_GetEffectiveAddr(uint16_t instr, bool *use_apt)
 {
 	int disp = signExtend(instr & 0xFF);
-	ushort eff_addr;
+	uint16_t eff_addr;
 
-	ushort P = (gPC - 1) & 0xFFFF;
+	uint16_t P = (gPC - 1) & 0xFFFF;
 
 	switch ((instr >> 8) & 0x07)
 	{
@@ -353,9 +353,9 @@ ushort New_GetEffectiveAddr(ushort instr, bool *use_apt)
 ///  MOR |   9      |    11    | Memory out of range Addressing non-existent memory.
 ///  POW |   10     |    12    | Power fail interrupt
 ///  ----+----------+----------+------------------------------------------------------------------------
-ushort calcIIC(void)
+uint16_t calcIIC(void)
 {
-	ushort priorityCode = gIID & gIIE;
+	uint16_t priorityCode = gIID & gIIE;
 	if (priorityCode == 0)
 		return 0;
 
@@ -364,7 +364,7 @@ ushort calcIIC(void)
 	{
 		if ((priorityCode & (1 << i)) != 0)
 		{
-			return (ushort)i;
+			return (uint16_t)i;
 		}
 	}
 	return 0;
@@ -400,7 +400,7 @@ void calcPK(void)
 {
 	// Recalculate PK based on PID and PIE
 	int lvl;
-	ushort i;
+	uint16_t i;
 	gPK = 0;
 	i = gPIE & gPID;
 
@@ -423,7 +423,7 @@ void calcPK(void)
  * IN: interrupt level and possible subbitfield
  * for those levels that has that. (LVL 14).
  */
-void interrupt(ushort lvl, ushort sub)
+void interrupt(uint16_t lvl, uint16_t sub)
 {
 
 	if (lvl == 14)
@@ -473,14 +473,14 @@ void interrupt(ushort lvl, ushort sub)
 	}
 }
 
-void device_interrupt(ushort interruptBits)
+void device_interrupt(uint16_t interruptBits)
 {
 	last_device_irq_bits = interruptBits;
 
 	// Only process bits 10-13 and 15 for device interrupts
-	ushort validBits = interruptBits & 0xBC00; // Mask for bits 10-13,15 (0b1111010000000000)
+	uint16_t validBits = interruptBits & 0xBC00; // Mask for bits 10-13,15 (0b1111010000000000)
 
-	ushort tmp = gPID;
+	uint16_t tmp = gPID;
 
 	// clear gIID bits 10-13,15
 	gPID &= ~validBits;
@@ -498,7 +498,7 @@ void device_interrupt(ushort interruptBits)
 /*
  * Routine that handles phys mem writes and shadow memory.
  */
-void PhysMemWrite(ushort value, uint32_t addr)
+void PhysMemWrite(uint16_t value, uint32_t addr)
 {
 	WritePhysicalMemory(addr, value, false); // in cpu_mms.c
 	return;
@@ -509,7 +509,7 @@ void PhysMemWrite(ushort value, uint32_t addr)
 /*
  * Routine that handles phys mem reads and shadow memory.
  */
-ushort PhysMemRead(uint32_t addr)
+uint16_t PhysMemRead(uint32_t addr)
 {
 	return ReadPhysicalMemory(addr, false); // in cpu_mms.c
 
@@ -549,7 +549,7 @@ void cpu_watchpoint_triggered(uint32_t addr, bool isWrite)
  * Write a word to memory.
  * Here we implement all Memory Management System functions.
  */
-void MemoryWrite(ushort value, ushort addr, bool UseAPT, unsigned char byte_select)
+void MemoryWrite(uint16_t value, uint16_t addr, bool UseAPT, unsigned char byte_select)
 {
 #ifdef WITH_DEBUGGER
 	// Hot path: counter check -> bitmap check -> slow path
@@ -557,7 +557,7 @@ void MemoryWrite(ushort value, ushort addr, bool UseAPT, unsigned char byte_sele
 	// Cost when watchpoints active but addr miss: + 1 byte load + 1 bit test
 	if (watchpoint_count > 0
 	    && (watchpoint_bitmap[addr >> 3] & (1 << (addr & 7)))
-	    && (watchpoint_min_value == 0 || value >= (ushort)watchpoint_min_value)
+	    && (watchpoint_min_value == 0 || value >= (uint16_t)watchpoint_min_value)
 	    && watchpoint_check_slow(addr, true, UseAPT)) {
 		cpu_watchpoint_triggered(addr, true);
 	}
@@ -569,7 +569,7 @@ void MemoryWrite(ushort value, ushort addr, bool UseAPT, unsigned char byte_sele
  * Read a word from memory.
  * Here we implement all Memory Management System functions.
  */
-ushort MemoryRead(ushort addr, bool UseAPT)
+uint16_t MemoryRead(uint16_t addr, bool UseAPT)
 {
 #ifdef WITH_DEBUGGER
 	if (watchpoint_count > 0
@@ -581,7 +581,7 @@ ushort MemoryRead(ushort addr, bool UseAPT)
 	return ReadVirtualMemory(addr, UseAPT); // in cpu_mms.c
 }
 
-ushort MemoryFetch(ushort addr, bool UseAPT)
+uint16_t MemoryFetch(uint16_t addr, bool UseAPT)
 {
 	return FetchVirtualMemory(addr, UseAPT); // in cpu_mms.c
 }
@@ -628,11 +628,11 @@ bool checkAndSwitch(void)
 // The ND CPU is idle when running in level 0 in SINTRAN.
 // We detect that the CPU is idle by checking the gPIL register is == 0
 // But we only activate sleep when the CPU is idle for a while, and after it has been in another PIL level to achieve a quick boot.
-ushort lvlcnt=0;
+uint16_t lvlcnt=0;
 bool activateSleep = false;
 
 // allocate once
-ushort g_operand;
+uint16_t g_operand;
 
 /// @brief CPU tick function - DO NOT CALL THIS DIRECT AS IT NEES setjmp() setup correctly
 /// @details This function is called every CPU tick. It fetches the next instruction, executes it, and handles interrupts.
@@ -742,7 +742,7 @@ void private_cpu_tick(void)
 /// @return true if the next instruction is a jump, jaf, or similar, false otherwise
 bool cpu_instruction_is_jump(void)
 {
-	ushort operand =  MemoryFetch(gPC, false);
+	uint16_t operand =  MemoryFetch(gPC, false);
 
 	// JMP
 	if ((operand & 0xF800) == 0124000) return true;
@@ -928,8 +928,8 @@ int cpu_run(int ticks_arg)
 		if (current_run_mode == CPU_RUNNING) // Including Normal and Paused (=debugger mode)
 		{
 			{
-				ushort pre_pc = gPC;
-				ushort pre_pil = gPIL;
+				uint16_t pre_pc = gPC;
+				uint16_t pre_pil = gPIL;
 				private_cpu_tick();
 				ring_record(pre_pc, pre_pil, g_operand);
 			}

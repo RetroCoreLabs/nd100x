@@ -103,7 +103,7 @@ void mopc_cmd(char *cmdstr, char cmdc)
 		if ((val >= 0) && (val < 65536))
 		{ /* valid range for 16 bit addr */
 			gReg->has_breakpoint = true;
-			gReg->breakpoint = (ushort)(val & 0xffff);
+			gReg->breakpoint = (uint16_t)(val & 0xffff);
 			set_cpu_run_mode(CPU_BREAKPOINT);
 		}
 		break;

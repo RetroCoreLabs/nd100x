@@ -51,7 +51,7 @@ int NDFloat_Sub(unsigned short int *p_a, unsigned short int *p_b, unsigned short
 extern struct CpuRegs *gReg;
 void DoNLZ(char scaling);
 void DoDNZ(char scaling);
-extern void setbit(ushort regnum, ushort stsbit, char val);
+extern void setbit(uint16_t regnum, uint16_t stsbit, char val);
 
 /*
  * Internal floating point representation.
@@ -69,7 +69,7 @@ struct fp {
  * or can be shifted as needed (mul/div do their own shifting).
  */
 static void
-mkfp48(struct fp *fp, ushort w1, ushort w2, ushort w3)
+mkfp48(struct fp *fp, uint16_t w1, uint16_t w2, uint16_t w3)
 {
 	fp->s = (w1 >> 15) & 1;
 	fp->e = (w1 & 0x7FFF) - 16384;
@@ -120,7 +120,7 @@ add_core(struct fp *f1, struct fp *f2, int *s, int *e, uint64_t *m3)
  * Result is written to the output array r[3].
  */
 static void
-add48(struct fp *f1, struct fp *f2, ushort *r)
+add48(struct fp *f1, struct fp *f2, uint16_t *r)
 {
 	uint64_t m3;
 	int s, e;
@@ -128,8 +128,8 @@ add48(struct fp *f1, struct fp *f2, ushort *r)
 	add_core(f1, f2, &s, &e, &m3);
 
 	r[0] = (e + 16384) | (s << 15);
-	r[1] = (ushort)(m3 >> 16);
-	r[2] = (ushort)m3;
+	r[1] = (uint16_t)(m3 >> 16);
+	r[2] = (uint16_t)m3;
 }
 
 /*
@@ -197,7 +197,7 @@ sub_core(struct fp *f1, struct fp *f2, int *s, int *e, uint64_t *m3, bool *isZer
  * Result is written to the output array r[3].
  */
 static void
-sub48(struct fp *f1, struct fp *f2, ushort *r)
+sub48(struct fp *f1, struct fp *f2, uint16_t *r)
 {
 	uint64_t m3;
 	int s, e;
@@ -211,8 +211,8 @@ sub48(struct fp *f1, struct fp *f2, ushort *r)
 	}
 
 	r[0] = (e + 16384) | (s << 15);
-	r[1] = (ushort)(m3 >> 16);
-	r[2] = (ushort)m3;
+	r[1] = (uint16_t)(m3 >> 16);
+	r[2] = (uint16_t)m3;
 }
 
 /*
@@ -222,7 +222,7 @@ sub48(struct fp *f1, struct fp *f2, ushort *r)
  * are added to the floating accumulator with the result in the floating
  * accumulator.
  */
-int NDFloat_Add(ushort *p_a, ushort *p_b, ushort *p_r)
+int NDFloat_Add(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
 {
 	struct fp f1, f2;
 
@@ -243,7 +243,7 @@ int NDFloat_Add(ushort *p_a, ushort *p_b, ushort *p_r)
  * are subtracted from the floating accumulator with the result
  * in the floating accumulator.
  */
-int NDFloat_Sub(ushort *p_a, ushort *p_b, ushort *p_r)
+int NDFloat_Sub(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
 {
 	struct fp f1, f2;
 
@@ -267,7 +267,7 @@ int NDFloat_Sub(ushort *p_a, ushort *p_b, ushort *p_r)
  * number at the effective floating word locations with the result in
  * the floating accumulator.
  */
-int NDFloat_Mul(ushort *p_a, ushort *p_b, ushort *p_r)
+int NDFloat_Mul(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
 {
 	struct fp f1, f2;
 	int s3, e3;
@@ -288,8 +288,8 @@ int NDFloat_Mul(ushort *p_a, ushort *p_b, ushort *p_r)
 	}
 
 	/* store result */
-	p_r[1] = (ushort)(m3 >> 48);
-	p_r[2] = (ushort)(m3 >> 32);
+	p_r[1] = (uint16_t)(m3 >> 48);
+	p_r[2] = (uint16_t)(m3 >> 32);
 	p_r[0] = (e3 + 16384) | (s3 << 15);
 	if (m3 == 0 || e3 < -16383)
 		p_r[0] = p_r[1] = p_r[2] = 0;
@@ -303,7 +303,7 @@ int NDFloat_Mul(ushort *p_a, ushort *p_b, ushort *p_r)
  * at the effective floating word locations (p_b). Result in p_r.
  * If division by zero is attempted, the error indicator Z is set.
  */
-int NDFloat_Div(ushort *p_a, ushort *p_b, ushort *p_r)
+int NDFloat_Div(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
 {
 	struct fp f1, f2;
 	int s3, e3;
@@ -338,8 +338,8 @@ int NDFloat_Div(ushort *p_a, ushort *p_b, ushort *p_r)
 	}
 
 	/* store result */
-	p_r[1] = (ushort)(m3 >> 16);
-	p_r[2] = (ushort)m3;
+	p_r[1] = (uint16_t)(m3 >> 16);
+	p_r[2] = (uint16_t)m3;
 	p_r[0] = (e3 + 16384) | (s3 << 15);
 	if (f2.m == 0 || e3 < -16383)
 		p_r[0] = p_r[1] = p_r[2] = 0;
@@ -367,7 +367,7 @@ void DoNLZ(char scaling)
 		return;
 	}
 
-	val = (int)(sshort)gA;
+	val = (int)(int16_t)gA;
 	sh = 16384 + (int)(signed char)scaling;
 	if (val < 0) {
 		val = -val;
@@ -382,7 +382,7 @@ void DoNLZ(char scaling)
 		sh--;
 	}
 	gT = sh + s;
-	gA = (ushort)val;
+	gA = (uint16_t)val;
 }
 
 /*
@@ -429,7 +429,7 @@ void DoDNZ(char scaling)
 		val = -val;
 	gT = 0;
 	gD = 0;
-	gA = (ushort)val;
+	gA = (uint16_t)val;
 }
 
 /* ================================================================
@@ -467,7 +467,7 @@ void DoDNZ32(char scaling);
  * bit 31 - the same normalized shape the shared arithmetic core uses.
  */
 static void
-mkfp32(struct fp *fp, ushort a, ushort d)
+mkfp32(struct fp *fp, uint16_t a, uint16_t d)
 {
 	uint32_t mant23;
 
@@ -488,7 +488,7 @@ mkfp32(struct fp *fp, ushort a, ushort d)
  * LSB during add/sub. Exponent underflow yields floating zero.
  */
 static void
-pack32(int s, int e, uint64_t m, ushort *a, ushort *d)
+pack32(int s, int e, uint64_t m, uint16_t *a, uint16_t *d)
 {
 	int eb, i;
 	uint32_t mant23;
@@ -507,8 +507,8 @@ pack32(int s, int e, uint64_t m, ushort *a, ushort *d)
 	                                               * safe fallback (known gap)     */
 
 	mant23 = (uint32_t)(m >> 9);                  /* top 23 bits, hidden MSB @ bit22 */
-	*a = (ushort)((s << 15) | ((eb & 0x1FF) << 6) | ((mant23 >> 16) & 0x3F));
-	*d = (ushort)(mant23 & 0xFFFF);
+	*a = (uint16_t)((s << 15) | ((eb & 0x1FF) << 6) | ((mant23 >> 16) & 0x3F));
+	*d = (uint16_t)(mant23 & 0xFFFF);
 }
 
 /*
@@ -517,7 +517,7 @@ pack32(int s, int e, uint64_t m, ushort *a, ushort *d)
  * Zero operands are exact special cases handled before the core (the
  * core assumes non-zero normalized mantissas).
  */
-int NDFloat_Add32(ushort *p_a, ushort *p_b, ushort *p_r)
+int NDFloat_Add32(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
 {
 	struct fp f1, f2;
 	int s, e;
@@ -543,7 +543,7 @@ int NDFloat_Add32(ushort *p_a, ushort *p_b, ushort *p_r)
 /*
  * NDFloat_Sub32 - Subtract two 32-bit floating point numbers (reg - mem).
  */
-int NDFloat_Sub32(ushort *p_a, ushort *p_b, ushort *p_r)
+int NDFloat_Sub32(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
 {
 	struct fp f1, f2;
 	int s, e;
@@ -555,7 +555,7 @@ int NDFloat_Sub32(ushort *p_a, ushort *p_b, ushort *p_r)
 
 	if (f2.m == 0) { p_r[0] = p_a[0]; p_r[1] = p_a[1]; return 0; }  /* x - 0 = x */
 	if (f1.m == 0) {                                                /* 0 - y = -y */
-		p_r[0] = (ushort)(p_b[0] ^ 0x8000);
+		p_r[0] = (uint16_t)(p_b[0] ^ 0x8000);
 		p_r[1] = p_b[1];
 		return 0;
 	}
@@ -575,7 +575,7 @@ int NDFloat_Sub32(ushort *p_a, ushort *p_b, ushort *p_r)
 /*
  * NDFloat_Mul32 - Multiply two 32-bit floating point numbers.
  */
-int NDFloat_Mul32(ushort *p_a, ushort *p_b, ushort *p_r)
+int NDFloat_Mul32(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
 {
 	struct fp f1, f2;
 	int s3, e3;
@@ -605,7 +605,7 @@ int NDFloat_Mul32(ushort *p_a, ushort *p_b, ushort *p_r)
  *
  * Returns non-zero on divide-by-zero (caller sets the error indicator Z).
  */
-int NDFloat_Div32(ushort *p_a, ushort *p_b, ushort *p_r)
+int NDFloat_Div32(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
 {
 	struct fp f1, f2;
 	int s3, e3;
@@ -616,7 +616,7 @@ int NDFloat_Div32(ushort *p_a, ushort *p_b, ushort *p_r)
 
 	if (f1.m == 0) {
 		/* ND returns the largest magnitude carrying the dividend's sign */
-		p_r[0] = (ushort)((p_a[0] & 0x8000) | 0x7FFF);
+		p_r[0] = (uint16_t)((p_a[0] & 0x8000) | 0x7FFF);
 		p_r[1] = 0xFFFF;
 		return 1;
 	}
@@ -659,7 +659,7 @@ void DoNLZ32(char scaling)
 	if (gA == 0) return;              /* integer zero -> floating zero (A,D already 0) */
 
 	s   = 0;
-	val = (int)(sshort)gA;
+	val = (int)(int16_t)gA;
 	sh  = 16384 + (int)(signed char)scaling;
 	if (val < 0)     { val = -val; s = 1; }
 	if (val > 32767) { val >>= 1;  sh++;  }
@@ -723,7 +723,7 @@ void DoDNZ32(char scaling)
 		setbit(_STS, _Z, 1);
 	if (s) val = -val;
 
-	gA = (ushort)val;
+	gA = (uint16_t)val;
 	gD = 0;
 	/* gT deliberately NOT touched. */
 }

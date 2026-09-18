@@ -102,15 +102,15 @@ extern struct CpuRegs *gReg;
  */
 typedef struct
 {
-    ushort  addr;                      /* D1: word address of the field       */
-    ushort  d2;                        /* D2: the raw descriptor              */
+    uint16_t  addr;                      /* D1: word address of the field       */
+    uint16_t  d2;                        /* D2: the raw descriptor              */
     bool    starts_in_right_byte;      /* D2 bit 15 (lr)                      */
     int     ascii_format;              /* D2 bits 13-11 (BCD_ASCII_*)         */
     bool    rounding_on;               /* D2 bit 10                           */
     int     decimal_point;             /* D2 bits 9-5                         */
     int     field_length;              /* D2 bits 4-0: L, nibbles or bytes    */
     bool    is_ascii;                  /* field length counts BYTES, not nibbles */
-    ushort  words[BCD_MAX_WORDS];      /* the field's memory words            */
+    uint16_t  words[BCD_MAX_WORDS];      /* the field's memory words            */
     bool    error;                     /* take the error return (no skip)     */
     uint8_t error_code;                /* BCD_ERR_* (PACK/UPACK only)         */
 } bcd_operand;
@@ -189,7 +189,7 @@ static void bcd_set_nibble(bcd_operand *op, int i, int val)
     int idx = p >> 2;
     int sh = (3 - (p & 3)) * 4;
 
-    op->words[idx] = (ushort)((op->words[idx] & ~(0x0F << sh)) | ((val & 0x0F) << sh));
+    op->words[idx] = (uint16_t)((op->words[idx] & ~(0x0F << sh)) | ((val & 0x0F) << sh));
 }
 
 /*
@@ -199,7 +199,7 @@ static void bcd_set_nibble(bcd_operand *op, int i, int val)
 static uint8_t bcd_get_byte(const bcd_operand *op, int i)
 {
     int p = i + (op->starts_in_right_byte ? 1 : 0);
-    ushort w = op->words[p >> 1];
+    uint16_t w = op->words[p >> 1];
 
     return (uint8_t)(((p & 1) == 0) ? (w >> 8) : (w & 0x00FF));
 }
@@ -208,12 +208,12 @@ static void bcd_set_byte(bcd_operand *op, int i, uint8_t val)
 {
     int p = i + (op->starts_in_right_byte ? 1 : 0);
     int idx = p >> 1;
-    ushort w = op->words[idx];
+    uint16_t w = op->words[idx];
 
     if ((p & 1) == 0)
-        w = (ushort)((w & 0x00FF) | ((ushort)val << 8));
+        w = (uint16_t)((w & 0x00FF) | ((uint16_t)val << 8));
     else
-        w = (ushort)((w & 0xFF00) | val);
+        w = (uint16_t)((w & 0xFF00) | val);
 
     op->words[idx] = w;
 }
@@ -230,7 +230,7 @@ static void bcd_set_byte(bcd_operand *op, int i, uint8_t val)
  * An EMPTY field (L = 0) is perfectly legal - nothing is read, and the operand
  * behaves as a positive zero with ZERO significant-digit capacity.
  */
-static bool bcd_get_operand(bcd_operand *op, ushort d1, ushort d2, bool is_ascii)
+static bool bcd_get_operand(bcd_operand *op, uint16_t d1, uint16_t d2, bool is_ascii)
 {
     int mem_len;
     int i;
@@ -266,7 +266,7 @@ static bool bcd_get_operand(bcd_operand *op, ushort d1, ushort d2, bool is_ascii
      * keeps our access trace an ordered subsequence of the oracle's. */
     mem_len = bcd_mem_words(op);
     for (i = mem_len - 1; i >= 0; i--)
-        op->words[i] = MemoryRead((ushort)((op->addr + i) & 0xFFFF), true);
+        op->words[i] = MemoryRead((uint16_t)((op->addr + i) & 0xFFFF), true);
 
     return true;
 }
@@ -286,7 +286,7 @@ static void bcd_store_operand(bcd_operand *op)
 
     mem_len = bcd_mem_words(op);
     for (i = 0; i < mem_len; i++)
-        MemoryWrite(op->words[i], (ushort)((op->addr + i) & 0xFFFF), true, 2);
+        MemoryWrite(op->words[i], (uint16_t)((op->addr + i) & 0xFFFF), true, 2);
 }
 
 /* ================================================================ */
@@ -618,7 +618,7 @@ static bool bcd_add_sub(bcd_operand *op1, const bcd_operand *op2, int op2_sign_f
  * for either operand.  When the first operand field is too short to contain all
  * significant digits of the sum, a decimal overflow occurs."
  */
-void ndfunc_addd(ushort instr)
+void ndfunc_addd(uint16_t instr)
 {
     bcd_operand op1;
     bcd_operand op2;
@@ -644,7 +644,7 @@ void ndfunc_addd(ushort instr)
  * is placed in the first operand's location."  SUBD flips op2's sign and then
  * runs the exact same ADDE body as ADDD.
  */
-void ndfunc_subd(ushort instr)
+void ndfunc_subd(uint16_t instr)
 {
     bcd_operand op1;
     bcd_operand op2;
@@ -740,7 +740,7 @@ static int bcd_compare(const bcd_operand *op1, const bcd_operand *op2)
  *
  * A = 1 (op1 > op2), 0 (equal), -1 / 0xFFFF (op1 < op2).
  */
-void ndfunc_comd(ushort instr)
+void ndfunc_comd(uint16_t instr)
 {
     bcd_operand op1;
     bcd_operand op2;
@@ -932,7 +932,7 @@ static bool bcd_shde(bcd_operand *dst, const bcd_operand *src)
     return !overflow;
 }
 
-void ndfunc_shde(ushort instr)
+void ndfunc_shde(uint16_t instr)
 {
     bcd_operand op1;
     bcd_operand op2;
@@ -969,7 +969,7 @@ static void bcd_report_error(bcd_operand *op, uint8_t code)
     op->error = true;
     op->error_code = code;
 
-    gD = (ushort)((gD & ~0x1F) | (code & 0x1F));
+    gD = (uint16_t)((gD & ~0x1F) | (code & 0x1F));
     if (code == BCD_ERR_ILLEGAL_CODE)
     {
         gA |= 0x8000;
@@ -1129,7 +1129,7 @@ static bool bcd_convert_to_packed(bcd_operand *dst, const bcd_operand *src)
     return true;
 }
 
-void ndfunc_pack(ushort instr)
+void ndfunc_pack(uint16_t instr)
 {
     bcd_operand op1;                  /* A/D: ASCII source      */
     bcd_operand op2;                  /* X/T: packed BCD dest   */
@@ -1269,7 +1269,7 @@ static bool bcd_convert_to_unpacked(bcd_operand *dst, const bcd_operand *src)
     return true;
 }
 
-void ndfunc_unpack(ushort instr)
+void ndfunc_unpack(uint16_t instr)
 {
     bcd_operand op1;                  /* A/D: packed BCD source */
     bcd_operand op2;                  /* X/T: ASCII destination */

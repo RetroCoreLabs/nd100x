@@ -59,7 +59,7 @@ static const char *tx_str[] = {"LDATX","LDXTX","LDDTX","LDBTX","STATX","STZTX","
  */
 void  OpToStr(char *return_string, uint16_t max_len, uint16_t operand)
 {
-	ushort instr;
+	uint16_t instr;
 	char numstr[BUFSTRSIZE_SMALL];
 	char deltastr[BUFSTRSIZE_SMALL];
 	unsigned char nibble;
@@ -685,14 +685,14 @@ DisasmArray* p_DIS = &disasm_arr;
 
 int disasm_ctr = 0;
 
-void disasm_allocate(ushort addr) {
+void disasm_allocate(uint16_t addr) {
 	if ((*p_DIS)[addr]) return; /* already exists */
 
 	// Allocate memory for the disasm entry at the given address
 	(*p_DIS)[addr] = calloc(1,sizeof(struct disasm_entry));
 }
 
-void disasm_instr(ushort addr, ushort instr){
+void disasm_instr(uint16_t addr, uint16_t instr){
 
 	// Add the instruction to the disassembly array if it doesn't exist
 	if ((*p_DIS)[addr] == NULL)
@@ -711,7 +711,7 @@ void disasm_instr(ushort addr, ushort instr){
 	}
 }
 
-void disasm_exr(ushort addr, ushort instr){
+void disasm_exr(uint16_t addr, uint16_t instr){
 	char disasm_str[BUFSTRSIZE];
 	OpToStr(disasm_str, BUFSTRSIZE, instr);
 
@@ -721,7 +721,7 @@ void disasm_exr(ushort addr, ushort instr){
 	}
 }
 
-void disasm_addword(ushort addr, ushort myword){
+void disasm_addword(uint16_t addr, uint16_t myword){
 	if ((*p_DIS)[addr]) return; /* already exists */
 
 	(*p_DIS)[addr] = calloc(1,sizeof(struct disasm_entry));
@@ -738,20 +738,20 @@ void disasm_init(void){
 	disasm_ctr=0;
 }
 
-void disasm_setlbl(ushort addr){
+void disasm_setlbl(uint16_t addr){
 	disasm_ctr++;
 	if ((*p_DIS)[addr] != NULL) {
 		(*p_DIS)[addr]->labelno = disasm_ctr;
 	}
 }
 
-void disasm_set_isdata(ushort addr){
+void disasm_set_isdata(uint16_t addr){
 	if ((*p_DIS)[addr] != NULL) {
 		(*p_DIS)[addr]->isdata = true;
 	}
 }
 
-void disasm_userel(ushort addr, ushort where){
+void disasm_userel(uint16_t addr, uint16_t where){
 	if ((*p_DIS)[addr] != NULL) {
 		if ((*p_DIS)[addr]->use_rel) { /* we have already used relative from here */
 		} else {
@@ -772,7 +772,7 @@ void disasm_dump(void){
 	int i;
 	int tmp;
 	unsigned char u,l;
-	ushort w;
+	uint16_t w;
 	char disasm_str[BUFSTRSIZE];
 
 	//char* disasm_fname = "disasm.txt";
@@ -832,7 +832,7 @@ void disasm_dump(void){
  * This means we will not completely emulate ND100 behaviour for
  * illegal opcodes yet.
  */
-ushort extract_opcode(ushort instr) {
+uint16_t extract_opcode(uint16_t instr) {
 	switch(instr & (0xFFFF<<11)) {
 	case 0130000:			/* JAP, JAN, JAZ, JAF, JPC, JNC, JXZ, JXN */
 		return(instr & (0xFFFF<<8));
@@ -857,7 +857,7 @@ ushort extract_opcode(ushort instr) {
 	return instr;	//:NOTE: This should not be reached. Added only to satisfy complaining compiler.
 }
 
-ushort decode_140k(ushort instr) {
+uint16_t decode_140k(uint16_t instr) {
 	switch (instr & (0xFFFF)) {
 	case 0140120: /* ADDD */
 	case 0140121: /* SUBD */
@@ -973,7 +973,7 @@ ushort decode_140k(ushort instr) {
 	/* TODO: Check if we should return NOOP, or create our own internal illegal instruction code and trap that later. */
 }
 
-ushort decode_150k(ushort instr) {
+uint16_t decode_150k(uint16_t instr) {
 	switch (instr & (0xFFFF)) {
 	case 0150400 : /* OPCOM */
 	case 0150401 : /* IOF */
@@ -996,7 +996,7 @@ ushort decode_150k(ushort instr) {
 	case 0151400 : /* NLZ*/
 	case 0152000 : /* DNZ*/
 	case 0153000 : /* MON */
-		return (ushort)(instr & (0xFFFF<<8));
+		return (uint16_t)(instr & (0xFFFF<<8));
 	default:
 		break;
 	}

@@ -10,9 +10,8 @@
 #include <stdatomic.h>
 #endif
 
-/* Include DAP headers BEFORE cpu_types.h to avoid ulong typedef conflict.
-   System headers pulled by dap_transport.h define ulong as unsigned long,
-   while cpu_types.h defines it as uint64_t. On WASM these differ in size. */
+/* DAP headers first. (This order once avoided a clash between the system
+   ulong typedef and cpu_types.h's; cpu_types.h no longer defines ulong.) */
 #ifdef WITH_DEBUGGER
 #include "../../external/libdap/libdap/include/dap_server.h"
 #include "../../external/libdap/libdap/include/dap_server_cmds.h"

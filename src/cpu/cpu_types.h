@@ -59,41 +59,8 @@
 
 
 
-// Type definitions (TODO: Refactor to use the types in the cpu_types.h file)
-
-/* OLD and bad way!
-typedef uint16_t ushort;
-typedef uint32_t uint;
-typedef uint64_t ulong;
-
-typedef unsigned short int ushort;
-typedef signed short int sshort;
-typedef unsigned long int ulong;
-typedef signed long int slong;
-*/
-
-typedef uint16_t  ushort;  // If you *really* want this alias
-typedef int16_t   sshort;
-typedef uint32_t  uint;
-typedef int32_t   sint;
-#ifndef __EMSCRIPTEN__
-typedef uint64_t  ulong;
-#else
-/* On WASM, sys/types.h defines ulong as unsigned long (32-bit).
-   This is sufficient for ND-100 emulation (max 32-bit values). */
-#include <sys/types.h>
-#endif
-typedef int64_t   slong;
-
-// Better way!
-typedef uint8_t   u8;
-typedef int8_t    s8;
-typedef uint16_t  u16;
-typedef int16_t   s16;
-typedef uint32_t  u32;
-typedef int32_t   s32;
-typedef uint64_t  u64;
-typedef int64_t   s64;
+// Integer types: <stdint.h> only (house rule 5.2). The old ushort/uint/ulong
+// aliases and the unused u8..s64 set were removed on 18-SEP-2026.
 
 
 // Memory Management System configuration
@@ -154,8 +121,8 @@ typedef enum {
 // Paging Tables structure
 typedef struct {
     MMSType mmsType;           // What kind of MMS is this
-    ushort* shadowRam;         // The Shadow RAM "chip"
-    uint shadowRamAddress;     // Start address of Shadow RAM
+    uint16_t* shadowRam;         // The Shadow RAM "chip"
+    uint32_t shadowRamAddress;     // Start address of Shadow RAM
     uint16_t shadowRamSize;      // Size of shadow RAM array
     bool isInitialized;        // Whether the paging tables have been initialized
 } PagingTables;
@@ -283,8 +250,8 @@ extern InstrFunc instr_funcs[65536];
  */
 typedef union ndram {
 	unsigned char	c_Array[MEMPTSIZE*1024*2];
-	ushort		n_Array[MEMPTSIZE*1024];
-	ushort		n_Pages[MEMPTSIZE][1024];
+	uint16_t		n_Array[MEMPTSIZE*1024];
+	uint16_t		n_Pages[MEMPTSIZE][1024];
 } _NDRAM_ ;
 
 
@@ -357,32 +324,32 @@ typedef enum {
 
 
 struct CpuRegs {
-	ushort	reg[16][16];	/* main CPU registers for all runlevels */
+	uint16_t	reg[16][16];	/* main CPU registers for all runlevels */
 
-	ushort	reg_STS;	/* STS register HIGH bits - not unique pr runlevel - used to be in reg[0][_STS]*/
+	uint16_t	reg_STS;	/* STS register HIGH bits - not unique pr runlevel - used to be in reg[0][_STS]*/
 
-	ushort	reg_PANS;	/* */
-	ushort	reg_PANC;	/* */
-	ushort	reg_OPR;	/* */
-	ushort	reg_LMP;	/* */
-	ushort	reg_PGS;	/* */
-	ushort	reg_PCR[16];	/* Paging Control Registers */
-	ushort	reg_PVL;	/* */
-	ushort	reg_IIC;	/* IIC is actually just a priority encoded (IID | IIE) */
-	ushort	reg_IID;	/* Actual interrupt reg */
-	ushort	reg_IIE;	/* */
-	ushort	reg_PID;	/* */
-	ushort	reg_PIE;	/* */
-	ushort	reg_CSR;	/* */
-	ushort	reg_CCL;	/* */
-	ushort	reg_LCIL;	/* */
-	ushort	reg_ALD;	/* */
-	ushort	reg_UCIL;	/* */
-	ushort	reg_PES;	/* */
-	ushort	reg_PGC;	/* */
-	ushort	reg_PEA;	/* */
-	ushort	reg_ECCR;	/* */
-	ushort	reg_ECBits;	/* Simulated ECC latch (store-on-write); see cpu_mms.c ECC block */
+	uint16_t	reg_PANS;	/* */
+	uint16_t	reg_PANC;	/* */
+	uint16_t	reg_OPR;	/* */
+	uint16_t	reg_LMP;	/* */
+	uint16_t	reg_PGS;	/* */
+	uint16_t	reg_PCR[16];	/* Paging Control Registers */
+	uint16_t	reg_PVL;	/* */
+	uint16_t	reg_IIC;	/* IIC is actually just a priority encoded (IID | IIE) */
+	uint16_t	reg_IID;	/* Actual interrupt reg */
+	uint16_t	reg_IIE;	/* */
+	uint16_t	reg_PID;	/* */
+	uint16_t	reg_PIE;	/* */
+	uint16_t	reg_CSR;	/* */
+	uint16_t	reg_CCL;	/* */
+	uint16_t	reg_LCIL;	/* */
+	uint16_t	reg_ALD;	/* */
+	uint16_t	reg_UCIL;	/* */
+	uint16_t	reg_PES;	/* */
+	uint16_t	reg_PGC;	/* */
+	uint16_t	reg_PEA;	/* */
+	uint16_t	reg_ECCR;	/* */
+	uint16_t	reg_ECBits;	/* Simulated ECC latch (store-on-write); see cpu_mms.c ECC block */
 
 	/*
 	 * ND-110 "global pointers" (the S3SEG / SINTRAN-III segment-handling group).
@@ -396,16 +363,16 @@ struct CpuRegs {
 	 *
 	 * They are NOT per-runlevel: there is exactly one set for the whole CPU.
 	 */
-	ushort	reg_STBNK;	/* Bank number of the segment table  (written from T by WGLOB) */
-	ushort	reg_STSRT;	/* Start address of the segment table within that bank (from A; must be /8) */
-	ushort	reg_CMBUK;	/* Bank number of the core-map table (written from D by WGLOB) */
+	uint16_t	reg_STBNK;	/* Bank number of the segment table  (written from T by WGLOB) */
+	uint16_t	reg_STSRT;	/* Start address of the segment table within that bank (from A; must be /8) */
+	uint16_t	reg_CMBUK;	/* Bank number of the core-map table (written from D by WGLOB) */
 
 	/* Personally Added to do Prefetch and Instruction more alike ND */
-	ushort	myreg_IR;	/* InstructionRegister */
-	ushort	myreg_PFB;	/* PrefetchBuffer */
+	uint16_t	myreg_IR;	/* InstructionRegister */
+	uint16_t	myreg_PFB;	/* PrefetchBuffer */
 
 	// Calculated EA and pagetable info (updated before opcode is executed)
-	ushort effectiveAddress;
+	uint16_t effectiveAddress;
 	bool useAPT;
 
 	/* "locks" for registers that according to manual works that way (PES, PGS, IIC) */
@@ -418,7 +385,7 @@ struct CpuRegs {
 
 	/* taking a shortcut by creating a PK 4bit register */
 	/* always modify this as well when touching PID or PIE */
-	ushort	myreg_PK;
+	uint16_t	myreg_PK;
 
 	// should cpu levels be checked ?
 	bool    chkit;
@@ -426,10 +393,10 @@ struct CpuRegs {
 	/* For MOPC/OPCOM tracing and breakpoint functionality */
 	/* counter for semirun mode*/
 	bool	has_instr_cntr;
-	ushort	instructioncounter;
+	uint16_t	instructioncounter;
 	/* flag for breakpoint and breakpoint address */
 	bool	has_breakpoint;
-	ushort	breakpoint;
+	uint16_t	breakpoint;
 
 	// Debugger enabled flag
 	bool	debugger_enabled;
@@ -575,7 +542,7 @@ struct disasm_entry {
 	char asm_str[32];
 	bool isexr;
 	char exr[32];
-	ushort theword;
+	uint16_t theword;
 };
 
 typedef struct disasm_entry* DisasmArray[65536];
@@ -591,14 +558,14 @@ extern CpuType CurrentCPUType;
 extern FppType CurrentFPPType;
 
 extern uint64_t  instr_counter ;
-extern ushort STARTADDR;
+extern uint16_t STARTADDR;
 extern int DISASM;
 extern int gCpuExitCode;
 extern int CPU_TRACE;
 extern int BSD_DEBUG;
 extern uint64_t CPU_MAX_INSTR;
 extern int CPU_BREAKPOINT_ENABLED;
-extern ushort CPU_BREAKPOINT_ADDR;
+extern uint16_t CPU_BREAKPOINT_ADDR;
 extern int CPU_RING_DUMP_SIZE;
 
 /*
