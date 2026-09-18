@@ -22,6 +22,12 @@
 #ifndef SCSI_HDD_H
 #define SCSI_HDD_H
 
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include "scsiDevice.h"
+#include "diskSCSI.h"
+
 /* SCSI command opcodes (SCSIEnums.cs SCSICommands) - only those the disk
  * target decodes. */
 #define SC_TEST_UNIT_READY             0x00

@@ -23,6 +23,11 @@
 #ifndef DEVICE_PAPERTAPE_H
 #define DEVICE_PAPERTAPE_H
 
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include "../devices_types.h"
+
 /*
  * Paper Tape Reader Interface (ND-06.015.02)
  *

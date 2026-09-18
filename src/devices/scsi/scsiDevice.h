@@ -26,6 +26,11 @@
 #ifndef SCSI_DEVICE_H
 #define SCSI_DEVICE_H
 
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include "scsiBus.h"
+
 /* Data buffer ids (SCSIEnums.cs SBUF) */
 typedef enum {
     SBUF_MAIN  = 0,   /* scsi_cmdbuf - CDB and data staging */

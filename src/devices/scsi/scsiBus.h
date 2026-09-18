@@ -21,6 +21,10 @@
 #ifndef SCSI_BUS_H
 #define SCSI_BUS_H
 
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
 /* ------------------------------------------------------------------ */
 /* SCSI control lines (SCSIEnums.cs SCSIControl)                       */
 /*                                                                     */

@@ -19,6 +19,10 @@
 #ifndef DISK_SCSI_H
 #define DISK_SCSI_H
 
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
 typedef enum {
     SCSI_DISK_UNKNOWN = 0,
     /* Norsk Data ND-100/ND-110 variant: 1024-byte sectors, 18 sectors/track.

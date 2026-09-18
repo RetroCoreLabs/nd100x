@@ -23,6 +23,8 @@
 #ifndef DEVICE_WINCHESTER_H
 #define DEVICE_WINCHESTER_H
 
+#include <stddef.h>
+
 /*
  * 5 1/4 inch (ST506) and 8 inch Winchester Disk Controller.
  *
@@ -69,6 +71,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include "../devices_types.h"
 
 #include "diskWinchester.h"
 

@@ -24,6 +24,11 @@
 #ifndef DEVICE_FLOPPY_DMA_H
 #define DEVICE_FLOPPY_DMA_H
 
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include "../devices_types.h"
+
 // Floppy DMA device registers
 typedef enum
 {

@@ -23,6 +23,11 @@
 #ifndef DEVICE_LINEPRINTER_H
 #define DEVICE_LINEPRINTER_H
 
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include "../devices_types.h"
+
 /*
  * Line Printer Interface (ND-06.016.01)
  *

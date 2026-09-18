@@ -24,6 +24,11 @@
 #ifndef DEVICE_SMD_H
 #define DEVICE_SMD_H
 
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include "../devices_types.h"
+
 #include "diskSMD.h"
 
 // Controller types

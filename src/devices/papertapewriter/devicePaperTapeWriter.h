@@ -23,6 +23,11 @@
 #ifndef DEVICE_PAPERTAPEWRITER_H
 #define DEVICE_PAPERTAPEWRITER_H
 
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include "../devices_types.h"
+
 /*
  * Paper Tape Punch Interface (ND-06.015.02)
  *

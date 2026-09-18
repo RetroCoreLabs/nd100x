@@ -24,6 +24,11 @@
 #ifndef DEVICE_SCSI_H
 #define DEVICE_SCSI_H
 
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include "../devices_types.h"
+
 /* Max SCSI targets on one controller. The card is SCSI ID 7, so targets are
  * IDs 0-6. Kept in sync with MAX_SCSI_UNITS in machine_types.h. */
 #define SCSI_MAX_UNITS 7

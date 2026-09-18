@@ -25,6 +25,10 @@
 #ifndef DISK_SMD_H
 #define DISK_SMD_H
 
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
 // Disk types
 typedef enum {
     DISK_TYPE_UNKNOWN = 0,

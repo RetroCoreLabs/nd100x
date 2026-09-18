@@ -24,6 +24,12 @@
 #ifndef DEVICE_FLOPPY_PIO_H
 #define DEVICE_FLOPPY_PIO_H
 
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
+#include "../devices_types.h"
+
 
 // Floppy PIO registers
 typedef enum {

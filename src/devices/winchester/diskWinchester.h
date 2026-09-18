@@ -23,6 +23,8 @@
 #ifndef DISK_WINCHESTER_H
 #define DISK_WINCHESTER_H
 
+#include <stddef.h>
+
 #include <stdbool.h>
 #include <stdint.h>
 

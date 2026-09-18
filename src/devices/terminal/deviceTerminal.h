@@ -25,6 +25,11 @@
 #ifndef DEVICE_TERMINAL_H
 #define DEVICE_TERMINAL_H
 
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include "../devices_types.h"
+
 #define TERMINAL_QUEUE_SIZE 256
 #define MAX_TICKS 100  // Check for new incoming characters
 

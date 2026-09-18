@@ -25,6 +25,11 @@
 #ifndef DEVICE_RTC_H
 #define DEVICE_RTC_H
 
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include "../devices_types.h"
+
 // RTC registers
 typedef enum {
     RTC_READ_DATA_REGISTER = 0,           // IOX 010: Returns 0
