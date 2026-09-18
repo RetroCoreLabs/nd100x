@@ -20,8 +20,6 @@
  * distribution in the file COPYING); if not, see <http://www.gnu.org/licenses/>.
  */
 
-//#define DEBUG_FLOPPY_DMA
-//#define DEBUG_DETAIL
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -166,9 +164,10 @@ static uint16_t FloppyDMA_Read(Device *self, uint32_t address)
         break;
     }
 
-#ifdef DEBUG_FLOPPY_DMA
-    printf("FloppyDMA_Read: reg=%d, value=%o\n", reg, value);
-#endif
+    if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_DEBUG))
+    {
+    Log_Write(LOG_CAT_FLOPPY, LOG_DEBUG, "FloppyDMA_Read: reg=%d, value=%o\n", reg, value);
+    }
 
     return value;
 }
@@ -181,9 +180,10 @@ static void FloppyDMA_Write(Device *self, uint32_t address, uint16_t value)
 
     uint32_t reg = Device_RegisterAddress(self, address);
 
-#ifdef DEBUG_FLOPPY_DMA
-    printf("FloppyDMA_Write: reg=%d, value=%o\n", reg, value);
-#endif
+    if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_DEBUG))
+    {
+    Log_Write(LOG_CAT_FLOPPY, LOG_DEBUG, "FloppyDMA_Write: reg=%d, value=%o\n", reg, value);
+    }
 
     switch (reg)
     {
@@ -338,9 +338,10 @@ static void ExecuteAutoload(Device *self, int drive)
     if (!data)
         return;
 
-#ifdef DEBUG_FLOPPY_DMA
-    printf("FloppyDMA: Executing Autoload\n");
-#endif
+    if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_DEBUG))
+    {
+    Log_Write(LOG_CAT_FLOPPY, LOG_DEBUG, "FloppyDMA: Executing Autoload\n");
+    }
 
     /*
      * This C model does not yet parse the BPUN bootstrap, so it cannot complete a real floppy
@@ -364,25 +365,27 @@ static void ExecuteTest(Device *self, int testData)
     (void)self; (void)testData;
     // TODO: Implement
 
-#ifdef DEBUG_FLOPPY_DMA
-    printf("FloppyDMA: Executing test %d\n", testData);
-#endif
+    if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_DEBUG))
+    {
+    Log_Write(LOG_CAT_FLOPPY, LOG_DEBUG, "FloppyDMA: Executing test %d\n", testData);
+    }
 }
 
 static void ExecuteFloppyGo(Device *self)
 {
-#ifdef FLOPPY_DIAG
+    if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_DEBUG))
+    {
     // Diagnostic: log first few floppy commands
     {
         static int _floppy_go_log = 0;
         if (_floppy_go_log < 5) {
             _floppy_go_log++;
-            printf("[FLOPPY-DIAG] ExecuteFloppyGo called (readFunc=%s writeFunc=%s)\n",
+            Log_Write(LOG_CAT_FLOPPY, LOG_DEBUG, "[FLOPPY-DIAG] ExecuteFloppyGo called (readFunc=%s writeFunc=%s)\n",
                 self && self->blockCallbacks.readFunc ? "ok" : "NULL",
                 self && self->blockCallbacks.writeFunc ? "ok" : "NULL");
         }
     }
-#endif
+    }
 
     if (!self)
         return;
@@ -465,16 +468,17 @@ static void ExecuteFloppyGo(Device *self)
     data->status1.bits.readyForTransfer = false;
     Device_SetInterruptStatus(self, data->status1.bits.interruptEnabled && data->status1.bits.readyForTransfer, self->interruptLevel);
 
-#ifdef DEBUG_FLOPPY_DMA
-    printf("Command block received from memory at 0x%08X\n", data->commandBlockAddress);
-    printf("------------------------------------------------\n");
+    if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_DEBUG))
+    {
+    Log_Write(LOG_CAT_FLOPPY, LOG_DEBUG, "Command block received from memory at 0x%08X\n", data->commandBlockAddress);
+    Log_Write(LOG_CAT_FLOPPY, LOG_DEBUG, "------------------------------------------------\n");
     for (int i = 0; i < 12; i++)
     {
-        printf("Command block %d: 0x%4X\n", i, data->commandBlock.raw[i]);
+        Log_Write(LOG_CAT_FLOPPY, LOG_DEBUG, "Command block %d: 0x%4X\n", i, data->commandBlock.raw[i]);
     }
-    printf("------------------------------------------------\n");
+    Log_Write(LOG_CAT_FLOPPY, LOG_DEBUG, "------------------------------------------------\n");
 
-#endif
+    }
 
     data->commandBlock.fields.status1 = 0;
     data->commandBlock.fields.status2 = (data->drive << 8); // Selected unit is reported back in bits 8-9
@@ -500,9 +504,10 @@ static void ExecuteFloppyGo(Device *self)
         }
     }
 
-#ifdef DEBUG_FLOPPY_DMA
-    printf("FloppyDMA: Command: %d\n", data->command);
-#endif
+    if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_DEBUG))
+    {
+    Log_Write(LOG_CAT_FLOPPY, LOG_DEBUG, "FloppyDMA: Command: %d\n", data->command);
+    }
 
     switch (data->command)
     {
@@ -512,9 +517,10 @@ static void ExecuteFloppyGo(Device *self)
         // The parameters for the transfer are given in the command field in the ND - 100 memory.
         //  The transfer will always start at the beginning of a sector, but the number of words to be read may be preset to any number of words.
 
-#ifdef DEBUG_DETAIL
-        printf("Starting ReadData on drive position %d, wordsToRead: %d\r\n", position, wordsToRead);
-#endif
+        if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_TRACE))
+        {
+        Log_Write(LOG_CAT_FLOPPY, LOG_TRACE, "Starting ReadData on drive position %d, wordsToRead: %d\r\n", position, wordsToRead);
+        }
 
         if (buffer)
         {
@@ -548,9 +554,10 @@ static void ExecuteFloppyGo(Device *self)
 
     case FLOPPY_FUNC_WRITE_DATA:
 // Same procedure as READ DATA, except that transfer is now from the ND - 100 to the diskette.
-#ifdef DEBUG_DETAIL
-        printf("Starting WriteData on drive position %d\r\n", position);
-#endif
+        if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_TRACE))
+        {
+        Log_Write(LOG_CAT_FLOPPY, LOG_TRACE, "Starting WriteData on drive position %d\r\n", position);
+        }
 
         if (data->readOnly)
         {
@@ -613,9 +620,10 @@ static void ExecuteFloppyGo(Device *self)
         break;
 
     case FLOPPY_FUNC_READ_FORMAT:
-#ifdef DEBUG_DETAIL
-        printf("Starting ReadFormat on drive position %d\r\n", position);
-#endif
+        if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_TRACE))
+        {
+        Log_Write(LOG_CAT_FLOPPY, LOG_TRACE, "Starting ReadFormat on drive position %d\r\n", position);
+        }
         //*"Read format" returns format in Status word 2
         // Format read from diskette, valid for read format command or when eror 12
         // Bit 0-1 Bytes pr sector

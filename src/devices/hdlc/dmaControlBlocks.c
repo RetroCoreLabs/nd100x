@@ -37,17 +37,12 @@
 #include "hdlc_constants.h"
 
 // Debug flags (convert from C# #define)
-// #define DEBUG_DETAIL
-// #define DEBUG_DETAIL_PLUS_DESCRIPTION
-// #define DMA_DEBUG
-//#define RX_BLAST_LOGGING
 
 // Static function declarations
 static void DMAControlBlocks_DMAWrite(DMAControlBlocks *dmaCB, uint32_t address, uint16_t data);
 static int DMAControlBlocks_DMARead(DMAControlBlocks *dmaCB, uint32_t address);
-#if defined(DMA_DEBUG) || defined(DEBUG_DETAIL) || defined(RX_BLAST_LOGGING)
-static void DMAControlBlocks_Log(DMAControlBlocks *dmaCB, const char *format, ...);
-#endif
+static void DMAControlBlocks_Log(DMAControlBlocks *dmaCB, const char *format, ...)
+    __attribute__((format(printf, 2, 3)));
 
 void DMAControlBlocks_Init(DMAControlBlocks *dcbs, struct Device *hdlcDevice)
 {
@@ -165,7 +160,8 @@ void DMAControlBlocks_SetTXPointer(DMAControlBlocks *dmaCB, uint32_t listPointer
 
 void DMAControlBlocks_DebugTXFrames(DMAControlBlocks *dmaCB)
 {
-#ifdef DMA_DEBUG
+    if (Log_IsEnabled(LOG_CAT_HDLC, LOG_DEBUG))
+    {
     if (!dmaCB) return;
 
     for (int i = 0; i < 100; i++) {
@@ -181,9 +177,7 @@ void DMAControlBlocks_DebugTXFrames(DMAControlBlocks *dmaCB)
             return;
         }
     }
-#else
-    (void)dmaCB;
-#endif
+    }
 }
 
 void DMAControlBlocks_LoadTXBuffer(DMAControlBlocks *dmaCB)
@@ -218,9 +212,10 @@ void DMAControlBlocks_MarkBufferSent(DMAControlBlocks *dmaCB)
         uint16_t data = (uint16_t)(DCB_GetDataFlowCost(dmaCB->txDCB) | (uint16_t)(KEYFLAG_ALREADY_TRANSMITTED_BLOCK));
         DCB_SetKeyValue(dmaCB->txDCB, data);
 
-#ifdef DMA_DEBUG
+        if (Log_IsEnabled(LOG_CAT_HDLC, LOG_DEBUG))
+        {
         DMAControlBlocks_Log(dmaCB, "MarkBufferSent: Status Word = 0x%04X", data);
-#endif
+        }
         DMAControlBlocks_DMAWrite(dmaCB, DCB_GetBufferAddress(dmaCB->txDCB), data);
     }
 }
@@ -265,10 +260,11 @@ bool DMAControlBlocks_LoadNextRXBuffer(DMAControlBlocks *dmaCB)
 
     // Handle NewListPointer - loop back to offset 0 of the buffer ring
     if (DCB_GetKey(dmaCB->rxDCB) == KEYFLAG_NEW_LIST_POINTER) {
-#ifdef DMA_DEBUG
+        if (Log_IsEnabled(LOG_CAT_HDLC, LOG_DEBUG))
+        {
         DMAControlBlocks_Log(dmaCB, "NewListPointer at offset %d, looping back to offset 0",
                            dmaCB->rxListPointerOffset);
-#endif
+        }
         dmaCB->rxListPointerOffset = 0;
         DMAControlBlocks_LoadRXBuffer(dmaCB);
 
@@ -276,9 +272,10 @@ bool DMAControlBlocks_LoadNextRXBuffer(DMAControlBlocks *dmaCB)
 
         // If first buffer after wrap is not empty, list is exhausted
         if (DCB_GetKey(dmaCB->rxDCB) != KEYFLAG_EMPTY_RECEIVER_BLOCK) {
-#ifdef DMA_DEBUG
+            if (Log_IsEnabled(LOG_CAT_HDLC, LOG_DEBUG))
+            {
             DMAControlBlocks_Log(dmaCB, "Buffer after NewListPointer is not empty - list exhausted");
-#endif
+            }
             return false;
         }
     }
@@ -324,7 +321,8 @@ void DMAControlBlocks_MarkBufferReceived(DMAControlBlocks *dmaCB, uint8_t rxStat
         // Write back the updated key value to memory
         DMAControlBlocks_DMAWrite(dmaCB, DCB_GetBufferAddress(dmaCB->rxDCB), keyValue);
 
-#ifdef DMA_DEBUG
+        if (Log_IsEnabled(LOG_CAT_HDLC, LOG_DEBUG))
+        {
         const char *flags = "";
         char flagsBuffer[64] = "";
         if (DCB_HasRSOMFlag(dmaCB->rxDCB)) snprintf(flagsBuffer + strlen(flagsBuffer), sizeof(flagsBuffer) - strlen(flagsBuffer), "%s", "RSOM ");
@@ -335,7 +333,7 @@ void DMAControlBlocks_MarkBufferReceived(DMAControlBlocks *dmaCB, uint8_t rxStat
         DMAControlBlocks_Log(dmaCB, "DMA Buffer received           : 0x%06X Flags: %s", DCB_GetBufferAddress(dmaCB->rxDCB), flags);
         DMAControlBlocks_Log(dmaCB, "ListPointer                   : 0x%06X  lp[0x%06X] offset[%d]",
                            DCB_GetListPointer(dmaCB->rxDCB), dmaCB->rxListPointer, dmaCB->rxListPointerOffset);
-        DMAControlBlocks_Log(dmaCB, "");
+        DMAControlBlocks_Log(dmaCB, "%s", "");
         DMAControlBlocks_Log(dmaCB, "KeyValue                      : 0x%04X %s [MarkBufferReceived]",
                            DMAControlBlocks_DMARead(dmaCB, DCB_GetBufferAddress(dmaCB->rxDCB) + 0), ""); // TODO: key name
         DMAControlBlocks_Log(dmaCB, "ByteCount                     : 0x%04X",
@@ -361,7 +359,7 @@ void DMAControlBlocks_MarkBufferReceived(DMAControlBlocks *dmaCB, uint8_t rxStat
                                DCB_HasRSOMFlag(dmaCB->rxDCB), DCB_HasREOMFlag(dmaCB->rxDCB));
         }
         DMAControlBlocks_Log(dmaCB, "--------------------------------------------------------------------------");
-#endif
+        }
     }
 }
 
@@ -409,12 +407,13 @@ HdlcDCB* DMAControlBlocks_LoadBufferDescription(DMAControlBlocks *dmaCB, uint32_
     }
     DCB_SetDisplacement(description, displacement);
 
-#ifdef DMA_DEBUG
+    if (Log_IsEnabled(LOG_CAT_HDLC, LOG_DEBUG))
+    {
     const char *mode = isRX ? "RX" : "TX";
     DMAControlBlocks_Log(dmaCB, "--------------------------------------------------------------------------");
     DMAControlBlocks_Log(dmaCB, "LoadBufferDescription %s      : 0x%06X lp[0x%06X] offset[%d]",
                        mode, actualListPointer, listPointer, offset);
-    DMAControlBlocks_Log(dmaCB, "");
+    DMAControlBlocks_Log(dmaCB, "%s", "");
     DMAControlBlocks_Log(dmaCB, "KeyValue                      : 0x%04X %s", keyValue, ""); // TODO: key name
 
     if (DCB_GetKey(description) != KEYFLAG_EMPTY_RECEIVER_BLOCK) {
@@ -422,7 +421,8 @@ HdlcDCB* DMAControlBlocks_LoadBufferDescription(DMAControlBlocks *dmaCB, uint32_
     }
     DMAControlBlocks_Log(dmaCB, "MostAddress                   : 0x%04X", (DCB_GetDataMemoryAddress(description) >> 16) & 0xFF);
     DMAControlBlocks_Log(dmaCB, "LeastAddress                  : 0x%04X", DCB_GetDataMemoryAddress(description) & 0xFFFF);
-    DMAControlBlocks_Log(dmaCB, "Displacement                  : %d : Use Displacement%s", displacement, disp);
+    DMAControlBlocks_Log(dmaCB, "Displacement                  : %d : Use Displacement%s", displacement,
+                         offset == 0 ? "1" : "2");
 
     if ((DCB_GetByteCount(description) > 0) && (DCB_GetKey(description) == KEYFLAG_BLOCK_TO_BE_TRANSMITTED)) {
         DCB_SetDMAAddress(description, DCB_GetDataMemoryAddress(description));
@@ -437,9 +437,10 @@ HdlcDCB* DMAControlBlocks_LoadBufferDescription(DMAControlBlocks *dmaCB, uint32_
         DMAControlBlocks_Log(dmaCB, "DATA: %s", bytes);
     }
     DMAControlBlocks_Log(dmaCB, "--------------------------------------------------------------------------");
-#endif
+    }
 
-#ifdef DEBUG_DETAIL
+    if (Log_IsEnabled(LOG_CAT_HDLC, LOG_TRACE))
+    {
     if (DCB_GetKey(description) == KEYFLAG_EMPTY_RECEIVER_BLOCK) {
         DMAControlBlocks_Log(dmaCB, "Loading Buffer from 0x%08X Key=%s", listPointer, "EmptyReceiverBlock");
     } else {
@@ -447,7 +448,7 @@ HdlcDCB* DMAControlBlocks_LoadBufferDescription(DMAControlBlocks *dmaCB, uint32_
                            listPointer, "", DCB_GetDataFlowCost(description), DCB_GetByteCount(description),
                            DCB_HasRSOMFlag(description), DCB_HasREOMFlag(description));
     }
-#endif
+    }
 
     // Set up the DMA helpers
     DCB_SetDMAAddress(description, DCB_GetDataMemoryAddress(description));
@@ -530,14 +531,16 @@ void DMAControlBlocks_WriteNextByteDMA(DMAControlBlocks *dmaCB, uint8_t data, bo
     int bytesWritten = DCB_GetDMABytesWritten(description);
     uint16_t displacement = DCB_GetDisplacement(description);
 
-#ifdef RX_BLAST_LOGGING
+    if (Log_IsEnabled(LOG_CAT_HDLC, LOG_TRACE))
+    {
     DMAControlBlocks_Log(dmaCB, " DMA_WRITE_ENTRY: data=0x%02X, bytes_written=%d, displacement=%d, dmaAddress=0x%08X",
                        data, bytesWritten, displacement, DCB_GetDMAAddress(description));
-#endif
+    }
 
-#ifdef DEBUG_DETAIL
+    if (Log_IsEnabled(LOG_CAT_HDLC, LOG_TRACE))
+    {
     DMAControlBlocks_Log(dmaCB, "DMA Write: 0x%02X  #%d", data, bytesWritten);
-#endif
+    }
 
     // Adjust for "displacement"
     if ((bytesWritten == 0) && (displacement > 0)) {
@@ -550,10 +553,11 @@ void DMAControlBlocks_WriteNextByteDMA(DMAControlBlocks *dmaCB, uint8_t data, bo
         dmaAddr += (uint32_t)(displacement / 2);
         DCB_SetDMAAddress(description, dmaAddr);
 
-#ifdef RX_BLAST_LOGGING
+        if (Log_IsEnabled(LOG_CAT_HDLC, LOG_TRACE))
+        {
         DMAControlBlocks_Log(dmaCB, "DMA_WRITE_DISPLACEMENT: skipped %d bytes, new_bytes_written=%d, new_dmaAddress=0x%08X",
                            displacement, bytesWritten, DCB_GetDMAAddress(description));
-#endif
+        }
     }
 
     uint16_t dmaWriteData;
@@ -579,9 +583,10 @@ void DMAControlBlocks_WriteNextByteDMA(DMAControlBlocks *dmaCB, uint8_t data, bo
     // Update DCB with bytes written as "ByteCount"
     DMAControlBlocks_DMAWrite(dmaCB, DCB_GetListPointer(description) + 1, (uint16_t)bytesWritten);
 
-#ifdef RX_BLAST_LOGGING
+    if (Log_IsEnabled(LOG_CAT_HDLC, LOG_TRACE))
+    {
     DMAControlBlocks_Log(dmaCB, "DMA_WRITE_EXIT: bytes_written=%d, final_dmaAddress=0x%08X", bytesWritten, DCB_GetDMAAddress(description));
-#endif
+    }
 }
 
 // Callback Setup Functions
@@ -628,20 +633,17 @@ static int DMAControlBlocks_DMARead(DMAControlBlocks *dmaCB, uint32_t address)
     return dmaCB->onReadDMA(dmaCB->callbackContext, address);
 }
 
-#if defined(DMA_DEBUG) || defined(DEBUG_DETAIL) || defined(RX_BLAST_LOGGING)
 static void DMAControlBlocks_Log(DMAControlBlocks *dmaCB, const char *format, ...)
 {
-    char buffer[512];
-    char finalBuffer[600];
+    (void)dmaCB;
+    if (!Log_IsEnabled(LOG_CAT_HDLC, LOG_DEBUG))
+        return;
 
+    char buffer[512];
     va_list args;
     va_start(args, format);
     vsnprintf(buffer, sizeof(buffer), format, args);
     va_end(args);
 
-    snprintf(finalBuffer, sizeof(finalBuffer), "DMACB: %s", buffer);
-
-    // TODO: Replace with actual logging function
-    printf("%s\n", finalBuffer);
+    Log_Write(LOG_CAT_HDLC, LOG_DEBUG, "DMACB: %s", buffer);
 }
-#endif

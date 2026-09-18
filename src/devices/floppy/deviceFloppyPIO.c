@@ -29,7 +29,6 @@
 #include "../devices_protos.h"
 #include "deviceFloppyPIO.h"
 
-//#define DEBUG_FLOPPY_PIO
 
 // Floppy boot sector data
 static const uint8_t floppy_boot[388] = {
@@ -89,9 +88,10 @@ static uint16_t FloppyPIO_Read(Device *self, uint32_t address) {
     switch (reg) {
         case FLOPPY_READ_DATA_BUFFER:
             value = data->dataBuffer[data->bufferPointer];
-#ifdef DEBUG_DATATRANSFER_PIO
-            printf("%o Read offset [%04X]= %04X\r\n", address, data->bufferPointer, value);
-#endif
+            if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_TRACE))
+            {
+            Log_Write(LOG_CAT_FLOPPY, LOG_TRACE, "%o Read offset [%04X]= %04X\r\n", address, data->bufferPointer, value);
+            }
             data->bufferPointer = (data->bufferPointer + 1) & 0x3FF;
             break;
 
@@ -134,11 +134,12 @@ static uint16_t FloppyPIO_Read(Device *self, uint32_t address) {
             break;
     }
 
-#ifdef DEBUG_FLOPPY_PIO
+    if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_DEBUG))
+    {
     if (reg != FLOPPY_READ_DATA_BUFFER) {
-        printf("Floppy PIO Reading from address: %o value: %o\n", address, value);
+        Log_Write(LOG_CAT_FLOPPY, LOG_DEBUG, "Floppy PIO Reading from address: %o value: %o\n", address, value);
     }
-#endif
+    }
 
     return value;
 }
@@ -149,17 +150,19 @@ static void FloppyPIO_Write(Device *self, uint32_t address, uint16_t value) {
     FloppyPIOData *data = (FloppyPIOData *)self->deviceData;
     uint32_t reg = Device_RegisterAddress(self, address);
 
-#ifdef DEBUG_FLOPPY_PIO
+    if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_DEBUG))
+    {
     if (reg != FLOPPY_WRITE_DATA_BUFFER) {
-        printf("Floppy PIO Writing value: %o to address: %o\n", value, address);
+        Log_Write(LOG_CAT_FLOPPY, LOG_DEBUG, "Floppy PIO Writing value: %o to address: %o\n", value, address);
     }
-#endif
+    }
 
     switch (reg) {
         case FLOPPY_WRITE_DATA_BUFFER:
-#ifdef DEBUG_DATATRANSFER_PIO
-            printf("FloppyPIO: Write Buffer offset %d value = %04x\n", data->bufferPointer, value);
-#endif
+            if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_TRACE))
+            {
+            Log_Write(LOG_CAT_FLOPPY, LOG_TRACE, "FloppyPIO: Write Buffer offset %d value = %04x\n", data->bufferPointer, value);
+            }
             data->dataBuffer[data->bufferPointer] = value;
             data->bufferPointer = (data->bufferPointer + 1) & 0x3FF;
             break;
@@ -380,16 +383,18 @@ void FloppyPIO_ExecuteGo(Device *self, FloppyPIOCommand command) {
     int position = ((data->sector - 1) * data->bytes_pr_sector) +
                   (data->track * data->bytes_pr_sector * data->sectors_pr_track);
 
-#ifdef DEBUG_FLOPPY_PIO
-    printf("Executing command %d on drive %d position %d [Sector %d Track %d DataBufAddr %d]\n",
+    if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_DEBUG))
+    {
+    Log_Write(LOG_CAT_FLOPPY, LOG_DEBUG, "Executing command %d on drive %d position %d [Sector %d Track %d DataBufAddr %d]\n",
            command, data->selectedDrive, position, data->sector, data->track, data->bufferPointer);
-#endif
+    }
 
     switch (command) {
         case FLOPPY_CMD_FORMAT_TRACK:
-#ifdef DEBUG_FLOPPY_PIO
-            printf("Starting FormatTrack \r\n");
-#endif
+            if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_DEBUG))
+            {
+            Log_Write(LOG_CAT_FLOPPY, LOG_DEBUG, "Starting FormatTrack \r\n");
+            }
             if (data->status2.bits.writeProtect) {
                 data->status1.bits.deviceBusy = 0;
                 data->status1.bits.deviceReadyForTransfer = 1;
@@ -400,9 +405,10 @@ void FloppyPIO_ExecuteGo(Device *self, FloppyPIOCommand command) {
                       (data->track * data->bytes_pr_sector * data->sectors_pr_track);
 
             if (fseek(data->floppyFile, position, SEEK_SET) != 0) {
-#ifdef DEBUG_FLOPPY_PIO
-                printf("Floppy SEEK in FormatTrack to %d FAILED\r\n", position);
-#endif
+                if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_DEBUG))
+                {
+                Log_Write(LOG_CAT_FLOPPY, LOG_DEBUG, "Floppy SEEK in FormatTrack to %d FAILED\r\n", position);
+                }
                 data->status2.bits.sectorMissing = 1;
                 data->status1.bits.deviceBusy = 0;
                 data->status1.bits.deviceReadyForTransfer = 1;
@@ -415,10 +421,11 @@ void FloppyPIO_ExecuteGo(Device *self, FloppyPIOCommand command) {
                 transferWordCount = data->bytes_pr_sector >> 1;
                 while (transferWordCount > 0) {
                     if (!Device_IO_WriteWord(self, data->floppyFile, formatData)) {
-#ifdef DEBUG_FLOPPY_PIO
-                        printf("IO error during [FORMAT] Track=%d, Sector=%d\r\n",
+                        if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_DEBUG))
+                        {
+                        Log_Write(LOG_CAT_FLOPPY, LOG_DEBUG, "IO error during [FORMAT] Track=%d, Sector=%d\r\n",
                                data->track, data->sector);
-#endif
+                        }
                         data->status2.bits.driveNotReady = 1;
                         data->status1.bits.deviceBusy = 0;
                         return;
@@ -432,9 +439,10 @@ void FloppyPIO_ExecuteGo(Device *self, FloppyPIOCommand command) {
             break;
 
         case FLOPPY_CMD_WRITE_DATA:
-#ifdef DEBUG_FLOPPY_PIO
-            printf("Starting WriteData \r\n");
-#endif
+            if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_DEBUG))
+            {
+            Log_Write(LOG_CAT_FLOPPY, LOG_DEBUG, "Starting WriteData \r\n");
+            }
             if (data->status2.bits.writeProtect) {
                 data->status1.bits.deviceBusy = 0;
                 data->status1.bits.deviceReadyForTransfer = 1;
@@ -442,9 +450,10 @@ void FloppyPIO_ExecuteGo(Device *self, FloppyPIOCommand command) {
             }
 
             if (fseek(data->floppyFile, position, SEEK_SET) != 0) {
-#ifdef DEBUG_FLOPPY_PIO
-                printf("Floppy SEEK in WRITE to %d FAILED\r\n", position);
-#endif
+                if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_DEBUG))
+                {
+                Log_Write(LOG_CAT_FLOPPY, LOG_DEBUG, "Floppy SEEK in WRITE to %d FAILED\r\n", position);
+                }
                 data->status2.bits.sectorMissing = 1;
                 data->status1.bits.deviceBusy = 0;
                 return;
@@ -455,9 +464,10 @@ void FloppyPIO_ExecuteGo(Device *self, FloppyPIOCommand command) {
                 data->bufferPointer = (data->bufferPointer + 1) & 0x3FF;
 
                 if (!Device_IO_WriteWord(self, data->floppyFile, writeData)) {
-#ifdef DEBUG_FLOPPY_PIO
-                    printf("IO ERROR in WRITE at %d\r\n", position);
-#endif
+                    if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_DEBUG))
+                    {
+                    Log_Write(LOG_CAT_FLOPPY, LOG_DEBUG, "IO ERROR in WRITE at %d\r\n", position);
+                    }
                     data->status2.bits.driveNotReady = 1;
                     data->status1.bits.deviceBusy = 0;
                     return;
@@ -469,17 +479,19 @@ void FloppyPIO_ExecuteGo(Device *self, FloppyPIOCommand command) {
 
             SetSectorAsDeleted(data, data->sector, data->track, false);
 
-#ifdef DEBUG_DETAIL
-            printf("FloppyPIO: Write %d WORDs\r\n", wordsRead);
-#endif
+            if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_TRACE))
+            {
+            Log_Write(LOG_CAT_FLOPPY, LOG_TRACE, "FloppyPIO: Write %d WORDs\r\n", wordsRead);
+            }
 
             Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)FloppyPIO_ReadEnd, unit, self->interruptLevel);
             break;
 
         case FLOPPY_CMD_WRITE_DELETED_DATA:
-#ifdef DEBUG_FLOPPY_PIO
-            printf("Starting WriteDeletedData \r\n");
-#endif
+            if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_DEBUG))
+            {
+            Log_Write(LOG_CAT_FLOPPY, LOG_DEBUG, "Starting WriteDeletedData \r\n");
+            }
             if (data->status2.bits.writeProtect) {
                 data->status1.bits.deviceBusy = 0;
                 data->status1.bits.deviceReadyForTransfer = 1;
@@ -489,9 +501,10 @@ void FloppyPIO_ExecuteGo(Device *self, FloppyPIOCommand command) {
             SetSectorAsDeleted(data, data->sector, data->track, true);
 
             if (fseek(data->floppyFile, position, SEEK_SET) != 0) {
-#ifdef DEBUG_FLOPPY_PIO
-                printf("Floppy SEEK in WriteDeletedData to %d FAILED\r\n", position);
-#endif
+                if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_DEBUG))
+                {
+                Log_Write(LOG_CAT_FLOPPY, LOG_DEBUG, "Floppy SEEK in WriteDeletedData to %d FAILED\r\n", position);
+                }
                 data->status2.bits.sectorMissing = 1;
                 data->status1.bits.deviceBusy = 0;
                 return;
@@ -502,9 +515,10 @@ void FloppyPIO_ExecuteGo(Device *self, FloppyPIOCommand command) {
                 data->bufferPointer = (data->bufferPointer + 1) & 0x3FF;
 
                 if (!Device_IO_WriteWord(self, data->floppyFile, writeData)) {
-#ifdef DEBUG_FLOPPY_PIO
-                    printf("IO ERROR in WriteDeletedData at %d\r\n", position);
-#endif
+                    if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_DEBUG))
+                    {
+                    Log_Write(LOG_CAT_FLOPPY, LOG_DEBUG, "IO ERROR in WriteDeletedData at %d\r\n", position);
+                    }
                     data->status2.bits.driveNotReady = 1;
                     data->status1.bits.deviceBusy = 0;
                     return;
@@ -518,9 +532,10 @@ void FloppyPIO_ExecuteGo(Device *self, FloppyPIOCommand command) {
             break;
 
         case FLOPPY_CMD_READ_ID:
-#ifdef DEBUG_FLOPPY_PIO
-            printf("Starting ReadID \r\n");
-#endif
+            if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_DEBUG))
+            {
+            Log_Write(LOG_CAT_FLOPPY, LOG_DEBUG, "Starting ReadID \r\n");
+            }
 
             if (SectorIsDeleted(data, data->sector, data->track)) {
                 data->dataBuffer[0] = 0xFF00;
@@ -535,15 +550,17 @@ void FloppyPIO_ExecuteGo(Device *self, FloppyPIOCommand command) {
             break;
 
         case FLOPPY_CMD_READ_DATA:
-#ifdef DEBUG_FLOPPY_PIO
-            printf("Starting ReadData, transferWordCount=%d, position=%d\r\n",
+            if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_DEBUG))
+            {
+            Log_Write(LOG_CAT_FLOPPY, LOG_DEBUG, "Starting ReadData, transferWordCount=%d, position=%d\r\n",
                    transferWordCount, position);
-#endif
+            }
 
             if (fseek(data->floppyFile, position, SEEK_SET) != 0) {
-#ifdef DEBUG_FLOPPY_PIO
-                printf("Floppy SEEK in READ to %d FAILED\r\n", position);
-#endif
+                if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_DEBUG))
+                {
+                Log_Write(LOG_CAT_FLOPPY, LOG_DEBUG, "Floppy SEEK in READ to %d FAILED\r\n", position);
+                }
                 data->status2.bits.sectorMissing = 1;
                 data->status1.bits.deviceBusy = 0;
                 return;
@@ -562,9 +579,10 @@ void FloppyPIO_ExecuteGo(Device *self, FloppyPIOCommand command) {
             while (transferWordCount > 0) {
                 int readData = Device_IO_ReadWord(self, data->floppyFile);
                 if (readData == -1) {
-#ifdef DEBUG_FLOPPY_PIO
-                    printf("IO ERROR in READ at %d FAILED\r\n", position);
-#endif
+                    if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_DEBUG))
+                    {
+                    Log_Write(LOG_CAT_FLOPPY, LOG_DEBUG, "IO ERROR in READ at %d FAILED\r\n", position);
+                    }
                     data->status2.bits.driveNotReady = 1;
                     data->status1.bits.deviceBusy = 0;
                     return;
@@ -576,9 +594,10 @@ void FloppyPIO_ExecuteGo(Device *self, FloppyPIOCommand command) {
                 transferWordCount--;
             }
 
-#ifdef DEBUG_DETAIL
-            printf("FloppyPIO: Read %d WORDs\r\n", wordsRead);
-#endif
+            if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_TRACE))
+            {
+            Log_Write(LOG_CAT_FLOPPY, LOG_TRACE, "FloppyPIO: Read %d WORDs\r\n", wordsRead);
+            }
 
             // Simulate transfer delay
             Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)FloppyPIO_ReadEnd, unit, self->interruptLevel);

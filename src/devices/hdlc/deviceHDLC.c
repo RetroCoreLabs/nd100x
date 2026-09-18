@@ -21,7 +21,6 @@
  */
 
 // Uncomment to enable HDLC debug logging (register reads/writes, interrupts, DMA commands)
-// #define HDLC_DEBUG
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -37,8 +36,6 @@
 #include "dmaEnum.h"
 #include "dmaControlBlocks.h"
 #include "dmaReceiver.h"
-
-#ifdef HDLC_DEBUG
 
 static const char *hdlc_reg_name[] = {
     "RxDR",         // 0  IOX+0  Read Receiver Data
@@ -59,89 +56,65 @@ static const char *hdlc_reg_name[] = {
     "WDMA_CMD"      // 15 IOX+17 Write DMA Command
 };
 
-static const char *hdlc_dma_cmd_name[] = {
-    "DEVICE_CLEAR", "INITIALIZE", "RECEIVER_START", "RECEIVER_CONTINUE",
-    "TRANSMITTER_START", "DUMP_DATA_MODULE", "DUMP_REGISTERS", "LOAD_REGISTERS"
+/* One HDLC transfer register bit and its name, for the hdlc debug log. */
+typedef struct
+{
+    uint16_t bit;
+    const char *name;
+} HdlcBitName;
+
+/* Log "  REG=0xVVVV [name name ]" as one line (hdlc category, debug level). */
+static void hdlc_log_bits(const char *reg, uint16_t val, const HdlcBitName *bits, size_t count)
+{
+    char line[256];
+    int pos = snprintf(line, sizeof(line), "  %s=0x%04X [", reg, val);
+    for (size_t i = 0; i < count && pos > 0 && (size_t)pos < sizeof(line); i++)
+    {
+        if (val & bits[i].bit)
+        {
+            pos += snprintf(line + pos, sizeof(line) - (size_t)pos, "%s ", bits[i].name);
+        }
+    }
+    if (pos > 0 && (size_t)pos < sizeof(line))
+    {
+        snprintf(line + pos, sizeof(line) - (size_t)pos, "]");
+    }
+    Log_Write(LOG_CAT_HDLC, LOG_DEBUG, "%s", line);
+}
+
+#define HDLC_BITS(b) (b), (sizeof(b) / sizeof((b)[0]))
+
+static const HdlcBitName s_rrts_bits[] = {
+    {1u << 0, "DataAvail"}, {1u << 1, "StatusAvail"}, {1u << 2, "RxActive"},
+    {1u << 3, "SyncFlag"},  {1u << 4, "DMAReq"},      {1u << 5, "SD"},
+    {1u << 6, "DSR"},       {1u << 7, "RI"},          {1u << 8, "BlockEnd"},
+    {1u << 9, "FrameEnd"},  {1u << 10, "ListEnd"},    {1u << 11, "ListEmpty"},
+    {1u << 15, "RxOverrun"},
 };
 
-static void hdlc_log_rrts(uint16_t val)
-{
-    fprintf(stderr, "  RRTS=0x%04X [", val);
-    if (val & (1<<0))  fprintf(stderr, "DataAvail ");
-    if (val & (1<<1))  fprintf(stderr, "StatusAvail ");
-    if (val & (1<<2))  fprintf(stderr, "RxActive ");
-    if (val & (1<<3))  fprintf(stderr, "SyncFlag ");
-    if (val & (1<<4))  fprintf(stderr, "DMAReq ");
-    if (val & (1<<5))  fprintf(stderr, "SD ");
-    if (val & (1<<6))  fprintf(stderr, "DSR ");
-    if (val & (1<<7))  fprintf(stderr, "RI ");
-    if (val & (1<<8))  fprintf(stderr, "BlockEnd ");
-    if (val & (1<<9))  fprintf(stderr, "FrameEnd ");
-    if (val & (1<<10)) fprintf(stderr, "ListEnd ");
-    if (val & (1<<11)) fprintf(stderr, "ListEmpty ");
-    if (val & (1<<15)) fprintf(stderr, "RxOverrun ");
-    fprintf(stderr, "]\n");
-}
+static const HdlcBitName s_wrtc_bits[] = {
+    {1u << 0, "DataAvailIE"},   {1u << 1, "StatusAvailIE"}, {1u << 2, "RxEnable"},
+    {1u << 3, "RxDMA"},         {1u << 4, "DMAModuleIE"},   {1u << 5, "DevClear/Maint"},
+    {1u << 6, "DTR"},           {1u << 7, "ModemChgIE"},    {1u << 8, "BlockEndIE"},
+    {1u << 9, "FrameEndIE"},    {1u << 10, "ListEndIE"},
+};
 
-static void hdlc_log_wrtc(uint16_t val)
-{
-    fprintf(stderr, "  WRTC=0x%04X [", val);
-    if (val & (1<<0)) fprintf(stderr, "DataAvailIE ");
-    if (val & (1<<1)) fprintf(stderr, "StatusAvailIE ");
-    if (val & (1<<2)) fprintf(stderr, "RxEnable ");
-    if (val & (1<<3)) fprintf(stderr, "RxDMA ");
-    if (val & (1<<4)) fprintf(stderr, "DMAModuleIE ");
-    if (val & (1<<5)) fprintf(stderr, "DevClear/Maint ");
-    if (val & (1<<6)) fprintf(stderr, "DTR ");
-    if (val & (1<<7)) fprintf(stderr, "ModemChgIE ");
-    if (val & (1<<8)) fprintf(stderr, "BlockEndIE ");
-    if (val & (1<<9)) fprintf(stderr, "FrameEndIE ");
-    if (val & (1<<10)) fprintf(stderr, "ListEndIE ");
-    fprintf(stderr, "]\n");
-}
+static const HdlcBitName s_rtts_bits[] = {
+    {1u << 0, "TxBufEmpty"}, {1u << 1, "TxUnderrun"}, {1u << 2, "TxActive"},
+    {1u << 4, "DMAReq"},     {1u << 6, "RFS"},        {1u << 8, "BlockEnd"},
+    {1u << 9, "FrameEnd"},   {1u << 10, "ListEnd"},   {1u << 11, "TxFinished"},
+    {1u << 15, "Illegal"},
+};
 
-static void hdlc_log_rtts(uint16_t val)
-{
-    fprintf(stderr, "  RTTS=0x%04X [", val);
-    if (val & (1<<0)) fprintf(stderr, "TxBufEmpty ");
-    if (val & (1<<1)) fprintf(stderr, "TxUnderrun ");
-    if (val & (1<<2)) fprintf(stderr, "TxActive ");
-    if (val & (1<<4)) fprintf(stderr, "DMAReq ");
-    if (val & (1<<6)) fprintf(stderr, "RFS ");
-    if (val & (1<<8)) fprintf(stderr, "BlockEnd ");
-    if (val & (1<<9)) fprintf(stderr, "FrameEnd ");
-    if (val & (1<<10)) fprintf(stderr, "ListEnd ");
-    if (val & (1<<11)) fprintf(stderr, "TxFinished ");
-    if (val & (1<<15)) fprintf(stderr, "Illegal ");
-    fprintf(stderr, "]\n");
-}
+static const HdlcBitName s_wttc_bits[] = {
+    {1u << 0, "TxBufEmptyIE"}, {1u << 1, "TxUnderrunIE"}, {1u << 2, "TxEnable"},
+    {1u << 3, "TxDMA"},        {1u << 4, "DMAModuleIE"},  {1u << 5, "HalfDuplex"},
+    {1u << 6, "RTS"},          {1u << 7, "ModemChgIE"},   {1u << 8, "BlockEndIE"},
+    {1u << 9, "FrameEndIE"},   {1u << 10, "ListEndIE"},
+};
 
-static void hdlc_log_wttc(uint16_t val)
-{
-    fprintf(stderr, "  WTTC=0x%04X [", val);
-    if (val & (1<<0)) fprintf(stderr, "TxBufEmptyIE ");
-    if (val & (1<<1)) fprintf(stderr, "TxUnderrunIE ");
-    if (val & (1<<2)) fprintf(stderr, "TxEnable ");
-    if (val & (1<<3)) fprintf(stderr, "TxDMA ");
-    if (val & (1<<4)) fprintf(stderr, "DMAModuleIE ");
-    if (val & (1<<5)) fprintf(stderr, "HalfDuplex ");
-    if (val & (1<<6)) fprintf(stderr, "RTS ");
-    if (val & (1<<7)) fprintf(stderr, "ModemChgIE ");
-    if (val & (1<<8)) fprintf(stderr, "BlockEndIE ");
-    if (val & (1<<9)) fprintf(stderr, "FrameEndIE ");
-    if (val & (1<<10)) fprintf(stderr, "ListEndIE ");
-    fprintf(stderr, "]\n");
-}
-
-#define HDLC_LOG(fmt, ...) fprintf(stderr, "HDLC: " fmt "\n", ##__VA_ARGS__)
-#define HDLC_LOG_IRQ(level, reason) fprintf(stderr, "HDLC: >>> IRQ %d triggered: %s\n", level, reason)
-
-#else
-
-#define HDLC_LOG(fmt, ...) ((void)0)
-#define HDLC_LOG_IRQ(level, reason) ((void)0)
-
-#endif /* HDLC_DEBUG */
+#define HDLC_LOG(fmt, ...) LOG(LOG_CAT_HDLC, LOG_DEBUG, fmt, ##__VA_ARGS__)
+#define HDLC_LOG_IRQ(level, reason) LOG(LOG_CAT_HDLC, LOG_DEBUG, ">>> IRQ %d triggered: %s", (level), (reason))
 
 // Forward declarations
 static void HDLC_CheckTriggerIRQ12(Device *self);
@@ -356,11 +329,12 @@ static uint16_t HDLC_Read(Device *self, uint32_t address)
             break;
     }
 
-#ifdef HDLC_DEBUG
+    if (Log_IsEnabled(LOG_CAT_HDLC, LOG_DEBUG))
+    {
     HDLC_LOG("READ  IOX+%o %-10s => 0x%04X", reg, reg < 16 ? hdlc_reg_name[reg] : "?", value);
-    if (reg == HDLC_READ_RX_TRANSFER_STATUS)  hdlc_log_rrts(value);
-    if (reg == HDLC_READ_TX_TRANSFER_STATUS)  hdlc_log_rtts(value);
-#endif
+    if (reg == HDLC_READ_RX_TRANSFER_STATUS)  hdlc_log_bits("RRTS", value, HDLC_BITS(s_rrts_bits));
+    if (reg == HDLC_READ_TX_TRANSFER_STATUS)  hdlc_log_bits("RTTS", value, HDLC_BITS(s_rtts_bits));
+    }
 
     return value;
 }
@@ -372,9 +346,10 @@ static void HDLC_Write(Device *self, uint32_t address, uint16_t value)
     HDLCData *data = (HDLCData *)self->deviceData;
     uint32_t reg = Device_RegisterAddress(self, address);
 
-#ifdef HDLC_DEBUG
+    if (Log_IsEnabled(LOG_CAT_HDLC, LOG_DEBUG))
+    {
     HDLC_LOG("WRITE IOX+%o %-10s <= 0x%04X", reg, reg < 16 ? hdlc_reg_name[reg] : "?", value);
-#endif
+    }
 
     switch (reg) {
         case HDLC_WRITE_PARAMETER_CONTROL:     // IOX +1: Write Parameter Control Register
@@ -403,9 +378,10 @@ static void HDLC_Write(Device *self, uint32_t address, uint16_t value)
 
         case HDLC_WRITE_RX_TRANSFER_CONTROL:   // IOX +11: Write Receiver Transfer Control
             data->rxTransferControl.raw = value;
-#ifdef HDLC_DEBUG
-            hdlc_log_wrtc(value);
-#endif
+            if (Log_IsEnabled(LOG_CAT_HDLC, LOG_DEBUG))
+            {
+            hdlc_log_bits("WRTC", value, HDLC_BITS(s_wrtc_bits));
+            }
             if (value == 0) {
                 // Clear maintenance/loopback mode
                 data->maintenanceMode = false;
@@ -441,9 +417,10 @@ static void HDLC_Write(Device *self, uint32_t address, uint16_t value)
         case HDLC_WRITE_TX_TRANSFER_CONTROL:   // IOX +13: Write Transmitter Transfer Control
             data->iox13WriteCount++;
             data->txTransferControl.raw = value;
-#ifdef HDLC_DEBUG
-            hdlc_log_wttc(value);
-#endif
+            if (Log_IsEnabled(LOG_CAT_HDLC, LOG_DEBUG))
+            {
+            hdlc_log_bits("WTTC", value, HDLC_BITS(s_wttc_bits));
+            }
 
             // Configure COM5025 transmitter enable pin
             COM5025_SetInputPin(data->com5025, COM5025_PIN_IN_TXENA, data->txTransferControl.bits.transmitterEnabled);
@@ -501,7 +478,8 @@ static void HDLC_Write(Device *self, uint32_t address, uint16_t value)
                         break;
                 }
             }
-#ifdef HDLC_DEBUG
+            if (Log_IsEnabled(LOG_CAT_HDLC, LOG_DEBUG))
+            {
             {
                 static const char *cmd_names[] = {
                     "DEVICE_CLEAR", "INITIALIZE", "RX_START", "RX_CONTINUE",
@@ -512,7 +490,7 @@ static void HDLC_Write(Device *self, uint32_t address, uint16_t value)
                          cmd_names[data->dmaCommand & 7],
                          fullAddr, data->dmaBankBits, data->dmaAddress);
             }
-#endif
+            }
             // Execute DMA command
             if (data->dmaEngine) {
                 // Combine bank bits with 16-bit DMA address to form 20-bit physical address
@@ -549,9 +527,10 @@ static void HDLC_Write(Device *self, uint32_t address, uint16_t value)
                         DMAEngine_CommandLoadRegisters(data->dmaEngine);
                         break;
                     default:
-#ifdef DMA_DEBUG
-                        printf("HDLC: Unknown DMA command: %d\n", data->dmaCommand);
-#endif
+                        if (Log_IsEnabled(LOG_CAT_HDLC, LOG_DEBUG))
+                        {
+                        Log_Write(LOG_CAT_HDLC, LOG_DEBUG, "HDLC: Unknown DMA command: %d\n", data->dmaCommand);
+                        }
                         break;
                 }
             }

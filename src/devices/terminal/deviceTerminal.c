@@ -233,12 +233,13 @@ static uint16_t Terminal_Read(Device *self, uint32_t address)
         break;
     }
 
-#ifdef DEBUG_TERMINAL
+    if (Log_IsEnabled(LOG_CAT_TERM, LOG_DEBUG))
+    {
     if (reg != TERMINAL_READ_INPUT_DATA)
     {
-        printf("Terminal Reading from address: %o value: %o\n", address, value);
+        Log_Write(LOG_CAT_TERM, LOG_DEBUG, "Terminal Reading from address: %o value: %o\n", address, value);
     }
-#endif
+    }
 
     return value;
 }
@@ -251,12 +252,13 @@ static void Terminal_Write(Device *self, uint32_t address, uint16_t value)
     TerminalData *data = (TerminalData *)self->deviceData;
     uint32_t reg = Device_RegisterAddress(self, address);
 
-#ifdef DEBUG_TERMINAL
+    if (Log_IsEnabled(LOG_CAT_TERM, LOG_DEBUG))
+    {
     if (reg != TERMINAL_WRITE_DATA)
     {
-        printf("Terminal Writing value: %o to address: %o\n", value, address);
+        Log_Write(LOG_CAT_TERM, LOG_DEBUG, "Terminal Writing value: %o to address: %o\n", value, address);
     }
-#endif
+    }
 
     switch (reg)
     {

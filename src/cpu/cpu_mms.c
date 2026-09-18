@@ -77,7 +77,7 @@ bool CreatePagingTables(void)
 // Helper functions
 static uint ConvertFrom16BitPTE(ushort value)
 {
-    uint pte = (uint)((value & 0xFE00) << 16 | (value & 0x01FF));
+    uint pte = ((uint32_t)(value & 0xFE00) << 16) | (uint32_t)(value & 0x01FF);
     return pte;
 }
 
@@ -185,12 +185,12 @@ void PT_Write(uint address, ushort value)
             if ((address & 0x01) == 0)
             {
                 // Even address
-                pageTableEntry = (uint)(value << 16 | g_paging_tables.shadowRam[offset + 1]);
+                pageTableEntry = ((uint32_t)value << 16) | g_paging_tables.shadowRam[offset + 1];
             }
             else
             {
                 // Odd address
-                pageTableEntry = (uint)(g_paging_tables.shadowRam[offset - 1] << 16 | value);
+                pageTableEntry = ((uint32_t)g_paging_tables.shadowRam[offset - 1] << 16) | value;
             }
         }
         Log_Write(LOG_CAT_MMS, LOG_TRACE, "PT W A=%o PT=%d VPN=%d SEXI=%d V=%o => 0x%08X (%s)\n",  address, pageTable, pageTableAddress & 0x3F, STS_SEXI, value,  pageTableEntry, GetPageTableEntryDebugInfo(pageTableEntry));
@@ -220,7 +220,7 @@ uint GetPageTableEntry(uint pageTable, uint VPN,PageTableMode ptm)
 
     if (STS_SEXI)
     {
-        PTe = (uint)(g_paging_tables.shadowRam[pageTableAddress] << 16 | g_paging_tables.shadowRam[pageTableAddress + 1]);
+        PTe = ((uint32_t)g_paging_tables.shadowRam[pageTableAddress] << 16) | g_paging_tables.shadowRam[pageTableAddress + 1];
     }
     else
     {
@@ -262,7 +262,7 @@ uint GetPageTableEntryForDebugger(uint pageTable, uint VPN, PageTableMode ptm)
         uint offset = SHADOW_RAM_EXTENDED_MODE_16PT - g_paging_tables.shadowRamAddress;
         uint pageTableAddress = ((pageTable << 6) | VPN) << 1;
         pageTableAddress += offset;
-        PTe = (uint)(g_paging_tables.shadowRam[pageTableAddress] << 16 | g_paging_tables.shadowRam[pageTableAddress + 1]);
+        PTe = ((uint32_t)g_paging_tables.shadowRam[pageTableAddress] << 16) | g_paging_tables.shadowRam[pageTableAddress + 1];
     }
     else
     {

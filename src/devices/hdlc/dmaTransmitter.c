@@ -35,7 +35,6 @@
 #include "hdlcFrame.h"
 #include "../devices_types.h"
 
-//#define DMA_DEBUG
 
 void DMATransmitter_Init(DMATransmitter *transmitter, void *com5025, DMAControlBlocks *dmaCB, struct Device *hdlcDevice)
 {

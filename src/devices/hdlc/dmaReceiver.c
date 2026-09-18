@@ -32,8 +32,6 @@
 #include "deviceHDLC.h"
 #include "../devices_types.h"
 
-//#define DMA_DEBUG
-//#define RX_BLAST_LOGGING
 
 
 void DMAReceiver_Init(DMAReceiver *receiver, void *com5025, DMAControlBlocks *dmaCB, struct Device *hdlcDevice)
@@ -167,18 +165,17 @@ void DMAReceiver_ReceiveDataFromModem(DMAReceiver *receiver, const uint8_t *data
     // Data is processed asynchronously via ProcessBufferedData()
     int enqueued = TcpReceiveBuffer_Enqueue(&receiver->tcpReceiveBuffer, data, length);
 
-#ifdef RX_BLAST_LOGGING
+    if (Log_IsEnabled(LOG_CAT_HDLC, LOG_TRACE))
+    {
     if (enqueued < length)
     {
-        printf("TCP_RX_BUFFER_FULL: Only queued %d/%d bytes - buffer full!\n", enqueued, length);
+        Log_Write(LOG_CAT_HDLC, LOG_TRACE, "TCP_RX_BUFFER_FULL: Only queued %d/%d bytes - buffer full!\n", enqueued, length);
     }
     else
     {
-        printf("TCP_RX_QUEUED: %d bytes enqueued, buffer has %d bytes available\n", enqueued, TcpReceiveBuffer_Available(&receiver->tcpReceiveBuffer));
+        Log_Write(LOG_CAT_HDLC, LOG_TRACE, "TCP_RX_QUEUED: %d bytes enqueued, buffer has %d bytes available\n", enqueued, TcpReceiveBuffer_Available(&receiver->tcpReceiveBuffer));
     }
-#else
-    (void)enqueued;
-#endif
+    }
 }
 
 // ---------------------------------------------------------------------------

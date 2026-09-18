@@ -38,7 +38,6 @@
 
 #define INITIAL_DEVICE_CAPACITY 32
 
-//#define LOG_DEVICE_NOT_FOUND
 
 // Define the level strings array
 
@@ -390,15 +389,12 @@ uint16_t DeviceManager_Read(uint32_t address)
 
         if (dev && Device_IsInAddress(dev, address))
         {
-            // LOG(LOG_CAT_DEVICE, LOG_DEBUG, "Device found for READ address: %o\n", address);
             return Device_Read(dev, address);
         }
     }
 
     interrupt(14, 1 << 7); /* IOX error lvl14 */
-#ifdef LOG_DEVICE_NOT_FOUND
-    LOG(LOG_CAT_DEVICE, LOG_WARN, "No device found for READ address: %o\n", address);
-#endif
+    LOG(LOG_CAT_DEVICE, LOG_DEBUG, "No device found for READ address: %o\n", address);
     return 0;
 }
 
@@ -421,9 +417,7 @@ void DeviceManager_Write(uint32_t address, uint16_t value)
     }
 
     interrupt(14, 1 << 7); /* IOX error lvl14 */
-#ifdef LOG_DEVICE_NOT_FOUND
-    LOG(LOG_CAT_DEVICE, LOG_WARN, "No device found for WRITE address: %o\n", address);
-#endif
+    LOG(LOG_CAT_DEVICE, LOG_DEBUG, "No device found for WRITE address: %o\n", address);
 }
 
 int DeviceManager_Ident(uint16_t level)
@@ -451,10 +445,8 @@ int DeviceManager_Ident(uint16_t level)
         }
     }
 
-#ifdef LOG_DEVICE_NOT_FOUND
     // interrupt(14,1<<7); /* IOX error lvl14 */
-     LOG(LOG_CAT_DEVICE, LOG_WARN, "No device found for IDENT level: %d\n", level);
-#endif
+     LOG(LOG_CAT_DEVICE, LOG_DEBUG, "No device found for IDENT level: %d\n", level);
 
     return 0;
 }

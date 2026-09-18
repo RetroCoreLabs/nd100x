@@ -40,9 +40,6 @@
 #include "../devices_types.h"
 
 // Debug flags (convert from C# #define)
-// #define DEBUG_DETAIL
-// #define DEBUG_DETAIL_PLUS_DESCRIPTION
-// #define DMA_DEBUG
 
 // ---------------------------------------------------------------------------
 // Forwarding wrappers: bridge DMAControlBlocks/TX/RX callbacks to DMAEngine
@@ -257,9 +254,10 @@ void DMAEngine_ExecuteCommand(DMAEngine *dma)
 
     if (!dma) return;
 
-#ifdef DEBUG_DETAIL
+    if (Log_IsEnabled(LOG_CAT_HDLC, LOG_TRACE))
+    {
     DMAEngine_Log(dma, "DMAEngine_ExecuteCommand called (not implemented - see deviceHDLC.c)");
-#endif
+    }
 
     // This function is intentionally not implemented as command execution
     // is handled by the HDLC device to maintain proper access to
@@ -272,9 +270,10 @@ void DMAEngine_CommandDeviceClear(DMAEngine *dma)
 {
     if (!dma) return;
 
-#ifdef DMA_DEBUG
+    if (Log_IsEnabled(LOG_CAT_HDLC, LOG_DEBUG))
+    {
     DMAEngine_Log(dma, "DMA Device Clear command");
-#endif
+    }
 
     // Clear all components
     DMAEngine_Clear(dma);
@@ -291,9 +290,10 @@ void DMAEngine_CommandInitialize(DMAEngine *dma)
 {
     if (!dma) return;
 
-#ifdef DMA_DEBUG
+    if (Log_IsEnabled(LOG_CAT_HDLC, LOG_DEBUG))
+    {
     DMAEngine_Log(dma, "DMA Initialize command");
-#endif
+    }
 
     /*
      * The Initialize sequence uses 7 locations in memory. The contents of the locations are:
@@ -343,7 +343,8 @@ void DMAEngine_CommandInitialize(DMAEngine *dma)
     dma->dmaRegisters[6] = (uint16_t)displacement2;
     dma->dmaRegisters[7] = (uint16_t)maxReceiverBlockLength;
 
-#ifdef DMA_DEBUG
+    if (Log_IsEnabled(LOG_CAT_HDLC, LOG_DEBUG))
+    {
     DMAEngine_Log(dma, "--------------------------------------------------------------------------");
     DMAEngine_Log(dma, "DMA CommandInitialize    : 0x%06X", dma->currentDMAAddress);
     DMAEngine_Log(dma, "ParameterControlRegister : 0x%04X", parameterControlRegister);
@@ -353,7 +354,7 @@ void DMAEngine_CommandInitialize(DMAEngine *dma)
     DMAEngine_Log(dma, "Displacement2            : 0x%04X", displacement2);
     DMAEngine_Log(dma, "MaxReceiverBlockLength   : 0x%04X", maxReceiverBlockLength);
     DMAEngine_Log(dma, "--------------------------------------------------------------------------");
-#endif
+    }
 
     // Write back checksum if current checksum is 0
     if (checksum == 0) {
@@ -371,9 +372,10 @@ void DMAEngine_CommandReceiverStart(DMAEngine *dma)
 {
     if (!dma) return;
 
-#ifdef DMA_DEBUG
+    if (Log_IsEnabled(LOG_CAT_HDLC, LOG_DEBUG))
+    {
     DMAEngine_Log(dma, "DMA Receiver Start command");
-#endif
+    }
 
     // Set RX pointer to current DMA address
     if (dma->dmaCB) {
@@ -391,9 +393,10 @@ void DMAEngine_CommandReceiverContinue(DMAEngine *dma)
 {
     if (!dma) return;
 
-#ifdef DMA_DEBUG
+    if (Log_IsEnabled(LOG_CAT_HDLC, LOG_DEBUG))
+    {
     DMAEngine_Log(dma, "DMA Receiver Continue command");
-#endif
+    }
 
     // Set RX pointer to current DMA address
     if (dma->dmaCB) {
@@ -411,9 +414,10 @@ void DMAEngine_CommandTransmitterStart(DMAEngine *dma)
 {
     if (!dma) return;
 
-#ifdef DMA_DEBUG
+    if (Log_IsEnabled(LOG_CAT_HDLC, LOG_DEBUG))
+    {
     DMAEngine_Log(dma, "DMA Transmitter Start command");
-#endif
+    }
 
     // Set TX pointer to current DMA address
     if (dma->dmaCB) {
@@ -432,9 +436,10 @@ void DMAEngine_CommandDumpDataModule(DMAEngine *dma)
 {
     if (!dma) return;
 
-#ifdef DMA_DEBUG
+    if (Log_IsEnabled(LOG_CAT_HDLC, LOG_DEBUG))
+    {
     DMAEngine_Log(dma, "DMA Dump Data Module command");
-#endif
+    }
 
     /*
      * This command is mainly for maintenance purpose.
@@ -489,9 +494,10 @@ void DMAEngine_CommandDumpRegisters(DMAEngine *dma)
 {
     if (!dma) return;
 
-#ifdef DMA_DEBUG
+    if (Log_IsEnabled(LOG_CAT_HDLC, LOG_DEBUG))
+    {
     DMAEngine_Log(dma, "DMA Dump Registers command");
-#endif
+    }
 
     /*
      * This command can be used to dump the contents of any number of the 256 random access memory registers in the DMA module.
@@ -519,9 +525,10 @@ void DMAEngine_CommandDumpRegisters(DMAEngine *dma)
         for (uint8_t i = 0; i < 16; i++) {
             uint16_t data = i; // Basic register index for bit slice
             DMAEngine_DMAWrite(dma, dma_address++, data);
-#ifdef DMA_DEBUG
+            if (Log_IsEnabled(LOG_CAT_HDLC, LOG_DEBUG))
+            {
             DMAEngine_Log(dma, "DUMP BIT SLICE REGISTER %d = 0x%04X", i, data);
-#endif
+            }
         }
     } else {
         for (uint16_t i = 0; i < numreg; i++) {
@@ -529,9 +536,10 @@ void DMAEngine_CommandDumpRegisters(DMAEngine *dma)
             if (offset < 256) {
                 uint16_t data = dma->dmaRegisters[offset];
                 DMAEngine_DMAWrite(dma, dma_address++, data);
-#ifdef DMA_DEBUG
+                if (Log_IsEnabled(LOG_CAT_HDLC, LOG_DEBUG))
+                {
                 DMAEngine_Log(dma, "DUMP REGISTER %d = 0x%04X", offset, data);
-#endif
+                }
             }
         }
     }
@@ -543,9 +551,10 @@ void DMAEngine_CommandLoadRegisters(DMAEngine *dma)
 {
     if (!dma) return;
 
-#ifdef DMA_DEBUG
+    if (Log_IsEnabled(LOG_CAT_HDLC, LOG_DEBUG))
+    {
     DMAEngine_Log(dma, "DMA Load Registers command");
-#endif
+    }
 
     /*
      * This command can be used to load any number of the 256 random access memory registers in the DMA module.
@@ -575,9 +584,10 @@ void DMAEngine_CommandLoadRegisters(DMAEngine *dma)
             int readVal = DMAEngine_DMARead(dma, dma_address++); // returns -1 if it fails
             if (readVal >= 0) {
                 dma->dmaRegisters[offset] = (uint16_t)readVal;
-#ifdef DMA_DEBUG
+                if (Log_IsEnabled(LOG_CAT_HDLC, LOG_DEBUG))
+                {
                 DMAEngine_Log(dma, "LOAD REGISTER %d = 0x%04X", offset, readVal);
-#endif
+                }
             }
         }
     }
@@ -676,11 +686,13 @@ void DMAEngine_SetClearCommandCallback(DMAEngine *dma, DMAClearCommandCallback c
 void DMAEngine_Log(DMAEngine *dma, const char *format, ...)
 {
     if (!dma || !format) return;
+    if (!Log_IsEnabled(LOG_CAT_HDLC, LOG_DEBUG)) return;
 
+    char buffer[512];
     va_list args;
     va_start(args, format);
-    printf("DMAEngine: ");
-    vprintf(format, args);
-    printf("\n");
+    vsnprintf(buffer, sizeof(buffer), format, args);
     va_end(args);
+
+    Log_Write(LOG_CAT_HDLC, LOG_DEBUG, "DMAEngine: %s", buffer);
 }

@@ -1265,13 +1265,14 @@ int machine_block_read(Device *device, uint8_t *buffer, size_t size, uint32_t bl
     // and floppy 3, so an unchecked unit would index past the shorter arrays.
     if (unit < 0 || unit >= max_units) return -1;
 
-#ifdef FLOPPY_DIAG
+    if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_DEBUG))
+    {
     // Diagnostic: log first floppy block read attempt
     if (drive_type == DRIVE_FLOPPY) {
         static int _floppy_read_log = 0;
         if (_floppy_read_log < 5) {
             _floppy_read_log++;
-            printf("[FLOPPY-DIAG] machine_block_read: unit=%d drives=%s mounted=%d gateway=%d opfs=%d remote=%d size=%d blkAddr=%u blkSize=%u\n",
+            Log_Write(LOG_CAT_FLOPPY, LOG_DEBUG, "[FLOPPY-DIAG] machine_block_read: unit=%d drives=%s mounted=%d gateway=%d opfs=%d remote=%d size=%d blkAddr=%u blkSize=%u\n",
                 unit,
                 drives ? "ok" : "NULL",
                 drives ? drives[unit].is_mounted : -1,
@@ -1282,7 +1283,7 @@ int machine_block_read(Device *device, uint8_t *buffer, size_t size, uint32_t bl
                 blockAddress, (unsigned)device->blockSizeBytes);
         }
     }
-#endif
+    }
 
     if (!drives) return -1;
 

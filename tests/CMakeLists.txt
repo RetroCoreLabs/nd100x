@@ -434,7 +434,7 @@ endif()
 add_test(NAME log_tests COMMAND test_log)
 
 # Tests that compile a device file on its own also need the logger it calls.
-foreach(_t test_winchester wd_trace test_cdc)
+foreach(_t test_winchester wd_trace test_cdc test_rtc)
     if(TARGET ${_t})
         target_sources(${_t} PRIVATE ${CMAKE_SOURCE_DIR}/src/ndlib/log.c)
         if(NOT BUILD_WASM)

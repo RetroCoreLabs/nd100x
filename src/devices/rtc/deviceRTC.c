@@ -21,7 +21,6 @@
  */
 
 
-//#define DEBUG_RTC
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -38,8 +37,6 @@
 #include "deviceRTC.h"
 
 #define TICKS_20MS 10550 // Ticks for 20ms timer (real-time at 0.5275 MIPS, the --throttle default)
-//#define DEBUG_RTC
-//#define DEBUG_RTC_TICK
 
 // RTC time base. Default (false) counts instruction ticks: one clock pulse per
 // TICKS_20MS calls to RTC_Tick, so the clock runs in emulated instruction time
@@ -169,9 +166,10 @@ static uint16_t RTC_Read(Device *self, uint32_t address) {
             break;
     }
 
-#ifdef DEBUG_RTC
-    printf("RTC Reading from address: %o value: %o\n", address, value);
-#endif
+    if (Log_IsEnabled(LOG_CAT_RTC, LOG_DEBUG))
+    {
+    Log_Write(LOG_CAT_RTC, LOG_DEBUG, "RTC Reading from address: %o value: %o\n", address, value);
+    }
 
 
     return value;
@@ -183,9 +181,10 @@ static void RTC_Write(Device *self, uint32_t address, uint16_t value) {
     RTCData *data = (RTCData *)self->deviceData;
     uint32_t reg = Device_RegisterAddress(self, address);
 
-#ifdef DEBUG_RTC
-    printf("RTC Writing value: %o to address: %o\n", value, address);
-#endif
+    if (Log_IsEnabled(LOG_CAT_RTC, LOG_DEBUG))
+    {
+    Log_Write(LOG_CAT_RTC, LOG_DEBUG, "RTC Writing value: %o to address: %o\n", value, address);
+    }
 
     switch (reg) {
         case RTC_CLEAR_COUNTER:
@@ -239,18 +238,15 @@ static uint16_t RTC_Ident(Device *self, uint16_t level) {
         RTC_ClearClockTicks(self);
         data->statusRegister.bits.interruptEnabled = false;
 
-#ifdef DEBUG_RTC
-        printf("RTC_Ident: %d\n", self->identCode);
-#endif
+        if (Log_IsEnabled(LOG_CAT_RTC, LOG_DEBUG))
+        {
+        Log_Write(LOG_CAT_RTC, LOG_DEBUG, "RTC_Ident: %d\n", self->identCode);
+        }
         Device_SetInterruptStatus(self, false, level);
         return self->identCode;
     }
-#ifdef DEBUG_RTC
-    else
-    {
-        printf("RTC_Ident: interrupt not set\n");
-    }
-#endif
+    /* The branch above returns, so reaching here means the level was not set. */
+    LOG(LOG_CAT_RTC, LOG_DEBUG, "RTC_Ident: interrupt not set");
     return 0;
 }
 
