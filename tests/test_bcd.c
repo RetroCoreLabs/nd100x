@@ -35,22 +35,22 @@
 /* Fakes: bcd.c only ever touches MemoryRead/MemoryWrite and gReg.   */
 /* ---------------------------------------------------------------- */
 
-static ushort bcdtest_mem[65536];
+static uint16_t bcdtest_mem[65536];
 static struct CpuRegs bcdtest_regs;
 
 struct CpuRegs *gReg = &bcdtest_regs;
 
 /* Stubs for the real functions in src/cpu/cpu_mms.c (cpu_protos.h). */
-ushort MemoryRead(ushort addr, bool UseAPT);
-void MemoryWrite(ushort value, ushort addr, bool UseAPT, unsigned char byte_select);
+uint16_t MemoryRead(uint16_t addr, bool UseAPT);
+void MemoryWrite(uint16_t value, uint16_t addr, bool UseAPT, unsigned char byte_select);
 
-ushort MemoryRead(ushort addr, bool UseAPT)
+uint16_t MemoryRead(uint16_t addr, bool UseAPT)
 {
     (void)UseAPT;
     return bcdtest_mem[addr];
 }
 
-void MemoryWrite(ushort value, ushort addr, bool UseAPT, unsigned char byte_select)
+void MemoryWrite(uint16_t value, uint16_t addr, bool UseAPT, unsigned char byte_select)
 {
     (void)UseAPT;
     (void)byte_select;
@@ -58,12 +58,12 @@ void MemoryWrite(ushort value, ushort addr, bool UseAPT, unsigned char byte_sele
 }
 
 /* The instructions under test. */
-void ndfunc_addd(ushort instr);
-void ndfunc_subd(ushort instr);
-void ndfunc_comd(ushort instr);
-void ndfunc_shde(ushort instr);
-void ndfunc_pack(ushort instr);
-void ndfunc_unpack(ushort instr);
+void ndfunc_addd(uint16_t instr);
+void ndfunc_subd(uint16_t instr);
+void ndfunc_comd(uint16_t instr);
+void ndfunc_shde(uint16_t instr);
+void ndfunc_pack(uint16_t instr);
+void ndfunc_unpack(uint16_t instr);
 
 /* ---------------------------------------------------------------- */
 /* Test harness                                                     */
@@ -97,14 +97,14 @@ typedef struct
 {
     const char     *name;
     bcd_test_op     op;
-    ushort          d;             /* D register: descriptor D2 of operand 1 */
-    ushort          t;             /* T register: descriptor D2 of operand 2 */
-    ushort          w1[MAX_W];     /* initial words of the op1 field        */
+    uint16_t          d;             /* D register: descriptor D2 of operand 1 */
+    uint16_t          t;             /* T register: descriptor D2 of operand 2 */
+    uint16_t          w1[MAX_W];     /* initial words of the op1 field        */
     int             n1;
-    ushort          w2[MAX_W];     /* initial words of the op2 field        */
+    uint16_t          w2[MAX_W];     /* initial words of the op2 field        */
     int             n2;
     bcd_test_dest   dest;
-    ushort          expect[MAX_W]; /* expected words at the destination     */
+    uint16_t          expect[MAX_W]; /* expected words at the destination     */
     int             n_expect;
     bool            expect_skip;   /* true = SKIP return (P+2)              */
     int             expect_a;      /* COMD: expected A register, else -1    */
@@ -123,7 +123,7 @@ static void bcdtest_fail(const bcd_test_case *tc, const char *what,
 
 static void bcdtest_run(const bcd_test_case *tc)
 {
-    ushort dest_addr;
+    uint16_t dest_addr;
     int i;
     bool ok = true;
 
@@ -183,7 +183,7 @@ static void bcdtest_run(const bcd_test_case *tc)
 
     if (tc->expect_a >= 0)
     {
-        if (gA != (ushort)tc->expect_a)
+        if (gA != (uint16_t)tc->expect_a)
         {
             bcdtest_fail(tc, "A register", (unsigned)tc->expect_a, gA);
             ok = false;

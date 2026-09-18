@@ -36,9 +36,9 @@ struct CpuRegs *gReg = &fptest_regs;
 static int fptest_z_set;
 
 /* Stub for the real setbit() in src/cpu (cpu_protos.h). */
-void setbit(ushort regnum, ushort stsbit, char val);
+void setbit(uint16_t regnum, uint16_t stsbit, char val);
 
-void setbit(ushort regnum, ushort stsbit, char val)
+void setbit(uint16_t regnum, uint16_t stsbit, char val)
 {
     (void)regnum;
     if (stsbit == _Z && val)
@@ -46,16 +46,16 @@ void setbit(ushort regnum, ushort stsbit, char val)
 }
 
 /* The routines under test (float.c has no public header of its own). */
-int NDFloat_Add(ushort *p_a, ushort *p_b, ushort *p_r);
-int NDFloat_Sub(ushort *p_a, ushort *p_b, ushort *p_r);
-int NDFloat_Mul(ushort *p_a, ushort *p_b, ushort *p_r);
-int NDFloat_Div(ushort *p_a, ushort *p_b, ushort *p_r);
+int NDFloat_Add(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r);
+int NDFloat_Sub(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r);
+int NDFloat_Mul(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r);
+int NDFloat_Div(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r);
 void DoNLZ(char scaling);
 void DoDNZ(char scaling);
-int NDFloat_Add32(ushort *p_a, ushort *p_b, ushort *p_r);
-int NDFloat_Sub32(ushort *p_a, ushort *p_b, ushort *p_r);
-int NDFloat_Mul32(ushort *p_a, ushort *p_b, ushort *p_r);
-int NDFloat_Div32(ushort *p_a, ushort *p_b, ushort *p_r);
+int NDFloat_Add32(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r);
+int NDFloat_Sub32(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r);
+int NDFloat_Mul32(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r);
+int NDFloat_Div32(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r);
 void DoNLZ32(char scaling);
 void DoDNZ32(char scaling);
 
@@ -67,10 +67,10 @@ static int fptest_total;
 static int fptest_failed;
 
 static void check3(const char *name, const char *op,
-                   const ushort *exp, const ushort *got)
+                   const uint16_t *exp, const uint16_t *got)
 {
     fptest_total++;
-    if (memcmp(exp, got, 3 * sizeof(ushort)) != 0) {
+    if (memcmp(exp, got, 3 * sizeof(uint16_t)) != 0) {
         printf("  FAIL  %-34s %s: expected %06o %06o %06o, got %06o %06o %06o\n",
                name, op, exp[0], exp[1], exp[2], got[0], got[1], got[2]);
         fptest_failed++;
@@ -97,12 +97,12 @@ static void check_int(const char *name, const char *what, long exp, long got)
 /* ---------------------------------------------------------------- */
 
 typedef struct {
-    ushort a[3];      /* accumulator operand {T,A,D} */
-    ushort b[3];      /* memory operand */
-    ushort add[3];    /* expected NDFloat_Add result */
-    ushort sub[3];    /* expected NDFloat_Sub result */
-    ushort mul[3];    /* expected NDFloat_Mul result */
-    ushort dv[3];     /* expected NDFloat_Div result */
+    uint16_t a[3];      /* accumulator operand {T,A,D} */
+    uint16_t b[3];      /* memory operand */
+    uint16_t add[3];    /* expected NDFloat_Add result */
+    uint16_t sub[3];    /* expected NDFloat_Sub result */
+    uint16_t mul[3];    /* expected NDFloat_Mul result */
+    uint16_t dv[3];     /* expected NDFloat_Div result */
     int    div_rc;    /* expected NDFloat_Div return (1 = div by zero) */
 } fp48_pair_case;
 
@@ -181,8 +181,8 @@ static const fp48_pair_case fp48_pairs[] = {
 typedef struct {
     int    val;       /* initial A register (signed) */
     int    scaling;   /* NLZ scaling; DNZ uses the negation */
-    ushort nlz[3];    /* expected {T,A,D} after DoNLZ(scaling) */
-    ushort dnz[3];    /* expected {T,A,D} after DoDNZ(-scaling) */
+    uint16_t nlz[3];    /* expected {T,A,D} after DoNLZ(scaling) */
+    uint16_t dnz[3];    /* expected {T,A,D} after DoDNZ(-scaling) */
     int    z;         /* expected _Z set during the round trip */
 } fp48_nlz_case;
 
@@ -238,7 +238,7 @@ static void run_fp48_lock(void)
     printf("48-bit regression lock: arithmetic pairs\n");
     for (i = 0; i < sizeof(fp48_pairs) / sizeof(fp48_pairs[0]); i++) {
         const fp48_pair_case *tc = &fp48_pairs[i];
-        ushort a[3], b[3], r[3];
+        uint16_t a[3], b[3], r[3];
         int rc;
 
         snprintf(name, sizeof(name), "pair[%u] a=%06o:%06o:%06o",
@@ -270,7 +270,7 @@ static void run_fp48_lock(void)
                  i, tc->val, tc->scaling);
 
         REG_T = 0125252;              /* sentinel: DoNLZ must overwrite it */
-        REG_A = (ushort)tc->val;
+        REG_A = (uint16_t)tc->val;
         REG_D = 0177777;
         fptest_z_set = 0;
 
@@ -302,9 +302,9 @@ static void run_fp48_lock(void)
 /* ---------------------------------------------------------------- */
 
 /* Run one 32-bit op and return the result words. */
-static int op32(char op, ushort a0, ushort a1, ushort b0, ushort b1, ushort *r)
+static int op32(char op, uint16_t a0, uint16_t a1, uint16_t b0, uint16_t b1, uint16_t *r)
 {
-    ushort a[2] = {a0, a1}, b[2] = {b0, b1};
+    uint16_t a[2] = {a0, a1}, b[2] = {b0, b1};
     switch (op) {
     case '+': return NDFloat_Add32(a, b, r);
     case '-': return NDFloat_Sub32(a, b, r);
@@ -316,8 +316,8 @@ static int op32(char op, ushort a0, ushort a1, ushort b0, ushort b1, ushort *r)
 typedef struct {
     const char *name;
     char   op;
-    ushort a[2], b[2];   /* packed operands */
-    ushort exp[2];       /* expected result words */
+    uint16_t a[2], b[2];   /* packed operands */
+    uint16_t exp[2];       /* expected result words */
     int    rc;           /* expected return code (div by zero) */
 } fp32_op_case;
 
@@ -358,7 +358,7 @@ static const fp32_op_case fp32_zero[] = {
 
 typedef struct {
     int    val;       /* initial A register (signed) */
-    ushort nlz[2];    /* expected A,D after DoNLZ32(+16) */
+    uint16_t nlz[2];    /* expected A,D after DoNLZ32(+16) */
     int    z;         /* expected Z during the DNZ round trip */
 } fp32_nlz_case;
 
@@ -382,7 +382,7 @@ static const fp32_nlz_case fp32_nlz[] = {
 static void run_fp32(void)
 {
     unsigned i;
-    ushort r[2];
+    uint16_t r[2];
     int rc;
     char name[64];
 
@@ -410,7 +410,7 @@ static void run_fp32(void)
 
         snprintf(name, sizeof(name), "nlz32 %d", tc->val);
         REG_T = 0125252;               /* sentinel: must NEVER change */
-        REG_A = (ushort)tc->val;
+        REG_A = (uint16_t)tc->val;
         REG_D = 0177777;
         fptest_z_set = 0;
 
@@ -420,7 +420,7 @@ static void run_fp32(void)
         check_int(name, "NLZ T", 0125252,    REG_T);
 
         DoDNZ32(-16);
-        check_int(name, "DNZ A (identity)", (ushort)tc->val, REG_A);
+        check_int(name, "DNZ A (identity)", (uint16_t)tc->val, REG_A);
         check_int(name, "DNZ D", 0,       REG_D);
         check_int(name, "DNZ T", 0125252, REG_T);
         check_int(name, "Z flag", tc->z,  fptest_z_set);
@@ -473,7 +473,7 @@ static void run_fp32(void)
     printf("32-bit FPP: FMU -> DNZ self-consistency\n");
     {
         /* float(2) * float(3) denormalizes back to the integer 6. */
-        ushort a[2] = {0040200, 0}, b[2] = {0040240, 0};
+        uint16_t a[2] = {0040200, 0}, b[2] = {0040240, 0};
         NDFloat_Mul32(a, b, r);
         REG_T = 0125252; REG_A = r[0]; REG_D = r[1]; fptest_z_set = 0;
         DoDNZ32(-16);

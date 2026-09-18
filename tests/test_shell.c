@@ -54,7 +54,7 @@ int program_load(BOOT_TYPE bootType, int bootUnit, const char *imageFile,
 }
 
 /* STARTADDR is a real global in cpu.c; define it here so the test links. */
-ushort STARTADDR = 0;
+uint16_t STARTADDR = 0;
 
 /* Controllable BPUN header the shell reads via GetLastBPUNHeader(). */
 static BPUN_Header g_fake_bpun;
