@@ -28,8 +28,6 @@
 #include "ndlib_types.h"
 #include "ndlib_protos.h"
 
-extern void disasm_addword(uint16_t addr, uint16_t myword);
-extern int DISASM;
 
 /* Most-recently parsed BPUN header, captured on every successful LoadBPUN().
  * LoadBPUN()'s return value is only the (obsolete) bootstrap-loader "boot"

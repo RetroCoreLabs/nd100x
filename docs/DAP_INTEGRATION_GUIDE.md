@@ -193,7 +193,7 @@ external/libsymbols/        # Symbol table library
 ```
 1. cpu_run()                    (cpu.c:524)
 2. private_cpu_tick()           (cpu.c:416)
-3. do_op()                      (cpu_mopc.c)
+3. do_op()                      (cpu.c)
 4. check_for_breakpoint()       (cpu_bkpt.c:213)
 5. breakpoint_manager_check()   (cpu_bkpt.c:179)
 6. set_cpu_run_mode(CPU_BREAKPOINT)

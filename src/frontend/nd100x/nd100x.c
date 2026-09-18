@@ -958,8 +958,6 @@ int main(int argc, char *argv[])
     }
     /* --watch-skip N: ignore the first N watchpoint hits before halting.
      * (declared here; cpu_protos.h is auto-generated so cannot host the extern) */
-    extern int watchpoint_skip_hits;
-    extern int watchpoint_min_value;
     watchpoint_skip_hits = config.watchSkip;
     watchpoint_min_value = config.watchMinValue;
     if (config.watchSkip > 0)

@@ -68,14 +68,6 @@
 #include "dap_server.h"
 
 /* Functions from debugger.c WASM API */
-extern DAPServer *dbg_get_server(void);
-extern const char *dbg_get_scopes_json(void);
-extern const char *dbg_get_variables_json(int scope_id);
-extern const char *dbg_get_stack_trace_json(void);
-extern const char *dbg_get_threads_json(void);
-extern int dbg_step_in(void);
-extern int dbg_step_over(void);
-extern int dbg_step_out(void);
 #endif
 
 // Global variables
@@ -773,13 +765,7 @@ EMSCRIPTEN_EXPORT int GetSMDBufferSize(int unit)
 #define SMD_READ_BUF_SECTORS 256
 static uint8_t s_smdSectorBuf[SMD_READ_BUF_SECTORS * 1024];
 
-#ifdef __EMSCRIPTEN__
-// Defined as EM_JS in machine.c
-extern int opfs_block_read_js(int driveType, int unit, uint8_t *buffer, int bytes, int offset);
-extern int opfs_is_available_js(int driveType, int unit);
-extern int gateway_block_read_js(int driveType, int unit, uint8_t *buffer, int bytes, int offset);
-extern int gateway_is_available_js(int driveType, int unit);
-#endif
+// opfs_*_js / gateway_*_js: EM_JS in machine.c, declared in machine_types.h.
 
 EMSCRIPTEN_EXPORT int Dbg_ReadSMDSectors(int unit, int lba, int count)
 {
@@ -1900,7 +1886,6 @@ EMSCRIPTEN_EXPORT void Dbg_ClearBreakpoints(void)
 
 static char bp_list_buffer[4096];
 
-extern BreakpointManager *mgr;
 
 EMSCRIPTEN_EXPORT const char* Dbg_GetBreakpointList(void)
 {

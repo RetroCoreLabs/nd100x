@@ -65,7 +65,6 @@
 #include "cpu_types.h"
 #include "cpu_protos.h"
 
-extern struct CpuRegs *gReg;
 
 /* Max BCD field length in nibbles (descriptor bits 0-4 give 0..31, and the
  * manual caps the field at 32 nibbles/bytes). */

@@ -56,6 +56,10 @@ typedef struct {
 // Physical memory functions in cpu_mms.c
 extern int ReadPhysicalMemory(int physicalAddress, bool privileged);
 extern void WritePhysicalMemory(int physicalAddress, uint16_t value, bool privileged);
+/* Also provided by the cpu module: the -a disassembler records each word a
+ * loader deposits (cpu_disasm.c; declared for the cpu module in cpu_types.h). */
+extern int DISASM;
+void disasm_addword(uint16_t addr, uint16_t myword);
 
 
 // ** LOGGING ** (categories, levels and LOG() live in log.h)

@@ -145,6 +145,17 @@ static int ringbuf_read(RegisteredTerminal *rt, uint8_t *buf, int maxlen)
     return count;
 }
 
+/*
+ * Global server pointer for the telnet output handler.
+ *
+ * Thread safety: set once in TelnetServer_Start(), read by
+ * telnet_output_handler() (called from emulation thread), and
+ * cleared in TelnetServer_Stop(). Not protected by a mutex -
+ * relies on start/stop ordering (start before emulation begins,
+ * stop after emulation ends).
+ */
+static TelnetServer *s_telnet_server = NULL;
+
 // Output handler that chains to VScreen and queues for telnet client
 void telnet_output_handler(struct Device *device, char c)
 {
@@ -154,10 +165,9 @@ void telnet_output_handler(struct Device *device, char c)
     // registered terminal's info.origOutput for chaining.
     // We'll use a global server pointer for the lookup.
     // This is set during TelnetServer_Start.
-    extern TelnetServer *g_telnetServer;
-    if (!g_telnetServer) return;
+    if (!s_telnet_server) return;
 
-    RegisteredTerminal *rt = find_by_device(g_telnetServer, device);
+    RegisteredTerminal *rt = find_by_device(s_telnet_server, device);
     if (rt) {
         if (rt->clientFd >= 0) {
             ringbuf_write(rt, (uint8_t)c);
@@ -168,16 +178,6 @@ void telnet_output_handler(struct Device *device, char c)
     }
 }
 
-/*
- * Global server pointer for the telnet output handler.
- *
- * Thread safety: set once in TelnetServer_Start(), read by
- * telnet_output_handler() (called from emulation thread), and
- * cleared in TelnetServer_Stop(). Not protected by a mutex -
- * relies on start/stop ordering (start before emulation begins,
- * stop after emulation ends).
- */
-TelnetServer *g_telnetServer = NULL;
 
 static RegisteredTerminal *find_by_device(TelnetServer *server, struct Device *device)
 {
@@ -248,7 +248,7 @@ bool TelnetServer_Start(TelnetServer *server)
     }
 
     // Set global pointer for output handler
-    g_telnetServer = server;
+    s_telnet_server = server;
 
     // Loopback socket pair, used to wake the accept thread on shutdown.
     if (nd_wake_pair(server->shutdownPipe) != 0) {
@@ -362,7 +362,7 @@ void TelnetServer_Stop(TelnetServer *server)
     }
 
     server->running = false;
-    g_telnetServer = NULL;
+    s_telnet_server = NULL;
     LOG(LOG_CAT_NET, LOG_INFO, "Telnet server stopped\n");
     nd_net_shutdown();
 }
@@ -961,9 +961,9 @@ static void *accept_thread_func(void *arg)
 static void *client_thread_func(void *arg)
 {
     RegisteredTerminal *rt = (RegisteredTerminal *)arg;
-    if (!rt || !g_telnetServer) return NULL;
+    if (!rt || !s_telnet_server) return NULL;
 
-    TelnetServer *server = g_telnetServer;
+    TelnetServer *server = s_telnet_server;
     nd_socket_t fd = rt->clientFd;
     TelnetIACState iacState = TELNET_STATE_DATA;
 

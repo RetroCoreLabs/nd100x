@@ -100,4 +100,16 @@ int ndx_server_init(int port);
 int ndx_server_stop(void);
 void debugger_kbd_input(char c);
 
+#ifdef __EMSCRIPTEN__
+/* In-process debugger API for the WASM frontend (debugger.c). The JSON
+ * strings are owned by the debugger and valid until the next call. */
+const char *dbg_get_scopes_json(void);
+const char *dbg_get_variables_json(int scope_id);
+const char *dbg_get_stack_trace_json(void);
+const char *dbg_get_threads_json(void);
+int dbg_step_in(void);
+int dbg_step_over(void);
+int dbg_step_out(void);
+#endif
+
 #endif

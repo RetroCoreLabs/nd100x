@@ -92,4 +92,13 @@ typedef struct {
     int block_size;         // Block size for this drive (256, 512, 1024 bytes)
 } MountedDriveInfo_t;
 
+#ifdef __EMSCRIPTEN__
+/* Browser storage imports, defined with EM_JS in machine.c (OPFS and the
+ * gateway WebSocket disk service). Return bytes transferred, or < 0. */
+int opfs_block_read_js(int driveType, int unit, uint8_t *buffer, int bytes, int offset);
+int opfs_is_available_js(int driveType, int unit);
+int gateway_block_read_js(int driveType, int unit, uint8_t *buffer, int bytes, int offset);
+int gateway_is_available_js(int driveType, int unit);
+#endif
+
 #endif

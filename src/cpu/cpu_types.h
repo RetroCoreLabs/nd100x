@@ -560,6 +560,17 @@ extern FppType CurrentFPPType;
 extern uint64_t  instr_counter ;
 extern uint16_t STARTADDR;
 extern int DISASM;
+
+/* Called by the CPU but defined in other modules, whose prototypes are only
+ * in their generated *_protos.h. Declared here so the defining files, which
+ * include this header, are checked against the same signature. */
+uint16_t io_op(uint16_t ioadd, uint16_t regA);   /* machine/io.c */
+int IO_Ident(uint16_t level);                     /* machine/io.c */
+void start_debugger(void);                        /* debugger/debugger.c */
+
+/* Set by device DMA (devices/device.c) around a transfer so the shadow-RAM
+ * check in cpu_mms.c is skipped: DMA is a physical bus access. */
+extern bool gDMAAccess;
 extern int gCpuExitCode;
 extern int CPU_TRACE;
 extern int BSD_DEBUG;
@@ -611,6 +622,9 @@ typedef struct {
 	uint16_t last_hit_address;
 	bool last_hit_valid;
 } BreakpointManager;
+
+/* The breakpoint manager (cpu_bkpt.c); NULL until first use. */
+extern BreakpointManager *mgr;
 
 //********** Watchpoints (memory access breakpoints) **********
 

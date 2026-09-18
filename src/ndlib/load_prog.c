@@ -49,9 +49,6 @@
 
 /* Declared here (not via cpu_protos.h, which needs the whole CPU type set) to
  * keep the loader dependency-light, mirroring load_bpun.c. */
-extern void WritePhysicalMemory(int physicalAddress, uint16_t value, bool privileged);
-extern void disasm_addword(uint16_t addr, uint16_t myword);
-extern int DISASM;
 
 /* Most-recently parsed :PROG header, for callers that need start/restart. */
 static PROG_Header s_last_prog_header;

@@ -77,7 +77,6 @@ void ring_dump(void);
 
 #ifdef WITH_DEBUGGER
 	void stop_debugger_thread(void);
-	extern void start_debugger(void);
 
 #ifdef __EMSCRIPTEN__
 	/* WASM: single-threaded, no atomics needed */

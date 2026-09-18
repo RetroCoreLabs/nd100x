@@ -18,6 +18,8 @@
 #include "nd100x_version.h"   /* generated into the build dir by cmake/git_stamp.cmake */
 #include "vscreen.h"
 #include "screenmenu.h"
+#include "nd100x_types.h"
+#include "nd100x_protos.h"   /* show_floppy_menu() from menu.c */
 #include "charset.h"
 #include "../../devices/devices_types.h"
 #include "../../devices/devices_protos.h"
@@ -29,7 +31,6 @@
 // The floppy-DB browser in menu.c depends on ncurses + libcurl and is not
 // compiled on RISC-V or Windows builds, so gate the extern the same way.
 #if !defined(PLATFORM_RISCV) && !defined(PLATFORM_WINDOWS) && !defined(_WIN32)
-extern int show_floppy_menu(void);
 #endif
 
 // =========================================================

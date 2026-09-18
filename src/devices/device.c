@@ -28,6 +28,7 @@
 #include <inttypes.h>
 
 #include "devices_types.h"
+#include "../cpu/cpu_types.h"   /* gDMAAccess */
 #include "devices_protos.h"
 
 #define INITIAL_IO_DELAY_CAPACITY 16
@@ -371,7 +372,6 @@ int32_t Device_IO_BufferWriteWord(Device *dev,uint8_t *buf, int32_t word_offset,
 
 // DMA bypasses shadow memory (page tables) - it's a physical bus transfer.
 // Set gDMAAccess flag so IsAddressShadowMemory skips the shadow check.
-extern bool gDMAAccess;
 
 const char *gDMADeviceName = "?";
 

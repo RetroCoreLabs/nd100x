@@ -366,7 +366,6 @@ static int cmd_show_regs(const char *nd100Root, int argc, char **argv) {
     (void)argc;
     (void)argv;
 
-    extern struct CpuRegs *gReg;
 
     printf("CPU Registers:\n");
 

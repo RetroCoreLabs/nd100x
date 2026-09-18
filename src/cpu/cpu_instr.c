@@ -28,6 +28,7 @@
 #include "cpu_types.h"
 #include "cpu_protos.h"
 #include "../ndlib/log.h"
+#include "../devices/panel/panel.h"   /* ProcessTerminalPanc/Lamp */
 
 /* --ring-at-clpt=N: dump the CPU instruction ring at the N'th CLPT (0 = off). */
 static long s_ring_at_clpt = 0;
@@ -50,8 +51,6 @@ InstrFunc instr_funcs[65536];
 
 /*********** TODO ***********/
 
-extern uint16_t io_op(uint16_t ioadd, uint16_t regA);
-extern int IO_Ident(uint16_t level);
 
 /************************************ HELPER FUNCTIONS *************************************/
 
@@ -3814,8 +3813,6 @@ void ndfunc_lwcs(uint16_t instr)
 
 
 //TODO: Make these into callbacks
-extern void ProcessTerminalPanc(void);
-extern void ProcessTerminalLamp(void);
 
 /*
  * DoTRR - Transfer to register

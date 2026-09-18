@@ -48,10 +48,8 @@ int NDFloat_Mul(unsigned short int *p_a, unsigned short int *p_b, unsigned short
 int NDFloat_Add(unsigned short int *p_a, unsigned short int *p_b, unsigned short int *p_r);
 int NDFloat_Sub(unsigned short int *p_a, unsigned short int *p_b, unsigned short int *p_r);
 
-extern struct CpuRegs *gReg;
 void DoNLZ(char scaling);
 void DoDNZ(char scaling);
-extern void setbit(uint16_t regnum, uint16_t stsbit, char val);
 
 /*
  * Internal floating point representation.

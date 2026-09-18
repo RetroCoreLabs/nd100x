@@ -996,7 +996,6 @@ void WritePhysicalMemoryWM(int physicalAddress, uint16_t value, bool privileged,
 }
 
 // Handle memory out of range error
-extern void ring_dump(void);
 
 void HandleMemoryOutOfRange(uint32_t physicalAddress)
 {

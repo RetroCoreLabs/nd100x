@@ -9,7 +9,6 @@ file(GLOB HEADERS "*.h")
 set(CPU_SOURCE_FILES
     cpu.c
     cpu_instr.c
-    cpu_mopc.c
     cpu_disasm.c
     float.c
     bcd.c
@@ -25,7 +24,6 @@ add_custom_command(
     COMMAND ${CMAKE_COMMAND} -E echo "/* AUTO-GENERATED FILE. DO NOT EDIT! */" > ${CMAKE_CURRENT_SOURCE_DIR}/cpu_protos.h
     COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/cpu.c >> ${CMAKE_CURRENT_SOURCE_DIR}/cpu_protos.h
     COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/cpu_instr.c >> ${CMAKE_CURRENT_SOURCE_DIR}/cpu_protos.h
-    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/cpu_mopc.c >> ${CMAKE_CURRENT_SOURCE_DIR}/cpu_protos.h
     COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/cpu_disasm.c >> ${CMAKE_CURRENT_SOURCE_DIR}/cpu_protos.h
     COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/float.c >> ${CMAKE_CURRENT_SOURCE_DIR}/cpu_protos.h
     COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/bcd.c >> ${CMAKE_CURRENT_SOURCE_DIR}/cpu_protos.h
