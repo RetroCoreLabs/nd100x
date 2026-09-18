@@ -31,6 +31,8 @@
  * no clue why. */
 typedef struct { char *p; size_t left; int overflow; } Sink;
 
+static void put(Sink *s, const char *fmt, ...) __attribute__((format(printf, 2, 3)));
+
 static void put(Sink *s, const char *fmt, ...)
 {
     va_list ap;

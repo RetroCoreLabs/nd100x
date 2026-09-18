@@ -64,6 +64,8 @@ uint32_t scsi_get_u32be(const uint8_t *buf)
 }
 
 
+static void SCSITarget_Log(SCSITarget *t, const char *fmt, ...) __attribute__((format(printf, 2, 3)));
+
 static void SCSITarget_Log(SCSITarget *t, const char *fmt, ...)
 {
     if (!scsi_debug_enabled)

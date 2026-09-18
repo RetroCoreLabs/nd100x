@@ -26,6 +26,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <limits.h>
+#include <inttypes.h>
 
 #include "../devices_types.h"
 #include "../devices_protos.h"
@@ -1018,7 +1019,7 @@ static void ExecuteGO(Device *self)
     case DEVICE_OP_READ_TRANSFER:
 
         if (smd_debug_enabled)
-            fprintf(stderr, "SMD: GO Op=%s Unit=%d C/H/S=%d/%d/%d LBA=%ld WC=%d CoreAddr=%o\n",
+            fprintf(stderr, "SMD: GO Op=%s Unit=%d C/H/S=%d/%d/%d LBA=%" PRId64 " WC=%d CoreAddr=%o\n",
                     SMD_OpName(DEVICE_OP_READ_TRANSFER), data->regs.selectedUnit,
                     cylinder, head, sector, lba, wordCounter, coreAddress);
 
@@ -1058,7 +1059,7 @@ static void ExecuteGO(Device *self)
     case DEVICE_OP_WRITE_TRANSFER:
 
         if (smd_debug_enabled)
-            fprintf(stderr, "SMD: GO Op=%s Unit=%d C/H/S=%d/%d/%d LBA=%ld WC=%d CoreAddr=%o\n",
+            fprintf(stderr, "SMD: GO Op=%s Unit=%d C/H/S=%d/%d/%d LBA=%" PRId64 " WC=%d CoreAddr=%o\n",
                     SMD_OpName(DEVICE_OP_WRITE_TRANSFER), data->regs.selectedUnit,
                     cylinder, head, sector, lba, wordCounter, coreAddress);
         buffer = (uint8_t *)malloc(blockCounter * self->blockSizeBytes);
@@ -1109,7 +1110,7 @@ static void ExecuteGO(Device *self)
     case DEVICE_OP_READ_PARITY:
 
         if (smd_debug_enabled)
-            fprintf(stderr, "SMD: GO Op=%s Unit=%d C/H/S=%d/%d/%d LBA=%ld WC=%d CoreAddr=%o\n",
+            fprintf(stderr, "SMD: GO Op=%s Unit=%d C/H/S=%d/%d/%d LBA=%" PRId64 " WC=%d CoreAddr=%o\n",
                     SMD_OpName(DEVICE_OP_READ_PARITY), data->regs.selectedUnit,
                     cylinder, head, sector, lba, wordCounter, coreAddress);
         buffer = (uint8_t *)malloc(blockCounter * self->blockSizeBytes);
@@ -1148,7 +1149,7 @@ static void ExecuteGO(Device *self)
     case DEVICE_OP_COMPARE_TRANSFER:
 
         if (smd_debug_enabled)
-            fprintf(stderr, "SMD: GO Op=%s Unit=%d C/H/S=%d/%d/%d LBA=%ld WC=%d CoreAddr=%o\n",
+            fprintf(stderr, "SMD: GO Op=%s Unit=%d C/H/S=%d/%d/%d LBA=%" PRId64 " WC=%d CoreAddr=%o\n",
                     SMD_OpName(DEVICE_OP_COMPARE_TRANSFER), data->regs.selectedUnit,
                     cylinder, head, sector, lba, wordCounter, coreAddress);
 
@@ -1195,7 +1196,7 @@ static void ExecuteGO(Device *self)
 
     case DEVICE_OP_INITIATE_SEEK:
         if (smd_debug_enabled)
-            fprintf(stderr, "SMD: GO Op=%s Unit=%d C/H/S=%d/%d/%d pos=%ld\n",
+            fprintf(stderr, "SMD: GO Op=%s Unit=%d C/H/S=%d/%d/%d pos=%" PRId64 "\n",
                     SMD_OpName(DEVICE_OP_INITIATE_SEEK), data->regs.selectedUnit,
                     cylinder, head, sector, position);
         // SEEK TIMING MODEL (M4/M6/M7): we deliberately do NOT model physical drive

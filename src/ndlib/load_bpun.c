@@ -48,7 +48,6 @@ bool GetLastBPUNHeader(BPUN_Header* out) {
 
 int LoadBPUN(const char* filename, bool verbose) {
     BPUN_Header bpun = {0};
-    uint8_t err = 0;
 
 	FILE* bpunStream = fopen(filename, "rb");
 	if (!bpunStream) {
@@ -81,7 +80,6 @@ int LoadBPUN(const char* filename, bool verbose) {
         if (bpun.checksum != bpun.calculatedChecksum) {
             printf("CRC ERROR != %02X\n", bpun.calculatedChecksum);
             crc = "[CRC ERROR]";
-            err++;
         }
 
         printf("Checksum: %06o %s\n", bpun.checksum, crc);

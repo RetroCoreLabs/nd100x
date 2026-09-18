@@ -239,6 +239,9 @@ typedef enum {
 } SectionKind;
 
 static int mc_err(char *err, size_t errlen, const char *path, int line,
+                  const char *fmt, ...) __attribute__((format(printf, 5, 6)));
+
+static int mc_err(char *err, size_t errlen, const char *path, int line,
                   const char *fmt, ...)
 {
     char msg[MC_ERR_LEN];

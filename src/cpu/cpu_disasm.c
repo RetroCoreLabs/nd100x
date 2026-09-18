@@ -922,7 +922,7 @@ ushort decode_140k(ushort instr) {
 			default:
 				break;
 		}
-		/* fall through */
+		__attribute__((fallthrough));
 	case 0140600: /* EXR */
 		return instr & (0xFFFF<<6);
 	case 0140700: /* USER3 (microcode defined by user or illegal instruction otherwise) */
@@ -941,7 +941,7 @@ ushort decode_140k(ushort instr) {
 			default:
 				break;
 		}
-		/* fall through */
+		__attribute__((fallthrough));
 	case 0141100: /* USER4 (microcode defined by user or illegal instruction otherwise) */
 	case 0141200: /* RMPY */
 	case 0141300: /* USER5 (microcode defined by user or illegal instruction otherwise) */

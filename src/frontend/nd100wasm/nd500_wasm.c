@@ -36,6 +36,8 @@
 #include <string.h>
 #include <stdint.h>
 
+#include "nd500_wasm.h"
+
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #define EMSCRIPTEN_EXPORT EMSCRIPTEN_KEEPALIVE

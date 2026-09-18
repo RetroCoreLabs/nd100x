@@ -21,6 +21,8 @@
 #include "../devices_protos.h"
 
 
+static void SCSIHDD_Log(SCSIHDDDevice *hdd, const char *fmt, ...) __attribute__((format(printf, 2, 3)));
+
 static void SCSIHDD_Log(SCSIHDDDevice *hdd, const char *fmt, ...)
 {
     if (!scsi_debug_enabled)

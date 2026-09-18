@@ -209,8 +209,7 @@ resolve_source_path(DAPServer *server, const char *file)
 }
 
 #ifdef __EMSCRIPTEN__
-/* WASM: no threads, no atomics */
-static bool debugger_thread_should_exit = false;
+/* WASM: no threads, no atomics - no debugger thread to stop */
 #else
 /* Native (POSIX and Windows via winpthreads) - unified pthread + C11 atomics. */
 #include <stdatomic.h>

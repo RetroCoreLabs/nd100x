@@ -259,12 +259,6 @@ static void wasm_bind_hdlc(void)
     }
 }
 
-static void wasm_bind_devices(void)
-{
-    wasm_bind_terminals();
-    wasm_bind_hdlc();
-}
-
 // Initialize the system (hardware only, no boot).
 //
 // <iniText> NULL or empty gives the built-in device set this has always built:
@@ -2213,6 +2207,7 @@ EMSCRIPTEN_EXPORT const char* GetDriveInfo(void)
 // Main function for both Emscripten and non-Emscripten builds
 int main(int argc, char *argv[])
 {
+    (void)argc; (void)argv;
 #ifdef __EMSCRIPTEN__
     return 0;
 #else

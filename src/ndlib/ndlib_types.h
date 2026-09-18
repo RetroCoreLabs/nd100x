@@ -67,6 +67,12 @@ typedef enum {
     LOG_ERROR
 } LogLevel;
 
+/// @brief Write a formatted message at the given level (see log.c).
+/// @details Declared here as well as in the generated ndlib_protos.h because
+///          only a hand-written header can carry the format attribute that
+///          lets the compiler check every call's arguments.
+void Log(LogLevel level, const char *format, ...) __attribute__((format(printf, 2, 3)));
+
 /// @brief Minimum log level for filtering messages
 /// @details Messages below this level will not be logged.
 extern LogLevel minLogLevel;

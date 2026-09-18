@@ -344,6 +344,7 @@ void FloppyPIO_ExecuteGo(Device *self, FloppyPIOCommand command) {
 
     int transferWordCount = data->bytes_pr_sector >> 1;
     int wordsRead = 0;
+    (void)wordsRead; /* reported only under DEBUG_DETAIL */
 
     data->status1.bits.deviceReadyForTransfer = 0;
     data->status1.bits.readWriteComplete = 0;

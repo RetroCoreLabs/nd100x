@@ -72,6 +72,8 @@ typedef struct
 } SCSIData;
 
 
+static void SCSI_Log(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
+
 static void SCSI_Log(const char *fmt, ...)
 {
     if (!scsi_debug_enabled)

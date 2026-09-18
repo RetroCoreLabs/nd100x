@@ -127,6 +127,6 @@ void DMAEngine_SetUpdateReceiverStatusCallback(DMAEngine *dma, DMAUpdateReceiver
 void DMAEngine_SetClearCommandCallback(DMAEngine *dma, DMAClearCommandCallback callback);
 
 // Debug functions
-void DMAEngine_Log(DMAEngine *dma, const char *format, ...);
+void DMAEngine_Log(DMAEngine *dma, const char *format, ...) __attribute__((format(printf, 2, 3)));
 
 #endif // DMA_ENGINE_H
