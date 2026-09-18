@@ -232,8 +232,13 @@ if(WIN32)
 else()
     set(MKPTYPES_MAKE_ARGS -B)
 endif()
+# CC=gcc on the make command line: under emcmake this process inherits
+# CC=<emsdk>/emcc from the environment, so without it the tool is built as
+# JavaScript over the native binary and every prototype step then fails with
+# "Permission denied". A command-line CC overrides the environment one. Same
+# line in nd500x (decided by Ronny 18-SEP-2026 for both repos).
 execute_process(
-    COMMAND make ${MKPTYPES_MAKE_ARGS} -C ${CMAKE_SOURCE_DIR}/tools/mkptypes
+    COMMAND make ${MKPTYPES_MAKE_ARGS} CC=gcc -C ${CMAKE_SOURCE_DIR}/tools/mkptypes
     RESULT_VARIABLE MKTYPES_RESULT
 )
 if(NOT MKTYPES_RESULT EQUAL 0)
