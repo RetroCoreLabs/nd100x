@@ -3797,6 +3797,11 @@ static int cmd_set_function_breakpoints(DAPServer *server)
 
     /* Allocate result array */
     DAPBreakpoint *results = calloc(count, sizeof(DAPBreakpoint));
+    if (!results && count > 0) {
+        server->current_command.context.function_breakpoint.breakpoints = NULL;
+        server->current_command.context.function_breakpoint.breakpoint_count = 0;
+        return -1;
+    }
     server->current_command.context.function_breakpoint.breakpoints = results;
     server->current_command.context.function_breakpoint.breakpoint_count = count;
 

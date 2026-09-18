@@ -320,7 +320,9 @@ void initialize(void)
 {
    srand ( time(NULL) ); /* Generate PRNG Seed */
 #ifndef _WIN32
-   used=calloc(1,sizeof(struct rusage)); /* Perf counter stuff */
+   static struct rusage s_used; /* Perf counter stuff */
+   memset(&s_used, 0, sizeof(s_used));
+   used = &s_used;
 #endif
 
 
@@ -399,7 +401,10 @@ void initialize(void)
 	       (double)ND_Memsize * 2.0 / (1024.0 * 1024.0),
 	       (unsigned)ND_Memsize);
 
-	machine_init(config.debuggerEnabled, config.debuggerPort);
+	if (machine_init(config.debuggerEnabled, config.debuggerPort) != 0) {
+		fprintf(stderr, "nd100x: machine initialisation failed\n");
+		exit(1);
+	}
 
 	// Add the NORD TSS CDC cartridge system disc @ IOX 500-507 ONLY when a --cdc image
 	// (or the .ini cdc= key) was given, so the 500 slot stays empty otherwise (it never

@@ -253,10 +253,18 @@ int breakpoint_manager_check( uint16_t address, BreakpointEntry** matches[], int
 
     if (tempCount > 0) {
         *matches = malloc(sizeof(BreakpointEntry*) * tempCount);
+        if (!*matches) {
+            *matchCount = 0;
+            return 0;
+        }
         memcpy(*matches, tempList, sizeof(BreakpointEntry*) * tempCount);
         *matchCount = tempCount;
     } else if (userCount > 0) {
         *matches = malloc(sizeof(BreakpointEntry*) * userCount);
+        if (!*matches) {
+            *matchCount = 0;
+            return 0;
+        }
         memcpy(*matches, userList, sizeof(BreakpointEntry*) * userCount);
         *matchCount = userCount;
     } else {

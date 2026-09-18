@@ -69,6 +69,10 @@ PrintJob *PrintJob_Create(PjPrinterType printerType, PjOutputFormat format,
     pj->printerType = printerType;
     pj->outputFormat = format;
     pj->outputDir = strdup(outputDir ? outputDir : "./prints");
+    if (!pj->outputDir) {
+        free(pj);
+        return NULL;
+    }
     pj->jobTimeout = DEFAULT_JOB_TIMEOUT;
 
     if (printerType == PJ_PRINTER_ESCP) {

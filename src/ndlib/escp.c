@@ -105,6 +105,9 @@ static void flush_line_buffer(EscpContext *ctx)
     span->charWidth = charWidth;
     span->lineHeight = lineHeight;
     span->text = strdup(ctx->lineBuf);
+    if (!span->text) {
+        ctx->spanCount--;   /* out of memory: drop this run of text */
+    }
 
     ctx->lineBufLen = 0;
 }

@@ -120,6 +120,9 @@ void Pdf_AddTextSpan(PdfDocument *doc, int pageIndex,
     span->style = style;
     span->fontSize = fontSize;
     span->text = strdup(text);
+    if (!span->text) {
+        page->spanCount--;   /* out of memory: drop this span */
+    }
 }
 
 // Select font name based on style flags

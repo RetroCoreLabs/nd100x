@@ -304,11 +304,15 @@ EMSCRIPTEN_EXPORT const char* InitWithConfig(const char* iniText)
 
 #ifdef WITH_DEBUGGER
     // Initialize machine with debugger enabled
-    machine_init(1, 4711);
+    int mrc = machine_init(1, 4711);
 #else
     // Initialize machine components including devices
-    machine_init(0, 4711);
+    int mrc = machine_init(0, 4711);
 #endif
+    if (mrc != 0) {
+        snprintf(result, sizeof(result), "machine initialisation failed (out of memory)");
+        return result;
+    }
 
     if (useConfig) {
         // The devices half: terminals, controllers with their images, and
@@ -699,7 +703,7 @@ EMSCRIPTEN_EXPORT int MountSMDFromBuffer(int unit, const uint8_t *data, int size
     memcpy(buf, data, (size_t)size);
 
     // Ensure drive arrays exist, then get the array via API
-    init_drive_arrays();
+    if (init_drive_arrays() != 0) return -1;
     MountedDriveInfo_t *drives = list_mount(DRIVE_SMD);
     if (!drives) { free(buf); return -1; }
 
@@ -961,7 +965,7 @@ EMSCRIPTEN_EXPORT int MountSCSIFromBuffer(int unit, const uint8_t *data, int siz
     if (!buf) return -1;
     memcpy(buf, data, (size_t)size);
 
-    init_drive_arrays();
+    if (init_drive_arrays() != 0) return -1;
     MountedDriveInfo_t *drives = list_mount(DRIVE_SCSI);
     if (!drives) { free(buf); return -1; }
 
@@ -1095,7 +1099,7 @@ EMSCRIPTEN_EXPORT int MountWinchesterFromBuffer(int unit, const uint8_t *data, i
     if (!buf) return -1;
     memcpy(buf, data, (size_t)size);
 
-    init_drive_arrays();
+    if (init_drive_arrays() != 0) return -1;
     MountedDriveInfo_t *drives = list_mount(DRIVE_WINCHESTER);
     if (!drives) { free(buf); return -1; }
 
@@ -1194,7 +1198,7 @@ EMSCRIPTEN_EXPORT int MountFloppyFromBuffer(int unit, const uint8_t *data, int s
     if (!buf) return -1;
     memcpy(buf, data, (size_t)size);
 
-    init_drive_arrays();
+    if (init_drive_arrays() != 0) return -1;
     MountedDriveInfo_t *drives = list_mount(DRIVE_FLOPPY);
     if (!drives) { free(buf); return -1; }
 
@@ -1542,6 +1546,7 @@ EMSCRIPTEN_EXPORT void PrinterSetType(int type)
     // Flush current job, preserve job counter, recreate with new type
     int savedJobNumber = wasmPrintJob->jobNumber;
     char *savedDir = strdup(wasmPrintJob->outputDir);
+    if (!savedDir) return;   /* keep the current job rather than lose its directory */
     PrintJob_Destroy(wasmPrintJob);
     wasmPrintJob = PrintJob_Create((PjPrinterType)type, PJ_FORMAT_PDF, savedDir);
     if (wasmPrintJob) {
@@ -2125,7 +2130,7 @@ EMSCRIPTEN_EXPORT const char* GetDriveInfo(void)
     static char buf[4096];
     int pos = 0;
 
-    init_drive_arrays();
+    (void)init_drive_arrays();   /* a NULL table is handled below */
 
     MountedDriveInfo_t *smd = list_mount(DRIVE_SMD);
     MountedDriveInfo_t *floppy = list_mount(DRIVE_FLOPPY);

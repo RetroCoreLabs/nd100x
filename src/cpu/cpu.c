@@ -1052,8 +1052,10 @@ void cpu_set_type_from_env(void)
 
 void cpu_init(bool debuggerEnabled, int debuggerPort)
 {
-	/* initialize an empty register set */
-	gReg = calloc(1, sizeof(struct CpuRegs));
+	/* initialize an empty register set (static storage: never freed, cannot fail) */
+	static struct CpuRegs s_cpu_regs;
+	memset(&s_cpu_regs, 0, sizeof(s_cpu_regs));
+	gReg = &s_cpu_regs;
 
 	/* Initialize volatile memory to zero */
 	memset(&VolatileMemory, 0, sizeof(VolatileMemory));

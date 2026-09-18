@@ -73,8 +73,9 @@ const char* boot_type_str[] = {
 };
 
 
-// Initialize drive arrays
-void init_drive_arrays(void) {
+// Initialize drive arrays. Returns 0, or -1 if memory ran out (the arrays
+// that were allocated stay allocated; cleanup_drive_arrays() frees them).
+int init_drive_arrays(void) {
     if (!floppy_drives) {
         floppy_drives = calloc(3, sizeof(MountedDriveInfo_t));
     }
@@ -87,6 +88,10 @@ void init_drive_arrays(void) {
     if (!wd_drives) {
         wd_drives = calloc(2, sizeof(MountedDriveInfo_t));
     }
+    if (!floppy_drives || !smd_drives || !scsi_drives || !wd_drives) {
+        return -1;
+    }
+    return 0;
 }
 
 // Clean up drive arrays
@@ -182,12 +187,16 @@ static bool drive_type_for_device(const Device *device, DRIVE_TYPE *drive_type)
     }
 }
 
-void
+// Returns 0, or -1 if the machine could not be set up (out of memory).
+int
 machine_init (bool debuggerEnabled, int debuggerPort)
 {
 
     // Initialize drive arrays
-    init_drive_arrays();
+    if (init_drive_arrays() != 0) {
+        Log(LOG_ERROR, "machine_init: out of memory for the drive tables\n");
+        return -1;
+    }
 
     // Initialize the CPU
     cpu_init(debuggerEnabled, debuggerPort);
@@ -200,6 +209,7 @@ machine_init (bool debuggerEnabled, int debuggerPort)
 
     // Set the CPU to RUN mode
     set_cpu_run_mode(CPU_RUNNING);
+    return 0;
 }
 
 void machine_add_hdlc(int deviceNum, bool isServer, const char *address, int port)
@@ -952,7 +962,7 @@ void mount_drive(DRIVE_TYPE drive_type, int unit, const char *md5, const char *n
 
     // Lazy init if drive arrays not yet allocated
     if (!drives) {
-        init_drive_arrays();
+        (void)init_drive_arrays();   /* checked through drives below */
         drives = drives_for_type(drive_type, NULL);
         if (!drives) {
             return;
@@ -1191,7 +1201,7 @@ void mount_drive_opfs(DRIVE_TYPE drive_type, int unit, const char *name,
     if (unit < 0 || unit >= max_units) return;
 
     if (!drives) {
-        init_drive_arrays();
+        (void)init_drive_arrays();   /* checked through drives below */
         drives = drives_for_type(drive_type, NULL);
         if (!drives) return;
     }
@@ -1223,7 +1233,7 @@ void mount_drive_gateway(DRIVE_TYPE drive_type, int unit, const char *name,
     if (unit < 0 || unit >= max_units) return;
 
     if (!drives) {
-        init_drive_arrays();
+        (void)init_drive_arrays();   /* checked through drives below */
         drives = drives_for_type(drive_type, NULL);
         if (!drives) return;
     }

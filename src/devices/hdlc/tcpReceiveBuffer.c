@@ -31,6 +31,7 @@ void TcpReceiveBuffer_Init(TcpReceiveBuffer *buf, int capacity)
 
     buf->capacity = capacity;
     buf->buffer = malloc((size_t)capacity);
+    if (!buf->buffer) buf->capacity = 0;   /* read/write already test buffer */
     buf->head = 0;
     buf->tail = 0;
     buf->count = 0;

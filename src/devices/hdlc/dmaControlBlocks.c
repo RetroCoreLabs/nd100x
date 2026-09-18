@@ -61,6 +61,7 @@ void DMAControlBlocks_Init(DMAControlBlocks *dcbs, struct Device *hdlcDevice)
     // Initialize outbound buffer
     dcbs->outboundBufferCapacity = HDLC_MAX_FRAME_SIZE + 64;
     dcbs->outboundBuffer = malloc(dcbs->outboundBufferCapacity);
+    if (!dcbs->outboundBuffer) dcbs->outboundBufferCapacity = 0;   /* the transmitter tests it */
     dcbs->outboundBufferSize = 0;
 
     // Initialize DCBs
