@@ -202,11 +202,11 @@ bool MachineConfig_ToJson(const MachineConfig *cfg, char *out, size_t outlen)
     put(&s, "\"disks\":[");
     {
         int first = 1;
-        for (int i = 0; i < MC_ND500_MAX_DISKS; i++) {
-            if (!cfg->nd500.disks[i][0]) continue;
-            put(&s, "%s{\"slot\":%d,", first ? "" : ",", i);
-            kv_str(&s, "image", cfg->nd500.disks[i], 1);
-            put(&s, "\"writable\":%s}", cfg->nd500.disk_writable[i] ? "true" : "false");
+        for (int slot = 0; slot < MC_ND500_MAX_DISKS; slot++) {
+            if (!cfg->nd500.disks[slot][0]) continue;
+            put(&s, "%s{\"slot\":%d,", first ? "" : ",", slot);
+            kv_str(&s, "image", cfg->nd500.disks[slot], 1);
+            put(&s, "\"writable\":%s}", cfg->nd500.disk_writable[slot] ? "true" : "false");
             first = 0;
         }
     }

@@ -153,7 +153,7 @@ typedef struct {
 
 
 extern MMSType mmsType; // What MMS type is currently in use
-extern PagingTables pt; // Global paging tables structure
+extern PagingTables g_paging_tables; // Global paging tables structure
 
 /********************* CPU *********************/
 

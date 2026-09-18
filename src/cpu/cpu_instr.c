@@ -4643,7 +4643,7 @@ void doMoveBytes(bool checkOverlapping)
 				readValue = readValue & 0xFF;
 			}
 
-			WriteMode writeMode = (gT & (1 << 15)) ? WRITEMODE_LSB : WRITEMODE_MSB;
+			writeMode = (gT & (1 << 15)) ? WRITEMODE_LSB : WRITEMODE_MSB;
 			MemoryWrite(readValue, gX, useAPT, writeMode);
 
 			gD ^= (1 << 15); // Flip D bit 15
@@ -4661,7 +4661,7 @@ void doMoveBytes(bool checkOverlapping)
 		for (int i = (gD & LEN_MASK); i < (gT & LEN_MASK); i++)
 		{
 			// Bit 15: 0=>MSB, 1=> LSB
-			WriteMode readMode = (gD & (1 << 15)) ? WRITEMODE_LSB : WRITEMODE_MSB;
+			readMode = (gD & (1 << 15)) ? WRITEMODE_LSB : WRITEMODE_MSB;
 			readValue = MemoryRead(gA, useAPT);
 
 			if (readMode == WRITEMODE_MSB)
@@ -4673,7 +4673,7 @@ void doMoveBytes(bool checkOverlapping)
 				readValue = readValue & 0xFF;
 			}
 
-			WriteMode writeMode = (gT & (1 << 15)) ? WRITEMODE_LSB : WRITEMODE_MSB;
+			writeMode = (gT & (1 << 15)) ? WRITEMODE_LSB : WRITEMODE_MSB;
 			MemoryWrite(readValue, gX, useAPT, writeMode);
 
 			gD ^= (1 << 15); // Flip D bit 15

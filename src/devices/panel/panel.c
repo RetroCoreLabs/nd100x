@@ -279,9 +279,9 @@ void UpdateMachineTime(void)
 		midnight = mktime(tm_midnight);
 
 		// Now counting since noon
-		struct tm *tm_now = localtime(&now);
-		tm_now->tm_hour -= 12;;
-		now = mktime(tm_now);
+		struct tm *tm_noon = localtime(&now);
+		tm_noon->tm_hour -= 12;
+		now = mktime(tm_noon);
 	}
 
 	// Calculate seconds since midnight

@@ -115,7 +115,7 @@ char *base64_encode(const uint8_t *data, size_t len) { (void)data; (void)len; re
 #define NUM_SCOPES 8 // Locals, Registers, Levels, Internal read, Internal write, status flags, memory PT, memory APT
 
 // DAP server instance
-DAPServer *server;
+DAPServer *g_dap_server;
 
 // Global symbol table
 
@@ -262,12 +262,12 @@ void *debugger_thread(void *arg)
     printf("Press Ctrl+C to exit\n");
 
     // Run the server's message processing loop with periodic checks for exit
-    while (server->is_running)
+    while (g_dap_server->is_running)
     {
         if (atomic_load(&debugger_thread_should_exit))
             break;
 
-        if (dap_server_run(server) != 0)
+        if (dap_server_run(g_dap_server) != 0)
         {
             fprintf(stderr, "Error: Server message loop failed.\n");
             break;
@@ -280,11 +280,11 @@ void *debugger_thread(void *arg)
     set_cpu_run_mode(CPU_SHUTDOWN);
 
     // Stop the server and transport
-    dap_server_stop(server);
+    dap_server_stop(g_dap_server);
 
     // Clean up before exiting
-    dap_server_free(server);
-    server = NULL;
+    dap_server_free(g_dap_server);
+    g_dap_server = NULL;
     THREAD_RETURN(0);
 }
 
@@ -301,7 +301,7 @@ void ndx_server_terminate(int sig)
 {
 
     // Sends a terminated event to the client and terminate the DAP server
-    dap_server_terminate(server, 0);
+    dap_server_terminate(g_dap_server, 0);
 }
 
 /// @brief Stop the DAP server thread
@@ -470,7 +470,7 @@ static void ensure_cpu_running(void)
         // CPU is paused, so we need to resume it
         set_cpu_run_mode(CPU_RUNNING);
 #ifndef __EMSCRIPTEN__
-        dap_server_send_output_category(server, DAP_OUTPUT_CONSOLE, "Switched CPU to running mode\n");
+        dap_server_send_output_category(g_dap_server, DAP_OUTPUT_CONSOLE, "Switched CPU to running mode\n");
 #endif
     }
 }
@@ -1619,8 +1619,8 @@ static void add_level_variables(DAPServer *server, char *info_message, size_t in
             apt = (rPCR >> 7) & 0x03;
         }
         ushort priority = (rPCR >> 2) & 0x07;
-        char value_str[100];
-        sprintf(value_str, "Ring[%d] PT[%d] APT[%d] P[%06d]", ring, pt, apt, rP);
+        char pcr_str[100];
+        sprintf(pcr_str, "Ring[%d] PT[%d] APT[%d] P[%06d]", ring, pt, apt, rP);
 
         char name[20];
         sprintf(name, "Level %d", i);
@@ -1631,7 +1631,7 @@ static void add_level_variables(DAPServer *server, char *info_message, size_t in
         add_variable_to_array(
             server,
             name,                       // name
-            value_str,                  // value
+            pcr_str,                    // value
             "integer",                  // type
             rP,                         // memoryReference
             SCOPE_ID_PIL_BASE + i,      // variablesReference -> expandable per-PIL bank
@@ -4582,8 +4582,8 @@ int ndx_server_init(int port)
                     .port = port}}},
     };
 
-    server = dap_server_create(&config);
-    if (!server)
+    g_dap_server = dap_server_create(&config);
+    if (!g_dap_server)
     {
         return -1;
     }
@@ -4591,88 +4591,88 @@ int ndx_server_init(int port)
     // Hook up callbacks
 
     // Register launch callback
-    dap_server_register_command_callback(server, DAP_CMD_LAUNCH, cmd_launch_callback);
+    dap_server_register_command_callback(g_dap_server, DAP_CMD_LAUNCH, cmd_launch_callback);
 
     // Register configuration done callback
-    dap_server_register_command_callback(server, DAP_CMD_CONFIGURATION_DONE, cmd_configuration_done);
+    dap_server_register_command_callback(g_dap_server, DAP_CMD_CONFIGURATION_DONE, cmd_configuration_done);
 
     // Register restart callback
-    dap_server_register_command_callback(server, DAP_CMD_RESTART, cmd_restart);
+    dap_server_register_command_callback(g_dap_server, DAP_CMD_RESTART, cmd_restart);
 
     // Disconnect request
-    dap_server_register_command_callback(server, DAP_CMD_DISCONNECT, cmd_disconnect);
+    dap_server_register_command_callback(g_dap_server, DAP_CMD_DISCONNECT, cmd_disconnect);
 
     // Terminate request
-    dap_server_register_command_callback(server, DAP_CMD_TERMINATE, cmd_terminate);
+    dap_server_register_command_callback(g_dap_server, DAP_CMD_TERMINATE, cmd_terminate);
 
     // Hook up commands for stopping and starting the debugger's access to the CPU
-    dap_server_register_command_callback(server, DAP_WAIT_FOR_DEBUGGER, cmd_wait_for_debugger);
-    dap_server_register_command_callback(server, DAP_RELEASE_DEBUGGER, cmd_release_debugger);
-    dap_server_register_command_callback(server, DAP_CHECK_CPU_EVENTS, cmd_check_cpu_events);
+    dap_server_register_command_callback(g_dap_server, DAP_WAIT_FOR_DEBUGGER, cmd_wait_for_debugger);
+    dap_server_register_command_callback(g_dap_server, DAP_RELEASE_DEBUGGER, cmd_release_debugger);
+    dap_server_register_command_callback(g_dap_server, DAP_CHECK_CPU_EVENTS, cmd_check_cpu_events);
 
     // Set up stepping callbacks through command callbacks only
     // Register command-specific implementations using the wrapper functions
-    dap_server_register_command_callback(server, DAP_CMD_NEXT, cmd_next);
-    dap_server_register_command_callback(server, DAP_CMD_STEP_IN, cmd_step_in);
-    dap_server_register_command_callback(server, DAP_CMD_STEP_OUT, cmd_step_out);
+    dap_server_register_command_callback(g_dap_server, DAP_CMD_NEXT, cmd_next);
+    dap_server_register_command_callback(g_dap_server, DAP_CMD_STEP_IN, cmd_step_in);
+    dap_server_register_command_callback(g_dap_server, DAP_CMD_STEP_OUT, cmd_step_out);
 
     // Register pause callback
-    dap_server_register_command_callback(server, DAP_CMD_PAUSE, cmd_pause);
+    dap_server_register_command_callback(g_dap_server, DAP_CMD_PAUSE, cmd_pause);
 
     // Register continue callback
-    dap_server_register_command_callback(server, DAP_CMD_CONTINUE, cmd_continue);
+    dap_server_register_command_callback(g_dap_server, DAP_CMD_CONTINUE, cmd_continue);
 
     // Register exception breakpoint callback
-    dap_server_register_command_callback(server, DAP_CMD_SET_EXCEPTION_BREAKPOINTS, on_set_exception_breakpoints);
+    dap_server_register_command_callback(g_dap_server, DAP_CMD_SET_EXCEPTION_BREAKPOINTS, on_set_exception_breakpoints);
 
     // Register breakpoint callbacks
-    dap_server_register_command_callback(server, DAP_CMD_SET_BREAKPOINTS, cmd_set_breakpoints);
-    dap_server_register_command_callback(server, DAP_CMD_SET_INSTRUCTION_BREAKPOINTS, cmd_set_instruction_breakpoints);
-    dap_server_register_command_callback(server, DAP_CMD_DATA_BREAKPOINT_INFO, cmd_data_breakpoint_info);
-    dap_server_register_command_callback(server, DAP_CMD_SET_DATA_BREAKPOINTS, cmd_set_data_breakpoints);
+    dap_server_register_command_callback(g_dap_server, DAP_CMD_SET_BREAKPOINTS, cmd_set_breakpoints);
+    dap_server_register_command_callback(g_dap_server, DAP_CMD_SET_INSTRUCTION_BREAKPOINTS, cmd_set_instruction_breakpoints);
+    dap_server_register_command_callback(g_dap_server, DAP_CMD_DATA_BREAKPOINT_INFO, cmd_data_breakpoint_info);
+    dap_server_register_command_callback(g_dap_server, DAP_CMD_SET_DATA_BREAKPOINTS, cmd_set_data_breakpoints);
 
     // Register stack trace callback
-    dap_server_register_command_callback(server, DAP_CMD_STACK_TRACE, cmd_stack_trace);
+    dap_server_register_command_callback(g_dap_server, DAP_CMD_STACK_TRACE, cmd_stack_trace);
 
     // Register scopes callback
-    dap_server_register_command_callback(server, DAP_CMD_SCOPES, cmd_scopes);
+    dap_server_register_command_callback(g_dap_server, DAP_CMD_SCOPES, cmd_scopes);
 
     // Register variables callback
-    dap_server_register_command_callback(server, DAP_CMD_VARIABLES, cmd_variables);
+    dap_server_register_command_callback(g_dap_server, DAP_CMD_VARIABLES, cmd_variables);
 
     // Register set variable callback
-    dap_server_register_command_callback(server, DAP_CMD_SET_VARIABLE, cmd_set_variable);
+    dap_server_register_command_callback(g_dap_server, DAP_CMD_SET_VARIABLE, cmd_set_variable);
 
     // Expression evaluation
-    dap_server_register_command_callback(server, DAP_CMD_EVALUATE, cmd_evaluate);
+    dap_server_register_command_callback(g_dap_server, DAP_CMD_EVALUATE, cmd_evaluate);
 
     // Function breakpoints
-    dap_server_register_command_callback(server, DAP_CMD_SET_FUNCTION_BREAKPOINTS, cmd_set_function_breakpoints);
+    dap_server_register_command_callback(g_dap_server, DAP_CMD_SET_FUNCTION_BREAKPOINTS, cmd_set_function_breakpoints);
 
     // Register read memory callback
-    dap_server_register_command_callback(server, DAP_CMD_READ_MEMORY, cmd_read_memory);
+    dap_server_register_command_callback(g_dap_server, DAP_CMD_READ_MEMORY, cmd_read_memory);
 
     // Register write memory callback
-    dap_server_register_command_callback(server, DAP_CMD_WRITE_MEMORY, cmd_write_memory);
+    dap_server_register_command_callback(g_dap_server, DAP_CMD_WRITE_MEMORY, cmd_write_memory);
 
     // Register disassemble callback
-    dap_server_register_command_callback(server, DAP_CMD_DISASSEMBLE, cmd_disassemble);
+    dap_server_register_command_callback(g_dap_server, DAP_CMD_DISASSEMBLE, cmd_disassemble);
 
     // Register source callback
-    dap_server_register_command_callback(server, DAP_CMD_SOURCE, cmd_source);
+    dap_server_register_command_callback(g_dap_server, DAP_CMD_SOURCE, cmd_source);
 
     // Console I/O
-    dap_server_register_command_callback(server, DAP_CMD_CONSOLE_ENABLE, cmd_console_enable);
-    dap_server_register_command_callback(server, DAP_CMD_CONSOLE_WRITE, cmd_console_write);
+    dap_server_register_command_callback(g_dap_server, DAP_CMD_CONSOLE_ENABLE, cmd_console_enable);
+    dap_server_register_command_callback(g_dap_server, DAP_CMD_CONSOLE_WRITE, cmd_console_write);
 
     // Symbol listing
-    dap_server_register_command_callback(server, DAP_CMD_SYMBOL_LIST, cmd_symbol_list);
+    dap_server_register_command_callback(g_dap_server, DAP_CMD_SYMBOL_LIST, cmd_symbol_list);
 
     // Configure which capabilities are supported
-    set_default_dap_capabilities(server);
+    set_default_dap_capabilities(g_dap_server);
 
     // Start server and transport layer
-    int result = dap_server_start(server);
+    int result = dap_server_start(g_dap_server);
     if (result != 0)
     {
         return result;
@@ -4683,14 +4683,14 @@ int ndx_server_init(int port)
 
 int ndx_server_stop(void)
 {
-    if (!server)
+    if (!g_dap_server)
     {
         return -1;
     }
 
-    dap_server_stop(server);
-    dap_server_free(server);
-    server = NULL;
+    dap_server_stop(g_dap_server);
+    dap_server_free(g_dap_server);
+    g_dap_server = NULL;
     return 0;
 }
 
@@ -4763,46 +4763,46 @@ void debugger_kbd_input(char c)
 static int ndx_server_init_wasm(void)
 {
     /* Allocate server struct directly (no dap_server_create which needs transport) */
-    server = (DAPServer *)calloc(1, sizeof(DAPServer));
-    if (!server)
+    g_dap_server = (DAPServer *)calloc(1, sizeof(DAPServer));
+    if (!g_dap_server)
     {
         printf("Failed to allocate DAP server struct for WASM\n");
         return -1;
     }
 
-    server->is_initialized = true;
-    server->is_running = true;
-    server->attached = true;
-    server->debugger_state.has_stopped = false;
-    server->debugger_state.current_thread_id = 1;
+    g_dap_server->is_initialized = true;
+    g_dap_server->is_running = true;
+    g_dap_server->attached = true;
+    g_dap_server->debugger_state.has_stopped = false;
+    g_dap_server->debugger_state.current_thread_id = 1;
 
     /* Register all the same callbacks as native */
-    dap_server_register_command_callback(server, DAP_CMD_NEXT, cmd_next);
-    dap_server_register_command_callback(server, DAP_CMD_STEP_IN, cmd_step_in);
-    dap_server_register_command_callback(server, DAP_CMD_STEP_OUT, cmd_step_out);
-    dap_server_register_command_callback(server, DAP_CMD_CONTINUE, cmd_continue);
-    dap_server_register_command_callback(server, DAP_CMD_STACK_TRACE, cmd_stack_trace);
-    dap_server_register_command_callback(server, DAP_CMD_SCOPES, cmd_scopes);
-    dap_server_register_command_callback(server, DAP_CMD_VARIABLES, cmd_variables);
-    dap_server_register_command_callback(server, DAP_CMD_DISASSEMBLE, cmd_disassemble);
-    dap_server_register_command_callback(server, DAP_CMD_READ_MEMORY, cmd_read_memory);
-    dap_server_register_command_callback(server, DAP_CMD_CONSOLE_ENABLE, cmd_console_enable);
-    dap_server_register_command_callback(server, DAP_CMD_CONSOLE_WRITE, cmd_console_write);
-    dap_server_register_command_callback(server, DAP_CMD_SYMBOL_LIST, cmd_symbol_list);
+    dap_server_register_command_callback(g_dap_server, DAP_CMD_NEXT, cmd_next);
+    dap_server_register_command_callback(g_dap_server, DAP_CMD_STEP_IN, cmd_step_in);
+    dap_server_register_command_callback(g_dap_server, DAP_CMD_STEP_OUT, cmd_step_out);
+    dap_server_register_command_callback(g_dap_server, DAP_CMD_CONTINUE, cmd_continue);
+    dap_server_register_command_callback(g_dap_server, DAP_CMD_STACK_TRACE, cmd_stack_trace);
+    dap_server_register_command_callback(g_dap_server, DAP_CMD_SCOPES, cmd_scopes);
+    dap_server_register_command_callback(g_dap_server, DAP_CMD_VARIABLES, cmd_variables);
+    dap_server_register_command_callback(g_dap_server, DAP_CMD_DISASSEMBLE, cmd_disassemble);
+    dap_server_register_command_callback(g_dap_server, DAP_CMD_READ_MEMORY, cmd_read_memory);
+    dap_server_register_command_callback(g_dap_server, DAP_CMD_CONSOLE_ENABLE, cmd_console_enable);
+    dap_server_register_command_callback(g_dap_server, DAP_CMD_CONSOLE_WRITE, cmd_console_write);
+    dap_server_register_command_callback(g_dap_server, DAP_CMD_SYMBOL_LIST, cmd_symbol_list);
 
     printf("WASM DAP debugger initialized (in-process, no transport)\n");
     return 0;
 }
 
 /// @brief Get the DAP server pointer for direct struct access
-DAPServer *dbg_get_server(void) { return server; }
+DAPServer *dbg_get_server(void) { return g_dap_server; }
 
 /* --- Helper: Free a variable array filled by add_variable_to_array --- */
 static void dbg_free_variable_array(void)
 {
-    if (!server) return;
-    DAPVariable *arr = server->current_command.context.variables.variable_array;
-    int count = server->current_command.context.variables.variable_count;
+    if (!g_dap_server) return;
+    DAPVariable *arr = g_dap_server->current_command.context.variables.variable_array;
+    int count = g_dap_server->current_command.context.variables.variable_count;
     if (arr)
     {
         for (int i = 0; i < count; i++)
@@ -4813,9 +4813,9 @@ static void dbg_free_variable_array(void)
             if (arr[i].evaluate_name) free(arr[i].evaluate_name);
         }
         free(arr);
-        server->current_command.context.variables.variable_array = NULL;
+        g_dap_server->current_command.context.variables.variable_array = NULL;
     }
-    server->current_command.context.variables.variable_count = 0;
+    g_dap_server->current_command.context.variables.variable_count = 0;
 }
 
 /* JSON buffer for returning data to JS */
@@ -4825,18 +4825,18 @@ static char dbg_json_buf[32768];
 /// @return JSON array of scope objects
 const char *dbg_get_scopes_json(void)
 {
-    if (!server) return "[]";
+    if (!g_dap_server) return "[]";
 
     /* Call the scopes callback directly */
-    server->current_command.context.scopes.frame_id = 0;
-    cmd_scopes(server);
+    g_dap_server->current_command.context.scopes.frame_id = 0;
+    cmd_scopes(g_dap_server);
 
     /* Build JSON from the scopes array */
     int pos = 0;
     pos += snprintf(dbg_json_buf + pos, sizeof(dbg_json_buf) - pos, "[");
 
-    DAPScope *scopes = server->current_command.context.scopes.scopes;
-    int count = server->current_command.context.scopes.scope_count;
+    DAPScope *scopes = g_dap_server->current_command.context.scopes.scopes;
+    int count = g_dap_server->current_command.context.scopes.scope_count;
 
     for (int i = 0; i < count && pos < (int)sizeof(dbg_json_buf) - 256; i++)
     {
@@ -4858,7 +4858,7 @@ const char *dbg_get_scopes_json(void)
             if (scopes[i].source_path) free(scopes[i].source_path);
         }
         free(scopes);
-        server->current_command.context.scopes.scopes = NULL;
+        g_dap_server->current_command.context.scopes.scopes = NULL;
     }
 
     return dbg_json_buf;
@@ -4869,20 +4869,20 @@ const char *dbg_get_scopes_json(void)
 /// @return JSON array of variable objects
 const char *dbg_get_variables_json(int scope_id)
 {
-    if (!server) return "[]";
+    if (!g_dap_server) return "[]";
 
     /* Set up context and call variables callback */
-    server->current_command.context.variables.variables_reference = scope_id;
-    server->current_command.context.variables.variable_count = 0;
-    server->current_command.context.variables.variable_array = NULL;
-    cmd_variables(server);
+    g_dap_server->current_command.context.variables.variables_reference = scope_id;
+    g_dap_server->current_command.context.variables.variable_count = 0;
+    g_dap_server->current_command.context.variables.variable_array = NULL;
+    cmd_variables(g_dap_server);
 
     /* Build JSON from the variable array */
     int pos = 0;
     pos += snprintf(dbg_json_buf + pos, sizeof(dbg_json_buf) - pos, "[");
 
-    DAPVariable *vars = server->current_command.context.variables.variable_array;
-    int count = server->current_command.context.variables.variable_count;
+    DAPVariable *vars = g_dap_server->current_command.context.variables.variable_array;
+    int count = g_dap_server->current_command.context.variables.variable_count;
 
     for (int i = 0; i < count && pos < (int)sizeof(dbg_json_buf) - 512; i++)
     {
@@ -4907,21 +4907,21 @@ const char *dbg_get_variables_json(int scope_id)
 /// @return JSON array of stack frame objects
 const char *dbg_get_stack_trace_json(void)
 {
-    if (!server) return "[]";
+    if (!g_dap_server) return "[]";
 
     /* Set up context and call stack trace callback */
-    server->current_command.context.stack_trace.start_frame = 0;
-    server->current_command.context.stack_trace.levels = MAX_STACK_FRAMES;
-    server->current_command.context.stack_trace.frames = NULL;
-    server->current_command.context.stack_trace.frame_count = 0;
-    cmd_stack_trace(server);
+    g_dap_server->current_command.context.stack_trace.start_frame = 0;
+    g_dap_server->current_command.context.stack_trace.levels = MAX_STACK_FRAMES;
+    g_dap_server->current_command.context.stack_trace.frames = NULL;
+    g_dap_server->current_command.context.stack_trace.frame_count = 0;
+    cmd_stack_trace(g_dap_server);
 
     /* Build JSON */
     int pos = 0;
     pos += snprintf(dbg_json_buf + pos, sizeof(dbg_json_buf) - pos, "[");
 
-    DAPStackFrame *frames = server->current_command.context.stack_trace.frames;
-    int count = server->current_command.context.stack_trace.frame_count;
+    DAPStackFrame *frames = g_dap_server->current_command.context.stack_trace.frames;
+    int count = g_dap_server->current_command.context.stack_trace.frame_count;
 
     for (int i = 0; i < count && pos < (int)sizeof(dbg_json_buf) - 512; i++)
     {
@@ -4947,7 +4947,7 @@ const char *dbg_get_stack_trace_json(void)
             if (frames[i].module_id) free(frames[i].module_id);
         }
         free(frames);
-        server->current_command.context.stack_trace.frames = NULL;
+        g_dap_server->current_command.context.stack_trace.frames = NULL;
     }
 
     return dbg_json_buf;
@@ -4993,24 +4993,24 @@ const char *dbg_get_threads_json(void)
 /// @brief Step in (single instruction into calls)
 int dbg_step_in(void)
 {
-    if (!server) return -1;
-    server->current_command.context.step.granularity = DAP_STEP_GRANULARITY_INSTRUCTION;
-    return step_cpu(server, STEP_IN);
+    if (!g_dap_server) return -1;
+    g_dap_server->current_command.context.step.granularity = DAP_STEP_GRANULARITY_INSTRUCTION;
+    return step_cpu(g_dap_server, STEP_IN);
 }
 
 /// @brief Step over (step past calls)
 int dbg_step_over(void)
 {
-    if (!server) return -1;
-    server->current_command.context.step.granularity = DAP_STEP_GRANULARITY_INSTRUCTION;
-    return step_cpu(server, STEP_OVER);
+    if (!g_dap_server) return -1;
+    g_dap_server->current_command.context.step.granularity = DAP_STEP_GRANULARITY_INSTRUCTION;
+    return step_cpu(g_dap_server, STEP_OVER);
 }
 
 /// @brief Step out (run until return)
 int dbg_step_out(void)
 {
-    if (!server) return -1;
-    return step_cpu(server, STEP_OUT);
+    if (!g_dap_server) return -1;
+    return step_cpu(g_dap_server, STEP_OUT);
 }
 
 #endif /* __EMSCRIPTEN__ */

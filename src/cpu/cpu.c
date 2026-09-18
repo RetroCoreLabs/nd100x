@@ -643,7 +643,7 @@ ushort lvlcnt=0;
 bool activateSleep = false;
 
 // allocate once
-ushort operand;
+ushort g_operand;
 
 /// @brief CPU tick function - DO NOT CALL THIS DIRECT AS IT NEES setjmp() setup correctly
 /// @details This function is called every CPU tick. It fetches the next instruction, executes it, and handles interrupts.
@@ -656,20 +656,20 @@ void private_cpu_tick(void)
 	gReg->myreg_PFB = MemoryFetch(gPC, false); //TODO: Remove this  step?
 	gReg->myreg_IR = gReg->myreg_PFB;
 
-	operand = gReg->myreg_IR;
+	g_operand = gReg->myreg_IR;
 
 
 	// Dissasemble ?
 	if (DISASM)
-		disasm_instr(gPC, operand);
+		disasm_instr(gPC, g_operand);
 
 	// CPU execution trace to stderr
 	if (CPU_TRACE)
 	{
 		char disasm_str[128];
-		OpToStr(disasm_str, sizeof(disasm_str), operand);
+		OpToStr(disasm_str, sizeof(disasm_str), g_operand);
 		fprintf(stderr, "%06o %06o %-24s PIL=%d prevPIL=%d A=%06o D=%06o T=%06o X=%06o B=%06o L=%06o P=%06o STS=%04x PIE=%04x PID=%04x IIE=%04x IID=%04x PGS=%04x MMU=%d INT=%d SEX=%d\n",
-			gPC, operand, disasm_str,
+			gPC, g_operand, disasm_str,
 			gPIL, (gReg->reg_STS >> 8) & 0x0F,
 			gA, gD, gT, gX, gB, gL, gPC,
 			gSTSr, gPIE, gPID, gIIE, gIID, gPGS,
@@ -727,20 +727,20 @@ void private_cpu_tick(void)
 	if (gDebuggerEnabled)
 	{
 		// Debugger need to build the stack-trace to be used for single stepping (step-out)
-		debugger_build_stack_trace(gPC, operand);
+		debugger_build_stack_trace(gPC, g_operand);
 	}
 #endif
 
 	// Execute instruction
 	instr_counter++;
-	do_op(operand, false);
+	do_op(g_operand, false);
 
 #ifdef WITH_DEBUGGER
 	// After JPL instruction, we need to update the entry point of the JPL instruction to be able to find the symbol for the stack frame
 	if (gDebuggerEnabled)
 	{
 		// JPL instruction?
-		if ((operand & 0xF800) == 0134000)
+		if ((g_operand & 0xF800) == 0134000)
 		{
 			// We need to update the entry point of the JPL instruction to be able to find the symbol for the stack frame
 			debugger_update_jpl_entrypoint(gPC);
@@ -940,7 +940,7 @@ int cpu_run(int ticks)
 				ushort pre_pc = gPC;
 				ushort pre_pil = gPIL;
 				private_cpu_tick();
-				ring_record(pre_pc, pre_pil, operand);
+				ring_record(pre_pc, pre_pil, g_operand);
 			}
 
 			// Tick IO devices pr cpu tick

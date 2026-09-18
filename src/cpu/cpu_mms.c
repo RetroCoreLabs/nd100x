@@ -29,35 +29,35 @@
 
 // Global MMS type variable definition
 MMSType mmsType = MMS2; // Change this to force MMS type to 1 or 2
-PagingTables pt; // Global paging tables structure
+PagingTables g_paging_tables; // Global paging tables structure
 
 
 // Create and initialize PagingTables
 // MUST!!!! to be called before using the PagingTables
 bool CreatePagingTables(void)
 {
-    pt.mmsType = mmsType;
+    g_paging_tables.mmsType = mmsType;
 
     // Allocate shadow RAM based on MMS type
     if (mmsType == MMS1)
     {
-        pt.shadowRamSize = 512;  // 4 page tables = 2 x 64 bit * 4 = 512 Words
-        pt.shadowRamAddress = SHADOW_RAM_EXTENDED_MODE_4PT;
+        g_paging_tables.shadowRamSize = 512;  // 4 page tables = 2 x 64 bit * 4 = 512 Words
+        g_paging_tables.shadowRamAddress = SHADOW_RAM_EXTENDED_MODE_4PT;
     }
     else
     {
-        pt.shadowRamSize = 2048; // 16 page tables = 16 x 64 bit * 4 = 2048 Words
-        pt.shadowRamAddress = SHADOW_RAM_EXTENDED_MODE_16PT;
+        g_paging_tables.shadowRamSize = 2048; // 16 page tables = 16 x 64 bit * 4 = 2048 Words
+        g_paging_tables.shadowRamAddress = SHADOW_RAM_EXTENDED_MODE_16PT;
     }
 
-    pt.shadowRam = (ushort*)calloc(pt.shadowRamSize, sizeof(ushort));
-    if (!pt.shadowRam)
+    g_paging_tables.shadowRam = (ushort*)calloc(g_paging_tables.shadowRamSize, sizeof(ushort));
+    if (!g_paging_tables.shadowRam)
     {
         printf("Failed to allocate shadow RAM\n");
         return false;
     }
 
-    pt.isInitialized = 1;
+    g_paging_tables.isInitialized = 1;
     return true;
 }
 
@@ -84,7 +84,7 @@ static uint CalcPageTableAddress(uint address)
     if (STS_SEXI)
     {
         // Extended, check if we have MM-1 or MM-II
-        if (pt.mmsType == MMS1)
+        if (g_paging_tables.mmsType == MMS1)
         {
             // 4 page tables start at 177000 (0xFE00)
             pageTableAddress = ((address - SHADOW_RAM_EXTENDED_MODE_4PT) & 0x1FF) >> 1;
@@ -107,9 +107,9 @@ static uint CalcPageTableAddress(uint address)
 // Clean up PagingTables
 void DestroyPagingTables(void)
 {
-    if (pt.shadowRam)
+    if (g_paging_tables.shadowRam)
     {
-        free(pt.shadowRam);
+        free(g_paging_tables.shadowRam);
     }
 }
 
@@ -125,17 +125,17 @@ ushort GetPTShadowAddress(uint pageTable, uint VPN, PageTableMode ptm)
         switch (ptm)
         {
             case Four:
-                offset = SHADOW_RAM_EXTENDED_MODE_4PT - pt.shadowRamAddress;
+                offset = SHADOW_RAM_EXTENDED_MODE_4PT - g_paging_tables.shadowRamAddress;
                 break;
             case Sixteen: // ONLY for MMS2
-                offset = SHADOW_RAM_EXTENDED_MODE_16PT - pt.shadowRamAddress;
+                offset = SHADOW_RAM_EXTENDED_MODE_16PT - g_paging_tables.shadowRamAddress;
                 break;
         }
     }
     else
     {
         // Normal mode
-        offset = SHADOW_RAM_NORMAL_MODE_4PT - pt.shadowRamAddress;
+        offset = SHADOW_RAM_NORMAL_MODE_4PT - g_paging_tables.shadowRamAddress;
     }
 
     uint pageTableAddress = (pageTable << 6) | VPN;
@@ -152,13 +152,13 @@ ushort GetPTShadowAddress(uint pageTable, uint VPN, PageTableMode ptm)
 // Write to page tables
 void PT_Write(uint address, ushort value)
 {
-    if (!pt.shadowRam) return;
-    if ((address < pt.shadowRamAddress) || (address > 0xFFFF)) return;
+    if (!g_paging_tables.shadowRam) return;
+    if ((address < g_paging_tables.shadowRamAddress) || (address > 0xFFFF)) return;
 
-    uint offset = address - pt.shadowRamAddress;
+    uint offset = address - g_paging_tables.shadowRamAddress;
 
 
-    pt.shadowRam[offset] = value;
+    g_paging_tables.shadowRam[offset] = value;
 
 #ifdef DEBUG_MMS
     uint pageTableEntry;
@@ -174,12 +174,12 @@ void PT_Write(uint address, ushort value)
         if ((address & 0x01) == 0)
         {
             // Even address
-            pageTableEntry = (uint)(value << 16 | pt.shadowRam[offset + 1]);
+            pageTableEntry = (uint)(value << 16 | g_paging_tables.shadowRam[offset + 1]);
         }
         else
         {
             // Odd address
-            pageTableEntry = (uint)(pt.shadowRam[offset - 1] << 16 | value);
+            pageTableEntry = (uint)(g_paging_tables.shadowRam[offset - 1] << 16 | value);
         }
     }
     printf("PT W A=%o PT=%d VPN=%d SEXI=%d V=%o => 0x%08X (%s)\n",  address, pageTable, pageTableAddress & 0x3F, STS_SEXI, value,  pageTableEntry, GetPageTableEntryDebugInfo(pageTableEntry));
@@ -189,11 +189,11 @@ void PT_Write(uint address, ushort value)
 // Read from shadow mem/pagetables
 ushort PT_Read(uint address)
 {
-    if (!pt.shadowRam) return 0;
-    if ((address < pt.shadowRamAddress) || (address > 0xFFFF)) return 0;
+    if (!g_paging_tables.shadowRam) return 0;
+    if ((address < g_paging_tables.shadowRamAddress) || (address > 0xFFFF)) return 0;
 
-    uint offset = address - pt.shadowRamAddress;
-    ushort res = pt.shadowRam[offset];
+    uint offset = address - g_paging_tables.shadowRamAddress;
+    ushort res = g_paging_tables.shadowRam[offset];
 
 #ifdef DEBUG_CPU
     uint pageTableEntry;
@@ -228,7 +228,7 @@ ushort PT_Read(uint address)
 // Get page table entry
 uint GetPageTableEntry(uint pageTable, uint VPN,PageTableMode ptm)
 {
-    if (!pt.shadowRam) return 0;
+    if (!g_paging_tables.shadowRam) return 0;
     if (pageTable >= 16) return 0;
 
     uint PTe = 0;
@@ -236,13 +236,13 @@ uint GetPageTableEntry(uint pageTable, uint VPN,PageTableMode ptm)
 
     if (STS_SEXI)
     {
-        PTe = (uint)(pt.shadowRam[pageTableAddress] << 16 | pt.shadowRam[pageTableAddress + 1]);
+        PTe = (uint)(g_paging_tables.shadowRam[pageTableAddress] << 16 | g_paging_tables.shadowRam[pageTableAddress + 1]);
     }
     else
     {
         if (pageTable <= 3)
         {
-            PTe = ConvertFrom16BitPTE(pt.shadowRam[pageTableAddress]);
+            PTe = ConvertFrom16BitPTE(g_paging_tables.shadowRam[pageTableAddress]);
         }
     }
 
@@ -266,7 +266,7 @@ uint GetPageTableEntry(uint pageTable, uint VPN,PageTableMode ptm)
 // read all page tables regardless of which level happens to be active.
 uint GetPageTableEntryForDebugger(uint pageTable, uint VPN, PageTableMode ptm)
 {
-    if (!pt.shadowRam) return 0;
+    if (!g_paging_tables.shadowRam) return 0;
     if (pageTable >= 16) return 0;
 
     uint PTe = 0;
@@ -274,20 +274,20 @@ uint GetPageTableEntryForDebugger(uint pageTable, uint VPN, PageTableMode ptm)
     if (mmsType == MMS2)
     {
         // MMS2 hardware: always 32-bit PTEs in extended 16PT area
-        uint offset = SHADOW_RAM_EXTENDED_MODE_16PT - pt.shadowRamAddress;
+        uint offset = SHADOW_RAM_EXTENDED_MODE_16PT - g_paging_tables.shadowRamAddress;
         uint pageTableAddress = ((pageTable << 6) | VPN) << 1;
         pageTableAddress += offset;
-        PTe = (uint)(pt.shadowRam[pageTableAddress] << 16 | pt.shadowRam[pageTableAddress + 1]);
+        PTe = (uint)(g_paging_tables.shadowRam[pageTableAddress] << 16 | g_paging_tables.shadowRam[pageTableAddress + 1]);
     }
     else
     {
         // MMS1 hardware: only 4 page tables, 16-bit PTEs
         if (pageTable <= 3)
         {
-            uint offset = SHADOW_RAM_NORMAL_MODE_4PT - pt.shadowRamAddress;
+            uint offset = SHADOW_RAM_NORMAL_MODE_4PT - g_paging_tables.shadowRamAddress;
             uint pageTableAddress = (pageTable << 6) | VPN;
             pageTableAddress += offset;
-            PTe = ConvertFrom16BitPTE(pt.shadowRam[pageTableAddress]);
+            PTe = ConvertFrom16BitPTE(g_paging_tables.shadowRam[pageTableAddress]);
         }
     }
 
@@ -297,19 +297,19 @@ uint GetPageTableEntryForDebugger(uint pageTable, uint VPN, PageTableMode ptm)
 // Update page table entry
 bool UpdatePageTableEntry(uint pageTable, uint VPN, PageTableMode ptm, uint PTe)
 {
-    if (!pt.shadowRam) return false;
+    if (!g_paging_tables.shadowRam) return false;
     if (pageTable >= 16) return false;
 
     int pageTableAddress = GetPTShadowAddress(pageTable, VPN, ptm);
 
     if (STS_SEXI)
     {
-        pt.shadowRam[pageTableAddress] = (ushort)(PTe >> 16);
-        pt.shadowRam[pageTableAddress + 1] = (ushort)(PTe);
+        g_paging_tables.shadowRam[pageTableAddress] = (ushort)(PTe >> 16);
+        g_paging_tables.shadowRam[pageTableAddress + 1] = (ushort)(PTe);
     }
     else
     {
-        pt.shadowRam[pageTableAddress] = ConvertTo16BitPTE(PTe);
+        g_paging_tables.shadowRam[pageTableAddress] = ConvertTo16BitPTE(PTe);
     }
 
     return true;
@@ -333,7 +333,7 @@ uint SetPageUsed(uint pageTable, uint VPN, PageTableMode ptm, uint PTe)
 // Set page written flag
 uint SetPageWritten(uint pageTable, uint VPN,PageTableMode ptm, uint PTe)
 {
-    if (!pt.shadowRam) return PTe;
+    if (!g_paging_tables.shadowRam) return PTe;
 
     if (pageTable >= 16) return PTe;
 
@@ -399,7 +399,7 @@ int mapVirtualToPhysical(uint virtualAddress, AccessMode am, bool UseAPT)
 {
 
 
-    if (!pt.isInitialized)
+    if (!g_paging_tables.isInitialized)
     {
         printf("FATAL! PagingTables not initialized\n");
         exit(1);
@@ -1115,7 +1115,7 @@ static int Dbg_MapVirtualToPhysical(uint virtualAddress, bool useAPT, int8_t pil
 {
     virtualAddress &= 0xFFFF;
 
-    if (!pt.isInitialized)
+    if (!g_paging_tables.isInitialized)
         return -1;
 
     int level = (pil >= 0 && pil <= 15) ? pil : CurrLEVEL;
