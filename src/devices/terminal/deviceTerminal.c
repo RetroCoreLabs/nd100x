@@ -186,7 +186,6 @@ static uint16_t Terminal_Tick(Device *self)
                 break;
             }
 
-            // printf("Terminal_Tick: %c, value: %o interruptEnabled: %d\n", (char)value, value, data->inputStatus.bits.interruptEnabled);
             data->uartInputBuf = value;
             data->inputStatus.bits.deviceReadyForTransfer = true;
             Device_SetInterruptStatus(self, data->inputStatus.bits.interruptEnabled && data->inputStatus.bits.deviceReadyForTransfer, 12);
@@ -229,7 +228,6 @@ static uint16_t Terminal_Read(Device *self, uint32_t address)
         value = data->outputStatus.raw;
         break;
     default:
-        //printf("Unexpected: Terminal Read from address: %o value: %o\n", address, value);
         break;
     }
 
@@ -411,7 +409,6 @@ void Terminal_QueueKeyCode(Device *self, uint8_t keycode)
     data->inputQueue.tail = (data->inputQueue.tail + 1) % TERMINAL_QUEUE_SIZE;
     data->inputQueue.count++;
 
-    // printf("Terminal_QueueKeyCode: %c, count: %ld IRQ[%d]\n", (char)keycode, data->inputQueue.count, data->inputStatus.bits.interruptEnabled);
 }
 
 // Character input handler for terminal devices
@@ -450,7 +447,7 @@ Device *CreateTerminalDevice(uint8_t thumbwheel)
     }
     else
     {
-        printf("Unexpected thumbwheel code %d\n", thumbwheel);
+        LOG(LOG_CAT_TERM, LOG_WARN, "Unexpected thumbwheel code %d\n", thumbwheel);
         free(data);
         free(dev);
         return NULL;
@@ -484,7 +481,7 @@ Device *CreateTerminalDevice(uint8_t thumbwheel)
     // hook up  Device_SetCharacterInput to Terminal_QueueKeyCode
     Device_SetCharacterInput(dev, Terminal_InputFunction);
 
-    printf("Terminal %d created (%s, ident %o, address %o)\n", dev->logicalDevice, dev->memoryName, dev->identCode, dev->startAddress);
+    LOG(LOG_CAT_TERM, LOG_INFO, "Terminal %d created (%s, ident %o, address %o)\n", dev->logicalDevice, dev->memoryName, dev->identCode, dev->startAddress);
     return dev;
 }
 

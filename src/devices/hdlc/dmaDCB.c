@@ -260,32 +260,3 @@ void DCB_ClearDMAReadData(HdlcDCB *dcb)
 }
 
 // Debug/utility functions
-
-void DCB_Print(const HdlcDCB *dcb)
-{
-    if (!dcb) {
-        printf("DCB: (null)\n");
-        return;
-    }
-
-    printf("DCB {\n");
-    printf("  BufferAddress: 0x%08X\n", dcb->bufferAddress);
-    printf("  OffsetFromLP: %u\n", dcb->offsetFromLP);
-    printf("  KeyValue: 0x%04X\n", dcb->keyValue);
-    printf("  Key: 0x%04X\n", DCB_GetKey(dcb));
-    printf("  HasRSOMFlag: %s\n", DCB_HasRSOMFlag(dcb) ? "true" : "false");
-    printf("  HasREOMFlag: %s\n", DCB_HasREOMFlag(dcb) ? "true" : "false");
-    printf("  DataFlowCost: 0x%04X\n", DCB_GetDataFlowCost(dcb));
-    printf("  ByteCount: %u\n", dcb->byteCount);
-    printf("  MostAddress: 0x%04X\n", dcb->mostAddress);
-    printf("  LeastAddress: 0x%04X\n", dcb->leastAddress);
-    printf("  DataMemoryAddress: 0x%08X\n", DCB_GetDataMemoryAddress(dcb));
-    printf("  Displacement: %u\n", dcb->displacement);
-    printf("  ListPointer: 0x%08X\n", dcb->listPointer);
-    printf("  DMAAddress: 0x%08X\n", dcb->dmaAddress);
-    printf("  DMABytesRead: %d\n", dcb->dmaBytesRead);
-    printf("  DMABytesWritten: %d\n", dcb->dmaBytesWritten);
-    printf("  DMAReadData: %d %s\n", dcb->dmaReadData,
-           DCB_IsDMAReadDataValid(dcb) ? "(valid)" : "(invalid)");
-    printf("}\n");
-}

@@ -545,7 +545,7 @@ static int Cdc_Boot(Device *self, int unit)
 
     if (!d || !d->surface || d->surfaceWords < CDC_WORDS_PER_SECTOR)
     {
-        printf("Error: CDC boot - no disc surface attached (use --cdc=FILE)\n");
+        LOG(LOG_CAT_CDC, LOG_ERROR, "Error: CDC boot - no disc surface attached (use --cdc=FILE)\n");
         return -1;
     }
 
@@ -558,7 +558,7 @@ static int Cdc_Boot(Device *self, int unit)
     }
     if (allZero)
     {
-        printf("Error: CDC boot sector (sector 0) is all zeros - the disc "
+        LOG(LOG_CAT_CDC, LOG_ERROR, "Error: CDC boot sector (sector 0) is all zeros - the disc "
                "carries no bootstrap\n");
         return -1;
     }
@@ -712,7 +712,7 @@ Device *CreateCdcDevice(uint8_t thumbwheel)
     if (g_cdcHasBackingPath)
     {
         if (!Cdc_AttachBacking(d, g_cdcBackingPath))
-            printf("CDC: WARNING could not open backing file '%s' (in-memory only)\n",
+            LOG(LOG_CAT_CDC, LOG_WARN, "CDC: could not open backing file '%s' (in-memory only)\n",
                    g_cdcBackingPath);
     }
 
@@ -732,7 +732,7 @@ Device *CreateCdcDevice(uint8_t thumbwheel)
         dev->startAddress = 0500;
         break;
     default:
-        printf("CDC: unknown thumbwheel value: %d\n", thumbwheel);
+        LOG(LOG_CAT_CDC, LOG_WARN, "CDC: unknown thumbwheel value: %d\n", thumbwheel);
         free(d->surface);
         free(d);
         free(dev);
@@ -742,7 +742,7 @@ Device *CreateCdcDevice(uint8_t thumbwheel)
     dev->identCode = CDC_IDENT_CODE;           /* [VERIFIED] ND 500-slot ident 01 */
     dev->interruptLevel = CDC_INT_LEVEL;       /* [VERIFIED] ND 500-slot level 11 */
 
-    printf("CDC disc device created: %s ident %o level %d (%u sectors, %u words surface)\n",
+    LOG(LOG_CAT_CDC, LOG_INFO, "CDC disc device created: %s ident %o level %d (%u sectors, %u words surface)\n",
            dev->memoryName, dev->identCode, dev->interruptLevel,
            d->surfaceSectors, d->surfaceWords);
     return dev;

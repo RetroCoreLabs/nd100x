@@ -204,7 +204,7 @@ Device* CreateLinePrinterDevice(uint8_t thumbwheel)
     dev->Ident = LinePrinter_Ident;
     dev->deviceData = data;
 
-    printf("Line Printer device created: %s CODE[%o] ADDRESS[%o-%o]\n",
+    LOG(LOG_CAT_PRINTER, LOG_INFO, "Line Printer device created: %s CODE[%o] ADDRESS[%o-%o]\n",
            dev->memoryName, dev->identCode, dev->startAddress, dev->endAddress);
     return dev;
 }

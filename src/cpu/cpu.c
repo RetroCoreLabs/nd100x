@@ -359,7 +359,6 @@ ushort calcIIC(void)
 	if (priorityCode == 0)
 		return 0;
 
-	// printf("IID=0x%x, IIE=0x%x, priorityCode=0x%x\r\n", gIID, gIIE, priorityCode);
 
 	for (int i = 10; i >= 0; i--)
 	{
@@ -445,7 +444,6 @@ void interrupt(ushort lvl, ushort sub)
 		// // Log internal interrupts on device levels (12-15) that cause TDTLEV ERRFATAL
 		// if (gPIL >= 12)
 		// {
-		// 	fprintf(stderr, "*** INT14_FATAL: %s (sub=0x%x) PIL=%d PC=%06o PVL=%d\n",
 		// 		iic_name, sub, gPIL, gPC, gPVL);
 		// }
 
@@ -458,7 +456,6 @@ void interrupt(ushort lvl, ushort sub)
 		gPID |= (1 << lvl);
 	}
 
-	// printf("Interrupt at %d, sub=0x%x. GID_BIT_= %d\r\n", lvl, sub, (gIID>>8)&1);
 	recalcInternalInterruptBits();
 
 	// Check for MPV (bit 2), PF (bit 3), or illegal instruction (bit 4)
@@ -607,7 +604,6 @@ bool checkAndSwitch(void)
 
 		if (gPK != gPIL)
 		{
-			//printf("Switching from %d P[%6o] to %d P[%6o]\r\n", gPIL, gPC, gPK, gReg->reg[gPK][_P]);
 			setPIL(gPK); /* Change to new runlevel */
 
 			if (ND100X_HOT_TRACE && Log_IsEnabled(LOG_CAT_PKSWITCH, LOG_TRACE))
@@ -1044,7 +1040,7 @@ void cpu_set_type_from_env(void)
 	else if (strcmp(name, "ND110PCX") == 0)
 		CurrentCPUType = ND110PCX;
 	else
-		fprintf(stderr, "Unknown ND100X_CPUTYPE '%s' - keeping the default\r\n", name);
+		LOG(LOG_CAT_CPU, LOG_WARN, "Unknown ND100X_CPUTYPE '%s' - keeping the default", name);
 }
 
 void cpu_init(bool debuggerEnabled, int debuggerPort)
@@ -1299,9 +1295,9 @@ CPURunMode get_cpu_run_mode(void) {
 void cpu_throttle_set_enabled(bool enabled) {
 	cpu_throttle_enabled = enabled;
 	if (enabled) {
-		fprintf(stderr, "CPU throttle: ON (%.2f MHz)\n", cpu_throttle_mhz);
+		LOG(LOG_CAT_CPU, LOG_INFO, "CPU throttle: ON (%.2f MHz)", cpu_throttle_mhz);
 	} else {
-		fprintf(stderr, "CPU throttle: OFF (full speed)\n");
+		LOG(LOG_CAT_CPU, LOG_INFO, "CPU throttle: OFF (full speed)");
 	}
 }
 
@@ -1313,7 +1309,7 @@ void cpu_throttle_set_mhz(double mhz) {
 	if (mhz < 0.1) mhz = 0.1;
 	if (mhz > 100.0) mhz = 100.0;
 	cpu_throttle_mhz = mhz;
-	fprintf(stderr, "CPU throttle: target %.3f MHz\n", cpu_throttle_mhz);
+	LOG(LOG_CAT_CPU, LOG_INFO, "CPU throttle: target %.3f MHz", cpu_throttle_mhz);
 }
 
 double cpu_throttle_get_mhz(void) {

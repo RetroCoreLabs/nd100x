@@ -25,6 +25,7 @@
 #include <string.h>
 
 #include "download.h"
+#include "log.h"
 
 #if defined(PLATFORM_WASM) || defined(__EMSCRIPTEN__) || defined(PLATFORM_RISCV) || !defined(HAVE_CURL)
 
@@ -40,7 +41,7 @@ size_t get_downloaded_size(void) {
 // Unified download function stub for WASM build
 char* download_file(const char* url) {
 	(void)url;
-	fprintf(stderr, "Download not supported in WASM build (CURL disabled)\n");
+	LOG(LOG_CAT_NET, LOG_WARN, "Download not supported in WASM build (CURL disabled)\n");
 	return NULL;
 }
 
@@ -113,20 +114,20 @@ static size_t WriteCallback(void *contents, size_t size, size_t nmemb, void *use
 
     // Check for integer overflow
     if (new_size < download_data->size) {
-        fprintf(stderr, "Error: Integer overflow in realloc size calculation\n");
+        LOG(LOG_CAT_NET, LOG_ERROR, "Error: Integer overflow in realloc size calculation\n");
         return 0;
     }
 
     // Check for maximum file size (500MB as requested)
     if (new_size > 500 * 1024 * 1024) {
-        fprintf(stderr, "Error: File size exceeds 500MB limit\n");
+        LOG(LOG_CAT_NET, LOG_ERROR, "Error: File size exceeds 500MB limit\n");
         return 0;
     }
 
     // Reallocate memory
     char *new_data = realloc(download_data->data, new_size);
     if (!new_data) {
-        fprintf(stderr, "Error: Failed to reallocate memory for download response\n");
+        LOG(LOG_CAT_NET, LOG_ERROR, "Error: Failed to reallocate memory for download response\n");
         return 0;
     }
 
@@ -147,13 +148,13 @@ size_t get_downloaded_size(void) {
 // Unified download function that can handle both JSON and binary files
 char* download_file(const char* url) {
     if (!url) {
-        fprintf(stderr, "Error: NULL URL provided to download_file\n");
+        LOG(LOG_CAT_NET, LOG_ERROR, "Error: NULL URL provided to download_file\n");
         return NULL;
     }
 
     CURL *curl = curl_easy_init();
     if (!curl) {
-        fprintf(stderr, "Error: Failed to initialize CURL\n");
+        LOG(LOG_CAT_NET, LOG_ERROR, "Error: Failed to initialize CURL\n");
         return NULL;
     }
 
@@ -180,7 +181,7 @@ char* download_file(const char* url) {
     CURLcode res = curl_easy_perform(curl);
 
     if (res != CURLE_OK) {
-        fprintf(stderr, "Error: CURL request failed: %s\n", curl_easy_strerror(res));
+        LOG(LOG_CAT_NET, LOG_ERROR, "Error: CURL request failed: %s\n", curl_easy_strerror(res));
         if (download_data.data) {
             free(download_data.data);
         }
@@ -193,7 +194,7 @@ char* download_file(const char* url) {
     curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
 
     if (http_code != 200) {
-        fprintf(stderr, "Error: HTTP request failed with code %ld\n", http_code);
+        LOG(LOG_CAT_NET, LOG_ERROR, "Error: HTTP request failed with code %ld\n", http_code);
         if (download_data.data) {
             free(download_data.data);
         }
@@ -203,7 +204,6 @@ char* download_file(const char* url) {
     }
 
     if (download_data.data && download_data.size > 0) {
-        //printf("Successfully downloaded %zu bytes from %s\n", download_data.size, url);
 
         // Store the actual size globally
         g_downloaded_size = download_data.size;
@@ -211,7 +211,7 @@ char* download_file(const char* url) {
         // Add null terminator for compatibility with string functions
         char *final_data = realloc(download_data.data, download_data.size + 1);
         if (!final_data) {
-            fprintf(stderr, "Error: Failed to allocate memory for null terminator\n");
+            LOG(LOG_CAT_NET, LOG_ERROR, "Error: Failed to allocate memory for null terminator\n");
             free(download_data.data);
             curl_easy_cleanup(curl);
             g_downloaded_size = 0;
@@ -222,7 +222,7 @@ char* download_file(const char* url) {
         curl_easy_cleanup(curl);
         return final_data;
     } else {
-        fprintf(stderr, "Error: No data received from %s\n", url);
+        LOG(LOG_CAT_NET, LOG_ERROR, "Error: No data received from %s\n", url);
         curl_easy_cleanup(curl);
         g_downloaded_size = 0;
         return NULL;

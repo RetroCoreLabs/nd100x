@@ -264,7 +264,6 @@ static void FloppyPIO_Write(Device *self, uint32_t address, uint16_t value) {
 static uint16_t FloppyPIO_Ident(Device *self, uint16_t level) {
     if (!self) return 0;
 
-    //printf("FloppyPIO::IDENT called with level %d\n", level);
     if ((self->interruptBits & (1 << level)) != 0) {
         FloppyPIOData *data = (FloppyPIOData *)self->deviceData;
         data->status1.bits.interruptEnabled = 0;
@@ -365,7 +364,6 @@ void FloppyPIO_ExecuteGo(Device *self, FloppyPIOCommand command) {
         data->status1.bits.deviceReadyForTransfer = 1;
         data->status1.bits.deviceBusy = 0;
 
-        //printf("Sector missing %d %d\r\n", data->sector, data->sectors_pr_track);
         return;
     }
 
@@ -375,7 +373,6 @@ void FloppyPIO_ExecuteGo(Device *self, FloppyPIOCommand command) {
         data->status2.bits.driveNotReady = 1;
         data->status1.bits.deviceBusy = 0;
 
-        //printf("Drive not ready\r\n");
         return;
     }
 
@@ -609,7 +606,7 @@ void FloppyPIO_ExecuteGo(Device *self, FloppyPIOCommand command) {
             }
 
             if (fseek(data->floppyFile, position, SEEK_SET) != 0) {
-                printf("Floppy SEEK to %d FAILED\r\n", position);
+                LOG(LOG_CAT_FLOPPY, LOG_ERROR, "Floppy SEEK to %d FAILED\r\n", position);
                 data->status2.bits.sectorMissing = 1;
                 data->status1.bits.deviceBusy = 0;
                 return;
@@ -619,7 +616,7 @@ void FloppyPIO_ExecuteGo(Device *self, FloppyPIOCommand command) {
             break;
 
         case FLOPPY_CMD_RECALIBRATE:
-            printf("Starting Recalibrate\r\n");
+            LOG(LOG_CAT_FLOPPY, LOG_DEBUG, "Starting Recalibrate\r\n");
             data->track = 0;
             data->sector = 1;
             Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)FloppyPIO_RecalibrateEnd, unit, self->interruptLevel);
@@ -693,7 +690,7 @@ Device* CreateFloppyPIODevice(uint8_t thumbwheel) {
 
     // Open floppy file
     if ((data->floppyFile = fopen(data->floppyName, "r")) == NULL) {
-        printf("Unable to open file %s\n", data->floppyName);
+        LOG(LOG_CAT_FLOPPY, LOG_ERROR, "Unable to open file %s\n", data->floppyName);
         //free(data);
         //free(dev);
         //return NULL;
@@ -707,6 +704,6 @@ Device* CreateFloppyPIODevice(uint8_t thumbwheel) {
     dev->Ident = FloppyPIO_Ident;
     dev->deviceData = data;
 
-    printf("FloppyPIO object created.\n");
+    LOG(LOG_CAT_FLOPPY, LOG_INFO, "FloppyPIO object created.\n");
     return dev;
 }

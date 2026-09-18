@@ -194,11 +194,11 @@ void PaperTape_LoadTape(Device *self, const uint8_t *data, size_t length)
         memcpy(ptData->tapeData, data, length);
         ptData->tapeLength = length;
         ptData->tapePosition = 0;
-        printf("Paper tape loaded: %zu bytes\n", length);
+        LOG(LOG_CAT_TAPE, LOG_INFO, "Paper tape loaded: %zu bytes\n", length);
     } else {
         ptData->tapeLength = 0;
         ptData->tapePosition = 0;
-        fprintf(stderr, "Failed to allocate memory for paper tape (%zu bytes)\n", length);
+        LOG(LOG_CAT_TAPE, LOG_ERROR, "Failed to allocate memory for paper tape (%zu bytes)\n", length);
     }
 }
 
@@ -252,7 +252,7 @@ Device* CreatePaperTapeDevice(uint8_t thumbwheel)
     dev->Destroy = PaperTape_Destroy;
     dev->deviceData = data;
 
-    printf("Paper Tape Reader created: %s CODE[%o] ADDRESS[%o-%o]\n",
+    LOG(LOG_CAT_TAPE, LOG_INFO, "Paper Tape Reader created: %s CODE[%o] ADDRESS[%o-%o]\n",
            dev->memoryName, dev->identCode, dev->startAddress, dev->endAddress);
     return dev;
 }

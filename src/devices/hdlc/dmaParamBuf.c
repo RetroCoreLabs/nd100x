@@ -163,28 +163,3 @@ void ParameterBuffer_SetDmaBankBits(ParameterBuffer *paramBuf, int value)
 }
 
 // Debug functions
-
-void ParameterBuffer_Print(const ParameterBuffer *paramBuf)
-{
-    if (!paramBuf) {
-        printf("ParameterBuffer: (null)\n");
-        return;
-    }
-
-    printf("ParameterBuffer {\n");
-    printf("  ParameterControlRegister: 0x%04X (%d)\n",
-           paramBuf->parameterControlRegister, paramBuf->parameterControlRegister);
-    printf("  SyncAddressRegister: 0x%04X (%d)\n",
-           paramBuf->syncAddressRegister, paramBuf->syncAddressRegister);
-    printf("  CharacterLength: %d\n", paramBuf->characterLength);
-    printf("  Displacement1: %d\n", paramBuf->displacement1);
-    printf("  Displacement2: %d\n", paramBuf->displacement2);
-    printf("  MaxReceiverBlockLength: %d\n", paramBuf->maxReceiverBlockLength);
-    printf("  ReceiverStatusReg: 0x%04X (%d)\n",
-           paramBuf->receiverStatusReg, paramBuf->receiverStatusReg);
-    printf("  TransmitterStatusReg: 0x%04X (%d)\n",
-           paramBuf->transmitterStatusReg, paramBuf->transmitterStatusReg);
-    printf("  DmaBankBits: 0x%04X (%d)\n",
-           paramBuf->dmaBankBits, paramBuf->dmaBankBits);
-    printf("}\n");
-}

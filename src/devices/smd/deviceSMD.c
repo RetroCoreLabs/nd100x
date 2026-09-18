@@ -317,7 +317,6 @@ static uint16_t SMD_Read(Device *self, uint32_t address)
 
             value = data->regs.eccPatternRegister;
 
-            // printf("SMD::SMD_ReadStatusRegister ECC alled [%o] = %o\n", address, value);
         }
         else
         {
@@ -351,7 +350,6 @@ static uint16_t SMD_Read(Device *self, uint32_t address)
 
             value = data->statusRegister.raw;
 
-            // printf("SMD::SMD_ReadStatusRegister called [%o] = %o\n", address, value);
 
             ClearFlipFlops(&data->regs);
         }
@@ -561,7 +559,6 @@ static void SMD_Write(Device *self, uint32_t address, uint16_t value)
 
             ClearFlipFlops(&data->regs);
             ClearErrors(self);
-            // printf("SMD::SMD_LoadControlWord ClearFlipFlops & ClearErrors\n");
         }
 
         // (Do NOT force onCylinder=1 here: on-cylinder is drive state that only
@@ -600,7 +597,6 @@ static void SMD_Write(Device *self, uint32_t address, uint16_t value)
             data->regs.selectedDisk->diskUnitNotReady = 0;
 
             ExecuteGO(self);
-            // printf("SMD::ExecuteGo returned\n");
         }
         else
         {
@@ -710,7 +706,6 @@ static void SMD_Write(Device *self, uint32_t address, uint16_t value)
             // For the 75 Mb disk, the maximum word count is 132000(45k); starting with the head and cylinder address equal to 0.
             // The Word Count is set to an integer multiple of the number of words in a sector when device operation is M0-M3.
 
-            // printf("SMD::SMD_LoadWordCounter called [%o] = %o\n", address, value);
 
             if (!data->regs.hasWordCountFlipFlop)
             {
@@ -787,7 +782,7 @@ static int SMD_Boot(Device *self, int unit)
 
     if (unit < 0 || unit >= regs->maxUnits)
     {
-        printf("Error: SMD boot unit %d out of range (0-%d)\n", unit, regs->maxUnits - 1);
+        LOG(LOG_CAT_SMD, LOG_ERROR, "Error: SMD boot unit %d out of range (0-%d)\n", unit, regs->maxUnits - 1);
         return -1;
     }
 
@@ -823,7 +818,7 @@ static int SMD_Boot(Device *self, int unit)
     int blocksRead = self->blockCallbacks.readFunc(self, buffer, blockCounter, 0, regs->selectedUnit);
     if ((blocksRead < 0) || (blocksRead != (int)blockCounter))
     {
-        printf("[SMD Boot] Block read failed: got %d blocks, expected %d\n", blocksRead, blockCounter);
+        LOG(LOG_CAT_SMD, LOG_ERROR, "[SMD Boot] Block read failed: got %d blocks, expected %d\n", blocksRead, blockCounter);
         free(buffer);
         return -1;
     }
@@ -838,7 +833,7 @@ static int SMD_Boot(Device *self, int unit)
             }
         }
         if (allZero) {
-            printf("Error: SMD boot sector is all zeros (blank or unformatted disk)\n");
+            LOG(LOG_CAT_SMD, LOG_ERROR, "Error: SMD boot sector is all zeros (blank or unformatted disk)\n");
             free(buffer);
             return -1;
         }
@@ -1764,7 +1759,7 @@ Device *CreateSMDDevice(uint8_t thumbwheel)
         dev->startAddress = 0550;
         break;
     default:
-        printf("SMD: Unknown thumbwheel value: %d\n", thumbwheel);
+        LOG(LOG_CAT_SMD, LOG_WARN, "SMD: Unknown thumbwheel value: %d\n", thumbwheel);
         free(data);
         free(dev);
         return NULL;
@@ -1777,7 +1772,7 @@ Device *CreateSMDDevice(uint8_t thumbwheel)
     // Ident code (octal), Level (decimal). Values come from THIS instance's real
     // configured fields (set per thumbwheel above), not literals - so the 1540/1550/
     // 540/550 slots each print their own address range / ident / level.
-    printf("SMD [%s] Device object created. Address[%o-%o] Ident code: [%o] Level: [%d]\n",
+    LOG(LOG_CAT_SMD, LOG_INFO, "SMD [%s] Device object created. Address[%o-%o] Ident code: [%o] Level: [%d]\n",
            dev->memoryName, dev->startAddress, dev->endAddress, dev->identCode, dev->interruptLevel);
 
     return dev;

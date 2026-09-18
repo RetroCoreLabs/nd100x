@@ -192,12 +192,4 @@ int DCB_GetDMAReadData(const HdlcDCB *dcb);
 bool DCB_IsDMAReadDataValid(const HdlcDCB *dcb);
 void DCB_ClearDMAReadData(HdlcDCB *dcb);
 
-// Debug/utility functions
-
-/**
- * @brief Print HdlcDCB contents for debugging
- * @param dcb Pointer to HdlcDCB structure to print
- */
-void DCB_Print(const HdlcDCB *dcb);
-
 #endif // DMA_DCB_H

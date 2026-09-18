@@ -86,7 +86,7 @@ static bool PaperTapeWriter_GrowBuffer(PaperTapeWriterData *data)
     if (!data->tapeBuffer) {
         data->tapeBuffer = malloc(PTW_INITIAL_TAPE_CAPACITY);
         if (!data->tapeBuffer) {
-            fprintf(stderr, "Paper tape punch: initial buffer allocation failed\n");
+            LOG(LOG_CAT_TAPE, LOG_ERROR, "Paper tape punch: initial buffer allocation failed\n");
             return false;
         }
         data->tapeCapacity = PTW_INITIAL_TAPE_CAPACITY;
@@ -97,7 +97,7 @@ static bool PaperTapeWriter_GrowBuffer(PaperTapeWriterData *data)
         size_t newCapacity = data->tapeCapacity * 2;
         uint8_t *newBuffer = realloc(data->tapeBuffer, newCapacity);
         if (!newBuffer) {
-            fprintf(stderr, "Paper tape punch: buffer grow failed at %zu bytes\n", newCapacity);
+            LOG(LOG_CAT_TAPE, LOG_ERROR, "Paper tape punch: buffer grow failed at %zu bytes\n", newCapacity);
             return false;
         }
         data->tapeBuffer = newBuffer;
@@ -277,7 +277,7 @@ Device* CreatePaperTapeWriterDevice(uint8_t thumbwheel)
     dev->Destroy = PaperTapeWriter_Destroy;
     dev->deviceData = data;
 
-    printf("Paper Tape Punch created: %s CODE[%o] ADDRESS[%o-%o]\n",
+    LOG(LOG_CAT_TAPE, LOG_INFO, "Paper Tape Punch created: %s CODE[%o] ADDRESS[%o-%o]\n",
            dev->memoryName, dev->identCode, dev->startAddress, dev->endAddress);
     return dev;
 }

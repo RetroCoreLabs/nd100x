@@ -290,7 +290,7 @@ Device* CreateRTCDevice(uint8_t thumbwheel) {
             snprintf(dev->memoryName, sizeof(dev->memoryName), "%s", "RTC 3");
             break;
         default:
-            printf("Unexpected thumbwheel code %d\n", thumbwheel);
+            LOG(LOG_CAT_RTC, LOG_WARN, "Unexpected thumbwheel code %d\n", thumbwheel);
             free(data);
             free(dev);
             return NULL;
@@ -304,6 +304,6 @@ Device* CreateRTCDevice(uint8_t thumbwheel) {
     dev->Ident = RTC_Ident;
     dev->deviceData = data;
 
-    printf("RTC device created: %s\n", dev->memoryName);
+    LOG(LOG_CAT_RTC, LOG_INFO, "RTC device created: %s\n", dev->memoryName);
     return dev;
 }

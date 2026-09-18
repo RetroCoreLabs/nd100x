@@ -433,9 +433,13 @@ if(NOT BUILD_WASM)
 endif()
 add_test(NAME log_tests COMMAND test_log)
 
-# Tests that compile a device file on its own also need the logger it calls.
-foreach(_t test_winchester wd_trace test_cdc test_rtc)
-    if(TARGET ${_t})
+# Tests that compile source files on their own (without the ndlib library,
+# which contains the logger) need log.c for the LOG() calls in those files.
+get_property(_log_test_targets DIRECTORY PROPERTY BUILDSYSTEM_TARGETS)
+foreach(_t IN LISTS _log_test_targets)
+    get_target_property(_type ${_t} TYPE)
+    get_target_property(_libs ${_t} LINK_LIBRARIES)
+    if(_type STREQUAL "EXECUTABLE" AND NOT _t STREQUAL "test_log" AND NOT "ndlib" IN_LIST _libs)
         target_sources(${_t} PRIVATE ${CMAKE_SOURCE_DIR}/src/ndlib/log.c)
         if(NOT BUILD_WASM)
             target_link_libraries(${_t} PRIVATE Threads::Threads)

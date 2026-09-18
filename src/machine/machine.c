@@ -451,7 +451,7 @@ int machine_floppy_mount_catalog(int unit, const char *selector)
     // Load the catalog once (idempotent - a prior F12 browse leaves it loaded).
     if (floppydb_count() == 0) {
         if (floppydb_load(false) <= 0) {
-            fprintf(stderr, "[catalog] no catalog available (offline / no cache / no libcurl)\n");
+            LOG(LOG_CAT_MACHINE, LOG_WARN, "[catalog] no catalog available (offline / no cache / no libcurl)\n");
             return -3;
         }
     }
@@ -464,13 +464,13 @@ int machine_floppy_mount_catalog(int unit, const char *selector)
         int n = floppydb_find_directory(selector + 4, hits, 32);
         if (n > 1) {
             // Ambiguous: log the full disambiguation set, then take the first.
-            fprintf(stderr, "[catalog] '%s' is ambiguous - %d images match (mounting the first):\n",
+            LOG(LOG_CAT_MACHINE, LOG_WARN, "[catalog] '%s' is ambiguous - %d images match (mounting the first):\n",
                     selector + 4, n);
             int show = (n < 32) ? n : 32;
             for (int i = 0; i < show; i++)
-                fprintf(stderr, "    - dir='%s' size=%ld pages md5=%s\n",
+                LOG(LOG_CAT_MACHINE, LOG_WARN, "    - dir='%s' size=%ld pages md5=%s\n",
                         hits[i]->directory_name, hits[i]->filesystem_pages, hits[i]->md5);
-            fprintf(stderr, "    (pin a specific image with md5:<hash>)\n");
+            LOG(LOG_CAT_MACHINE, LOG_WARN, "    (pin a specific image with md5:<hash>)\n");
         }
         if (n > 0) entry = hits[0];
     } else {
@@ -481,7 +481,7 @@ int machine_floppy_mount_catalog(int unit, const char *selector)
         }
     }
 
-    if (!entry) { fprintf(stderr, "[catalog] not found: %s\n", selector); return -2; }
+    if (!entry) { LOG(LOG_CAT_MACHINE, LOG_ERROR, "[catalog] not found: %s", selector); return -2; }
 
     // Map the ndlib is_smd flag to the machine's DRIVE_TYPE, then range-check the unit.
     DRIVE_TYPE dt = entry->is_smd ? DRIVE_SMD : DRIVE_FLOPPY;
@@ -499,10 +499,10 @@ int machine_floppy_mount_catalog(int unit, const char *selector)
     // mount_drive() is void and bails silently if the download failed; isMounted()
     // is the reliable success signal (is_mounted is set only after a real load).
     if (!isMounted(dt, unit)) {
-        fprintf(stderr, "[catalog] mount FAILED (no libcurl? offline?): %s\n", url);
+        LOG(LOG_CAT_MACHINE, LOG_ERROR, "[catalog] mount FAILED (no libcurl? offline?): %s\n", url);
         return -4;
     }
-    fprintf(stderr, "[catalog] mounted %s '%s' as %s unit %d (md5 %s)\n",
+    LOG(LOG_CAT_MACHINE, LOG_INFO, "[catalog] mounted %s '%s' as %s unit %d (md5 %s)\n",
             entry->is_smd ? "SMD" : "FLOPPY", entry->name,
             entry->is_smd ? "SMD" : "floppy", unit, entry->md5);
     return 0;
@@ -588,7 +588,7 @@ void mount_scsi(const char *imageFile, int unit)
         // Unlike floppy/SMD there is no automount for SCSI - the unit was asked
         // for explicitly on the command line, so a missing image is an error
         // worth reporting rather than a silently absent drive.
-        fprintf(stderr, "Error: SCSI unit %d image '%s' could not be opened\n", unit, scsi_img);
+        LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error: SCSI unit %d image '%s' could not be opened\n", unit, scsi_img);
     }
 }
 
@@ -637,7 +637,7 @@ static int tape_leader_load(const char *path, bool verbose)
     FILE *f = fopen(path, "rb");
     if (!f)
     {
-        printf("Failed to open tape file '%s': %s\n", path, strerror(errno));
+        LOG(LOG_CAT_MACHINE, LOG_ERROR, "Failed to open tape file '%s': %s\n", path, strerror(errno));
         return -1;
     }
     fseek(f, 0, SEEK_END);
@@ -646,7 +646,7 @@ static int tape_leader_load(const char *path, bool verbose)
     if (len <= 0)
     {
         fclose(f);
-        printf("Tape file '%s' is empty\n", path);
+        LOG(LOG_CAT_MACHINE, LOG_ERROR, "Tape file '%s' is empty\n", path);
         return -1;
     }
     uint8_t *data = (uint8_t *)malloc((size_t)len);
@@ -654,7 +654,7 @@ static int tape_leader_load(const char *path, bool verbose)
     {
         fclose(f);
         free(data);
-        printf("Cannot read tape file '%s'\n", path);
+        LOG(LOG_CAT_MACHINE, LOG_ERROR, "Cannot read tape file '%s'\n", path);
         return -1;
     }
     fclose(f);
@@ -697,7 +697,7 @@ static int tape_leader_load(const char *path, bool verbose)
     if (start < 0)
     {
         free(data);
-        printf("Tape '%s' has no '!' start marker in its ASCII leader\n", path);
+        LOG(LOG_CAT_MACHINE, LOG_ERROR, "Tape '%s' has no '!' start marker in its ASCII leader\n", path);
         return -1;
     }
 
@@ -709,13 +709,13 @@ static int tape_leader_load(const char *path, bool verbose)
     }
     else if (reader == NULL)
     {
-        printf("Warning: no paper-tape reader at 0400 - tape remainder "
+        LOG(LOG_CAT_MACHINE, LOG_WARN, "Warning: no paper-tape reader at 0400 - tape remainder "
                "not mounted\n");
     }
 
     if (verbose)
     {
-        printf("Tape leader: %d words deposited at %06o-%06o, start %06o, "
+        LOG(LOG_CAT_MACHINE, LOG_INFO, "Tape leader: %d words deposited at %06o-%06o, start %06o, "
                "%ld bytes left in the reader\n",
                words, lo, hi, (unsigned)start, len - i);
     }
@@ -734,7 +734,7 @@ static int tape_leader_load(const char *path, bool verbose)
          bootAddress = bp_load(imageFile);
          if (bootAddress < 0)
          {
-             printf("Error loading BP file '%s'\n", imageFile);
+             LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error loading BP file '%s'\n", imageFile);
 #ifdef __EMSCRIPTEN__
              return -1;
 #else
@@ -747,7 +747,7 @@ static int tape_leader_load(const char *path, bool verbose)
          bootAddress = LoadBPUN(imageFile,verbose);
          if (bootAddress < 0)
          {
-             printf("Error loading BPUN file '%s'\n", imageFile);
+             LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error loading BPUN file '%s'\n", imageFile);
 #ifdef __EMSCRIPTEN__
              return -1;
 #else
@@ -758,13 +758,13 @@ static int tape_leader_load(const char *path, bool verbose)
          break;
     case BOOT_AOUT:
 #ifdef _WIN32
-        printf("Error: AOUT boot not available on Windows (libsymbols not ported yet)\n");
+        LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error: AOUT boot not available on Windows (libsymbols not ported yet)\n");
         exit(1);
 #else
         bootAddress = load_aout(imageFile, verbose, write_memory, text_start, overlay_deposit);
         if (bootAddress < 0)
         {
-            printf("Error loading AOUT file '%s'\n", imageFile);
+            LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error loading AOUT file '%s'\n", imageFile);
 #ifdef __EMSCRIPTEN__
             return -1;
 #else
@@ -781,7 +781,7 @@ static int tape_leader_load(const char *path, bool verbose)
         bootAddress = LoadPROG(imageFile, verbose);
         if (bootAddress < 0)
         {
-            printf("Error loading PROG file '%s'\n", imageFile);
+            LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error loading PROG file '%s'\n", imageFile);
 #ifdef __EMSCRIPTEN__
             return -1;
 #else
@@ -797,7 +797,7 @@ static int tape_leader_load(const char *path, bool verbose)
          bootAddress = LoadBPUN(imageFile, verbose);
          if (bootAddress < 0)
          {
-             printf("Error loading BPUN file\n");
+             LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error loading BPUN file\n");
 #ifdef __EMSCRIPTEN__
              return -1;
 #else
@@ -812,7 +812,7 @@ static int tape_leader_load(const char *path, bool verbose)
          /*
          result = sectorread(0, 0, 1, (ushort *)&VolatileMemory);
          if (result < 0) {
-             printf("Error reading from floppy\n");
+             LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error reading from floppy\n");
              exit(1);
          }
          gPC = 0;
@@ -828,7 +828,7 @@ static int tape_leader_load(const char *path, bool verbose)
          bootAddress = DeviceManager_BootFrom(DEVICE_TYPE_DISC_SMD, bootUnit);
          if (bootAddress < 0)
          {
-             printf("Error booting from SMD unit %d\n", bootUnit);
+             LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error booting from SMD unit %d\n", bootUnit);
 #ifdef __EMSCRIPTEN__
              return -1;
 #else
@@ -847,7 +847,7 @@ static int tape_leader_load(const char *path, bool verbose)
          bootAddress = DeviceManager_BootFrom(DEVICE_TYPE_DISC_WINCHESTER, bootUnit);
          if (bootAddress < 0)
          {
-             printf("Error booting from Winchester unit %d\n", bootUnit);
+             LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error booting from Winchester unit %d\n", bootUnit);
 #ifdef __EMSCRIPTEN__
              return -1;
 #else
@@ -866,7 +866,7 @@ static int tape_leader_load(const char *path, bool verbose)
          bootAddress = DeviceManager_BootFrom(DEVICE_TYPE_DISC_SCSI, bootUnit);
          if (bootAddress < 0)
          {
-             printf("Error booting from SCSI unit %d\n", bootUnit);
+             LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error booting from SCSI unit %d\n", bootUnit);
 #ifdef __EMSCRIPTEN__
              return -1;
 #else
@@ -879,7 +879,7 @@ static int tape_leader_load(const char *path, bool verbose)
          bootAddress = tape_leader_load(imageFile, verbose);
          if (bootAddress < 0)
          {
-             printf("Error booting tape '%s'\n", imageFile);
+             LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error booting tape '%s'\n", imageFile);
 #ifdef __EMSCRIPTEN__
              return -1;
 #else
@@ -899,7 +899,7 @@ static int tape_leader_load(const char *path, bool verbose)
          bootAddress = DeviceManager_BootFrom(DEVICE_TYPE_CDC, bootUnit);
          if (bootAddress < 0)
          {
-             printf("Error booting from CDC disc\n");
+             LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error booting from CDC disc\n");
 #ifdef __EMSCRIPTEN__
              return -1;
 #else
@@ -927,7 +927,6 @@ static int tape_leader_load(const char *path, bool verbose)
     // Determine which array to use and max units
     drives = drives_for_type(drive_type, &max_units);
     if (!max_units) {
-        //printf("Error: Invalid drive type\n");
         return false;
     }
 
@@ -986,15 +985,12 @@ void mount_drive(DRIVE_TYPE drive_type, int unit, const char *md5, const char *n
 
         // Check if it's an HTTP URL (case insensitive)
         if (strncasecmp(image_path, "http", 4) == 0) {
-            //printf("Downloading image from: %s\n", image_path);
             char* image_data = download_file(image_path);
             if (image_data) {
                 drives[unit].is_remote = true;
                 drives[unit].data.remote_data = image_data;
                 drives[unit].data_size = get_downloaded_size();  // Use actual size instead of strlen()
-                //printf("Downloaded %zu bytes of image data\n", drives[unit].data_size);
             } else {
-                //printf("Error: Failed to download image from %s\n", image_path);
                 return;
             }
         } else {
@@ -1025,9 +1021,8 @@ void mount_drive(DRIVE_TYPE drive_type, int unit, const char *md5, const char *n
                 drives[unit].data.local_file = file;
                 drives[unit].data_size = (size_t)file_size;
 
-                //printf("Opened local file: %s (size: %ld bytes)\n", image_path, file_size);
             } else {
-                printf("mount_drive: Failed to open %s\n", image_path);
+                LOG(LOG_CAT_MACHINE, LOG_ERROR, "mount_drive: Failed to open %s\n", image_path);
                 drives[unit].is_mounted = false;
                 return;
             }
@@ -1044,14 +1039,14 @@ void mount_drive(DRIVE_TYPE drive_type, int unit, const char *md5, const char *n
     snprintf(drives[unit].description, sizeof(drives[unit].description), "%s", description);
 
 #ifdef _debug_
-    printf("Mounted %s to %s unit %d:\n",
+    LOG(LOG_CAT_MACHINE, LOG_INFO, "Mounted %s to %s unit %d:\n",
            drive_type_name(drive_type),
            drive_type_name(drive_type),
            unit);
-    printf("  Name: %s\n", name);
-    printf("  Description: %s\n", description);
-    printf("  MD5: %s\n", md5);
-    printf("  Image Path: %s\n", image_path ? image_path : "None");
+    LOG(LOG_CAT_MACHINE, LOG_INFO, "  Name: %s\n", name);
+    LOG(LOG_CAT_MACHINE, LOG_INFO, "  Description: %s\n", description);
+    LOG(LOG_CAT_MACHINE, LOG_INFO, "  MD5: %s\n", md5);
+    LOG(LOG_CAT_MACHINE, LOG_INFO, "  Image Path: %s\n", image_path ? image_path : "None");
 #endif
 
 }
@@ -1064,31 +1059,31 @@ void unmount_drive(DRIVE_TYPE drive_type, int unit) {
     // Determine which array to use and max units
     drives = drives_for_type(drive_type, &max_units);
     if (!max_units) {
-        printf("Error: Invalid drive type\n");
+        LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error: Invalid drive type\n");
         return;
     }
 
     // Check if unit is valid
     if (unit < 0 || unit >= max_units) {
-        printf("Error: Invalid unit %d for drive type %d\n", unit, drive_type);
+        LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error: Invalid unit %d for drive type %d\n", unit, drive_type);
         return;
     }
 
     // Check if array is initialized
     if (!drives) {
-        printf("Error: Drive arrays not initialized\n");
+        LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error: Drive arrays not initialized\n");
         return;
     }
 
     // Check if drive is mounted
     if (drives[unit].name[0] == '\0') {
-        printf("Error: No drive mounted on %s unit %d\n",
+        LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error: No drive mounted on %s unit %d\n",
                drive_type_name(drive_type), unit);
         return;
     }
 
     // Unmount the drive
-    printf("Unmounting %s from %s unit %d:\n",
+    LOG(LOG_CAT_MACHINE, LOG_INFO, "Unmounting %s from %s unit %d:\n",
            drives[unit].name,
            drive_type_name(drive_type),
            unit);

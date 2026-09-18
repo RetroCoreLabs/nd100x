@@ -273,7 +273,7 @@ static void *server_worker(void *arg)
 
     nd_socket_t listenFd = (nd_socket_t)socket(AF_INET, SOCK_STREAM, 0);
     if (listenFd == ND_INVALID_SOCKET) {
-        fprintf(stderr, "Modem: Failed to create listen socket (err %d)\n",
+        LOG(LOG_CAT_NET, LOG_ERROR, "Modem: Failed to create listen socket (err %d)\n",
                 nd_last_socket_error());
         return NULL;
     }
@@ -289,19 +289,19 @@ static void *server_worker(void *arg)
     addr.sin_port = htons((uint16_t)modem->port);
 
     if (bind(ND_SOCK_NATIVE(listenFd), (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-        fprintf(stderr, "Modem: Failed to bind port %d (err %d)\n",
+        LOG(LOG_CAT_NET, LOG_ERROR, "Modem: Failed to bind port %d (err %d)\n",
                 modem->port, nd_last_socket_error());
         nd_socket_close(listenFd);
         return NULL;
     }
 
     if (listen(ND_SOCK_NATIVE(listenFd), 1) < 0) {
-        fprintf(stderr, "Modem: Failed to listen (err %d)\n", nd_last_socket_error());
+        LOG(LOG_CAT_NET, LOG_ERROR, "Modem: Failed to listen (err %d)\n", nd_last_socket_error());
         nd_socket_close(listenFd);
         return NULL;
     }
 
-    fprintf(stderr, "Modem: Listening on port %d\n", modem->port);
+    LOG(LOG_CAT_NET, LOG_INFO, "Modem: Listening on port %d\n", modem->port);
 
     while (!atomic_load(&modem->shutdownReq)) {
         // Accept with timeout so we can check shutdown
@@ -319,7 +319,7 @@ static void *server_worker(void *arg)
         if (clientFd == ND_INVALID_SOCKET) continue;
 
         set_nodelay(clientFd);
-        fprintf(stderr, "Modem: Accepted connection from %s:%d\n",
+        LOG(LOG_CAT_NET, LOG_INFO, "Modem: Accepted connection from %s:%d\n",
                 inet_ntoa(peer.sin_addr), ntohs(peer.sin_port));
         atomic_store(&modem->connected, true);
 
@@ -368,7 +368,7 @@ static void *server_worker(void *arg)
         // Connection ended
         nd_socket_close(clientFd);
         atomic_store(&modem->connected, false);
-        fprintf(stderr, "Modem: Client disconnected, waiting for new connection...\n");
+        LOG(LOG_CAT_NET, LOG_INFO, "Modem: Client disconnected, waiting for new connection...\n");
     }
 
     nd_socket_close(listenFd);
@@ -385,14 +385,14 @@ static void *client_worker(void *arg)
     // Resolve address (may block for DNS - fine, we're in worker thread)
     struct sockaddr_in addr;
     if (resolve_address(host, modem->port, &addr) < 0) {
-        fprintf(stderr, "Modem: Failed to resolve '%s' - giving up\n", host);
+        LOG(LOG_CAT_NET, LOG_ERROR, "Modem: Failed to resolve '%s' - giving up\n", host);
         return NULL;
     }
-    fprintf(stderr, "Modem: Resolved %s -> %s\n", host, inet_ntoa(addr.sin_addr));
+    LOG(LOG_CAT_NET, LOG_DEBUG, "Modem: Resolved %s -> %s\n", host, inet_ntoa(addr.sin_addr));
 
     while (!atomic_load(&modem->shutdownReq)) {
         attempt++;
-        fprintf(stderr, "Modem: Connecting to %s:%d (attempt %d)...\n", host, modem->port, attempt);
+        LOG(LOG_CAT_NET, LOG_DEBUG, "Modem: Connecting to %s:%d (attempt %d)...\n", host, modem->port, attempt);
 
         nd_socket_t clientFd = try_connect(&addr, 5000); // 5 second timeout
         if (clientFd == ND_INVALID_SOCKET) {
@@ -400,12 +400,12 @@ static void *client_worker(void *arg)
             int delay = 1;
             for (int i = 1; i < attempt && i < 5; i++) delay *= 2;
             if (delay > 30) delay = 30;
-            fprintf(stderr, "Modem: Connect failed, retry in %d seconds\n", delay);
+            LOG(LOG_CAT_NET, LOG_WARN, "Modem: Connect failed, retry in %d seconds\n", delay);
             if (sleep_check_shutdown(modem, delay)) break;
             continue;
         }
 
-        fprintf(stderr, "Modem: Connected to %s:%d\n", host, modem->port);
+        LOG(LOG_CAT_NET, LOG_INFO, "Modem: Connected to %s:%d\n", host, modem->port);
         atomic_store(&modem->connected, true);
         attempt = 0; // reset backoff on success
 
@@ -451,10 +451,10 @@ static void *client_worker(void *arg)
 disconnected:
         nd_socket_close(clientFd);
         atomic_store(&modem->connected, false);
-        fprintf(stderr, "Modem: Disconnected from %s:%d\n", host, modem->port);
+        LOG(LOG_CAT_NET, LOG_INFO, "Modem: Disconnected from %s:%d\n", host, modem->port);
 
         if (!atomic_load(&modem->shutdownReq)) {
-            fprintf(stderr, "Modem: Will reconnect in 1 second\n");
+            LOG(LOG_CAT_NET, LOG_DEBUG, "Modem: Will reconnect in 1 second\n");
             if (sleep_check_shutdown(modem, 1)) break;
         }
     }
@@ -528,7 +528,7 @@ void Modem_StartModem(ModemState *modem, bool isServer, const char *address, int
     }
 
     if (err != 0) {
-        fprintf(stderr, "Modem: Failed to create worker thread: %s\n", strerror(err));
+        LOG(LOG_CAT_NET, LOG_ERROR, "Modem: Failed to create worker thread: %s\n", strerror(err));
     } else {
         modem->workerRunning = true;
     }

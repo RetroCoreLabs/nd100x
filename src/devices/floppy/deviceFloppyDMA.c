@@ -605,17 +605,17 @@ static void ExecuteFloppyGo(Device *self)
         break;
 
     case FLOPPY_FUNC_FIND_EOF:
-        printf("Starting FindEOF on drive position %d\r\n", position);
+        LOG(LOG_CAT_FLOPPY, LOG_DEBUG, "Starting FindEOF on drive position %d\r\n", position);
         Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)ReadEnd, data->drive, self->interruptLevel);
         break;
 
     case FLOPPY_FUNC_WRITE_EOF:
-        printf("Starting WriteEOF on drive position %d\r\n", position);
+        LOG(LOG_CAT_FLOPPY, LOG_DEBUG, "Starting WriteEOF on drive position %d\r\n", position);
         Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)ReadEnd, data->drive, self->interruptLevel);
         break;
 
     case FLOPPY_FUNC_FORMAT_FLOPPY:
-        printf("Starting FormatFloppy on drive position %d\r\n", position);
+        LOG(LOG_CAT_FLOPPY, LOG_DEBUG, "Starting FormatFloppy on drive position %d\r\n", position);
         Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)ReadEnd, data->drive, self->interruptLevel);
         break;
 
@@ -659,22 +659,22 @@ static void ExecuteFloppyGo(Device *self)
         break;
 
     case FLOPPY_FUNC_READ_DELETED:
-        printf("Starting ReadDeletedRecord on drive position %d\r\n", position);
+        LOG(LOG_CAT_FLOPPY, LOG_DEBUG, "Starting ReadDeletedRecord on drive position %d\r\n", position);
         Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)ReadEnd, data->drive, self->interruptLevel);
         break;
 
     case FLOPPY_FUNC_WRITE_DELETED:
-        printf("Starting WriteDeletedRecord on drive position %d\r\n", position);
+        LOG(LOG_CAT_FLOPPY, LOG_DEBUG, "Starting WriteDeletedRecord on drive position %d\r\n", position);
         Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)ReadEnd, data->drive, self->interruptLevel);
         break;
 
     case FLOPPY_FUNC_COPY_FLOPPY:
-        printf("Starting CopyFloppy on drive position %d\r\n", position);
+        LOG(LOG_CAT_FLOPPY, LOG_DEBUG, "Starting CopyFloppy on drive position %d\r\n", position);
         Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)ReadEnd, data->drive, self->interruptLevel);
         break;
 
     case FLOPPY_FUNC_FORMAT_TRACK:
-        printf("Starting FormatTrack on drive position %d\r\n", position);
+        LOG(LOG_CAT_FLOPPY, LOG_DEBUG, "Starting FormatTrack on drive position %d\r\n", position);
         Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)ReadEnd, data->drive, self->interruptLevel);
         break;
 
@@ -693,17 +693,17 @@ static void ExecuteFloppyGo(Device *self)
             +------+-----------------+--------------------+
 
          */
-        printf("Starting CheckFloppy on drive position %d\r\n", position);
+        LOG(LOG_CAT_FLOPPY, LOG_DEBUG, "Starting CheckFloppy on drive position %d\r\n", position);
         Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)ReadEnd, data->drive, self->interruptLevel);
         break;
 
     case FLOPPY_FUNC_IDENTIFY:
-        printf("Starting Identify on drive position %d\r\n", position);
+        LOG(LOG_CAT_FLOPPY, LOG_DEBUG, "Starting Identify on drive position %d\r\n", position);
         Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)ReadEnd, data->drive, self->interruptLevel);
         break;
 
     default:
-        printf("FloppyDMA: Unknown command: %d\n", data->command);
+        LOG(LOG_CAT_FLOPPY, LOG_WARN, "FloppyDMA: Unknown command: %d\n", data->command);
         Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)ReadEnd, data->drive, self->interruptLevel);
         break;
     }
@@ -805,7 +805,7 @@ Device *CreateFloppyDMADevice(uint8_t thumbwheel)
         dev->endAddress = 01577;
         break;
     default:
-        printf("Floppy DMA: Unknown thumbwheel value: %d\n", thumbwheel);
+        LOG(LOG_CAT_FLOPPY, LOG_WARN, "Floppy DMA: Unknown thumbwheel value: %d\n", thumbwheel);
         free(data);
         free(dev);
         return NULL;
@@ -822,7 +822,7 @@ Device *CreateFloppyDMADevice(uint8_t thumbwheel)
     dev->Ident = FloppyDMA_Ident;
     dev->deviceData = data;
 
-    printf("Floppy DMA [%s] Device object created. Address[%o-%o] Ident code: [%o] Level: [%d]\n", dev->memoryName, dev->startAddress, dev->endAddress, dev->identCode, dev->interruptLevel);
+    LOG(LOG_CAT_FLOPPY, LOG_INFO, "Floppy DMA [%s] Device object created. Address[%o-%o] Ident code: [%o] Level: [%d]\n", dev->memoryName, dev->startAddress, dev->endAddress, dev->identCode, dev->interruptLevel);
 
     return dev;
 }

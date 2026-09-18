@@ -604,14 +604,14 @@ Device* CreateHDLCDevice(uint8_t thumbwheel)
 {
     // Validate thumbwheel value
     if (thumbwheel < 1 || thumbwheel > 5) {
-        printf("HDLC: Invalid thumbwheel value %d (must be 1-5)\n", thumbwheel);
+        LOG(LOG_CAT_HDLC, LOG_ERROR, "HDLC: Invalid thumbwheel value %d (must be 1-5)\n", thumbwheel);
         return NULL;
     }
 
     // Allocate device structure
     Device *dev = malloc(sizeof(Device));
     if (!dev) {
-        printf("HDLC: Failed to allocate device structure\n");
+        LOG(LOG_CAT_HDLC, LOG_ERROR, "HDLC: Failed to allocate device structure\n");
         return NULL;
     }
 
@@ -621,7 +621,7 @@ Device* CreateHDLCDevice(uint8_t thumbwheel)
     // Allocate device-specific data
     HDLCData *data = malloc(sizeof(HDLCData));
     if (!data) {
-        printf("HDLC: Failed to allocate device data\n");
+        LOG(LOG_CAT_HDLC, LOG_ERROR, "HDLC: Failed to allocate device data\n");
         free(dev);
         return NULL;
     }
@@ -632,7 +632,7 @@ Device* CreateHDLCDevice(uint8_t thumbwheel)
     // Allocate COM5025 chip state
     data->com5025 = malloc(sizeof(COM5025State));
     if (!data->com5025) {
-        printf("HDLC: Failed to allocate COM5025 state\n");
+        LOG(LOG_CAT_HDLC, LOG_ERROR, "HDLC: Failed to allocate COM5025 state\n");
         free(data);
         free(dev);
         return NULL;
@@ -641,7 +641,7 @@ Device* CreateHDLCDevice(uint8_t thumbwheel)
     // Allocate modem state
     data->modem = malloc(sizeof(ModemState));
     if (!data->modem) {
-        printf("HDLC: Failed to allocate modem state\n");
+        LOG(LOG_CAT_HDLC, LOG_ERROR, "HDLC: Failed to allocate modem state\n");
         free(data->com5025);
         free(data);
         free(dev);
@@ -651,7 +651,7 @@ Device* CreateHDLCDevice(uint8_t thumbwheel)
     // Allocate DMA engine state
     data->dmaEngine = malloc(sizeof(DMAEngine));
     if (!data->dmaEngine) {
-        printf("HDLC: Failed to allocate DMA engine state\n");
+        LOG(LOG_CAT_HDLC, LOG_ERROR, "HDLC: Failed to allocate DMA engine state\n");
         free(data->modem);
         free(data->com5025);
         free(data);

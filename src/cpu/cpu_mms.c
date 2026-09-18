@@ -65,7 +65,7 @@ bool CreatePagingTables(void)
     g_paging_tables.shadowRam = (ushort*)calloc(g_paging_tables.shadowRamSize, sizeof(ushort));
     if (!g_paging_tables.shadowRam)
     {
-        printf("Failed to allocate shadow RAM\n");
+        LOG(LOG_CAT_MMS, LOG_ERROR, "Failed to allocate shadow RAM");
         return false;
     }
 
@@ -382,7 +382,7 @@ int mapVirtualToPhysical(uint virtualAddress, AccessMode am, bool UseAPT)
 
     if (!g_paging_tables.isInitialized)
     {
-        printf("FATAL! PagingTables not initialized\n");
+        LOG(LOG_CAT_MMS, LOG_ERROR, "FATAL! PagingTables not initialized");
         exit(1);
     }
 
@@ -560,7 +560,6 @@ void UpdatePGS(uint pageTable, uint VPN, AccessMode am, bool permitViolation)
         if (am & READ)
         {
             // READ_FETCH - Indirect read during effective address calculation
-            //printf("PGS update on Indirect read (READ_FETCH) PT=%d VPN=%d Accessmode=%d PGS<=%o\n", pageTable, VPN, am, tmpPGS);
         }
         else
         {
@@ -648,7 +647,6 @@ bool checkPageProtection(uint VPN, uint pageTable, uint32_t pageTableEntry, Acce
         // if (1) {  /* trace ALL access-denied MPVs */
         //     static int mpv25 = 0;
         //     if (mpv25 < 5)
-        //         printf("\r\nACCESS_DENIED: PT=%d VPN=%d PTe=0x%08X need=0x%08lX am=%d UseAPT=%d PIL=%d VA=%06o\r\n",
         //                pageTable, VPN, (uint32_t)pageTableEntry, (unsigned long)accessBits, am, UseAPT, CurrLEVEL, virtualAddress);
         //     mpv25++;
         // }
@@ -889,7 +887,6 @@ int ReadPhysicalMemory(int physicalAddress, bool privileged)
 {
     if (physicalAddress < 0)
     {
-        //printf("Memory Protection!! But it wasn't caught. Should have been aborted!\n");
         return 0x00;
     }
 
@@ -904,7 +901,6 @@ int ReadPhysicalMemory(int physicalAddress, bool privileged)
     if (IsAddressShadowMemory(physicalAddress, privileged))
     {
         int tmp = PT_Read(physicalAddress);
-        //printf("ReadPhysicalMemory: Shadow Memory %4X = %4X\n", physicalAddress, tmp);
         return tmp;
     }
 
@@ -1041,7 +1037,6 @@ void HandleMPV(uint virtualAddress)
 void HandlePF(uint virtualAddress)
 {
     (void)virtualAddress;
-    //printf("HandlePF: %06o\n", virtualAddress);
     interrupt(14, 1 << 3); // PF - PAGE_FAULT bit 3
 }
 

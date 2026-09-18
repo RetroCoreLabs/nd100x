@@ -79,17 +79,17 @@ static int load_bank(FILE* f, uint16_t first, uint16_t last, bool verbose,
                      const char* label) {
     int count = (int)last - (int)first + 1;
     if (count <= 0) {
-        if (verbose) printf("  %s: no data (first=0o%o last=0o%o)\n",
+        if (verbose) LOG(LOG_CAT_LOADER, LOG_INFO, "  %s: no data (first=0o%o last=0o%o)",
                             label, first, last);
         return 0;
     }
-    if (verbose) printf("  %s: loading %d words at 0o%o..0o%o\n",
+    if (verbose) LOG(LOG_CAT_LOADER, LOG_INFO, "  %s: loading %d words at 0o%o..0o%o",
                         label, count, first, last);
 
     for (int i = 0; i < count; i++) {
         int w = read_be16(f);
         if (w < 0) {
-            printf("PROG load: truncated %s (got %d of %d words)\n",
+            LOG(LOG_CAT_LOADER, LOG_INFO, "PROG load: truncated %s (got %d of %d words)\n",
                    label, i, count);
             return -1;
         }
@@ -107,7 +107,7 @@ static int load_bank(FILE* f, uint16_t first, uint16_t last, bool verbose,
 int LoadPROG(const char* filename, bool verbose) {
     FILE* f = fopen(filename, "rb");
     if (!f) {
-        printf("Failed to open PROG file '%s': %s\n", filename, strerror(errno));
+        LOG(LOG_CAT_LOADER, LOG_ERROR, "Failed to open PROG file '%s': %s\n", filename, strerror(errno));
         return -1;
     }
 
@@ -120,7 +120,7 @@ int LoadPROG(const char* filename, bool verbose) {
     int lastB2  = read_be16(f);
     if (start < 0 || restart < 0 || firstB1 < 0 || lastB1 < 0 ||
         firstB2 < 0 || lastB2 < 0) {
-        printf("PROG load: header too short in '%s'\n", filename);
+        LOG(LOG_CAT_LOADER, LOG_INFO, "PROG load: header too short in '%s'\n", filename);
         fclose(f);
         return -1;
     }
@@ -136,21 +136,21 @@ int LoadPROG(const char* filename, bool verbose) {
     hdr.twoBank = !(hdr.firstBank2 == 0xFFFF && hdr.lastBank2 == 0x0000);
 
     if (verbose) {
-        printf("PROG load OK\n");
-        printf("--- :PROG Header ---\n");
-        printf("Start:   0o%06o\n", hdr.startAddress);
-        printf("Restart: 0o%06o\n", hdr.restartAddress);
-        printf("Bank1:   0o%06o..0o%06o\n", hdr.firstBank1, hdr.lastBank1);
+        LOG(LOG_CAT_LOADER, LOG_INFO, "PROG load OK\n");
+        LOG(LOG_CAT_LOADER, LOG_INFO, "--- :PROG Header ---\n");
+        LOG(LOG_CAT_LOADER, LOG_INFO, "Start:   0o%06o\n", hdr.startAddress);
+        LOG(LOG_CAT_LOADER, LOG_INFO, "Restart: 0o%06o\n", hdr.restartAddress);
+        LOG(LOG_CAT_LOADER, LOG_INFO, "Bank1:   0o%06o..0o%06o\n", hdr.firstBank1, hdr.lastBank1);
         if (hdr.twoBank)
-            printf("Bank2:   0o%06o..0o%06o (alt page table)\n",
+            LOG(LOG_CAT_LOADER, LOG_INFO, "Bank2:   0o%06o..0o%06o (alt page table)\n",
                    hdr.firstBank2, hdr.lastBank2);
         else
-            printf("Bank2:   (none - 1-bank program)\n");
+            LOG(LOG_CAT_LOADER, LOG_INFO, "Bank2:   (none - 1-bank program)\n");
     }
 
     /* --- Bank 1 data at file offset 512 --- */
     if (fseek(f, PROG_HEADER_BYTES, SEEK_SET) != 0) {
-        printf("PROG load: cannot seek to Bank 1 data\n");
+        LOG(LOG_CAT_LOADER, LOG_ERROR, "PROG load: cannot seek to Bank 1 data\n");
         fclose(f);
         return -1;
     }
@@ -165,7 +165,7 @@ int LoadPROG(const char* filename, bool verbose) {
          * enables at runtime via MON ALTON. nd100x does not yet map a separate
          * Bank-2 physical area, so loading it into the same physical space as
          * Bank 1 would corrupt Bank 1. Refuse rather than silently mis-load. */
-        printf("PROG load: 2-bank :PROG not yet supported (Bank 2 needs the "
+        LOG(LOG_CAT_LOADER, LOG_INFO, "PROG load: 2-bank :PROG not yet supported (Bank 2 needs the "
                "alternative page table). Loaded Bank 1 only.\n");
         /* Fall through: Bank 1 is loaded; caller decides. Header records twoBank. */
     }

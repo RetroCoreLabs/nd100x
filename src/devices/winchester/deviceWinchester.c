@@ -696,7 +696,7 @@ static int Wd_Boot(Device *self, int unit)
 
     if (unit < 0 || unit >= regs->maxUnits)
     {
-        printf("Error: Winchester boot unit %d out of range (0-%d)\n",
+        LOG(LOG_CAT_WD, LOG_ERROR, "Error: Winchester boot unit %d out of range (0-%d)\n",
                unit, regs->maxUnits - 1);
         return -1;
     }
@@ -707,7 +707,7 @@ static int Wd_Boot(Device *self, int unit)
 
     if (!WdUnitAttached(self, disk))
     {
-        printf("Error: no image mounted on Winchester unit %d\n", unit);
+        LOG(LOG_CAT_WD, LOG_ERROR, "Error: no image mounted on Winchester unit %d\n", unit);
         return -1;
     }
 
@@ -727,7 +727,7 @@ static int Wd_Boot(Device *self, int unit)
     int blocksRead = self->blockCallbacks.readFunc(self, buffer, blockCounter, 0, disk->unit);
     if (blocksRead < 0 || blocksRead != (int)blockCounter)
     {
-        printf("[Winchester Boot] block read failed: got %d blocks, expected %u\n",
+        LOG(LOG_CAT_WD, LOG_ERROR, "[Winchester Boot] block read failed: got %d blocks, expected %u\n",
                blocksRead, blockCounter);
         free(buffer);
         return -1;
@@ -746,7 +746,7 @@ static int Wd_Boot(Device *self, int unit)
     }
     if (allZero)
     {
-        printf("Error: Winchester boot sector is all zeros (blank or unformatted disk)\n");
+        LOG(LOG_CAT_WD, LOG_ERROR, "Error: Winchester boot sector is all zeros (blank or unformatted disk)\n");
         free(buffer);
         return -1;
     }
@@ -837,7 +837,7 @@ Device *CreateWinchesterDevice(uint8_t thumbwheel)
         dev->identCode = WD_IDENT_SYSTEM2;
         break;
     default:
-        printf("Winchester: unknown thumbwheel value: %d\n", thumbwheel);
+        LOG(LOG_CAT_WD, LOG_WARN, "Winchester: unknown thumbwheel value: %d\n", thumbwheel);
         free(data->regs.disks);
         free(data);
         free(dev);
@@ -849,7 +849,7 @@ Device *CreateWinchesterDevice(uint8_t thumbwheel)
     Wd_Reset(dev);
 
 
-    printf("Winchester disc device created: %s ident %o level %d (%d units)\n",
+    LOG(LOG_CAT_WD, LOG_INFO, "Winchester disc device created: %s ident %o level %d (%d units)\n",
            dev->memoryName, dev->identCode, dev->interruptLevel, data->regs.maxUnits);
     return dev;
 }

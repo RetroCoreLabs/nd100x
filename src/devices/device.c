@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 #include <inttypes.h>
 
 #include "devices_types.h"
@@ -248,7 +249,6 @@ void Device_ClearInterrupt(Device *dev, uint16_t level)
     {
         if ((dev->interruptBits & (1 << level)) != 0)
         {
-            // printf("Clearing interrupt at level %d\r\n", level);
             dev->interruptBits &= ~(1 << level);
         }
     }
@@ -344,7 +344,7 @@ int32_t Device_IO_WriteWord(Device *dev, FILE *f, uint16_t data)
 
     if (putc(hi, f) == EOF || putc(lo, f) == EOF) {
         if (ferror(f)) {
-            perror("Write failed.");
+            LOG(LOG_CAT_DEVICE, LOG_ERROR, "Write failed: %s", strerror(errno));
         }
         return -1;
     }

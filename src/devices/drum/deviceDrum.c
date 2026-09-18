@@ -334,7 +334,7 @@ Device *CreateDrumDevice(uint8_t thumbwheel)
     if (g_drumHasBackingPath)
     {
         if (!Drum_AttachBacking(d, g_drumBackingPath))
-            printf("DRUM: WARNING could not open backing file '%s' (in-memory only)\n",
+            LOG(LOG_CAT_DRUM, LOG_WARN, "DRUM: could not open backing file '%s' (in-memory only)\n",
                    g_drumBackingPath);
     }
 
@@ -354,7 +354,7 @@ Device *CreateDrumDevice(uint8_t thumbwheel)
         dev->startAddress = 0540;
         break;
     default:
-        printf("DRUM: unknown thumbwheel value: %d\n", thumbwheel);
+        LOG(LOG_CAT_DRUM, LOG_WARN, "DRUM: unknown thumbwheel value: %d\n", thumbwheel);
         free(d->surface);
         free(d);
         free(dev);
@@ -364,7 +364,7 @@ Device *CreateDrumDevice(uint8_t thumbwheel)
     dev->identCode = DRUM_IDENT_CODE;   /* PROVISIONAL - see deviceDrum.h */
     dev->interruptLevel = DRUM_INT_LEVEL;
 
-    printf("DRUM device created: %s ident %o level %d (%u words surface)\n",
+    LOG(LOG_CAT_DRUM, LOG_INFO, "DRUM device created: %s ident %o level %d (%u words surface)\n",
            dev->memoryName, dev->identCode, dev->interruptLevel, d->surfaceWords);
     return dev;
 }

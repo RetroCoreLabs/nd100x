@@ -146,7 +146,7 @@ bool SCSI_SetUnitType(Device *dev, int unit, SCSIUnitType type)
      * than silently mounting an image that nothing will ever answer for. */
     if (type != SCSI_UNIT_HDD && type != SCSI_UNIT_NONE)
     {
-        printf("SCSI: unit %d type '%s' is not implemented yet (only 'hdd')\n",
+        LOG(LOG_CAT_SCSI, LOG_ERROR, "SCSI: unit %d type '%s' is not implemented yet (only 'hdd')\n",
                unit, SCSI_UnitTypeName(type));
         return false;
     }
@@ -644,13 +644,13 @@ static int SCSI_Boot(Device *self, int unit)
 
     if (unit < 0 || unit >= SCSI_MAX_UNITS)
     {
-        printf("Error: SCSI boot unit %d out of range (0-%d)\n", unit, SCSI_MAX_UNITS - 1);
+        LOG(LOG_CAT_SCSI, LOG_ERROR, "Error: SCSI boot unit %d out of range (0-%d)\n", unit, SCSI_MAX_UNITS - 1);
         return -1;
     }
 
     if (data->unitType[unit] != SCSI_UNIT_HDD)
     {
-        printf("Error: SCSI boot needs a 'hdd' target on unit %d (unit %d is '%s')\n",
+        LOG(LOG_CAT_SCSI, LOG_ERROR, "Error: SCSI boot needs a 'hdd' target on unit %d (unit %d is '%s')\n",
                unit, unit, SCSI_UnitTypeName(data->unitType[unit]));
         return -1;
     }
@@ -670,7 +670,7 @@ static int SCSI_Boot(Device *self, int unit)
     int blocksRead = self->blockCallbacks.readFunc(self, buffer, blockCounter, 0, unit);
     if ((blocksRead < 0) || (blocksRead != (int)blockCounter))
     {
-        printf("[SCSI Boot] Block read failed: got %d blocks, expected %d\n",
+        LOG(LOG_CAT_SCSI, LOG_ERROR, "[SCSI Boot] Block read failed: got %d blocks, expected %d\n",
                blocksRead, blockCounter);
         free(buffer);
         return -1;
@@ -689,7 +689,7 @@ static int SCSI_Boot(Device *self, int unit)
         }
         if (allZero)
         {
-            printf("Error: SCSI boot sector is all zeros (blank or unformatted disk)\n");
+            LOG(LOG_CAT_SCSI, LOG_ERROR, "Error: SCSI boot sector is all zeros (blank or unformatted disk)\n");
             free(buffer);
             return -1;
         }
@@ -812,7 +812,7 @@ Device *CreateSCSIDevice(uint8_t thumbwheel)
 
     SCSI_Reset(dev);
 
-    printf("SCSI Device object created at IOX %o (ident %o).\n",
+    LOG(LOG_CAT_SCSI, LOG_INFO, "SCSI Device object created at IOX %o (ident %o).\n",
            dev->startAddress, dev->identCode);
 
     return dev;

@@ -51,7 +51,7 @@ int LoadBPUN(const char* filename, bool verbose) {
 
 	FILE* bpunStream = fopen(filename, "rb");
 	if (!bpunStream) {
-		printf("Failed to open BPUN file '%s': %s\n", filename, strerror(errno));
+		LOG(LOG_CAT_LOADER, LOG_ERROR, "Failed to open BPUN file '%s': %s\n", filename, strerror(errno));
 		return false;
 	}
 
@@ -60,32 +60,32 @@ int LoadBPUN(const char* filename, bool verbose) {
     bpunStream = NULL;
 
 	if (!loadOK) {
-		printf("BPUN load failed: Error while parsing BPUN format (file may be corrupted or in wrong format)\n");
+		LOG(LOG_CAT_LOADER, LOG_ERROR, "BPUN load failed: Error while parsing BPUN format (file may be corrupted or in wrong format)\n");
         return -1;
     }
 
     if (verbose)
     {
-        printf("BPUN load OK\n");
+        LOG(LOG_CAT_LOADER, LOG_INFO, "BPUN load OK\n");
 
-        printf("--- Bootstrapper ---\n");
-        printf("Start: %06o\n", bpun.start);
-        printf("Boot: %06o\n", bpun.boot);
+        LOG(LOG_CAT_LOADER, LOG_INFO, "--- Bootstrapper ---\n");
+        LOG(LOG_CAT_LOADER, LOG_INFO, "Start: %06o\n", bpun.start);
+        LOG(LOG_CAT_LOADER, LOG_INFO, "Boot: %06o\n", bpun.boot);
 
-        printf("--- Data ---\n");
-        printf("Address: %06o\n", bpun.address);
-        printf("Count: %06o\n", bpun.count);
+        LOG(LOG_CAT_LOADER, LOG_INFO, "--- Data ---\n");
+        LOG(LOG_CAT_LOADER, LOG_INFO, "Address: %06o\n", bpun.address);
+        LOG(LOG_CAT_LOADER, LOG_INFO, "Count: %06o\n", bpun.count);
 
         const char* crc = "[OK]";
         if (bpun.checksum != bpun.calculatedChecksum) {
-            printf("CRC ERROR != %02X\n", bpun.calculatedChecksum);
+            LOG(LOG_CAT_LOADER, LOG_ERROR, "CRC ERROR != %02X\n", bpun.calculatedChecksum);
             crc = "[CRC ERROR]";
         }
 
-        printf("Checksum: %06o %s\n", bpun.checksum, crc);
-        printf("Action: %06o\n", bpun.action);
+        LOG(LOG_CAT_LOADER, LOG_INFO, "Checksum: %06o %s\n", bpun.checksum, crc);
+        LOG(LOG_CAT_LOADER, LOG_INFO, "Action: %06o\n", bpun.action);
 
-        printf("FloMon: %d\n", bpun.isFloMon);
+        LOG(LOG_CAT_LOADER, LOG_INFO, "FloMon: %d\n", bpun.isFloMon);
     }
 
     /* Capture the full header so callers can read the real program entry
@@ -211,7 +211,6 @@ bool LoadBPUNStream(FILE* bpunStream, BPUN_Header* header)
                     data_word |= (b & 0xFF);
                 }
 
-				//printf("BPUN:Writing %06o to %06o\n", data_word, dataLoadAddress);
                 if (DISASM)
                     disasm_addword(dataLoadAddress, data_word);
 
@@ -276,7 +275,6 @@ bool LoadBPUNStream(FILE* bpunStream, BPUN_Header* header)
                     b = fgetc(bpunStream);
                     if (b == EOF || b != 0) return false;
 
-					//printf("FLOMON: Writing %06o to %06o\n", data_word, header->address+floWords);
                     WritePhysicalMemory(header->address+floWords, data_word, false);
 
                     if (DISASM)

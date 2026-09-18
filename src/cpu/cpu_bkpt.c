@@ -23,6 +23,7 @@
 
 #include "cpu_types.h"
 #include "cpu_protos.h"
+#include "../ndlib/log.h"
 #include "expr_eval.h"
 
 
@@ -63,7 +64,7 @@ void breakpoint_manager_init(void)
     mgr= (BreakpointManager *)malloc(sizeof(BreakpointManager));
     if (!mgr)
     {
-        fprintf(stderr, "Failed to allocate memory for BreakpointManager\n");
+        LOG(LOG_CAT_DAP, LOG_ERROR, "Failed to allocate memory for BreakpointManager");
         exit(EXIT_FAILURE);
     }
 
@@ -111,7 +112,7 @@ void breakpoint_manager_add(uint16_t address, BreakpointType type, const char *c
     BreakpointEntry* curr = mgr->buckets[h];
     while (curr) {
         if (curr->address == address && curr->type == BP_TYPE_TEMPORARY) {
-            printf("[BreakpointManager] Temporary breakpoint already exists at %04X\n", address);
+            LOG(LOG_CAT_DAP, LOG_DEBUG, "Temporary breakpoint already exists at %04X", address);
             return; // skip adding
         }
         curr = curr->next;
@@ -306,7 +307,6 @@ int check_for_breakpoint(void)
     if (breakpoint_manager_check(pc, &hits, &hitCount)) {
         for (int i = 0; i < hitCount; i++) {
             BreakpointEntry* bp = hits[i];
-            //printf("[CPU] Hit breakpoint at %06o type=%d hitCount=%d\n", pc, bp->type, bp->hitCount);
 
             // Evaluate condition expression
             bool condition_ok = true;
@@ -314,7 +314,7 @@ int check_for_breakpoint(void)
                 const char *err = NULL;
                 condition_ok = expr_eval_condition(bp->condition, &err);
                 if (err) {
-                    printf("[BREAKPOINT] Condition error at %06o: %s (expr: %s)\n",
+                    LOG(LOG_CAT_DAP, LOG_WARN, "Breakpoint condition error at %06o: %s (expr: %s)",
                            pc, err, bp->condition);
                     condition_ok = false;
                 }
@@ -329,7 +329,7 @@ int check_for_breakpoint(void)
             if (condition_ok && hit_ok) {
                 if (bp->logMessage) {
                     // Expand log message vars (simple demo)
-                    printf("[LOGPOINT] %s\n", bp->logMessage);
+                    LOG(LOG_CAT_DAP, LOG_INFO, "[LOGPOINT] %s", bp->logMessage);
                 } else {
                     // Trigger stop event with proper reason based on breakpoint type
                     btType = bp->type;

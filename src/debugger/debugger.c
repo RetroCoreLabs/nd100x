@@ -252,12 +252,12 @@ void *debugger_thread(void *arg)
     int ret = ndx_server_init(port);
     if (ret != 0)
     {
-        printf("Failed to initialize DAP server\n");
+        LOG(LOG_CAT_DAP, LOG_ERROR, "Failed to initialize DAP server\n");
         THREAD_RETURN(0);
     }
 
-    printf("NDX debugger listening on port %d...\n", port);
-    printf("Press Ctrl+C to exit\n");
+    LOG(LOG_CAT_DAP, LOG_INFO, "NDX debugger listening on port %d...\n", port);
+    LOG(LOG_CAT_DAP, LOG_INFO, "Press Ctrl+C to exit\n");
 
     // Run the server's message processing loop with periodic checks for exit
     while (g_dap_server->is_running)
@@ -267,7 +267,7 @@ void *debugger_thread(void *arg)
 
         if (dap_server_run(g_dap_server) != 0)
         {
-            fprintf(stderr, "Error: Server message loop failed.\n");
+            LOG(LOG_CAT_DAP, LOG_ERROR, "Error: Server message loop failed.\n");
             break;
         }
         // Small sleep to prevent busy waiting
@@ -2117,7 +2117,6 @@ static int cmd_variables(DAPServer *server)
     // Extract variables reference from the command context
     int variables_reference = server->current_command.context.variables.variables_reference;
 
-    // printf("Variables request for reference: %d\n", variables_reference);
 
     // Buffer for informational messages
     char info_message[256] = {0};
@@ -2603,7 +2602,7 @@ static int cmd_stack_trace(DAPServer *server)
             const symbol_entry_t *symbol = &symbol_tables.symbol_table_aout->entries[i];
             if (symbol->address == entry_point)
             {
-                printf("Symbol found: %s at %06o\n", symbol->name, symbol->address);
+                LOG(LOG_CAT_DAP, LOG_DEBUG, "Symbol found: %s at %06o\n", symbol->name, symbol->address);
             }
         }
         */
@@ -2712,7 +2711,7 @@ static int on_set_exception_breakpoints(DAPServer *server)
     size_t condition_count = server->current_command.context.exception.condition_count;
 
     // Log the received exception filters
-    printf("Received %zu exception filters and %zu conditions\n", filter_count, condition_count);
+    LOG(LOG_CAT_DAP, LOG_DEBUG, "Received %zu exception filters and %zu conditions\n", filter_count, condition_count);
 
     // TODO: Implement exception breakpoint handling
     return 0;
@@ -2737,7 +2736,7 @@ static int cmd_set_breakpoints(DAPServer *server)
 
     if (!source_path || breakpoint_count <= 0)
     {
-        printf("Missing required breakpoint information\n");
+        LOG(LOG_CAT_DAP, LOG_WARN, "Missing required breakpoint information\n");
         return -1;
     }
 
@@ -2752,7 +2751,7 @@ static int cmd_set_breakpoints(DAPServer *server)
         source_name = source_path; // No slash found, use the whole path
     }
 
-    printf("Setting %d breakpoints in %s\n", breakpoint_count, source_path);
+    LOG(LOG_CAT_DAP, LOG_DEBUG, "Setting %d breakpoints in %s\n", breakpoint_count, source_path);
 
     // Clear existing source (user) breakpoints only, preserve instruction/function/data BPs
     breakpoint_manager_clear_type(BP_TYPE_USER);
@@ -3216,7 +3215,7 @@ int init_symbol_support(const char *filename, SymbolType symbol_type)
 
     if (symbol_tables.symbol_table_map == NULL || symbol_tables.symbol_table_aout == NULL || symbol_tables.symbol_table_stabs == NULL)
     {
-        fprintf(stderr, "Error: Failed to create symbol table\n");
+        LOG(LOG_CAT_DAP, LOG_ERROR, "Error: Failed to create symbol table\n");
         free_symbol_table();
         return -1;
     }
@@ -3238,13 +3237,13 @@ int init_symbol_support(const char *filename, SymbolType symbol_type)
         result = symbols_load_stabs(symbol_tables.symbol_table_stabs, filename);
         break;
     default:
-        fprintf(stderr, "Error: Unsupported symbol type: %d\n", symbol_type);
+        LOG(LOG_CAT_DAP, LOG_ERROR, "Error: Unsupported symbol type: %d\n", symbol_type);
         return -1;
     }
 
     if (result)
     {
-        printf("Successfully loaded symbols from %s\n", filename);
+        LOG(LOG_CAT_DAP, LOG_INFO, "Loaded symbols from %s\n", filename);
         return 0;
     }
 
@@ -3270,7 +3269,7 @@ static int cmd_launch_callback(DAPServer *server)
         return -1;
     }
 
-    printf("Launch command received\n");
+    LOG(LOG_CAT_DAP, LOG_DEBUG, "Launch command received\n");
 
     // Extract launch parameters from debugger state
     const char *program_path = server->debugger_state.program_path;
@@ -3285,15 +3284,15 @@ static int cmd_launch_callback(DAPServer *server)
 
     if (!program_path)
     {
-        printf("Error: Missing program path in debugger state\n");
+        LOG(LOG_CAT_DAP, LOG_ERROR, "Error: Missing program path in debugger state\n");
         return -1;
     }
 
-    printf("Launching program: %s\n", program_path ? program_path : "(null)");
-    printf("Source path: %s\n", source_path ? source_path : "(not specified)");
-    printf("Map file: %s\n", map_path ? map_path : "(not specified)");
-    printf("Stop at entry: %s\n", stop_at_entry ? "yes" : "no");
-    printf("No debug: %s\n", no_debug ? "yes" : "no");
+    LOG(LOG_CAT_DAP, LOG_DEBUG, "Launching program: %s\n", program_path ? program_path : "(null)");
+    LOG(LOG_CAT_DAP, LOG_DEBUG, "Source path: %s\n", source_path ? source_path : "(not specified)");
+    LOG(LOG_CAT_DAP, LOG_DEBUG, "Map file: %s\n", map_path ? map_path : "(not specified)");
+    LOG(LOG_CAT_DAP, LOG_DEBUG, "Stop at entry: %s\n", stop_at_entry ? "yes" : "no");
+    LOG(LOG_CAT_DAP, LOG_DEBUG, "No debug: %s\n", no_debug ? "yes" : "no");
 
     // Log command line arguments if present
     if (args && args_count > 0)
@@ -3320,7 +3319,7 @@ static int cmd_launch_callback(DAPServer *server)
                      args_count - 10);
         }
 
-        printf("%s\n", arg_log);
+        LOG(LOG_CAT_DAP, LOG_DEBUG, "%s\n", arg_log);
     }
 
     // Reset CPU state to appropriate values
@@ -3361,14 +3360,14 @@ static int cmd_launch_callback(DAPServer *server)
         }
 
         if (is_aout) {
-            printf("Attempting to load a.out program: %s\n", program_path);
+            LOG(LOG_CAT_DAP, LOG_DEBUG, "Attempting to load a.out program: %s\n", program_path);
             dap_server_send_output_category(server, DAP_OUTPUT_CONSOLE,
                                             "Loading a.out program...\n");
             program_load(BOOT_AOUT, 0, program_path, true,
                          (uint16_t)server->debugger_state.text_start, false);
             gPC = STARTADDR;
         } else {
-            printf("Program file is not a.out format (skipping load, using existing boot): %s\n", program_path);
+            LOG(LOG_CAT_DAP, LOG_DEBUG, "Program file is not a.out format (skipping load, using existing boot): %s\n", program_path);
             dap_server_send_output_category(server, DAP_OUTPUT_CONSOLE,
                                             "Program is not a.out format - attaching to running system.\n");
         }
@@ -3381,7 +3380,7 @@ static int cmd_launch_callback(DAPServer *server)
 
     if (map_path)
     {
-        printf("Attempting to load symbols from map file: %s\n", map_path);
+        LOG(LOG_CAT_DAP, LOG_DEBUG, "Attempting to load symbols from map file: %s\n", map_path);
         dap_server_send_output_category(server, DAP_OUTPUT_CONSOLE,
                                         "Loading symbols from map file...\n");
 
@@ -3410,7 +3409,7 @@ static int cmd_launch_callback(DAPServer *server)
     // If we have a valid a.out file, try to update symbols from it
     if (program_path && is_aout)
     {
-        printf("Attempting to load symbols from program binary: %s\n", program_path);
+        LOG(LOG_CAT_DAP, LOG_DEBUG, "Attempting to load symbols from program binary: %s\n", program_path);
         dap_server_send_output_category(server, DAP_OUTPUT_CONSOLE,
                                         "Loading symbols from program binary...\n");
 
@@ -3470,7 +3469,7 @@ static int cmd_launch_callback(DAPServer *server)
             }
 
             // Try to load STABS file
-            printf("Attempting to load symbols from STABS file: %s\n", stabs_path);
+            LOG(LOG_CAT_DAP, LOG_DEBUG, "Attempting to load symbols from STABS file: %s\n", stabs_path);
             dap_server_send_output_category(server, DAP_OUTPUT_CONSOLE,
                                             "Looking for STABS debug file...\n");
 
@@ -3539,7 +3538,7 @@ static int cmd_launch_callback(DAPServer *server)
     if (stop_at_entry)
     {
         dap_server_send_stopped_event(server, "entry", "Stopped at program entry");
-        printf("Stopped at entry point\n");
+        LOG(LOG_CAT_DAP, LOG_DEBUG, "Stopped at entry point\n");
         set_cpu_run_mode(CPU_PAUSED);
         set_cpu_stop_reason(STOP_REASON_ENTRY);
     }
@@ -3561,7 +3560,7 @@ static int cmd_launch_callback(DAPServer *server)
 
 static int cmd_configuration_done(DAPServer *server)
 {
-    printf("Configuration done command received\n");
+    LOG(LOG_CAT_DAP, LOG_DEBUG, "Configuration done command received\n");
 
     // Send the response
     server->debugger_state.configuration_done = true;
@@ -3585,7 +3584,7 @@ static int cmd_pause(DAPServer *server)
 /// It sends a response to the client with success=true.
 static int cmd_restart(DAPServer *server)
 {
-    printf("Restart command received\n");
+    LOG(LOG_CAT_DAP, LOG_DEBUG, "Restart command received\n");
 
     // Respond to the client with success=true
 
@@ -3626,7 +3625,7 @@ static int cmd_restart(DAPServer *server)
 /// and a response to the client.
 static int cmd_disconnect(DAPServer *server)
 {
-    printf("Disconnect command received\n");
+    LOG(LOG_CAT_DAP, LOG_DEBUG, "Disconnect command received\n");
 
     dap_server_send_exited_event(server, 0);
 
@@ -3665,7 +3664,7 @@ static int cmd_disconnect(DAPServer *server)
 /// Please stop the debuggee, but don't tear down the debug session completely yet.
 static int cmd_terminate(DAPServer *server)
 {
-    printf("Terminate command received\n");
+    LOG(LOG_CAT_DAP, LOG_DEBUG, "Terminate command received\n");
 
     // Send the response
     dap_server_send_response(server, DAP_CMD_TERMINATE, server->sequence++,
@@ -4638,7 +4637,7 @@ static int ndx_server_init_wasm(void)
     g_dap_server = (DAPServer *)calloc(1, sizeof(DAPServer));
     if (!g_dap_server)
     {
-        printf("Failed to allocate DAP server struct for WASM\n");
+        LOG(LOG_CAT_DAP, LOG_ERROR, "Failed to allocate DAP server struct for WASM\n");
         return -1;
     }
 
@@ -4662,7 +4661,7 @@ static int ndx_server_init_wasm(void)
     dap_server_register_command_callback(g_dap_server, DAP_CMD_CONSOLE_WRITE, cmd_console_write);
     dap_server_register_command_callback(g_dap_server, DAP_CMD_SYMBOL_LIST, cmd_symbol_list);
 
-    printf("WASM DAP debugger initialized (in-process, no transport)\n");
+    LOG(LOG_CAT_DAP, LOG_INFO, "WASM DAP debugger initialized (in-process, no transport)\n");
     return 0;
 }
 

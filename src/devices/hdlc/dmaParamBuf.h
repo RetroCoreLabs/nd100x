@@ -116,7 +116,5 @@ void ParameterBuffer_SetReceiverStatusReg(ParameterBuffer *paramBuf, int value);
 void ParameterBuffer_SetTransmitterStatusReg(ParameterBuffer *paramBuf, int value);
 void ParameterBuffer_SetDmaBankBits(ParameterBuffer *paramBuf, int value);
 
-// Debug functions
-void ParameterBuffer_Print(const ParameterBuffer *paramBuf);
 
 #endif // DMA_PARAM_BUF_H

@@ -42,7 +42,7 @@ void cpu_set_ring_at_clpt(long n)
 }
 #include <stdlib.h>
 #include <string.h>	/* strlen()/strcmp() - VERSN identity parsing, see ndfunc_versn() */
-#include <stdio.h>	/* fprintf() - diagnostics for a bad ND100X_* identity value */
+#include <stdio.h>
 
 
 // Initialize the instruction function array
@@ -126,7 +126,6 @@ unsigned int calcEL(uint8_t displacement)
 	EL = (gT & 0xFF) << 16 | EL;
 	EL = EL & 0xFFFFFF; // Cap at 24 bits
 
-	// printf("calcEL: EL=%6X, gX=%4X, gT=%4X, displacement=%d\n", EL,gX, gT, displacement	);
 	return EL;
 }
 
@@ -1390,7 +1389,7 @@ static bool versn_env_number(const char *name, int *out)
 		return false;
 
 	if (!versn_parse_number(text, out)) {
-		fprintf(stderr, "Bad %s '%s' - keeping the default\r\n", name, text);
+		LOG(LOG_CAT_CPU, LOG_WARN, "Bad %s '%s' - keeping the default", name, text);
 		return false;
 	}
 	return true;
@@ -1459,7 +1458,7 @@ void cpu_versn_set_identity_from_env(void)
 			for (i = 0; i < VERSN_PROM_SIZE; i++)
 				g_versn.prom[i] = parsed[i];
 		} else {
-			fprintf(stderr, "Bad ND100X_INSTALLATION_NUMBER '%s' - need exactly 32 hex digits\r\n", text);
+			LOG(LOG_CAT_CPU, LOG_WARN, "Bad ND100X_INSTALLATION_NUMBER '%s' - need exactly 32 hex digits", text);
 		}
 	}
 
@@ -1471,7 +1470,7 @@ void cpu_versn_set_identity_from_env(void)
 		else if (versn_parse_number(text, &value))
 			versn_set_word(VERSN_PROM_SYSNO_HI, VERSN_PROM_SYSNO_LO, value);
 		else
-			fprintf(stderr, "Bad ND100X_CPU_NUMBER '%s' - keeping the default\r\n", text);
+			LOG(LOG_CAT_CPU, LOG_WARN, "Bad ND100X_CPU_NUMBER '%s' - keeping the default", text);
 	}
 
 	text = getenv("ND100X_SYSTEM_TYPE");
@@ -1486,7 +1485,7 @@ void cpu_versn_set_identity_from_env(void)
 		else if (versn_parse_number(text, &value))
 			versn_set_word(VERSN_PROM_SYSTYPE_HI, VERSN_PROM_SYSTYPE_LO, value);
 		else
-			fprintf(stderr, "Bad ND100X_SYSTEM_TYPE '%s' - keeping the default\r\n", text);
+			LOG(LOG_CAT_CPU, LOG_WARN, "Bad ND100X_SYSTEM_TYPE '%s' - keeping the default", text);
 	}
 
 	text = getenv("ND100X_LEGAL_USERS");
@@ -1494,7 +1493,7 @@ void cpu_versn_set_identity_from_env(void)
 		if (versn_identity_is_skip(text)) {
 			value = VERSN_PROM_LEGAL_USERS_SKIP;
 		} else if (!versn_parse_number(text, &value) || (value > 0xFE)) {
-			fprintf(stderr, "Bad ND100X_LEGAL_USERS '%s' - want 0..254 or none\r\n", text);
+			LOG(LOG_CAT_CPU, LOG_WARN, "Bad ND100X_LEGAL_USERS '%s' - want 0..254 or none", text);
 			value = -1;
 		}
 
@@ -1510,11 +1509,11 @@ void cpu_versn_set_identity_from_env(void)
 	text = getenv("ND100X_MICROCODE_VERSION");
 	if (text != NULL) {
 		if (!versn_parse_microcode_version(text, &value))
-			fprintf(stderr, "Bad ND100X_MICROCODE_VERSION '%s' - keeping the default\r\n", text);
+			LOG(LOG_CAT_CPU, LOG_WARN, "Bad ND100X_MICROCODE_VERSION '%s' - keeping the default", text);
 		else if (value < VERSN_MIN_MICROCODE_VERSION)
-			fprintf(stderr, "ND100X_MICROCODE_VERSION '%s' is below the SINTRAN minimum of octal 013\r\n", text);
+			LOG(LOG_CAT_CPU, LOG_WARN, "ND100X_MICROCODE_VERSION '%s' is below the SINTRAN minimum of octal 013", text);
 		else if (value > 0xFFFF)
-			fprintf(stderr, "ND100X_MICROCODE_VERSION '%s' does not fit in 16 bits\r\n", text);
+			LOG(LOG_CAT_CPU, LOG_WARN, "ND100X_MICROCODE_VERSION '%s' does not fit in 16 bits", text);
 		else
 			g_versn.microcode_version = value;
 	}
@@ -1524,7 +1523,7 @@ void cpu_versn_set_identity_from_env(void)
 		if (value <= 0x0FFF)
 			g_versn.print_version = value;
 		else
-			fprintf(stderr, "ND100X_PRINT_VERSION must fit in 12 bits - keeping the default\r\n");
+			LOG(LOG_CAT_CPU, LOG_WARN, "ND100X_PRINT_VERSION must fit in 12 bits - keeping the default");
 	}
 }
 
@@ -5047,7 +5046,7 @@ void Instruction_Add(int opcode, void *funcpointer)
 {
 	if (instr_funcs[opcode] != NULL)
 	{
-		printf("Warning: Overwriting instruction %06o\n", opcode);
+		LOG(LOG_CAT_CPU, LOG_WARN, "Overwriting instruction %06o", opcode);
 	}
 
 	instr_funcs[opcode] = funcpointer;
@@ -5060,7 +5059,7 @@ void Instruction_Add_Range(int start, int stop, void *funcpointer)
 	{
 		if (instr_funcs[i] != NULL)
 		{
-			printf("Warning: Overwriting instruction %06o\n",i);
+			LOG(LOG_CAT_CPU, LOG_WARN, "Overwriting instruction %06o",i);
 		}
 
 		instr_funcs[i] = funcpointer;
@@ -5068,24 +5067,11 @@ void Instruction_Add_Range(int start, int stop, void *funcpointer)
 	return;
 }
 
-// For debugging purposes
-void print_mask_binary(unsigned short mask) {
-    for (int i = 15; i >= 0; i--) {
-        putchar((mask & (1 << i)) ? '1' : '0');
-        if (i % 4 == 0 && i != 0) {
-            putchar('_');
-        }
-    }
-}
-
 void Instruction_Add_Mask(int opcode, int mask, void *funcpointer)
 {
 	int i;
 	int signature = opcode & mask;
 
-	//printf("Instruction %06o should have mask ", opcode);
-    //print_mask_binary(mask);
-    //putchar('\n');
 
 	for (i = opcode; i <= 0xFFFF; i++)
 	{
@@ -5093,7 +5079,7 @@ void Instruction_Add_Mask(int opcode, int mask, void *funcpointer)
 		{
 			if (instr_funcs[i] != NULL)
 			{
-				printf("Warning: Overwriting instruction %06o with %06o\n", i, opcode);
+				LOG(LOG_CAT_CPU, LOG_WARN, "Overwriting instruction %06o with %06o", i, opcode);
 			}
 
 			instr_funcs[i] = funcpointer;
