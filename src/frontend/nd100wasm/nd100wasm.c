@@ -1752,17 +1752,17 @@ EMSCRIPTEN_EXPORT int Dbg_GetEA(void)     { return (int)gEA; }
 
 // --- Register Write (current runlevel) ---
 
-EMSCRIPTEN_EXPORT void Dbg_SetPC(int val)   { gPC  = (ushort)(val & 0xFFFF); }
-EMSCRIPTEN_EXPORT void Dbg_SetRegA(int val)  { gA   = (ushort)(val & 0xFFFF); }
-EMSCRIPTEN_EXPORT void Dbg_SetRegD(int val)  { gD   = (ushort)(val & 0xFFFF); }
-EMSCRIPTEN_EXPORT void Dbg_SetRegB(int val)  { gB   = (ushort)(val & 0xFFFF); }
-EMSCRIPTEN_EXPORT void Dbg_SetRegT(int val)  { gT   = (ushort)(val & 0xFFFF); }
-EMSCRIPTEN_EXPORT void Dbg_SetRegL(int val)  { gL   = (ushort)(val & 0xFFFF); }
-EMSCRIPTEN_EXPORT void Dbg_SetRegX(int val)  { gX   = (ushort)(val & 0xFFFF); }
+EMSCRIPTEN_EXPORT void Dbg_SetPC(int val)   { gPC  = (uint16_t)(val & 0xFFFF); }
+EMSCRIPTEN_EXPORT void Dbg_SetRegA(int val)  { gA   = (uint16_t)(val & 0xFFFF); }
+EMSCRIPTEN_EXPORT void Dbg_SetRegD(int val)  { gD   = (uint16_t)(val & 0xFFFF); }
+EMSCRIPTEN_EXPORT void Dbg_SetRegB(int val)  { gB   = (uint16_t)(val & 0xFFFF); }
+EMSCRIPTEN_EXPORT void Dbg_SetRegT(int val)  { gT   = (uint16_t)(val & 0xFFFF); }
+EMSCRIPTEN_EXPORT void Dbg_SetRegL(int val)  { gL   = (uint16_t)(val & 0xFFFF); }
+EMSCRIPTEN_EXPORT void Dbg_SetRegX(int val)  { gX   = (uint16_t)(val & 0xFFFF); }
 EMSCRIPTEN_EXPORT void Dbg_SetSTS(int val)   {
     /* STS MSB is shared, LSB is per-level */
-    gReg->reg_STS = (ushort)(val & 0xFF00);
-    gReg->reg[gPIL][_STS] = (ushort)(val & 0x00FF);
+    gReg->reg_STS = (uint16_t)(val & 0xFF00);
+    gReg->reg[gPIL][_STS] = (uint16_t)(val & 0x00FF);
 }
 
 // --- Register access for any runlevel ---
@@ -1832,7 +1832,7 @@ EMSCRIPTEN_EXPORT int Dbg_GetStopReason(void)
 
 EMSCRIPTEN_EXPORT int Dbg_ReadMemory(int addr)
 {
-    return (int)MemoryRead((ushort)(addr & 0xFFFF), false);
+    return (int)MemoryRead((uint16_t)(addr & 0xFFFF), false);
 }
 
 // --- Bulk Memory Read (for SINTRAN data structure inspection) ---
@@ -1843,28 +1843,28 @@ EMSCRIPTEN_EXPORT int Dbg_ReadMemoryBlock(int startAddr, int count)
 {
     if (count <= 0 || count > 4096) count = 4096;
     for (int i = 0; i < count; i++) {
-        mem_block_buffer[i] = MemoryRead((ushort)((startAddr + i) & 0xFFFF), false);
+        mem_block_buffer[i] = MemoryRead((uint16_t)((startAddr + i) & 0xFFFF), false);
     }
     return (int)(uintptr_t)mem_block_buffer;
 }
 
 EMSCRIPTEN_EXPORT void Dbg_WriteMemory(int addr, int val)
 {
-    MemoryWrite((ushort)val, (ushort)(addr & 0xFFFF), false, 2);
+    MemoryWrite((uint16_t)val, (uint16_t)(addr & 0xFFFF), false, 2);
 }
 
 // --- Physical Memory Dump (raw physical memory, bypasses MMS) ---
 
 EMSCRIPTEN_EXPORT int Dbg_DumpPhysicalMemory(int wordCount)
 {
-    if (wordCount <= 0 || wordCount > (int)(sizeof(VolatileMemory) / sizeof(ushort)))
+    if (wordCount <= 0 || wordCount > (int)(sizeof(VolatileMemory) / sizeof(uint16_t)))
         wordCount = 256 * 1024;
 
     FILE *f = fopen("/nd100_physmem.bin", "wb");
     if (!f) return -1;
 
     for (int i = 0; i < wordCount; i++) {
-        ushort w = VolatileMemory.n_Array[i];
+        uint16_t w = VolatileMemory.n_Array[i];
         unsigned char hi = (w >> 8) & 0xFF;
         unsigned char lo = w & 0xFF;
         fputc(hi, f);
@@ -1876,7 +1876,7 @@ EMSCRIPTEN_EXPORT int Dbg_DumpPhysicalMemory(int wordCount)
 
 EMSCRIPTEN_EXPORT int Dbg_GetPhysMemWords(void)
 {
-    return (int)(sizeof(VolatileMemory) / sizeof(ushort));
+    return (int)(sizeof(VolatileMemory) / sizeof(uint16_t));
 }
 
 // --- Breakpoints ---
@@ -1975,8 +1975,8 @@ EMSCRIPTEN_EXPORT const char* Dbg_Disassemble(int startAddr, int count)
     disasm_buffer[0] = '\0';
 
     for (int i = 0; i < count && pos < (int)sizeof(disasm_buffer) - 128; i++) {
-        ushort addr = (ushort)((startAddr + i) & 0xFFFF);
-        ushort word = MemoryRead(addr, false);
+        uint16_t addr = (uint16_t)((startAddr + i) & 0xFFFF);
+        uint16_t word = MemoryRead(addr, false);
 
         OpToStr(mnemonic, sizeof(mnemonic), word);
 
@@ -2050,12 +2050,12 @@ EMSCRIPTEN_EXPORT const char* Dbg_GetLevelInfo(void)
     levels_buffer[0] = '\0';
 
     for (int lev = 0; lev < 16; lev++) {
-        ushort pcr = gReg->reg_PCR[lev];
+        uint16_t pcr = gReg->reg_PCR[lev];
         int ring = pcr & 0x03;
         int pt = (pcr >> 11) & 0x0F;
         int apt = (pcr >> 7) & 0x0F;
-        ushort p_reg = gReg->reg[lev][_P];
-        ushort sts_lsb = gReg->reg[lev][_STS] & 0xFF;
+        uint16_t p_reg = gReg->reg[lev][_P];
+        uint16_t sts_lsb = gReg->reg[lev][_STS] & 0xFF;
 
         int n = snprintf(levels_buffer + pos, sizeof(levels_buffer) - pos,
             "%d %06o %03o R%d PT%d APT%d\n",
@@ -2133,7 +2133,7 @@ EMSCRIPTEN_EXPORT int Dbg_GetPageTableEntryRaw(int pageTable, int vpn)
     /* Use debugger reader which checks mmsType instead of STS_SEXI,
        so we can read all 16 page tables even when paused at a level without SEXI. */
     PageTableMode ptm = (mmsType == MMS2) ? Sixteen : Four;
-    uint pte = GetPageTableEntryForDebugger((uint)pageTable, (uint)vpn, ptm);
+    uint32_t pte = GetPageTableEntryForDebugger((uint32_t)pageTable, (uint32_t)vpn, ptm);
     return (int)pte;
 }
 

@@ -499,7 +499,7 @@ void initialize(void)
 	// BPUN carries no usable autostart cell, so it must be entered at its real
 	// cold-start rather than at address 0.
 	if (config.startAddress != 0) {
-		STARTADDR = (ushort)config.startAddress;
+		STARTADDR = (uint16_t)config.startAddress;
 		gPC = STARTADDR;
 	}
 
@@ -929,7 +929,7 @@ int main(int argc, char *argv[])
     BSD_DEBUG = config.bsdDebug;
     CPU_MAX_INSTR = config.maxInstructions;
     CPU_BREAKPOINT_ENABLED = config.breakpointEnabled;
-    CPU_BREAKPOINT_ADDR = (ushort)config.breakpointAddr;
+    CPU_BREAKPOINT_ADDR = (uint16_t)config.breakpointAddr;
     CPU_RING_DUMP_SIZE = config.ringDumpSize;
     charset_set(config.charset);  // local-console national 7-bit charset (telnet/TCP unaffected)
 
