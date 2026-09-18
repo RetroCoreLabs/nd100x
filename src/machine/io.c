@@ -32,10 +32,13 @@
 #include "../devices/devices_types.h"
 #include "../devices/devices_protos.h"
 
-void IO_Init(void)
+// Returns 0, or -1 if the device manager could not be set up.
+int IO_Init(void)
 {
-    DeviceManager_Init();
+    if (DeviceManager_Init() != 0)
+        return -1;
     DeviceManager_AddAllDevices();
+    return 0;
 }
 
 void IO_Destroy(void)

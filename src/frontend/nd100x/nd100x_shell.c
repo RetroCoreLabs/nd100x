@@ -294,7 +294,10 @@ static int cmd_run_program(const char *nd100Root, int argc, char **argv) {
          * and sets STARTADDR to the real entry; the entry also comes from the
          * header via GetLastPROGHeader(). :PROG has no BPUN-style action field -
          * it always autostarts at its start address. */
-        program_load(BOOT_PROG, 0, filepath, true, 0, false);
+        if (program_load(BOOT_PROG, 0, filepath, true, 0, false) < 0) {
+            fprintf(stderr, "Could not load :PROG '%s' - not running.\n", filepath);
+            return -1;
+        }
 
         PROG_Header phdr;
         if (!GetLastPROGHeader(&phdr)) {
@@ -318,8 +321,11 @@ static int cmd_run_program(const char *nd100Root, int argc, char **argv) {
      * bootstrap-loader "boot" address, which is NOT the program entry
      * (e.g. MAC.BPUN has boot=0 but its real entry is start=0164316). The
      * fopen pre-check above guards the file-not-found case; a genuinely corrupt
-     * image makes LoadBPUN() return -1, which program_load() turns into exit(1). */
-    program_load(BOOT_BPUN, 0, filepath, true, 0, false);
+     * image makes program_load() fail, and the shell stays at its prompt. */
+    if (program_load(BOOT_BPUN, 0, filepath, true, 0, false) < 0) {
+        fprintf(stderr, "Could not load BPUN '%s' - not running.\n", filepath);
+        return -1;
+    }
 
     /* Per the :BPUN format: the program entry is the "start" field; the
      * "action" field controls autostart - if action == 0 execution begins at

@@ -61,12 +61,10 @@ static int hash_address(uint16_t address)
 /// @note Initialize the breakpoint manager
 void breakpoint_manager_init(void)
 {
-    mgr= (BreakpointManager *)malloc(sizeof(BreakpointManager));
-    if (!mgr)
-    {
-        LOG(LOG_CAT_DAP, LOG_ERROR, "Failed to allocate memory for BreakpointManager");
-        exit(EXIT_FAILURE);
-    }
+    /* Static storage: one manager for the process lifetime, so nothing can
+     * fail here and cleanup has nothing to free. */
+    static BreakpointManager s_mgr;
+    mgr = &s_mgr;
 
     mgr->step_count = 0;
     memset(mgr->buckets, 0, sizeof(mgr->buckets));
@@ -79,7 +77,7 @@ void breakpoint_manager_cleanup(void)
 {
     if (mgr) {
         breakpoint_manager_clear();
-        free(mgr);
+        mgr = NULL;   /* the lazy "if (mgr == NULL) init" callers re-create it */
     }
 }
 

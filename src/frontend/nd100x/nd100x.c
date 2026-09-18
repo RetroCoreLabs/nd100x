@@ -487,7 +487,11 @@ void initialize(void)
 		}
 	}
 
-	program_load(config.bootType, config.bootUnit, config.imageFile, config.verbose, (uint16_t)config.textStart, config.overlayDeposit);
+	int load_rc = program_load(config.bootType, config.bootUnit, config.imageFile, config.verbose,
+	                           (uint16_t)config.textStart, config.overlayDeposit);
+	// Same exit codes the library used to produce itself (1 = load, 10 = boot).
+	if (load_rc == PROGRAM_LOAD_ERR_LOAD) exit(1);
+	if (load_rc == PROGRAM_LOAD_ERR_BOOT) exit(10);
 	gPC = STARTADDR;
 
 	// An explicit --start / config `start=` overrides the entry that

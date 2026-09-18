@@ -21,6 +21,7 @@
  */
 
 
+#include <assert.h>
 #include <string.h>
 
 #include "cpu_types.h"
@@ -380,10 +381,13 @@ int mapVirtualToPhysical(uint virtualAddress, AccessMode am, bool UseAPT)
 {
 
 
+    /* cpu_init() creates the paging tables before anything can translate an
+     * address, so this is an internal invariant, not an input error. */
+    assert(g_paging_tables.isInitialized);
     if (!g_paging_tables.isInitialized)
     {
         LOG(LOG_CAT_MMS, LOG_ERROR, "FATAL! PagingTables not initialized");
-        exit(1);
+        return -1;
     }
 
     virtualAddress = virtualAddress & 0xFFFF; // Make sure it's no more than 16-bits

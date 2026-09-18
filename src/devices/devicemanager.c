@@ -43,7 +43,8 @@
 
 static DeviceManager deviceManager = {0}; // Initialize to zero
 
-void DeviceManager_Init(void)
+// Returns 0, or -1 if the device table could not be allocated.
+int DeviceManager_Init(void)
 {
 
     deviceManager.deviceCapacity = INITIAL_DEVICE_CAPACITY;
@@ -53,15 +54,13 @@ void DeviceManager_Init(void)
     {
         // Zero initialize the device array
         memset(deviceManager.devices, 0, sizeof(DeviceInfo) * INITIAL_DEVICE_CAPACITY);
-        // silenced: user wants a clean boot banner (WARN/ERROR still logged)
-        // LOG(LOG_CAT_DEVICE, LOG_INFO, "Successfully allocated device array with capacity %d\n", deviceManager.deviceCapacity);
     }
     else
     {
         LOG(LOG_CAT_DEVICE, LOG_ERROR, "Failed to allocate device array\n");
-        // Should handle allocation failure
-        exit(1);
+        return -1;
     }
+    return 0;
 }
 
 void DeviceManager_Destroy(void)

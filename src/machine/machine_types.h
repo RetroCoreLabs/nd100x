@@ -47,6 +47,12 @@ typedef enum {
     BOOT_WINCHESTER /* ST506/8 inch Winchester @ 500, cards 3041/3038 */
 } BOOT_TYPE;
 
+/* program_load() failures that used to end the process. The native frontend
+ * still turns them into the same exit codes (1 and 10); the shell, the DAP
+ * launch path and the WASM frontend handle them and carry on. */
+#define PROGRAM_LOAD_ERR_LOAD (-2)   /* the image could not be loaded (was exit(1))  */
+#define PROGRAM_LOAD_ERR_BOOT (-10)  /* the boot device failed (was exit(10))        */
+
 extern const char* boot_type_str[];
 
 

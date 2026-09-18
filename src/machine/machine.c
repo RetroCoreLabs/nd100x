@@ -205,7 +205,10 @@ machine_init (bool debuggerEnabled, int debuggerPort)
     init_cpu_debugger();
 
     // Initialize IO devices
-    IO_Init();
+    if (IO_Init() != 0) {
+        LOG(LOG_CAT_MACHINE, LOG_ERROR, "machine_init: device manager could not be set up\n");
+        return -1;
+    }
 
     // Set the CPU to RUN mode
     set_cpu_run_mode(CPU_RUNNING);
@@ -735,11 +738,7 @@ static int tape_leader_load(const char *path, bool verbose)
          if (bootAddress < 0)
          {
              LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error loading BP file '%s'\n", imageFile);
-#ifdef __EMSCRIPTEN__
-             return -1;
-#else
-             exit(1);
-#endif
+             return PROGRAM_LOAD_ERR_LOAD;
          }
          break;
 
@@ -748,28 +747,20 @@ static int tape_leader_load(const char *path, bool verbose)
          if (bootAddress < 0)
          {
              LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error loading BPUN file '%s'\n", imageFile);
-#ifdef __EMSCRIPTEN__
-             return -1;
-#else
-             exit(1);
-#endif
+             return PROGRAM_LOAD_ERR_LOAD;
          }
          STARTADDR = bootAddress;
          break;
     case BOOT_AOUT:
 #ifdef _WIN32
         LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error: AOUT boot not available on Windows (libsymbols not ported yet)\n");
-        exit(1);
+        return PROGRAM_LOAD_ERR_LOAD;
 #else
         bootAddress = load_aout(imageFile, verbose, write_memory, text_start, overlay_deposit);
         if (bootAddress < 0)
         {
             LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error loading AOUT file '%s'\n", imageFile);
-#ifdef __EMSCRIPTEN__
-            return -1;
-#else
-            exit(1);
-#endif
+            return PROGRAM_LOAD_ERR_LOAD;
         }
         STARTADDR = bootAddress;
 #endif
@@ -782,11 +773,7 @@ static int tape_leader_load(const char *path, bool verbose)
         if (bootAddress < 0)
         {
             LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error loading PROG file '%s'\n", imageFile);
-#ifdef __EMSCRIPTEN__
-            return -1;
-#else
-            exit(1);
-#endif
+            return PROGRAM_LOAD_ERR_LOAD;
         }
         STARTADDR = bootAddress;
         break;
@@ -798,25 +785,10 @@ static int tape_leader_load(const char *path, bool verbose)
          if (bootAddress < 0)
          {
              LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error loading BPUN file\n");
-#ifdef __EMSCRIPTEN__
-             return -1;
-#else
-             exit(1);
-#endif
+             return PROGRAM_LOAD_ERR_LOAD;
          }
 
          STARTADDR = bootAddress;
-
-         //gPC = (CONFIG_OK) ? bootaddress : 0;
-
-         /*
-         result = sectorread(0, 0, 1, (ushort *)&VolatileMemory);
-         if (result < 0) {
-             LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error reading from floppy\n");
-             exit(1);
-         }
-         gPC = 0;
-         */
          break;
      case BOOT_SMD:
 
@@ -829,11 +801,7 @@ static int tape_leader_load(const char *path, bool verbose)
          if (bootAddress < 0)
          {
              LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error booting from SMD unit %d\n", bootUnit);
-#ifdef __EMSCRIPTEN__
-             return -1;
-#else
-             exit(10);
-#endif
+             return PROGRAM_LOAD_ERR_BOOT;
          }
          STARTADDR = bootAddress;
          break;
@@ -848,11 +816,7 @@ static int tape_leader_load(const char *path, bool verbose)
          if (bootAddress < 0)
          {
              LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error booting from Winchester unit %d\n", bootUnit);
-#ifdef __EMSCRIPTEN__
-             return -1;
-#else
-             exit(10);
-#endif
+             return PROGRAM_LOAD_ERR_BOOT;
          }
          STARTADDR = bootAddress;
          break;
@@ -867,11 +831,7 @@ static int tape_leader_load(const char *path, bool verbose)
          if (bootAddress < 0)
          {
              LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error booting from SCSI unit %d\n", bootUnit);
-#ifdef __EMSCRIPTEN__
-             return -1;
-#else
-             exit(10);
-#endif
+             return PROGRAM_LOAD_ERR_BOOT;
          }
          STARTADDR = bootAddress;
          break;
@@ -880,11 +840,7 @@ static int tape_leader_load(const char *path, bool verbose)
          if (bootAddress < 0)
          {
              LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error booting tape '%s'\n", imageFile);
-#ifdef __EMSCRIPTEN__
-             return -1;
-#else
-             exit(10);
-#endif
+             return PROGRAM_LOAD_ERR_BOOT;
          }
          STARTADDR = bootAddress;
          break;
@@ -900,11 +856,7 @@ static int tape_leader_load(const char *path, bool verbose)
          if (bootAddress < 0)
          {
              LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error booting from CDC disc\n");
-#ifdef __EMSCRIPTEN__
-             return -1;
-#else
-             exit(10);
-#endif
+             return PROGRAM_LOAD_ERR_BOOT;
          }
          STARTADDR = bootAddress;
          break;

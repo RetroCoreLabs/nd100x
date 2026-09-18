@@ -3363,8 +3363,12 @@ static int cmd_launch_callback(DAPServer *server)
             LOG(LOG_CAT_DAP, LOG_DEBUG, "Attempting to load a.out program: %s\n", program_path);
             dap_server_send_output_category(server, DAP_OUTPUT_CONSOLE,
                                             "Loading a.out program...\n");
-            program_load(BOOT_AOUT, 0, program_path, true,
-                         (uint16_t)server->debugger_state.text_start, false);
+            if (program_load(BOOT_AOUT, 0, program_path, true,
+                             (uint16_t)server->debugger_state.text_start, false) < 0) {
+                dap_server_send_output_category(server, DAP_OUTPUT_CONSOLE,
+                                                "Loading the a.out program failed.\n");
+                return -1;
+            }
             gPC = STARTADDR;
         } else {
             LOG(LOG_CAT_DAP, LOG_DEBUG, "Program file is not a.out format (skipping load, using existing boot): %s\n", program_path);
