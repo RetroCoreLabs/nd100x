@@ -57,7 +57,8 @@ static const char *tx_str[] = {"LDATX","LDXTX","LDDTX","LDBTX","STATX","STZTX","
  * IN: pointer to string ,raw operand
  * OUT: Sets the string with the dissassembled operand and values
  */
-void  OpToStr(char *return_string, uint16_t max_len, uint16_t operand)
+/* size exemption: opcode table (house rule 7.1) - one case per instruction group */
+void  OpToStr(char *return_string, uint16_t max_len, uint16_t operand) // NOLINT(readability-function-size)
 {
 	uint16_t instr;
 	char numstr[BUFSTRSIZE_SMALL];

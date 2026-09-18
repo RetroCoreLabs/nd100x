@@ -5085,7 +5085,8 @@ void Instruction_Add_Mask(int opcode, int mask, void *funcpointer)
  * Add IO handler addresses in this function
  * This also thus actually acts as the new instruction parser also.
  */
-void Setup_Instructions(void)
+/* size exemption: opcode table (house rule 7.1) - one Instruction_Add per opcode group */
+void Setup_Instructions(void) // NOLINT(readability-function-size)
 {
 	//Instruction_Add_Range(0000000, 0177777, &illegal_instr); /* First make all instructions by default point to illegal_instr  */
 
