@@ -15,6 +15,9 @@
  * may pull them in transitively through ndlib object files. */
 #include <stdint.h>
 #include <stdbool.h>
+/* Prototypes match the real functions in src/cpu (cpu_protos.h). */
+int ReadPhysicalMemory(int physicalAddress, bool privileged);
+void WritePhysicalMemory(int physicalAddress, uint16_t value, bool privileged);
 int ReadPhysicalMemory(int physicalAddress, bool privileged)
 {
     (void)physicalAddress; (void)privileged;
@@ -26,9 +29,7 @@ void WritePhysicalMemory(int physicalAddress, uint16_t value, bool privileged)
 }
 
 /* Suite runners (defined in each test file) */
-extern int run_pdfwriter_tests(const char *tmpdir);
-extern int run_escp_tests(void);
-extern int run_printjob_tests(const char *tmpdir);
+#include "test_suites.h"
 
 static void cleanup_tmpdir(const char *path)
 {

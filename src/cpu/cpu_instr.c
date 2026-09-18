@@ -543,6 +543,7 @@ void ndfunc_skp(ushort operand)
 /// </summary>
 void ndfunc_bfill_new(ushort operand)
 {
+	(void)operand;
 	bool useAPT = false;
 	WriteMode wm;
 
@@ -568,14 +569,14 @@ void ndfunc_bfill_new(ushort operand)
 
 void ndfunc_bfill(ushort operand)
 {
-	ushort d1, d2, len, addr, i;
+	(void)operand;
+	ushort d1, len, addr, i;
 	ushort right = (gT & ((ushort)1 << 15)) ? 1 : 0;	   /* Start with right byte? (LSB) */
 	bool is_apt = (gT & ((ushort)1 << 14)) ? true : false; /* Use APT or not? */
 	ushort thebyte = gA & 0xff;
 	len = gT & 0x0fff; /* Number of bytes to do */
 	addr = gX;		   /* just in case we do 0 bytes */
 	d1 = gX;
-	d2 = gT;
 
 	for (i = 0; i < len; i++)
 	{
@@ -1061,6 +1062,7 @@ void ndfunc_jmp(ushort operand)
  */
 void ndfunc_geco(ushort operand)
 {
+	(void)operand;
 	/*
 		* Microcode listing lists this instruction from micro address 004000. Page 99 in the PDF document "MICROPROGRAMLISTNING FOR ND-110_32 BIT VERSION K-Gandalf-OCR"
 		* Page 134 listes the GECO offset address as 7427, assuming it is means opcode 1_427_nnn
@@ -1530,6 +1532,7 @@ static bool versn_is_nd120(void)
 
 void ndfunc_versn(ushort operand)
 {
+	(void)operand;
 	/*
 	 * A bits 8-11 select which of the SIXTEEN PROM bytes to return in D.
 	 * The array is now VERSN_PROM_SIZE (16) entries long; it used to be 15,
@@ -1698,6 +1701,7 @@ void ndfunc_iox(ushort operand)
  */
 void ndfunc_ioxt(ushort operand)
 {
+	(void)operand;
 	if (!CheckPriv())
 		return;
 
@@ -1744,6 +1748,7 @@ void ndfunc_ident(ushort operand)
  */
 void ndfunc_opcom(ushort operand)
 {
+	(void)operand;
 	if (!CheckPriv())
 		return;
 	printf("\r\nOPCOM at PIL[%d] PC[%6o] A[%6o]\r\n", gPIL, gPC, gA);
@@ -1810,6 +1815,7 @@ void ndfunc_irr(ushort operand)
  */
 void ndfunc_exam(ushort operand)
 {
+	(void)operand;
 	if (!CheckPriv())
 		return;
 
@@ -1823,6 +1829,7 @@ void ndfunc_exam(ushort operand)
 
 void ndfunc_depo(ushort operand)
 {
+	(void)operand;
 	if (!CheckPriv())
 		return;
 
@@ -1834,6 +1841,7 @@ void ndfunc_depo(ushort operand)
  */
 void ndfunc_pof(ushort operand)
 {
+	(void)operand;
 
 	if (!CheckPriv())
 		return;
@@ -1844,6 +1852,7 @@ void ndfunc_pof(ushort operand)
  */
 void ndfunc_piof(ushort operand)
 {
+	(void)operand;
 
 	if (!CheckPriv())
 		return;
@@ -1856,6 +1865,7 @@ void ndfunc_piof(ushort operand)
  */
 void ndfunc_pon(ushort operand)
 {
+	(void)operand;
 	setbit_STS_MSB(_PONI, 1);
 }
 
@@ -1863,6 +1873,7 @@ void ndfunc_pon(ushort operand)
  */
 void ndfunc_pion(ushort operand)
 {
+	(void)operand;
 	setbit_STS_MSB(_IONI, 1);
 	setbit_STS_MSB(_PONI, 1);
 	gCHKIT = true; // recalc PK
@@ -1873,6 +1884,7 @@ void ndfunc_pion(ushort operand)
 /// </summary>
 void ndfunc_iof(ushort operand)
 {
+	(void)operand;
 	if (!CheckPriv())
 		return;
 
@@ -1886,6 +1898,7 @@ void ndfunc_iof(ushort operand)
 /// </summary>
 void ndfunc_ion(ushort operand)
 {
+	(void)operand;
 	setbit_STS_MSB(_IONI, 1);
 	gCHKIT = true; // recalc PK
 }
@@ -1895,6 +1908,7 @@ void ndfunc_ion(ushort operand)
  */
 void ndfunc_rex(ushort operand)
 {
+	(void)operand;
 	if (!CheckPriv())
 		return;
 
@@ -1905,6 +1919,7 @@ void ndfunc_rex(ushort operand)
  */
 void ndfunc_sex(ushort operand)
 {
+	(void)operand;
 	if (!CheckPriv())
 		return;
 
@@ -1970,6 +1985,7 @@ uint nd110_bankgroup_phys(ushort bank, ushort index, ushort operand)
 
 void ndfunc_setpt(ushort operand)
 {
+	(void)operand;
 	if (!CheckPriv())
 		return;
 
@@ -2042,6 +2058,7 @@ void ndfunc_setpt(ushort operand)
 /// </summary>
 void ndfunc_clept(ushort operand)
 {
+	(void)operand;
 	if (!CheckPriv())
 		return;
 
@@ -2163,6 +2180,7 @@ void ndfunc_clept(ushort operand)
 /// </summary>
 void ndfunc_clnreent(ushort operand)
 {
+	(void)operand;
 	ushort a_reg;
 	ushort x_reg;
 	ushort t_reg;
@@ -2270,6 +2288,7 @@ void ndfunc_clnreent(ushort operand)
 /// </summary>
 void ndfunc_chreent_pages(ushort operand)
 {
+	(void)operand;
 	ushort prog_d;
 	ushort prog_x;
 	ushort prog_t;
@@ -2368,6 +2387,7 @@ void ndfunc_chreent_pages(ushort operand)
 /// </summary>
 void ndfunc_clepu(ushort operand)
 {
+	(void)operand;
 	if (!CheckPriv())
 		return;
 
@@ -2501,6 +2521,7 @@ void ndfunc_clepu(ushort operand)
  */
 void ndfunc_wglob(ushort operand)
 {
+	(void)operand;
 	if (!CheckPriv())
 		return;
 
@@ -2518,6 +2539,7 @@ void ndfunc_wglob(ushort operand)
  */
 void ndfunc_rglob(ushort operand)
 {
+	(void)operand;
 	if (!CheckPriv())
 		return;
 
@@ -2539,6 +2561,7 @@ void ndfunc_rglob(ushort operand)
  */
 void ndfunc_inspl(ushort operand)
 {
+	(void)operand;
 	uint stbnk;
 	uint cmbnk;
 	ushort b_reg;
@@ -2599,6 +2622,7 @@ void ndfunc_inspl(ushort operand)
  */
 void ndfunc_rempl(ushort operand)
 {
+	(void)operand;
 	uint stbnk;
 	uint cmbnk;
 	ushort x_reg;
@@ -2664,6 +2688,7 @@ void ndfunc_rempl(ushort operand)
  */
 void ndfunc_cnrek(ushort operand)
 {
+	(void)operand;
 	ushort a_reg;
 	ushort x_reg;
 	ushort t_reg;
@@ -2735,6 +2760,7 @@ void ndfunc_cnrek(ushort operand)
  */
 void ndfunc_clpt(ushort operand)
 {
+	(void)operand;
 	uint cmbnk;
 	bool clear_mode;
 
@@ -2898,6 +2924,7 @@ void nd110_enter_page_table(ushort r4_mask)
  */
 void ndfunc_enpt(ushort operand)
 {
+	(void)operand;
 	if (!CheckPriv())
 		return;
 
@@ -2913,6 +2940,7 @@ void ndfunc_enpt(ushort operand)
  */
 void ndfunc_rept(ushort operand)
 {
+	(void)operand;
 	if (!CheckPriv())
 		return;
 
@@ -2930,6 +2958,7 @@ void ndfunc_rept(ushort operand)
  */
 void ndfunc_lbit(ushort operand)
 {
+	(void)operand;
 	uint bit_index;
 	uint word_addr;
 	int bit_in_word;
@@ -2955,6 +2984,7 @@ void ndfunc_lbit(ushort operand)
  */
 void ndfunc_lbitp(ushort operand)
 {
+	(void)operand;
 	uint bit_index;
 	uint bank;
 	uint word_offset;
@@ -2984,6 +3014,7 @@ void ndfunc_lbitp(ushort operand)
  */
 void ndfunc_sbit(ushort operand)
 {
+	(void)operand;
 	uint bit_index;
 	uint word_addr;
 	int bit_in_word;
@@ -3012,6 +3043,7 @@ void ndfunc_sbit(ushort operand)
  */
 void ndfunc_sbitp(ushort operand)
 {
+	(void)operand;
 	uint bit_index;
 	uint bank;
 	uint word_offset;
@@ -3045,6 +3077,7 @@ void ndfunc_sbitp(ushort operand)
  */
 void ndfunc_lbytp(ushort operand)
 {
+	(void)operand;
 	uint bank;
 	uint word_offset;
 	uint phys_addr;
@@ -3073,6 +3106,7 @@ void ndfunc_lbytp(ushort operand)
  */
 void ndfunc_sbytp(ushort operand)
 {
+	(void)operand;
 	uint bank;
 	uint word_offset;
 	uint phys_addr;
@@ -3106,6 +3140,7 @@ void ndfunc_sbytp(ushort operand)
  */
 void ndfunc_tsetp(ushort operand)
 {
+	(void)operand;
 	uint bank;
 	uint offset;
 	uint phys_addr;
@@ -3129,6 +3164,7 @@ void ndfunc_tsetp(ushort operand)
  */
 void ndfunc_rdusp(ushort operand)
 {
+	(void)operand;
 	uint bank;
 	uint offset;
 
@@ -3268,6 +3304,7 @@ void ndfunc_szcb(ushort operand)
  */
 void ndfunc_init(ushort operand)
 {
+	(void)operand;
 	ushort demand, start, maxsize, flag;
 
 	demand = MemoryRead(gPC + 0, 0);
@@ -3304,6 +3341,7 @@ void ndfunc_init(ushort operand)
  */
 void ndfunc_entr(ushort operand)
 {
+	(void)operand;
 	ushort oldB, demand, smax, stp;
 	demand = MemoryRead(gPC + 0, 0);
 	smax = MemoryRead(gB - 125, 1); /* SMAX */
@@ -3326,6 +3364,7 @@ void ndfunc_entr(ushort operand)
  */
 void ndfunc_leave(ushort operand)
 {
+	(void)operand;
 	gPC = MemoryRead(gB - 128, 1);
 	gB = MemoryRead(gB - 127, 1);
 }
@@ -3334,6 +3373,7 @@ void ndfunc_leave(ushort operand)
  */
 void ndfunc_eleav(ushort operand)
 {
+	(void)operand;
 	ushort tmp;
 	tmp = MemoryRead(gB - 128, 1) - 1;
 	MemoryWrite(tmp, gB - 128, 1, 2); /* LINK */
@@ -3358,6 +3398,7 @@ void ndfunc_eleav(ushort operand)
 /// </summary>
 void ndfunc_lbyt(ushort operand)
 {
+	(void)operand;
 
 	ushort offset = gX >> 1;
 	ushort memval = MemoryRead(gT + offset, true);
@@ -3385,6 +3426,7 @@ void ndfunc_lbyt(ushort operand)
 /// </summary>
 void ndfunc_sbyt(ushort operand)
 {
+	(void)operand;
 
 	ushort offset = gX >> 1; /* same as divide by 2 */
 
@@ -3417,6 +3459,7 @@ void ndfunc_sbyt(ushort operand)
 /// </summary>
 void ndfunc_mix3(ushort operand)
 {
+	(void)operand;
 	gX = (ushort)((gA - 1) * 3);
 }
 
@@ -3591,7 +3634,6 @@ void DoTRA(ushort instr)
 		return;
 
 	ushort temp, level;
-	ushort i;
 	switch (instr & 0x0F)
 	{
 	case 00: /* TRA PANS */
@@ -3692,7 +3734,6 @@ void DoTRA(ushort instr)
 void DoEXR(ushort instr)
 {
 	ushort sr, exr_instr;
-	char disasm_str[256];
 	sr = (instr >> 3) & 0x07;
 	if (sr)
 		exr_instr = gReg->reg[CurrLEVEL][sr];
@@ -3719,6 +3760,7 @@ void DoEXR(ushort instr)
  */
 void DoWAIT(ushort instr)
 {
+	(void)instr;
 	if (!CheckPriv())
 		return;
 
@@ -3754,6 +3796,7 @@ void DoWAIT(ushort instr)
  */
 void ndfunc_halt(ushort operand)
 {
+	(void)operand;
 	printf("\r\nHALT opcode at PIL[%d] PC[%6o] A[%6o]\r\n", gPIL, gPC, gA);
 	gCpuExitCode = (int)(short)gA;
 	set_cpu_run_mode(CPU_STOPPED);
@@ -3763,6 +3806,7 @@ void ndfunc_halt(ushort operand)
  */
 void ndfunc_lwcs(ushort instr)
 {
+	(void)instr;
 	// LWCS is a no-operation on the ND-110
 	// The ND-110 is software compatible but nor microcode compatible and writing to the writable control store has no meaning in the ND-110.
 	// A no-operation is executed so that programs written for the ND-100 and NORD-10 can continue
@@ -3792,7 +3836,6 @@ void DoTRR(ushort instr)
 	if (!CheckPriv())
 		return;
 
-	int s;
 	ushort temp, level;
 	switch (instr & 0x0F)
 	{
@@ -4189,6 +4232,7 @@ void DoIDENT(ushort priolevel)
 
 void DoRDUS(ushort instr)
 {
+	(void)instr;
 	gA = MemoryRead(gT, true);
 }
 
@@ -4209,6 +4253,7 @@ void DoRDUS(ushort instr)
 /// </summary>
 void DoTSET(ushort instr)
 {
+	(void)instr;
 	// regs.currentRegisters.A = (ushort)cpu.ReadVirtualMemory(regs.currentRegisters.T, PageTable.AlternativePageTable);
 	// cpu.WriteVirtualMemory(regs.currentRegisters.T, 0xFFFF, PageTable.AlternativePageTable); // Write -1
 
@@ -4360,6 +4405,7 @@ void DoMOVEW(ushort instr)
  */
 void DoMOVB(ushort instr)
 {
+	(void)instr;
 	ushort source, dest, lens, lend, len, s_lr, d_lr, s_apt, d_apt;
 	int dir; /* direction, 0=low to high, 1 = high to low */
 	int i;
@@ -4459,6 +4505,7 @@ void DoMOVB(ushort instr)
  */
 void DoMOVBF(ushort instr)
 {
+	(void)instr;
 	ushort source, dest, lens, lend, len, s_lr, d_lr, s_apt, d_apt;
 	int i;
 	ushort thebyte;
@@ -4707,6 +4754,7 @@ void doMoveBytes(bool checkOverlapping)
  */
 void ndfunc_movb(ushort instr)
 {
+	(void)instr;
 	doMoveBytes(false);
 }
 
@@ -4715,6 +4763,7 @@ void ndfunc_movb(ushort instr)
  */
 void ndfunc_movbf(ushort instr)
 {
+	(void)instr;
 	doMoveBytes(true);
 }
 

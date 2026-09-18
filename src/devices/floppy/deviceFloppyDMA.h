@@ -383,11 +383,5 @@ typedef struct
 
 // Function declarations
 Device *CreateFloppyDMADevice(uint8_t thumbwheel);
-static void ExecuteFloppyGo(Device *self);
-static void ExecuteTest(Device *self, int testData);
-static void ExecuteAutoload(Device *self, int drive);
-
-static bool AutoLoadEnd(Device *self, int drive);
-static bool ReadEnd(Device *self, int drive);
 
 #endif /* DEVICE_FLOPPY_DMA_H */

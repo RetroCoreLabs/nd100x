@@ -27,6 +27,7 @@
 #include <getopt.h>
 
 #include "nd100x_types.h"
+#include "nd100x_protos.h"
 #include "../../machine/machine_types.h"
 #include "../../devices/hdlc/hdlc_constants.h"
 #include "../../cpu/cpu_protos.h"

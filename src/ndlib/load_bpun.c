@@ -48,9 +48,6 @@ bool GetLastBPUNHeader(BPUN_Header* out) {
 
 int LoadBPUN(const char* filename, bool verbose) {
     BPUN_Header bpun = {0};
-    uint8_t hi = 0;
-    uint8_t lo = 0;
-    uint16_t word = 0;
     uint8_t err = 0;
 
 	FILE* bpunStream = fopen(filename, "rb");
@@ -302,6 +299,7 @@ bool LoadBPUNStream(FILE* bpunStream, BPUN_Header* header)
 
 int
 bp_load (const char *bpfile) {
+	(void)bpfile;
 	// do binary load of device
    return -1;
 }

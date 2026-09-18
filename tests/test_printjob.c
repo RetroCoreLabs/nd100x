@@ -10,6 +10,7 @@
 #include <unistd.h>
 
 #include "printjob.h"
+#include "test_suites.h"
 
 /* Helpers */
 
@@ -43,7 +44,7 @@ static void feed_string(PrintJob *pj, const char *s)
 
 /* Tests */
 
-int test_pj_text_txt(const char *tmpdir)
+static int test_pj_text_txt(const char *tmpdir)
 {
     char outdir[512];
     snprintf(outdir, sizeof(outdir), "%s/text_txt", tmpdir);
@@ -68,7 +69,7 @@ int test_pj_text_txt(const char *tmpdir)
     return 0;
 }
 
-int test_pj_text_pdf(const char *tmpdir)
+static int test_pj_text_pdf(const char *tmpdir)
 {
     char outdir[512];
     snprintf(outdir, sizeof(outdir), "%s/text_pdf", tmpdir);
@@ -96,7 +97,7 @@ int test_pj_text_pdf(const char *tmpdir)
     return 0;
 }
 
-int test_pj_escp_txt(const char *tmpdir)
+static int test_pj_escp_txt(const char *tmpdir)
 {
     char outdir[512];
     snprintf(outdir, sizeof(outdir), "%s/escp_txt", tmpdir);
@@ -128,7 +129,7 @@ int test_pj_escp_txt(const char *tmpdir)
     return 0;
 }
 
-int test_pj_escp_pdf(const char *tmpdir)
+static int test_pj_escp_pdf(const char *tmpdir)
 {
     char outdir[512];
     snprintf(outdir, sizeof(outdir), "%s/escp_pdf", tmpdir);
@@ -159,7 +160,7 @@ int test_pj_escp_pdf(const char *tmpdir)
     return 0;
 }
 
-int test_pj_job_numbering(const char *tmpdir)
+static int test_pj_job_numbering(const char *tmpdir)
 {
     char outdir[512];
     snprintf(outdir, sizeof(outdir), "%s/numbering", tmpdir);
@@ -205,7 +206,7 @@ int test_pj_job_numbering(const char *tmpdir)
     return 0;
 }
 
-int test_pj_formfeed_split(const char *tmpdir)
+static int test_pj_formfeed_split(const char *tmpdir)
 {
     char outdir[512];
     snprintf(outdir, sizeof(outdir), "%s/ff_split", tmpdir);
@@ -247,7 +248,7 @@ int test_pj_formfeed_split(const char *tmpdir)
     return 0;
 }
 
-int test_pj_check_timeout(const char *tmpdir)
+static int test_pj_check_timeout(const char *tmpdir)
 {
     char outdir[512];
     snprintf(outdir, sizeof(outdir), "%s/timeout", tmpdir);
@@ -265,7 +266,7 @@ int test_pj_check_timeout(const char *tmpdir)
     return 0;
 }
 
-int test_pj_destroy_flushes(const char *tmpdir)
+static int test_pj_destroy_flushes(const char *tmpdir)
 {
     char outdir[512];
     snprintf(outdir, sizeof(outdir), "%s/destroy_flush", tmpdir);

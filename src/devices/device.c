@@ -59,6 +59,7 @@ uint8_t Device_GetOddParity(uint8_t value)
 
 void Device_Init(Device *dev, uint8_t thumbwheel, DeviceClass deviceClass, size_t blockSize)
 {
+    (void)thumbwheel;
     if (!dev)
         return;
 
@@ -284,6 +285,7 @@ void Device_SetInterruptStatus(Device *dev, bool active, uint16_t level)
 
 int32_t Device_IO_Seek(Device *dev, FILE *f, long  offset)
 {
+    (void)dev;
     if (!f) return -1;
     return fseek(f, offset, SEEK_SET);
 }
@@ -291,6 +293,7 @@ int32_t Device_IO_Seek(Device *dev, FILE *f, long  offset)
 
 int32_t Device_IO_ReadWord(Device *dev, FILE *f)
 {
+    (void)dev;
     if (!f)
         return -1;
 
@@ -309,6 +312,7 @@ int32_t Device_IO_ReadWord(Device *dev, FILE *f)
 
 int32_t Device_IO_BufferReadWord(Device *dev, uint8_t *buf, int32_t word_offset)
 {
+    (void)dev;
     if (!buf)
         return -1;
 
@@ -331,6 +335,7 @@ int32_t Device_IO_BufferReadWord(Device *dev, uint8_t *buf, int32_t word_offset)
 
 int32_t Device_IO_WriteWord(Device *dev, FILE *f, uint16_t data)
 {
+    (void)dev;
     if (!f)
         return -1;
 
@@ -349,6 +354,7 @@ int32_t Device_IO_WriteWord(Device *dev, FILE *f, uint16_t data)
 
 int32_t Device_IO_BufferWriteWord(Device *dev,uint8_t *buf, int32_t word_offset, uint16_t data)
 {
+    (void)dev;
     if (!buf)
         return -1;
 

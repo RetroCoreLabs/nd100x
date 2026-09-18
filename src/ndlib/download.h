@@ -23,6 +23,8 @@
 #ifndef DOWNLOAD_H
 #define DOWNLOAD_H
 
+#include <stddef.h>
+
 // Unified download function that can handle both JSON and binary files
 char* download_file(const char* url);
 

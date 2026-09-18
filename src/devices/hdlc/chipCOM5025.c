@@ -31,11 +31,9 @@ static void COM5025_SetOutputPin(COM5025State *chip, COM5025SignalPinOut pin, bo
 static void COM5025_ClearAllInputPins(COM5025State *chip);
 static void COM5025_SetTransmitterBufferEmpty(COM5025State *chip);
 static void COM5025_ClearTransmitterBufferEmpty(COM5025State *chip);
-static void COM5025_SetUnderflow(COM5025State *chip);
 static void COM5025_WriteTransmitterDataBuffer(COM5025State *chip, uint8_t data);
 static void COM5025_MoveTDBtoTSR(COM5025State *chip);
 static void COM5025_WriteDataToTSR(COM5025State *chip, uint8_t data);
-static void COM5025_WriteFlagToTSR(COM5025State *chip, uint8_t flagByte);
 static void COM5025_TransmitByteOutput(COM5025State *chip, uint8_t data, bool isData);
 static void COM5025_SendOneByte(COM5025State *chip, uint8_t data);
 static bool COM5025_TSR_Empty(COM5025State *chip);
@@ -489,14 +487,6 @@ static void COM5025_ClearTransmitterBufferEmpty(COM5025State *chip)
     COM5025_SetOutputPin(chip, COM5025_PIN_OUT_TBMT, false);
 }
 
-static void COM5025_SetUnderflow(COM5025State *chip)
-{
-    if (!chip) return;
-    // Underflow, set high when TDB not loaded in time to maintain continuous transmission
-    registers.txStatusAndControl |= COM5025_TX_STATUS_TERR;
-    COM5025_SetOutputPin(chip, COM5025_PIN_OUT_TSA, true);
-}
-
 static void COM5025_WriteTransmitterDataBuffer(COM5025State *chip, uint8_t data)
 {
     if (!chip) return;
@@ -531,22 +521,6 @@ static void COM5025_WriteDataToTSR(COM5025State *chip, uint8_t data)
     registers.transmitterShiftRegisterBit = 8;
     registers.tsrCountOnes = 0;
     registers.tsrEnableBitStuffing = true; // enable bit stuffing
-}
-
-static void COM5025_WriteFlagToTSR(COM5025State *chip, uint8_t flagByte)
-{
-    if (!chip) return;
-
-    // Transmit data for the BYTE oriented way, and calculate CRC
-    COM5025_TransmitByteOutput(chip, flagByte, false);
-
-    // Shift register logic starts here
-    registers.transmitterShiftRegister = flagByte;
-    registers.transmitterShiftRegisterBit = 8;
-    registers.tsrCountOnes = 0;
-    registers.tsrEnableBitStuffing = false; // disable bit stuffing
-
-    // NOTE! Do not set TDR empty flag, writing FLAG doesn't touch the TDR register
 }
 
 static void COM5025_TransmitByteOutput(COM5025State *chip, uint8_t data, bool isData)

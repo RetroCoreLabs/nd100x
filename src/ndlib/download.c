@@ -24,6 +24,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "download.h"
+
 #if defined(PLATFORM_WASM) || defined(__EMSCRIPTEN__) || defined(PLATFORM_RISCV) || !defined(HAVE_CURL)
 
 // No libcurl on this platform. Provide stubs so machine.c / menu.c still link.

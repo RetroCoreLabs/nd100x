@@ -371,6 +371,7 @@ static char g_list_dir[256];
 static char g_list_pattern[64];
 
 static void run_list(void *arg) {
+    (void)arg;
     char *argv[2] = { (char *)"LIST-FILES", g_list_pattern };
     cmd_list_files(g_list_dir, 2, argv);
 }

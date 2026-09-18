@@ -40,6 +40,10 @@ static struct CpuRegs bcdtest_regs;
 
 struct CpuRegs *gReg = &bcdtest_regs;
 
+/* Stubs for the real functions in src/cpu/cpu_mms.c (cpu_protos.h). */
+ushort MemoryRead(ushort addr, bool UseAPT);
+void MemoryWrite(ushort value, ushort addr, bool UseAPT, unsigned char byte_select);
+
 ushort MemoryRead(ushort addr, bool UseAPT)
 {
     (void)UseAPT;

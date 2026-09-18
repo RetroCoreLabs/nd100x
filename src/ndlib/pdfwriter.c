@@ -122,19 +122,6 @@ void Pdf_AddTextSpan(PdfDocument *doc, int pageIndex,
     span->text = strdup(text);
 }
 
-// Escape special PDF string characters: \ ( )
-static void pdf_write_escaped_string(FILE *f, const char *text)
-{
-    fputc('(', f);
-    for (const char *p = text; *p; p++) {
-        if (*p == '(' || *p == ')' || *p == '\\') {
-            fputc('\\', f);
-        }
-        fputc(*p, f);
-    }
-    fputc(')', f);
-}
-
 // Select font name based on style flags
 static const char *pdf_font_name(uint8_t style)
 {

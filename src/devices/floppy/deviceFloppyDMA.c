@@ -30,6 +30,14 @@
 #include "../devices_protos.h"
 #include "deviceFloppyDMA.h"
 
+/* File-local helpers (defined below) */
+static void ExecuteFloppyGo(Device *self);
+static void ExecuteTest(Device *self, int testData);
+static void ExecuteAutoload(Device *self, int drive);
+
+static bool AutoLoadEnd(Device *self, int drive);
+static bool ReadEnd(Device *self, int drive);
+
 /// <summary>
 /// Floppy Disk Controller - 3112
 /// 3112 is the 8 inch and 5.25 inch floppy controller + streamer controller card
@@ -325,6 +333,7 @@ static int DmaAutoloadErrorImage(int errorCodeOctal6bit)
 // Load floppy monitor (FLO-LOAD, almost like BPUN from the first sector)
 static void ExecuteAutoload(Device *self, int drive)
 {
+    (void)drive;
     FloppyDMAData *data = (FloppyDMAData *)self->deviceData;
     if (!data)
         return;
@@ -352,6 +361,7 @@ static void ExecuteAutoload(Device *self, int drive)
 // Se page 16 of 3027 manual
 static void ExecuteTest(Device *self, int testData)
 {
+    (void)self; (void)testData;
     // TODO: Implement
 
 #ifdef DEBUG_FLOPPY_DMA
@@ -387,10 +397,7 @@ static void ExecuteFloppyGo(Device *self)
         return;
 
     // Set Default floppy values
-    uint32_t sector = 1;
-    uint32_t track = 0;
     uint32_t bytes_pr_sector = 512;
-    uint32_t sectors_pr_track = 18; // Double Density has 8 sectors per track
 
     // Find ND100 memory address
     data->commandBlockAddress = data->pointerLO | (data->pointerHI << 16);
@@ -414,9 +421,6 @@ static void ExecuteFloppyGo(Device *self)
     data->command = (FloppyFunction)(data->commandBlock.fields.commandWord & 0b111111);
     data->drive = (data->commandBlock.fields.commandWord >> 6) & 0b11;
     uint32_t floppyFormat = (data->commandBlock.fields.commandWord >> 8) & 0b11;
-    uint32_t doubleSided = (data->commandBlock.fields.commandWord >> 10) & 0b1;
-    uint32_t doubleDensity = (data->commandBlock.fields.commandWord >> 11) & 0b1;
-    uint32_t copyDestination = (data->commandBlock.fields.commandWord >> 14) & 0b1; // When copying from one device to another ?
 
     // Get information on file size and readonly
     if (self->blockCallbacks.diskInfoFunc)
@@ -448,8 +452,6 @@ static void ExecuteFloppyGo(Device *self)
     // Reflect current sector size on the device so block callbacks know bytes per block
     self->blockSizeBytes = bytes_pr_sector;
 
-    sector = (data->commandBlock.fields.diskAddress % (sectors_pr_track - 1)) + 1;
-    track = data->commandBlock.fields.diskAddress / sectors_pr_track;
 
     uint32_t position = data->commandBlock.fields.diskAddress * bytes_pr_sector;
     uint32_t wordsToRead = wordCount;
@@ -729,6 +731,7 @@ static void ExecuteFloppyGo(Device *self)
 
 static bool ReadEnd(Device *self, int drive)
 {
+    (void)drive;
     FloppyDMAData *data = (FloppyDMAData *)self->deviceData;
     if (!data)
         return false;
@@ -745,6 +748,7 @@ static bool ReadEnd(Device *self, int drive)
 
 static bool AutoLoadEnd(Device *self, int drive)
 {
+    (void)drive;
     FloppyDMAData *data = (FloppyDMAData *)self->deviceData;
     if (!data)
         return false;

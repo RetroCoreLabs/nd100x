@@ -368,6 +368,7 @@ static uint16_t Terminal_Ident(Device *self, uint16_t level)
 
 static bool WriteEnd(void *context, int param)
 {
+    (void)param;
     Device *self = (Device *)context;
     if (!self)
         return false;

@@ -716,7 +716,6 @@ static int tape_leader_load(const char *path, bool verbose)
  int program_load(BOOT_TYPE bootType, int bootUnit, const char *imageFile, bool verbose, uint16_t text_start, bool overlay_deposit)
  {
      int bootAddress;
-     int result;
      STARTADDR = 0;
 
      switch (bootType)

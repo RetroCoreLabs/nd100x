@@ -15,6 +15,10 @@
 #include <unistd.h>
 
 /* ---- Stubs for load_prog.c's externals -------------------------------- */
+/* Stubs for the real functions in src/cpu (cpu_protos.h); prototypes match. */
+void WritePhysicalMemory(int physicalAddress, uint16_t value, bool privileged);
+void disasm_addword(uint16_t addr, uint16_t myword);
+
 static uint16_t g_mem[65536];
 static int      g_writes;
 void WritePhysicalMemory(int physicalAddress, uint16_t value, bool privileged) {

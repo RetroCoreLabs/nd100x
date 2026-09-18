@@ -266,6 +266,7 @@ uint GetPageTableEntry(uint pageTable, uint VPN,PageTableMode ptm)
 // read all page tables regardless of which level happens to be active.
 uint GetPageTableEntryForDebugger(uint pageTable, uint VPN, PageTableMode ptm)
 {
+    (void)ptm;
     if (!g_paging_tables.shadowRam) return 0;
     if (pageTable >= 16) return 0;
 
@@ -353,6 +354,7 @@ uint SetPageWritten(uint pageTable, uint VPN,PageTableMode ptm, uint PTe)
 // Get debug info for page table entry
 const char* GetPageTableEntryDebugInfo(ulong PTe)
 {
+    (void)PTe;
 #ifdef DEBUG_MMS
     static char debugInfo[256];
     debugInfo[0] = '\0';
@@ -1041,6 +1043,7 @@ void HandleMemoryOutOfRange(uint physicalAddress)
 /// @param virtualAddress
 void HandleMPV(uint virtualAddress)
 {
+    (void)virtualAddress;
 #ifdef DEBUG_MMS
     static int mpv_count = 0;
     uint VPN = (virtualAddress >> 10) & 0x3F;
@@ -1067,6 +1070,7 @@ void HandleMPV(uint virtualAddress)
 /// @param virtualAddress
 void HandlePF(uint virtualAddress)
 {
+    (void)virtualAddress;
     //printf("HandlePF: %06o\n", virtualAddress);
     interrupt(14, 1 << 3); // PF - PAGE_FAULT bit 3
 }

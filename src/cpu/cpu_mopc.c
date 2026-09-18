@@ -116,7 +116,6 @@ void mopc_cmd(char *cmdstr, char cmdc)
 /* TODO:: NO ERROR CHECKING CURRENTLY DONE!!!! Need to see how real ND mopc behaves first */
 void mopc_thread(void)
 {
-	int s;
 	char ch;
 	char str[256];
 	unsigned char ptr = 0; /* points to next free char position in str */

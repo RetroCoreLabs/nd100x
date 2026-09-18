@@ -32,6 +32,12 @@ Device *CreateRTCDevice(uint8_t thumbwheel);
 void RTC_SetWallClockMode(bool enable);
 
 /* ---- Device_* stubs (deviceRTC.c uses exactly these four) ---- */
+/* Prototypes match src/devices/device.c (devices_protos.h). */
+void Device_Init(Device *dev, uint8_t thumbwheel, DeviceClass deviceClass, size_t blockSize);
+void Device_TickIODelay(Device *dev);
+void Device_SetInterruptStatus(Device *dev, bool active, uint16_t level);
+uint32_t Device_RegisterAddress(Device *dev, uint32_t address);
+
 void Device_Init(Device *dev, uint8_t thumbwheel, DeviceClass deviceClass, size_t blockSize)
 {
     memset(dev, 0, sizeof(*dev));

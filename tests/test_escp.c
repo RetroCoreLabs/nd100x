@@ -9,6 +9,7 @@
 #include <math.h>
 
 #include "escp.h"
+#include "test_suites.h"
 
 /* Helpers */
 
@@ -20,15 +21,9 @@ static void feed_string(EscpContext *ctx, const char *s)
         Escp_PutChar(ctx, (uint8_t)*p);
 }
 
-static void feed_bytes(EscpContext *ctx, const uint8_t *data, int len)
-{
-    for (int i = 0; i < len; i++)
-        Escp_PutChar(ctx, data[i]);
-}
-
 /* Tests */
 
-int test_escp_plain_text(void)
+static int test_escp_plain_text(void)
 {
     EscpContext *ctx = Escp_Create();
     assert(ctx != NULL);
@@ -48,7 +43,7 @@ int test_escp_plain_text(void)
     return 0;
 }
 
-int test_escp_cr_lf_ff(void)
+static int test_escp_cr_lf_ff(void)
 {
     EscpContext *ctx = Escp_Create();
 
@@ -73,7 +68,7 @@ int test_escp_cr_lf_ff(void)
     return 0;
 }
 
-int test_escp_bold(void)
+static int test_escp_bold(void)
 {
     EscpContext *ctx = Escp_Create();
 
@@ -98,7 +93,7 @@ int test_escp_bold(void)
     return 0;
 }
 
-int test_escp_italic(void)
+static int test_escp_italic(void)
 {
     EscpContext *ctx = Escp_Create();
 
@@ -121,7 +116,7 @@ int test_escp_italic(void)
     return 0;
 }
 
-int test_escp_underline(void)
+static int test_escp_underline(void)
 {
     EscpContext *ctx = Escp_Create();
 
@@ -146,7 +141,7 @@ int test_escp_underline(void)
     return 0;
 }
 
-int test_escp_pitch_elite(void)
+static int test_escp_pitch_elite(void)
 {
     EscpContext *ctx = Escp_Create();
 
@@ -170,7 +165,7 @@ int test_escp_pitch_elite(void)
     return 0;
 }
 
-int test_escp_condensed(void)
+static int test_escp_condensed(void)
 {
     EscpContext *ctx = Escp_Create();
 
@@ -200,7 +195,7 @@ int test_escp_condensed(void)
     return 0;
 }
 
-int test_escp_expanded(void)
+static int test_escp_expanded(void)
 {
     EscpContext *ctx = Escp_Create();
 
@@ -236,7 +231,7 @@ int test_escp_expanded(void)
     return 0;
 }
 
-int test_escp_line_spacing(void)
+static int test_escp_line_spacing(void)
 {
     EscpContext *ctx = Escp_Create();
 
@@ -282,7 +277,7 @@ int test_escp_line_spacing(void)
     return 0;
 }
 
-int test_escp_reset(void)
+static int test_escp_reset(void)
 {
     EscpContext *ctx = Escp_Create();
 
@@ -315,7 +310,7 @@ int test_escp_reset(void)
     return 0;
 }
 
-int test_escp_strip_mode(void)
+static int test_escp_strip_mode(void)
 {
     EscpContext *ctx = Escp_Create();
 
@@ -348,7 +343,7 @@ int test_escp_strip_mode(void)
     return 0;
 }
 
-int test_escp_page_count(void)
+static int test_escp_page_count(void)
 {
     EscpContext *ctx = Escp_Create();
 
@@ -373,7 +368,7 @@ int test_escp_page_count(void)
     return 0;
 }
 
-int test_escp_backspace(void)
+static int test_escp_backspace(void)
 {
     EscpContext *ctx = Escp_Create();
 

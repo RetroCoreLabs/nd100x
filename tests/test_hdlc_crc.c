@@ -9,6 +9,7 @@
 
 #include "../src/devices/hdlc/hdlcFrame.h"
 #include "../src/devices/hdlc/hdlc_crc.h"
+#include "test_suites.h"
 
 static int failures = 0;
 

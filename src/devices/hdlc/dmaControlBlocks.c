@@ -45,7 +45,9 @@
 // Static function declarations
 static void DMAControlBlocks_DMAWrite(DMAControlBlocks *dmaCB, uint32_t address, uint16_t data);
 static int DMAControlBlocks_DMARead(DMAControlBlocks *dmaCB, uint32_t address);
+#if defined(DMA_DEBUG) || defined(DEBUG_DETAIL) || defined(RX_BLAST_LOGGING)
 static void DMAControlBlocks_Log(DMAControlBlocks *dmaCB, const char *format, ...);
+#endif
 
 void DMAControlBlocks_Init(DMAControlBlocks *dcbs, struct Device *hdlcDevice)
 {
@@ -151,6 +153,7 @@ void DMAControlBlocks_Clear(DMAControlBlocks *dmaCB)
 
 void DMAControlBlocks_SetTXPointer(DMAControlBlocks *dmaCB, uint32_t listPointer, int offset)
 {
+    (void)offset;
     if (!dmaCB) return;
 
     dmaCB->txListPointer = listPointer;
@@ -365,6 +368,7 @@ void DMAControlBlocks_MarkBufferReceived(DMAControlBlocks *dmaCB, uint8_t rxStat
 
 HdlcDCB* DMAControlBlocks_LoadBufferDescription(DMAControlBlocks *dmaCB, uint32_t listPointer, uint16_t offset, bool isRX)
 {
+    (void)isRX;
     if (!dmaCB || listPointer == 0) return NULL;
 
     uint32_t actualListPointer = listPointer + (uint32_t)(offset * 4);
@@ -395,15 +399,12 @@ HdlcDCB* DMAControlBlocks_LoadBufferDescription(DMAControlBlocks *dmaCB, uint32_
 
     // Set displacement based on offset
     uint16_t displacement;
-    const char *disp;
     if (offset == 0) {
         // First buffer in the list uses Displacement1
         displacement = dmaCB->parameters ? (uint16_t)dmaCB->parameters->displacement1 : 0;
-        disp = "1";
     } else {
         // All other buffers use Displacement2
         displacement = dmaCB->parameters ? (uint16_t)dmaCB->parameters->displacement2 : 0;
-        disp = "2";
     }
     DCB_SetDisplacement(description, displacement);
 
@@ -626,6 +627,7 @@ static int DMAControlBlocks_DMARead(DMAControlBlocks *dmaCB, uint32_t address)
     return dmaCB->onReadDMA(dmaCB->callbackContext, address);
 }
 
+#if defined(DMA_DEBUG) || defined(DEBUG_DETAIL) || defined(RX_BLAST_LOGGING)
 static void DMAControlBlocks_Log(DMAControlBlocks *dmaCB, const char *format, ...)
 {
     char buffer[512];
@@ -641,3 +643,4 @@ static void DMAControlBlocks_Log(DMAControlBlocks *dmaCB, const char *format, ..
     // TODO: Replace with actual logging function
     printf("%s\n", finalBuffer);
 }
+#endif

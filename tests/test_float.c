@@ -35,6 +35,9 @@ struct CpuRegs *gReg = &fptest_regs;
 
 static int fptest_z_set;
 
+/* Stub for the real setbit() in src/cpu (cpu_protos.h). */
+void setbit(ushort regnum, ushort stsbit, char val);
+
 void setbit(ushort regnum, ushort stsbit, char val)
 {
     (void)regnum;

@@ -88,6 +88,7 @@ static void DMAEngine_RXInterrupt(void *context, uint8_t bit)
 
 void DMAEngine_Init(DMAEngine *dma, bool burstMode, struct Device *hdlcDevice, void *modem, void *com5025)
 {
+    (void)burstMode;
     if (!dma) return;
 
     memset(dma, 0, sizeof(DMAEngine));

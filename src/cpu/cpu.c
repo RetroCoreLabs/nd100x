@@ -406,7 +406,6 @@ void recalcInternalInterruptBits(void)
 void calcPK(void)
 {
 	// Recalculate PK based on PID and PIE
-	int s;
 	int lvl;
 	ushort i;
 	gPK = 0;
@@ -433,7 +432,6 @@ void calcPK(void)
  */
 void interrupt(ushort lvl, ushort sub)
 {
-	int s;
 
 	if (lvl == 14)
 	{

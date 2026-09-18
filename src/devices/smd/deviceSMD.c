@@ -819,7 +819,6 @@ static int SMD_Boot(Device *self, int unit)
     if (!buffer) return -1;
 
     int wordCounter = 2048; // Load 2 KW of data from the disk (4096 bytes) to memory starting at address 0
-    uint32_t coreAddress = 0;
 
     // Read all blocks from SMD disk file into buffer
     int blocksRead = self->blockCallbacks.readFunc(self, buffer, blockCounter, 0, regs->selectedUnit);
@@ -1133,7 +1132,7 @@ static void ExecuteGO(Device *self)
         while (wordCounter > 0)
         {
             // Read word from disk
-            uint32_t readData = Device_IO_BufferReadWord(self, buffer, buffer_ptr++);
+            (void)Device_IO_BufferReadWord(self, buffer, buffer_ptr++);
 
             //if (readData != WHAT??) then ERROR ?
 

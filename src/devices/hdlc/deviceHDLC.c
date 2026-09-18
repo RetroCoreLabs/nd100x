@@ -1155,49 +1155,6 @@ static void HDLC_UpdateRQTS(Device *self)
     }
 }
 
-static void HDLC_SetBaudRate(Device *self, HDLCBaudRate baudRate)
-{
-    if (!self) return;
-
-    HDLCData *data = (HDLCData *)self->deviceData;
-    data->baudRate = baudRate;
-
-    // Configure actual timing based on baud rate (equivalent to C# CPU_TICKS_DIVIDER)
-    // If ND-100 Clock is 40 MHz, calculate the timing divider for each baud rate
-    switch (baudRate) {
-        case HDLC_BAUD_307200:
-            data->cpuTicksPerTx = 130;  // 40MHz / 307200
-            break;
-        case HDLC_BAUD_153600:
-            data->cpuTicksPerTx = 260;  // 40MHz / 153600
-            break;
-        case HDLC_BAUD_76800:
-            data->cpuTicksPerTx = 521;  // 40MHz / 76800
-            break;
-        case HDLC_BAUD_38400:
-            data->cpuTicksPerTx = 1042; // 40MHz / 38400
-            break;
-        case HDLC_BAUD_19200:
-            data->cpuTicksPerTx = 2083; // 40MHz / 19200
-            break;
-        case HDLC_BAUD_9600:
-            data->cpuTicksPerTx = 4167; // 40MHz / 9600
-            break;
-        case HDLC_BAUD_4800:
-            data->cpuTicksPerTx = 8333; // 40MHz / 4800
-            break;
-        case HDLC_BAUD_2400:
-            data->cpuTicksPerTx = 16667; // 40MHz / 2400
-            break;
-        case HDLC_BAUD_1200:
-            data->cpuTicksPerTx = 33333; // 40MHz / 1200
-            break;
-        default:
-            data->cpuTicksPerTx = 4167;  // Default to 9600 bps
-            break;
-    }
-}
-
 // Core HDLC functionality implementation complete.
 // =========================================================
 // Public accessors for external inspection (menu, debugging)

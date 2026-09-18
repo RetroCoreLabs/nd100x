@@ -296,34 +296,6 @@ void dump_stats(void)
     }
 }
 
-// Map a --cputype=TYPE name (case-insensitive) to a CpuType enum value.
-// Returns true and writes *out on a match; false on an unknown name.
-// Kept in lock-step with the CpuType enum in src/cpu/cpu_types.h.
-static bool cpu_type_from_name(const char *name, CpuType *out)
-{
-    static const struct { const char *name; CpuType type; } table[] = {
-        {"ND1",      ND1},
-        {"ND4",      ND4},
-        {"ND10",     ND10},
-        {"ND100",    ND100},
-        {"ND100CE",  ND100CE},
-        {"ND100CX",  ND100CX},
-        {"ND110",    ND110},
-        {"ND110CE",  ND110CE},
-        {"ND110CX",  ND110CX},
-        {"ND110PCX", ND110PCX},
-        {"ND120CX",  ND120CX},
-    };
-    if (!name) return false;
-    for (size_t i = 0; i < sizeof(table) / sizeof(table[0]); i++) {
-        if (strcasecmp(name, table[i].name) == 0) {
-            if (out) *out = table[i].type;
-            return true;
-        }
-    }
-    return false;
-}
-
 // Apply a --cputype=TYPE override to CurrentCPUType. MUST run BEFORE machine_init
 // (-> cpu_init -> Setup_Instructions), which reads CurrentCPUType to decide which
 // opcodes to install (VERSN, the ND-110-only privileged instructions, RTNSIM on
@@ -1049,7 +1021,6 @@ int main(int argc, char *argv[])
                 TelnetServer_RegisterTerminal(telnetServer, &info);
 
                 // Replace output handler with telnet-aware version
-                extern void telnet_output_handler(struct Device *device, char c);
                 Device_SetCharacterOutput(dev, telnet_output_handler);
             }
 

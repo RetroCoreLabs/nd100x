@@ -133,7 +133,6 @@ typedef struct {
 
 static SourceReferenceMap *source_refs = NULL;
 static int source_ref_count = 0;
-static int next_source_ref = 1000;  // Start from 1000
 
 // Console I/O capture support
 #define MAX_CONSOLE_CAPTURES 8
@@ -299,6 +298,7 @@ void start_debugger(void)
 /// @param exit_code
 void ndx_server_terminate(int sig)
 {
+    (void)sig;
 
     // Sends a terminated event to the client and terminate the DAP server
     dap_server_terminate(g_dap_server, 0);
@@ -369,6 +369,7 @@ const char *cpuStopReasonToString(CpuStopReason r)
 
 static int cmd_wait_for_debugger(DAPServer *server)
 {
+    (void)server;
 #ifdef __EMSCRIPTEN__
     /* WASM: single-threaded, just request pause */
     (void)server;
@@ -402,6 +403,7 @@ static int cmd_wait_for_debugger(DAPServer *server)
 
 static int cmd_release_debugger(DAPServer *server)
 {
+    (void)server;
     // Release debugger's request to pause (let CPU decide to run/step)
     set_debugger_request_pause(false);
 
@@ -494,27 +496,6 @@ static bool is_procedure_call(uint16_t operand)
     // ENTR sets up a stack frame INSIDE a function but doesn't jump/call
     // It just advances PC by 2 after setting up the frame
     // The actual call happens via JPL before ENTR is executed
-
-    return false;
-}
-
-/// @brief Check if instruction is a return (EXIT or similar)
-/// @param operand The instruction word
-/// @return true if instruction is a return, false otherwise
-/// @note This only detects EXIT which returns via L register (paired with JPL)
-///       For stack frame returns (LEAVE/ELEAV), use is_c_function_epilogue()
-static bool is_procedure_return(uint16_t operand)
-{
-    // EXIT instruction - Return via L register
-    // Opcode: 0146142 (octal) - This is "COPY SL DP" which does P = L
-    // Used with JPL calling convention: JPL saves to L, EXIT returns via L
-    if (operand == 0146142) {
-        return true;
-    }
-
-    // Note: LEAVE (0140136) and ELEAV (0140137) are NOT included here
-    // They return via stack LINK (Memory[B-128]), not via L register
-    // Those are detected by is_c_function_epilogue() instead
 
     return false;
 }
@@ -1106,93 +1087,6 @@ static bool str_ends_with(const char *str, const char *suffix)
     return strcmp(str + str_len - suffix_len, suffix) == 0;
 }
 
-/// @brief Check if a file exists on disk
-/// @param filepath Path to the file
-/// @return true if file exists, false otherwise
-static bool file_exists(const char *filepath)
-{
-    if (!filepath) return false;
-
-    FILE *f = fopen(filepath, "r");
-    if (f) {
-        fclose(f);
-        return true;
-    }
-    return false;
-}
-
-/// @brief Get or create a source reference for a file
-/// @param filepath Path to the source file
-/// @return Source reference ID (> 0) or 0 on error
-static int get_or_create_source_reference(const char *filepath)
-{
-    if (!filepath) return 0;
-
-    // Check if we already have a reference for this file
-    for (int i = 0; i < source_ref_count; i++) {
-        if (source_refs[i].filepath && strcmp(source_refs[i].filepath, filepath) == 0) {
-            return source_refs[i].sourceReference;
-        }
-    }
-
-    // Create new reference
-    source_ref_count++;
-    source_refs = realloc(source_refs, source_ref_count * sizeof(SourceReferenceMap));
-    if (!source_refs) {
-        source_ref_count--;
-        return 0;
-    }
-
-    int idx = source_ref_count - 1;
-    source_refs[idx].sourceReference = next_source_ref++;
-    source_refs[idx].filepath = strdup(filepath);
-    source_refs[idx].content = NULL;  // Load on demand
-
-    return source_refs[idx].sourceReference;
-}
-
-/// @brief Load source file content by reference
-/// @param sourceReference The source reference ID
-/// @return File content (caller must free) or NULL on error
-static char *load_source_file_by_reference(int sourceReference)
-{
-    // Find the source reference
-    for (int i = 0; i < source_ref_count; i++) {
-        if (source_refs[i].sourceReference == sourceReference) {
-            // Return cached content if available
-            if (source_refs[i].content) {
-                return strdup(source_refs[i].content);
-            }
-
-            // Load from file
-            if (source_refs[i].filepath) {
-                FILE *f = fopen(source_refs[i].filepath, "r");
-                if (!f) return NULL;
-
-                // Get file size
-                fseek(f, 0, SEEK_END);
-                long size = ftell(f);
-                fseek(f, 0, SEEK_SET);
-
-                // Read content
-                char *content = malloc(size + 1);
-                if (content) {
-                    fread(content, 1, size, f);
-                    content[size] = '\0';
-
-                    // Cache it
-                    source_refs[i].content = strdup(content);
-                }
-
-                fclose(f);
-                return content;
-            }
-        }
-    }
-
-    return NULL;
-}
-
 /// @brief Free all source references
 static void free_source_references(void)
 {
@@ -1250,6 +1144,7 @@ static int cmd_step_out(DAPServer *server)
 
 static int cmd_continue(DAPServer *server)
 {
+    (void)server;
 
     CPURunMode run_mode = get_cpu_run_mode();
     if ((run_mode == CPU_PAUSED) || (run_mode == CPU_BREAKPOINT))
@@ -1569,6 +1464,7 @@ static void add_local_variables(DAPServer *server, char *info_message, size_t in
 
 static void add_level_variables(DAPServer *server, char *info_message, size_t info_message_size)
 {
+    (void)info_message; (void)info_message_size;
 
     char value_str[100];
 
@@ -1618,7 +1514,6 @@ static void add_level_variables(DAPServer *server, char *info_message, size_t in
             pt = (rPCR >> 9) & 0x03;
             apt = (rPCR >> 7) & 0x03;
         }
-        ushort priority = (rPCR >> 2) & 0x07;
         char pcr_str[100];
         sprintf(pcr_str, "Ring[%d] PT[%d] APT[%d] P[%06d]", ring, pt, apt, rP);
 
@@ -1690,7 +1585,6 @@ static void add_register_variables(DAPServer *server, char *info_message, size_t
              "Loading CPU registers\n");
 
     // Property kind with no attributes
-    const char *property_kind = "property";
 
     server->current_command.context.variables.variable_count = 0;
 
@@ -1699,7 +1593,7 @@ static void add_register_variables(DAPServer *server, char *info_message, size_t
 
     // Add the ST register (Status register)
     snprintf(value_str, sizeof(value_str), "%06o", gSTSr);
-    DAPVariable *var = add_variable_to_array(
+    add_variable_to_array(
         server,
         "STS",     // name
         value_str, // value
@@ -1829,8 +1723,6 @@ static void add_internal_registers_read_variables(DAPServer *server, char *info_
              "Loading internal CPU registers\n");
 
     // Property kind with readonly attribute
-    const char *property_kind = "property";
-    const char *readonly_attrs[] = {"readOnly"};
 
     server->current_command.context.variables.variable_count = 0;
 
@@ -1894,7 +1786,6 @@ static void add_internal_registers_write_variables(DAPServer *server, char *info
              "Loading internal CPU registers\n");
 
     // Property kind with readonly attribute
-    const char *property_kind = "property";
 
     server->current_command.context.variables.variable_count = 0;
 
@@ -1954,8 +1845,6 @@ static void add_status_flag_variables(DAPServer *server, char *info_message, siz
              "Loading CPU status flags\n");
 
     // Property kind with readonly attribute
-    const char *property_kind = "property";
-    const char *readonly_attrs[] = {"readOnly"};
 
     server->current_command.context.variables.variable_count = 0;
 
@@ -2080,49 +1969,33 @@ char *GetPageTableMemoryRange(uint32_t PTe)
 {
     static char debugInfo[256];
     debugInfo[0] = '\0';
-    uint32_t PPN = 0;
-
-    if (STS_SEXI)
-    {
-        // Use lower 14-bit
-        PPN = (uint16_t)(PTe & 0x3FFF);
-    }
-    else
-    {
-        // "normal" mode, use only the lower 9-bits
-        PPN = (uint16_t)(PTe & 0x1FF);
-    }
+    (void)PTe; /* decoding the entry is not implemented; callers get "" */
 
     return debugInfo;
 }
 
 static void add_page_mms_entries(DAPServer *server, char *info_message, size_t info_message_size)
 {
+    (void)info_message; (void)info_message_size;
 
     // Property kind with readonly attribute
-    const char *property_kind = "property";
-    const char *no_attributes[] = {NULL};
 
     // Get PCR for current runlevel
     ushort rPCR = gReg->reg_PCR[gPIL];
     ushort pt = 0, apt = 0;
-    PageTableMode ptm = Four; // Default to four page tables
 
     // decode PT and APT PCR
-    ushort ring = rPCR & 0x03;
     if (rPCR & (1 << 2))
     {
         // Sixteen page table mode
         pt = (rPCR >> 11) & 0x0F;
         apt = (rPCR >> 7) & 0x0F;
-        ptm = Sixteen;
     }
     else
     {
         // Four page table mode
         pt = (rPCR >> 9) & 0x03;
         apt = (rPCR >> 7) & 0x03;
-        ptm = Four;
     }
 
     char display_name[64];
@@ -2176,10 +2049,9 @@ static void add_page_mms_entries(DAPServer *server, char *info_message, size_t i
  */
 static void add_page_table_entries(DAPServer *server, char *info_message, size_t info_message_size, bool useAPT)
 {
+    (void)info_message; (void)info_message_size;
 
     // Property kind with readonly attribute
-    const char *property_kind = "property";
-    const char *no_attributes[] = {NULL};
 
     // Get PCR for current runlevel
     ushort rPCR = gReg->reg_PCR[gPIL];
@@ -2187,7 +2059,6 @@ static void add_page_table_entries(DAPServer *server, char *info_message, size_t
     PageTableMode ptm = Four; // Default to four page tables
 
     // decode PT and APT PCR
-    ushort ring = rPCR & 0x03;
     if (rPCR & (1 << 2))
     {
         // Sixteen page table mode
@@ -2838,9 +2709,7 @@ static int on_set_exception_breakpoints(DAPServer *server)
     }
 
     // Access filter data from the server's current command context
-    const char **filters = server->current_command.context.exception.filters;
     size_t filter_count = server->current_command.context.exception.filter_count;
-    const char **conditions = server->current_command.context.exception.conditions;
     size_t condition_count = server->current_command.context.exception.condition_count;
 
     // Log the received exception filters
@@ -4738,7 +4607,6 @@ void debugger_kbd_input(char c)
             char operand_str[50];
             OpToStr(operand_str, sizeof(operand_str), operand);
 
-            char instruction_str[100];
             printf("%06o %s", operand, operand_str);
 
             const char *sym = get_symbol_for_address(virtualAddress);

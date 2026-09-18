@@ -72,6 +72,14 @@ bool TelnetServer_GetTerminalStats(TelnetServer *server, int index,
     uint64_t *bytesRx, uint64_t *bytesTx);
 bool TelnetServer_DisconnectTerminal(TelnetServer *server, int index);
 bool TelnetServer_DisconnectDevice(TelnetServer *server, struct Device *device);
+
+/**
+ * @brief Character-output callback that routes a terminal device's output to
+ *        the telnet client attached to it (install with Device_SetCharacterOutput).
+ * @param device The terminal device producing the character.
+ * @param c      The character.
+ */
+void telnet_output_handler(struct Device *device, char c);
 int TelnetServer_GetPort(TelnetServer *server);
 
 // Local activity state (mutual exclusion with VScreen)

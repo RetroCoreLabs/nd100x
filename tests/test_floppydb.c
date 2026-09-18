@@ -28,6 +28,7 @@
 /* floppydb.c references download_file()/get_downloaded_size() for its network path
  * (fdb_get_json). These tests drive floppydb_load_json() directly - no network - so
  * provide trivial stubs to satisfy the linker without pulling in download.c/libcurl. */
+#include "../src/ndlib/download.h"
 char  *download_file(const char *url) { (void)url; return NULL; }
 size_t get_downloaded_size(void)      { return 0; }
 

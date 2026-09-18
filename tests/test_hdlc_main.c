@@ -9,7 +9,11 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-/* Linker stubs - HDLC tests don't need CPU memory access */
+/* Linker stubs - HDLC tests don't need CPU memory access. Prototypes match
+ * the real functions in src/cpu (normally declared in cpu_protos.h). */
+int ReadPhysicalMemory(int physicalAddress, bool privileged);
+void WritePhysicalMemory(int physicalAddress, uint16_t value, bool privileged);
+void interrupt(uint16_t lvl, uint16_t sub);
 int ReadPhysicalMemory(int physicalAddress, bool privileged)
 {
     (void)physicalAddress; (void)privileged;
@@ -25,9 +29,7 @@ void interrupt(uint16_t lvl, uint16_t sub)
 }
 
 /* Suite runners */
-extern int run_tcp_receive_buffer_tests(void);
-extern int run_hdlc_frame_tests(void);
-extern int run_hdlc_crc_tests(void);
+#include "test_suites.h"
 
 int main(void)
 {

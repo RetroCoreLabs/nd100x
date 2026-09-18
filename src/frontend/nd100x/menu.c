@@ -240,8 +240,8 @@ static void build_directory_pages(FloppyDisk_t *floppy) {
     if (total_lines == 0) return;
 
     // Get window dimensions to calculate page size
-    int win_height, win_width;
-    getmaxyx(menu_state.detail_win, win_height, win_width);
+    int win_height;
+    win_height = getmaxy(menu_state.detail_win);
 
     // Calculate available space for directory content
     // Reserve space for: Details title (1) + Name (1) + Description (1) + Reference (1) + MD5 (1) + empty line (1) + Directory Content header (1) + page info (1) = 7 lines
@@ -684,69 +684,6 @@ static void safe_print_line_no_scroll(WINDOW *win, int y, int x, const char *tex
     }
 }
 
-// Helper function to print wrapped text
-static int print_wrapped_text(WINDOW *win, int start_y, int x, const char *text, int max_width, int max_lines) {
-    if (!text || !win) return start_y;
-
-    int y = start_y;
-    int text_len = strlen(text);
-    int available_width = max_width - x;
-    int display_lines_used = 0;
-
-    // If text is short enough, print it directly
-    if (text_len <= available_width) {
-        mvwprintw(win, y, x, "%s", text);
-        return y + 1;
-    }
-
-    // Split text into words and wrap
-    char *text_copy = strdup(text);
-    char *word = strtok(text_copy, " \t");
-
-    if (!text_copy) {
-        mvwprintw(win, y, x, "%.*s", available_width > 0 ? available_width : 0, text);
-        return y + 1;
-    }
-    if (available_width > MENU_TEXT_MAX - 1) available_width = MENU_TEXT_MAX - 1;
-    if (available_width < 1) available_width = 1;
-
-    char current_line[MENU_TEXT_MAX];
-    current_line[0] = '\0';
-
-    while (word && display_lines_used < max_lines) {
-        int word_len = strlen(word);
-
-        // If adding this word would exceed the line width
-        if (strlen(current_line) + (size_t)word_len + 1 > (size_t)available_width) {
-            // Print current line
-            if (strlen(current_line) > 0) {
-                mvwprintw(win, y, x, "%s", current_line);
-                y++;
-                display_lines_used++;
-            }
-
-            // Start new line with current word (a word wider than the line is cut)
-            snprintf(current_line, (size_t)available_width + 1, "%s", word);
-        } else {
-            // Add word to current line; the width test above keeps it in bounds
-            size_t used = strlen(current_line);
-            snprintf(current_line + used, sizeof(current_line) - used, "%s%s",
-                     used > 0 ? " " : "", word);
-        }
-
-        word = strtok(NULL, " \t");
-    }
-
-    // Print the last line if there's content and we haven't exceeded the limit
-    if (strlen(current_line) > 0 && display_lines_used < max_lines) {
-        mvwprintw(win, y, x, "%s", current_line);
-        y++;
-    }
-
-    free(text_copy);
-    return y;
-}
-
 // Draw floppy details
 static void draw_floppy_details(void) {
     werase(menu_state.detail_win);
@@ -1011,11 +948,13 @@ static void handle_search_input(int ch) {
 
 // Show mount popup function
 static void show_mount_popup_for_floppy(int unit) {
+    (void)unit;
     // Show mount popup instead of direct mounting
     show_mount_popup();
 }
 
 static void unmount_floppy(int unit) {
+    (void)unit;
     // Show unmount popup instead of direct unmounting
     show_unmount_popup();
 }

@@ -272,6 +272,7 @@ static uint16_t FloppyPIO_Ident(Device *self, uint16_t level) {
 }
 
 static bool FloppyPIO_ReadEnd(Device *self, int drive) {
+    (void)drive;
     FloppyPIOData *data = (FloppyPIOData *)self->deviceData;
     if (!data) return false;
 
@@ -289,6 +290,7 @@ static bool FloppyPIO_ReadEnd(Device *self, int drive) {
 }
 
 static bool FloppyPIO_RecalibrateEnd(Device *self, int drive) {
+    (void)drive;
     FloppyPIOData *data = (FloppyPIOData *)self->deviceData;
     if (!data) return false;
 
@@ -300,6 +302,7 @@ static bool FloppyPIO_RecalibrateEnd(Device *self, int drive) {
 }
 
 static bool FloppyPIO_SeekEnd(Device *self, int drive) {
+    (void)drive;
     FloppyPIOData *data = (FloppyPIOData *)self->deviceData;
     if (!data) return false;
 

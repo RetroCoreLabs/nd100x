@@ -39,7 +39,7 @@
 #if defined(_WIN32) || defined(_WIN64)
   #include <windows.h>
   #include <mmsystem.h>   /* timeBeginPeriod - requires linking winmm */
-  static void sleep_ms(unsigned int ms) {
+  static inline void sleep_ms(unsigned int ms) {
       static LONG period_raised = 0;
       if (InterlockedCompareExchange(&period_raised, 1, 0) == 0) {
           timeBeginPeriod(1);
@@ -48,7 +48,7 @@
   }
 #else
   #include <time.h> // for nanosleep
-  static void sleep_ms(unsigned int ms) {
+  static inline void sleep_ms(unsigned int ms) {
       struct timespec req = {
           .tv_sec  = ms / 1000,
           .tv_nsec = (ms % 1000) * 1000000L

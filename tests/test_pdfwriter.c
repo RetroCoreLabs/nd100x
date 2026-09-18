@@ -14,14 +14,9 @@
 #include <unistd.h>
 
 #include "pdfwriter.h"
+#include "test_suites.h"
 
 /* ---- Helpers ---- */
-
-static int file_exists(const char *path)
-{
-    struct stat st;
-    return stat(path, &st) == 0;
-}
 
 static char *read_file(const char *path, size_t *size)
 {
@@ -53,7 +48,7 @@ static int count_occurrences(const char *haystack, const char *needle)
 
 /* ---- Data model tests ---- */
 
-int test_pdf_create(void)
+static int test_pdf_create(void)
 {
     PdfDocument *doc = Pdf_Create();
     assert(doc != NULL);
@@ -64,7 +59,7 @@ int test_pdf_create(void)
     return 0;
 }
 
-int test_pdf_add_pages(void)
+static int test_pdf_add_pages(void)
 {
     PdfDocument *doc = Pdf_Create();
 
@@ -84,7 +79,7 @@ int test_pdf_add_pages(void)
     return 0;
 }
 
-int test_pdf_add_text_spans(void)
+static int test_pdf_add_text_spans(void)
 {
     PdfDocument *doc = Pdf_Create();
     int page = Pdf_AddPage(doc);
@@ -103,7 +98,7 @@ int test_pdf_add_text_spans(void)
     return 0;
 }
 
-int test_pdf_empty_document(void)
+static int test_pdf_empty_document(void)
 {
     PdfDocument *doc = Pdf_Create();
     bool ok = Pdf_WriteToFile(doc, "/tmp/should_not_exist.pdf");
@@ -112,7 +107,7 @@ int test_pdf_empty_document(void)
     return 0;
 }
 
-int test_pdf_destroy_null(void)
+static int test_pdf_destroy_null(void)
 {
     Pdf_Destroy(NULL);
     return 0;
@@ -120,7 +115,7 @@ int test_pdf_destroy_null(void)
 
 /* ---- Content stream / rendering tests ---- */
 
-int test_pdf_structure(const char *tmpdir)
+static int test_pdf_structure(const char *tmpdir)
 {
     /*
      * Verify the PDF file structure: header, trailer, catalog, pages
@@ -169,7 +164,7 @@ int test_pdf_structure(const char *tmpdir)
     return 0;
 }
 
-int test_pdf_font_selection(const char *tmpdir)
+static int test_pdf_font_selection(const char *tmpdir)
 {
     /*
      * Verify the content stream selects the correct font for each style:
@@ -211,7 +206,7 @@ int test_pdf_font_selection(const char *tmpdir)
     return 0;
 }
 
-int test_pdf_absolute_positioning(const char *tmpdir)
+static int test_pdf_absolute_positioning(const char *tmpdir)
 {
     /*
      * Regression: Td (relative) was used instead of Tm (absolute).
@@ -248,7 +243,7 @@ int test_pdf_absolute_positioning(const char *tmpdir)
     return 0;
 }
 
-int test_pdf_text_rendering(const char *tmpdir)
+static int test_pdf_text_rendering(const char *tmpdir)
 {
     /*
      * Verify text appears in the content stream as Tj operators with
@@ -284,7 +279,7 @@ int test_pdf_text_rendering(const char *tmpdir)
     return 0;
 }
 
-int test_pdf_text_escaping(const char *tmpdir)
+static int test_pdf_text_escaping(const char *tmpdir)
 {
     /*
      * PDF string special chars: ( ) \ must be escaped in the content
@@ -310,7 +305,7 @@ int test_pdf_text_escaping(const char *tmpdir)
     return 0;
 }
 
-int test_pdf_underline_rendering(const char *tmpdir)
+static int test_pdf_underline_rendering(const char *tmpdir)
 {
     /*
      * Underlined text should produce:
@@ -358,7 +353,7 @@ int test_pdf_underline_rendering(const char *tmpdir)
     return 0;
 }
 
-int test_pdf_non_underlined_no_stroke(const char *tmpdir)
+static int test_pdf_non_underlined_no_stroke(const char *tmpdir)
 {
     /*
      * Non-underlined text must NOT produce stroke operators.
@@ -389,7 +384,7 @@ int test_pdf_non_underlined_no_stroke(const char *tmpdir)
     return 0;
 }
 
-int test_pdf_multipage_content(const char *tmpdir)
+static int test_pdf_multipage_content(const char *tmpdir)
 {
     /*
      * Each page gets its own content stream with its own text.
@@ -433,7 +428,7 @@ int test_pdf_multipage_content(const char *tmpdir)
     return 0;
 }
 
-int test_pdf_font_size_in_stream(const char *tmpdir)
+static int test_pdf_font_size_in_stream(const char *tmpdir)
 {
     /*
      * Verify different font sizes appear correctly in the Tf operator.
@@ -461,7 +456,7 @@ int test_pdf_font_size_in_stream(const char *tmpdir)
     return 0;
 }
 
-int test_pdf_page_mediabox(const char *tmpdir)
+static int test_pdf_page_mediabox(const char *tmpdir)
 {
     /*
      * Verify each page object declares A4 MediaBox.

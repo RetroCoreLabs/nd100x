@@ -175,14 +175,6 @@ static void set_nodelay(nd_socket_t fd)
                (const char *)&flag, sizeof(flag));
 }
 
-static void close_fd(nd_socket_t *fd)
-{
-    if (*fd != ND_INVALID_SOCKET) {
-        nd_socket_close(*fd);
-        *fd = ND_INVALID_SOCKET;
-    }
-}
-
 // ============================================================================
 // Worker thread: handles ALL networking
 // ============================================================================
