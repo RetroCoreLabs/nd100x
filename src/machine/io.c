@@ -71,7 +71,7 @@ void IO_Tick(void)
 }
 
 
-ushort io_op(ushort ioadd, ushort regA)
+uint16_t io_op(uint16_t ioadd, uint16_t regA)
 {
     // Even addresses are read operations, odd addresses are write operations
     if (ioadd & 1)
@@ -85,7 +85,7 @@ ushort io_op(ushort ioadd, ushort regA)
     else
     {
         // Even address - read operation
-        ushort val = IO_Read(ioadd);
+        uint16_t val = IO_Read(ioadd);
         return val;
     }
 }
