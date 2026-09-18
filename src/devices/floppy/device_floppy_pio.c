@@ -691,9 +691,6 @@ Device* CreateFloppyPIODevice(uint8_t thumbwheel) {
     // Open floppy file
     if ((data->floppyFile = fopen(data->floppyName, "r")) == NULL) {
         LOG(LOG_CAT_FLOPPY, LOG_ERROR, "Unable to open file %s\n", data->floppyName);
-        //free(data);
-        //free(dev);
-        //return NULL;
     }
 
     // Set up device function pointers

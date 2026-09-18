@@ -142,7 +142,6 @@ void DMAControlBlocks_Clear(DMAControlBlocks *dmaCB)
     dmaCB->outboundBufferSize = 0;
 
     // Clear parameters would go here if ParameterBuffer was implemented
-    // dmaCB->parameters.Clear();
 }
 
 // TX Functions

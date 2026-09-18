@@ -191,7 +191,6 @@ int g_cpu_ring_dump_size = 0;
 
 
 
-//void (*instr_funcs[65536])(ushort);
 
 
 
@@ -747,7 +746,6 @@ bool cpu_instruction_is_jump(void)
 	if ((operand & 0xF800) == 0124000) return true;
 
 	// JPL
-	//if ((operand & 0xF800) == 0134000) return true;
 
 	// CJPs - Conditional jumps
 
@@ -1052,7 +1050,6 @@ void cpu_init(bool debuggerEnabled, int debuggerPort)
 	/* Initialize volatile memory to zero */
 	memset(&g_volatile_memory, 0, sizeof(g_volatile_memory));
 
-	// setbit(_STS, _O, 1);
 	setbit_STS_MSB(_N100, 1);
 	gCSR = 1 << 2; /* this bit sets the cache as not available */
 
@@ -1116,7 +1113,6 @@ void cpu_reset(void)
 	gDebuggerEnabled = saved_debugger_enabled;
 #endif
 
-	// setbit(_STS, _O, 1);
 	setbit_STS_MSB(_N100, 1);
 	gCSR = 1 << 2; /* this bit sets the cache as not available */
 

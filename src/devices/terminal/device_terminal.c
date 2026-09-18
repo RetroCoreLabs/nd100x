@@ -123,8 +123,6 @@ static void Terminal_Reset(Device *self)
     data->outputStatus.bits.readyForTransfer = true;
 
     // Clear other
-    // data->noCarrier = false;
-    // data->uartInputBuf = 0;
 }
 
 static uint16_t Terminal_Tick(Device *self)

@@ -2548,7 +2548,6 @@ static int cmd_stack_trace(DAPServer *server)
         frame->module_id = NULL;
         frame->presentation_hint = DAP_FRAME_PRESENTATION_NORMAL;
 
-        // symbols_dump_all(symbol_tables.symbol_table_aout);
 
         // Try to get symbol information - check multiple symbol tables
         const symbol_entry_t *symbol = NULL;

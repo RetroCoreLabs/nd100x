@@ -326,7 +326,6 @@ void initialize(void)
 #endif
 
 
-	//blocksignals();
 	register_signals();
 
 #if !defined(__EMSCRIPTEN__) && !defined(__riscv)

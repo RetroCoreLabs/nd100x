@@ -648,12 +648,6 @@ bool checkPageProtection(uint32_t VPN, uint32_t pageTable, uint32_t pageTableEnt
     // Triggers IIC=2 (memory protection violation).
     if ((pageTableEntry & accessBits) == 0)
     {
-        // if (1) {  /* trace ALL access-denied MPVs */
-        //     static int mpv25 = 0;
-        //     if (mpv25 < 5)
-        //                pageTable, VPN, (uint32_t)pageTableEntry, (unsigned long)accessBits, am, UseAPT, CurrLEVEL, virtualAddress);
-        //     mpv25++;
-        // }
         /* DIAG (--trace-nd110): correlate permit violations with the ENPT/CLPT swap loop. */
         if (g_nd110_trace_fp != NULL)
         {
@@ -999,9 +993,6 @@ void WritePhysicalMemoryWM(int physicalAddress, uint16_t value, bool privileged,
 
 void HandleMemoryOutOfRange(uint32_t physicalAddress)
 {
-    // Uncomment ring_dump() to trace instructions leading to MOR
-    // ring_dump();
-
     setPEA(physicalAddress & 0xFFFF);
     setPES((physicalAddress >> 16) & 0xFF);
 

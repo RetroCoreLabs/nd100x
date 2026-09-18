@@ -223,7 +223,6 @@ void ndfunc_mon(uint16_t operand)
 	if (false)
 	{
 		// identfy montitor call and check if it should be intercepted!
-		//mon(monitor_number);
 	}
 	else
 	{
@@ -3674,7 +3673,6 @@ void DoTRA(uint16_t instr)
 		break;
 	case 010:					  // CSR
 		gA = (1 << 2) | (1 << 3); // Always report bit 2 and 3 as 1. Bit 2="MAN DIS" (Cache disabled manually as Emulator doesnt need caching. Bit 3=Cache Clear Finished
-		// gA = gCSR;
 		break;
 	case 011: /* TRA ACTL */
 		gA = 1 << CurrLEVEL;
@@ -3716,7 +3714,6 @@ void DoTRA(uint16_t instr)
 		gA = (uint16_t)(0x13 | (versn_is_nd120() ? 0x8000 : 0));
 		break;
 	default: /* These registers dont exist, so just return 0 for now FIXME: Check correct behaviour.*/
-			 // gA = 0;
 		//  do nothing is the correct
 		break;
 	}
@@ -4250,7 +4247,6 @@ void DoRDUS(uint16_t instr)
 void DoTSET(uint16_t instr)
 {
 	(void)instr;
-	// regs.currentRegisters.A = (ushort)cpu.ReadVirtualMemory(regs.currentRegisters.T, PageTable.AlternativePageTable);
 	// cpu.WriteVirtualMemory(regs.currentRegisters.T, 0xFFFF, PageTable.AlternativePageTable); // Write -1
 
 	gA = MemoryRead(gT, true);
@@ -5187,7 +5183,6 @@ void Setup_Instructions(void)
 	// Instruction_Add_Range(0133400, 0133777, &ndfunc_jxn); /* JXN */
 	Instruction_Add_Mask(0133400, 0xFF00, &ndfunc_jxn);
 
-	// Instruction_Add(0140000, 0143777, &ndfunc_skp);
 	Instruction_Add_Mask(0140000, 0xF8C0, &ndfunc_skp);
 
 	// BCD (CX)

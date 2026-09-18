@@ -641,7 +641,6 @@ EMSCRIPTEN_EXPORT void Step(int steps)
 EMSCRIPTEN_EXPORT void Stop(void)
 {
     running = 0;
-    //machine_stop();
 }
 
 // Check if machine has been initialized

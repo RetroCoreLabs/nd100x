@@ -564,7 +564,6 @@ void  OpToStr(char *return_string, uint16_t max_len, uint16_t operand)
 	case 0154000: /* SHT */
 		/* negative value -> shift right  else shift left*/
 		isneg = ((operand & 0x0020) >> 5) ? 1 : 0;
-		//		offset = ((operand & 0x0020)>>5) ? (char)((operand & 0x003F) | 0x00C0) : (operand & 0x003F);
 		offset = (isneg) ? (~((operand & 0x003F) | 0xFFC0) + 1) : (operand & 0x003F);
 		(isneg) ? (void)snprintf(numstr, sizeof(numstr), "SHR %o", offset) : (void)snprintf(numstr, sizeof(numstr), "%o", offset);
 		(void)snprintf(opstr, BUFSTRSIZE, "SHT %s%s", shtype_str[((operand & 0x0600) >> 9)], numstr);
@@ -574,7 +573,6 @@ void  OpToStr(char *return_string, uint16_t max_len, uint16_t operand)
 		isneg = ((operand & 0x0020) >> 5) ? 1 : 0;
 		offset = (isneg) ? (~((operand & 0x003F) | 0xFFC0) + 1) : (operand & 0x003F);
 		(isneg) ? (void)snprintf(numstr, sizeof(numstr), "SHR %o", offset) : (void)snprintf(numstr, sizeof(numstr), "%o", offset);
-		//		offset = ((operand & 0x0020)>>5) ? (char)((operand & 0x003F) | 0x00C0) : (operand & 0x003F);
 		//		((int)offset <0) ? (void)snprintf(numstr,BUFSTRSIZE,"SHR %o",-(int)offset) : (void)snprintf(numstr,BUFSTRSIZE,"%o",offset);
 		(void)snprintf(opstr, BUFSTRSIZE, "SHD %s%s", shtype_str[((operand & 0x0600) >> 9)], numstr);
 		break;
@@ -583,7 +581,6 @@ void  OpToStr(char *return_string, uint16_t max_len, uint16_t operand)
 		isneg = ((operand & 0x0020) >> 5) ? 1 : 0;
 		offset = (isneg) ? (~((operand & 0x003F) | 0xFFC0) + 1) : (operand & 0x003F);
 		(isneg) ? (void)snprintf(numstr, sizeof(numstr), "SHR %o", offset) : (void)snprintf(numstr, sizeof(numstr), "%o", offset);
-		//		offset = ((operand & 0x0020)>>5) ? (char)((operand & 0x003F) | 0x00C0) : (operand & 0x003F);
 		//		((int)offset <0) ? (void)snprintf(numstr,BUFSTRSIZE,"SHR %o",-(int)offset) : (void)snprintf(numstr,BUFSTRSIZE,"%o",offset);
 		(void)snprintf(opstr, BUFSTRSIZE, "SHA %s%s", shtype_str[((operand & 0x0600) >> 9)], numstr);
 		break;
@@ -592,7 +589,6 @@ void  OpToStr(char *return_string, uint16_t max_len, uint16_t operand)
 		isneg = ((operand & 0x0020) >> 5) ? 1 : 0;
 		offset = (isneg) ? (~((operand & 0x003F) | 0xFFC0) + 1) : (operand & 0x003F);
 		(isneg) ? (void)snprintf(numstr, sizeof(numstr), "SHR %o", offset) : (void)snprintf(numstr, sizeof(numstr), "%o", offset);
-		//		offset = ((operand & 0x0020)>>5) ? (char)((operand & 0x003F) | 0x00C0) : (operand & 0x003F);
 		//		((int)offset <0) ? (void)snprintf(numstr,BUFSTRSIZE,"SHR %o",-(int)offset) : (void)snprintf(numstr,BUFSTRSIZE,"%o",offset);
 		(void)snprintf(opstr, BUFSTRSIZE, "SAD %s%s", shtype_str[((operand & 0x0600) >> 9)], numstr);
 		break;

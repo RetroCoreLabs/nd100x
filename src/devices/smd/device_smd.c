@@ -385,7 +385,6 @@ static void SMD_Write(Device *self, uint32_t address, uint16_t value)
     }
 
     SMDData *data = (SMDData *)self->deviceData;
-    // if (!data || !data->regs.selectedDisk) return;
 
     switch (reg)
     {
@@ -528,7 +527,6 @@ static void SMD_Write(Device *self, uint32_t address, uint16_t value)
             data->regs.coreAddressHiBits = ((uint16_t)((value >> 5) & 0b11));
         }
 
-        // data->regs.CWRBit = data->controlRegister.bits.registerMultiplexBit;
 
         SetSelectedUnit(&data->regs, data->controlRegister.bits.unitSelect);
 
@@ -733,25 +731,6 @@ static uint16_t SMD_Tick(Device *self)
 
     Device_TickIODelay(self);
 
-#ifdef _wft_ // TODO: Remove this ??
-    SMDData *data = (SMDData *)self->deviceData;
-    if (data && data->regs.selectedDisk)
-    {
-        // Handle ongoing operations
-        if (data->statusRegister.bits.active)
-        {
-            // Simulate operation completion
-            data->statusRegister.bits.active = false;
-            data->statusRegister.bits.readyForTransfer = true;
-            data->statusRegister.bits.seekCompleteBits |= (1 << data->regs.selectedUnit);
-
-            ClearFlipFlops(&data->regs);
-            data->statusRegister.raw |= (1 << 3); // Ready for transfer
-            data->statusRegister.raw |= (1 << 6); // Read/Write complete
-            data->statusRegister.raw |= (1 << 7); // Seek complete
-        }
-    }
-#endif
     return self->interruptBits;
 }
 

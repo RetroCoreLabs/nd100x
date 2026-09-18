@@ -990,17 +990,6 @@ void mount_drive(DRIVE_TYPE drive_type, int unit, const char *md5, const char *n
 
     snprintf(drives[unit].description, sizeof(drives[unit].description), "%s", description);
 
-#ifdef _debug_
-    LOG(LOG_CAT_MACHINE, LOG_INFO, "Mounted %s to %s unit %d:\n",
-           drive_type_name(drive_type),
-           drive_type_name(drive_type),
-           unit);
-    LOG(LOG_CAT_MACHINE, LOG_INFO, "  Name: %s\n", name);
-    LOG(LOG_CAT_MACHINE, LOG_INFO, "  Description: %s\n", description);
-    LOG(LOG_CAT_MACHINE, LOG_INFO, "  MD5: %s\n", md5);
-    LOG(LOG_CAT_MACHINE, LOG_INFO, "  Image Path: %s\n", image_path ? image_path : "None");
-#endif
-
 }
 
 // Unmount a drive from the specified unit

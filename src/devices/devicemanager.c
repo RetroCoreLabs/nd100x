@@ -107,8 +107,8 @@ void DeviceManager_AddAllDevices(void)
     // Add the Line Printer at octal 430-433
     DeviceManager_AddDevice(DEVICE_TYPE_LINE_PRINTER, 0);
 
-    // Add the FloppyPIO at octal 1560-1567
-    // DeviceManager_AddDevice(DEVICE_TYPE_FLOPPY_PIO, 0);
+    // The PIO floppy controller is not added: its address range 1560-1567 is
+    // the DMA floppy's.
 
     // Add the FloppyDMA at octal 1560-1567
     DeviceManager_AddDevice(DEVICE_TYPE_FLOPPY_DMA, 0);
@@ -122,7 +122,6 @@ void DeviceManager_AddAllDevices(void)
     // machine_init. Adding it unconditionally put an ident-less card at 540 that
     // tripped the normal-boot device probe ("No identcode found on level 11D ...
     // Device number 000540B"). Default boot therefore installs no drum.
-    // DeviceManager_AddDevice(DEVICE_TYPE_DRUM, 0);
 
     // Note: HDLC device is added conditionally via DeviceManager_AddHDLCDevice()
     // based on command line configuration

@@ -94,10 +94,7 @@ static void FloppyDMA_Reset(Device *self)
     data->pointerHI = 0;
     data->pointerLO = 0;
     data->readFormat = 0;
-    // data->diskFile = NULL;
 
-    // data->status1.bits.errorCode = FLOPPY_ERR_OK;
-    // data->status1.bits.readyForTransfer = true;
 }
 
 // Bit 4 "OR of errors": set whenever a non-zero error code is present (firmware @06bc: SET 4 if
@@ -531,7 +528,6 @@ static void ExecuteFloppyGo(Device *self)
                 data->status1.bits.errorCode = DRIVE_NOT_READY;
                 data->status1.bits.deviceActive = false;
                 data->status1.bits.readyForTransfer = true;
-                // Device_SetInterruptStatus(self, data->status1.bits.interruptEnabled && data->status1.bits.readyForTransfer, self->interruptLevel);
             }
 
             while (wordsToRead > 0)
@@ -734,7 +730,6 @@ static void ExecuteFloppyGo(Device *self)
     Device_DMAWrite(data->commandBlockAddress + 11, (uint16_t)(wordsTransfered & 0xFFFF));       // LO
 
     // For now, just simulate completion
-    // Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)ReadEnd, data->drive, self->interruptLevel);
 }
 
 static bool ReadEnd(Device *self, int drive)
