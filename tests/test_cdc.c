@@ -386,6 +386,9 @@ int main(void)
     }
 
     if (dev->Destroy) dev->Destroy(dev);
+
+    free(dev->deviceData);   /* Device_Destroy() does this in the emulator */
+
     free(dev);
 
     /* --- 9. backing-file round-trip (AttachBacking / EnsureSurface / persist) --- */
@@ -403,6 +406,7 @@ int main(void)
             program(d1, 0x0900, 0130, 32, modus_go(CDC_OP_WRITE));
             d1->Tick(d1);
             if (d1->Destroy) d1->Destroy(d1);
+            free(d1->deviceData);   /* Device_Destroy() does this in the emulator */
             free(d1);
         }
 
@@ -419,6 +423,7 @@ int main(void)
                 if (g_fakeMem[0x0A00 + i] != (uint16_t)(0xC100 + i)) okP = 0;
             CHECK(okP, "backing file persisted the WRITE across close/re-open (big-endian)");
             if (d2->Destroy) d2->Destroy(d2);
+            free(d2->deviceData);   /* Device_Destroy() does this in the emulator */
             free(d2);
         }
         CdcDevice_SetBackingFile(NULL);           /* leave the static clean */

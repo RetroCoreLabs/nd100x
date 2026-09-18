@@ -19,6 +19,7 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -194,6 +195,10 @@ int main(void)
     rtc->Reset(rtc);
     rtc_check("ticks again: 5 pulses in 52750 calls", 5,
               pulses_over_ticks(rtc, data, 5L * TICKS_20MS));
+
+    if (rtc->Destroy) rtc->Destroy(rtc);
+    free(rtc->deviceData);
+    free(rtc);
 
     printf("rtc tests: %d checks, %d failed\n", rtc_total, rtc_failed);
     return rtc_failed ? 1 : 0;

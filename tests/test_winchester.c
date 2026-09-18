@@ -222,7 +222,10 @@ int main(void)
     CHECK(dev2 != NULL && dev2->startAddress == 0510 && dev2->identCode == 005,
           "disk system 2 at 510 ident 5");
     if (dev2)
+    {
         dev2->Destroy(dev2);
+        free(dev2);
+    }
 
     /* --- 2. memory address: write HI-then-LO, read LO-then-HI (sec 3.2) -- */
     wr(dev, R_LOAD_MA, 0x0012);   /* first write  -> upper 8 bits  */
@@ -484,6 +487,7 @@ int main(void)
     }
 
     dev->Destroy(dev);
+    free(dev);
 
     printf("=== %d passed, %d failed ===\n", g_pass, g_fail);
     if (g_fail == 0)

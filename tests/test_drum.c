@@ -181,6 +181,7 @@ int main(void)
     CHECK((status(dev) & DRUM_STATUS_DVA) == 0, "device not left busy after a bounds error");
 
     if (dev->Destroy) dev->Destroy(dev);
+    free(dev->deviceData);   /* Device_Destroy() does this in the emulator */
     free(dev);
 
     printf("=== %d passed, %d failed ===\n", g_pass, g_fail);
