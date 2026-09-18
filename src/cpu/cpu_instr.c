@@ -266,7 +266,7 @@ void ndfunc_sax(ushort operand)
  */
 void ndfunc_shifts(ushort operand)
 {
-	ulong double_reg;
+	uint32_t double_reg;
 
 	switch ((operand >> 7) & 0x03)
 	{
@@ -280,7 +280,7 @@ void ndfunc_shifts(ushort operand)
 		gA = ShiftReg(gA, operand);
 		break;
 	case 3: /* SAD */
-		double_reg = ShiftDoubleReg(((ulong)gA << 16) | gD, operand);
+		double_reg = ShiftDoubleReg(((uint32_t)gA << 16) | gD, operand);
 		gA = double_reg >> 16;
 		gD = double_reg & 0xFFFF;
 		break;
@@ -4147,15 +4147,19 @@ ushort ShiftReg(ushort reg, ushort instr)
 	return reg;
 }
 
-ulong ShiftDoubleReg(ulong reg, ushort instr)
+/* The A:D register pair is exactly 32 bits; do the arithmetic in uint32_t.
+ * (It used ulong, 64-bit native and 32-bit on wasm, and shifted an int
+ * into bit 31, which is undefined behaviour.) */
+uint32_t ShiftDoubleReg(uint32_t reg, ushort instr)
 {
 	bool isneg = ((instr & 0x0020) >> 5) ? 1 : 0;
 	/* 5-bit shift-counter wrap: field 040 octal (=32) -> 0 = NO shift (SAD register pair unchanged, M
 	 * preserved). Oracle-validated (RetroCore 135a2ff28). See ShiftReg for the full note. */
 	ushort offset = (isneg) ? (ushort)((~((instr & 0x003F) | 0xFFC0) + 1) & 0x1F) : (instr & 0x003F);
 	ushort shifttype = ((instr >> 9) & 0x03);
-	int i, tmp, msb;
-	int m = getbit(_STS, _M);
+	int i;
+	uint32_t tmp, msb;
+	uint32_t m = (uint32_t)getbit(_STS, _M);
 	tmp = m; /* just in case.. */
 	for (i = 1; i <= offset; i++)
 	{
@@ -4178,7 +4182,7 @@ ulong ShiftDoubleReg(ulong reg, ushort instr)
 			break;
 		}
 	}
-	setbit(_STS, _M, tmp);
+	setbit(_STS, _M, (char)tmp);
 	return reg;
 }
 

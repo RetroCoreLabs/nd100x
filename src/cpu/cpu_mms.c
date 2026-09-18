@@ -352,7 +352,7 @@ uint SetPageWritten(uint pageTable, uint VPN,PageTableMode ptm, uint PTe)
 
 
 // Get debug info for page table entry
-const char* GetPageTableEntryDebugInfo(ulong PTe)
+const char* GetPageTableEntryDebugInfo(uint32_t PTe)
 {
     (void)PTe;
 #ifdef DEBUG_MMS
@@ -595,14 +595,15 @@ void UpdatePGS(uint pageTable, uint VPN, AccessMode am, bool permitViolation)
 }
 
 // Check page protection
-bool checkPageProtection(uint VPN, uint pageTable, ulong pageTableEntry, AccessMode am, uint virtualAddress)
+bool checkPageProtection(uint VPN, uint pageTable, uint32_t pageTableEntry, AccessMode am, uint virtualAddress)
 {
-    ulong accessBits = 0;
-    ulong pfMask = 7L << 29;
+    // Unsigned 32-bit: a PTE is 32 bits, and 1L << 31 overflowed a 32-bit long on wasm.
+    uint32_t accessBits = 0;
+    uint32_t pfMask = UINT32_C(7) << 29;
 
-    if (am & READ)  accessBits |= 1L << 30; // RPM(Read Permit bit)
-    if (am & WRITE) accessBits |= 1L << 31; // WPM (Write Permit bit)
-    if (am & FETCH) accessBits |= 1L << 29; // FPM (Fetch Permit bit)
+    if (am & READ)  accessBits |= UINT32_C(1) << 30; // RPM(Read Permit bit)
+    if (am & WRITE) accessBits |= UINT32_C(1) << 31; // WPM (Write Permit bit)
+    if (am & FETCH) accessBits |= UINT32_C(1) << 29; // FPM (Fetch Permit bit)
 
     // Check if page is in memory
     // Page 89 (Chapter 3) in ND-110 Functional Description

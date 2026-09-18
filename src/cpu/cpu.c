@@ -508,7 +508,7 @@ void device_interrupt(ushort interruptBits)
 /*
  * Routine that handles phys mem writes and shadow memory.
  */
-void PhysMemWrite(ushort value, ulong addr)
+void PhysMemWrite(ushort value, uint32_t addr)
 {
 	WritePhysicalMemory(addr, value, false); // in cpu_mms.c
 	return;
@@ -519,7 +519,7 @@ void PhysMemWrite(ushort value, ulong addr)
 /*
  * Routine that handles phys mem reads and shadow memory.
  */
-ushort PhysMemRead(ulong addr)
+ushort PhysMemRead(uint32_t addr)
 {
 	return ReadPhysicalMemory(addr, false); // in cpu_mms.c
 
