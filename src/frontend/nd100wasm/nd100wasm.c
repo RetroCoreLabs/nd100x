@@ -644,7 +644,7 @@ EMSCRIPTEN_EXPORT int RemountFloppy(int unit)
     }
 
     char filename[32];
-    sprintf(filename, "/FLOPPY%d.IMG", unit);
+    snprintf(filename, sizeof(filename), "/FLOPPY%d.IMG", unit);
 
     // Check file exists before attempting mount
     FILE *ftmp = fopen(filename, "rb");
@@ -713,11 +713,9 @@ EMSCRIPTEN_EXPORT int MountSMDFromBuffer(int unit, const uint8_t *data, int size
     entry->block_size = 1024;
 
     const char *name = (unit == 0) ? "Boot SMD (Buffer)" : "Data SMD (Buffer)";
-    strncpy(entry->name, name, sizeof(entry->name) - 1);
-    entry->name[sizeof(entry->name) - 1] = '\0';
-    strncpy(entry->description, "SMD from persistent storage buffer", sizeof(entry->description) - 1);
-    entry->description[sizeof(entry->description) - 1] = '\0';
-    strncpy(entry->md5, "buffer", sizeof(entry->md5) - 1);
+    snprintf(entry->name, sizeof(entry->name), "%s", name);
+    snprintf(entry->description, sizeof(entry->description), "%s", "SMD from persistent storage buffer");
+    snprintf(entry->md5, sizeof(entry->md5), "%s", "buffer");
     entry->image_path[0] = '\0';
 
     return 0;
@@ -820,7 +818,7 @@ EMSCRIPTEN_EXPORT int RemountSMD(int unit)
     }
 
     char filename[32];
-    sprintf(filename, "/SMD%d.IMG", unit);
+    snprintf(filename, sizeof(filename), "/SMD%d.IMG", unit);
 
     // Unmount existing if mounted
     if (isMounted(DRIVE_SMD, unit)) {
@@ -977,11 +975,9 @@ EMSCRIPTEN_EXPORT int MountSCSIFromBuffer(int unit, const uint8_t *data, int siz
     entry->block_size = 1024;
 
     const char *name = (unit == 0) ? "Boot SCSI (Buffer)" : "Data SCSI (Buffer)";
-    strncpy(entry->name, name, sizeof(entry->name) - 1);
-    entry->name[sizeof(entry->name) - 1] = '\0';
-    strncpy(entry->description, "SCSI from persistent storage buffer", sizeof(entry->description) - 1);
-    entry->description[sizeof(entry->description) - 1] = '\0';
-    strncpy(entry->md5, "buffer", sizeof(entry->md5) - 1);
+    snprintf(entry->name, sizeof(entry->name), "%s", name);
+    snprintf(entry->description, sizeof(entry->description), "%s", "SCSI from persistent storage buffer");
+    snprintf(entry->md5, sizeof(entry->md5), "%s", "buffer");
     entry->image_path[0] = '\0';
     return 0;
 }
@@ -1014,7 +1010,7 @@ EMSCRIPTEN_EXPORT int RemountSCSI(int unit)
     if (!ensure_scsi_controller(unit)) return -1;
 
     char filename[32];
-    sprintf(filename, "/SCSI%d.IMG", unit);
+    snprintf(filename, sizeof(filename), "/SCSI%d.IMG", unit);
     if (isMounted(DRIVE_SCSI, unit)) unmount_drive(DRIVE_SCSI, unit);
     mount_drive(DRIVE_SCSI, unit, "md5-unknown", "SCSI", "Mounted SCSI image", filename);
     return isMounted(DRIVE_SCSI, unit) ? 0 : -1;
@@ -1113,12 +1109,9 @@ EMSCRIPTEN_EXPORT int MountWinchesterFromBuffer(int unit, const uint8_t *data, i
     entry->block_size = 1024;
 
     const char *name = (unit == 0) ? "Boot Winchester (Buffer)" : "Data Winchester (Buffer)";
-    strncpy(entry->name, name, sizeof(entry->name) - 1);
-    entry->name[sizeof(entry->name) - 1] = '\0';
-    strncpy(entry->description, "Winchester from persistent storage buffer",
-            sizeof(entry->description) - 1);
-    entry->description[sizeof(entry->description) - 1] = '\0';
-    strncpy(entry->md5, "buffer", sizeof(entry->md5) - 1);
+    snprintf(entry->name, sizeof(entry->name), "%s", name);
+    snprintf(entry->description, sizeof(entry->description), "%s", "Winchester from persistent storage buffer");
+    snprintf(entry->md5, sizeof(entry->md5), "%s", "buffer");
     entry->image_path[0] = '\0';
     return 0;
 }
@@ -1151,7 +1144,7 @@ EMSCRIPTEN_EXPORT int RemountWinchester(int unit)
     if (!ensure_winchester_controller()) return -1;
 
     char filename[32];
-    sprintf(filename, "/WD%d.IMG", unit);
+    snprintf(filename, sizeof(filename), "/WD%d.IMG", unit);
     if (isMounted(DRIVE_WINCHESTER, unit)) unmount_drive(DRIVE_WINCHESTER, unit);
     mount_drive(DRIVE_WINCHESTER, unit, "md5-unknown", "Winchester",
                 "Mounted Winchester image", filename);
@@ -1214,12 +1207,9 @@ EMSCRIPTEN_EXPORT int MountFloppyFromBuffer(int unit, const uint8_t *data, int s
     entry->data_size = (size_t)size;
     entry->block_size = 512;
 
-    strncpy(entry->name, "Floppy (Buffer)", sizeof(entry->name) - 1);
-    entry->name[sizeof(entry->name) - 1] = '\0';
-    strncpy(entry->description, "Floppy from persistent storage buffer",
-            sizeof(entry->description) - 1);
-    entry->description[sizeof(entry->description) - 1] = '\0';
-    strncpy(entry->md5, "buffer", sizeof(entry->md5) - 1);
+    snprintf(entry->name, sizeof(entry->name), "%s", "Floppy (Buffer)");
+    snprintf(entry->description, sizeof(entry->description), "%s", "Floppy from persistent storage buffer");
+    snprintf(entry->md5, sizeof(entry->md5), "%s", "buffer");
     entry->image_path[0] = '\0';
     return 0;
 }

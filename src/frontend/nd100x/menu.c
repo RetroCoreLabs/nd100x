@@ -179,8 +179,7 @@ static DRIVE_TYPE detect_drive_type(const char *directory_content) {
                     char number_str[32];
                     int len = pages - colon;
                     if (len > 0 && (size_t)len < sizeof(number_str)) {
-                        strncpy(number_str, colon, len);
-                        number_str[len] = '\0';
+                        snprintf(number_str, sizeof(number_str), "%.*s", len, colon);
 
                         // Convert octal string to integer
                         int pages_count = strtol(number_str, NULL, 8);
@@ -464,17 +463,13 @@ static bool parse_floppies_json(const char* json_data) {
         const char *dir_content_str = (dir_content && dir_content->valuestring) ? dir_content->valuestring : "";
         const char *product_str = (product && product->valuestring) ? product->valuestring : "";
 
-        strncpy(floppy->name, name_str, sizeof(floppy->name) - 1);
-        floppy->name[sizeof(floppy->name) - 1] = '\0';
+        snprintf(floppy->name, sizeof(floppy->name), "%s", name_str);
 
-        strncpy(floppy->description, desc_str, sizeof(floppy->description) - 1);
-        floppy->description[sizeof(floppy->description) - 1] = '\0';
+        snprintf(floppy->description, sizeof(floppy->description), "%s", desc_str);
 
-        strncpy(floppy->reference, ref_str, sizeof(floppy->reference) - 1);
-        floppy->reference[sizeof(floppy->reference) - 1] = '\0';
+        snprintf(floppy->reference, sizeof(floppy->reference), "%s", ref_str);
 
-        strncpy(floppy->md5, md5_str, sizeof(floppy->md5) - 1);
-        floppy->md5[sizeof(floppy->md5) - 1] = '\0';
+        snprintf(floppy->md5, sizeof(floppy->md5), "%s", md5_str);
 
         // Dynamically allocate directory content based on actual length
         if (dir_content_str && strlen(dir_content_str) > 0) {
@@ -497,8 +492,7 @@ static bool parse_floppies_json(const char* json_data) {
             return false;
         }
 
-        strncpy(floppy->product, product_str, sizeof(floppy->product) - 1);
-        floppy->product[sizeof(floppy->product) - 1] = '\0';
+        snprintf(floppy->product, sizeof(floppy->product), "%s", product_str);
 
         // Detect drive type based on filesystem image size
         floppy->drive_type = detect_drive_type(floppy->directory_content);
@@ -855,8 +849,7 @@ static void filter_floppies(void) {
         // Search in all text fields (case-insensitive)
         bool found = false;
         char search_lower[256];
-        strncpy(search_lower, menu_state.search_text, sizeof(search_lower) - 1);
-        search_lower[sizeof(search_lower) - 1] = '\0';
+        snprintf(search_lower, sizeof(search_lower), "%s", menu_state.search_text);
 
         // Convert search text to lowercase
         for (int j = 0; search_lower[j]; j++) {

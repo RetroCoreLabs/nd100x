@@ -314,7 +314,7 @@ int check_for_breakpoint(void)
             bool hit_ok = true;
 
             if (bp->hitCondition) {
-                int hitCondVal = atoi(bp->hitCondition);
+                int hitCondVal = (int)strtol(bp->hitCondition, NULL, 10);
                 hit_ok = (bp->hitCount == hitCondVal);
             }
 

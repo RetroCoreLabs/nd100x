@@ -46,7 +46,7 @@ static const char* make_prog(uint16_t start, uint16_t first, uint16_t last,
                              uint16_t fB2, uint16_t lB2,
                              const uint16_t* data, int n) {
     static char path[] = "/tmp/nd100x-prog-XXXXXX";
-    strcpy(path, "/tmp/nd100x-prog-XXXXXX");
+    snprintf(path, sizeof(path), "%s", "/tmp/nd100x-prog-XXXXXX");
     int fd = mkstemp(path);
     if (fd < 0) return NULL;
     FILE* f = fdopen(fd, "wb");

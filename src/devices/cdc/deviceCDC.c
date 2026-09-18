@@ -45,8 +45,7 @@ void CdcDevice_SetBackingFile(const char *path)
 {
     if (path && path[0])
     {
-        strncpy(g_cdcBackingPath, path, sizeof(g_cdcBackingPath) - 1);
-        g_cdcBackingPath[sizeof(g_cdcBackingPath) - 1] = '\0';
+        snprintf(g_cdcBackingPath, sizeof(g_cdcBackingPath), "%s", path);
         g_cdcHasBackingPath = 1;
     }
     else
@@ -735,7 +734,7 @@ Device *CreateCdcDevice(uint8_t thumbwheel)
     switch (thumbwheel)
     {
     case 0:
-        strcpy(dev->memoryName, "CDC DISC 500");
+        snprintf(dev->memoryName, sizeof(dev->memoryName), "%s", "CDC DISC 500");
         dev->startAddress = 0500;
         break;
     default:

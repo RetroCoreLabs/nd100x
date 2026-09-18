@@ -1514,13 +1514,13 @@ static void add_level_variables(DAPServer *server, char *info_message, size_t in
             apt = (rPCR >> 7) & 0x03;
         }
         char pcr_str[100];
-        sprintf(pcr_str, "Ring[%d] PT[%d] APT[%d] P[%06d]", ring, pt, apt, rP);
+        snprintf(pcr_str, sizeof(pcr_str), "Ring[%d] PT[%d] APT[%d] P[%06d]", ring, pt, apt, rP);
 
         char name[20];
-        sprintf(name, "Level %d", i);
+        snprintf(name, sizeof(name), "Level %d", i);
 
         char memory_reference[100];
-        sprintf(memory_reference, "0x%04x", rP);
+        snprintf(memory_reference, sizeof(memory_reference), "0x%04x", rP);
 
         add_variable_to_array(
             server,
@@ -1938,28 +1938,28 @@ char *GetPageTableEntryInfo(uint32_t PTe)
     PTe = PTe >> 16;
 
     if ((PTe & 1 << 15) != 0)
-        strcat(debugInfo, "[WPM]");
+        snprintf(debugInfo + strlen(debugInfo), sizeof(debugInfo) - strlen(debugInfo), "%s", "[WPM]");
     if ((PTe & 1 << 14) != 0)
-        strcat(debugInfo, "[RPM]");
+        snprintf(debugInfo + strlen(debugInfo), sizeof(debugInfo) - strlen(debugInfo), "%s", "[RPM]");
     if ((PTe & 1 << 13) != 0)
-        strcat(debugInfo, "[FPM]");
+        snprintf(debugInfo + strlen(debugInfo), sizeof(debugInfo) - strlen(debugInfo), "%s", "[FPM]");
     if ((PTe & 1 << 12) != 0)
-        strcat(debugInfo, "[WIP]");
+        snprintf(debugInfo + strlen(debugInfo), sizeof(debugInfo) - strlen(debugInfo), "%s", "[WIP]");
     if ((PTe & 1 << 11) != 0)
-        strcat(debugInfo, "[PGU]");
+        snprintf(debugInfo + strlen(debugInfo), sizeof(debugInfo) - strlen(debugInfo), "%s", "[PGU]");
 
     int ring = (int)((PTe >> 9) & 0x03);
     snprintf(debugInfo, sizeof(debugInfo), "[R:%d]", ring);
 
     char ppnStr[16];
     snprintf(ppnStr, sizeof(ppnStr), "[PPN:0x%04X]", PPN);
-    strcat(debugInfo, ppnStr);
+    snprintf(debugInfo + strlen(debugInfo), sizeof(debugInfo) - strlen(debugInfo), "%s", ppnStr);
 
     uint32_t start = PPN << 10;
     uint32_t end = start | 0x3FFF;
 
-    sprintf(memoryRange, " MEM[0x%06X:0x%06X]", start, end);
-    strcat(debugInfo, memoryRange);
+    snprintf(memoryRange, sizeof(memoryRange), " MEM[0x%06X:0x%06X]", start, end);
+    snprintf(debugInfo + strlen(debugInfo), sizeof(debugInfo) - strlen(debugInfo), "%s", memoryRange);
 
     return debugInfo;
 }
@@ -3096,7 +3096,7 @@ static int cmd_set_data_breakpoints(DAPServer *server)
         int8_t wp_pil = -1;
         if (endptr && *endptr == '@')
         {
-            int p = atoi(endptr + 1);
+            int p = (int)strtol(endptr + 1, NULL, 10);
             if (p >= 0 && p <= 15) wp_pil = (int8_t)p;
         }
 
@@ -3448,7 +3448,7 @@ static int cmd_launch_callback(DAPServer *server)
             // Take only the base name
             size_t base_len = extension - program_basename;
             char base_name[256] = {0};
-            strncpy(base_name, program_basename, base_len < 255 ? base_len : 255);
+            snprintf(base_name, sizeof(base_name), "%.*s", (int)(base_len < 255 ? base_len : 255), program_basename);
 
             // Create potential STABS file path (same directory, .s extension)
             char dir_path[256] = {0};
@@ -3456,7 +3456,7 @@ static int cmd_launch_callback(DAPServer *server)
             {
                 // Copy directory part
                 size_t dir_len = program_basename - program_path - 1; // -1 to exclude the slash
-                strncpy(dir_path, program_path, dir_len < 255 ? dir_len : 255);
+                snprintf(dir_path, sizeof(dir_path), "%.*s", (int)(dir_len < 255 ? dir_len : 255), program_path);
             }
 
             // Construct full STABS path

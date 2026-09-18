@@ -374,20 +374,20 @@ const char* GetPageTableEntryDebugInfo(ulong PTe)
 
     PTe = PTe >> 16;
 
-    if ((PTe & 1 << 15) != 0) strcat(debugInfo, "[WPM]");
-    if ((PTe & 1 << 14) != 0) strcat(debugInfo, "[RPM]");
-    if ((PTe & 1 << 13) != 0) strcat(debugInfo, "[FPM]");
-    if ((PTe & 1 << 12) != 0) strcat(debugInfo, "[WIP]");
-    if ((PTe & 1 << 11) != 0) strcat(debugInfo, "[PGU]");
+    if ((PTe & 1 << 15) != 0) snprintf(debugInfo + strlen(debugInfo), sizeof(debugInfo) - strlen(debugInfo), "%s", "[WPM]");
+    if ((PTe & 1 << 14) != 0) snprintf(debugInfo + strlen(debugInfo), sizeof(debugInfo) - strlen(debugInfo), "%s", "[RPM]");
+    if ((PTe & 1 << 13) != 0) snprintf(debugInfo + strlen(debugInfo), sizeof(debugInfo) - strlen(debugInfo), "%s", "[FPM]");
+    if ((PTe & 1 << 12) != 0) snprintf(debugInfo + strlen(debugInfo), sizeof(debugInfo) - strlen(debugInfo), "%s", "[WIP]");
+    if ((PTe & 1 << 11) != 0) snprintf(debugInfo + strlen(debugInfo), sizeof(debugInfo) - strlen(debugInfo), "%s", "[PGU]");
 
     int ring = (int)((PTe >> 9) & 0x03);
     char ringStr[8];
     snprintf(ringStr, sizeof(ringStr), "[R:%d]", ring);
-    strcat(debugInfo, ringStr);
+    snprintf(debugInfo + strlen(debugInfo), sizeof(debugInfo) - strlen(debugInfo), "%s", ringStr);
 
     char ppnStr[16];
     snprintf(ppnStr, sizeof(ppnStr), "[PPN:0x%04X]", PPN);
-    strcat(debugInfo, ppnStr);
+    snprintf(debugInfo + strlen(debugInfo), sizeof(debugInfo) - strlen(debugInfo), "%s", ppnStr);
 
     return debugInfo;
 #else
@@ -647,7 +647,7 @@ bool checkPageProtection(uint VPN, uint pageTable, ulong pageTableEntry, AccessM
             {
                 const char *at = getenv("ND100X_TRACE_PF_RINGAT");
 
-                pf_ring_at = (at != NULL && at[0] != '\0') ? atol(at) : 0;
+                pf_ring_at = (at != NULL && at[0] != '\0') ? strtol(at, NULL, 10) : 0;
             }
 
             pf_calls++;

@@ -770,25 +770,25 @@ Device *CreateSCSIDevice(uint8_t thumbwheel)
     switch (thumbwheel & 0x03)
     {
     case 0: /* TW2 = 0/4/8/C - logical device 2202 */
-        strcpy(dev->memoryName, "SCSI 144300");
+        snprintf(dev->memoryName, sizeof(dev->memoryName), "%s", "SCSI 144300");
         dev->startAddress = 0144300;
         dev->identCode = 0140440;
         dev->logicalDevice = 02202;
         break;
     case 1: /* TW2 = 1/5/9/D - logical device 2203 */
-        strcpy(dev->memoryName, "SCSI 144400");
+        snprintf(dev->memoryName, sizeof(dev->memoryName), "%s", "SCSI 144400");
         dev->startAddress = 0144400;
         dev->identCode = 0140441;
         dev->logicalDevice = 02203;
         break;
     case 2: /* TW2 = 2/6/A/E - logical device 2204 */
-        strcpy(dev->memoryName, "SCSI 144500");
+        snprintf(dev->memoryName, sizeof(dev->memoryName), "%s", "SCSI 144500");
         dev->startAddress = 0144500;
         dev->identCode = 0140442;
         dev->logicalDevice = 02204;
         break;
     case 3: /* TW2 = 3/7/B/F - logical device 2205 */
-        strcpy(dev->memoryName, "SCSI 144600");
+        snprintf(dev->memoryName, sizeof(dev->memoryName), "%s", "SCSI 144600");
         dev->startAddress = 0144600;
         dev->identCode = 0140443;
         dev->logicalDevice = 02205;

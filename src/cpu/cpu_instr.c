@@ -2837,7 +2837,7 @@ void ndfunc_clpt(ushort operand)
 				{
 					const char *at = getenv("ND100X_TRACE_ND110_RINGAT");
 
-					clpt_ring_at = (at != NULL && at[0] != '\0') ? atol(at) : 0;
+					clpt_ring_at = (at != NULL && at[0] != '\0') ? strtol(at, NULL, 10) : 0;
 				}
 
 				clpt_calls++;

@@ -277,21 +277,21 @@ Device* CreateRTCDevice(uint8_t thumbwheel) {
             dev->startAddress = 010;
             dev->endAddress = 013;
             dev->interruptLevel = 13;
-            strcpy(dev->memoryName, "RTC 1");
+            snprintf(dev->memoryName, sizeof(dev->memoryName), "%s", "RTC 1");
             break;
         case 1:
             dev->identCode = 02;
             dev->startAddress = 014;
             dev->endAddress = 017;
             dev->interruptLevel = 13;
-            strcpy(dev->memoryName, "RTC 2");
+            snprintf(dev->memoryName, sizeof(dev->memoryName), "%s", "RTC 2");
             break;
         case 2:
             dev->identCode = 06;
             dev->startAddress = 020;
             dev->endAddress = 023;
             dev->interruptLevel = 13;
-            strcpy(dev->memoryName, "RTC 3");
+            snprintf(dev->memoryName, sizeof(dev->memoryName), "%s", "RTC 3");
             break;
         default:
             printf("Unexpected thumbwheel code %d\n", thumbwheel);

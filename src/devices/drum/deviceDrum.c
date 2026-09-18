@@ -36,8 +36,7 @@ void DrumDevice_SetBackingFile(const char *path)
 {
     if (path && path[0])
     {
-        strncpy(g_drumBackingPath, path, sizeof(g_drumBackingPath) - 1);
-        g_drumBackingPath[sizeof(g_drumBackingPath) - 1] = '\0';
+        snprintf(g_drumBackingPath, sizeof(g_drumBackingPath), "%s", path);
         g_drumHasBackingPath = 1;
     }
     else
@@ -351,7 +350,7 @@ Device *CreateDrumDevice(uint8_t thumbwheel)
     switch (thumbwheel)
     {
     case 0:
-        strcpy(dev->memoryName, "DRUM 540");
+        snprintf(dev->memoryName, sizeof(dev->memoryName), "%s", "DRUM 540");
         dev->startAddress = 0540;
         break;
     default:

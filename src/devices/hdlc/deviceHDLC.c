@@ -693,8 +693,7 @@ Device* CreateHDLCDevice(uint8_t thumbwheel)
     dev->interruptLevel = 12; // Default to transmitter interrupt level
 
     // Set device name
-    strncpy(dev->memoryName, hdlcDeviceDefinitions[devIndex].deviceName, MAX_DEVICE_NAME - 1);
-    dev->memoryName[MAX_DEVICE_NAME - 1] = '\0';
+    snprintf(dev->memoryName, MAX_DEVICE_NAME, "%s", hdlcDeviceDefinitions[devIndex].deviceName);
 
     // Configure device-specific data
     data->thumbwheel = thumbwheel;

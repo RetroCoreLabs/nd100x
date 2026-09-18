@@ -75,7 +75,7 @@ static const char *win_ca_bundle(void)
             const char *leaf = "curl-ca-bundle.crt";
             if (dirlen + strlen(leaf) < sizeof(path)) {
                 memcpy(path, exe, dirlen);
-                strcpy(path + dirlen, leaf);
+                snprintf(path + dirlen, sizeof(path) - dirlen, "%s", leaf);
                 FILE *f = fopen(path, "rb");
                 if (f) { fclose(f); return path; }
             }
@@ -84,8 +84,7 @@ static const char *win_ca_bundle(void)
 
 #ifdef ND100X_VENDORED_CA_BUNDLE
     // (2) compile-time vendored path (external/curl/bin/curl-ca-bundle.crt)
-    strncpy(path, ND100X_VENDORED_CA_BUNDLE, sizeof(path) - 1);
-    path[sizeof(path) - 1] = '\0';
+    snprintf(path, sizeof(path), "%s", ND100X_VENDORED_CA_BUNDLE);
     FILE *f2 = fopen(path, "rb");
     if (f2) { fclose(f2); return path; }
 #endif

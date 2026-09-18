@@ -90,8 +90,7 @@ const char *MC_CtrlTypeName(CtrlType type)
 static void str_copy(char *dst, size_t dstlen, const char *src)
 {
     if (!dstlen) return;
-    strncpy(dst, src ? src : "", dstlen - 1);
-    dst[dstlen - 1] = '\0';
+    snprintf(dst, dstlen, "%s", src ? src : "");
 }
 
 /* Trim leading/trailing ASCII whitespace in place; returns the start. */
@@ -714,7 +713,7 @@ bool MachineConfig_LoadFile(MachineConfig *cfg, const char *path,
             if (str_ieq(keyl, "telnet")) {
                 cfg->runtime.telnet_port = (int)strtol(val, NULL, 10);
             } else if (str_ieq(keyl, "throttle")) {
-                cfg->runtime.throttle_mhz = atof(val);
+                cfg->runtime.throttle_mhz = strtod(val, NULL);
             } else if (str_ieq(keyl, "charset")) {
                 str_copy(cfg->runtime.charset, sizeof(cfg->runtime.charset), val);
             } else if (str_ieq(keyl, "printdir")) {

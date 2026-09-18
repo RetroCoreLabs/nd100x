@@ -513,8 +513,7 @@ void Modem_StartModem(ModemState *modem, bool isServer, const char *address, int
     modem->isServer = isServer;
     modem->port = port;
     if (address) {
-        strncpy(modem->address, address, sizeof(modem->address) - 1);
-        modem->address[sizeof(modem->address) - 1] = '\0';
+        snprintf(modem->address, sizeof(modem->address), "%s", address);
     }
 
 #ifdef MODEM_HAS_NETWORKING

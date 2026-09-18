@@ -502,7 +502,7 @@ int machine_floppy_mount_catalog(int unit, const char *selector)
 void mount_smd(const char *imageFile, int unit)
 {
     char path[256];
-    sprintf(path,"SMD%d.IMG",unit);
+    snprintf(path, sizeof(path), "SMD%d.IMG",unit);
 
     const char *smd_img = imageFile ? imageFile : path;
 
@@ -531,7 +531,7 @@ void mount_smd(const char *imageFile, int unit)
 void mount_winchester(const char *imageFile, int unit)
 {
     char path[256];
-    sprintf(path, "WD%d.IMG", unit);
+    snprintf(path, sizeof(path), "WD%d.IMG", unit);
 
     const char *wd_img = imageFile ? imageFile : path;
 
@@ -561,7 +561,7 @@ void mount_winchester(const char *imageFile, int unit)
 void mount_scsi(const char *imageFile, int unit)
 {
     char path[256];
-    sprintf(path, "SCSI%d.IMG", unit);
+    snprintf(path, sizeof(path), "SCSI%d.IMG", unit);
 
     const char *scsi_img = imageFile ? imageFile : path;
 
@@ -972,8 +972,7 @@ void mount_drive(DRIVE_TYPE drive_type, int unit, const char *md5, const char *n
         }
 
         // Store the image path
-        strncpy(drives[unit].image_path, image_path, sizeof(drives[unit].image_path) - 1);
-        drives[unit].image_path[sizeof(drives[unit].image_path) - 1] = '\0';
+        snprintf(drives[unit].image_path, sizeof(drives[unit].image_path), "%s", image_path);
 
         // Check if it's an HTTP URL (case insensitive)
         if (strncasecmp(image_path, "http", 4) == 0) {
@@ -1028,14 +1027,11 @@ void mount_drive(DRIVE_TYPE drive_type, int unit, const char *md5, const char *n
     // Mount the drive
     drives[unit].is_mounted = true;
 
-    strncpy(drives[unit].md5, md5, sizeof(drives[unit].md5) - 1);
-    drives[unit].md5[sizeof(drives[unit].md5) - 1] = '\0';
+    snprintf(drives[unit].md5, sizeof(drives[unit].md5), "%s", md5);
 
-    strncpy(drives[unit].name, name, sizeof(drives[unit].name) - 1);
-    drives[unit].name[sizeof(drives[unit].name) - 1] = '\0';
+    snprintf(drives[unit].name, sizeof(drives[unit].name), "%s", name);
 
-    strncpy(drives[unit].description, description, sizeof(drives[unit].description) - 1);
-    drives[unit].description[sizeof(drives[unit].description) - 1] = '\0';
+    snprintf(drives[unit].description, sizeof(drives[unit].description), "%s", description);
 
 #ifdef _debug_
     printf("Mounted %s to %s unit %d:\n",
@@ -1208,11 +1204,9 @@ void mount_drive_opfs(DRIVE_TYPE drive_type, int unit, const char *name,
     drives[unit].data_size = imageSize;
     drives[unit].block_size = (drive_type == DRIVE_FLOPPY) ? 512 : 1024;
 
-    strncpy(drives[unit].md5, "opfs", sizeof(drives[unit].md5) - 1);
-    strncpy(drives[unit].name, name, sizeof(drives[unit].name) - 1);
-    drives[unit].name[sizeof(drives[unit].name) - 1] = '\0';
-    strncpy(drives[unit].description, description, sizeof(drives[unit].description) - 1);
-    drives[unit].description[sizeof(drives[unit].description) - 1] = '\0';
+    snprintf(drives[unit].md5, sizeof(drives[unit].md5), "%s", "opfs");
+    snprintf(drives[unit].name, sizeof(drives[unit].name), "%s", name);
+    snprintf(drives[unit].description, sizeof(drives[unit].description), "%s", description);
     drives[unit].image_path[0] = '\0';
 }
 
@@ -1243,11 +1237,9 @@ void mount_drive_gateway(DRIVE_TYPE drive_type, int unit, const char *name,
     drives[unit].data_size = imageSize;
     drives[unit].block_size = (drive_type == DRIVE_FLOPPY) ? 512 : 1024;
 
-    strncpy(drives[unit].md5, "gateway", sizeof(drives[unit].md5) - 1);
-    strncpy(drives[unit].name, name, sizeof(drives[unit].name) - 1);
-    drives[unit].name[sizeof(drives[unit].name) - 1] = '\0';
-    strncpy(drives[unit].description, description, sizeof(drives[unit].description) - 1);
-    drives[unit].description[sizeof(drives[unit].description) - 1] = '\0';
+    snprintf(drives[unit].md5, sizeof(drives[unit].md5), "%s", "gateway");
+    snprintf(drives[unit].name, sizeof(drives[unit].name), "%s", name);
+    snprintf(drives[unit].description, sizeof(drives[unit].description), "%s", description);
     drives[unit].image_path[0] = '\0';
 }
 

@@ -1746,22 +1746,22 @@ Device *CreateSMDDevice(uint8_t thumbwheel)
     switch (thumbwheel)
     {
     case 0:
-        strcpy(dev->memoryName, "SMD 1540");
+        snprintf(dev->memoryName, sizeof(dev->memoryName), "%s", "SMD 1540");
         dev->identCode = 017; // octal 017
         dev->startAddress = 01540;
         break;
     case 1:
-        strcpy(dev->memoryName, "SMD 1550");
+        snprintf(dev->memoryName, sizeof(dev->memoryName), "%s", "SMD 1550");
         dev->identCode = 020; // Octal 020
         dev->startAddress = 01550;
         break;
     case 2:
-        strcpy(dev->memoryName, "SMD 540");
+        snprintf(dev->memoryName, sizeof(dev->memoryName), "%s", "SMD 540");
         dev->identCode = 023; // Octal 02
         dev->startAddress = 0540;
         break;
     case 3:
-        strcpy(dev->memoryName, "SMD 550");
+        snprintf(dev->memoryName, sizeof(dev->memoryName), "%s", "SMD 550");
         dev->identCode = 06; // Octal 06
         dev->startAddress = 0550;
         break;

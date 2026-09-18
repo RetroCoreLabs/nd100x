@@ -220,8 +220,8 @@ int floppydb_load_json(const char *json_text)
         const char *md5_s  = (md5  && cJSON_IsString(md5)  && md5->valuestring)  ? md5->valuestring  : "";
         const char *dir_s  = (dir  && cJSON_IsString(dir)  && dir->valuestring)  ? dir->valuestring  : "";
 
-        strncpy(e->name, name_s, sizeof(e->name) - 1);
-        strncpy(e->md5,  md5_s,  sizeof(e->md5)  - 1);
+        snprintf(e->name, sizeof(e->name), "%s", name_s);
+        snprintf(e->md5, sizeof(e->md5), "%s", md5_s);
         e->directory_content = strdup(dir_s ? dir_s : "");
 
         fdb_extract_field(dir_s, "Directory name", e->directory_name, sizeof(e->directory_name));

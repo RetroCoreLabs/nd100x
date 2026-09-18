@@ -828,12 +828,12 @@ Device *CreateWinchesterDevice(uint8_t thumbwheel)
     switch (thumbwheel)
     {
     case 0:
-        strcpy(dev->memoryName, "WINCHESTER DISC 500");
+        snprintf(dev->memoryName, sizeof(dev->memoryName), "%s", "WINCHESTER DISC 500");
         dev->startAddress = 0500;
         dev->identCode = WD_IDENT_SYSTEM1;
         break;
     case 1:
-        strcpy(dev->memoryName, "WINCHESTER DISC 510");
+        snprintf(dev->memoryName, sizeof(dev->memoryName), "%s", "WINCHESTER DISC 510");
         dev->startAddress = 0510;
         dev->identCode = WD_IDENT_SYSTEM2;
         break;

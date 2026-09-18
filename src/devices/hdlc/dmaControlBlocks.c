@@ -326,8 +326,8 @@ void DMAControlBlocks_MarkBufferReceived(DMAControlBlocks *dmaCB, uint8_t rxStat
 #ifdef DMA_DEBUG
         const char *flags = "";
         char flagsBuffer[64] = "";
-        if (DCB_HasRSOMFlag(dmaCB->rxDCB)) strcat(flagsBuffer, "RSOM ");
-        if (DCB_HasREOMFlag(dmaCB->rxDCB)) strcat(flagsBuffer, "REOM ");
+        if (DCB_HasRSOMFlag(dmaCB->rxDCB)) snprintf(flagsBuffer + strlen(flagsBuffer), sizeof(flagsBuffer) - strlen(flagsBuffer), "%s", "RSOM ");
+        if (DCB_HasREOMFlag(dmaCB->rxDCB)) snprintf(flagsBuffer + strlen(flagsBuffer), sizeof(flagsBuffer) - strlen(flagsBuffer), "%s", "REOM ");
         flags = flagsBuffer;
 
         DMAControlBlocks_Log(dmaCB, "--------------------------------------------------------------------------");
@@ -352,7 +352,7 @@ void DMAControlBlocks_MarkBufferReceived(DMAControlBlocks *dmaCB, uint8_t rxStat
             char temp[16];
             for (int i = 0; i < DCB_GetDMABytesWritten(dmaCB->rxDCB); i++) {
                 snprintf(temp, sizeof(temp), "0x%02X ", DMAControlBlocks_ReadNextByteDMA(dmaCB, true));
-                strcat(bytes, temp);
+                snprintf(bytes + strlen(bytes), sizeof(bytes) - strlen(bytes), "%s", temp);
             }
 
             DMAControlBlocks_Log(dmaCB, "Received block [%06X:%d]: %s [RSOM:%d] [REOM:%d]",
@@ -430,7 +430,7 @@ HdlcDCB* DMAControlBlocks_LoadBufferDescription(DMAControlBlocks *dmaCB, uint32_
         char temp[16];
         for (int i = 0; i < DCB_GetByteCount(description); i++) {
             snprintf(temp, sizeof(temp), "0x%02X ", DMAControlBlocks_ReadNextByteDMA(dmaCB, isRX));
-            strcat(bytes, temp);
+            snprintf(bytes + strlen(bytes), sizeof(bytes) - strlen(bytes), "%s", temp);
         }
 
         DMAControlBlocks_Log(dmaCB, "DATA: %s", bytes);

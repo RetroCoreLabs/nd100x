@@ -408,8 +408,7 @@ bool TelnetServer_GetTerminalStatus(TelnetServer *server, int index,
     if (connected) *connected = (rt->clientFd != ND_INVALID_SOCKET);
     if (locallyActive) *locallyActive = rt->locallyActive;
     if (clientAddr && addrLen > 0) {
-        strncpy(clientAddr, rt->clientAddrStr, addrLen - 1);
-        clientAddr[addrLen - 1] = '\0';
+        snprintf(clientAddr, addrLen, "%s", rt->clientAddrStr);
     }
     return true;
 }
@@ -528,8 +527,7 @@ bool TelnetServer_GetPendingInfo(TelnetServer *server, int index,
     }
     PendingClient *pc = &server->pending[index];
     if (addrBuf && addrBufLen > 0) {
-        strncpy(addrBuf, pc->addrStr, addrBufLen - 1);
-        addrBuf[addrBufLen - 1] = '\0';
+        snprintf(addrBuf, addrBufLen, "%s", pc->addrStr);
     }
     if (ageSecs) {
         *ageSecs = (int)(time(NULL) - pc->connectTime);
@@ -677,8 +675,7 @@ static bool try_assign_pending(TelnetServer *server, PendingClient *pc, int sele
 
     // Assign client to terminal
     rt->clientFd = pc->fd;
-    strncpy(rt->clientAddrStr, pc->addrStr, sizeof(rt->clientAddrStr) - 1);
-    rt->clientAddrStr[sizeof(rt->clientAddrStr) - 1] = '\0';
+    snprintf(rt->clientAddrStr, sizeof(rt->clientAddrStr), "%s", pc->addrStr);
 
     // Clear the ring buffer
     pthread_mutex_lock(&rt->outputMutex);
@@ -930,8 +927,7 @@ static void *accept_thread_func(void *arg)
                 } else {
                     PendingClient *pc = &server->pending[server->pendingCount];
                     pc->fd = clientFd;
-                    strncpy(pc->addrStr, addrStr, sizeof(pc->addrStr) - 1);
-                    pc->addrStr[sizeof(pc->addrStr) - 1] = '\0';
+                    snprintf(pc->addrStr, sizeof(pc->addrStr), "%s", addrStr);
                     pc->connectTime = time(NULL);
                     pc->iacState = TELNET_STATE_DATA;
                     pc->bytesRx = 0;

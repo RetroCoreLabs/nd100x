@@ -21,8 +21,7 @@ void VScreen_Init(VScreen *vs, const char *name, Device *dev, int cols, bool inp
     if (!vs) return;
 
     memset(vs, 0, sizeof(VScreen));
-    strncpy(vs->name, name, sizeof(vs->name) - 1);
-    vs->name[sizeof(vs->name) - 1] = '\0';
+    snprintf(vs->name, sizeof(vs->name), "%s", name);
     vs->device = dev;
     vs->cols = (cols > 0) ? cols : 80;
     vs->isInputCapable = inputCapable;

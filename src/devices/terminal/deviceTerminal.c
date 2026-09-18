@@ -460,8 +460,7 @@ Device *CreateTerminalDevice(uint8_t thumbwheel)
     dev->logicalDevice = def->logicalDevice;
     dev->endAddress = def->addressBase + 7;
     dev->interruptLevel = 10; // 10 = output, 12 = input
-    strncpy(dev->memoryName, def->deviceName, sizeof(dev->memoryName) - 1);
-    dev->memoryName[sizeof(dev->memoryName) - 1] = '\0';
+    snprintf(dev->memoryName, sizeof(dev->memoryName), "%s", def->deviceName);
 
     // Set up device function pointers
     dev->Reset = Terminal_Reset;

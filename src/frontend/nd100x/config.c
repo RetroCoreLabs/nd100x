@@ -498,8 +498,12 @@ bool Config_ParseCommandLine(Config_t *config, int argc, char *argv[]) {
             case 'Z':
                 cpu_throttle_set_enabled(true);
                 if (optarg) {
-                    double mhz = atof(optarg);
-                    if (mhz > 0) cpu_throttle_set_mhz(mhz);
+                    double mhz = strtod(optarg, &endptr);
+                    if (endptr == optarg || *endptr != '\0' || mhz <= 0) {
+                        fprintf(stderr, "Invalid throttle speed in MHz: %s\n", optarg);
+                        return false;
+                    }
+                    cpu_throttle_set_mhz(mhz);
                 }
                 break;
 

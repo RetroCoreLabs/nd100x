@@ -785,13 +785,13 @@ Device *CreateFloppyDMADevice(uint8_t thumbwheel)
     switch (thumbwheel)
     {
     case 0:
-        strcpy(dev->memoryName, "Floppy DMA 0");
+        snprintf(dev->memoryName, sizeof(dev->memoryName), "%s", "Floppy DMA 0");
         dev->identCode = 021; // octal 021
         dev->startAddress = 01560;
         dev->endAddress = 01567;
         break;
     case 1:
-        strcpy(dev->memoryName, "Floppy DMA 1");
+        snprintf(dev->memoryName, sizeof(dev->memoryName), "%s", "Floppy DMA 1");
         dev->identCode = 022; // Octal 022
         dev->startAddress = 01570;
         dev->endAddress = 01577;
