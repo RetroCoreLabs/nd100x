@@ -4025,7 +4025,15 @@ static int cmd_read_memory(DAPServer *server)
     DAPDataBreakpointAddressSpace as = server->current_command.context.read_memory.address_space;
     int8_t pil = server->current_command.context.read_memory.pil;
 
-    for (size_t i = 0; i < byteCount / 2; i++)
+    // Only the bytes we actually managed to read are returned. A word that
+    // cannot be translated (page not present, address outside installed
+    // memory) ends the read - everything from there on is reported as
+    // unreadable and is NOT included in the returned buffer. Handing back a
+    // zero-filled buffer for those bytes would be indistinguishable from a
+    // region of memory that genuinely contains zeroes.
+    size_t bytesRead = 0;
+
+    while (bytesRead < byteCount)
     {
         int word;
         if (is_physical)
@@ -4038,18 +4046,21 @@ static int cmd_read_memory(DAPServer *server)
             word = Dbg_ReadVirtualMemoryISpace_PIL(address, pil);
         if (word == -1)
         {
-            server->current_command.context.read_memory.unreadable_bytes = byteCount - i * 2;
             break;
         }
 
-        data[i * 2] = (uint8_t)(word >> 8);
-        data[i * 2 + 1] = (uint8_t)(word & 0xFF);
-        server->current_command.context.read_memory.unreadable_bytes -= 2;
+        data[bytesRead++] = (uint8_t)(word >> 8);
+        if (bytesRead < byteCount)
+        {
+            data[bytesRead++] = (uint8_t)(word & 0xFF);
+        }
         address++;
     }
 
-    // encode data to base64
-    server->current_command.context.read_memory.base64_data = base64_encode(data, byteCount);
+    server->current_command.context.read_memory.unreadable_bytes = byteCount - bytesRead;
+
+    // encode the readable part only to base64
+    server->current_command.context.read_memory.base64_data = base64_encode(data, bytesRead);
 
     // free data
     free(data);
@@ -4239,19 +4250,27 @@ static int cmd_disassemble(DAPServer *server)
                 word = Dbg_ReadVirtualMemoryISpace_PIL(virtualAddress, pil);
                 break;
             }
-            uint16_t operand = (word >= 0) ? (uint16_t)word : 0;
-
             // Get the address of the instruction (DAP SPEC says it must be hex)
             char address_str[10];
             snprintf(address_str, sizeof(address_str), "0x%04x", virtualAddress);
             instruction->address = strdup(address_str);
 
-            // Disassemble the instruction
-            char operand_str[50];
-            OpToStr(operand_str, sizeof(operand_str), operand);
-
             char instruction_str[100];
-            snprintf(instruction_str, sizeof(instruction_str), "%06o %s", operand, operand_str);
+            if (word < 0)
+            {
+                // The word could not be read (page not present, or address
+                // outside installed memory). Say so - substituting a zero here
+                // would disassemble as a perfectly plausible "000000 STZ 0".
+                snprintf(instruction_str, sizeof(instruction_str), "?????? <unreadable>");
+            }
+            else
+            {
+                // Disassemble the instruction
+                uint16_t operand = (uint16_t)word;
+                char operand_str[50];
+                OpToStr(operand_str, sizeof(operand_str), operand);
+                snprintf(instruction_str, sizeof(instruction_str), "%06o %s", operand, operand_str);
+            }
 
             instruction->instruction = strdup(instruction_str);
             instruction->symbol = NULL;
