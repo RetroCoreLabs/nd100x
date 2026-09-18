@@ -15,14 +15,14 @@ This document covers the validation of three character devices ported from Retro
 ### Files Changed
 
 **New files (8):**
-- `src/devices/lineprinter/deviceLinePrinter.h` / `.c`
-- `src/devices/papertapewriter/devicePaperTapeWriter.h` / `.c`
+- `src/devices/lineprinter/device_line_printer.h` / `.c`
+- `src/devices/papertapewriter/device_paper_tape_writer.h` / `.c`
 - `src/frontend/nd100x/vscreen.h` / `.c`
 - `template-glass/js/line-printer.js`
 - `template-glass/js/paper-tape.js`
 
 **Modified files (17):**
-- `src/devices/papertape/devicePapertape.h` / `.c` — full rewrite
+- `src/devices/papertape/device_paper_tape.h` / `.c` — full rewrite
 - `src/devices/devices_types.h` — new device types, IO delay constants
 - `src/devices/devicemanager.c` — factory cases, device registration
 - `src/devices/CMakeLists.txt` — build integration

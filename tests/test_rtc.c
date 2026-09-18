@@ -3,13 +3,13 @@
  *
  * Copyright (c) 2026 Ronny Hansen
  *
- * Unit tests for the RTC time base in src/devices/rtc/deviceRTC.c:
+ * Unit tests for the RTC time base in src/devices/rtc/device_rtc.c:
  *
  *   - ticks mode (default): exactly one clock pulse per 10550 RTC_Tick calls
  *   - wall mode: pulses follow host monotonic time at 20 ms (50 Hz),
  *     independent of how fast RTC_Tick is called
  *
- * deviceRTC.c is linked in DIRECTLY; the four Device_* helpers it uses are
+ * device_rtc.c is linked in DIRECTLY; the four Device_* helpers it uses are
  * stubbed below so the device manager does not have to be linked in.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -26,13 +26,13 @@
 #include <time.h>
 
 #include "../src/devices/devices_types.h"
-#include "../src/devices/rtc/deviceRTC.h"
+#include "../src/devices/rtc/device_rtc.h"
 
-/* From deviceRTC.c (normally declared in the generated devices_protos.h). */
+/* From device_rtc.c (normally declared in the generated devices_protos.h). */
 Device *CreateRTCDevice(uint8_t thumbwheel);
 void RTC_SetWallClockMode(bool enable);
 
-/* ---- Device_* stubs (deviceRTC.c uses exactly these four) ---- */
+/* ---- Device_* stubs (device_rtc.c uses exactly these four) ---- */
 /* Prototypes match src/devices/device.c (devices_protos.h). */
 void Device_Init(Device *dev, uint8_t thumbwheel, DeviceClass deviceClass, size_t blockSize);
 void Device_TickIODelay(Device *dev);
@@ -89,7 +89,7 @@ static uint64_t now_ns(void)
     return (uint64_t)ts.tv_sec * 1000000000ULL + (uint64_t)ts.tv_nsec;
 }
 
-#define TICKS_20MS 10550   /* must match deviceRTC.c */
+#define TICKS_20MS 10550   /* must match device_rtc.c */
 
 /* Count pulses (rising edges of readyForTransfer) over n RTC_Tick calls,
  * clearing the flag after each detected pulse. */

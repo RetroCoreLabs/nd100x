@@ -48,11 +48,11 @@
 #include "../machine/machine_config.h"
 #include "../machine/machine_config_apply.h"
 #include "../machine/machine_config_json.h"
-#include "../devices/terminal/deviceTerminal.h"
-#include "../devices/papertape/devicePapertape.h"
-#include "../devices/papertapewriter/devicePaperTapeWriter.h"
-#include "../devices/scsi/deviceSCSI.h"
-#include "../devices/hdlc/deviceHDLC.h"
+#include "../devices/terminal/device_terminal.h"
+#include "../devices/papertape/device_paper_tape.h"
+#include "../devices/papertapewriter/device_paper_tape_writer.h"
+#include "../devices/scsi/device_scsi.h"
+#include "../devices/hdlc/device_hdlc.h"
 #include "../devices/hdlc/modem.h"
 #include "../devices/devices_protos.h"
 #include "../ndlib/printjob.h"
@@ -1322,7 +1322,7 @@ EMSCRIPTEN_EXPORT const char* ValidateMachineINI(const char* iniText)
 // Carrier: gateway TCP accept/close -> HDLC_SetCarrier -> Modem_SetCarrierPresent
 
 #define HDLC_TX_RING_SIZE 16
-/* Larger than hdlcFrame.h HDLC_MAX_FRAME_SIZE; distinct name avoids macro clash */
+/* Larger than hdlc_frame.h HDLC_MAX_FRAME_SIZE; distinct name avoids macro clash */
 #define HDLC_WASM_TX_BUF 2048
 
 static struct {

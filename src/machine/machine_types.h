@@ -69,8 +69,8 @@ typedef enum {
 } DRIVE_TYPE;
 
 // NOTE: the SCSI unit count is SCSI_MAX_UNITS, defined in
-// devices/scsi/deviceSCSI.h (reachable from here - this header includes
-// devices_types.h, which includes deviceSCSI.h).
+// devices/scsi/device_scsi.h (reachable from here - this header includes
+// devices_types.h, which includes device_scsi.h).
 
 // Mounted drive information structure
 typedef struct {

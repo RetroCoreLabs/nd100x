@@ -49,14 +49,14 @@
 #include <stdbool.h>
 
 #include "devices_types.h"
-#include "deviceWinchester.h"
+#include "device_winchester.h"
 #include "devices_protos.h"
 
 #include "wd_conformance_seq.h"
 
 /* ---------------- fake machine hooks ------------------------------------ *
  * Same stubs as tests/test_winchester.c: this driver links the real
- * deviceWinchester.c + diskWinchester.c against a fake bus and a fake image,
+ * device_winchester.c + disk_winchester.c against a fake bus and a fake image,
  * with no machine and no CPU. */
 
 #define FAKE_MEM_WORDS 65536u

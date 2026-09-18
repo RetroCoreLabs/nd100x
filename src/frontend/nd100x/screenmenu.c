@@ -23,7 +23,7 @@
 #include "charset.h"
 #include "../../devices/devices_types.h"
 #include "../../devices/devices_protos.h"
-#include "../../devices/hdlc/deviceHDLC.h"
+#include "../../devices/hdlc/device_hdlc.h"
 #include "../../cpu/cpu_types.h"
 #include "../../cpu/cpu_protos.h"
 

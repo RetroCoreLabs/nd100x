@@ -28,7 +28,7 @@
 #include <stddef.h>
 
 #include "machine_types.h"                 /* BOOT_TYPE */
-#include "../devices/scsi/deviceSCSI.h"    /* SCSIUnitType, SCSI_MAX_UNITS */
+#include "../devices/scsi/device_scsi.h"    /* SCSIUnitType, SCSI_MAX_UNITS */
 
 #define MC_MAX_CONTROLLERS 16
 #define MC_MAX_DISK_SLOTS  SCSI_MAX_UNITS  /* 7 - the largest slot count (SCSI) */

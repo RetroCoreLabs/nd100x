@@ -71,8 +71,8 @@ void stop_debugger_thread(void);
 #include "keyboard.h"
 #include "vscreen.h"
 
-#include "../../devices/papertape/devicePapertape.h"
-#include "../../devices/papertapewriter/devicePaperTapeWriter.h"
+#include "../../devices/papertape/device_paper_tape.h"
+#include "../../devices/papertapewriter/device_paper_tape_writer.h"
 #include "../../ndlib/printjob.h"
 
 #include "screenmenu.h"

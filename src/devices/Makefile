@@ -4,15 +4,15 @@ SRC_DIR := .
 # Source files in dependency order
 SRCS := device.c \
         devicemanager.c \
-        floppy/deviceFloppyPIO.c \
-        floppy/deviceFloppyDMA.c \
-        papertape/devicePapertape.c \
-        smd/deviceSMD.c \
-        smd/diskSMD.c \
-        scsi/deviceSCSI.c \
-        rtc/deviceRTC.c \
+        floppy/device_floppy_pio.c \
+        floppy/device_floppy_dma.c \
+        papertape/device_paper_tape.c \
+        smd/device_smd.c \
+        smd/disk_smd.c \
+        scsi/device_scsi.c \
+        rtc/device_rtc.c \
         panel/panel.c \
-        terminal/deviceTerminal.c
+        terminal/device_terminal.c
 
 # Include paths for all device subdirectories
 INCLUDES := -I$(SRC_DIR) \
@@ -86,15 +86,15 @@ $(MODULE_OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 # Header dependencies
 $(MODULE_OBJ_DIR)/device.o: devices_protos.h devices_types.h    
 $(MODULE_OBJ_DIR)/devicemanager.o: devices_protos.h devices_types.h    
-$(MODULE_OBJ_DIR)/floppy/deviceFloppyPIO.o: floppy/deviceFloppyPIO.h devices_protos.h
-$(MODULE_OBJ_DIR)/floppy/deviceFloppyDMA.o: floppy/deviceFloppyDMA.h devices_protos.h
-$(MODULE_OBJ_DIR)/papertape/devicePapertape.o: papertape/devicePapertape.h devices_protos.h
-$(MODULE_OBJ_DIR)/smd/deviceSMD.o: smd/deviceSMD.h smd/diskSMD.h devices_protos.h
-$(MODULE_OBJ_DIR)/smd/diskSMD.o: smd/diskSMD.h
-$(MODULE_OBJ_DIR)/scsi/deviceSCSI.o: scsi/deviceSCSI.h devices_protos.h
-$(MODULE_OBJ_DIR)/rtc/deviceRTC.o: rtc/deviceRTC.h devices_protos.h
+$(MODULE_OBJ_DIR)/floppy/device_floppy_pio.o: floppy/device_floppy_pio.h devices_protos.h
+$(MODULE_OBJ_DIR)/floppy/device_floppy_dma.o: floppy/device_floppy_dma.h devices_protos.h
+$(MODULE_OBJ_DIR)/papertape/device_paper_tape.o: papertape/device_paper_tape.h devices_protos.h
+$(MODULE_OBJ_DIR)/smd/device_smd.o: smd/device_smd.h smd/disk_smd.h devices_protos.h
+$(MODULE_OBJ_DIR)/smd/disk_smd.o: smd/disk_smd.h
+$(MODULE_OBJ_DIR)/scsi/device_scsi.o: scsi/device_scsi.h devices_protos.h
+$(MODULE_OBJ_DIR)/rtc/device_rtc.o: rtc/device_rtc.h devices_protos.h
 $(MODULE_OBJ_DIR)/panel/panel.o: panel/panel.h devices_protos.h
-$(MODULE_OBJ_DIR)/terminal/deviceTerminal.o: terminal/deviceTerminal.h devices_protos.h
+$(MODULE_OBJ_DIR)/terminal/device_terminal.o: terminal/device_terminal.h devices_protos.h
 
 # Clean module's build artifacts
 clean:

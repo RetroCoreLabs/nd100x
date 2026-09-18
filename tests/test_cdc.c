@@ -1,14 +1,14 @@
 /*
  * Comprehensive unit tests for the NORD TSS CDC/NCR system-disc device
- * (src/devices/cdc/deviceCDC.c), the cartridge disc at IOX 500-507.
+ * (src/devices/cdc/device_cdc.c), the cartridge disc at IOX 500-507.
  *
- * Following the test_drum.c / test_bcd.c pattern: deviceCDC.c is linked in
+ * Following the test_drum.c / test_bcd.c pattern: device_cdc.c is linked in
  * DIRECTLY together with the FAKE Device_* infrastructure provided here, so the
  * disc's real register handlers and transfer engine are exercised through their
  * true entry points without pulling in the machine, the CPU memory subsystem or
  * a real disk image.
  *
- * Coverage: every function in deviceCDC.c and every register/path -
+ * Coverage: every function in device_cdc.c and every register/path -
  *   CreateCdcDevice, Cdc_Reset, Cdc_Read (RST/RCA two-read/RSECT/SEEK+test),
  *   Cdc_Write (LCA/LBA/LWC/LCW-activate/LCW-clear), Cdc_ExecuteGO
  *   (read/write/read-parity/compare/test-mode/bounds), Cdc_End, Cdc_Tick,
@@ -27,7 +27,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "deviceCDC.h"
+#include "device_cdc.h"
 #include "devices_protos.h"
 
 /* ---------------- fake device infrastructure ---------------------------- */
@@ -149,7 +149,7 @@ int main(void)
     CdcData *d = (CdcData *)dev->deviceData;
 
     /* Default surface must cover the corrected DKADR overlay range (max
-     * physical sector 458 - see CDC_DEFAULT_SECTORS in deviceCDC.h). The
+     * physical sector 458 - see CDC_DEFAULT_SECTORS in device_cdc.h). The
      * surface grows on demand (Cdc_EnsureSurface) for anything beyond it. */
     CHECK(d->surfaceSectors == CDC_DEFAULT_SECTORS && d->surfaceSectors == 512u,
           "default surface is 512 sectors");

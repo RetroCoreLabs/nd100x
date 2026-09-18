@@ -903,7 +903,7 @@ int cpu_run(int ticks_arg)
 #ifdef WITH_DEBUGGER
 		// Async pause is human-latency, so poll it on the emulated machine's own
 		// timebase rather than per instruction or host wall-clock. 10550 instr is
-		// one ~20ms RTC period (deviceRTC.c TICKS_20MS); 10 periods ~= 200ms of
+		// one ~20ms RTC period (device_rtc.c TICKS_20MS); 10 periods ~= 200ms of
 		// emulated time. Running faster than real-time only shortens the wall-clock
 		// latency, never lengthens it, so this is robust to any throttle/"max" speed.
 		//

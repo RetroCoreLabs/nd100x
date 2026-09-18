@@ -1,7 +1,7 @@
 /*
- * Unit tests for the NORD TSS swapping-drum device (src/devices/drum/deviceDrum.c).
+ * Unit tests for the NORD TSS swapping-drum device (src/devices/drum/device_drum.c).
  *
- * Following the test_bcd.c pattern: deviceDrum.c is linked in DIRECTLY together
+ * Following the test_bcd.c pattern: device_drum.c is linked in DIRECTLY together
  * with FAKE Device_* infrastructure provided here, so the drum's real register
  * handlers and transfer engine are exercised through their true entry points
  * without pulling in the machine, the CPU memory subsystem or a disk image.
@@ -15,7 +15,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "deviceDrum.h"
+#include "device_drum.h"
 #include "devices_protos.h"
 
 /* ---------------- fake device infrastructure ---------------------------- */

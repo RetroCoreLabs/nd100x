@@ -24,7 +24,7 @@
 #include "machine_config.h"
 
 /* machine_config.c calls these two SCSI helpers for the disk media names;
- * they are replicated here (1:1 with deviceSCSI.c) so the whole SCSI device
+ * they are replicated here (1:1 with device_scsi.c) so the whole SCSI device
  * does not have to be linked in. */
 SCSIUnitType SCSI_ParseUnitType(const char *name)
 {

@@ -1,9 +1,9 @@
 /*
  * Unit tests for the 5 1/4 inch (ST506) / 8 inch Winchester disc controller
- * (src/devices/winchester/deviceWinchester.c), cards 3041/3038 at IOX 500-507.
+ * (src/devices/winchester/device_winchester.c), cards 3041/3038 at IOX 500-507.
  *
- * Follows the test_cdc.c / test_drum.c pattern: deviceWinchester.c and
- * diskWinchester.c are linked in DIRECTLY together with the FAKE Device_*
+ * Follows the test_cdc.c / test_drum.c pattern: device_winchester.c and
+ * disk_winchester.c are linked in DIRECTLY together with the FAKE Device_*
  * infrastructure provided here, so the controller's real register handlers and
  * transfer engine are exercised through their true entry points without the
  * machine, the CPU memory subsystem or a real disk image.
@@ -32,7 +32,7 @@
 /* devices_types.h defines Device / DeviceClass / IODelayedCallback and pulls
  * in the per-device headers; it must come before the controller header. */
 #include "devices_types.h"
-#include "deviceWinchester.h"
+#include "device_winchester.h"
 #include "devices_protos.h"
 
 /* ---------------- fake device infrastructure ---------------------------- */

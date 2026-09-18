@@ -8,9 +8,9 @@ Summary
   ✅ Created comprehensive HDLC device system:
   1. hdlc_constants.h - Centralized constants for all HDLC components
   2. hdlc_crc.h/.c - Complete CRC calculation system with lookup tables
-  3. chipCOM5025.h/.c - Full COM5025 chip emulation with pin I/O and register handling
-  4. chipCOM5025Registers.h/.c - Register management and state machines
-  5. deviceHDLC.h/.c - Device framework integration
+  3. chip_com5025.h/.c - Full COM5025 chip emulation with pin I/O and register handling
+  4. chip_com5025_registers.h/.c - Register management and state machines
+  5. device_hdlc.h/.c - Device framework integration
 
   Key Features Implemented:
 
@@ -115,7 +115,7 @@ i
 
   1. Add to devices_types.h:
   - Add DEVICE_TYPE_HDLC to the DeviceType enum
-  - Add #include "./hdlc/deviceHDLC.h" to the includes section (around line 199)
+  - Add #include "./hdlc/device_hdlc.h" to the includes section (around line 199)
 
   2. Add to devicemanager.c:
   - Add case for DEVICE_TYPE_HDLC in CreateDevice() switch statement (around line 176)
@@ -139,9 +139,9 @@ i
 
   Key Files to Examine for Reference:
 
-  - src/devices/terminal/deviceTerminal.c - Good example of CHARACTER device with status/control registers
-  - src/devices/rtc/deviceRTC.c - Simple example showing the basic device implementation pattern
-  - src/devices/floppy/deviceFloppyDMA.c - Complex example with DMA operations
+  - src/devices/terminal/device_terminal.c - Good example of CHARACTER device with status/control registers
+  - src/devices/rtc/device_rtc.c - Simple example showing the basic device implementation pattern
+  - src/devices/floppy/device_floppy_dma.c - Complex example with DMA operations
 
 ● The analysis is complete. The ND100X device system uses a clean modular architecture where:
 

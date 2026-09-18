@@ -34,7 +34,7 @@
 
 #include "../devices/devices_types.h"
 #include "../devices/devices_protos.h"
-#include "../devices/papertape/devicePapertape.h"  /* --boot=tape mounts the remainder */
+#include "../devices/papertape/device_paper_tape.h"  /* --boot=tape mounts the remainder */
 
 #include "../ndlib/ndlib_types.h"
 #include "../ndlib/ndlib_protos.h"

@@ -8,7 +8,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "../src/devices/hdlc/tcpReceiveBuffer.h"
+#include "../src/devices/hdlc/tcp_receive_buffer.h"
 #include "test_suites.h"
 
 static int failures = 0;

@@ -47,48 +47,48 @@ add_custom_command(
     # Add panel device sources
     COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/panel/panel.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
     # Add RTC device sources
-    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/rtc/deviceRTC.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
+    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/rtc/device_rtc.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
     # Add terminal device sources
-    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/terminal/deviceTerminal.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
+    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/terminal/device_terminal.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
     # Add papertape device sources
-    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/papertape/devicePapertape.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
+    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/papertape/device_paper_tape.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
     # Add floppy device sources
-    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/floppy/deviceFloppyDMA.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
-    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/floppy/deviceFloppyPIO.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
+    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/floppy/device_floppy_dma.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
+    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/floppy/device_floppy_pio.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
     # Add SMD device sources
-    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/smd/deviceSMD.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
-    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/smd/diskSMD.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
+    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/smd/device_smd.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
+    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/smd/disk_smd.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
     # Add Winchester device sources
-    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/winchester/deviceWinchester.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
-    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/winchester/diskWinchester.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
+    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/winchester/device_winchester.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
+    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/winchester/disk_winchester.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
     # Add SCSI device sources
-    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/scsi/scsiBus.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
+    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/scsi/scsi_bus.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
     COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/scsi/ncr5386.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
-    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/scsi/scsiDevice.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
-    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/scsi/diskSCSI.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
-    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/scsi/scsiHDD.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
-    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/scsi/deviceSCSI.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
+    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/scsi/scsi_device.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
+    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/scsi/disk_scsi.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
+    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/scsi/scsi_hdd.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
+    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/scsi/device_scsi.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
     # Add drum device sources
-    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/drum/deviceDrum.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
+    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/drum/device_drum.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
     # Add CDC system-disc device sources
-    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/cdc/deviceCDC.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
+    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/cdc/device_cdc.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
     # Add line printer device sources
-    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/lineprinter/deviceLinePrinter.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
+    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/lineprinter/device_line_printer.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
     # Add paper tape writer device sources
-    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/papertapewriter/devicePaperTapeWriter.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
+    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/papertapewriter/device_paper_tape_writer.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
     # Add HDLC device sources
-    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/hdlc/deviceHDLC.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
-    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/hdlc/chipCOM5025.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
-    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/hdlc/chipCOM5025Registers.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
+    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/hdlc/device_hdlc.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
+    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/hdlc/chip_com5025.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
+    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/hdlc/chip_com5025_registers.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
     COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/hdlc/hdlc_crc.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
     COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/hdlc/modem.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
-    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/hdlc/dmaEngine.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
-    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/hdlc/dmaDCB.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
-    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/hdlc/dmaControlBlocks.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
-    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/hdlc/dmaParamBuf.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
-    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/hdlc/dmaTransmitter.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
-    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/hdlc/tcpReceiveBuffer.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
-    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/hdlc/dmaReceiver.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
+    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/hdlc/dma_engine.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
+    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/hdlc/dma_dcb.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
+    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/hdlc/dma_control_blocks.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
+    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/hdlc/dma_param_buf.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
+    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/hdlc/dma_transmitter.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
+    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/hdlc/tcp_receive_buffer.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
+    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/hdlc/dma_receiver.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
     DEPENDS ${SOURCES}
     COMMENT "Generating prototypes for devices"
     VERBATIM

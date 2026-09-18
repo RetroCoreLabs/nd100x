@@ -77,7 +77,7 @@ each device's `Ident` implementation, not invented:
   cards 3041/3038; the control word carries the unit in one bit, so two units
   is the hardware maximum). Opt-in: NOT added by `DeviceManager_AddAllDevices()`
   because IOX 500-507 is also the CDC cartridge disc - a machine has one card
-  or the other (`src/devices/winchester/deviceWinchester.h`). The device layer
+  or the other (`src/devices/winchester/device_winchester.h`). The device layer
   also supports wheel 1 (IOX 510-517, disk system 2), but the machine layer's
   mount table has a single 2-slot pool, so config exposes wheel 0 only.
 - **scsi** — wheel 0-3, IOX bases `{0144300,0144400,0144500,0144600}`

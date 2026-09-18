@@ -26,8 +26,8 @@ add_executable(test_hdlc
     test_tcp_receive_buffer.c
     test_hdlc_crc.c
     test_hdlc_frame.c
-    ${CMAKE_SOURCE_DIR}/src/devices/hdlc/tcpReceiveBuffer.c
-    ${CMAKE_SOURCE_DIR}/src/devices/hdlc/hdlcFrame.c
+    ${CMAKE_SOURCE_DIR}/src/devices/hdlc/tcp_receive_buffer.c
+    ${CMAKE_SOURCE_DIR}/src/devices/hdlc/hdlc_frame.c
     ${CMAKE_SOURCE_DIR}/src/devices/hdlc/hdlc_crc.c
 )
 
@@ -121,12 +121,12 @@ add_test(NAME floppydb_tests COMMAND test_floppydb)
 
 # DRUM device unit tests
 #
-# deviceDrum.c is linked in DIRECTLY together with fake Device_* infrastructure
+# device_drum.c is linked in DIRECTLY together with fake Device_* infrastructure
 # provided by test_drum.c (fake DMA memory + delayed-IO), so the drum's register
 # handlers and transfer engine are exercised without the machine or a disk image.
 add_executable(test_drum
     test_drum.c
-    ${CMAKE_SOURCE_DIR}/src/devices/drum/deviceDrum.c
+    ${CMAKE_SOURCE_DIR}/src/devices/drum/device_drum.c
 )
 
 target_include_directories(test_drum PRIVATE
@@ -138,7 +138,7 @@ target_include_directories(test_drum PRIVATE
 
 target_link_libraries(test_drum PRIVATE m)
 
-# deviceDrum.c #includes the generated devices_protos.h; force the devices
+# device_drum.c #includes the generated devices_protos.h; force the devices
 # target (which runs mkptypes to emit it) to build first.
 add_dependencies(test_drum devices)
 
@@ -146,13 +146,13 @@ add_test(NAME drum_tests COMMAND test_drum)
 
 # CDC system-disc device unit tests
 #
-# deviceCDC.c is linked in DIRECTLY together with fake Device_* infrastructure
+# device_cdc.c is linked in DIRECTLY together with fake Device_* infrastructure
 # provided by test_cdc.c (fake DMA memory + delayed-IO), so the disc's register
 # handlers, transfer engine and backing-file logic are exercised without the
 # machine or the CPU memory subsystem.
 add_executable(test_cdc
     test_cdc.c
-    ${CMAKE_SOURCE_DIR}/src/devices/cdc/deviceCDC.c
+    ${CMAKE_SOURCE_DIR}/src/devices/cdc/device_cdc.c
 )
 
 target_include_directories(test_cdc PRIVATE
@@ -164,7 +164,7 @@ target_include_directories(test_cdc PRIVATE
 
 target_link_libraries(test_cdc PRIVATE m)
 
-# deviceCDC.c #includes the generated devices_protos.h; force the devices
+# device_cdc.c #includes the generated devices_protos.h; force the devices
 # target (which runs mkptypes to emit it) to build first.
 add_dependencies(test_cdc devices)
 
@@ -261,14 +261,14 @@ endif()
 
 # RTC time-base unit tests
 #
-# deviceRTC.c is linked in DIRECTLY with the four Device_* helpers stubbed in
+# device_rtc.c is linked in DIRECTLY with the four Device_* helpers stubbed in
 # the test, so no device manager or machine is involved. Verifies the ticks
 # mode pulse period (10550 calls) and the wall mode ~50 Hz host-time rate.
 # POSIX-only (clock_gettime/nanosleep usage in the test), like test_printer.
 if(NOT PLATFORM_WINDOWS)
     add_executable(test_rtc
         test_rtc.c
-        ${CMAKE_SOURCE_DIR}/src/devices/rtc/deviceRTC.c
+        ${CMAKE_SOURCE_DIR}/src/devices/rtc/device_rtc.c
     )
 
     target_include_directories(test_rtc PRIVATE
@@ -279,7 +279,7 @@ if(NOT PLATFORM_WINDOWS)
 
     target_link_libraries(test_rtc PRIVATE m)
 
-    # deviceRTC.c #includes the generated devices_protos.h; force the devices
+    # device_rtc.c #includes the generated devices_protos.h; force the devices
     # target (which runs mkptypes to emit it) to build first.
     add_dependencies(test_rtc devices)
 
@@ -351,14 +351,14 @@ add_test(NAME load_prog_tests COMMAND test_load_prog)
 
 # Winchester disc controller unit tests
 #
-# deviceWinchester.c + diskWinchester.c are linked in DIRECTLY together with the
+# device_winchester.c + disk_winchester.c are linked in DIRECTLY together with the
 # fake Device_* infrastructure in test_winchester.c, so the controller's real
 # register handlers and transfer engine run without the machine or the CPU
 # memory subsystem. Same pattern as the CDC and drum tests above.
 add_executable(test_winchester
     test_winchester.c
-    ${CMAKE_SOURCE_DIR}/src/devices/winchester/deviceWinchester.c
-    ${CMAKE_SOURCE_DIR}/src/devices/winchester/diskWinchester.c
+    ${CMAKE_SOURCE_DIR}/src/devices/winchester/device_winchester.c
+    ${CMAKE_SOURCE_DIR}/src/devices/winchester/disk_winchester.c
 )
 
 target_include_directories(test_winchester PRIVATE
@@ -386,8 +386,8 @@ add_test(NAME winchester_tests COMMAND test_winchester)
 # the verdict, and the other half of it lives in a different repository.
 add_executable(wd_trace
     wd_trace.c
-    ${CMAKE_SOURCE_DIR}/src/devices/winchester/deviceWinchester.c
-    ${CMAKE_SOURCE_DIR}/src/devices/winchester/diskWinchester.c
+    ${CMAKE_SOURCE_DIR}/src/devices/winchester/device_winchester.c
+    ${CMAKE_SOURCE_DIR}/src/devices/winchester/disk_winchester.c
 )
 
 target_include_directories(wd_trace PRIVATE
