@@ -1,6 +1,6 @@
 [submodule "external/libdap"]
 	path = external/libdap
-	url = https://github.com/HackerCorpLabs/libdap
+	url = https://github.com/RetroCoreLabs/libdap
 	branch = main
 [submodule "external/cJSON"]
 	path = external/cJSON
@@ -8,14 +8,14 @@
 	branch = master
 [submodule "external/libsymbols"]
 	path = external/libsymbols
-	url = https://github.com/HackerCorpLabs/libsymbols
+	url = https://github.com/RetroCoreLabs/libsymbols
 	branch = main
 [submodule "template-glass/external/RetroTermWeb"]
 	path = template-glass/external/RetroTermWeb
 	url = ../RetroTermWeb
 [submodule "template-glass/external/norskdata-ndfs"]
 	path = template-glass/external/norskdata-ndfs
-	url = https://github.com/HackerCorpLabs/norskdata-ndfs.git
+	url = https://github.com/RetroCoreLabs/norskdata-ndfs.git
 [submodule "external/ndmonlib"]
 	path = external/ndmonlib
-	url = https://github.com/HackerCorpLabs/ndmonlib.git
+	url = https://github.com/RetroCoreLabs/ndmonlib.git
