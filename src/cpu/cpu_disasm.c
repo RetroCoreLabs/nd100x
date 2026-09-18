@@ -23,9 +23,6 @@
  * distribution in the file COPYING); if not, see <http://www.gnu.org/licenses/>.
  */
 
-//#define DEBUG_TRAP
-//#define DEBUG_PK_SWITCH
-//#define DEBUG_IONOFF
 
 #include <string.h>
 

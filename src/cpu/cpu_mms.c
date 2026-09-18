@@ -21,11 +21,11 @@
  */
 
 
+#include <string.h>
+
 #include "cpu_types.h"
 #include "cpu_protos.h"
-
-//#define DEBUG_MMS
-//#define DEBUG_MMS_MAPPING
+#include "../ndlib/log.h"
 
 // Global MMS type variable definition
 MMSType mmsType = MMS2; // Change this to force MMS type to 1 or 2
@@ -88,8 +88,7 @@ static ushort ConvertTo16BitPTE(uint pageTableEntry)
 }
 
 
-// Used for debugging
-#ifdef DEBUG_MMS
+// Page-table index of a shadow-RAM address (used by the mms trace output)
 static uint CalcPageTableAddress(uint address)
 {
     uint pageTableAddress;
@@ -114,7 +113,6 @@ static uint CalcPageTableAddress(uint address)
     }
     return pageTableAddress;
 }
-#endif
 
 // Clean up PagingTables
 void DestroyPagingTables(void)
@@ -172,30 +170,31 @@ void PT_Write(uint address, ushort value)
 
     g_paging_tables.shadowRam[offset] = value;
 
-#ifdef DEBUG_MMS
-    uint pageTableEntry;
-    uint pageTableAddress = CalcPageTableAddress(address);
-    uint pageTable = pageTableAddress >> 6;
+    if (ND100X_HOT_TRACE && Log_IsEnabled(LOG_CAT_MMS, LOG_TRACE))
+    {
+        uint pageTableEntry;
+        uint pageTableAddress = CalcPageTableAddress(address);
+        uint pageTable = pageTableAddress >> 6;
 
-    if (!STS_SEXI)
-    {
-        pageTableEntry = ConvertFrom16BitPTE(value);
-    }
-    else
-    {
-        if ((address & 0x01) == 0)
+        if (!STS_SEXI)
         {
-            // Even address
-            pageTableEntry = (uint)(value << 16 | g_paging_tables.shadowRam[offset + 1]);
+            pageTableEntry = ConvertFrom16BitPTE(value);
         }
         else
         {
-            // Odd address
-            pageTableEntry = (uint)(g_paging_tables.shadowRam[offset - 1] << 16 | value);
+            if ((address & 0x01) == 0)
+            {
+                // Even address
+                pageTableEntry = (uint)(value << 16 | g_paging_tables.shadowRam[offset + 1]);
+            }
+            else
+            {
+                // Odd address
+                pageTableEntry = (uint)(g_paging_tables.shadowRam[offset - 1] << 16 | value);
+            }
         }
+        Log_Write(LOG_CAT_MMS, LOG_TRACE, "PT W A=%o PT=%d VPN=%d SEXI=%d V=%o => 0x%08X (%s)\n",  address, pageTable, pageTableAddress & 0x3F, STS_SEXI, value,  pageTableEntry, GetPageTableEntryDebugInfo(pageTableEntry));
     }
-    printf("PT W A=%o PT=%d VPN=%d SEXI=%d V=%o => 0x%08X (%s)\n",  address, pageTable, pageTableAddress & 0x3F, STS_SEXI, value,  pageTableEntry, GetPageTableEntryDebugInfo(pageTableEntry));
-#endif
 }
 
 // Read from shadow mem/pagetables
@@ -206,33 +205,6 @@ ushort PT_Read(uint address)
 
     uint offset = address - g_paging_tables.shadowRamAddress;
     ushort res = g_paging_tables.shadowRam[offset];
-
-#ifdef DEBUG_CPU
-    uint pageTableEntry;
-    uint pageTableAddress = CalcPageTableAddress(pt, address);
-    uint pageTable = pageTableAddress >> 6;
-
-    if (!SEXI)
-    {
-        pageTableEntry = ConvertFrom16BitPTE(res);
-    }
-    else
-    {
-        if ((address & 0x01) == 0)
-        {
-            // Even address
-            pageTableEntry = (uint)(res << 16 | pt->shadowRam[offset + 1]);
-        }
-        else
-        {
-            // Odd address
-            pageTableEntry = (uint)(pt->shadowRam[offset - 1] << 16 | res);
-        }
-    }
-    printf("PT R A=%o PT=%d VPN=%d SEXI=%d V=%o <= 0x%08X (%s)\n",
-           address, pageTable, pageTableAddress & 0x3F, SEXI, res,
-           pageTableEntry, GetPageTableEntryDebugInfo(pt, pageTableEntry, SEXI));
-#endif
 
     return res;
 }
@@ -336,9 +308,9 @@ uint SetPageUsed(uint pageTable, uint VPN, PageTableMode ptm, uint PTe)
         PTe |= PGU_FLAG;
         UpdatePageTableEntry(pageTable, VPN, ptm, PTe);
 
-#ifdef DEBUG_MMS
-        printf("PageTable PGU - PT=%d VPN=%d => Entry=0x%08X (%s)\n",  pageTable, VPN, PTe, GetPageTableEntryDebugInfo(PTe));
-#endif
+        if (ND100X_HOT_TRACE && Log_IsEnabled(LOG_CAT_MMS, LOG_TRACE))
+            Log_Write(LOG_CAT_MMS, LOG_TRACE, "PageTable PGU - PT=%d VPN=%d => Entry=0x%08X (%s)",
+                      pageTable, VPN, PTe, GetPageTableEntryDebugInfo(PTe));
     }
     return PTe;
 }
@@ -355,9 +327,9 @@ uint SetPageWritten(uint pageTable, uint VPN,PageTableMode ptm, uint PTe)
         PTe |= WIP_FLAG;
         UpdatePageTableEntry( pageTable, VPN, ptm, PTe);
 
-#ifdef DEBUG_MMS
-        printf("PageTable WIP - PT=%d VPN=%d => Entry=0x%08X (%s)\n",  pageTable, VPN, PTe, GetPageTableEntryDebugInfo(PTe));
-#endif
+        if (ND100X_HOT_TRACE && Log_IsEnabled(LOG_CAT_MMS, LOG_TRACE))
+            Log_Write(LOG_CAT_MMS, LOG_TRACE, "PageTable WIP - PT=%d VPN=%d => Entry=0x%08X (%s)",
+                      pageTable, VPN, PTe, GetPageTableEntryDebugInfo(PTe));
     }
     return PTe;
 }
@@ -366,8 +338,6 @@ uint SetPageWritten(uint pageTable, uint VPN,PageTableMode ptm, uint PTe)
 // Get debug info for page table entry
 const char* GetPageTableEntryDebugInfo(uint32_t PTe)
 {
-    (void)PTe;
-#ifdef DEBUG_MMS
     static char debugInfo[256];
     debugInfo[0] = '\0';
 
@@ -402,9 +372,6 @@ const char* GetPageTableEntryDebugInfo(uint32_t PTe)
     snprintf(debugInfo + strlen(debugInfo), sizeof(debugInfo) - strlen(debugInfo), "%s", ppnStr);
 
     return debugInfo;
-#else
-    return "";
-#endif
 }
 
 
@@ -480,9 +447,9 @@ int mapVirtualToPhysical(uint virtualAddress, AccessMode am, bool UseAPT)
 
     /* DEBUG VPN25 tracing removed - was temporary overlay debugging */
 
-#ifdef DEBUG_MMS_MAPPING
-    printf("mapVirtualToPhysical - PT=%d VPN=%d => Entry=0x%08X (%s)\n",  pageTable, VPN, pageTableEntry, GetPageTableEntryDebugInfo(pageTableEntry));
-#endif
+    if (ND100X_HOT_TRACE && Log_IsEnabled(LOG_CAT_MMSMAP, LOG_TRACE))
+        Log_Write(LOG_CAT_MMSMAP, LOG_TRACE, "mapVirtualToPhysical - PT=%d VPN=%d => Entry=0x%08X (%s)",
+                  pageTable, VPN, pageTableEntry, GetPageTableEntryDebugInfo(pageTableEntry));
 
     // Check for page protection
     if (!checkPageProtection(VPN, pageTable, pageTableEntry, am, virtualAddress))
@@ -496,13 +463,14 @@ int mapVirtualToPhysical(uint virtualAddress, AccessMode am, bool UseAPT)
 #ifdef _DEGRADE_
     if ((am & FETCH) && (pageTableRing < ring) && (ring == 3))
     {
-#ifdef DEBUG_MMS
-        static int degrade_count = 0;
-        if (degrade_count < 10)
-            fprintf(stderr, "DEGRADE: PIL=%d PC=%06o PT=%d VPN=%d ptRing=%d ring=%d->%d PTe=0x%08X\n",
-                   CurrLEVEL, gPC, pageTable, VPN, pageTableRing, ring, pageTableRing, pageTableEntry);
-        degrade_count++;
-#endif
+        if (ND100X_HOT_TRACE && Log_IsEnabled(LOG_CAT_MMS, LOG_TRACE))
+        {
+            static int degrade_count = 0;
+            if (degrade_count < 10)
+                Log_Write(LOG_CAT_MMS, LOG_TRACE, "DEGRADE: PIL=%d PC=%06o PT=%d VPN=%d ptRing=%d ring=%d->%d PTe=0x%08X",
+                          CurrLEVEL, gPC, pageTable, VPN, pageTableRing, ring, pageTableRing, pageTableEntry);
+            degrade_count++;
+        }
         ring = pageTableRing;
         gReg->reg_PCR[CurrLEVEL] = (gReg->reg_PCR[CurrLEVEL] & 0xFFFC) | ring;
     }
@@ -517,20 +485,20 @@ int mapVirtualToPhysical(uint virtualAddress, AccessMode am, bool UseAPT)
 
     if (ring < pageTableRing)
     {
-#ifdef DEBUG_MMS
-        static int ring_mpv = 0;
-        if (ring_mpv < 5) {
-            uint16_t pcr_now = gReg->reg_PCR[CurrLEVEL];
-            printf("\r\nRING_MPV: PT=%d VPN=%d ring=%d ptRing=%d PCR=0%06o PCR_ring=%d PIL=%d VA=%06o am=%d\r\n",
-                   pageTable, VPN, ring, pageTableRing, pcr_now, pcr_now & 3, CurrLEVEL, virtualAddress, am);
+        if (ND100X_HOT_TRACE && Log_IsEnabled(LOG_CAT_MMS, LOG_TRACE))
+        {
+            static int ring_mpv = 0;
+            if (ring_mpv < 5) {
+                uint16_t pcr_now = gReg->reg_PCR[CurrLEVEL];
+                Log_Write(LOG_CAT_MMS, LOG_TRACE, "RING_MPV: PT=%d VPN=%d ring=%d ptRing=%d PCR=0%06o PCR_ring=%d PIL=%d VA=%06o am=%d",
+                          pageTable, VPN, ring, pageTableRing, pcr_now, pcr_now & 3, CurrLEVEL, virtualAddress, am);
+            }
+            ring_mpv++;
         }
-        ring_mpv++;
-#endif
         UpdatePGS(pageTable, VPN, am, false);
-#ifdef DEBUG_MMS
-        printf("[%d] Ring Protection Violation. Ring=%d PTRing=%d Accessmode=%d PGS=%06o PT=%d VPN=%d PTe=0x%08X\n",
-               CurrLEVEL, ring, pageTableRing, am, gReg->reg_PGS, pageTable, VPN, pageTableEntry);
-#endif
+        if (ND100X_HOT_TRACE && Log_IsEnabled(LOG_CAT_MMS, LOG_TRACE))
+            Log_Write(LOG_CAT_MMS, LOG_TRACE, "[%d] Ring Protection Violation. Ring=%d PTRing=%d Accessmode=%d PGS=%06o PT=%d VPN=%d PTe=0x%08X",
+                      CurrLEVEL, ring, pageTableRing, am, gReg->reg_PGS, pageTable, VPN, pageTableEntry);
         HandleMPV(virtualAddress);
         return -1;
     }
@@ -572,12 +540,9 @@ int mapVirtualToPhysical(uint virtualAddress, AccessMode am, bool UseAPT)
     // EXAM/DEPO physical accesses that never go through mapVirtualToPhysical.
     // See GetPhysicalMemoryType / nd_ecc_write_latch / nd_ecc_read_detect below.
 
-#ifdef DEBUG_MMS
-    if (physicalAddress == 0)
-    {
-        printf("mapVirtualToPhysical - PT=%d VPN=%d => Entry=0x%08X (%s)\n",  pageTable, VPN, pageTableEntry, GetPageTableEntryDebugInfo(pageTableEntry));
-    }
-#endif
+    if (ND100X_HOT_TRACE && Log_IsEnabled(LOG_CAT_MMS, LOG_TRACE) && physicalAddress == 0)
+        Log_Write(LOG_CAT_MMS, LOG_TRACE, "mapVirtualToPhysical - PT=%d VPN=%d => Entry=0x%08X (%s)",
+                  pageTable, VPN, pageTableEntry, GetPageTableEntryDebugInfo(pageTableEntry));
     return (int)physicalAddress;
 }
 
@@ -1048,8 +1013,8 @@ void HandleMemoryOutOfRange(uint physicalAddress)
 /// @param virtualAddress
 void HandleMPV(uint virtualAddress)
 {
-    (void)virtualAddress;
-#ifdef DEBUG_MMS
+    if (ND100X_HOT_TRACE && Log_IsEnabled(LOG_CAT_MMS, LOG_TRACE))
+    {
     static int mpv_count = 0;
     uint VPN = (virtualAddress >> 10) & 0x3F;
     if (mpv_count < 5) {
@@ -1063,11 +1028,11 @@ void HandleMPV(uint virtualAddress)
             pt = ((pcr & (1<<2)) && (mmsType == MMS2)) ? (pcr >> 11) & 0xF : (pcr >> 9) & 0x3;
         }
         uint32_t pte = GetPageTableEntry(pt, VPN, Sixteen);
-        printf("\r\nHandleMPV: VA=%06o VPN=%d PT=%d PTe=0x%08X PIL=%d PC=%06o\r\n",
-               virtualAddress, VPN, pt, pte, CurrLEVEL, gPC);
+        Log_Write(LOG_CAT_MMS, LOG_TRACE, "HandleMPV: VA=%06o VPN=%d PT=%d PTe=0x%08X PIL=%d PC=%06o",
+                  virtualAddress, VPN, pt, pte, CurrLEVEL, gPC);
     }
     mpv_count++;
-#endif
+    }
     interrupt(14, 1 << 2);
 }
 

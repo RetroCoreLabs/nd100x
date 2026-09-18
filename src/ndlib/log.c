@@ -36,6 +36,9 @@ static const char *const s_category_names[LOG_CAT_COUNT] = {
     [LOG_CAT_GENERAL] = "general",
     [LOG_CAT_CPU]     = "cpu",
     [LOG_CAT_MMS]     = "mms",
+    [LOG_CAT_MMSMAP]  = "mmsmap",
+    [LOG_CAT_TRAP]    = "trap",
+    [LOG_CAT_PKSWITCH] = "pkswitch",
     [LOG_CAT_DEVICE]  = "device",
     [LOG_CAT_SMD]     = "smd",
     [LOG_CAT_FLOPPY]  = "floppy",
@@ -64,7 +67,7 @@ static const char *const s_level_names[] = {"ERROR", "WARN", "INFO", "DEBUG", "T
 /* Minimum level per category. Written at start-up (and from a debugger
  * session), read by every LOG(); a torn read can only show the old or the new
  * level, both of which are valid. */
-static LogLevel s_min_level[LOG_CAT_COUNT] = {
+LogLevel g_log_min_level[LOG_CAT_COUNT] = {
     [0 ... LOG_CAT_COUNT - 1] = LOG_INFO,
 };
 
@@ -76,20 +79,12 @@ static void *s_sink_ctx;
 static pthread_mutex_t s_log_lock = PTHREAD_MUTEX_INITIALIZER;
 #endif
 
-bool Log_IsEnabled(LogCategory cat, LogLevel lvl)
-{
-    if ((unsigned)cat >= (unsigned)LOG_CAT_COUNT)
-    {
-        return false;
-    }
-    return lvl <= s_min_level[cat];
-}
 
 void Log_SetLevel(LogCategory cat, LogLevel lvl)
 {
     if ((unsigned)cat < (unsigned)LOG_CAT_COUNT)
     {
-        s_min_level[cat] = lvl;
+        g_log_min_level[cat] = lvl;
     }
 }
 
@@ -97,7 +92,7 @@ void Log_SetAllLevels(LogLevel lvl)
 {
     for (int i = 0; i < LOG_CAT_COUNT; i++)
     {
-        s_min_level[i] = lvl;
+        g_log_min_level[i] = lvl;
     }
 }
 

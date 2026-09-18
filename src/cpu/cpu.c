@@ -23,9 +23,6 @@
  * distribution in the file COPYING); if not, see <http://www.gnu.org/licenses/>.
  */
 
-//#define DEBUG_TRAP
-//#define DEBUG_PK_SWITCH
-//  # define DEBUG_IONOFF
 
 // CPU throttle: match emulated time to wall clock
 // When enabled, sleeps to maintain target instruction rate.
@@ -70,6 +67,7 @@ static uint64_t throttle_get_ns(void) {
 
 #include "cpu_types.h"
 #include "cpu_protos.h"
+#include "../ndlib/log.h"
 
 /* Forward declarations for ring buffer diagnostics */
 static uint16_t last_device_irq_bits = 0;
@@ -114,7 +112,6 @@ int CurrentCPURunMode;
 void debugger_build_stack_trace(uint16_t pc, uint16_t operand);
 void debugger_update_jpl_entrypoint(uint16_t ea);
 
-//#define DEBUG_TRAP
 
 // Global CPU variable definitions
 _NDRAM_ VolatileMemory;
@@ -473,9 +470,8 @@ void interrupt(ushort lvl, ushort sub)
 				(sub & (1<<2)) ? "MPV " : "",
 				(sub & (1<<3)) ? "PF " : "",
 				(sub & (1<<4)) ? "ILL " : "");
-#ifdef DEBUG_TRAP
-		printf("TRAP at P:[%6o], sub=%d \r\n", gPC, sub);
-#endif
+		if (ND100X_HOT_TRACE && Log_IsEnabled(LOG_CAT_TRAP, LOG_TRACE))
+			Log_Write(LOG_CAT_TRAP, LOG_TRACE, "TRAP at P:[%6o], sub=%d", gPC, sub);
 		longjmp(cpu_jmp_buf, 1); // Jump back to cpurun() in cpu_thread
 	}
 }
@@ -614,14 +610,16 @@ bool checkAndSwitch(void)
 			//printf("Switching from %d P[%6o] to %d P[%6o]\r\n", gPIL, gPC, gPK, gReg->reg[gPK][_P]);
 			setPIL(gPK); /* Change to new runlevel */
 
-#ifdef DEBUG_PK_SWITCH
-			bool isRTC = ((gPVL == 13) || (gPIL == 13));
-			if (!isRTC)
+			if (ND100X_HOT_TRACE && Log_IsEnabled(LOG_CAT_PKSWITCH, LOG_TRACE))
 			{
-				printf("Switched from %d P[%6o] to %d P[%6o]\r\n", gPVL, gReg->reg[gPVL][_P], gPIL, gReg->reg[gPIL][_P]);
-				printf("New pc after switch %6o\r\n", gPC);
+				bool isRTC = ((gPVL == 13) || (gPIL == 13));
+				if (!isRTC)
+				{
+					Log_Write(LOG_CAT_PKSWITCH, LOG_TRACE, "Switched from %d P[%6o] to %d P[%6o]",
+					          gPVL, gReg->reg[gPVL][_P], gPIL, gReg->reg[gPIL][_P]);
+					Log_Write(LOG_CAT_PKSWITCH, LOG_TRACE, "New pc after switch %6o", gPC);
+				}
 			}
-#endif
 			return true;
 		}
 	}
@@ -895,9 +893,8 @@ int cpu_run(int ticks)
 		if (CPU_TRACE)
 			fprintf(stderr, "*** FAULT RETURN PC=%06o PGS=%04x PEA=%06o PIL=%d MMU=%d\n",
 				gPC, gPGS, gPEA, gPIL, STS_PONI);
-#ifdef DEBUG_TRAP
-		printf("CPU: Interrupt handler returned, PC=%06o, PGS=%04x\n", gPC, gPGS);
-#endif
+		if (ND100X_HOT_TRACE && Log_IsEnabled(LOG_CAT_TRAP, LOG_TRACE))
+			Log_Write(LOG_CAT_TRAP, LOG_TRACE, "CPU: Interrupt handler returned, PC=%06o, PGS=%04x", gPC, gPGS);
 	}
 
 

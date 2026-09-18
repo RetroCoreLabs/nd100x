@@ -101,7 +101,16 @@ typedef int64_t   s64;
 #define _DEGRADE_             // Enable ring degradation on instruction fetch (ring 3 fetching
                               // from a lower-ring page lowers the PCR ring instead of raising MPV).
                               // BEHAVIORAL flag, not a debug flag - the DEGRADE: diagnostic print
-                              // in cpu_mms.c is separately gated behind DEBUG_MMS.
+                              // in cpu_mms.c is separately switched (mms log category, see below).
+
+/* Hot-path trace output in the CPU and MMS (log categories mms, mmsmap, trap,
+ * pkswitch). The code is always compiled and type-checked; with 0 the compiler
+ * removes it, so Release, WASM and RISC-V builds pay nothing (measured
+ * 18-SEP-2026: 0 extra host instructions over a 100M-instruction SINTRAN boot).
+ * CMake sets it from the ND100X_HOT_TRACE option (ON in native Debug builds). */
+#ifndef ND100X_HOT_TRACE
+#define ND100X_HOT_TRACE 0
+#endif
 
 
 /********************* MMU *********************/

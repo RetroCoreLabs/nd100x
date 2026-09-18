@@ -1036,7 +1036,11 @@ int main(int argc, char *argv[])
     VScreen_Init(&screens[screenCount], "Log", NULL, 120, false);
     logScreenIndex = screenCount;
     screenCount++;
-    Log_SetSink(LogScreenHandler, NULL);
+    // Interactive: log lines go to the Log screen (Alt+N), never over a guest
+    // terminal. --pipe: keep the default stderr sink, so an automation driver
+    // gets them on stderr as it did the old --smd-debug / --scsi-debug output.
+    if (!config.pipeMode)
+        Log_SetSink(LogScreenHandler, NULL);
 
     // Load paper tape file if specified on command line
     Device *ptr = DeviceManager_GetDeviceByAddress(0400);

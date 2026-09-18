@@ -1048,9 +1048,12 @@ void Config_PrintHelp(const char *progName) {
     printf("                          Also settable via the .ini '[machine] rtc = MODE' key.\n");
     printf("           --log=SPEC     Log levels per category, e.g. smd:debug,hdlc:trace,*:warn.\n");
     printf("                          Levels: error warn info debug trace (default: info).\n");
-    printf("                          Categories: general cpu mms device smd floppy wd scsi cdc\n");
-    printf("                          drum hdlc rtc term panel tape printer net dap machine loader\n");
-    printf("                          config; * or all = every category. Log lines go to the Log\n");
+    printf("                          Categories: general cpu mms mmsmap trap pkswitch device smd\n");
+    printf("                          floppy wd scsi cdc drum hdlc rtc term panel tape printer net\n");
+    printf("                          dap machine loader config; * or all = every category.\n");
+    printf("                          mms, mmsmap, trap and pkswitch print only in builds made\n");
+    printf("                          with -DND100X_HOT_TRACE=ON (the default for Debug builds).\n");
+    printf("                          Log lines go to the Log\n");
     printf("                          screen (Alt+N) or stderr, never to a guest terminal.\n");
     printf("                          Also settable via the .ini '[runtime] log = SPEC' key.\n");
     printf("           --trace-nd110[=FILE]  Trace every ND-110-only opcode, page fault and CLPT\n");

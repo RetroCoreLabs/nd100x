@@ -47,3 +47,16 @@ function(nd100x_apply_house_standard target)
         target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:C>:-Werror>)
     endif()
 endfunction()
+
+# Hot-path trace output in the CPU/MMS code (log categories mms, mmsmap, trap,
+# pkswitch). The trace code is always compiled; with OFF the compiler removes
+# it. Default: ON for native Debug builds, OFF for Release, WASM and RISC-V
+# (decided by Ronny 18-SEP-2026 after measuring the cost).
+if(NOT DEFINED ND100X_HOT_TRACE)
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND NOT BUILD_WASM AND NOT BUILD_RISCV)
+        set(_hot_trace_default ON)
+    else()
+        set(_hot_trace_default OFF)
+    endif()
+    option(ND100X_HOT_TRACE "Compile in the CPU/MMS hot-path trace output" ${_hot_trace_default})
+endif()
