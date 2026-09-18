@@ -29,6 +29,16 @@
   var _snapshot = {};  // cached register/state snapshot
   var _terminals = [];  // cached terminal info from 'initialized' response
 
+  // ---- ND-500 state, mirrored from the Worker ----
+  // These exist because the direct-mode ND-500 API is synchronous and a
+  // message port is not. Every getter below reads one of these; every setter
+  // is a message whose real answer arrives later as nd500Result.
+  var _nd500Available = false;   // answered by the module at 'initialized'
+  var _nd500Created = false;
+  var _nd500Booted = false;
+  var _nd500StopReason = '';
+  var _nd500Console = [];        // {unit, text} chunks, drained by pollConsole()
+
   // Phase 3 stub warnings: log each message at most once
   var _warned = {};
   function warnOnce(msg) {
@@ -74,6 +84,7 @@
       case 'initialized':
         _initialized = true;
         _terminals = msg.terminals || [];
+        _nd500Available = !!msg.nd500Available;
         if (_onInitialized) {
           _onInitialized(msg);
           _onInitialized = null;
@@ -108,6 +119,27 @@
         _snapshot.ea = msg.ea;
         // Dispatch terminal output
         dispatchTermOutput(msg.termOutput);
+        if (msg.nd500Console && msg.nd500Console.length)
+          _nd500Console = _nd500Console.concat(msg.nd500Console);
+        break;
+
+      case 'nd500Result':
+        // The real return value of a command sent earlier. The boot log
+        // produced during Nd500_Boot comes back with it - losing that would
+        // make every failed boot look identical.
+        if (msg.op === 'boot') {
+          _nd500Booted = (msg.rc === 0);
+          if (!_nd500Booted) _nd500StopReason = 'boot failed (rc ' + msg.rc + ')';
+        }
+        if (msg.op === 'create' && msg.rc !== 0) _nd500Created = false;
+        if (msg.console && msg.console.length)
+          _nd500Console = _nd500Console.concat(msg.console);
+        resolveRequest(msg.id, msg);
+        break;
+
+      case 'nd500Stopped':
+        _nd500Booted = false;
+        _nd500StopReason = msg.reason || 'stopped';
         break;
 
       case 'breakpoint':
@@ -693,26 +725,107 @@
       return postRequest('getDriveInfo', {});
     },
 
-    // --- Mode flag ---
-    // The ND-500 is NOT reachable in Worker mode yet. The module and its
-    // exports are there, but nothing forwards these calls across the message
-    // port, and a guest booted inside the Worker would have no way to report
-    // its console back. Saying so beats returning a plausible 0 that means
-    // nothing happened.
+    // --- ND-500, in Worker mode ---
+    //
+    // Worker mode is the ONLY mode that reaches the gateway: emu-worker.js
+    // owns the WebSocket, and the gateway's ethernet segment is how a browser
+    // NDIX gets onto a wire with anything else. Direct mode has the ND-500 but
+    // refuses wsConnect, so the two used to be mutually exclusive and the
+    // browser could not use the segment at all.
+    //
+    // The API below keeps the SHAPE of the direct-mode one so nd500-window.js
+    // works either way, but the meaning underneath differs and it matters:
+    //
+    //   COMMANDS are fire-and-forget. create/loadKernel/mountDisk/boot cross
+    //   the port as messages, so a return value here cannot be the emulator's.
+    //   They return 0 for "sent", and the real result arrives as nd500Result -
+    //   which is what sets the cached flags these getters read.
+    //
+    //   STEPPING is not done from here. emu-worker.js steps the ND-500 in the
+    //   same loop as the ND-100, because both CPUs are in one wasm module.
+    //   step() therefore only sets the slice; calling it per frame the way the
+    //   direct path does would double-step the guest.
+    //
+    //   CONSOLE output is pushed up in every frame message and buffered here,
+    //   so pollConsole() stays synchronous and still returns chunks in order.
     nd500: {
-      available: function() { return false; },
-      setEnv: _nd500NotHere,
-  create: _nd500NotHere, isCreated: function() { return false; },
-      isBooted: function() { return false; },
-      loadKernel: _nd500NotHere, loadSegments: _nd500NotHere,
-      mountDisk: _nd500NotHere, unmountDisk: _nd500NotHere,
-      diskSize: function() { return 0; }, diskBytes: function() { return null; },
-      boot: _nd500NotHere, step: _nd500NotHere,
-      isRunning: function() { return false; },
-  pc: function() { return 0; },
-      stopReason: function() { return 'the ND-500 is not available in Worker mode'; },
-      pollConsole: function() { return []; },
-      sendInput: function() {}
+      available:  function() { return _nd500Available; },
+      isCreated:  function() { return _nd500Created; },
+      isBooted:   function() { return _nd500Booted; },
+      isRunning:  function() { return _nd500Booted; },
+
+      setEnv: function(name, value) {
+        postCmd('nd500SetEnv', { name: name, value: value });
+        return 0;
+      },
+      create: function(memBytes) {
+        postCmd('nd500Create', { memBytes: memBytes || 0 });
+        _nd500Created = true;
+        return 0;
+      },
+      loadKernel: function(bytes) {
+        postCmd('nd500LoadKernel', { data: bytes });
+        return 0;
+      },
+      loadSegments: function() {
+        warnOnce('ND-500 segment files are not forwarded in Worker mode - the ' +
+                 'sizes are derived from the a.out header instead, which is the ' +
+                 'path a kernel taken out of a disk image uses anyway.');
+        return -1;
+      },
+      mountDisk: function(unit, bytes, writable) {
+        postCmd('nd500MountDisk', { unit: unit, data: bytes, writable: !!writable });
+        return 0;
+      },
+      unmountDisk: function() {
+        warnOnce('ND-500 unmountDisk is not forwarded in Worker mode yet.');
+        return -1;
+      },
+      // The disc lives in the Worker's heap. Handing the page a view of it is
+      // not possible across the port, and copying 70 MB back per call would be
+      // worse than useless - so this says so instead of returning something
+      // plausible.
+      diskSize:  function() { return 0; },
+      diskBytes: function() { return null; },
+
+      boot: function() {
+        postCmd('nd500Boot');
+        return 0;
+      },
+      // Only the slice. See the note above: the Worker does the stepping.
+      step: function(count) {
+        if (count > 0) postCmd('nd500SetSlice', { slice: count });
+        return 0;
+      },
+      pause: function() { postCmd('nd500Pause'); },
+
+      // ---- ethernet: the whole point of Worker mode ----
+      // Call AFTER boot. The guest still configures the interface itself:
+      //     /etc/etconfig et0 0x08 0x00 0x26 0xF4 0x01 0x00
+      //     /etc/ifconfig et0 inet 223.255.254.8 -trailers up
+      // -trailers is NOT optional - without it every IP packet is dropped
+      // inside the driver while the interface looks perfectly healthy.
+      ethAttach: function(segment) {
+        postCmd('nd500EthAttach', { segment: segment || 0 });
+        return 0;
+      },
+      ethDetach: function() { postCmd('nd500EthDetach'); },
+
+      pc: function() { return 0; },
+      stopReason: function() { return _nd500StopReason; },
+
+      // Chunks buffered out of the frame messages, in the order the guest
+      // produced them. Unit 255 is the emulator's own boot log, not guest
+      // output, and the page marks it differently - so the unit is preserved.
+      pollConsole: function() {
+        var out = _nd500Console;
+        _nd500Console = [];
+        return out;
+      },
+      sendInput: function(unit, text) {
+        var b = new TextEncoder().encode(text);
+        postCmd('nd500SendInput', { unit: unit, data: b });
+      }
     },
 
     isWorkerMode: function() { return true; },

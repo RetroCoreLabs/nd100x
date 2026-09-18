@@ -52,6 +52,11 @@
   var term = null;          // xterm.js Terminal for the guest console
   var resizeTerm = null;    // terminal-core's re-fit for it
   var pendingOut = '';      // output that arrived before the terminal existed
+  var lastSlice = -1;       // last slice sent to the Worker, so it is sent once
+
+  function workerMode() {
+    return !!(window.emu && emu.isWorkerMode && emu.isWorkerMode());
+  }
 
   function el(id) { return document.getElementById(id); }
 
@@ -146,7 +151,15 @@
     if (!booted) return;
     var slice = parseInt(sliceInput && sliceInput.value, 10) || SLICE_DEFAULT;
     try {
-      emu.nd500.step(slice);
+      // In Worker mode the Worker owns the stepping - both CPUs share one wasm
+      // module, so a second stepper here would run the guest twice per frame.
+      // step() there only carries the slice, so send it when it CHANGES rather
+      // than 25 times a second. Draining the console still happens every tick.
+      if (workerMode()) {
+        if (slice !== lastSlice) { lastSlice = slice; emu.nd500.step(slice); }
+      } else {
+        emu.nd500.step(slice);
+      }
     } catch (e) {
       stop();
       setStatus('stopped: ' + (e && e.message ? e.message : e), 'err');
@@ -411,11 +424,6 @@
     if (!window.emu || !emu.nd500) { setStatus('the emulator is not ready yet'); return; }
     if (!emu.nd500.available()) {
       setStatus('This build has no ND-500 (built without an nd500x checkout).', 'err');
-      if (bootBtn) bootBtn.disabled = true;
-      return;
-    }
-    if (emu.isWorkerMode && emu.isWorkerMode()) {
-      setStatus('Worker mode does not forward the ND-500 yet - switch to direct mode.', 'err');
       if (bootBtn) bootBtn.disabled = true;
       return;
     }

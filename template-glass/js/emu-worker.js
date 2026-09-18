@@ -46,8 +46,14 @@ var _wsStatsTimer = null;
 // setTimeout(0) gets throttled to 1s+ in background tabs, even in Workers.
 // MessageChannel.postMessage is NOT throttled - it fires immediately.
 var _schedCh = new MessageChannel();
-_schedCh.port1.onmessage = function() { runLoop(); };
-function scheduleNext() { _schedCh.port2.postMessage(null); }
+// _loopArmed exists because the loop now has TWO reasons to run - the ND-100
+// and the ND-500 - and either may start it. Without the flag, booting the
+// ND-500 while the ND-100 is already looping would start a SECOND chain and
+// every frame would step both machines twice.
+var _loopArmed = false;
+_schedCh.port1.onmessage = function() { _loopArmed = false; runLoop(); };
+function scheduleNext() { _loopArmed = true; _schedCh.port2.postMessage(null); }
+function ensureLoop() { if (!_loopArmed) scheduleNext(); }
 
 // =========================================================
 // Module pre-configuration (non-modularized build)
@@ -656,8 +662,40 @@ function buildSnapshot() {
 var STEPS_PER_BATCH = 10000;   // instructions per Step() call
 var FRAME_INTERVAL_MS = 16;    // ~60fps target for posting to main thread
 
+// ---- ND-500 -------------------------------------------------------------
+// Stepped from the same run loop as the ND-100 rather than a timer of its
+// own: the two share ONE wasm module because they share MPM5 memory, so two
+// independent loops would re-enter it.
+var ND500_SLICE_DEFAULT = 300000;   // instructions per frame, as nd500-window used
+var _nd500Booted = false;
+var _nd500Slice = ND500_SLICE_DEFAULT;
+
+// Drain the ND-500 console queue into {unit, text} chunks, in the order the
+// guest produced them. Unit 255 is the emulator's own boot log, not guest
+// output, and the page marks it differently - so the unit has to survive the
+// trip and the chunks cannot simply be concatenated.
+function drainNd500Console(max) {
+  if (typeof Module._Nd500_PollConsole !== 'function') return [];
+  var out = [], cur = -1, buf = '';
+  var limit = max || 65536;
+  for (var i = 0; i < limit; i++) {
+    var v = Module._Nd500_PollConsole();
+    if (v < 0) break;
+    var u = (v >> 8) & 0xFF;
+    if (u !== cur) { if (buf) out.push({ unit: cur, text: buf }); cur = u; buf = ''; }
+    buf += String.fromCharCode(v & 0xFF);
+  }
+  if (buf) out.push({ unit: cur, text: buf });
+  return out;
+}
+
 function runLoop() {
-  if (!running) return;
+  // NOT just `running`. That is the ND-100's flag, and a page can boot the
+  // ND-500 alone - which is exactly what the ND-500 window does. Gating on it
+  // meant Nd500_Boot() completed, printed its whole setup log, and then the
+  // machine was never stepped: the console stopped dead after "set CAD 1" and
+  // the guest never reached its banner.
+  if (!running && !_nd500Booted) return;
 
   var frameStart = performance.now();
   var termOutput = [];
@@ -706,6 +744,31 @@ function runLoop() {
 
     // Yield after frame interval so main thread can process
     if (performance.now() - frameStart >= FRAME_INTERVAL_MS) break;
+  }
+
+  // ---- ND-500 ----
+  // Stepped here, in the ND-100's loop, because both CPUs live in ONE wasm
+  // module (they share MPM5 memory) and a second loop would re-enter it.
+  //
+  // This must run BEFORE the WebSocket block below: the ethernet TX pump down
+  // there drains what the guest transmitted, and stepping is what produces it.
+  // With the two the other way round every frame would be one tick stale.
+  var nd500Console = [];
+  if (_nd500Booted && typeof Module._Nd500_Step === 'function') {
+    Module._Nd500_Step(_nd500Slice);
+    nd500Console = drainNd500Console();
+    // The run FLAG, not the stop reason. NDIX takes page faults constantly -
+    // that is what demand paging is - and each one leaves a stop reason behind
+    // while the machine carries on perfectly happily.
+    if (typeof Module._Nd500_IsRunning === 'function' && !Module._Nd500_IsRunning()) {
+      _nd500Booted = false;
+      postMessage({
+        type: 'nd500Stopped',
+        reason: (typeof Module._Nd500_GetStopReasonText === 'function' &&
+                 typeof Module.UTF8ToString === 'function')
+                 ? Module.UTF8ToString(Module._Nd500_GetStopReasonText()) : 'stopped'
+      });
+    }
   }
 
   // Send batched remote terminal output over WebSocket as binary (once per frame)
@@ -790,6 +853,7 @@ function runLoop() {
   postMessage({
     type: 'frame',
     termOutput: termOutput,
+    nd500Console: nd500Console,
     runMode: runMode,
     pil: Module._Dbg_GetPIL(),
     sts: Module._Dbg_GetSTS(),
@@ -807,12 +871,16 @@ function runLoop() {
   if (runMode === 2) { // CPU_BREAKPOINT
     running = false;
     postMessage({ type: 'breakpoint', snapshot: buildSnapshot() });
+    if (_nd500Booted) scheduleNext();   // an ND-100 breakpoint is not the ND-500's
     return;
   }
 
   if (runMode === 4 || runMode === 5) { // CPU_STOPPED or CPU_SHUTDOWN
     running = false;
     postMessage({ type: 'stopped', snapshot: buildSnapshot() });
+    // The ND-100 halting says nothing about the ND-500. Keep the loop alive
+    // for it rather than freezing a guest that is running perfectly well.
+    if (_nd500Booted) scheduleNext();
     return;
   }
 
@@ -855,7 +923,14 @@ onmessage = function(e) {
           });
         }
       }
-      postMessage({ type: 'initialized', result: result, terminals: terminalInfo, configError: cfgErr });
+      // nd500Available comes from the module, not from a guess: a build made
+      // without an nd500x checkout exports the stubs and answers 0, and the
+      // page must disable the ND-500 window rather than offer a Boot button
+      // that cannot work.
+      postMessage({ type: 'initialized', result: result, terminals: terminalInfo,
+                    configError: cfgErr,
+                    nd500Available: (typeof Module._Nd500_Available === 'function')
+                                    ? !!Module._Nd500_Available() : false });
 
       // After Init creates terminal devices, if WS is already connected
       // (auto-connect may have fired before Init), re-discover and register
@@ -904,7 +979,7 @@ onmessage = function(e) {
     case 'start': {
       if (!running) {
         running = true;
-        runLoop();
+        ensureLoop();   // may already be armed by a booted ND-500
       }
       break;
     }
@@ -913,6 +988,116 @@ onmessage = function(e) {
       running = false;
       Module._Stop();
       postMessage({ type: 'stopped', snapshot: buildSnapshot() });
+      break;
+    }
+
+    // ================================================================
+    // ND-500
+    //
+    // The ethernet transport above (0x30 / 0x31 / 0x32) has always been here,
+    // but nothing could CREATE an ND-500 inside this worker, so there was
+    // never a machine for it to carry frames to and from. That is what these
+    // commands are for.
+    //
+    // The direct-mode API in emu-proxy.js is synchronous - boot() returns a
+    // number, pollConsole() returns an array. None of that survives a Worker
+    // boundary, so the split here is deliberate: COMMANDS come down as
+    // fire-and-forget messages and results go back either as a reply keyed by
+    // msg.id or, for console output, batched into the frame message the run
+    // loop already sends. The ND-100 terminals work exactly this way.
+    // ================================================================
+
+    case 'nd500SetEnv': {
+      // Must precede nd500Create: nd500x reads its ND500X_* switches once, on
+      // first use, and a browser has no environment to read them from.
+      var seRc = -1;
+      if (typeof Module.ccall === 'function') {
+        seRc = Module.ccall('Nd500_SetEnv', 'number', ['string', 'string'],
+                            [msg.name, msg.value == null ? '1' : String(msg.value)]);
+      }
+      postMessage({ type: 'nd500Result', id: msg.id, op: 'setEnv', rc: seRc });
+      break;
+    }
+
+    case 'nd500Create': {
+      var crRc = -1;
+      if (typeof Module._Nd500_Create === 'function') {
+        crRc = Module._Nd500_Create(msg.memBytes || 0);
+      }
+      postMessage({ type: 'nd500Result', id: msg.id, op: 'create', rc: crRc });
+      break;
+    }
+
+    case 'nd500LoadKernel': {
+      var lkRc = -1;
+      if (typeof Module._Nd500_LoadKernel === 'function' && msg.data) {
+        var lkPtr = Module._malloc(msg.data.length);
+        Module.HEAPU8.set(msg.data, lkPtr);
+        lkRc = Module._Nd500_LoadKernel(lkPtr, msg.data.length);
+        Module._free(lkPtr);          // staged into MEMFS, the copy is done with
+      }
+      postMessage({ type: 'nd500Result', id: msg.id, op: 'loadKernel', rc: lkRc });
+      break;
+    }
+
+    case 'nd500MountDisk': {
+      // The pointer is NOT freed on success. nd500_wasm.c keeps it and the
+      // guest reads and writes the disc in place; freeing it would pull the
+      // disc out from under a running machine.
+      var mdRc = -1;
+      if (typeof Module._Nd500_MountDisk === 'function' && msg.data) {
+        var mdPtr = Module._malloc(msg.data.length);
+        Module.HEAPU8.set(msg.data, mdPtr);
+        mdRc = Module._Nd500_MountDisk(msg.unit | 0, mdPtr, msg.data.length,
+                                       msg.writable ? 1 : 0);
+        if (mdRc !== 0) Module._free(mdPtr);
+      }
+      postMessage({ type: 'nd500Result', id: msg.id, op: 'mountDisk', rc: mdRc });
+      break;
+    }
+
+    case 'nd500Boot': {
+      var btRc = -1;
+      if (typeof Module._Nd500_Boot === 'function') btRc = Module._Nd500_Boot();
+      if (btRc === 0) { _nd500Booted = true; ensureLoop(); }
+      postMessage({ type: 'nd500Result', id: msg.id, op: 'boot', rc: btRc,
+                    console: drainNd500Console() });
+      break;
+    }
+
+    case 'nd500EthAttach': {
+      // AFTER boot, on purpose: before it there is no machine to hand frames
+      // to and Nd500_Eth_Attach says so rather than half-working.
+      var eaRc = -1;
+      if (typeof Module._Nd500_Eth_Attach === 'function') {
+        eaRc = Module._Nd500_Eth_Attach(msg.segment | 0);
+      }
+      postMessage({ type: 'nd500Result', id: msg.id, op: 'ethAttach', rc: eaRc });
+      break;
+    }
+
+    case 'nd500EthDetach': {
+      if (typeof Module._Nd500_Eth_Detach === 'function') Module._Nd500_Eth_Detach();
+      break;
+    }
+
+    case 'nd500SendInput': {
+      if (typeof Module._Nd500_SendInput === 'function' && msg.data) {
+        var siPtr = Module._malloc(msg.data.length);
+        Module.HEAPU8.set(msg.data, siPtr);
+        Module._Nd500_SendInput(msg.unit | 0, siPtr, msg.data.length);
+        Module._free(siPtr);
+      }
+      break;
+    }
+
+    case 'nd500SetSlice': {
+      _nd500Slice = msg.slice > 0 ? msg.slice : ND500_SLICE_DEFAULT;
+      break;
+    }
+
+    case 'nd500Pause': {
+      _nd500Booted = false;   // stop stepping; the machine itself is untouched
       break;
     }
 
