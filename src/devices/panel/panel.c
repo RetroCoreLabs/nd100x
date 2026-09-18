@@ -176,7 +176,7 @@ void ProcessTerminalPanc(void)
 			}
 			else
 			{
-				gPAP->seconds = gPAP->seconds & 0x00ff | (panc.bits.wpan << 8);
+				gPAP->seconds = (gPAP->seconds & 0x00ff) | (panc.bits.wpan << 8);
 			}
 			break;
 		case STATUS_UPDATE_LOW_DAYS:
@@ -288,7 +288,7 @@ void UpdateMachineTime(void)
 	gPAP->seconds = (uint16_t)difftime(now, midnight);
 }
 
-#if _later_
+#ifdef _later_
 void panel_thread(void)
 {
 	int s;

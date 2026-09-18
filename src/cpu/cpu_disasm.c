@@ -36,25 +36,25 @@
 #define BUFSTRSIZE_SMALL 16
 
 
-char *regn[] = {"S","D","P","B","L","A","T","X","U0","U1"};
-char *regn_w[] = {"DS","DD","DP","DB","DL","DA","DT","DX"};
+static const char *regn[] = {"S","D","P","B","L","A","T","X","U0","U1"};
+static const char *regn_w[] = {"DS","DD","DP","DB","DL","DA","DT","DX"};
 
-char *intregn_r[] = {"PANS","STS","OPR","PGS","PVL","IIC","PID","PIE","CSR","ACTL", "ALD" ,"PES","PGC","PEA","16","17"};
-char *intregn_w[] = {"PANC","STS","LMP","PCR", "4", "IIE","PID","PIE","CCL","LCIL","UCILR","13", "14", "15" ,"16","17"};
+static const char *intregn_r[] = {"PANS","STS","OPR","PGS","PVL","IIC","PID","PIE","CSR","ACTL", "ALD" ,"PES","PGC","PEA","16","17"};
+static const char *intregn_w[] = {"PANC","STS","LMP","PCR", "4", "IIE","PID","PIE","CCL","LCIL","UCILR","13", "14", "15" ,"16","17"};
 
-char *relmode_str[] ={"",",B ","I ","I ,B ",",X ",",X ,B ","I ,X ","I ,B ,X "};
-char *shtype_str[] ={"","ROT ","ZIN ","LIN "};
+static const char *relmode_str[] ={"",",B ","I ","I ,B ",",X ",",X ,B ","I ,X ","I ,B ,X "};
+static const char *shtype_str[] ={"","ROT ","ZIN ","LIN "};
 
-char *skiptype_str[] = {"EQL","GEQ","GRE","MGRE","UEQ","LSS","LST","MLST"};
-char *skipregn_dst[] = {"0","DD","DP","DB","DL","DA","DT","DX"};
-char *skipregn_src[] = {"0","SD","SP","SB","SL","SA","ST","SX"};
+static const char *skiptype_str[] = {"EQL","GEQ","GRE","MGRE","UEQ","LSS","LST","MLST"};
+static const char *skipregn_dst[] = {"0","DD","DP","DB","DL","DA","DT","DX"};
+static const char *skipregn_src[] = {"0","SD","SP","SB","SL","SA","ST","SX"};
 
-char *bopstsbit_str[] = {"SSPTM","SSTG","SSK","SSZ","SSQ","SSO","SSC","SSM","","","","","","","",""};
+static const char *bopstsbit_str[] = {"SSPTM","SSTG","SSK","SSZ","SSQ","SSO","SSC","SSM","","","","","","","",""};
 
-char *bop_str[] = {"BSET ZRO","BSET ONE","BSET BCM","BSET BAC","BSKP ZRO","BSKP ONE",
+static const char *bop_str[] = {"BSET ZRO","BSET ONE","BSET BCM","BSET BAC","BSKP ZRO","BSKP ONE",
            "BSKP BCM","BSKP BAC","BSTC","BSTA","BLDC","BLDA","BANC","BAND","BORC","BORA"};
 
-char *tx_str[] = {"LDATX","LDXTX","LDDTX","LDBTX","STATX","STZTX","STDTX"};
+static const char *tx_str[] = {"LDATX","LDXTX","LDDTX","LDBTX","STATX","STZTX","STDTX"};
 
 /* OpToStr
  * IN: pointer to string ,raw operand
@@ -774,13 +774,13 @@ void disasm_userel(ushort addr, ushort where){
 void disasm_dump(void){
 	int i;
 	int tmp;
-	char u,l;
+	unsigned char u,l;
 	ushort w;
 	char disasm_str[BUFSTRSIZE];
 
 	//char* disasm_fname = "disasm.txt";
-	char* disasm_fname = "/dev/stdout";
-	char* disasm_ftype = "w";
+	const char* disasm_fname = "/dev/stdout";
+	const char* disasm_ftype = "w";
 
 	FILE* disasm_file = fopen(disasm_fname,disasm_ftype);
 
@@ -805,15 +805,15 @@ void disasm_dump(void){
 					fprintf(disasm_file,"%% %s",(*p_DIS)[i]->exr);
 			} else if ((*p_DIS)[i]->isdata) {
 				fprintf(disasm_file,"DATA: ");
-				if (u>=32 & u<=127)
+				if (u>=32 && u<=127)
 					fprintf(disasm_file,"\'%c\'",u);
-				if (l>=32 & l<=127)
+				if (l>=32 && l<=127)
 					fprintf(disasm_file,"\'%c\'",l);
 			} else {
 				fprintf(disasm_file,"UNKN: ");
-				if (u>=32 & u<=127)
+				if (u>=32 && u<=127)
 					fprintf(disasm_file,"\'%c\'",u);
-				if (l>=32 & l<=127)
+				if (l>=32 && l<=127)
 					fprintf(disasm_file,"\'%c\'",l);
 
 				fprintf(disasm_file,"          ");
@@ -922,6 +922,7 @@ ushort decode_140k(ushort instr) {
 			default:
 				break;
 		}
+		/* fall through */
 	case 0140600: /* EXR */
 		return instr & (0xFFFF<<6);
 	case 0140700: /* USER3 (microcode defined by user or illegal instruction otherwise) */
@@ -940,6 +941,7 @@ ushort decode_140k(ushort instr) {
 			default:
 				break;
 		}
+		/* fall through */
 	case 0141100: /* USER4 (microcode defined by user or illegal instruction otherwise) */
 	case 0141200: /* RMPY */
 	case 0141300: /* USER5 (microcode defined by user or illegal instruction otherwise) */

@@ -351,7 +351,7 @@ uint SetPageWritten(uint pageTable, uint VPN,PageTableMode ptm, uint PTe)
 
 
 // Get debug info for page table entry
-char* GetPageTableEntryDebugInfo(ulong PTe)
+const char* GetPageTableEntryDebugInfo(ulong PTe)
 {
 #ifdef DEBUG_MMS
     static char debugInfo[256];
@@ -538,7 +538,7 @@ int mapVirtualToPhysical(uint virtualAddress, AccessMode am, bool UseAPT)
     int physicalAddress = ((PPN << 10) | DIP) & 0xFFFFFF;
 
     // Check if memory is out of range
-    if (physicalAddress >= ND_Memsize)
+    if ((uint32_t)physicalAddress >= ND_Memsize)
     {
         UpdatePGS(pageTable, VPN, am, false);
         HandleMemoryOutOfRange(physicalAddress);
@@ -838,7 +838,7 @@ static void nd_ecc_write_latch(int physicalAddress)
     if ((gECCR & (1 << 1)) != 0) bits |= (1 << 1);
     if ((gECCR & (1 << 4)) != 0) bits |= (1 << 4);
 
-    if (physicalAddress < 0 || physicalAddress >= ND_Memsize) return;
+    if (physicalAddress < 0 || (uint32_t)physicalAddress >= ND_Memsize) return;
     uint8_t latched = (gEccLatch != NULL) ? gEccLatch[physicalAddress] : 0;
     // Clean write to a clean word: nothing to store or clear (the common case, incl. WALK).
     if (bits == 0 && latched == 0) return;
@@ -860,7 +860,7 @@ static void nd_ecc_write_latch(int physicalAddress)
 static void nd_ecc_read_detect(int physicalAddress)
 {
     uint8_t live = (uint8_t)(gECCR & 0x13); // live simulate bits
-    if (physicalAddress < 0 || physicalAddress >= ND_Memsize) return;
+    if (physicalAddress < 0 || (uint32_t)physicalAddress >= ND_Memsize) return;
     uint8_t latched = (gEccLatch != NULL) ? gEccLatch[physicalAddress] : 0;
     // Fast path: this word is clean AND no live simulate bit armed. (Per-word, so latched
     // errors elsewhere don't penalise reads of clean words - the WALK-test hang fix.)
@@ -937,7 +937,7 @@ int ReadPhysicalMemory(int physicalAddress, bool privileged)
     }
 
     // Check memory bounds
-    if ((physicalAddress >= ND_Memsize)||(physicalAddress < 0))
+    if (((uint32_t)physicalAddress >= ND_Memsize)||(physicalAddress < 0))
     {
         HandleMemoryOutOfRange(physicalAddress);
         return 0x00;
@@ -990,7 +990,7 @@ void WritePhysicalMemoryWM(int physicalAddress, uint16_t value, bool privileged,
     }
 
     // Check memory bounds
-    if ((physicalAddress >= ND_Memsize)||(physicalAddress < 0))
+    if (((uint32_t)physicalAddress >= ND_Memsize)||(physicalAddress < 0))
     {
         HandleMemoryOutOfRange(physicalAddress);
         return;
@@ -1169,7 +1169,7 @@ static int Dbg_MapVirtualToPhysical(uint virtualAddress, bool useAPT, int8_t pil
 
     int physicalAddress = ((PPN << 10) | DIP) & 0xFFFFFF;
 
-    if (physicalAddress >= ND_Memsize)
+    if ((uint32_t)physicalAddress >= ND_Memsize)
         return -1;
 
     return physicalAddress;

@@ -518,7 +518,7 @@ static void ExecuteFloppyGo(Device *self)
         {
             // Read all blocks from floppy  disk file into buffer
             blocksRead = self->blockCallbacks.readFunc(self, buffer, blockCounter, data->commandBlock.fields.diskAddress, data->drive);
-            if ((blocksRead < 0) || (blocksRead != blockCounter))
+            if ((blocksRead < 0) || ((uint32_t)blocksRead != blockCounter))
             {
                 data->status1.bits.errorCode = DRIVE_NOT_READY;
                 data->status1.bits.deviceActive = false;
@@ -583,7 +583,7 @@ static void ExecuteFloppyGo(Device *self)
 
                 // Write all blocks to floppy disk file from buffer
                 int blocksWrite = self->blockCallbacks.writeFunc(self, buffer, blockCounter, data->commandBlock.fields.diskAddress, data->drive);
-                if ((blocksWrite < 0) || (blocksWrite != blockCounter))
+                if ((blocksWrite < 0) || ((uint32_t)blocksWrite != blockCounter))
                 {
                     data->status1.bits.errorCode = DRIVE_NOT_READY;
                     data->status1.bits.deviceActive = false;

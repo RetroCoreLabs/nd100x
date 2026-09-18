@@ -1038,7 +1038,7 @@ void mount_drive(DRIVE_TYPE drive_type, int unit, const char *md5, const char *n
     strncpy(drives[unit].description, description, sizeof(drives[unit].description) - 1);
     drives[unit].description[sizeof(drives[unit].description) - 1] = '\0';
 
-#if _debug_
+#ifdef _debug_
     printf("Mounted %s to %s unit %d:\n",
            drive_type_name(drive_type),
            drive_type_name(drive_type),

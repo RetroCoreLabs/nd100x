@@ -739,7 +739,7 @@ static uint16_t SMD_Tick(Device *self)
 
     Device_TickIODelay(self);
 
-#if _wft_ // TODO: Remove this ??
+#ifdef _wft_ // TODO: Remove this ??
     SMDData *data = (SMDData *)self->deviceData;
     if (data && data->regs.selectedDisk)
     {
@@ -1032,7 +1032,7 @@ static void ExecuteGO(Device *self)
 
         // Read all blocks from SMD disk file into buffer
         blocksRead = self->blockCallbacks.readFunc(self, buffer, blockCounter, lba, data->regs.selectedDisk->unit);
-        if ((blocksRead < 0) || (blocksRead != blockCounter))
+        if ((blocksRead < 0) || ((uint32_t)blocksRead != blockCounter))
         {
             HandleError(self, DISK_ERR_READ_ERROR); // READ_ERROR
             free(buffer);
@@ -1073,7 +1073,7 @@ static void ExecuteGO(Device *self)
         while (wordCounter > 0)
         {
             // Read from memory (DMA)
-            uint32_t readData = Device_DMARead(coreAddress);
+            int32_t readData = Device_DMARead(coreAddress);
 
             if (readData < 0)
             {
@@ -1095,7 +1095,7 @@ static void ExecuteGO(Device *self)
 
         // Write all blocks to SMD disk file from buffer
         int blocksWrite = self->blockCallbacks.writeFunc(self, buffer, blockCounter, lba, data->regs.selectedDisk->unit);
-        if ((blocksWrite < 0) || (blocksWrite != blockCounter))
+        if ((blocksWrite < 0) || ((uint32_t)blocksWrite != blockCounter))
         {
             HandleError(self, DISK_ERR_WRITE_ERROR); // READ_ERROR
             free(buffer);
@@ -1122,7 +1122,7 @@ static void ExecuteGO(Device *self)
 
         // Read all blocks from SMD disk file into buffer
         blocksRead = self->blockCallbacks.readFunc(self, buffer, blockCounter, lba, data->regs.selectedDisk->unit);
-        if ((blocksRead < 0) || (blocksRead != blockCounter))
+        if ((blocksRead < 0) || ((uint32_t)blocksRead != blockCounter))
         {
             HandleError(self, DISK_ERR_READ_ERROR); // READ_ERROR
             free(buffer);
@@ -1162,7 +1162,7 @@ static void ExecuteGO(Device *self)
 
         // Read all blocks from SMD disk file into buffer
         blocksRead = self->blockCallbacks.readFunc(self, buffer, blockCounter, lba, data->regs.selectedDisk->unit);
-        if ((blocksRead < 0) || (blocksRead != blockCounter))
+        if ((blocksRead < 0) || ((uint32_t)blocksRead != blockCounter))
         {
             HandleError(self, DISK_ERR_READ_ERROR); // READ_ERROR
             free(buffer);
@@ -1179,7 +1179,7 @@ static void ExecuteGO(Device *self)
             memData = Device_DMARead(coreAddress);
 
             // Compare data
-            if (diskData != memData)
+            if (memData < 0 || diskData != (uint32_t)memData)
             {
                 HandleError(self, DISK_ERR_COMPARER_ERROR); // COMPARER_ERROR
                 free(buffer);

@@ -155,9 +155,7 @@ bool LoadBPUNStream(FILE* bpunStream, BPUN_Header* header)
                         if (tmp >= 0) {
                             currentLocationCounter = (uint16_t)tmp;
                             lastValue = currentLocationCounter;
-                            if (currentLocationCounter >= 0) {
-                                header->start = currentLocationCounter;
-                            }
+                            header->start = currentLocationCounter;
                             if (loadAddress == 0) {
                                 loadAddress = currentLocationCounter;
                             }

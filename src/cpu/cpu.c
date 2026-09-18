@@ -407,7 +407,7 @@ void calcPK(void)
 {
 	// Recalculate PK based on PID and PIE
 	int s;
-	ushort lvl;
+	int lvl;
 	ushort i;
 	gPK = 0;
 	i = gPIE & gPID;

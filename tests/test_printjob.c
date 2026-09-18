@@ -54,7 +54,7 @@ int test_pj_text_txt(const char *tmpdir)
     feed_string(pj, "Hello\n");
     PrintJob_Flush(pj);
 
-    char path[512];
+    char path[600];
     snprintf(path, sizeof(path), "%s/print-1.txt", outdir);
     assert(file_exists(path));
 
@@ -79,7 +79,7 @@ int test_pj_text_pdf(const char *tmpdir)
     feed_string(pj, "Hello\nWorld\n");
     PrintJob_Flush(pj);
 
-    char path[512];
+    char path[600];
     snprintf(path, sizeof(path), "%s/print-1.pdf", outdir);
     assert(file_exists(path));
 
@@ -113,7 +113,7 @@ int test_pj_escp_txt(const char *tmpdir)
     feed_string(pj, " text\n");
     PrintJob_Flush(pj);
 
-    char path[512];
+    char path[600];
     snprintf(path, sizeof(path), "%s/print-1.txt", outdir);
     assert(file_exists(path));
 
@@ -143,7 +143,7 @@ int test_pj_escp_pdf(const char *tmpdir)
     PrintJob_PutChar(pj, 0x0A); /* LF */
     PrintJob_Flush(pj);
 
-    char path[512];
+    char path[600];
     snprintf(path, sizeof(path), "%s/print-1.pdf", outdir);
     assert(file_exists(path));
 
@@ -179,7 +179,7 @@ int test_pj_job_numbering(const char *tmpdir)
     feed_string(pj, "Job3\n");
     PrintJob_Flush(pj);
 
-    char path[512];
+    char path[600];
     snprintf(path, sizeof(path), "%s/print-1.txt", outdir);
     assert(file_exists(path));
     snprintf(path, sizeof(path), "%s/print-2.txt", outdir);
@@ -221,7 +221,7 @@ int test_pj_formfeed_split(const char *tmpdir)
     feed_string(pj, "Page2\n");
     PrintJob_Flush(pj);
 
-    char path[512];
+    char path[600];
     snprintf(path, sizeof(path), "%s/print-1.txt", outdir);
     assert(file_exists(path));
     snprintf(path, sizeof(path), "%s/print-2.txt", outdir);
@@ -277,7 +277,7 @@ int test_pj_destroy_flushes(const char *tmpdir)
     /* Don't call Flush - Destroy should do it */
     PrintJob_Destroy(pj);
 
-    char path[512];
+    char path[600];
     snprintf(path, sizeof(path), "%s/print-1.txt", outdir);
     assert(file_exists(path));
 

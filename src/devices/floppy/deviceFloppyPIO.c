@@ -235,15 +235,14 @@ static void FloppyPIO_Write(Device *self, uint32_t address, uint16_t value) {
                 int difference = (value >> 8) & 0x7F;
                 int move_in = (value >> 15) & 0x01;
 
-                if (move_in) {
-                    data->track += difference;
-                } else {
-                    data->track -= difference;
-                }
+                // Signed arithmetic: track is unsigned, and stepping out past
+                // track 0 used to wrap round and then clamp to 76.
+                int new_track = (int)data->track + (move_in ? difference : -difference);
 
                 // Limits
-                if (data->track < 0) data->track = 0;
-                if (data->track > 76) data->track = 76;
+                if (new_track < 0) new_track = 0;
+                if (new_track > 76) new_track = 76;
+                data->track = (uint16_t)new_track;
             }
             break;
 

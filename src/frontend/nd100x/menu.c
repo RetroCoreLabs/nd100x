@@ -45,6 +45,10 @@
 
 // Cache constants
 #define CACHE_DIR_SUFFIX "/.cache/nd100x"
+
+// Longest line the menu windows format into a stack buffer. Wider than any
+// real terminal; text beyond it is cut rather than overflowing the buffer.
+#define MENU_TEXT_MAX 1024
 #define CACHE_FILE_NAME "floppies.json"
 // Time conversion constants
 #define SECONDS_PER_DAY  86400
@@ -174,7 +178,7 @@ static DRIVE_TYPE detect_drive_type(const char *directory_content) {
                     // Extract the number
                     char number_str[32];
                     int len = pages - colon;
-                    if (len > 0 && len < sizeof(number_str)) {
+                    if (len > 0 && (size_t)len < sizeof(number_str)) {
                         strncpy(number_str, colon, len);
                         number_str[len] = '\0';
 
@@ -611,11 +615,9 @@ static void draw_floppy_list(void) {
         }
 
         // Truncate name if too long
-        char display_name[menu_state.max_x / 3 - 4];
-        strncpy(display_name, floppy->name, sizeof(display_name) - 1);
-        display_name[sizeof(display_name) - 1] = '\0';
-
-        mvwprintw(menu_state.list_win, start_y + i, 1, "%s", display_name);
+        int name_width = menu_state.max_x / 3 - 5;
+        if (name_width < 0) name_width = 0;
+        mvwprintw(menu_state.list_win, start_y + i, 1, "%.*s", name_width, floppy->name);
 
         if (item_idx == menu_state.selected_index) {
             wattroff(menu_state.list_win, A_REVERSE);
@@ -623,6 +625,15 @@ static void draw_floppy_list(void) {
     }
 
     wnoutrefresh(menu_state.list_win);
+}
+
+// Print text cut to width columns, the last three replaced by "..."
+static void print_truncated(WINDOW *win, int y, int x, const char *text, int width) {
+    if (width <= 3) {
+        mvwprintw(win, y, x, "%.*s", width > 0 ? width : 0, "...");
+        return;
+    }
+    mvwprintw(win, y, x, "%.*s...", width - 3, text);
 }
 
 // Helper function to safely print text within window bounds
@@ -653,11 +664,7 @@ static void safe_print_line(WINDOW *win, int y, int x, const char *text, int max
         mvwprintw(win, y, x, "%s", display_text);
     } else {
         // Text is too long, truncate and add ellipsis
-        char truncated[available_width + 4];
-        strncpy(truncated, display_text, available_width - 3);
-        truncated[available_width - 3] = '\0';
-        strcat(truncated, "...");
-        mvwprintw(win, y, x, "%s", truncated);
+        print_truncated(win, y, x, display_text, available_width);
     }
 }
 
@@ -673,11 +680,7 @@ static void safe_print_line_no_scroll(WINDOW *win, int y, int x, const char *tex
         mvwprintw(win, y, x, "%s", text);
     } else {
         // Text is too long, truncate and add ellipsis
-        char truncated[available_width + 4];
-        strncpy(truncated, text, available_width - 3);
-        truncated[available_width - 3] = '\0';
-        strcat(truncated, "...");
-        mvwprintw(win, y, x, "%s", truncated);
+        print_truncated(win, y, x, text, available_width);
     }
 }
 
@@ -700,14 +703,21 @@ static int print_wrapped_text(WINDOW *win, int start_y, int x, const char *text,
     char *text_copy = strdup(text);
     char *word = strtok(text_copy, " \t");
 
-    char current_line[available_width + 1];
+    if (!text_copy) {
+        mvwprintw(win, y, x, "%.*s", available_width > 0 ? available_width : 0, text);
+        return y + 1;
+    }
+    if (available_width > MENU_TEXT_MAX - 1) available_width = MENU_TEXT_MAX - 1;
+    if (available_width < 1) available_width = 1;
+
+    char current_line[MENU_TEXT_MAX];
     current_line[0] = '\0';
 
     while (word && display_lines_used < max_lines) {
         int word_len = strlen(word);
 
         // If adding this word would exceed the line width
-        if (strlen(current_line) + word_len + 1 > available_width) {
+        if (strlen(current_line) + (size_t)word_len + 1 > (size_t)available_width) {
             // Print current line
             if (strlen(current_line) > 0) {
                 mvwprintw(win, y, x, "%s", current_line);
@@ -715,14 +725,13 @@ static int print_wrapped_text(WINDOW *win, int start_y, int x, const char *text,
                 display_lines_used++;
             }
 
-            // Start new line with current word
-            strcpy(current_line, word);
+            // Start new line with current word (a word wider than the line is cut)
+            snprintf(current_line, (size_t)available_width + 1, "%s", word);
         } else {
-            // Add word to current line
-            if (strlen(current_line) > 0) {
-                strcat(current_line, " ");
-            }
-            strcat(current_line, word);
+            // Add word to current line; the width test above keeps it in bounds
+            size_t used = strlen(current_line);
+            snprintf(current_line + used, sizeof(current_line) - used, "%s%s",
+                     used > 0 ? " " : "", word);
         }
 
         word = strtok(NULL, " \t");
@@ -968,7 +977,7 @@ static void handle_search_input(int ch) {
             }
             break;
         case KEY_RIGHT:
-            if (menu_state.search_cursor < strlen(menu_state.search_text)) {
+            if ((size_t)menu_state.search_cursor < strlen(menu_state.search_text)) {
                 menu_state.search_cursor++;
             }
             break;
@@ -982,7 +991,7 @@ static void handle_search_input(int ch) {
             }
             break;
         case KEY_DC: // Delete
-            if (menu_state.search_cursor < strlen(menu_state.search_text)) {
+            if ((size_t)menu_state.search_cursor < strlen(menu_state.search_text)) {
                 memmove(&menu_state.search_text[menu_state.search_cursor],
                        &menu_state.search_text[menu_state.search_cursor + 1],
                        strlen(&menu_state.search_text[menu_state.search_cursor + 1]) + 1);

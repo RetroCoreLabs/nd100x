@@ -97,7 +97,9 @@ void mopc_cmd(char *cmdstr, char cmdc)
 	case '.':
 		/* Set breakpoint */
 		if (!(has_val))
-			; /*TODO: Check whats needed here */
+		{
+			/*TODO: Check whats needed here */
+		}
 		if ((val >= 0) && (val < 65536))
 		{ /* valid range for 16 bit addr */
 			gReg->has_breakpoint = true;

@@ -371,7 +371,7 @@ static char g_list_dir[256];
 static char g_list_pattern[64];
 
 static void run_list(void *arg) {
-    char *argv[2] = { "LIST-FILES", g_list_pattern };
+    char *argv[2] = { (char *)"LIST-FILES", g_list_pattern };
     cmd_list_files(g_list_dir, 2, argv);
 }
 
@@ -432,7 +432,7 @@ static void test_list_files(void)
 static void run_exit(void *arg) {
     (void)arg;
     int *rc = (int *)arg;
-    char *argv[1] = { "EXIT" };
+    char *argv[1] = { (char *)"EXIT" };
     *rc = cmd_exit(NULL, 1, argv);
 }
 

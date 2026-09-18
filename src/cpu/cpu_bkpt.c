@@ -144,7 +144,7 @@ void breakpoint_manager_remove(uint16_t address, int type)
 
     while (curr)
     {
-        if (curr->address == address && (type == -1 || curr->type == type))
+        if (curr->address == address && (type == -1 || (int)curr->type == type))
         {
             BreakpointEntry *to_delete = curr;
             if (prev)

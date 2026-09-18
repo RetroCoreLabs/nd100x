@@ -14,7 +14,7 @@
  *
  * Ported from RetroCore (C#):
  *   Emulated.HW/ND/CPU/NDBUS/NDBusDiscControllerSCSI.cs  - this file
- *   Emulated.HW/NCR/SCSI/NCR5386/*.cs                    - ncr5386.c
+ *   Emulated.HW/NCR/SCSI/NCR5386/(all .cs files)                   - ncr5386.c
  *   Emulated.HW/Common/SCSI/SCSIBus.cs                   - scsiBus.c
  *   Emulated.HW/Common/SCSI/SCSIFullDevice.cs            - scsiDevice.c
  *   Emulated.HW/Common/SCSI/SCSIHDD.cs                   - scsiHDD.c
