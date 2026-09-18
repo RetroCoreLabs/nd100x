@@ -94,13 +94,5 @@ if(CURL_FOUND AND NOT (PLATFORM_WASM OR BUILD_WASM OR PLATFORM_RISCV OR BUILD_RI
     endif()
 endif()
 
-# Platform-specific compile definitions
-if(PLATFORM_LINUX)
-    target_compile_definitions(ndlib PUBLIC PLATFORM_LINUX)
-elseif(PLATFORM_WINDOWS)
-    target_compile_definitions(ndlib PUBLIC PLATFORM_WINDOWS)
-elseif(PLATFORM_WASM)
-    target_compile_definitions(ndlib PUBLIC PLATFORM_WASM)
-elseif(PLATFORM_RISCV)
-    target_compile_definitions(ndlib PUBLIC PLATFORM_RISCV)
-endif()
+# C code tests the compiler's own platform macros (__EMSCRIPTEN__, _WIN32,
+# __riscv, __linux__); the PLATFORM_* names are CMake variables only.

@@ -136,11 +136,3 @@ set_target_properties(devices PROPERTIES
     POSITION_INDEPENDENT_CODE ON
 )
 
-# Platform-specific configurations
-if(PLATFORM_LINUX)
-    target_compile_definitions(devices PRIVATE PLATFORM_LINUX)
-elseif(PLATFORM_WINDOWS)
-    target_compile_definitions(devices PRIVATE PLATFORM_WINDOWS)
-elseif(PLATFORM_WASM)
-    target_compile_definitions(devices PRIVATE PLATFORM_WASM)
-endif()

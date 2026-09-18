@@ -17,7 +17,7 @@
 #include "vscreen.h"
 #include "../../ndlib/ndlib_types.h"   // KeyEvent
 
-#if !defined(PLATFORM_WASM) && !defined(__EMSCRIPTEN__)
+#if !defined(__EMSCRIPTEN__)
 #include "../../ndlib/telnetserver.h"
 #endif
 
@@ -56,7 +56,7 @@ static inline bool menu_is_active(const MenuState *state) {
 }
 
 // Enter the F12 menu system
-#if !defined(PLATFORM_WASM) && !defined(__EMSCRIPTEN__)
+#if !defined(__EMSCRIPTEN__)
 void menu_enter(MenuState *state, TelnetServer *telnetServer);
 void menu_process_key(MenuState *state, const KeyEvent *key, TelnetServer *telnetServer);
 void menu_tick(MenuState *state, TelnetServer *telnetServer);

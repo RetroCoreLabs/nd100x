@@ -27,7 +27,7 @@
 #include "download.h"
 #include "log.h"
 
-#if defined(PLATFORM_WASM) || defined(__EMSCRIPTEN__) || defined(PLATFORM_RISCV) || !defined(HAVE_CURL)
+#if defined(__EMSCRIPTEN__) || defined(__riscv) || !defined(HAVE_CURL)
 
 // No libcurl on this platform. Provide stubs so machine.c / menu.c still link.
 // Triggered on WASM, RISC-V, and any build where CMake did not find CURL
@@ -229,4 +229,4 @@ char* download_file(const char* url) {
     }
 }
 
-#endif // PLATFORM_WASM || __EMSCRIPTEN__
+#endif // __EMSCRIPTEN__

@@ -78,7 +78,7 @@ void stop_debugger_thread(void);
 #include "screenmenu.h"
 #include "nd100x_shell.h"
 
-#if !defined(PLATFORM_WASM) && !defined(__EMSCRIPTEN__)
+#if !defined(__EMSCRIPTEN__)
 #include "../../ndlib/telnetserver.h"
 #endif
 
@@ -113,7 +113,7 @@ static BOOT_TYPE boot_type_for_ctrl(CtrlType t)
 }
 
 
-#if !defined(PLATFORM_WASM) && !defined(__EMSCRIPTEN__)
+#if !defined(__EMSCRIPTEN__)
 static TelnetServer *telnetServer = NULL;
 
 // Carrier callback for telnet connect/disconnect
@@ -133,7 +133,7 @@ static void set_terminal_carrier(Device *dev, bool missing)
 }
 #endif
 
-#if !defined(PLATFORM_WASM) && !defined(__EMSCRIPTEN__) && !defined(PLATFORM_RISCV)
+#if !defined(__EMSCRIPTEN__) && !defined(__riscv)
 // --pipe control channel. A line on stdin framed as 0xFF <command> \n is a CONTROL command, not a
 // keystroke (0xFF never occurs in ND keyboard input). Lets an automation driver hot-swap floppies
 // mid-run - the "operator inserts the next install disk" step. Results go to stderr with a
@@ -212,7 +212,7 @@ static bool pipe_control_feed(char ch)
 void handle_sigint(int sig) {
     printf("\nCaught signal %d (Ctrl-C). Cleaning up...\n", sig);
 
-#if !defined(PLATFORM_WASM) && !defined(__EMSCRIPTEN__)
+#if !defined(__EMSCRIPTEN__)
     if (telnetServer) {
         TelnetServer_Stop(telnetServer);
         TelnetServer_Destroy(telnetServer);
@@ -329,7 +329,7 @@ void initialize(void)
 	//blocksignals();
 	register_signals();
 
-#if !defined(PLATFORM_WASM) && !defined(__EMSCRIPTEN__) && !defined(PLATFORM_RISCV)
+#if !defined(__EMSCRIPTEN__) && !defined(__riscv)
 	// --pipe: automation mode. Keyboard comes from a redirected stdin (a parent process / driver)
 	// instead of the interactive console, and stdout is UNBUFFERED so an expect-style driver sees the
 	// emulated terminal output as it is produced. Desktop only - WASM drives I/O from the browser and
@@ -1051,7 +1051,7 @@ int main(int argc, char *argv[])
     }
 
     // Start telnet server if enabled (after all VScreen setup so origOutput is set)
-#if !defined(PLATFORM_WASM) && !defined(__EMSCRIPTEN__)
+#if !defined(__EMSCRIPTEN__)
     if (config.telnetEnabled) {
         TelnetServerConfig tc = {
             .port = config.telnetPort,
@@ -1172,7 +1172,7 @@ int main(int argc, char *argv[])
 
             // If menu is active, route keys to menu and check timeouts
             if (menu_is_active(&menuState)) {
-#if !defined(PLATFORM_WASM) && !defined(__EMSCRIPTEN__)
+#if !defined(__EMSCRIPTEN__)
                 menu_tick(&menuState, telnetServer);
                 if (key.type != KEY_NONE) {
                     menu_process_key(&menuState, &key, telnetServer);
@@ -1187,7 +1187,7 @@ int main(int argc, char *argv[])
                 int altScreen = key.ch - '0';
                 if (altScreen > 0 && altScreen <= screenCount) {
                     int target = altScreen - 1;
-#if !defined(PLATFORM_WASM) && !defined(__EMSCRIPTEN__)
+#if !defined(__EMSCRIPTEN__)
                     // Block switching to telnet-connected terminal
                     if (telnetServer &&
                         TelnetServer_IsDeviceConnected(telnetServer, screens[target].device)) {
@@ -1196,7 +1196,7 @@ int main(int argc, char *argv[])
 #endif
                     {
                         // If not locally active, re-activate it
-#if !defined(PLATFORM_WASM) && !defined(__EMSCRIPTEN__)
+#if !defined(__EMSCRIPTEN__)
                         if (telnetServer && screens[target].isInputCapable &&
                             !screens[target].localActive) {
                             screens[target].localActive = true;
@@ -1210,7 +1210,7 @@ int main(int argc, char *argv[])
                 }
             } else if (key.type == KEY_F12) {
                 // F12 - enter non-blocking menu
-#if !defined(PLATFORM_WASM) && !defined(__EMSCRIPTEN__)
+#if !defined(__EMSCRIPTEN__)
                 menu_enter(&menuState, telnetServer);
 #else
                 menu_enter(&menuState, NULL);
@@ -1228,7 +1228,7 @@ int main(int argc, char *argv[])
                 for (int i = 0; i < mappedLen; i++) {
                     char ch = mappedSeq[i];
 
-#if !defined(PLATFORM_WASM) && !defined(__EMSCRIPTEN__) && !defined(PLATFORM_RISCV)
+#if !defined(__EMSCRIPTEN__) && !defined(__riscv)
                     // --pipe control framing (0xFF <cmd> \n) is intercepted here as a command
                     // (e.g. floppy hot-swap), NOT forwarded to the emulated terminal as keystrokes.
                     if (config.pipeMode && pipe_control_feed(ch)) continue;
@@ -1262,7 +1262,7 @@ int main(int argc, char *argv[])
     if (ptw) flush_tape_writer(ptw);
 
     // Stop telnet server before VScreen cleanup
-#if !defined(PLATFORM_WASM) && !defined(__EMSCRIPTEN__)
+#if !defined(__EMSCRIPTEN__)
     if (telnetServer) {
         TelnetServer_Stop(telnetServer);
         TelnetServer_Destroy(telnetServer);

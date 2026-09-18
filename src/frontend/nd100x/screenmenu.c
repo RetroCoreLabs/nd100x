@@ -30,7 +30,7 @@
 // Forward declaration for floppy menu (conditionally available).
 // The floppy-DB browser in menu.c depends on ncurses + libcurl and is not
 // compiled on RISC-V or Windows builds, so gate the extern the same way.
-#if !defined(PLATFORM_RISCV) && !defined(PLATFORM_WINDOWS) && !defined(_WIN32)
+#if !defined(__riscv) && !defined(_WIN32)
 #endif
 
 // =========================================================
@@ -45,7 +45,7 @@ static void draw_cpu_speed(void);
 static void draw_charset(void);
 static void draw_panel_switches(void);
 static void draw_about(void);
-#if !defined(PLATFORM_WASM) && !defined(__EMSCRIPTEN__)
+#if !defined(__EMSCRIPTEN__)
 static void draw_pending_list(void *telnetServer);
 #endif
 
@@ -94,7 +94,7 @@ static void menu_set_mode(MenuState *state, MenuMode mode, void *telnetServer)
         draw_about();
         break;
     case MENU_PENDING_LIST:
-#if !defined(PLATFORM_WASM) && !defined(__EMSCRIPTEN__)
+#if !defined(__EMSCRIPTEN__)
         state->lastRefresh = time(NULL);
         draw_pending_list(telnetServer);
 #endif
@@ -467,7 +467,7 @@ static void draw_screen_select(MenuState *state, void *telnetServer)
 
     printf("\033[2J\033[H");
 
-#if !defined(PLATFORM_WASM) && !defined(__EMSCRIPTEN__)
+#if !defined(__EMSCRIPTEN__)
     if (hasTelnet) {
         TelnetServer *ts = (TelnetServer *)telnetServer;
         int pending = TelnetServer_GetPendingCount(ts);
@@ -493,7 +493,7 @@ static void draw_screen_select(MenuState *state, void *telnetServer)
         } else if (!state->screens[i].isInputCapable) {
             status = " (output only)";
         }
-#if !defined(PLATFORM_WASM) && !defined(__EMSCRIPTEN__)
+#if !defined(__EMSCRIPTEN__)
         else if (hasTelnet) {
             TelnetServer *ts = (TelnetServer *)telnetServer;
             if (TelnetServer_IsDeviceConnected(ts, state->screens[i].device)) {
@@ -543,7 +543,7 @@ static void draw_screen_select(MenuState *state, void *telnetServer)
             printf("  [%c] %-24s%s\n", 'a' + (i - 9), state->screens[i].name, status);
     }
 
-#if !defined(PLATFORM_WASM) && !defined(__EMSCRIPTEN__)
+#if !defined(__EMSCRIPTEN__)
     if (hasTelnet) {
         printf("\n  [R] Release terminal (virtual->inactive, or disconnect telnet)");
         printf("\n  [P] Pending connections (live view)");
@@ -565,7 +565,7 @@ static void draw_release_prompt(MenuState *state)
     fflush(stdout);
 }
 
-#if !defined(PLATFORM_WASM) && !defined(__EMSCRIPTEN__)
+#if !defined(__EMSCRIPTEN__)
 static void draw_pending_list(void *telnetServer)
 {
     TelnetServer *ts = (TelnetServer *)telnetServer;
@@ -612,7 +612,7 @@ void menu_init(MenuState *state, VScreen *screens, int screenCount, int *activeS
     state->activeScreen = activeScreen;
 }
 
-#if !defined(PLATFORM_WASM) && !defined(__EMSCRIPTEN__)
+#if !defined(__EMSCRIPTEN__)
 void menu_enter(MenuState *state, TelnetServer *telnetServer)
 #else
 void menu_enter(MenuState *state, void *telnetServer)
@@ -621,7 +621,7 @@ void menu_enter(MenuState *state, void *telnetServer)
     menu_set_mode(state, MENU_F12, telnetServer);
 }
 
-#if !defined(PLATFORM_WASM) && !defined(__EMSCRIPTEN__)
+#if !defined(__EMSCRIPTEN__)
 void menu_tick(MenuState *state, TelnetServer *telnetServer)
 #else
 void menu_tick(MenuState *state, void *telnetServer)
@@ -630,7 +630,7 @@ void menu_tick(MenuState *state, void *telnetServer)
     if (state->mode == MENU_MESSAGE && time(NULL) >= state->messageExpiry) {
         menu_set_mode(state, state->returnTo, telnetServer);
     }
-#if !defined(PLATFORM_WASM) && !defined(__EMSCRIPTEN__)
+#if !defined(__EMSCRIPTEN__)
     // Live refresh for pending list view (every 2 seconds)
     if (state->mode == MENU_PENDING_LIST && telnetServer) {
         time_t now = time(NULL);
@@ -662,7 +662,7 @@ void menu_tick(MenuState *state, void *telnetServer)
 // Key handler - processes one keypress per call
 // =========================================================
 
-#if !defined(PLATFORM_WASM) && !defined(__EMSCRIPTEN__)
+#if !defined(__EMSCRIPTEN__)
 void menu_process_key(MenuState *state, const KeyEvent *key, TelnetServer *telnetServer)
 #else
 void menu_process_key(MenuState *state, const KeyEvent *key, void *telnetServer)
@@ -682,7 +682,7 @@ void menu_process_key(MenuState *state, const KeyEvent *key, void *telnetServer)
         if (is_esc) {
             menu_set_mode(state, MENU_NONE, telnetServer);
         } else if (ch == '1') {
-#if defined(PLATFORM_RISCV) || defined(PLATFORM_WINDOWS) || defined(_WIN32)
+#if defined(__riscv) || defined(_WIN32)
             printf("\nFloppy menu not available on this build\n");
             fflush(stdout);
 #else
@@ -712,7 +712,7 @@ void menu_process_key(MenuState *state, const KeyEvent *key, void *telnetServer)
             menu_set_mode(state, MENU_NONE, telnetServer);
             return;
         }
-#if !defined(PLATFORM_WASM) && !defined(__EMSCRIPTEN__)
+#if !defined(__EMSCRIPTEN__)
         if ((ch == 'r' || ch == 'R') && telnetServer) {
             menu_set_mode(state, MENU_SCREEN_RELEASE, telnetServer);
             return;
@@ -730,7 +730,7 @@ void menu_process_key(MenuState *state, const KeyEvent *key, void *telnetServer)
                 choice = 9 + (ch - 'a');
 
             if (choice >= 0 && choice < state->screenCount) {
-#if !defined(PLATFORM_WASM) && !defined(__EMSCRIPTEN__)
+#if !defined(__EMSCRIPTEN__)
                 if (telnetServer && TelnetServer_IsDeviceConnected(
                         telnetServer, state->screens[choice].device)) {
                     menu_show_message(state, "Terminal is in use by telnet client.",
@@ -783,7 +783,7 @@ void menu_process_key(MenuState *state, const KeyEvent *key, void *telnetServer)
                 return;
             }
 
-#if !defined(PLATFORM_WASM) && !defined(__EMSCRIPTEN__)
+#if !defined(__EMSCRIPTEN__)
             if (telnetServer) {
                 // If telnet-connected: disconnect the client
                 if (TelnetServer_IsDeviceConnected(telnetServer, state->screens[choice].device)) {
@@ -820,7 +820,7 @@ void menu_process_key(MenuState *state, const KeyEvent *key, void *telnetServer)
         }
         break;
 
-#if !defined(PLATFORM_WASM) && !defined(__EMSCRIPTEN__)
+#if !defined(__EMSCRIPTEN__)
     // ----- Pending connections (live view) -----
     case MENU_PENDING_LIST:
         if (is_esc) {
