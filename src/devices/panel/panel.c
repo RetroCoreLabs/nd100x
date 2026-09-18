@@ -163,18 +163,18 @@ void ProcessTerminalPanc(void)
 		case STATUS_UPDATE_LOW_SECONDS:
 			if (panc.bits.read_request)
 			{
-				pans.bits.rpan = (ushort)(gPAP->seconds & 0xFF);
+				pans.bits.rpan = (uint16_t)(gPAP->seconds & 0xFF);
 				pans.bits.read_panel_valid = 1; // Yes, we have a valid response
 			}
 			else
 			{
-				gPAP->seconds = (ushort)((gPAP->seconds & 0xff00) | panc.bits.wpan);
+				gPAP->seconds = (uint16_t)((gPAP->seconds & 0xff00) | panc.bits.wpan);
 			}
 			break;
 		case STATUS_UPDATE_HIGH_SECONDS:
 			if (panc.bits.read_request)
 			{
-				pans.bits.rpan = (ushort)(gPAP->seconds >> 8 & 0xFF);
+				pans.bits.rpan = (uint16_t)(gPAP->seconds >> 8 & 0xFF);
 				pans.bits.read_panel_valid = 1; // Yes, we have a valid response
 			}
 			else
@@ -185,7 +185,7 @@ void ProcessTerminalPanc(void)
 		case STATUS_UPDATE_LOW_DAYS:
 			if (panc.bits.read_request)
 			{
-				pans.bits.rpan = (ushort)(gPAP->days & 0x00ff);
+				pans.bits.rpan = (uint16_t)(gPAP->days & 0x00ff);
 				pans.bits.read_panel_valid = 1; // Yes, we have a valid response
 			}
 			else
@@ -196,12 +196,12 @@ void ProcessTerminalPanc(void)
 		case STATUS_UPDATE_HIGH_DAYS:
 			if (panc.bits.read_request)
 			{
-				pans.bits.rpan = (ushort)(gPAP->days >> 8 & 0x00ff);
+				pans.bits.rpan = (uint16_t)(gPAP->days >> 8 & 0x00ff);
 				pans.bits.read_panel_valid = 1; // Yes, we have a valid response
 			}
 			else
 			{
-				gPAP->days = (gPAP->days & 0x00FF) | (ushort)(panc.bits.wpan << 8);
+				gPAP->days = (gPAP->days & 0x00FF) | (uint16_t)(panc.bits.wpan << 8);
 			}
 			break;
 		case STATUS_MEMORY_EXAMINE:
@@ -426,7 +426,7 @@ void panel_event(void)
 			else
 			{ /*Write */
 				tmpbyte = gPANC & 0x00ff;
-				gPAP->seconds = (gPAP->seconds & 0x00ff) | ((ushort)tmpbyte) << 8;
+				gPAP->seconds = (gPAP->seconds & 0x00ff) | ((uint16_t)tmpbyte) << 8;
 				gPANS = 0xd500;
 			}
 			break;
@@ -452,7 +452,7 @@ void panel_event(void)
 			else
 			{ /*Write */
 				tmpbyte = gPANC & 0x00ff;
-				gPAP->days = (gPAP->days & 0x00ff) | ((ushort)tmpbyte) << 8;
+				gPAP->days = (gPAP->days & 0x00ff) | ((uint16_t)tmpbyte) << 8;
 				gPANS = 0xd700;
 			}
 			break;
