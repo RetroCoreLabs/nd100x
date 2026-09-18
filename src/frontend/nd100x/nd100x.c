@@ -816,7 +816,10 @@ int main(int argc, char *argv[])
         } else {
             config.bootType = g_machineConfig.boot.file_boot_type;
             if (!config.imageFile && g_machineConfig.boot.file[0])
+            {
                 config.imageFile = strdup(g_machineConfig.boot.file);
+                if (!config.imageFile) { fprintf(stderr, "nd100x: out of memory\n"); exit(1); }
+            }
         }
 
         // Apply [runtime] settings as defaults. A CLI flag always wins, so only
@@ -859,9 +862,11 @@ int main(int argc, char *argv[])
         }
         if (!config.nd100Root && rt->nd100_root[0]) {
             config.nd100Root = strdup(rt->nd100_root);
+            if (!config.nd100Root) { fprintf(stderr, "nd100x: out of memory\n"); exit(1); }
         }
         if (!config.scriptPath && rt->script[0]) {
             config.scriptPath = strdup(rt->script);
+            if (!config.scriptPath) { fprintf(stderr, "nd100x: out of memory\n"); exit(1); }
         }
     }
 

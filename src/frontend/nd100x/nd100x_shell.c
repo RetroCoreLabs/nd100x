@@ -78,10 +78,11 @@ static bool cmd_matches(const char *input, const char *full_name, const char *ab
 
     /* Uppercase input for case-insensitive comparison */
     char upper_input[MAX_CMD_LEN];
-    for (int i = 0; input[i] && i < MAX_CMD_LEN - 1; i++) {
-        upper_input[i] = toupper((unsigned char)input[i]);
+    int i = 0;
+    for (; input[i] && i < MAX_CMD_LEN - 1; i++) {
+        upper_input[i] = (char)toupper((unsigned char)input[i]);
     }
-    upper_input[strlen(input)] = '\0';
+    upper_input[i] = '\0';   /* input longer than the buffer is cut, not overrun */
 
     /* Exact match on full name or abbreviation */
     if (strcmp(upper_input, full_name) == 0) return true;

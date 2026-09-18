@@ -556,6 +556,7 @@ bool MachineConfig_LoadFile(MachineConfig *cfg, const char *path,
         case SEC_CONTROLLER: {
             if (!curCtrl) break;
             const ControllerDescriptor *d = MC_DescriptorForType(curType);
+            if (!d) break;
             if (str_ieq(keyl, "enabled")) {
                 int b = parse_bool(val);
                 if (b < 0) { fclose(f); return mc_err(err, errlen, path, lineno,

@@ -621,17 +621,22 @@ static int send_menu(TelnetServer *server, nd_socket_t clientFd)
         pos += snprintf(buf + pos, sizeof(buf) - pos,
             "Available terminals:\r\n");
 
-        for (int m = 0; m < menuMapCount; m++) {
+        for (int m = 0; m < menuMapCount && pos < (int)sizeof(buf) - 1; m++) {
             RegisteredTerminal *rt = &server->terminals[menuMap[m]];
             pos += snprintf(buf + pos, sizeof(buf) - pos,
                 "  %d) %s\r\n",
                 m + 1, rt->info.name);
         }
 
-        pos += snprintf(buf + pos, sizeof(buf) - pos,
-            "\r\nSelect terminal (1-%d), ENTER for next available, or Q to quit: ",
-            menuMapCount);
+        if (pos < (int)sizeof(buf) - 1) {
+            pos += snprintf(buf + pos, sizeof(buf) - pos,
+                "\r\nSelect terminal (1-%d), ENTER for next available, or Q to quit: ",
+                menuMapCount);
+        }
     }
+
+    // snprintf returns the length it WANTED; never send past the buffer.
+    if (pos > (int)sizeof(buf) - 1) pos = (int)sizeof(buf) - 1;
 
     int sent = send(ND_SOCK_NATIVE(clientFd), buf, pos, MSG_NOSIGNAL);
 

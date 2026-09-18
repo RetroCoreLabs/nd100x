@@ -421,14 +421,26 @@ bool Config_ParseCommandLine(Config_t *config, int argc, char *argv[]) {
 
             case 'P':
                 config->printDir = strdup(optarg);
+                if (!config->printDir) {
+                    fprintf(stderr, "Out of memory\n");
+                    return false;
+                }
                 break;
 
             case 'D':
                 config->tapeDir = strdup(optarg);
+                if (!config->tapeDir) {
+                    fprintf(stderr, "Out of memory\n");
+                    return false;
+                }
                 break;
 
             case 'e':
                 config->tapeFile = strdup(optarg);
+                if (!config->tapeFile) {
+                    fprintf(stderr, "Out of memory\n");
+                    return false;
+                }
                 break;
 
             case 'N':
@@ -856,6 +868,10 @@ bool Config_ParseCommandLine(Config_t *config, int argc, char *argv[]) {
         if (!config->imageFile) {
             if (config->bootType == BOOT_FLOPPY) {
                 config->imageFile = strdup("FLOPPY.IMG");
+                if (!config->imageFile) {
+                    fprintf(stderr, "Out of memory\n");
+                    return false;
+                }
             } else
             // SMD, Winchester and SCSI take their images from --smdN / --wdN /
             // --scsiN, not --image.
