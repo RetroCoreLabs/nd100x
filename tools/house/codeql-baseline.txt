@@ -1,0 +1,42 @@
+# CodeQL baseline for the house C standard (plan step 3b).
+#
+# Taken 2026-09-18 at commit 07f40aa with CodeQL CLI 2.25.0 and
+# codeql/cpp-queries 1.5.0, suite cpp-security-and-quality, native Debug
+# build. Vendored and generated code (external/, tools/mkptypes/,
+# src/devices/scsi/ncr5386.*, *_protos.h) is left out of the counts.
+# A later run may report fewer findings; it must not report more in any
+# row without the new findings being read and either fixed or explained.
+#
+# total 195
+
+# severity  count  rule
+error             3  Inconsistent nullness check
+recommendation   84  Commented-out code
+recommendation   23  Long switch case
+recommendation   13  Guarded Free
+recommendation    5  No trivial switch statements
+recommendation    4  Futile conditional
+recommendation    3  FIXME comment
+recommendation    3  For loop variable changed in body
+recommendation    3  Short global name
+recommendation    2  Include header files only
+warning          19  File created without restricting permissions
+warning          13  Comparison result is always the same
+warning           8  Uncontrolled data used in path expression
+warning           5  Potentially overflowing call to snprintf
+warning           4  Use of potentially dangerous function
+warning           1  Array offset used before range check
+warning           1  Poorly documented large function
+warning           1  Year field changed using an arithmetic operation without checking for leap year
+
+# count  module
+  73  src/devices
+  55  src/cpu
+  18  src/ndlib
+  15  src/machine
+  14  src/frontend
+   8  tests/test_machine_config.c
+   7  src/debugger
+   3  tests/test_shell.c
+   1  tests/test_floppydb.c
+   1  tests/test_load_prog.c

@@ -1,0 +1,67 @@
+name: CodeQL
+
+# House C standard, layer 4 (see tools/house/codeql-baseline.txt).
+# Inter-procedural checks the compiler and clang-tidy cannot decide:
+# unchecked allocations used later, unterminated buffers, tainted sizes,
+# use after free. Runs nightly and on demand; results go to the repository's
+# code scanning page. It is not a gate: findings are read and fixed module by
+# module, in the order the baseline and CERT priority give.
+
+on:
+  schedule:
+    - cron: '17 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  analyze:
+    name: CodeQL c-cpp
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout (without submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Install build dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            cmake \
+            ninja-build \
+            pkg-config \
+            libcurl4-openssl-dev \
+            libncurses-dev
+
+      - name: Initialise submodules
+        run: |
+          set -euo pipefail
+          git submodule update --init --recursive \
+            external/cJSON \
+            external/libdap \
+            external/libsymbols
+
+      - name: Initialise CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: c-cpp
+          build-mode: manual
+          queries: security-and-quality
+
+      # A real build, so the mkptypes-generated *_protos.h headers exist.
+      - name: Build
+        run: |
+          cmake -S . -B build_codeql -G Ninja -DCMAKE_BUILD_TYPE=Debug
+          cmake --build build_codeql
+
+      - name: Analyse
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: /language:c-cpp
