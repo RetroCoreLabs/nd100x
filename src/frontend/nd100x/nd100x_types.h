@@ -146,6 +146,7 @@ typedef struct {
     bool shellEnabled;       // --monitor or --shell: enable interactive shell mode
     char *nd100Root;         // --nd100-root: directory containing BPUN/PROG files (default: current dir)
     char *scriptPath;        // --script: path to script file with shell commands
+    char *logSpec;           // --log=SPEC: per-category log levels, applied after the .ini [runtime] log key
 } Config_t;
 
 #endif // CONFIG_H

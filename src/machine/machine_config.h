@@ -97,6 +97,7 @@ typedef struct {
     bool   shell_enabled;       /* enable interactive shell mode */
     char   nd100_root[MC_PATH_LEN];  /* directory for BPUN/PROG files; "" = current dir */
     char   script[MC_PATH_LEN];      /* script file to load in shell; "" = none */
+    char   log_spec[128];            /* log levels, e.g. "smd:debug,*:warn"; "" = defaults */
 } MC_Runtime;
 
 /* The ND-500 at the other end of the bus interface.

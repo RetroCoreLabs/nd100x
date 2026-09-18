@@ -34,8 +34,7 @@
 
 void IO_Init(void)
 {
-    DeviceManager_Init(LOG_INFO);
-    //DeviceManager_Init(LOG_DEBUG);
+    DeviceManager_Init();
     DeviceManager_AddAllDevices();
 }
 

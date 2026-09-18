@@ -58,31 +58,8 @@ extern int ReadPhysicalMemory(int physicalAddress, bool privileged);
 extern void WritePhysicalMemory(int physicalAddress, uint16_t value, bool privileged);
 
 
-// ** LOGGING **
-// Log levels
-typedef enum {
-    LOG_DEBUG,
-    LOG_INFO,
-    LOG_WARNING,
-    LOG_ERROR
-} LogLevel;
-
-/// @brief Write a formatted message at the given level (see log.c).
-/// @details Declared here as well as in the generated ndlib_protos.h because
-///          only a hand-written header can carry the format attribute that
-///          lets the compiler check every call's arguments.
-void Log(LogLevel level, const char *format, ...) __attribute__((format(printf, 2, 3)));
-
-/// @brief Minimum log level for filtering messages
-/// @details Messages below this level will not be logged.
-extern LogLevel minLogLevel;
-
-
-/// @brief Array of log level strings for formatting output
-extern const char *level_str[];
-
-/// @brief Callback type for redirecting log output (e.g. to a VScreen)
-typedef void (*LogOutputFunc)(const char *message);
+// ** LOGGING ** (categories, levels and LOG() live in log.h)
+#include "log.h"
 
 // ** BPUN **
 typedef struct

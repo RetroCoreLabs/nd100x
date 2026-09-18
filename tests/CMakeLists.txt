@@ -421,6 +421,18 @@ else()
     message(STATUS "tests: node not found - skipping machine_profiles_tests")
 endif()
 
+# Logger unit tests (category/level logger in src/ndlib/log.c)
+add_executable(test_log
+    test_log.c
+    ${CMAKE_SOURCE_DIR}/src/ndlib/log.c
+)
+target_include_directories(test_log PRIVATE ${CMAKE_SOURCE_DIR}/src/ndlib)
+if(NOT BUILD_WASM)
+    find_package(Threads REQUIRED)
+    target_link_libraries(test_log PRIVATE Threads::Threads)
+endif()
+add_test(NAME log_tests COMMAND test_log)
+
 # House C standard for every test target defined in this directory.
 get_property(_house_test_targets DIRECTORY PROPERTY BUILDSYSTEM_TARGETS)
 foreach(_t IN LISTS _house_test_targets)

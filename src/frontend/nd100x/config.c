@@ -31,6 +31,7 @@
 #include "../../machine/machine_types.h"
 #include "../../devices/hdlc/hdlc_constants.h"
 #include "../../cpu/cpu_protos.h"
+#include "../../ndlib/log.h"
 #include "nd100x_version.h"   /* generated into the build dir by cmake/git_stamp.cmake */
 
 // Long options
@@ -97,6 +98,7 @@ static struct option long_options[] = {
     {"shell",      no_argument,       0, 0x160}, // --shell : alias for --monitor
     {"nd100-root", required_argument, 0, 0x161}, // --nd100-root=PATH : directory for BPUN/PROG files (default: current dir)
     {"script",     required_argument, 0, 0x162}, // --script=FILE : load shell commands from script file
+    {"log",        required_argument, 0, 0x154}, // --log=SPEC : per-category log levels, e.g. smd:debug,*:warn
     {0, 0, 0, 0}
 };
 
@@ -167,6 +169,7 @@ void Config_Init(Config_t *config) {
     config->shellEnabled = false;
     config->nd100Root = NULL;
     config->scriptPath = NULL;
+    config->logSpec = NULL;
 }
 
 /* Parse a --boot argument into bootType + bootUnit.
@@ -818,6 +821,21 @@ bool Config_ParseCommandLine(Config_t *config, int argc, char *argv[]) {
                 }
                 break;
 
+            case 0x154: /* --log=SPEC : per-category log levels. Checked here so a
+                         * typo fails at once; applied again after the .ini is read
+                         * so the CLI value wins (nd100x.c). */
+                if (Log_ParseSpec(optarg) != 0) {
+                    fprintf(stderr, "Invalid --log value '%s' (expect category:level pairs, "
+                                    "e.g. --log=smd:debug,*:warn)\n", optarg);
+                    return false;
+                }
+                config->logSpec = strdup(optarg);
+                if (!config->logSpec) {
+                    fprintf(stderr, "Out of memory\n");
+                    return false;
+                }
+                break;
+
             case 0x162: /* --script=FILE : load shell commands from script file */
                 config->scriptPath = strdup(optarg);
                 if (!config->scriptPath) {
@@ -997,6 +1015,13 @@ void Config_PrintHelp(const char *progName) {
     printf("                          (deterministic, follows emulation speed). wall = one pulse\n");
     printf("                          per 20 ms of host time (real-time 50 Hz clock).\n");
     printf("                          Also settable via the .ini '[machine] rtc = MODE' key.\n");
+    printf("           --log=SPEC     Log levels per category, e.g. smd:debug,hdlc:trace,*:warn.\n");
+    printf("                          Levels: error warn info debug trace (default: info).\n");
+    printf("                          Categories: general cpu mms device smd floppy wd scsi cdc\n");
+    printf("                          drum hdlc rtc term panel tape printer net dap machine loader\n");
+    printf("                          config; * or all = every category. Log lines go to the Log\n");
+    printf("                          screen (Alt+N) or stderr, never to a guest terminal.\n");
+    printf("                          Also settable via the .ini '[runtime] log = SPEC' key.\n");
     printf("           --bsd-debug    Track BSD kernel-stack high-water (KSTKHW, stderr)\n");
     printf("  -t,      --trace        Enable CPU execution trace to stderr\n");
     printf("  -n N,    --max-instr=N  Stop after N instructions\n");

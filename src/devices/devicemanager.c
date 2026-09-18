@@ -44,14 +44,8 @@
 
 static DeviceManager deviceManager = {0}; // Initialize to zero
 
-void DeviceManager_Init(LogLevel level)
+void DeviceManager_Init(void)
 {
-    // Set the minimum log level
-    deviceManager.minLogLevel = level;
-    Log_SetMinLevel(level);
-
-    // silenced: user wants a clean boot banner (WARN/ERROR still logged)
-    // Log(LOG_INFO, "Initializing device manager (min log level: %s)\n", level_str[level]);
 
     deviceManager.deviceCapacity = INITIAL_DEVICE_CAPACITY;
     deviceManager.deviceCount = 0;
@@ -61,11 +55,11 @@ void DeviceManager_Init(LogLevel level)
         // Zero initialize the device array
         memset(deviceManager.devices, 0, sizeof(DeviceInfo) * INITIAL_DEVICE_CAPACITY);
         // silenced: user wants a clean boot banner (WARN/ERROR still logged)
-        // Log(LOG_INFO, "Successfully allocated device array with capacity %d\n", deviceManager.deviceCapacity);
+        // LOG(LOG_CAT_DEVICE, LOG_INFO, "Successfully allocated device array with capacity %d\n", deviceManager.deviceCapacity);
     }
     else
     {
-        Log(LOG_ERROR, "Failed to allocate device array\n");
+        LOG(LOG_CAT_DEVICE, LOG_ERROR, "Failed to allocate device array\n");
         // Should handle allocation failure
         exit(1);
     }
@@ -202,7 +196,7 @@ static Device *CreateDevice(DeviceType type, uint8_t thumbwheel)
         dev = CreateRTCDevice(thumbwheel);
         if (!dev)
         {
-            Log(LOG_ERROR, "Failed to create RTC device\n");
+            LOG(LOG_CAT_DEVICE, LOG_ERROR, "Failed to create RTC device\n");
             return NULL;
         }
         break;
@@ -210,7 +204,7 @@ static Device *CreateDevice(DeviceType type, uint8_t thumbwheel)
         dev = CreateTerminalDevice(thumbwheel);
         if (!dev)
         {
-            Log(LOG_ERROR, "Failed to create terminal device\n");
+            LOG(LOG_CAT_DEVICE, LOG_ERROR, "Failed to create terminal device\n");
             return NULL;
         }
         break;
@@ -218,7 +212,7 @@ static Device *CreateDevice(DeviceType type, uint8_t thumbwheel)
         dev = CreatePaperTapeDevice(thumbwheel);
         if (!dev)
         {
-            Log(LOG_ERROR, "Failed to create paper tape device\n");
+            LOG(LOG_CAT_DEVICE, LOG_ERROR, "Failed to create paper tape device\n");
             return NULL;
         }
         break;
@@ -226,7 +220,7 @@ static Device *CreateDevice(DeviceType type, uint8_t thumbwheel)
         dev = CreateFloppyPIODevice(thumbwheel);
         if (!dev)
         {
-            Log(LOG_ERROR, "Failed to create floppy PIO device\n");
+            LOG(LOG_CAT_DEVICE, LOG_ERROR, "Failed to create floppy PIO device\n");
             return NULL;
         }
         break;
@@ -235,7 +229,7 @@ static Device *CreateDevice(DeviceType type, uint8_t thumbwheel)
         dev = CreateSMDDevice(thumbwheel);
         if (!dev)
         {
-            Log(LOG_ERROR, "Failed to create SMD device\n");
+            LOG(LOG_CAT_DEVICE, LOG_ERROR, "Failed to create SMD device\n");
             return NULL;
         }
         break;
@@ -243,7 +237,7 @@ static Device *CreateDevice(DeviceType type, uint8_t thumbwheel)
         dev = CreateWinchesterDevice(thumbwheel);
         if (!dev)
         {
-            Log(LOG_ERROR, "Failed to create Winchester device\n");
+            LOG(LOG_CAT_DEVICE, LOG_ERROR, "Failed to create Winchester device\n");
             return NULL;
         }
         break;
@@ -251,7 +245,7 @@ static Device *CreateDevice(DeviceType type, uint8_t thumbwheel)
         dev = CreateSCSIDevice(thumbwheel);
         if (!dev)
         {
-            Log(LOG_ERROR, "Failed to create SCSI device\n");
+            LOG(LOG_CAT_DEVICE, LOG_ERROR, "Failed to create SCSI device\n");
             return NULL;
         }
         break;
@@ -259,7 +253,7 @@ static Device *CreateDevice(DeviceType type, uint8_t thumbwheel)
         dev = CreateDrumDevice(thumbwheel);
         if (!dev)
         {
-            Log(LOG_ERROR, "Failed to create DRUM device\n");
+            LOG(LOG_CAT_DEVICE, LOG_ERROR, "Failed to create DRUM device\n");
             return NULL;
         }
         break;
@@ -267,7 +261,7 @@ static Device *CreateDevice(DeviceType type, uint8_t thumbwheel)
         dev = CreateCdcDevice(thumbwheel);
         if (!dev)
         {
-            Log(LOG_ERROR, "Failed to create CDC disc device\n");
+            LOG(LOG_CAT_DEVICE, LOG_ERROR, "Failed to create CDC disc device\n");
             return NULL;
         }
         break;
@@ -275,7 +269,7 @@ static Device *CreateDevice(DeviceType type, uint8_t thumbwheel)
         dev = CreateFloppyDMADevice(thumbwheel);
         if (!dev)
         {
-            Log(LOG_ERROR, "Failed to create floppy DMA device\n");
+            LOG(LOG_CAT_DEVICE, LOG_ERROR, "Failed to create floppy DMA device\n");
             return NULL;
         }
         break;
@@ -283,7 +277,7 @@ static Device *CreateDevice(DeviceType type, uint8_t thumbwheel)
         dev = CreateLinePrinterDevice(thumbwheel);
         if (!dev)
         {
-            Log(LOG_ERROR, "Failed to create line printer device\n");
+            LOG(LOG_CAT_DEVICE, LOG_ERROR, "Failed to create line printer device\n");
             return NULL;
         }
         break;
@@ -291,7 +285,7 @@ static Device *CreateDevice(DeviceType type, uint8_t thumbwheel)
         dev = CreatePaperTapeWriterDevice(thumbwheel);
         if (!dev)
         {
-            Log(LOG_ERROR, "Failed to create paper tape writer device\n");
+            LOG(LOG_CAT_DEVICE, LOG_ERROR, "Failed to create paper tape writer device\n");
             return NULL;
         }
         break;
@@ -299,12 +293,12 @@ static Device *CreateDevice(DeviceType type, uint8_t thumbwheel)
         dev = CreateHDLCDevice(thumbwheel);
         if (!dev)
         {
-            Log(LOG_ERROR, "Failed to create HDLC device\n");
+            LOG(LOG_CAT_DEVICE, LOG_ERROR, "Failed to create HDLC device\n");
             return NULL;
         }
         break;
     default:
-        Log(LOG_ERROR, "Unknown device type: %d\n", type);
+        LOG(LOG_CAT_DEVICE, LOG_ERROR, "Unknown device type: %d\n", type);
         return NULL;
     }
 
@@ -335,7 +329,7 @@ bool DeviceManager_AddDevice(DeviceType type, uint8_t thumbwheel)
     // Check if we have capacity
     if (deviceManager.deviceCount >= deviceManager.deviceCapacity)
     {
-        Log(LOG_ERROR, "Failed to add device: device array is full (capacity: %d, count: %d)\n",
+        LOG(LOG_CAT_DEVICE, LOG_ERROR, "Failed to add device: device array is full (capacity: %d, count: %d)\n",
             deviceManager.deviceCapacity, deviceManager.deviceCount);
         return false;
     }
@@ -358,7 +352,7 @@ bool DeviceManager_AddDevice(DeviceType type, uint8_t thumbwheel)
             if (dev->startAddress <= other->endAddress &&
                 other->startAddress <= dev->endAddress)
             {
-                Log(LOG_ERROR,
+                LOG(LOG_CAT_DEVICE, LOG_ERROR,
                     "Refusing to add '%s' (IOX %o-%o): that address block is already "
                     "answered by '%s' (IOX %o-%o). These cards cannot both be fitted.\n",
                     dev->memoryName, dev->startAddress, dev->endAddress,
@@ -381,7 +375,7 @@ bool DeviceManager_AddDevice(DeviceType type, uint8_t thumbwheel)
     }
     else
     {
-        Log(LOG_ERROR, "Failed to create device\n");
+        LOG(LOG_CAT_DEVICE, LOG_ERROR, "Failed to create device\n");
     }
 
     return false;
@@ -396,14 +390,14 @@ uint16_t DeviceManager_Read(uint32_t address)
 
         if (dev && Device_IsInAddress(dev, address))
         {
-            // Log(LOG_DEBUG, "Device found for READ address: %o\n", address);
+            // LOG(LOG_CAT_DEVICE, LOG_DEBUG, "Device found for READ address: %o\n", address);
             return Device_Read(dev, address);
         }
     }
 
     interrupt(14, 1 << 7); /* IOX error lvl14 */
 #ifdef LOG_DEVICE_NOT_FOUND
-    Log(LOG_WARNING, "No device found for READ address: %o\n", address);
+    LOG(LOG_CAT_DEVICE, LOG_WARN, "No device found for READ address: %o\n", address);
 #endif
     return 0;
 }
@@ -415,13 +409,12 @@ void DeviceManager_Write(uint32_t address, uint16_t value)
         Device *dev = deviceManager.devices[i].device;
         if (!dev)
         {
-            Log(LOG_ERROR, "Device at index %d is NULL\n", i);
+            LOG(LOG_CAT_DEVICE, LOG_ERROR, "Device at index %d is NULL\n", i);
             continue;
         }
 
         if (Device_IsInAddress(dev, address))
         {
-            //Log(LOG_DEBUG, "Device found for WRITE address: %o\n", address);
             Device_Write(dev, address, value);
             return;
         }
@@ -429,7 +422,7 @@ void DeviceManager_Write(uint32_t address, uint16_t value)
 
     interrupt(14, 1 << 7); /* IOX error lvl14 */
 #ifdef LOG_DEVICE_NOT_FOUND
-    Log(LOG_WARNING, "No device found for WRITE address: %o\n", address);
+    LOG(LOG_CAT_DEVICE, LOG_WARN, "No device found for WRITE address: %o\n", address);
 #endif
 }
 
@@ -460,7 +453,7 @@ int DeviceManager_Ident(uint16_t level)
 
 #ifdef LOG_DEVICE_NOT_FOUND
     // interrupt(14,1<<7); /* IOX error lvl14 */
-     Log(LOG_WARNING, "No device found for IDENT level: %d\n", level);
+     LOG(LOG_CAT_DEVICE, LOG_WARN, "No device found for IDENT level: %d\n", level);
 #endif
 
     return 0;
@@ -543,6 +536,6 @@ int DeviceManager_BootFrom(DeviceType type, int unit)
         }
     }
 
-    Log(LOG_WARNING, "No controller of device type %d present to boot from\n", type);
+    LOG(LOG_CAT_DEVICE, LOG_WARN, "No controller of device type %d present to boot from\n", type);
     return -1;
 }

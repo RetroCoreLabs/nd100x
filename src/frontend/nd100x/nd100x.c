@@ -647,15 +647,16 @@ static void flush_tape_writer(Device *ptw)
     if (f) {
         fwrite(data, 1, length, f);
         fclose(f);
-        Log(LOG_INFO, "Paper tape job %d saved: %s (%zu bytes)\n",
+        LOG(LOG_CAT_TAPE, LOG_INFO, "Paper tape job %d saved: %s (%zu bytes)\n",
                tapeWriterJobNumber, filename, length);
     }
     tapeWriterActive = false;
 }
 
 // Log output handler - routes Log() messages to the Log VScreen
-static void LogScreenHandler(const char *msg)
+static void LogScreenHandler(LogCategory cat, LogLevel lvl, const char *msg, void *ctx)
 {
+    (void)cat; (void)lvl; (void)ctx;
     if (logScreenIndex < 0) return;
 
     pthread_mutex_lock(&logScreenMutex);
@@ -836,13 +837,23 @@ int main(int argc, char *argv[])
         }
         if (!config.traceEnabled && rt->trace)
             config.traceEnabled = true;
+        if (rt->log_spec[0] && Log_ParseSpec(rt->log_spec) != 0) {
+            fprintf(stderr, "nd100x: invalid [runtime] log = %s in the .ini\n", rt->log_spec);
+            exit(1);
+        }
         if (config.charset == CHARSET_OFF && rt->charset[0] &&
             strcmp(rt->charset, "off") != 0) {
             CharsetVariant cs;
             if (charset_from_name(rt->charset, &cs)) config.charset = cs;
         }
-        if (!config.printDir && rt->printdir[0]) config.printDir = strdup(rt->printdir);
-        if (!config.tapeDir  && rt->tapedir[0])  config.tapeDir  = strdup(rt->tapedir);
+        if (!config.printDir && rt->printdir[0]) {
+            config.printDir = strdup(rt->printdir);
+            if (!config.printDir) { fprintf(stderr, "nd100x: out of memory\n"); exit(1); }
+        }
+        if (!config.tapeDir && rt->tapedir[0]) {
+            config.tapeDir = strdup(rt->tapedir);
+            if (!config.tapeDir) { fprintf(stderr, "nd100x: out of memory\n"); exit(1); }
+        }
         if (rt->throttle_mhz > 0) {
             cpu_throttle_set_enabled(true);
             cpu_throttle_set_mhz(rt->throttle_mhz);
@@ -851,8 +862,14 @@ int main(int argc, char *argv[])
         // matching --drum/--cdc flag already supplied a path (CLI wins). Both feed the
         // SAME config.drumFile/cdcFile the CLI sets, so the "install only when non-NULL"
         // gate in initialize() turns them on. Default (neither) leaves both OFF.
-        if (!config.drumFile && rt->drum[0]) config.drumFile = strdup(rt->drum);
-        if (!config.cdcFile  && rt->cdc[0])  config.cdcFile  = strdup(rt->cdc);
+        if (!config.drumFile && rt->drum[0]) {
+            config.drumFile = strdup(rt->drum);
+            if (!config.drumFile) { fprintf(stderr, "nd100x: out of memory\n"); exit(1); }
+        }
+        if (!config.cdcFile && rt->cdc[0]) {
+            config.cdcFile = strdup(rt->cdc);
+            if (!config.cdcFile) { fprintf(stderr, "nd100x: out of memory\n"); exit(1); }
+        }
         // Installed memory: the .ini memory= key applies only when --memory was NOT given
         // on the CLI (memorySet), so the CLI value wins.
         if (!config.memorySet && rt->memory_mb) config.memoryMB = rt->memory_mb;
@@ -879,6 +896,10 @@ int main(int argc, char *argv[])
     STARTADDR = config.startAddress;
     smd_debug_enabled = config.smdDebug;
     scsi_debug_enabled = config.scsiDebug;
+    // --log after the .ini [runtime] log key, so the CLI wins per category.
+    // The spec was already checked when the command line was parsed.
+    if (config.logSpec) (void)Log_ParseSpec(config.logSpec);
+
     CPU_TRACE = config.traceEnabled;
     BSD_DEBUG = config.bsdDebug;
     CPU_MAX_INSTR = config.maxInstructions;
@@ -994,7 +1015,7 @@ int main(int argc, char *argv[])
     VScreen_Init(&screens[screenCount], "Log", NULL, 120, false);
     logScreenIndex = screenCount;
     screenCount++;
-    Log_SetOutputHandler(LogScreenHandler);
+    Log_SetSink(LogScreenHandler, NULL);
 
     // Load paper tape file if specified on command line
     Device *ptr = DeviceManager_GetDeviceByAddress(0400);

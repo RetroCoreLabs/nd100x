@@ -194,7 +194,7 @@ machine_init (bool debuggerEnabled, int debuggerPort)
 
     // Initialize drive arrays
     if (init_drive_arrays() != 0) {
-        Log(LOG_ERROR, "machine_init: out of memory for the drive tables\n");
+        LOG(LOG_CAT_MACHINE, LOG_ERROR, "machine_init: out of memory for the drive tables\n");
         return -1;
     }
 
@@ -217,13 +217,13 @@ void machine_add_hdlc(int deviceNum, bool isServer, const char *address, int por
     bool success = DeviceManager_AddHDLCDevice_WithConfig(deviceNum, isServer, address, port);
     if (success) {
         if (isServer) {
-            Log(LOG_INFO, "HDLC %d added (server mode on port %d)\n", deviceNum, port);
+            LOG(LOG_CAT_MACHINE, LOG_INFO, "HDLC %d added (server mode on port %d)\n", deviceNum, port);
         } else {
-            Log(LOG_INFO, "HDLC %d added (client mode to %s:%d)\n",
+            LOG(LOG_CAT_MACHINE, LOG_INFO, "HDLC %d added (client mode to %s:%d)\n",
                 deviceNum, address, port);
         }
     } else {
-        Log(LOG_ERROR, "Failed to add HDLC device %d\n", deviceNum);
+        LOG(LOG_CAT_MACHINE, LOG_ERROR, "Failed to add HDLC device %d\n", deviceNum);
     }
 }
 

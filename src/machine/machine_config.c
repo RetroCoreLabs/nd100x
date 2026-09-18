@@ -726,6 +726,10 @@ bool MachineConfig_LoadFile(MachineConfig *cfg, const char *path,
             } else if (str_ieq(keyl, "trace")) {
                 int b = parse_bool(val);
                 cfg->runtime.trace = (b == 1);
+            } else if (str_ieq(keyl, "log")) {
+                /* Log levels (same syntax as --log). Stored, not applied: the
+                 * frontend applies it, then the CLI value on top. */
+                str_copy(cfg->runtime.log_spec, sizeof(cfg->runtime.log_spec), val);
             } else if (str_ieq(keyl, "drum")) {
                 /* NORD TSS swapping-drum image path; feeds config.drumFile (same as --drum). */
                 str_copy(cfg->runtime.drum, MC_PATH_LEN, val);
@@ -1030,6 +1034,7 @@ bool MachineConfig_WriteFile(const MachineConfig *cfg, const char *path,
     if (cfg->runtime.tapedir[0])    fprintf(f, "tapedir = %s\n", cfg->runtime.tapedir);
     if (cfg->runtime.debugger_port) fprintf(f, "debugger = %d\n", cfg->runtime.debugger_port);
     if (cfg->runtime.trace)         fprintf(f, "trace = on\n");
+    if (cfg->runtime.log_spec[0])   fprintf(f, "log = %s\n", cfg->runtime.log_spec);
     if (cfg->runtime.drum[0])       fprintf(f, "drum = %s\n", cfg->runtime.drum);
     if (cfg->runtime.cdc[0])        fprintf(f, "cdc = %s\n", cfg->runtime.cdc);
     if (cfg->runtime.memory_mb)     fprintf(f, "memory = %d\n", cfg->runtime.memory_mb);

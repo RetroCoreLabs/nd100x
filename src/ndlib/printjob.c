@@ -283,7 +283,7 @@ static void flush_job(PrintJob *pj)
         if (pj->txtFile) {
             fclose(pj->txtFile);
             pj->txtFile = NULL;
-            Log(LOG_INFO, "Printer job %d saved to %s\n", pj->jobNumber, filename);
+            LOG(LOG_CAT_PRINTER, LOG_INFO, "Printer job %d saved to %s\n", pj->jobNumber, filename);
         }
     } else {
         // PDF mode: finalize and write
@@ -295,9 +295,9 @@ static void flush_job(PrintJob *pj)
 
         if (pj->pdfDoc) {
             if (Pdf_WriteToFile(pj->pdfDoc, filename)) {
-                Log(LOG_INFO, "Printer job %d saved to %s\n", pj->jobNumber, filename);
+                LOG(LOG_CAT_PRINTER, LOG_INFO, "Printer job %d saved to %s\n", pj->jobNumber, filename);
             } else {
-                Log(LOG_ERROR, "PrintJob: failed to write %s\n", filename);
+                LOG(LOG_CAT_PRINTER, LOG_ERROR, "PrintJob: failed to write %s\n", filename);
             }
             Pdf_Destroy(pj->pdfDoc);
             pj->pdfDoc = NULL;

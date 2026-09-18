@@ -302,6 +302,13 @@ EMSCRIPTEN_EXPORT const char* InitWithConfig(const char* iniText)
     // to register, so a model chosen after this point never reaches the guest.
     if (useConfig) MachineConfig_ApplyCpu(&mc, NULL);
 
+    // [runtime] log = SPEC: per-category log levels (see log.h).
+    if (useConfig && mc.runtime.log_spec[0] && Log_ParseSpec(mc.runtime.log_spec) != 0) {
+        snprintf(result, sizeof(result), "[runtime] log = %s: unknown category or level",
+                 mc.runtime.log_spec);
+        return result;
+    }
+
 #ifdef WITH_DEBUGGER
     // Initialize machine with debugger enabled
     int mrc = machine_init(1, 4711);

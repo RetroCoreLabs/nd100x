@@ -243,7 +243,7 @@ bool TelnetServer_Start(TelnetServer *server)
     // Initialise Winsock (no-op on POSIX). Refcounted - paired with
     // nd_net_shutdown() in TelnetServer_Stop.
     if (nd_net_init() != 0) {
-        Log(LOG_WARNING, "telnet: nd_net_init failed (err %d)\n", nd_last_socket_error());
+        LOG(LOG_CAT_NET, LOG_WARN, "telnet: nd_net_init failed (err %d)\n", nd_last_socket_error());
         return false;
     }
 
@@ -252,7 +252,7 @@ bool TelnetServer_Start(TelnetServer *server)
 
     // Loopback socket pair, used to wake the accept thread on shutdown.
     if (nd_wake_pair(server->shutdownPipe) != 0) {
-        Log(LOG_WARNING, "telnet: nd_wake_pair failed (err %d)\n", nd_last_socket_error());
+        LOG(LOG_CAT_NET, LOG_WARN, "telnet: nd_wake_pair failed (err %d)\n", nd_last_socket_error());
         nd_net_shutdown();
         return false;
     }
@@ -260,7 +260,7 @@ bool TelnetServer_Start(TelnetServer *server)
     // Create listening socket
     server->listenFd = (nd_socket_t)socket(AF_INET, SOCK_STREAM, 0);
     if (server->listenFd == ND_INVALID_SOCKET) {
-        Log(LOG_WARNING, "telnet: socket() failed (err %d)\n", nd_last_socket_error());
+        LOG(LOG_CAT_NET, LOG_WARN, "telnet: socket() failed (err %d)\n", nd_last_socket_error());
         nd_socket_close(server->shutdownPipe[0]); server->shutdownPipe[0] = ND_INVALID_SOCKET;
         nd_socket_close(server->shutdownPipe[1]); server->shutdownPipe[1] = ND_INVALID_SOCKET;
         nd_net_shutdown();
@@ -278,7 +278,7 @@ bool TelnetServer_Start(TelnetServer *server)
     addr.sin_port = htons(server->config.port);
 
     if (bind(ND_SOCK_NATIVE(server->listenFd), (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-        Log(LOG_WARNING, "telnet: bind() failed on port %d (err %d)\n",
+        LOG(LOG_CAT_NET, LOG_WARN, "telnet: bind() failed on port %d (err %d)\n",
                server->config.port, nd_last_socket_error());
         nd_socket_close(server->listenFd);
         server->listenFd = ND_INVALID_SOCKET;
@@ -289,7 +289,7 @@ bool TelnetServer_Start(TelnetServer *server)
     }
 
     if (listen(ND_SOCK_NATIVE(server->listenFd), 4) < 0) {
-        Log(LOG_WARNING, "telnet: listen() failed (err %d)\n", nd_last_socket_error());
+        LOG(LOG_CAT_NET, LOG_WARN, "telnet: listen() failed (err %d)\n", nd_last_socket_error());
         nd_socket_close(server->listenFd);
         server->listenFd = ND_INVALID_SOCKET;
         nd_socket_close(server->shutdownPipe[0]); server->shutdownPipe[0] = ND_INVALID_SOCKET;
@@ -301,7 +301,7 @@ bool TelnetServer_Start(TelnetServer *server)
     atomic_store(&server->shouldExit, false);
 
     if (pthread_create(&server->acceptThread, NULL, accept_thread_func, server) != 0) {
-        Log(LOG_WARNING, "telnet: pthread_create failed\n");
+        LOG(LOG_CAT_NET, LOG_WARN, "telnet: pthread_create failed\n");
         nd_socket_close(server->listenFd);
         server->listenFd = ND_INVALID_SOCKET;
         nd_socket_close(server->shutdownPipe[0]); server->shutdownPipe[0] = ND_INVALID_SOCKET;
@@ -311,7 +311,7 @@ bool TelnetServer_Start(TelnetServer *server)
     }
 
     server->running = true;
-    Log(LOG_INFO, "Telnet server started on port %d (%d terminals available)\n",
+    LOG(LOG_CAT_NET, LOG_INFO, "Telnet server started on port %d (%d terminals available)\n",
            server->config.port, server->terminalCount);
     return true;
 }
@@ -363,7 +363,7 @@ void TelnetServer_Stop(TelnetServer *server)
 
     server->running = false;
     g_telnetServer = NULL;
-    Log(LOG_INFO, "Telnet server stopped\n");
+    LOG(LOG_CAT_NET, LOG_INFO, "Telnet server stopped\n");
     nd_net_shutdown();
 }
 
@@ -436,7 +436,7 @@ bool TelnetServer_DisconnectTerminal(TelnetServer *server, int index)
     }
 
     memset(rt->clientAddrStr, 0, sizeof(rt->clientAddrStr));
-    Log(LOG_INFO, "Telnet: disconnected %s\n", rt->info.name);
+    LOG(LOG_CAT_NET, LOG_INFO, "Telnet: disconnected %s\n", rt->info.name);
     return true;
 }
 
@@ -548,7 +548,7 @@ bool TelnetServer_DropPending(TelnetServer *server, int index)
     }
     const char *msg = "\r\nDisconnected by operator.\r\n";
     send(ND_SOCK_NATIVE(server->pending[index].fd), msg, (int)strlen(msg), MSG_NOSIGNAL);
-    Log(LOG_INFO, "Telnet: operator dropped pending %s\n", server->pending[index].addrStr);
+    LOG(LOG_CAT_NET, LOG_INFO, "Telnet: operator dropped pending %s\n", server->pending[index].addrStr);
     remove_pending(server, index);
     pthread_mutex_unlock(&server->pendingMutex);
     return true;
@@ -561,7 +561,7 @@ void TelnetServer_DropAllPending(TelnetServer *server)
     for (int i = server->pendingCount - 1; i >= 0; i--) {
         const char *msg = "\r\nDisconnected by operator.\r\n";
         send(ND_SOCK_NATIVE(server->pending[i].fd), msg, (int)strlen(msg), MSG_NOSIGNAL);
-        Log(LOG_INFO, "Telnet: operator dropped pending %s\n", server->pending[i].addrStr);
+        LOG(LOG_CAT_NET, LOG_INFO, "Telnet: operator dropped pending %s\n", server->pending[i].addrStr);
         remove_pending(server, i);
     }
     pthread_mutex_unlock(&server->pendingMutex);
@@ -699,11 +699,11 @@ static bool try_assign_pending(TelnetServer *server, PendingClient *pc, int sele
         rt->info.carrierFunc(rt->info.device, false);
     }
 
-    Log(LOG_INFO, "Telnet: %s connected to %s\n", pc->addrStr, rt->info.name);
+    LOG(LOG_CAT_NET, LOG_INFO, "Telnet: %s connected to %s\n", pc->addrStr, rt->info.name);
 
     // Spawn client I/O thread
     if (pthread_create(&rt->clientThread, NULL, client_thread_func, rt) != 0) {
-        Log(LOG_WARNING, "telnet: client thread create failed\n");
+        LOG(LOG_CAT_NET, LOG_WARN, "telnet: client thread create failed\n");
         nd_socket_close(pc->fd);
         rt->clientFd = ND_INVALID_SOCKET;
         memset(rt->clientAddrStr, 0, sizeof(rt->clientAddrStr));
@@ -757,7 +757,7 @@ static void *accept_thread_func(void *arg)
                 const char *timeout_msg = "\r\nConnection timed out.\r\n";
                 send(ND_SOCK_NATIVE(server->pending[i].fd), timeout_msg,
                      (int)strlen(timeout_msg), MSG_NOSIGNAL);
-                Log(LOG_INFO, "Telnet: %s timed out (no terminal selected)\n",
+                LOG(LOG_CAT_NET, LOG_INFO, "Telnet: %s timed out (no terminal selected)\n",
                        server->pending[i].addrStr);
                 remove_pending(server, i);
             }
@@ -774,7 +774,7 @@ static void *accept_thread_func(void *arg)
             int n = recv(ND_SOCK_NATIVE(server->pending[i].fd),
                          (char *)inputBuf, (int)sizeof(inputBuf), 0);
             if (n <= 0) {
-                Log(LOG_INFO, "Telnet: %s disconnected during menu\n",
+                LOG(LOG_CAT_NET, LOG_INFO, "Telnet: %s disconnected during menu\n",
                        server->pending[i].addrStr);
                 remove_pending(server, i);
                 continue;
@@ -795,7 +795,7 @@ static void *accept_thread_func(void *arg)
                         const char *bye = "\r\nGoodbye.\r\n";
                         send(ND_SOCK_NATIVE(server->pending[i].fd), bye,
                              (int)strlen(bye), MSG_NOSIGNAL);
-                        Log(LOG_INFO, "Telnet: %s quit\n", server->pending[i].addrStr);
+                        LOG(LOG_CAT_NET, LOG_INFO, "Telnet: %s quit\n", server->pending[i].addrStr);
                         quit = true;
                     } else if (byte >= '1' && byte <= '9') {
                         selection = byte - '1';
@@ -862,7 +862,7 @@ static void *accept_thread_func(void *arg)
                     if (avail == 0) {
                         const char *bye = "All terminals are now in use. Disconnecting.\r\n";
                         send(ND_SOCK_NATIVE(pc->fd), bye, (int)strlen(bye), MSG_NOSIGNAL);
-                        Log(LOG_INFO, "Telnet: %s disconnected (no free terminals)\n",
+                        LOG(LOG_CAT_NET, LOG_INFO, "Telnet: %s disconnected (no free terminals)\n",
                                pc->addrStr);
                         remove_pending(server, i);
                     }
@@ -910,14 +910,14 @@ static void *accept_thread_func(void *arg)
             snprintf(addrStr, sizeof(addrStr), "%s:%d",
                      inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port));
 
-            Log(LOG_INFO, "Telnet: connection from %s\n", addrStr);
+            LOG(LOG_CAT_NET, LOG_INFO, "Telnet: connection from %s\n", addrStr);
 
             pthread_mutex_lock(&server->pendingMutex);
             if (server->pendingCount >= TELNET_MAX_PENDING) {
                 const char *full = "\r\nToo many pending connections. Try again later.\r\n";
                 send(ND_SOCK_NATIVE(clientFd), full, (int)strlen(full), MSG_NOSIGNAL);
                 nd_socket_close(clientFd);
-                Log(LOG_INFO, "Telnet: %s rejected (pending slots full)\n", addrStr);
+                LOG(LOG_CAT_NET, LOG_INFO, "Telnet: %s rejected (pending slots full)\n", addrStr);
             } else {
                 // Check if any terminals are available before adding to pending
                 send_menu(server, ND_INVALID_SOCKET);  // Rebuild menuMap only
@@ -928,7 +928,7 @@ static void *accept_thread_func(void *arg)
                         "Disconnecting.\r\n";
                     send(ND_SOCK_NATIVE(clientFd), noterm, (int)strlen(noterm), MSG_NOSIGNAL);
                     nd_socket_close(clientFd);
-                    Log(LOG_INFO, "Telnet: %s rejected (no free terminals)\n", addrStr);
+                    LOG(LOG_CAT_NET, LOG_INFO, "Telnet: %s rejected (no free terminals)\n", addrStr);
                 } else {
                     PendingClient *pc = &server->pending[server->pendingCount];
                     pc->fd = clientFd;
@@ -1073,6 +1073,6 @@ static void *client_thread_func(void *arg)
         rt->info.carrierFunc(rt->info.device, true);
     }
 
-    Log(LOG_INFO, "Telnet: client disconnected from %s\n", rt->info.name);
+    LOG(LOG_CAT_NET, LOG_INFO, "Telnet: client disconnected from %s\n", rt->info.name);
     return NULL;
 }

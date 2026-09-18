@@ -221,7 +221,6 @@ typedef struct {
     DeviceInfo *devices;
     int deviceCount;
     int deviceCapacity;
-    LogLevel minLogLevel;  // Minimum log level for filtering messages
 } DeviceManager;
 
 
