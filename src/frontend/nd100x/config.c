@@ -99,6 +99,9 @@ static struct option long_options[] = {
     {"nd100-root", required_argument, 0, 0x161}, // --nd100-root=PATH : directory for BPUN/PROG files (default: current dir)
     {"script",     required_argument, 0, 0x162}, // --script=FILE : load shell commands from script file
     {"log",        required_argument, 0, 0x154}, // --log=SPEC : per-category log levels, e.g. smd:debug,*:warn
+    {"trace-nd110", optional_argument, 0, 0x155}, // --trace-nd110[=FILE] : trace ND-110-only opcodes
+    {"ring-at-pf", required_argument, 0, 0x156}, // --ring-at-pf=N : instruction ring dump at the N'th page fault
+    {"ring-at-clpt", required_argument, 0, 0x157}, // --ring-at-clpt=N : instruction ring dump at the N'th CLPT
     {0, 0, 0, 0}
 };
 
@@ -170,6 +173,10 @@ void Config_Init(Config_t *config) {
     config->nd100Root = NULL;
     config->scriptPath = NULL;
     config->logSpec = NULL;
+    config->traceNd110 = false;
+    config->traceNd110File = NULL;
+    config->ringAtPf = -1;
+    config->ringAtClpt = -1;
 }
 
 /* Parse a --boot argument into bootType + bootUnit.
@@ -836,6 +843,30 @@ bool Config_ParseCommandLine(Config_t *config, int argc, char *argv[]) {
                 }
                 break;
 
+            case 0x155: /* --trace-nd110[=FILE] : ND-110-only opcode trace, to stdout or FILE */
+                config->traceNd110 = true;
+                if (optarg) {
+                    config->traceNd110File = strdup(optarg);
+                    if (!config->traceNd110File) {
+                        fprintf(stderr, "Out of memory\n");
+                        return false;
+                    }
+                }
+                break;
+
+            case 0x156:   /* --ring-at-pf=N   */
+            case 0x157: { /* --ring-at-clpt=N */
+                char *ep;
+                long n = strtol(optarg, &ep, 10);
+                if (ep == optarg || *ep != '\0' || n < 1) {
+                    fprintf(stderr, "Invalid --%s value '%s' (expect a count >= 1)\n",
+                            c == 0x156 ? "ring-at-pf" : "ring-at-clpt", optarg);
+                    return false;
+                }
+                if (c == 0x156) config->ringAtPf = n; else config->ringAtClpt = n;
+                break;
+            }
+
             case 0x162: /* --script=FILE : load shell commands from script file */
                 config->scriptPath = strdup(optarg);
                 if (!config->scriptPath) {
@@ -1022,6 +1053,12 @@ void Config_PrintHelp(const char *progName) {
     printf("                          config; * or all = every category. Log lines go to the Log\n");
     printf("                          screen (Alt+N) or stderr, never to a guest terminal.\n");
     printf("                          Also settable via the .ini '[runtime] log = SPEC' key.\n");
+    printf("           --trace-nd110[=FILE]  Trace every ND-110-only opcode, page fault and CLPT\n");
+    printf("                          to stdout or FILE ([runtime] trace_nd110 = on|FILE).\n");
+    printf("           --ring-at-pf=N   Dump the instruction ring at the N'th page fault\n");
+    printf("                          ([runtime] ring_at_pf = N).\n");
+    printf("           --ring-at-clpt=N Dump the instruction ring at the N'th CLPT\n");
+    printf("                          ([runtime] ring_at_clpt = N).\n");
     printf("           --bsd-debug    Track BSD kernel-stack high-water (KSTKHW, stderr)\n");
     printf("  -t,      --trace        Enable CPU execution trace to stderr\n");
     printf("  -n N,    --max-instr=N  Stop after N instructions\n");

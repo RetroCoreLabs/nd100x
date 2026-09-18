@@ -841,6 +841,15 @@ int main(int argc, char *argv[])
             fprintf(stderr, "nd100x: invalid [runtime] log = %s in the .ini\n", rt->log_spec);
             exit(1);
         }
+        if (!config.traceNd110 && rt->trace_nd110[0]) {
+            config.traceNd110 = true;
+            if (strcmp(rt->trace_nd110, "on") != 0) {
+                config.traceNd110File = strdup(rt->trace_nd110);
+                if (!config.traceNd110File) { fprintf(stderr, "nd100x: out of memory\n"); exit(1); }
+            }
+        }
+        if (config.ringAtPf < 0 && rt->ring_at_pf > 0)     config.ringAtPf = rt->ring_at_pf;
+        if (config.ringAtClpt < 0 && rt->ring_at_clpt > 0) config.ringAtClpt = rt->ring_at_clpt;
         if (config.charset == CHARSET_OFF && rt->charset[0] &&
             strcmp(rt->charset, "off") != 0) {
             CharsetVariant cs;
@@ -903,6 +912,14 @@ int main(int argc, char *argv[])
     if (config.logSpec) (void)Log_ParseSpec(config.logSpec);
     // The vendored NCR 5386 port reads its own switch.
     scsi_debug_enabled = Log_IsEnabled(LOG_CAT_SCSI, LOG_DEBUG) ? 1 : 0;
+
+    // CPU diagnostic traces (were the ND100X_TRACE_* environment variables).
+    if (config.traceNd110 && cpu_trace_nd110_set(config.traceNd110File) != 0) {
+        fprintf(stderr, "nd100x: cannot open the --trace-nd110 file %s\n", config.traceNd110File);
+        exit(1);
+    }
+    if (config.ringAtPf > 0)   cpu_set_ring_at_pf(config.ringAtPf);
+    if (config.ringAtClpt > 0) cpu_set_ring_at_clpt(config.ringAtClpt);
 
     CPU_TRACE = config.traceEnabled;
     BSD_DEBUG = config.bsdDebug;

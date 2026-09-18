@@ -204,17 +204,36 @@ jmp_buf cpu_jmp_buf;
 
 
 
-/* Cached ND100X_TRACE_ND110 state: -1 = not yet read, 0 = off, 1 = on. See do_op(). */
-static int nd110_trace_enabled = -1;
+/* ND-110 opcode trace: 0 = off, 1 = on. Set by cpu_trace_nd110_set(); see do_op(). */
+static int nd110_trace_enabled = 0;
 
 /*
- * Destination of the ND-110 trace.  Defaults to stdout, but when ND100X_TRACE_ND110_FILE
- * names a path the trace is written THERE instead.  That matters for the console-driven
+ * Destination of the ND-110 trace.  Defaults to stdout, but when --trace-nd110=FILE
+ * (or [runtime] trace_nd110 = FILE) names a path the trace is written THERE instead.  That matters for the console-driven
  * diagnostics (TPE, the SINTRAN SMD boot): those sessions are read back out of the Windows
  * console SCREEN BUFFER, so a trace on stdout scrolls the guest's own output away.  Writing
  * the trace to a side file keeps the screen pristine while still capturing every opcode.
  */
 FILE *nd110_trace_fp = NULL;
+
+/**
+ * @brief Turn the ND-110 opcode trace on (--trace-nd110[=FILE]).
+ * @param path File to write the trace to; NULL or "" writes to stdout.
+ * @return 0, or -1 if the file could not be opened (the trace stays off).
+ */
+int cpu_trace_nd110_set(const char *path)
+{
+	FILE *fp = stdout;
+	if (path != NULL && path[0] != '\0')
+	{
+		fp = fopen(path, "w");
+		if (fp == NULL)
+			return -1;
+	}
+	nd110_trace_fp = fp;
+	nd110_trace_enabled = 1;
+	return 0;
+}
 
 void do_op(ushort operand, bool isEXR)
 {
@@ -229,33 +248,11 @@ void do_op(ushort operand, bool isEXR)
 	}
 
 	/*
-	 * ND100X_TRACE_ND110: log every execution of an ND-110-only opcode (VERSN, the
-	 * 1403xx S3SEG group, the 14050x/14051x group and the 14070x bank group).  Used to
-	 * see which of them the guest actually reaches when the CPU presents as ND-110/CX.
-	 *
-	 * The getenv() result is cached: this is the instruction hot path.
+	 * ND-110 trace (--trace-nd110[=FILE]): log every execution of an ND-110-only opcode
+	 * (VERSN, the 1403xx S3SEG group, the 14050x/14051x group and the 14070x bank group).
+	 * Used to see which of them the guest actually reaches when the CPU presents as
+	 * ND-110/CX.
 	 */
-	if (nd110_trace_enabled < 0)
-	{
-		/*
-		 * An EMPTY value counts as OFF.  Some shells (PowerShell `$env:X = ""`) leave the
-		 * variable defined-but-empty, and treating that as ON floods the guest console.
-		 */
-		const char *on = getenv("ND100X_TRACE_ND110");
-
-		nd110_trace_enabled = (on != NULL && on[0] != '\0') ? 1 : 0;
-
-		if (nd110_trace_enabled)
-		{
-			const char *path = getenv("ND100X_TRACE_ND110_FILE");
-
-			if (path != NULL && path[0] != '\0')
-				nd110_trace_fp = fopen(path, "w");
-			if (nd110_trace_fp == NULL)
-				nd110_trace_fp = stdout;
-		}
-	}
-
 	if (nd110_trace_enabled)
 	{
 		if (operand == 0140133 ||

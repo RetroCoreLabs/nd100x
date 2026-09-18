@@ -147,6 +147,10 @@ typedef struct {
     char *nd100Root;         // --nd100-root: directory containing BPUN/PROG files (default: current dir)
     char *scriptPath;        // --script: path to script file with shell commands
     char *logSpec;           // --log=SPEC: per-category log levels, applied after the .ini [runtime] log key
+    bool traceNd110;         // --trace-nd110[=FILE]: ND-110-only opcode trace
+    char *traceNd110File;    // its output file; NULL = stdout
+    long ringAtPf;           // --ring-at-pf=N: dump the instruction ring at the N'th page fault; -1 = not given
+    long ringAtClpt;         // --ring-at-clpt=N: same at the N'th CLPT; -1 = not given
 } Config_t;
 
 #endif // CONFIG_H

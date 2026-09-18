@@ -312,6 +312,15 @@ EMSCRIPTEN_EXPORT const char* InitWithConfig(const char* iniText)
     // The vendored NCR 5386 port reads its own switch.
     scsi_debug_enabled = Log_IsEnabled(LOG_CAT_SCSI, LOG_DEBUG) ? 1 : 0;
 
+    // CPU diagnostic traces from [runtime] (the native build also has CLI flags).
+    if (useConfig) {
+        if (mc.runtime.trace_nd110[0])
+            (void)cpu_trace_nd110_set(strcmp(mc.runtime.trace_nd110, "on") == 0 ? NULL
+                                                                               : mc.runtime.trace_nd110);
+        if (mc.runtime.ring_at_pf > 0)   cpu_set_ring_at_pf(mc.runtime.ring_at_pf);
+        if (mc.runtime.ring_at_clpt > 0) cpu_set_ring_at_clpt(mc.runtime.ring_at_clpt);
+    }
+
 #ifdef WITH_DEBUGGER
     // Initialize machine with debugger enabled
     int mrc = machine_init(1, 4711);

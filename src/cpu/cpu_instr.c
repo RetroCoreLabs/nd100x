@@ -30,6 +30,19 @@
 
 #include "cpu_types.h"
 #include "cpu_protos.h"
+#include "../ndlib/log.h"
+
+/* --ring-at-clpt=N: dump the CPU instruction ring at the N'th CLPT (0 = off). */
+static long s_ring_at_clpt = 0;
+
+/**
+ * @brief Set the CLPT call at which to dump the instruction ring (--ring-at-clpt).
+ * @param n CLPT call number counted from 1; 0 turns the dump off.
+ */
+void cpu_set_ring_at_clpt(long n)
+{
+	s_ring_at_clpt = n > 0 ? n : 0;
+}
 #include <stdlib.h>
 #include <string.h>	/* strlen()/strcmp() - VERSN identity parsing, see ndfunc_versn() */
 #include <stdio.h>	/* fprintf() - diagnostics for a bad ND100X_* identity value */
@@ -139,12 +152,11 @@ void WriteEL(uint el, ushort value)
 void illegal_instr(ushort operand)
 {
 	/*
-	 * Set ND100X_TRACE_ILLEGAL to log every illegal-instruction trap.  This is how a
-	 * guest's CPU-type probe is observed: TPE's INSTRUCTION program executes VERSN
-	 * (140133) and decides "ND-100" if - and only if - it traps here.
+	 * --log=cpu:debug logs every illegal-instruction trap.  This is how a guest's
+	 * CPU-type probe is observed: TPE's INSTRUCTION program executes VERSN (140133)
+	 * and decides "ND-100" if - and only if - it traps here.
 	 */
-	if (getenv("ND100X_TRACE_ILLEGAL") != NULL)
-		printf("ILLEGAL %06o at %06o\r\n", operand, gPC);
+	LOG(LOG_CAT_CPU, LOG_DEBUG, "ILLEGAL %06o at %06o", operand, gPC);
 
 	interrupt(14, 1 << 4); /* Illegal Instruction <= WILL TRAP! */
 }
@@ -1581,16 +1593,11 @@ void ndfunc_versn(ushort operand)
 		gT = (ushort)((g_versn.microcode_version & 0x7FFF) | (versn_is_nd120() ? 0x8000 : 0));
 	}
 
-	/* Diagnostic (ND100X_TRACE_VERSN=1): log every VERSN so an ND-110-vs-ND-120 boot can be diffed to see
+	/* Diagnostic (--log=cpu:debug): log every VERSN so an ND-110-vs-ND-120 boot can be diffed to see
 	 * why GCPUNR applies the PROM on one and not the other. Prints in octal: A_in (offset selector), the
-	 * PROM byte returned in D, and the assembled A / T. Off unless the env var is set. */
-	{
-		static int trace = -1;
-		if (trace < 0) trace = (getenv("ND100X_TRACE_VERSN") != NULL) ? 1 : 0;
-		if (trace)
-			fprintf(stderr, "[VERSN] A_in=%06o off=%2d PC=%06o -> D=%06o A=%06o T=%06o\n",
-			        a_in, offset, gPC, gD, gA, gT);
-	}
+	 * PROM byte returned in D, and the assembled A / T. */
+	LOG(LOG_CAT_CPU, LOG_DEBUG, "[VERSN] A_in=%06o off=%2d PC=%06o -> D=%06o A=%06o T=%06o",
+	    a_in, offset, gPC, gD, gA, gT);
 }
 
 
@@ -2824,28 +2831,20 @@ void ndfunc_clpt(ushort operand)
 			}
 
 			/*
-			 * DIAG (ND100X_TRACE_ND110_RINGAT=<n>): once the swap-in/swap-out livelock is
+			 * DIAG (--ring-at-clpt=<n>): once the swap-in/swap-out livelock is
 			 * in steady state, dump the CPU instruction ring so we can see what the guest
 			 * actually executed between the ENPT that mapped the segment and this CLPT that
 			 * unmapped it again.  One-shot.
 			 */
 			{
 				static long clpt_calls = 0;
-				static long clpt_ring_at = -1;	/* -1 = env not read yet, 0 = disabled */
-
-				if (clpt_ring_at < 0)
-				{
-					const char *at = getenv("ND100X_TRACE_ND110_RINGAT");
-
-					clpt_ring_at = (at != NULL && at[0] != '\0') ? strtol(at, NULL, 10) : 0;
-				}
 
 				clpt_calls++;
-				if (clpt_ring_at > 0 && clpt_calls == clpt_ring_at)
+				if (s_ring_at_clpt > 0 && clpt_calls == s_ring_at_clpt)
 					ring_dump();
 			}
 
-			/* DIAG (ND100X_TRACE_ND110): what CLPT read back out of the page table. */
+			/* DIAG (--trace-nd110): what CLPT read back out of the page table. */
 			if (nd110_trace_fp != NULL)
 			{
 				fprintf(nd110_trace_fp,
@@ -2901,7 +2900,7 @@ void nd110_enter_page_table(ushort r4_mask)
 		WriteVirtualMemory(b_reg, gA, true, WRITEMODE_WORD);
 		WriteVirtualMemory((ushort)((b_reg + 1) & 0xFFFF), (ushort)(x_reg >> 2), true, WRITEMODE_WORD);
 
-		/* DIAG (ND100X_TRACE_ND110): per-node dump of the page-table entry actually written. */
+		/* DIAG (--trace-nd110): per-node dump of the page-table entry actually written. */
 		if (nd110_trace_fp != NULL)
 		{
 			fprintf(nd110_trace_fp,

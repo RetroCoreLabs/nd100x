@@ -594,7 +594,7 @@ extern int CPU_RING_DUMP_SIZE;
 
 /*
  * ND-110 diagnostic trace sink (see cpu.c do_op()).  NULL when tracing is off.
- * Enabled by ND100X_TRACE_ND110; redirected to a side file by ND100X_TRACE_ND110_FILE
+ * Enabled by --trace-nd110; redirected to a side file by --trace-nd110=FILE
  * so that console-driven sessions (TPE, the SINTRAN SMD boot) keep a clean screen buffer.
  * Declared here and NOT in cpu_protos.h - that header is auto-generated from the .c files.
  */

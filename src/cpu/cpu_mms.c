@@ -31,6 +31,18 @@
 MMSType mmsType = MMS2; // Change this to force MMS type to 1 or 2
 PagingTables g_paging_tables; // Global paging tables structure
 
+/* --ring-at-pf=N: dump the CPU instruction ring at the N'th page fault (0 = off). */
+static long s_ring_at_pf = 0;
+
+/**
+ * @brief Set the page fault at which to dump the instruction ring (--ring-at-pf).
+ * @param n Page-fault number counted from 1; 0 turns the dump off.
+ */
+void cpu_set_ring_at_pf(long n)
+{
+    s_ring_at_pf = n > 0 ? n : 0;
+}
+
 
 // Create and initialize PagingTables
 // MUST!!!! to be called before using the PagingTables
@@ -636,27 +648,19 @@ bool checkPageProtection(uint VPN, uint pageTable, uint32_t pageTableEntry, Acce
         // Re-check against TPE test 6 before touching this line again.
 
         /*
-         * DIAG (ND100X_TRACE_PF_RINGAT=<n>): one-shot CPU instruction ring dump at the n'th
+         * DIAG (--ring-at-pf=<n>): one-shot CPU instruction ring dump at the n'th
          * page fault, so we can see the SINTRAN page-fault handler path that leads back into
          * the ENPT/CLPT swap loop without ever mapping the demanded page.
          */
         {
             static long pf_calls = 0;
-            static long pf_ring_at = -1;    /* -1 = env not read yet, 0 = disabled */
-
-            if (pf_ring_at < 0)
-            {
-                const char *at = getenv("ND100X_TRACE_PF_RINGAT");
-
-                pf_ring_at = (at != NULL && at[0] != '\0') ? strtol(at, NULL, 10) : 0;
-            }
 
             pf_calls++;
-            if (pf_ring_at > 0 && pf_calls == pf_ring_at)
+            if (s_ring_at_pf > 0 && pf_calls == s_ring_at_pf)
                 ring_dump();
         }
 
-        /* DIAG (ND100X_TRACE_ND110): correlate page faults with the ENPT/CLPT swap loop. */
+        /* DIAG (--trace-nd110): correlate page faults with the ENPT/CLPT swap loop. */
         if (nd110_trace_fp != NULL)
         {
             fprintf(nd110_trace_fp, "  PF   VA=%06o PT=%d VPN=%d PTe=0x%08X am=%d APT=%d PIL=%d PC=%06o\n",
@@ -683,7 +687,7 @@ bool checkPageProtection(uint VPN, uint pageTable, uint32_t pageTableEntry, Acce
         //                pageTable, VPN, (uint32_t)pageTableEntry, (unsigned long)accessBits, am, UseAPT, CurrLEVEL, virtualAddress);
         //     mpv25++;
         // }
-        /* DIAG (ND100X_TRACE_ND110): correlate permit violations with the ENPT/CLPT swap loop. */
+        /* DIAG (--trace-nd110): correlate permit violations with the ENPT/CLPT swap loop. */
         if (nd110_trace_fp != NULL)
         {
             fprintf(nd110_trace_fp, "  MPV  VA=%06o PT=%d VPN=%d PTe=0x%08X need=0x%08lX am=%d APT=%d PIL=%d PC=%06o\n",

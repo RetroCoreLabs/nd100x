@@ -98,6 +98,9 @@ typedef struct {
     char   nd100_root[MC_PATH_LEN];  /* directory for BPUN/PROG files; "" = current dir */
     char   script[MC_PATH_LEN];      /* script file to load in shell; "" = none */
     char   log_spec[128];            /* log levels, e.g. "smd:debug,*:warn"; "" = defaults */
+    char   trace_nd110[MC_PATH_LEN]; /* "" = off, "on" = stdout, else the output file */
+    long   ring_at_pf;               /* instruction ring dump at the N'th page fault; 0 = off */
+    long   ring_at_clpt;             /* same at the N'th CLPT; 0 = off */
 } MC_Runtime;
 
 /* The ND-500 at the other end of the bus interface.

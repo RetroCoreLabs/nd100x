@@ -726,6 +726,22 @@ bool MachineConfig_LoadFile(MachineConfig *cfg, const char *path,
             } else if (str_ieq(keyl, "trace")) {
                 int b = parse_bool(val);
                 cfg->runtime.trace = (b == 1);
+            } else if (str_ieq(keyl, "trace_nd110")) {
+                /* on = stdout, off = none, anything else = output file (same as --trace-nd110). */
+                int b = parse_bool(val);
+                if (b == 0)
+                    cfg->runtime.trace_nd110[0] = '\0';
+                else
+                    str_copy(cfg->runtime.trace_nd110, MC_PATH_LEN, b == 1 ? "on" : val);
+            } else if (str_ieq(keyl, "ring_at_pf") || str_ieq(keyl, "ring_at_clpt")) {
+                char *ep; long n = strtol(val, &ep, 10);
+                if (ep == val || *ep != '\0' || n < 0) {
+                    fclose(f);
+                    return mc_err(err, errlen, path, lineno,
+                        "[runtime] %s = %s: expect a count (0 = off).", key, val);
+                }
+                if (str_ieq(keyl, "ring_at_pf")) cfg->runtime.ring_at_pf = n;
+                else cfg->runtime.ring_at_clpt = n;
             } else if (str_ieq(keyl, "log")) {
                 /* Log levels (same syntax as --log). Stored, not applied: the
                  * frontend applies it, then the CLI value on top. */
@@ -1035,6 +1051,9 @@ bool MachineConfig_WriteFile(const MachineConfig *cfg, const char *path,
     if (cfg->runtime.debugger_port) fprintf(f, "debugger = %d\n", cfg->runtime.debugger_port);
     if (cfg->runtime.trace)         fprintf(f, "trace = on\n");
     if (cfg->runtime.log_spec[0])   fprintf(f, "log = %s\n", cfg->runtime.log_spec);
+    if (cfg->runtime.trace_nd110[0]) fprintf(f, "trace_nd110 = %s\n", cfg->runtime.trace_nd110);
+    if (cfg->runtime.ring_at_pf)    fprintf(f, "ring_at_pf = %ld\n", cfg->runtime.ring_at_pf);
+    if (cfg->runtime.ring_at_clpt)  fprintf(f, "ring_at_clpt = %ld\n", cfg->runtime.ring_at_clpt);
     if (cfg->runtime.drum[0])       fprintf(f, "drum = %s\n", cfg->runtime.drum);
     if (cfg->runtime.cdc[0])        fprintf(f, "cdc = %s\n", cfg->runtime.cdc);
     if (cfg->runtime.memory_mb)     fprintf(f, "memory = %d\n", cfg->runtime.memory_mb);
