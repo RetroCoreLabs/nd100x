@@ -35,7 +35,8 @@ static void cleanup_tmpdir(const char *path)
 {
     char cmd[600];
     snprintf(cmd, sizeof(cmd), "rm -rf '%s'", path);
-    system(cmd);
+    if (system(cmd) != 0)
+        fprintf(stderr, "warning: could not remove %s\n", path);
 }
 
 int main(void)

@@ -861,10 +861,13 @@ void ring_dump(void) {
     }
 }
 
-/// @param ticks Number of ticks to run the CPU. Use -1 for infinite.
+/// @param ticks_arg Number of ticks to run the CPU. Use -1 for infinite.
 /// @return Returns the number of ticks left to run.
-int cpu_run(int ticks)
+int cpu_run(int ticks_arg)
 {
+	/* volatile: a fault longjmp()s back to the setjmp() below, and C11 7.13.2.1
+	 * leaves a non-volatile local that changed since setjmp indeterminate. */
+	volatile int ticks = ticks_arg;
 #ifdef WITH_DEBUGGER
 	static uint32_t dbg_poll_ctr = 0;   // emulated-instruction counter for async pause poll
 	if (get_debugger_control_granted()) {

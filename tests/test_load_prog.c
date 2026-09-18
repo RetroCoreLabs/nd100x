@@ -79,7 +79,7 @@ static void test_one_bank(void) {
     CHECK(g_mem[0203] == 0x4444, "word@0o203 = 0x%04X, want 0x4444", g_mem[0203]);
     CHECK(g_mem[0177] == 0 && g_mem[0204] == 0, "must not write outside the bank");
 
-    PROG_Header h;
+    PROG_Header h = {0};
     CHECK(GetLastPROGHeader(&h), "GetLastPROGHeader should succeed");
     CHECK(h.startAddress == 0100 && h.firstBank1 == 0200 && h.lastBank1 == 0203,
           "header fields wrong: start=0o%o first=0o%o last=0o%o",
@@ -102,7 +102,7 @@ static void test_two_bank_detect(void) {
     int rc = LoadPROG(p, false);
     CHECK(rc == 026111, "start should be 0o26111, got 0o%o", rc);
     CHECK(g_mem[0] == 0xAAAA && g_mem[1] == 0xBBBB, "Bank 1 must still load");
-    PROG_Header h;
+    PROG_Header h = {0};
     CHECK(GetLastPROGHeader(&h) && h.twoBank == true, "twoBank must be detected");
     unlink(p);
 }

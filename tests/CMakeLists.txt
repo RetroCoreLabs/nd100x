@@ -449,5 +449,8 @@ foreach(_t IN LISTS _house_test_targets)
     get_target_property(_type ${_t} TYPE)
     if(_type STREQUAL "EXECUTABLE")
         nd100x_apply_house_standard(${_t})
+        # The tests check with assert(); a Release build defines NDEBUG and
+        # would compile every check away, so keep them in all build types.
+        target_compile_options(${_t} PRIVATE -UNDEBUG)
     endif()
 endforeach()

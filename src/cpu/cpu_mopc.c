@@ -80,7 +80,7 @@ int aoct2int(char *str)
 void mopc_cmd(char *cmdstr, char cmdc)
 {
 	int len;
-	int val;
+	int val = -1;   /* -1 = no octal argument given */
 	bool has_val = false;
 
 	len = strlen((const char *)cmdstr);

@@ -372,7 +372,7 @@ static void draw_hdlc_status(void)
                     }
                 }
             }
-            snprintf(c_state, sizeof(c_state), "State=%-10s", rxState);
+            snprintf(c_state, sizeof(c_state), "State=%-10.13s", rxState);
 
             if (hasStatus) {
                 format_bytes(st.tcpQueueUsed, c_queue, sizeof(c_queue));
