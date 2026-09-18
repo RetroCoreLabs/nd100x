@@ -1495,12 +1495,12 @@ static void add_level_variables(DAPServer *server, char *info_message, size_t in
 
     for (int i = 0; i < 16; i++)
     {
-        ushort rP = gReg->reg[i][_P];
-        ushort rPCR = gReg->reg_PCR[i];
-        ushort pt = 0, apt = 0;
+        uint16_t rP = gReg->reg[i][_P];
+        uint16_t rPCR = gReg->reg_PCR[i];
+        uint16_t pt = 0, apt = 0;
 
         // decode PCR
-        ushort ring = rPCR & 0x03;
+        uint16_t ring = rPCR & 0x03;
         if (rPCR & (1 << 2))
         {
             // Sixteen page table mode
@@ -1550,7 +1550,7 @@ static void add_pil_register_variables(DAPServer *server, int pil)
     // Note: "D" lives at index 1 in reg[level][] (slot between STS and P).
 
     for (size_t r = 0; r < sizeof(regs)/sizeof(regs[0]); r++) {
-        ushort v = gReg->reg[pil][regs[r].idx];
+        uint16_t v = gReg->reg[pil][regs[r].idx];
         snprintf(value_str, sizeof(value_str), "%06o", v);
         add_variable_to_array(
             server,
@@ -1923,16 +1923,16 @@ char *GetPageTableEntryInfo(uint32_t PTe)
     char memoryRange[50];
 
     // Map to physical page
-    ushort PPN = 0;
+    uint16_t PPN = 0;
     if (STS_SEXI)
     {
         // Use lower 14-bit
-        PPN = (ushort)(PTe & 0x3FFF);
+        PPN = (uint16_t)(PTe & 0x3FFF);
     }
     else
     {
         // "normal" mode, use only the lower 9-bits
-        PPN = (ushort)(PTe & 0x1FF);
+        PPN = (uint16_t)(PTe & 0x1FF);
     }
 
     PTe = PTe >> 16;
@@ -1980,8 +1980,8 @@ static void add_page_mms_entries(DAPServer *server, char *info_message, size_t i
     // Property kind with readonly attribute
 
     // Get PCR for current runlevel
-    ushort rPCR = gReg->reg_PCR[gPIL];
-    ushort pt = 0, apt = 0;
+    uint16_t rPCR = gReg->reg_PCR[gPIL];
+    uint16_t pt = 0, apt = 0;
 
     // decode PT and APT PCR
     if (rPCR & (1 << 2))
@@ -2053,8 +2053,8 @@ static void add_page_table_entries(DAPServer *server, char *info_message, size_t
     // Property kind with readonly attribute
 
     // Get PCR for current runlevel
-    ushort rPCR = gReg->reg_PCR[gPIL];
-    ushort pt = 0, apt = 0;
+    uint16_t rPCR = gReg->reg_PCR[gPIL];
+    uint16_t pt = 0, apt = 0;
     PageTableMode ptm = Four; // Default to four page tables
 
     // decode PT and APT PCR
@@ -4839,7 +4839,7 @@ const char *dbg_get_threads_json(void)
     {
         if (lev > 0) pos += snprintf(dbg_json_buf + pos, sizeof(dbg_json_buf) - pos, ",");
 
-        ushort pcr = gReg->reg_PCR[lev];
+        uint16_t pcr = gReg->reg_PCR[lev];
         int ring = pcr & 0x03;
         int pt, apt;
         if (pcr & (1 << 2))
@@ -4852,7 +4852,7 @@ const char *dbg_get_threads_json(void)
             pt = (pcr >> 9) & 0x03;
             apt = (pcr >> 7) & 0x03;
         }
-        ushort p_reg = gReg->reg[lev][_P];
+        uint16_t p_reg = gReg->reg[lev][_P];
         bool is_current = (lev == gPIL);
 
         pos += snprintf(dbg_json_buf + pos, sizeof(dbg_json_buf) - pos,
