@@ -1,0 +1,5 @@
+# Vendored or generated code: not formatted (house standard, profile A.4/A.8)
+external/*
+tools/mkptypes/*
+src/devices/scsi/ncr5386.c
+src/devices/scsi/ncr5386.h

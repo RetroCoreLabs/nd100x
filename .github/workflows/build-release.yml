@@ -141,6 +141,7 @@ jobs:
           cmake -S . -B build_test -G Ninja \
             -DCMAKE_BUILD_TYPE=Debug \
             -DHOUSE_WERROR=ON \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
             "-DCMAKE_C_FLAGS=-fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=undefined" \
             "-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address,undefined"
 
@@ -149,6 +150,26 @@ jobs:
 
       - name: Unit tests
         run: ctest --test-dir build_test --output-on-failure
+
+      # The two steps below look only at the lines a pull request changes,
+      # so existing code is not flagged until someone touches it.
+      - name: Install clang-format and clang-tidy
+        if: github.event_name == 'pull_request'
+        run: pip install --user clang-format clang-tidy
+
+      - name: House checks on changed lines
+        if: github.event_name == 'pull_request'
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          tools/house/check_changes.sh "origin/${{ github.base_ref }}"
+
+      - name: clang-tidy on changed lines
+        if: github.event_name == 'pull_request'
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          git diff -U0 "origin/${{ github.base_ref }}" -- '*.c' '*.h' \
+            ':!external/*' ':!tools/mkptypes/*' ':!*_protos.h' \
+            | clang-tidy-diff.py -p1 -path build_test -quiet
 
   build-windows:
     name: Build windows-${{ matrix.arch }}

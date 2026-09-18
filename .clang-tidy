@@ -1,0 +1,43 @@
+# House C standard, bug-finding layer (see the c-coding-standard skill,
+# reference/tooling.md section 3). Run after a build so the generated
+# *_protos.h headers exist, and only on changed lines in CI:
+#   git diff -U0 origin/main | clang-tidy-diff.py -p1 -path <build dir>
+#
+# readability-redundant-declaration is left out on purpose: the mkptypes-
+# generated *_protos.h headers repeat declarations, and it reported several
+# hundred findings per file that say nothing about the code.
+Checks: >
+  -*,
+  clang-analyzer-core.*,
+  clang-analyzer-unix.*,
+  clang-analyzer-deadcode.DeadStores,
+  bugprone-*,
+  -bugprone-easily-swappable-parameters,
+  cert-*-c,
+  misc-redundant-expression,
+  misc-static-assert,
+  misc-unused-parameters,
+  misc-header-include-cycle,
+  misc-definitions-in-headers,
+  misc-misplaced-const,
+  misc-use-internal-linkage,
+  readability-braces-around-statements,
+  readability-misleading-indentation,
+  readability-inconsistent-declaration-parameter-name,
+  readability-non-const-parameter,
+  readability-isolate-declaration,
+  readability-duplicate-include,
+  readability-enum-initial-value,
+  readability-math-missing-parentheses,
+  readability-function-size,
+  performance-no-int-to-ptr,
+  concurrency-mt-unsafe
+WarningsAsErrors: >
+  bugprone-sizeof-expression,
+  bugprone-not-null-terminated-result,
+  cert-err34-c,
+  cert-str34-c
+HeaderFilterRegex: '.*/src/.*\.h$'
+CheckOptions:
+  readability-function-size.LineThreshold: '100'
+  readability-function-size.ParameterThreshold: '6'

@@ -1,0 +1,26 @@
+# House C standard (rule numbers refer to the c-coding-standard skill).
+# Apply to changed lines only:  git clang-format origin/main
+# Never reformat a whole existing file inside a functional commit.
+BasedOnStyle: LLVM
+Language: Cpp
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ColumnLimit: 100
+BreakBeforeBraces: Allman
+IndentCaseLabels: false
+PointerAlignment: Right
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortBlocksOnASingleLine: Never
+AllowShortCaseLabelsOnASingleLine: false
+AlignConsecutiveMacros: true
+AlignTrailingComments: true
+SortIncludes: Never
+ReflowComments: false
+IndentPPDirectives: None
+MaxEmptyLinesToKeep: 2
+InsertNewlineAtEOF: true
+LineEnding: LF
+InsertBraces: true
