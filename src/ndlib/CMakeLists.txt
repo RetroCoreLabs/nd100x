@@ -47,6 +47,7 @@ add_custom_command(
 
 # Create library
 add_library(ndlib STATIC ${SOURCES} ${CMAKE_CURRENT_SOURCE_DIR}/ndlib_protos.h)
+nd100x_apply_house_standard(ndlib)
 
 # Include directories
 target_include_directories(ndlib

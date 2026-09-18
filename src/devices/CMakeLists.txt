@@ -96,6 +96,7 @@ add_custom_command(
 
 # Create library
 add_library(devices STATIC ${SOURCES} ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h)
+nd100x_apply_house_standard(devices)
 
 # Include directories
 target_include_directories(devices

@@ -20,6 +20,7 @@ endif()
 
 # Create the executable
 add_executable(nd100x ${SOURCES} ${CMAKE_CURRENT_SOURCE_DIR}/nd100x_protos.h)
+nd100x_apply_house_standard(nd100x)
 
 # Build-stamp header: version + git hash(+dirty) + build time, regenerated on
 # EVERY build so `nd100x --version` always tells the truth about which source

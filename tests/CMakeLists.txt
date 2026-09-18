@@ -420,3 +420,12 @@ if(NODE_EXECUTABLE)
 else()
     message(STATUS "tests: node not found - skipping machine_profiles_tests")
 endif()
+
+# House C standard for every test target defined in this directory.
+get_property(_house_test_targets DIRECTORY PROPERTY BUILDSYSTEM_TARGETS)
+foreach(_t IN LISTS _house_test_targets)
+    get_target_property(_type ${_t} TYPE)
+    if(_type STREQUAL "EXECUTABLE")
+        nd100x_apply_house_standard(${_t})
+    endif()
+endforeach()

@@ -27,6 +27,7 @@ add_custom_command(
 
 # Create library
 add_library(debugger STATIC ${SOURCES} ${CMAKE_CURRENT_SOURCE_DIR}/debugger_protos.h)
+nd100x_apply_house_standard(debugger)
 
 # Include directories
 target_include_directories(debugger

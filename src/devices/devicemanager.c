@@ -372,9 +372,9 @@ bool DeviceManager_AddDevice(DeviceType type, uint8_t thumbwheel)
         deviceManager.devices[deviceManager.deviceCount].device = dev;
         // If this is a block device, hook up machine-level block IO callbacks
         if (dev->deviceClass == DEVICE_CLASS_BLOCK) {
-            Device_SetBlockRead(dev, (BlockDeviceReadFunc)machine_block_read, NULL);
-            Device_SetBlockWrite(dev, (BlockDeviceWriteFunc)machine_block_write, NULL);
-            Device_SetBlockDiskInfo(dev, (BlockDeviceDiskInfoFunc)machine_block_disk_info, NULL);
+            Device_SetBlockRead(dev, machine_block_read, NULL);
+            Device_SetBlockWrite(dev, machine_block_write, NULL);
+            Device_SetBlockDiskInfo(dev, machine_block_disk_info, NULL);
         }
         deviceManager.deviceCount++;
         return true;

@@ -20,6 +20,7 @@ add_executable(nd100wasm ${SOURCES}
                ${CMAKE_CURRENT_SOURCE_DIR}/nd500_wasm.c
                ${CMAKE_CURRENT_SOURCE_DIR}/nd100wasm_protos.h
                ${ND100X_ND500X_DIR}/src/frontend/nd500x/ndix_ffs.c)
+nd100x_apply_house_standard(nd100wasm)
 
 # Include directories
 target_include_directories(nd100wasm PRIVATE

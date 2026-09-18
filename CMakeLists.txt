@@ -257,6 +257,9 @@ if(WIN32)
     endif()
 endif()
 
+# House C standard (language level + warning set) for the project's own targets
+include(${CMAKE_SOURCE_DIR}/cmake/house_standard.cmake)
+
 # Add subdirectories in the correct order for header generation
 add_subdirectory(src/ndlib)
 add_subdirectory(src/machine)

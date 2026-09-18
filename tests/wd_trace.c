@@ -139,7 +139,7 @@ int32_t Device_IO_BufferWriteWord(Device *dev, uint8_t *buf, int32_t word_offset
     return 0;
 }
 
-static int fake_read(Device *self, uint8_t *buffer, uint32_t blockCount, uint32_t lba, uint8_t unit)
+static int fake_read(Device *self, uint8_t *buffer, size_t blockCount, uint32_t lba, int unit)
 {
     (void)self; (void)unit;
     if (lba + blockCount > FAKE_DISK_BLOCKS)
@@ -148,7 +148,7 @@ static int fake_read(Device *self, uint8_t *buffer, uint32_t blockCount, uint32_
     return (int)blockCount;
 }
 
-static int fake_write(Device *self, uint8_t *buffer, uint32_t blockCount, uint32_t lba, uint8_t unit)
+static int fake_write(Device *self, const uint8_t *buffer, size_t blockCount, uint32_t lba, int unit)
 {
     (void)self; (void)unit;
     if (lba + blockCount > FAKE_DISK_BLOCKS)
@@ -157,7 +157,7 @@ static int fake_write(Device *self, uint8_t *buffer, uint32_t blockCount, uint32
     return (int)blockCount;
 }
 
-static int fake_info(Device *self, size_t *size, bool *readOnly, uint8_t unit)
+static int fake_info(Device *self, size_t *size, bool *readOnly, int unit)
 {
     (void)self; (void)unit;
     if (size)
@@ -184,9 +184,9 @@ int main(void)
         return 1;
     }
 
-    dev->blockCallbacks.readFunc     = (BlockDeviceReadFunc)fake_read;
-    dev->blockCallbacks.writeFunc    = (BlockDeviceWriteFunc)fake_write;
-    dev->blockCallbacks.diskInfoFunc = (BlockDeviceDiskInfoFunc)fake_info;
+    dev->blockCallbacks.readFunc     = fake_read;
+    dev->blockCallbacks.writeFunc    = fake_write;
+    dev->blockCallbacks.diskInfoFunc = fake_info;
 
     for (i = 0; i < WD_CONFORMANCE_SEQ_LEN; i++)
     {

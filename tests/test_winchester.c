@@ -123,7 +123,7 @@ int32_t Device_IO_BufferWriteWord(Device *dev, uint8_t *buf, int32_t word_offset
 
 /* ---------------- fake block callbacks ---------------------------------- */
 
-static int fake_read(Device *self, uint8_t *buffer, uint32_t blockCount, uint32_t lba, uint8_t unit)
+static int fake_read(Device *self, uint8_t *buffer, size_t blockCount, uint32_t lba, int unit)
 {
     (void)self; (void)unit;
     if (lba + blockCount > FAKE_DISK_BLOCKS)
@@ -132,7 +132,7 @@ static int fake_read(Device *self, uint8_t *buffer, uint32_t blockCount, uint32_
     return (int)blockCount;
 }
 
-static int fake_write(Device *self, uint8_t *buffer, uint32_t blockCount, uint32_t lba, uint8_t unit)
+static int fake_write(Device *self, const uint8_t *buffer, size_t blockCount, uint32_t lba, int unit)
 {
     (void)self; (void)unit;
     if (lba + blockCount > FAKE_DISK_BLOCKS)
@@ -141,7 +141,7 @@ static int fake_write(Device *self, uint8_t *buffer, uint32_t blockCount, uint32
     return (int)blockCount;
 }
 
-static int fake_info(Device *self, size_t *size, bool *readOnly, uint8_t unit)
+static int fake_info(Device *self, size_t *size, bool *readOnly, int unit)
 {
     (void)self; (void)unit;
     if (size)

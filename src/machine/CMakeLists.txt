@@ -33,6 +33,7 @@ add_custom_target(machine_protos_gen
 
 # Create library
 add_library(machine STATIC ${SOURCES})
+nd100x_apply_house_standard(machine)
 add_dependencies(machine machine_protos_gen)
 
 # Include directories
