@@ -25,15 +25,15 @@ static void SCSIHDD_Log(SCSIHDDDevice *hdd, const char *fmt, ...) __attribute__(
 
 static void SCSIHDD_Log(SCSIHDDDevice *hdd, const char *fmt, ...)
 {
-    if (!scsi_debug_enabled)
+    if (!Log_IsEnabled(LOG_CAT_SCSI, LOG_DEBUG))
         return;
 
+    char msg[512];
     va_list args;
     va_start(args, fmt);
-    fprintf(stderr, "SCSI/HDD%d: ", hdd->unit);
-    vfprintf(stderr, fmt, args);
-    fprintf(stderr, "\n");
+    vsnprintf(msg, sizeof(msg), fmt, args);
     va_end(args);
+    Log_Write(LOG_CAT_SCSI, LOG_DEBUG, "HDD%d: %s", hdd->unit, msg);
 }
 
 
@@ -497,7 +497,7 @@ static void SCSIHDD_Command(SCSITarget *t)
     uint8_t cmd = t->scsi_cmdbuf[0];
     int lun = SCSIHDD_GetLun(hdd, t->scsi_cmdbuf[1] >> 5);
 
-    if (scsi_debug_enabled)
+    if (Log_IsEnabled(LOG_CAT_SCSI, LOG_DEBUG))
         SCSIHDD_Log(hdd, "CDB op=0x%02X cdb=%02X,%02X,%02X,%02X,%02X lun=%d",
                     cmd, t->scsi_cmdbuf[1], t->scsi_cmdbuf[2], t->scsi_cmdbuf[3],
                     t->scsi_cmdbuf[4], t->scsi_cmdbuf[5], lun);

@@ -894,11 +894,15 @@ int main(int argc, char *argv[])
     // Set global variables from config
     DISASM = config.disasmEnabled;
     STARTADDR = config.startAddress;
-    smd_debug_enabled = config.smdDebug;
-    scsi_debug_enabled = config.scsiDebug;
     // --log after the .ini [runtime] log key, so the CLI wins per category.
     // The spec was already checked when the command line was parsed.
+    // --smd-debug / --scsi-debug are aliases for --log=smd:debug / scsi:debug;
+    // applied first, so an explicit --log still decides.
+    if (config.smdDebug) Log_SetLevel(LOG_CAT_SMD, LOG_DEBUG);
+    if (config.scsiDebug) Log_SetLevel(LOG_CAT_SCSI, LOG_DEBUG);
     if (config.logSpec) (void)Log_ParseSpec(config.logSpec);
+    // The vendored NCR 5386 port reads its own switch.
+    scsi_debug_enabled = Log_IsEnabled(LOG_CAT_SCSI, LOG_DEBUG) ? 1 : 0;
 
     CPU_TRACE = config.traceEnabled;
     BSD_DEBUG = config.bsdDebug;

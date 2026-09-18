@@ -433,6 +433,16 @@ if(NOT BUILD_WASM)
 endif()
 add_test(NAME log_tests COMMAND test_log)
 
+# Tests that compile a device file on its own also need the logger it calls.
+foreach(_t test_winchester wd_trace test_cdc)
+    if(TARGET ${_t})
+        target_sources(${_t} PRIVATE ${CMAKE_SOURCE_DIR}/src/ndlib/log.c)
+        if(NOT BUILD_WASM)
+            target_link_libraries(${_t} PRIVATE Threads::Threads)
+        endif()
+    endif()
+endforeach()
+
 # House C standard for every test target defined in this directory.
 get_property(_house_test_targets DIRECTORY PROPERTY BUILDSYSTEM_TARGETS)
 foreach(_t IN LISTS _house_test_targets)

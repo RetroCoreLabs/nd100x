@@ -68,15 +68,15 @@ static void SCSITarget_Log(SCSITarget *t, const char *fmt, ...) __attribute__((f
 
 static void SCSITarget_Log(SCSITarget *t, const char *fmt, ...)
 {
-    if (!scsi_debug_enabled)
+    if (!Log_IsEnabled(LOG_CAT_SCSI, LOG_DEBUG))
         return;
 
+    char msg[512];
     va_list args;
     va_start(args, fmt);
-    fprintf(stderr, "SCSI/TGT%d: ", t->dev.scsi_id);
-    vfprintf(stderr, fmt, args);
-    fprintf(stderr, "\n");
+    vsnprintf(msg, sizeof(msg), fmt, args);
     va_end(args);
+    Log_Write(LOG_CAT_SCSI, LOG_DEBUG, "TGT%d: %s", t->dev.scsi_id, msg);
 }
 
 
@@ -98,7 +98,7 @@ static SCSIBufControl *SCSITarget_BufControlPush(SCSITarget *t)
         /* RetroCore throws here. There is no sane recovery - the phase queue is
          * corrupt - so log loudly and reuse the last slot rather than smashing
          * the stack. */
-        fprintf(stderr, "SCSI/TGT%d: FATAL buf_control overflow\n", t->dev.scsi_id);
+        LOG(LOG_CAT_SCSI, LOG_ERROR, "TGT%d: FATAL buf_control overflow", t->dev.scsi_id);
         return &t->buf_control[SCSI_BUF_CONTROL_SIZE - 1];
     }
 
@@ -115,7 +115,7 @@ static SCSIBufControl *SCSITarget_BufControlPop(SCSITarget *t)
 {
     if (t->buf_control_rpos == t->buf_control_wpos)
     {
-        fprintf(stderr, "SCSI/TGT%d: FATAL buf_control underflow\n", t->dev.scsi_id);
+        LOG(LOG_CAT_SCSI, LOG_ERROR, "TGT%d: FATAL buf_control underflow", t->dev.scsi_id);
         return &t->buf_control[0];
     }
 

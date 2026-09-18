@@ -30,7 +30,8 @@
 #include "../devices_types.h"
 #include "../devices_protos.h"
 
-/* Debug log to stderr, enabled with --scsi-debug. Mirrors smd_debug_enabled. */
+/* Read by the NCR 5386 port (ncr5386.c, vendored, not edited). The frontend
+ * sets it from the scsi log category after --log / --scsi-debug. */
 int scsi_debug_enabled = 0;
 
 /* Device private state. */
@@ -76,15 +77,15 @@ static void SCSI_Log(const char *fmt, ...) __attribute__((format(printf, 1, 2)))
 
 static void SCSI_Log(const char *fmt, ...)
 {
-    if (!scsi_debug_enabled)
+    if (!Log_IsEnabled(LOG_CAT_SCSI, LOG_DEBUG))
         return;
 
+    char msg[512];
     va_list args;
     va_start(args, fmt);
-    fprintf(stderr, "SCSI: ");
-    vfprintf(stderr, fmt, args);
-    fprintf(stderr, "\n");
+    vsnprintf(msg, sizeof(msg), fmt, args);
     va_end(args);
+    Log_Write(LOG_CAT_SCSI, LOG_DEBUG, "%s", msg);
 }
 
 
@@ -310,7 +311,7 @@ static void SCSI_StepGoState(Device *self)
         }
     }
 
-    if (scsi_debug_enabled && data->dma_bytes_written > startWritten)
+    if (Log_IsEnabled(LOG_CAT_SCSI, LOG_DEBUG) && data->dma_bytes_written > startWritten)
         SCSI_Log("DMA->ND xfer bytes=%u totalWritten=%u MAR=0x%06X",
                  data->dma_bytes_written - startWritten, data->dma_bytes_written,
                  SCSI_GetMAR(data));
@@ -457,8 +458,8 @@ static uint16_t SCSI_Read(Device *self, uint32_t address)
         break;
     }
 
-    if (scsi_debug_enabled)
-        fprintf(stderr, "SCSI: IOX READ  addr=%o reg=%o -> value=%o (0x%04X)\n",
+    if (Log_IsEnabled(LOG_CAT_SCSI, LOG_DEBUG))
+        Log_Write(LOG_CAT_SCSI, LOG_DEBUG, "IOX READ  addr=%o reg=%o -> value=%o (0x%04X)\n",
                 address, reg, rval, rval);
 
     return rval;
@@ -470,8 +471,8 @@ static void SCSI_Write(Device *self, uint32_t address, uint16_t value)
     SCSIData *data = (SCSIData *)self->deviceData;
     uint32_t reg = Device_RegisterAddress(self, address);
 
-    if (scsi_debug_enabled)
-        fprintf(stderr, "SCSI: IOX WRITE addr=%o reg=%o value=%o (0x%04X)\n",
+    if (Log_IsEnabled(LOG_CAT_SCSI, LOG_DEBUG))
+        Log_Write(LOG_CAT_SCSI, LOG_DEBUG, "IOX WRITE addr=%o reg=%o value=%o (0x%04X)\n",
                 address, reg, value, value);
 
     switch (reg)
@@ -495,7 +496,7 @@ static void SCSI_Write(Device *self, uint32_t address, uint16_t value)
         data->dmaEnable        = (value & SCSI_CTRL_DMA_ENABLE) != 0;
         data->writeNDMemory    = (value & SCSI_CTRL_WRITE_ND_MEMORY) != 0;
 
-        if (scsi_debug_enabled)
+        if (Log_IsEnabled(LOG_CAT_SCSI, LOG_DEBUG))
             SCSI_Log("CONTROL WORD=%o (0x%04X) IntEn=%d Active=%d Test=%d DMA=%d WriteND=%d",
                      value, value, data->interruptEnabled, data->active,
                      data->testMode, data->dmaEnable, data->writeNDMemory);
@@ -602,8 +603,8 @@ static uint16_t SCSI_Ident(Device *self, uint16_t level)
     if (!self)
         return 0;
 
-    if (scsi_debug_enabled)
-        fprintf(stderr, "SCSI: IDENT level=%d identCode=%o\n", level, self->identCode);
+    if (Log_IsEnabled(LOG_CAT_SCSI, LOG_DEBUG))
+        Log_Write(LOG_CAT_SCSI, LOG_DEBUG, "IDENT level=%d identCode=%o\n", level, self->identCode);
 
     if ((self->interruptBits & (1 << level)) != 0)
     {
@@ -706,8 +707,8 @@ static int SCSI_Boot(Device *self, int unit)
 
     free(buffer);
 
-    if (scsi_debug_enabled)
-        fprintf(stderr, "SCSI: Boot loaded %d words from unit %d to address 0\n",
+    if (Log_IsEnabled(LOG_CAT_SCSI, LOG_DEBUG))
+        Log_Write(LOG_CAT_SCSI, LOG_DEBUG, "Boot loaded %d words from unit %d to address 0\n",
                 wordCounter, unit);
 
     /* Return boot address. */

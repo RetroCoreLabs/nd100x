@@ -51,6 +51,7 @@
 #include "../devices/terminal/deviceTerminal.h"
 #include "../devices/papertape/devicePapertape.h"
 #include "../devices/papertapewriter/devicePaperTapeWriter.h"
+#include "../devices/scsi/deviceSCSI.h"
 #include "../devices/hdlc/deviceHDLC.h"
 #include "../devices/hdlc/modem.h"
 #include "../devices/devices_protos.h"
@@ -308,6 +309,8 @@ EMSCRIPTEN_EXPORT const char* InitWithConfig(const char* iniText)
                  mc.runtime.log_spec);
         return result;
     }
+    // The vendored NCR 5386 port reads its own switch.
+    scsi_debug_enabled = Log_IsEnabled(LOG_CAT_SCSI, LOG_DEBUG) ? 1 : 0;
 
 #ifdef WITH_DEBUGGER
     // Initialize machine with debugger enabled

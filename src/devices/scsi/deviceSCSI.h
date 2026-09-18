@@ -51,7 +51,7 @@ typedef enum {
 } SCSIUnitType;
 
 /* Enable the SCSI controller debug log to stderr (--scsi-debug).
- * Mirrors smd_debug_enabled in deviceSMD.h. */
+ * Set by the frontend from the scsi log category (--log=scsi:debug). */
 extern int scsi_debug_enabled;
 
 /*

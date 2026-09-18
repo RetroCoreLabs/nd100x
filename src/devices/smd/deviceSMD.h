@@ -302,11 +302,6 @@ typedef struct
 
     ControllerRegs regs;
 } SMDData;
-
-
-
-extern int smd_debug_enabled;
-
 // Function declarations
 // Only expose the factory; internal helpers are kept private in the .c file
 Device *CreateSMDDevice(uint8_t thumbwheel);

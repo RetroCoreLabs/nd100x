@@ -289,18 +289,12 @@ static void Cdc_ExecuteGO(Device *self)
 
     d->sectorCounter = (uint16_t)sector;
 
-    /* Temporary transfer trace: set ND100X_CDC_TRACE=1 to see every request.
-     * Diagnostic aid, off unless the variable is present. */
-    {
-        static int traceOn = -1;
-        if (traceOn < 0) traceOn = getenv("ND100X_CDC_TRACE") ? 1 : 0;
-        if (traceOn)
-            fprintf(stderr, "[cdc] op=%u blockAddr=%06o sector=%u core=%06o "
-                            "count=%u surfaceSectors=%u%s\n",
-                    op, d->blockAddress, sector, core, count, d->surfaceSectors,
-                    (wordOff > d->surfaceWords ||
-                     count > d->surfaceWords - wordOff) ? "  <-- OUT OF RANGE" : "");
-    }
+    /* Transfer trace: --log=cdc:trace (was the ND100X_CDC_TRACE variable). */
+    LOG(LOG_CAT_CDC, LOG_TRACE, "op=%u blockAddr=%06o sector=%u core=%06o "
+                                "count=%u surfaceSectors=%u%s",
+        op, d->blockAddress, sector, core, count, d->surfaceSectors,
+        (wordOff > d->surfaceWords ||
+         count > d->surfaceWords - wordOff) ? "  <-- OUT OF RANGE" : "");
 
     /* Fresh transfer: clear the error bits and completion, mark active/on. */
     d->status.bits.errorOr          = 0;

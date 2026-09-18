@@ -50,7 +50,6 @@ typedef enum {
     WD_LOAD_WORD_COUNT     = 7
 } WDRegister;
 
-static bool wd_debug_enabled = false;
 
 static void Wd_Reset(Device *self);
 static bool WdTransferEnd(Device *self, int drive);
@@ -239,8 +238,8 @@ static uint16_t Wd_Read(Device *self, uint32_t address)
         break;
     }
 
-    if (wd_debug_enabled)
-        fprintf(stderr, "WD: IOX READ  addr=%o reg=%o -> %o\n", address, reg, value);
+    if (Log_IsEnabled(LOG_CAT_WD, LOG_DEBUG))
+        Log_Write(LOG_CAT_WD, LOG_DEBUG, "IOX READ  addr=%o reg=%o -> %o\n", address, reg, value);
 
     return value;
 }
@@ -253,8 +252,8 @@ static void Wd_Write(Device *self, uint32_t address, uint16_t value)
 
     uint32_t reg = Device_RegisterAddress(self, address);
 
-    if (wd_debug_enabled)
-        fprintf(stderr, "WD: IOX WRITE addr=%o reg=%o value=%o\n", address, reg, value);
+    if (Log_IsEnabled(LOG_CAT_WD, LOG_DEBUG))
+        Log_Write(LOG_CAT_WD, LOG_DEBUG, "IOX WRITE addr=%o reg=%o value=%o\n", address, reg, value);
 
     switch (reg)
     {
@@ -393,8 +392,8 @@ static bool WdTransferEnd(Device *self, int drive)
     data->statusRegister.bits.readyForTransfer = 1;
     Wd_ClearFlipFlops(&data->regs);
 
-    if (wd_debug_enabled)
-        fprintf(stderr, "WD: IO complete drive=%d intEnabled=%d\n",
+    if (Log_IsEnabled(LOG_CAT_WD, LOG_DEBUG))
+        Log_Write(LOG_CAT_WD, LOG_DEBUG, "IO complete drive=%d intEnabled=%d\n",
                 drive, data->statusRegister.bits.interruptEnabled);
 
     return data->statusRegister.bits.interruptEnabled ? true : false;
@@ -453,8 +452,8 @@ static void Wd_ExecuteGO(Device *self)
                 disk->cylinder = disk->maxCylinders;
         }
         disk->onCylinder = true;
-        if (wd_debug_enabled)
-            fprintf(stderr, "WD: %s unit=%d dir=%s count=%d -> cylinder %d\n",
+        if (Log_IsEnabled(LOG_CAT_WD, LOG_DEBUG))
+            Log_Write(LOG_CAT_WD, LOG_DEBUG, "%s unit=%d dir=%s count=%d -> cylinder %d\n",
                     Wd_OpName(regs->deviceOperation), regs->selectedUnit,
                     regs->seekDirection == WD_SEEK_IN ? "in" : "out",
                     regs->wordCounter, disk->cylinder);
@@ -508,8 +507,8 @@ static void Wd_ExecuteGO(Device *self)
         uint32_t blockCounter = (wordCounter * 2) / (uint32_t)self->blockSizeBytes;
         uint32_t buffer_ptr = 0;
 
-        if (wd_debug_enabled)
-            fprintf(stderr, "WD: GO %s unit=%d C/H/S=%d/%d/%d LBA=%ld WC=%u core=%o\n",
+        if (Log_IsEnabled(LOG_CAT_WD, LOG_DEBUG))
+            Log_Write(LOG_CAT_WD, LOG_DEBUG, "GO %s unit=%d C/H/S=%d/%d/%d LBA=%ld WC=%u core=%o\n",
                     Wd_OpName(regs->deviceOperation), regs->selectedUnit,
                     regs->cylinder, regs->head, regs->sector, lba, wordCounter, coreAddress);
 
@@ -639,8 +638,8 @@ static uint16_t Wd_Ident(Device *self, uint16_t level)
      * controllers. */
     data->statusRegister.bits.interruptEnabled = 0;
     Device_SetInterruptStatus(self, false, self->interruptLevel);
-    if (wd_debug_enabled)
-        fprintf(stderr, "WD: IDENT answered level=%u code=%o\n",
+    if (Log_IsEnabled(LOG_CAT_WD, LOG_DEBUG))
+        Log_Write(LOG_CAT_WD, LOG_DEBUG, "IDENT answered level=%u code=%o\n",
                 level, self->identCode);
     return self->identCode;
 }
@@ -849,8 +848,6 @@ Device *CreateWinchesterDevice(uint8_t thumbwheel)
 
     Wd_Reset(dev);
 
-    if (getenv("ND100X_WD_DEBUG"))
-        wd_debug_enabled = true;
 
     printf("Winchester disc device created: %s ident %o level %d (%d units)\n",
            dev->memoryName, dev->identCode, dev->interruptLevel, data->regs.maxUnits);
