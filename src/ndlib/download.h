@@ -19,7 +19,7 @@
  * along with this program (in the main directory of the nd100em
  * distribution in the file COPYING); if not, see <http://www.gnu.org/licenses/>.
  */
- 
+
 #ifndef DOWNLOAD_H
 #define DOWNLOAD_H
 
@@ -29,4 +29,4 @@ char* download_file(const char* url);
 // Get the actual size of downloaded data (for binary files)
 size_t get_downloaded_size(void);
 
-#endif // DOWNLOAD_H 
+#endif // DOWNLOAD_H

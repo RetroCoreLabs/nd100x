@@ -101,7 +101,7 @@ typedef enum
     /// <summary>
     /// Format Track
     /// One track on one side is formatted. This command can be used to make IBM compatible diskettes.
-    /// NOTE: The track address must be given as logical address to the first sector of the track. ——
+    /// NOTE: The track address must be given as logical address to the first sector of the track. --
     /// </summary>
     FLOPPY_FUNC_FORMAT_TRACK = 0x2D,
 
@@ -127,7 +127,7 @@ typedef enum
     FLOPPY_ERR_TRACK_NOT_FOUND = 7,
     FORMAT_NOT_FOUND = 8, // oct 10
     /*
-        
+
         DISKETTE DEFECT (IMPOSSIBLE TO FORMAT) = oct 11
         FORMAT MISMATCH = oct 12
         ILLEGAL FORMAT SPECIFIED oct 13
@@ -318,8 +318,8 @@ typedef union {
         uint16_t deletedRecord : 1;    // Bit 5: Deleted record
         uint16_t retryOnController : 1;// Bit 6: Retry on controller
         uint16_t hardError : 1;        // Bit 7: Hard error
-        uint16_t notUsed8 : 1;         // Bit 8: Not used (ND-11.021.1 §3.4)
-        uint16_t errorCode : 6;        // Bits 9-14: Error code (§3.9)
+        uint16_t notUsed8 : 1;         // Bit 8: Not used (ND-11.021.1 section 3.4)
+        uint16_t errorCode : 6;        // Bits 9-14: Error code (section 3.9)
         uint16_t dualDensity : 1;      // Bit 15: Dual density controller (hardware status word only)
 
     } bits;
@@ -346,7 +346,7 @@ typedef union {
 // Status Register 2 bits
 typedef union {
     uint16_t raw;
-    struct {        
+    struct {
         uint16_t bytesPrSector : 2;    // Bit 0-1: Bytes per sector - 2 bits
         uint16_t doubleSided : 1;      // Bit 2: Double sided
         uint16_t doubleDensity : 1;    // Bit 3: Double density
@@ -369,7 +369,7 @@ typedef struct
     uint8_t sector;         // Current sector
     uint8_t track;          // Current track
     uint8_t drive;          // Selected drive
-    
+
     FloppyError errorCode;  // Current error code
     FloppyFunction command; // Current command
     uint32_t pointerHI;     // High pointer bits

@@ -86,9 +86,9 @@ void  OpToStr(char *return_string, uint16_t max_len, uint16_t operand)
 	switch (instr)
 	{
 	case 0000000: /* STZ */
-		//(void)snprintf(opstr, BUFSTRSIZE, "STZ %s%s", relmode_str[relmode], numstr);		
-		(void)snprintf(opstr, BUFSTRSIZE, "STZ %s%s", relmode_str[relmode], numstr);		
-		break; 
+		//(void)snprintf(opstr, BUFSTRSIZE, "STZ %s%s", relmode_str[relmode], numstr);
+		(void)snprintf(opstr, BUFSTRSIZE, "STZ %s%s", relmode_str[relmode], numstr);
+		break;
 	case 0004000: /* STA */
 		(void)snprintf(opstr, BUFSTRSIZE, "STA %s%s", relmode_str[relmode], numstr);
 		break;
@@ -477,7 +477,7 @@ void  OpToStr(char *return_string, uint16_t max_len, uint16_t operand)
 	case 0147000: /* RADD ADC */
 		(void)snprintf(opstr, BUFSTRSIZE, "RADD ADC %s %s", skipregn_src[((operand & 0x0038) >> 3)], skipregn_dst[(operand & 0x0007)]);
 		break;
-	case 0147100: /* RADD ADC CLD */		
+	case 0147100: /* RADD ADC CLD */
 		(void)snprintf(opstr, BUFSTRSIZE, "RADD ADC CLD %s %s", skipregn_src[((operand & 0x0038) >> 3)], skipregn_dst[(operand & 0x0007)]);
 		break;
 	case 0147200: /* RADD ADC CM1 */
@@ -661,7 +661,7 @@ void  OpToStr(char *return_string, uint16_t max_len, uint16_t operand)
 	case 0175600:				 /* BSKP BAC */
 	case 0176000:				 /* BSTC */
 	case 0176200:				 /* BSTA */
-	case 0176400:				 /* BLDC */ 
+	case 0176400:				 /* BLDC */
 	case 0176600:				 /* BLDA */
 	case 0177000:				 /* BANC */
 	case 0177200:				 /* BAND */
@@ -678,7 +678,7 @@ void  OpToStr(char *return_string, uint16_t max_len, uint16_t operand)
 	}
 
 	// Safe string copy with guaranteed null-termination
-	snprintf(return_string, max_len, "%s", opstr);	
+	snprintf(return_string, max_len, "%s", opstr);
 }
 
 
@@ -687,12 +687,12 @@ DisasmArray disasm_arr = { NULL };
 DisasmArray* p_DIS = &disasm_arr;
 
 int disasm_ctr = 0;
- 
+
 void disasm_allocate(ushort addr) {
-	if ((*p_DIS)[addr]) return; /* already exists */	
+	if ((*p_DIS)[addr]) return; /* already exists */
 
 	// Allocate memory for the disasm entry at the given address
-	(*p_DIS)[addr] = calloc(1,sizeof(struct disasm_entry));	
+	(*p_DIS)[addr] = calloc(1,sizeof(struct disasm_entry));
 }
 
 void disasm_instr(ushort addr, ushort instr){
@@ -706,7 +706,7 @@ void disasm_instr(ushort addr, ushort instr){
 	// If the instruction exists, set it to code and copy the disassembly string
 	if ((*p_DIS)[addr] != NULL) {
 		char disasm_str[BUFSTRSIZE];
-		OpToStr(disasm_str, BUFSTRSIZE, instr);	
+		OpToStr(disasm_str, BUFSTRSIZE, instr);
 
 
 		(*p_DIS)[addr]->iscode = true;
@@ -716,7 +716,7 @@ void disasm_instr(ushort addr, ushort instr){
 
 void disasm_exr(ushort addr, ushort instr){
 	char disasm_str[BUFSTRSIZE];
-	OpToStr(disasm_str, BUFSTRSIZE, instr);	
+	OpToStr(disasm_str, BUFSTRSIZE, instr);
 
 	if ((*p_DIS)[addr] != NULL) {
 		(*p_DIS)[addr]->isexr = true;
@@ -733,7 +733,7 @@ void disasm_addword(ushort addr, ushort myword){
 	}
 }
 
-void disasm_init(){
+void disasm_init(void){
 	int i;
 	for(i=0;i<65536;i++){
 		(*p_DIS)[i]= NULL;
@@ -771,7 +771,7 @@ void disasm_userel(ushort addr, ushort where){
 }
 
 
-void disasm_dump(){
+void disasm_dump(void){
 	int i;
 	int tmp;
 	char u,l;
@@ -816,8 +816,8 @@ void disasm_dump(){
 				if (l>=32 & l<=127)
 					fprintf(disasm_file,"\'%c\'",l);
 
-				fprintf(disasm_file,"          ");								
-				OpToStr(disasm_str, BUFSTRSIZE,(*p_DIS)[i]->theword);			
+				fprintf(disasm_file,"          ");
+				OpToStr(disasm_str, BUFSTRSIZE,(*p_DIS)[i]->theword);
 				fprintf(disasm_file,"%% %s",disasm_str);
 			}
 			fprintf(disasm_file,"\n");
@@ -828,7 +828,7 @@ void disasm_dump(){
 }
 
 
-/* 
+/*
  * Mask out instruction opcode from parameters
  * NOTE: Manual does not specify details about how ND100
  * maps all bits and some opcodes will miss this decode.
@@ -839,7 +839,7 @@ ushort extract_opcode(ushort instr) {
 	switch(instr & (0xFFFF<<11)) {
 	case 0130000:			/* JAP, JAN, JAZ, JAF, JPC, JNC, JXZ, JXN */
 		return(instr & (0xFFFF<<8));
-	case 0140000:	
+	case 0140000:
 		if(0 == (instr & (0x03<<6)))	/* SKIP Instruction */
 			return 0140000;
 		else 				/* Decode further */
@@ -899,10 +899,10 @@ ushort decode_140k(ushort instr) {
         }
 	switch (instr & (0xFFFF<<6)) {
 	case 0140200: /* USER1 (microcode defined by user or illegal instruction otherwise) */
-		return instr & (0xFFFF<<6);	
+		return instr & (0xFFFF<<6);
 	case 0140500: /* USER2 (microcode defined by user or illegal instruction otherwise) */
 		if ((CurrentCPUType == ND100) || (CurrentCPUType == ND100CE) || (CurrentCPUType == ND100CX)) /* We are ND100 */
-			return instr & (0xFFFF<<6);	
+			return instr & (0xFFFF<<6);
 		else switch (instr & (0xFFFF)) {							/* We are not */
 			case 0140500: /* WGLOB - ND110 Specific */
 			case 0140501: /* RGLOB - ND110 Specific */
@@ -923,10 +923,10 @@ ushort decode_140k(ushort instr) {
 				break;
 		}
 	case 0140600: /* EXR */
-		return instr & (0xFFFF<<6);	
+		return instr & (0xFFFF<<6);
 	case 0140700: /* USER3 (microcode defined by user or illegal instruction otherwise) */
 		if ((CurrentCPUType == ND100) || (CurrentCPUType == ND100CE) || (CurrentCPUType == ND100CX)) /* We are ND100 */
-			return instr & (0xFFFF<<6);	
+			return instr & (0xFFFF<<6);
 		else switch (instr & (0xFFC7)) {							/* We are not */
 			case 0140700: /* LASB - ND110 Specific */
 			case 0140701: /* SASB - ND110 Specific */
@@ -954,7 +954,7 @@ ushort decode_140k(ushort instr) {
 	case 0142700: /* GECO - Undocumented instruction */
 	case 0143100: /* MOVEW */
 	case 0143200: /* MIX3 */
-		return instr & (0xFFFF<<6);	
+		return instr & (0xFFFF<<6);
 	default:
 		break;
 	}
@@ -988,7 +988,7 @@ ushort decode_150k(ushort instr) {
 	case 0150415 : /* IOXT */
 	case 0150416 : /* EXAM */
 	case 0150417 : /* DEPO */
-		return (instr);	
+		return (instr);
 	default:
 		break;
 	}
@@ -997,7 +997,7 @@ ushort decode_150k(ushort instr) {
 	case 0151400 : /* NLZ*/
 	case 0152000 : /* DNZ*/
 	case 0153000 : /* MON */
-		return (ushort)(instr & (0xFFFF<<8));	
+		return (ushort)(instr & (0xFFFF<<8));
 	default:
 		break;
 	}
@@ -1006,7 +1006,7 @@ ushort decode_150k(ushort instr) {
 	case 0152600 : /* LRB */
 	case 0153400 : /* IRW */
 	case 0153600 : /* IRR */
-		return instr & (0xFFFF<<7);	
+		return instr & (0xFFFF<<7);
 	default:
 		break;
 	}
@@ -1016,7 +1016,7 @@ ushort decode_150k(ushort instr) {
 	case 0150100 : /* TRR */
 	case 0150200 : /* MCL */
 	case 0150300 : /* MST */
-		return instr & (0xFFFF<<6);	
+		return instr & (0xFFFF<<6);
 	default:
 		break;
 	}

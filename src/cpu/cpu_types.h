@@ -32,13 +32,13 @@
 //
 // On Windows, Sleep()'s granularity defaults to one system tick (~15.6ms),
 // which badly distorts the CPU idle-loop pacing and starves the RTC
-// interrupt — the emulated 20ms RTC tick then fires every ~300ms and TPE
+// interrupt - the emulated 20ms RTC tick then fires every ~300ms and TPE
 // reports "The clock is not updated". We raise the timer resolution to 1ms
 // once per process (via timeBeginPeriod on winmm) on the first sleep_ms
 // call so Sleep(1) actually sleeps ~1ms.
 #if defined(_WIN32) || defined(_WIN64)
   #include <windows.h>
-  #include <mmsystem.h>   /* timeBeginPeriod — requires linking winmm */
+  #include <mmsystem.h>   /* timeBeginPeriod - requires linking winmm */
   static void sleep_ms(unsigned int ms) {
       static LONG period_raised = 0;
       if (InterlockedCompareExchange(&period_raised, 1, 0) == 0) {
@@ -356,7 +356,7 @@ struct CpuRegs {
 	ushort	reg_PANC;	/* */
 	ushort	reg_OPR;	/* */
 	ushort	reg_LMP;	/* */
-	ushort	reg_PGS;	/* */	
+	ushort	reg_PGS;	/* */
 	ushort	reg_PCR[16];	/* Paging Control Registers */
 	ushort	reg_PVL;	/* */
 	ushort	reg_IIC;	/* IIC is actually just a priority encoded (IID | IIE) */
@@ -410,7 +410,7 @@ struct CpuRegs {
 	/* taking a shortcut by creating a PK 4bit register */
 	/* always modify this as well when touching PID or PIE */
 	ushort	myreg_PK;
-	
+
 	// should cpu levels be checked ?
 	bool    chkit;
 
@@ -419,7 +419,7 @@ struct CpuRegs {
 	bool	has_instr_cntr;
 	ushort	instructioncounter;
 	/* flag for breakpoint and breakpoint address */
-	bool	has_breakpoint;	
+	bool	has_breakpoint;
 	ushort	breakpoint;
 
 	// Debugger enabled flag
@@ -433,10 +433,10 @@ struct CpuRegs {
 typedef enum {
 	CPU_UNKNOWN_STATE, // Unknown state
 	CPU_RUNNING, // CPU is running normally
-	CPU_BREAKPOINT, // CPU hit a breakpoint 
-	CPU_PAUSED,  // CPU is paused and waiting for debugger to resume	
+	CPU_BREAKPOINT, // CPU hit a breakpoint
+	CPU_PAUSED,  // CPU is paused and waiting for debugger to resume
 	CPU_STOPPED,    // CPU is stopped and we are in OPCOM mode
-	CPU_SHUTDOWN // Shut down and exit 
+	CPU_SHUTDOWN // Shut down and exit
 }  CPURunMode;
 
 typedef enum {ND1, ND4, ND10, ND100, ND100CE, ND100CX, ND110, ND110CE, ND110CX, ND110PCX, ND120CX} CpuType;

@@ -33,8 +33,8 @@ typedef enum {
                                           // If executed repeatedly, the counter will never increment and no clock pulses will occur.
                                           // This may affect operator console terminal communication.
     RTC_READ_STATUS = 2,                  // IOX 012: Read real-time clock status
-    
-    RTC_WRITE_CONTROL = 3                 // IOX 013: Set real-time clock control word    
+
+    RTC_WRITE_CONTROL = 3                 // IOX 013: Set real-time clock control word
 } RTCRegister;
 
 // Selected frequency for programmable clock
@@ -79,10 +79,10 @@ typedef struct {
     int rtcCounter;
     int divisionNumberN;
     uint16_t register1;
-        
+
     bool externalHoldEnabled;
     bool externalHoldSignal;
-    
+
     bool clockCountingStarted;
 
     uint64_t nextPulseNs;   /* wall-clock mode only: host monotonic time (ns) of next 20 ms pulse; 0 = not armed yet */
@@ -95,4 +95,4 @@ typedef struct {
 // Function declarations
 Device* CreateRTCDevice(uint8_t thumbwheel);
 
-#endif // DEVICE_RTC_H 
+#endif // DEVICE_RTC_H

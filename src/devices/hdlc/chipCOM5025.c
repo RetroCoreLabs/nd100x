@@ -72,7 +72,7 @@ void COM5025_Reset(COM5025State *chip)
     // Clear input pins
     COM5025_ClearAllInputPins(chip);
 
-    // RSI stays 0 after ClearAllInputPins — matches C# exactly
+    // RSI stays 0 after ClearAllInputPins - matches C# exactly
 
     // Transmitter buffer empty
     COM5025_SetTransmitterBufferEmpty(chip);
@@ -419,7 +419,7 @@ void COM5025_ProcessBit(COM5025State *chip, bool bit)
 
     if (chip->bitCounter >= chip->characterLength) {
         // In BOP mode, only assemble characters AFTER a FLAG has been detected.
-        // Before FLAG, the receiver is in hunt mode — bits are discarded.
+        // Before FLAG, the receiver is in hunt mode - bits are discarded.
         if (chip->mode != COM5025_MODE_BOP || chip->flagDetected) {
             chip->receiverDataBuffer = chip->receiverShiftRegister & ((1 << chip->characterLength) - 1);
             COM5025_SetOutputPin(chip, COM5025_PIN_OUT_RDA, true);

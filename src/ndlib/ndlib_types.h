@@ -34,8 +34,8 @@
 
 // ** KEYBOARD EVENTS **
 // Classified keyboard input produced by read_key_event(). Placed here rather
-// than in keyboard.h so the mkptypes-generated ndlib_protos.h — which declares
-// read_key_event() — can see the full definition regardless of include order.
+// than in keyboard.h so the mkptypes-generated ndlib_protos.h - which declares
+// read_key_event() - can see the full definition regardless of include order.
 typedef enum {
     KEY_NONE = 0,      // No key available
     KEY_CHAR,          // Ordinary typed character (evt.ch)
@@ -48,7 +48,7 @@ typedef enum {
 typedef struct {
     KeyType type;
     char    ch;        // Ordinary character (KEY_CHAR) or Alt digit (KEY_ALT_DIGIT)
-    char    seq[8];    // Raw byte sequence — populated for passthrough/KEY_UNKNOWN
+    char    seq[8];    // Raw byte sequence - populated for passthrough/KEY_UNKNOWN
     int     seqLen;
 } KeyEvent;
 
@@ -83,7 +83,7 @@ typedef struct
 {
     uint16_t start;              /* octal start address for the program */
     uint16_t boot;               /* octal value giving the start address of the bootstrap loader */
-    uint16_t address;            /* Address where the binary load of the data will start */    
+    uint16_t address;            /* Address where the binary load of the data will start */
     uint16_t checksum;           /* Checksum value */
     uint16_t calculatedChecksum; /* Calculated checksum for verification */
     uint16_t action;             /* Action field - if zero, execution starts at start address */
@@ -130,4 +130,4 @@ typedef enum {
 
 
 
-#endif // 
+#endif //

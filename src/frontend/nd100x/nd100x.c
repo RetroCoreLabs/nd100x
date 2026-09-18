@@ -63,7 +63,7 @@
 #include "../../devices/devices_protos.h"
 
 #ifdef WITH_DEBUGGER
-void stop_debugger_thread();
+void stop_debugger_thread(void);
 #endif
 
 #include "nd100x_types.h"
@@ -238,7 +238,7 @@ void handle_sigint(int sig) {
 
 
 
-void register_signals()
+void register_signals(void)
 {
 #ifdef _WIN32
     // Windows signal handling
@@ -251,7 +251,7 @@ void register_signals()
     sa.sa_handler = handle_sigint;
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = SA_RESTART;  // Restart interrupted system calls
-    
+
     if (sigaction(SIGINT, &sa, NULL) == -1) {
         perror("sigaction");
         exit(1);
@@ -267,7 +267,7 @@ void register_signals()
 #endif
 }
 
-void dump_stats()
+void dump_stats(void)
 {
 #ifdef _WIN32
     FILETIME creation, exit, kernel, user;
@@ -344,7 +344,7 @@ static void apply_cputype_override(const char *name)
 
 /// @brief Initialize the emulator. Add devices and load program
 
-void initialize()
+void initialize(void)
 {
    srand ( time(NULL) ); /* Generate PRNG Seed */
 #ifndef _WIN32
@@ -541,10 +541,10 @@ void initialize()
 
 
 
-void cleanup()
+void cleanup(void)
 {
 	cleanup_machine();
-	unsetcbreak ();	
+	unsetcbreak ();
 }
 
 
@@ -750,7 +750,7 @@ static void load_paper_tape_file(Device *ptr, const char *filename)
 }
 
 
-int main(int argc, char *argv[]) 
+int main(int argc, char *argv[])
 {
 
 	// Initialize the configuration
@@ -761,7 +761,7 @@ int main(int argc, char *argv[])
         Config_PrintHelp(argv[0]);
         return EXIT_FAILURE;
     }
-    
+
     // Show help if requested
     if (config.showHelp) {
         Config_PrintHelp(argv[0]);
@@ -814,7 +814,7 @@ int main(int argc, char *argv[])
             MachineConfig_Print(&mc, stdout);
         return EXIT_SUCCESS;
     }
-    
+
     // Resolve an explicit --config INI into the machine model. This drives the
     // machine build (see apply_machine_config) and the boot device. Autoloaded
     // INI does not yet drive a normal boot - only an explicit --config does, so
@@ -969,7 +969,7 @@ int main(int argc, char *argv[])
     Device_SetCharacterOutput(terminal, VScreenOutputHandler);
     screenCount++;
 
-    // Additional terminals — names derived from logicalDevice (same algorithm as glass UI)
+    // Additional terminals - names derived from logicalDevice (same algorithm as glass UI)
     static const uint16_t termAddresses[] = { 0340, 0350, 0360, 0370, 01300, 01310, 01320 };
     Device *extraTerminals[7] = {0};
     char tname[32];
@@ -1187,11 +1187,11 @@ int main(int argc, char *argv[])
                 menu_enter(&menuState, NULL);
 #endif
             } else if (key.type != KEY_NONE) {
-                // Process regular characters — forward every raw byte in the
+                // Process regular characters - forward every raw byte in the
                 // event (covers KEY_CHAR, KEY_ESCAPE, KEY_UNKNOWN multi-byte
                 // escape sequences the emulated terminal may want to consume).
                 // When a national charset is active, collapse UTF-8/Latin-1
-                // accented keystrokes (e.g. 'æ') to their single 7-bit code
+                // accented keystrokes (e.g. 'ae') to their single 7-bit code
                 // ('{') before queueing. CHARSET_OFF copies verbatim.
                 char mappedSeq[32];
                 int mappedLen = charset_translate_input(key.seq, key.seqLen,

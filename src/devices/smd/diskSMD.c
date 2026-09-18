@@ -33,7 +33,7 @@
 void DiskSMD_SetDiskType(DiskInfo *disk,DiskType dt)
 {
     disk->diskType = dt;
-    disk->bytesPrSector = 1024; // 1024bytes / 512 Words		
+    disk->bytesPrSector = 1024; // 1024bytes / 512 Words
     disk->maxWordCount = 4095; // TODO: Find the correct MAX - is it different pr disk or controller?
 
     switch (dt) {

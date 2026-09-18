@@ -312,7 +312,7 @@ void DMAControlBlocks_MarkBufferReceived(DMAControlBlocks *dmaCB, uint8_t rxStat
 
         // Set RCOST in the low 8 bits, its actually the ReceiverStatusRegister
         keyValue = (keyValue & 0xFF00) | rxStatus;
-        
+
         // Mark block as DONE (ie filled up)
         keyValue |= (uint16_t)(KEYFLAG_BLOCK_DONE_BIT);
         DCB_SetKeyValue(dmaCB->rxDCB, keyValue);

@@ -64,7 +64,7 @@ void Device_Init(Device *dev, uint8_t thumbwheel, DeviceClass deviceClass, size_
 
     // Clear all fields
     memset(dev, 0, sizeof(Device));
-    
+
     // Set basic device properties
     dev->startAddress = 0;
     dev->endAddress = 0;
@@ -80,20 +80,20 @@ void Device_Init(Device *dev, uint8_t thumbwheel, DeviceClass deviceClass, size_
         dev->ioDelayCapacity = INITIAL_IO_DELAY_CAPACITY;
         dev->ioDelayCount = 0;
     }
-    
+
     // Initialize based on device class
     switch (deviceClass) {
         case DEVICE_CLASS_CHARACTER:
             // Initialize character device callbacks
             memset(&dev->charCallbacks, 0, sizeof(CharacterDeviceCallbacks));
             break;
-            
+
         case DEVICE_CLASS_BLOCK:
             // Initialize block device callbacks
             memset(&dev->blockCallbacks, 0, sizeof(BlockDeviceCallbacks));
             dev->blockSizeBytes = (blockSize > 0 && blockSize <= MAX_BLOCK_SIZE) ? blockSize : 1024;
             break;
-            
+
         case DEVICE_CLASS_RTC:
         case DEVICE_CLASS_STANDARD:
         default:
@@ -106,7 +106,7 @@ void Device_Destroy(Device *dev)
 {
     if (!dev)
         return;
-    
+
     // Call device-specific cleanup if it exists
     if (dev->Destroy)
     {
@@ -191,7 +191,7 @@ void Device_QueueIODelay(Device *dev, uint16_t ticks, IODelayedCallback cb, int 
 {
     if (!dev || !dev->ioDelays)
         return;
-   
+
     // Resize array if needed
     if (dev->ioDelayCount >= dev->ioDelayCapacity)
     {
@@ -225,7 +225,7 @@ void Device_TickIODelay(Device *dev)
 
         if (delay->delayTicks <= 0)
         {
-            bool triggered = delay->callback(delay->context, delay->parameter);            
+            bool triggered = delay->callback(delay->context, delay->parameter);
             if (triggered && delay->level > 0)
             {
                 Device_GenerateInterrupt(dev, delay->level);
@@ -363,7 +363,7 @@ int32_t Device_IO_BufferWriteWord(Device *dev,uint8_t *buf, int32_t word_offset,
     return 0;
 }
 
-// DMA bypasses shadow memory (page tables) — it's a physical bus transfer.
+// DMA bypasses shadow memory (page tables) - it's a physical bus transfer.
 // Set gDMAAccess flag so IsAddressShadowMemory skips the shadow check.
 extern bool gDMAAccess;
 
@@ -390,7 +390,7 @@ void Device_SetCharacterOutput(Device *dev, CharacterDeviceOutputFunc outputFunc
 {
     if (!dev || dev->deviceClass != DEVICE_CLASS_CHARACTER)
         return;
-        
+
     dev->charCallbacks.outputFunc = outputFunc;
 }
 
@@ -399,7 +399,7 @@ void Device_SetCharacterInput(Device *dev, CharacterDeviceInputFunc inputFunc)
 {
     if (!dev || dev->deviceClass != DEVICE_CLASS_CHARACTER)
         return;
-        
+
     dev->charCallbacks.inputFunc = inputFunc;
 }
 
@@ -408,7 +408,7 @@ void Device_OutputCharacter(Device *dev, char c)
 {
     if (!dev || dev->deviceClass != DEVICE_CLASS_CHARACTER || !dev->charCallbacks.outputFunc)
         return;
-        
+
     dev->charCallbacks.outputFunc(dev, c);
 }
 
@@ -417,7 +417,7 @@ void Device_InputCharacter(Device *dev, char c)
 {
     if (!dev || dev->deviceClass != DEVICE_CLASS_CHARACTER || !dev->charCallbacks.inputFunc)
         return;
-        
+
     dev->charCallbacks.inputFunc(dev, c);
 }
 
@@ -428,7 +428,7 @@ void Device_SetBlockRead(Device *dev, BlockDeviceReadFunc readFunc, void *userDa
 {
     if (!dev || dev->deviceClass != DEVICE_CLASS_BLOCK)
         return;
-        
+
     dev->blockCallbacks.readFunc = readFunc;
     dev->blockCallbacks.userData = userData;
 }
@@ -438,7 +438,7 @@ void Device_SetBlockWrite(Device *dev, BlockDeviceWriteFunc writeFunc, void *use
 {
     if (!dev || dev->deviceClass != DEVICE_CLASS_BLOCK)
         return;
-        
+
     dev->blockCallbacks.writeFunc = writeFunc;
     if (userData != NULL) {
         dev->blockCallbacks.userData = userData;
@@ -461,7 +461,7 @@ int Device_ReadBlock(Device *dev, uint8_t *buffer, size_t size, uint32_t blockAd
 {
     if (!dev || dev->deviceClass != DEVICE_CLASS_BLOCK || !dev->blockCallbacks.readFunc || !buffer)
         return -1;
-        
+
     // The controller must pass the correct size for the current transfer
     return dev->blockCallbacks.readFunc(dev, buffer, size, blockAddress, unit);
 }
@@ -471,7 +471,7 @@ int Device_WriteBlock(Device *dev, const uint8_t *buffer, size_t size, uint32_t 
 {
     if (!dev || dev->deviceClass != DEVICE_CLASS_BLOCK || !dev->blockCallbacks.writeFunc || !buffer)
         return -1;
-        
+
     // The controller must pass the correct size for the current transfer
     return dev->blockCallbacks.writeFunc(dev, buffer, size, blockAddress, unit);
 }

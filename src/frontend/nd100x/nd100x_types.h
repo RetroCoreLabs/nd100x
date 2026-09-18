@@ -148,4 +148,4 @@ typedef struct {
     char *scriptPath;        // --script: path to script file with shell commands
 } Config_t;
 
-#endif // CONFIG_H 
+#endif // CONFIG_H

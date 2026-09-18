@@ -433,7 +433,7 @@ Device *CreateTerminalDevice(uint8_t thumbwheel)
 
     // Initialize device base structure as a character device
     Device_Init(dev, thumbwheel, DEVICE_CLASS_CHARACTER, 0);
-    
+
     // Set up device-specific data
     memset(data, 0, sizeof(TerminalData));
 

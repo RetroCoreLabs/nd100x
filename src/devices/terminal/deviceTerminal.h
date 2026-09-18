@@ -121,7 +121,7 @@ typedef struct {
    /*
     bool active;
     bool inputReadyForTransfer;
-    
+
     bool inputInterruptEnabled;
     bool testMode;
     bool parityGeneration;
@@ -130,7 +130,7 @@ typedef struct {
     bool noCarrier;
     // UART input buffer
     uint16_t uartInputBuf;
-    int checkInputQueueTick;    
+    int checkInputQueueTick;
 
     // Add input queue
     CircularBuffer inputQueue;
@@ -144,4 +144,4 @@ typedef struct {
 // Function declarations
 Device* CreateTerminalDevice(uint8_t thumbwheel);
 void Terminal_QueueKeyCode(Device *self, uint8_t keycode);
-#endif // DEVICE_TERMINAL_H 
+#endif // DEVICE_TERMINAL_H

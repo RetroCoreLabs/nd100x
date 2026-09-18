@@ -52,7 +52,7 @@ int test_escp_cr_lf_ff(void)
 {
     EscpContext *ctx = Escp_Create();
 
-    /* Feed text, CR, more text — CR resets column */
+    /* Feed text, CR, more text - CR resets column */
     feed_string(ctx, "ABC");
     Escp_PutChar(ctx, 0x0D); /* CR */
     assert(ctx->column == 0);

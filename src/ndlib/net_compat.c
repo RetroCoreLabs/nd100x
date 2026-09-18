@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2025 Ronny Hansen
  *
- * net_compat.c — implementation of the cross-platform net compat layer.
+ * net_compat.c - implementation of the cross-platform net compat layer.
  * See net_compat.h for the design rationale.
  */
 
@@ -39,7 +39,7 @@ void nd_net_shutdown(void)
     if (prev == 0) {
         WSACleanup();
     } else if (prev < 0) {
-        /* Over-released — clamp back to zero to keep the refcount sane if
+        /* Over-released - clamp back to zero to keep the refcount sane if
          * someone calls shutdown more times than init. */
         InterlockedIncrement(&g_net_init_refs);
     }

@@ -318,7 +318,7 @@ bool DMAReceiver_ProcessCompleteFrame(DMAReceiver *receiver)
         // RSOM and REOM
         DMAControlBlocks_MarkBufferReceived(receiver->dmaCB, 0x03);
 
-        // Do NOT include RTS_DATA_AVAILABLE — it's bit 0, never auto-cleared on
+        // Do NOT include RTS_DATA_AVAILABLE - it's bit 0, never auto-cleared on
         // IOX+10 read, and causes permanent IRQ 13 flood via CheckTriggerInterrupt.
         // COM5025 is not clocked in DMA mode so nothing clears it.
         // SINTRAN uses DMAModuleRequest (bit 4) for DMA frame notification.

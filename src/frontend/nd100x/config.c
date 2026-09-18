@@ -101,7 +101,7 @@ static struct option long_options[] = {
 
 void Config_Init(Config_t *config) {
     if (!config) return;
-    
+
     config->bootType = BOOT_NONE;
     config->bootUnit = 0;
     config->iniFile = NULL;
@@ -372,7 +372,7 @@ bool Config_ParseCommandLine(Config_t *config, int argc, char *argv[]) {
     int option_index = 0;
     int c;
     char *endptr;
-    
+
     while ((c = getopt_long(argc, argv, "b:i:s:avVhdp:StGn:B:W:T:P:D:e:N::r:f:L:H:Z::R::O",
                            long_options, &option_index)) != -1) {
         switch (c) {
@@ -381,7 +381,7 @@ bool Config_ParseCommandLine(Config_t *config, int argc, char *argv[]) {
                     return false;
                 }
                 break;
-                
+
             case 'i':
                 config->imageFile = strdup(optarg);
                 if (!config->imageFile) {
@@ -389,7 +389,7 @@ bool Config_ParseCommandLine(Config_t *config, int argc, char *argv[]) {
                     return false;
                 }
                 break;
-                
+
             case 's':
                 config->startAddress = strtoul(optarg, &endptr, 0);
                 if (*endptr != '\0') {
@@ -397,7 +397,7 @@ bool Config_ParseCommandLine(Config_t *config, int argc, char *argv[]) {
                     return false;
                 }
                 break;
-                
+
             case 'a':
                 config->disasmEnabled = true;
                 break;
@@ -417,7 +417,7 @@ bool Config_ParseCommandLine(Config_t *config, int argc, char *argv[]) {
             case 'v':
                 config->verbose = true;
                 break;
-                
+
             case 'P':
                 config->printDir = strdup(optarg);
                 break;
@@ -817,7 +817,7 @@ bool Config_ParseCommandLine(Config_t *config, int argc, char *argv[]) {
                 return false;
         }
     }
-    
+
     // Check required arguments
     // Note: Shell mode doesn't require boot configuration since it loads programs explicitly
     if ((!config->showHelp && !config->showConfig && !config->writeConfig && !config->iniFile && !config->debuggerEnabled && !config->shellEnabled)) {
@@ -861,7 +861,7 @@ bool Config_ParseCommandLine(Config_t *config, int argc, char *argv[]) {
             }
         }
     }
-    
+
    if (config->verbose) {
         printf("Configuration:\n");
         if (config->iniFile && config->bootType == BOOT_NONE) {
@@ -890,7 +890,7 @@ bool Config_ParseCommandLine(Config_t *config, int argc, char *argv[]) {
             }
         }
     }
-    
+
 
     return true;
 }
@@ -1036,4 +1036,4 @@ void Config_PrintHelp(const char *progName) {
     printf("  ND100X_PRINT_VERSION=N          PCB artwork version, 12 bits\n");
     printf("  Numbers: 0x..=hex, 0o../..B/leading 0=octal, otherwise decimal.\n");
     printf("  The identity PROM is only read by SINTRAN on an ND-110/ND-120 CPU.\n");
-} 
+}

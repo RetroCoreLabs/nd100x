@@ -81,7 +81,7 @@ static uint16_t FloppyPIO_Tick(Device *self) {
 
 static uint16_t FloppyPIO_Read(Device *self, uint32_t address) {
     if (!self) return 0;
-    
+
     FloppyPIOData *data = (FloppyPIOData *)self->deviceData;
     uint16_t value = 0;
     uint32_t reg = Device_RegisterAddress(self, address);
@@ -145,7 +145,7 @@ static uint16_t FloppyPIO_Read(Device *self, uint32_t address) {
 
 static void FloppyPIO_Write(Device *self, uint32_t address, uint16_t value) {
     if (!self) return;
-    
+
     FloppyPIOData *data = (FloppyPIOData *)self->deviceData;
     uint32_t reg = Device_RegisterAddress(self, address);
 
@@ -198,19 +198,19 @@ static void FloppyPIO_Write(Device *self, uint32_t address, uint16_t value) {
                 for (int i = 0; i < 8; i++) {
                     if (tmp & (1 << i))
                         data->command = (FloppyPIOCommand)i;
-                }                          
+                }
                 FloppyPIO_ExecuteGo(self, data->command);
             }
 
-            Device_SetInterruptStatus(self, 
-                data->status1.bits.interruptEnabled && 
+            Device_SetInterruptStatus(self,
+                data->status1.bits.interruptEnabled &&
                 data->status1.bits.deviceReadyForTransfer,
                 self->interruptLevel);
             break;
 
         case FLOPPY_WRITE_DRIVE_ADDRESS:
-            data->driveAddress.raw = value;            
-            if (data->driveAddress.bits.modeBit) {  // Write Drive Address              
+            data->driveAddress.raw = value;
+            if (data->driveAddress.bits.modeBit) {  // Write Drive Address
                 data->selectedDrive = data->driveAddress.bits.driveAddress;
                 if (data->driveAddress.bits.deselectDrives) {
                     data->selectedDrive = -1;
@@ -261,7 +261,7 @@ static void FloppyPIO_Write(Device *self, uint32_t address, uint16_t value) {
 
 static uint16_t FloppyPIO_Ident(Device *self, uint16_t level) {
     if (!self) return 0;
-    
+
     //printf("FloppyPIO::IDENT called with level %d\n", level);
     if ((self->interruptBits & (1 << level)) != 0) {
         FloppyPIOData *data = (FloppyPIOData *)self->deviceData;
@@ -279,7 +279,7 @@ static bool FloppyPIO_ReadEnd(Device *self, int drive) {
     data->status1.bits.deviceBusy = 0;
     data->status1.bits.deviceReadyForTransfer = 1;
     data->status1.bits.readWriteComplete = 1;
-    
+
     if (data->sectorAutoIncrement) {
         if (data->sector <= data->sectors_pr_track) {
             data->sector++;
@@ -292,7 +292,7 @@ static bool FloppyPIO_ReadEnd(Device *self, int drive) {
 static bool FloppyPIO_RecalibrateEnd(Device *self, int drive) {
     FloppyPIOData *data = (FloppyPIOData *)self->deviceData;
     if (!data) return false;
-    
+
     data->status1.bits.deviceBusy = 0;
     data->status1.bits.deviceReadyForTransfer = 1;
     data->status1.bits.seekComplete = 1;
@@ -359,7 +359,7 @@ void FloppyPIO_ExecuteGo(Device *self, FloppyPIOCommand command) {
         data->status1.bits.deviceReadyForTransfer = 1;
         data->status1.bits.deviceBusy = 0;
 
-        //printf("Sector missing %d %d\r\n", data->sector, data->sectors_pr_track);  
+        //printf("Sector missing %d %d\r\n", data->sector, data->sectors_pr_track);
         return;
     }
 
@@ -369,12 +369,12 @@ void FloppyPIO_ExecuteGo(Device *self, FloppyPIOCommand command) {
         data->status2.bits.driveNotReady = 1;
         data->status1.bits.deviceBusy = 0;
 
-        //printf("Drive not ready\r\n");  
+        //printf("Drive not ready\r\n");
         return;
     }
 
     // Calculate file offset for read/write operations
-    int position = ((data->sector - 1) * data->bytes_pr_sector) + 
+    int position = ((data->sector - 1) * data->bytes_pr_sector) +
                   (data->track * data->bytes_pr_sector * data->sectors_pr_track);
 
 #ifdef DEBUG_FLOPPY_PIO
@@ -393,7 +393,7 @@ void FloppyPIO_ExecuteGo(Device *self, FloppyPIOCommand command) {
                 return;
             }
 
-            position = (1 * data->bytes_pr_sector) + 
+            position = (1 * data->bytes_pr_sector) +
                       (data->track * data->bytes_pr_sector * data->sectors_pr_track);
 
             if (fseek(data->floppyFile, position, SEEK_SET) != 0) {
@@ -413,7 +413,7 @@ void FloppyPIO_ExecuteGo(Device *self, FloppyPIOCommand command) {
                 while (transferWordCount > 0) {
                     if (!Device_IO_WriteWord(self, data->floppyFile, formatData)) {
 #ifdef DEBUG_FLOPPY_PIO
-                        printf("IO error during [FORMAT] Track=%d, Sector=%d\r\n", 
+                        printf("IO error during [FORMAT] Track=%d, Sector=%d\r\n",
                                data->track, data->sector);
 #endif
                         data->status2.bits.driveNotReady = 1;
@@ -533,7 +533,7 @@ void FloppyPIO_ExecuteGo(Device *self, FloppyPIOCommand command) {
 
         case FLOPPY_CMD_READ_DATA:
 #ifdef DEBUG_FLOPPY_PIO
-            printf("Starting ReadData, transferWordCount=%d, position=%d\r\n", 
+            printf("Starting ReadData, transferWordCount=%d, position=%d\r\n",
                    transferWordCount, position);
 #endif
 
@@ -599,7 +599,7 @@ void FloppyPIO_ExecuteGo(Device *self, FloppyPIOCommand command) {
         case FLOPPY_CMD_RECALIBRATE:
             printf("Starting Recalibrate\r\n");
             data->track = 0;
-            data->sector = 1;            
+            data->sector = 1;
             Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)FloppyPIO_RecalibrateEnd, unit, self->interruptLevel);
             break;
 
@@ -628,7 +628,7 @@ Device* CreateFloppyPIODevice(uint8_t thumbwheel) {
     Device_Init(dev, thumbwheel, DEVICE_CLASS_BLOCK, 1024);
 
     // Set up device-specific data
-    data->floppyFile = NULL;    
+    data->floppyFile = NULL;
     data->floppyName = "FLOPPY.IMG"; //TODO: Make this configurable
     data->bufferPointer = 0;
     data->loadDriveAddress = 0;
@@ -687,4 +687,4 @@ Device* CreateFloppyPIODevice(uint8_t thumbwheel) {
 
     printf("FloppyPIO object created.\n");
     return dev;
-} 
+}

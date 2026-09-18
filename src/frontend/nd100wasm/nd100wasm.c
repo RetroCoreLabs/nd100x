@@ -37,7 +37,7 @@
 #endif
 
 // TODO: Create proper nd100wasm_types.h or share types with nd100x
-// #include "nd100x_types.h" 
+// #include "nd100x_types.h"
 #include "nd100wasm_protos.h"
 
 // Include Machine and CPU support
@@ -90,7 +90,7 @@ static PrintJob *wasmPrintJob = NULL;
 #define MAX_TERMINALS 16
 static Device* terminals[MAX_TERMINALS] = {NULL};
 
-/** HDLC controllers 1–4 (gateway channel = index 0–3); base addrs match devicemanager */
+/** HDLC controllers 1-4 (gateway channel = index 0-3); base addrs match devicemanager */
 #define HDLC_CHANNEL_COUNT 4
 static Device *hdlc_devices[HDLC_CHANNEL_COUNT] = { NULL };
 static const uint16_t hdlc_base_addrs_oct[HDLC_CHANNEL_COUNT] = { 01640, 01660, 01700, 01720 };
@@ -451,12 +451,12 @@ EMSCRIPTEN_EXPORT int SendKeyToTerminal(int identCode, int keyCode)
         printf("Error: Terminal with IdentCode %d not found\n", identCode);
         return 0; // Failure
     }
-    
+
     // If device is a character device, use the character input function
-    if (terminal->deviceClass == DEVICE_CLASS_CHARACTER && 
+    if (terminal->deviceClass == DEVICE_CLASS_CHARACTER &&
         terminal->charCallbacks.inputFunc) {
         Device_InputCharacter(terminal, (char)keyCode);
-    } 
+    }
 
     return 1; // Success
 }
@@ -467,7 +467,7 @@ EMSCRIPTEN_EXPORT int GetTerminalAddress(int terminalId)
     if (terminalId < 0 || terminalId >= MAX_TERMINALS || !terminals[terminalId]) {
         return -1; // Invalid or not found
     }
-    
+
     return terminals[terminalId]->startAddress;
 }
 
@@ -624,12 +624,12 @@ EMSCRIPTEN_EXPORT void Step(int steps)
     if (!initialized) {
         printf("Error: System not initialized. Call Init() first.\n");
         return;
-    }        
+    }
     machine_run(steps);
 }
 
 // Stop the emulation
-EMSCRIPTEN_EXPORT void Stop()
+EMSCRIPTEN_EXPORT void Stop(void)
 {
     running = 0;
     //machine_stop();
@@ -1399,12 +1399,12 @@ EMSCRIPTEN_EXPORT void SetTerminalOutputCallback(int identCode, void (*callback)
 
         if (term)
         {
-            if (term->identCode == identCode) {         
-                terminalOutputCallbacks[i] = callback;                
+            if (term->identCode == identCode) {
+                terminalOutputCallbacks[i] = callback;
                 return;
             }
         }
-    }    
+    }
 }
 
 // =========================================================
@@ -1483,7 +1483,7 @@ EMSCRIPTEN_EXPORT int PollPaperTapeWriterOutput(void)
 // Printer PDF Pipeline Exports
 // =========================================================
 
-// Check for job timeout — returns 1 if a job was flushed, 0 otherwise
+// Check for job timeout - returns 1 if a job was flushed, 0 otherwise
 EMSCRIPTEN_EXPORT int PrinterCheckTimeout(void)
 {
     if (!wasmPrintJob) return 0;
@@ -2220,4 +2220,4 @@ int main(int argc, char *argv[])
     printf("Please use emscripten to compile this program.\n");
     return 0;
 #endif
-} 
+}

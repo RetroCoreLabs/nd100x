@@ -59,10 +59,10 @@ int LoadBPUN(const char* filename, bool verbose) {
 		return false;
 	}
 
-    bool loadOK = LoadBPUNStream(bpunStream,&bpun );        
+    bool loadOK = LoadBPUNStream(bpunStream,&bpun );
 	fclose(bpunStream);
     bpunStream = NULL;
-     
+
 	if (!loadOK) {
 		printf("BPUN load failed: Error while parsing BPUN format (file may be corrupted or in wrong format)\n");
         return -1;
@@ -89,7 +89,7 @@ int LoadBPUN(const char* filename, bool verbose) {
 
         printf("Checksum: %06o %s\n", bpun.checksum, crc);
         printf("Action: %06o\n", bpun.action);
-    
+
         printf("FloMon: %d\n", bpun.isFloMon);
     }
 
@@ -100,15 +100,15 @@ int LoadBPUN(const char* filename, bool verbose) {
 
 	return bpun.boot;
 }
- 
+
 
 /// @brief Loads a BPUN format file from a stream into a BPUN_Header structure
 /// @param bpunStream The file stream to read from
 /// @param header The BPUN_Header structure to populate
 /// @return true if successful, false if there was an error
-bool LoadBPUNStream(FILE* bpunStream, BPUN_Header* header) 
+bool LoadBPUNStream(FILE* bpunStream, BPUN_Header* header)
 {
-    // Initialize header    
+    // Initialize header
     header->calculatedChecksum = 0;
     header->address = 0;
     header->count = 0;
@@ -204,16 +204,16 @@ bool LoadBPUNStream(FILE* bpunStream, BPUN_Header* header)
 
             case LoadState_Data: {
                 uint16_t data_word = 0;
-                if (dataCounter > 0) {                    
+                if (dataCounter > 0) {
                     dataCounter--;
                     data_word = (b << 8) & 0xFF00;
                 }
-				 
+
                 if (dataCounter > 0) {
                     b = fgetc(bpunStream);
                     if (b == EOF) {
                         return false;
-                    }                    
+                    }
                     dataCounter--;
                     data_word |= (b & 0xFF);
                 }
@@ -271,7 +271,7 @@ bool LoadBPUNStream(FILE* bpunStream, BPUN_Header* header)
                     if (b == EOF) return false;
 
 					data_word = (b << 8);
-                    
+
                     b = fgetc(bpunStream);
                     if (b == EOF || b != 0) return false;
 
@@ -299,10 +299,10 @@ bool LoadBPUNStream(FILE* bpunStream, BPUN_Header* header)
     }
 
     return false;  // Unexpected end of file
-} 
+}
 
 
-int 
+int
 bp_load (const char *bpfile) {
 	// do binary load of device
    return -1;

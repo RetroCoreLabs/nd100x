@@ -27,18 +27,18 @@
 #include "../devices_types.h"
 
 #if defined(__EMSCRIPTEN__)
-/* nd100wasm.c — ring buffer consumed by HDLC_PollTxFrame in the JS worker */
+/* nd100wasm.c - ring buffer consumed by HDLC_PollTxFrame in the JS worker */
 void HDLC_QueueTxFrame(int channel, const uint8_t *data, int length);
 #endif
 
 /* net_compat.h includes <winsock2.h> on Windows, which MUST precede
- * <windows.h> — anything that might pull windows.h (cpu_types.h's
+ * <windows.h> - anything that might pull windows.h (cpu_types.h's
  * Sleep() path) has to come after net_compat.h to silence the
  * "#warning Please include winsock2.h before windows.h" diagnostic. */
 #ifdef MODEM_HAS_NETWORKING
 #include "../../ndlib/net_compat.h"   /* sockets, poll, WSAStartup */
 #endif
-#include "../../cpu/cpu_types.h"       /* sleep_ms() — portable Sleep/nanosleep */
+#include "../../cpu/cpu_types.h"       /* sleep_ms() - portable Sleep/nanosleep */
 
 #ifdef MODEM_HAS_NETWORKING
 #  ifdef _WIN32
@@ -188,7 +188,7 @@ static void close_fd(nd_socket_t *fd)
 // ============================================================================
 
 // Resolve hostname. Returns 0 on success, -1 on failure.
-// This may block for DNS — that's fine, we're in the worker thread.
+// This may block for DNS - that's fine, we're in the worker thread.
 static int resolve_address(const char *host, int port, struct sockaddr_in *out)
 {
     memset(out, 0, sizeof(*out));
@@ -200,7 +200,7 @@ static int resolve_address(const char *host, int port, struct sockaddr_in *out)
         return 0;
     }
 
-    // DNS lookup (may take seconds — worker thread, so that's fine)
+    // DNS lookup (may take seconds - worker thread, so that's fine)
     struct hostent *he = gethostbyname(host);
     if (!he) {
         return -1;
@@ -269,7 +269,7 @@ static bool sleep_check_shutdown(ModemState *modem, int seconds)
 {
     for (int i = 0; i < seconds * 10; i++) {
         if (atomic_load(&modem->shutdownReq)) return true;
-        sleep_ms(100); // 100ms (portable — Sleep/nanosleep)
+        sleep_ms(100); // 100ms (portable - Sleep/nanosleep)
     }
     return atomic_load(&modem->shutdownReq);
 }
@@ -390,7 +390,7 @@ static void *client_worker(void *arg)
     const char *host = modem->address[0] ? modem->address : "localhost";
     int attempt = 0;
 
-    // Resolve address (may block for DNS — fine, we're in worker thread)
+    // Resolve address (may block for DNS - fine, we're in worker thread)
     struct sockaddr_in addr;
     if (resolve_address(host, modem->port, &addr) < 0) {
         fprintf(stderr, "Modem: Failed to resolve '%s' - giving up\n", host);
@@ -473,7 +473,7 @@ disconnected:
 #endif /* MODEM_HAS_NETWORKING */
 
 // ============================================================================
-// Public API — called from emulation thread
+// Public API - called from emulation thread
 // ============================================================================
 
 void Modem_Init(ModemState *modem, Device *hdlcDevice)
@@ -483,7 +483,7 @@ void Modem_Init(ModemState *modem, Device *hdlcDevice)
     modem->hdlcDevice = hdlcDevice;
 
 #ifdef MODEM_HAS_NETWORKING
-    // Refcounted — on Windows this calls WSAStartup; no-op on POSIX.
+    // Refcounted - on Windows this calls WSAStartup; no-op on POSIX.
     // Paired with nd_net_shutdown() in Modem_Destroy.
     nd_net_init();
     queue_init(&modem->rxQueue);
@@ -528,7 +528,7 @@ void Modem_StartModem(ModemState *modem, bool isServer, const char *address, int
 #ifdef MODEM_HAS_NETWORKING
     atomic_store(&modem->networkStarted, true);
 
-    // Spawn worker thread — ALL socket ops happen there
+    // Spawn worker thread - ALL socket ops happen there
     int err;
     if (isServer) {
         err = pthread_create(&modem->workerThread, NULL, server_worker, modem);
@@ -583,7 +583,7 @@ void Modem_SendByte(ModemState *modem, uint8_t data)
 {
     if (!modem) return;
     if (!atomic_load(&modem->connected)) {
-        // Not connected — byte dropped (SINTRAN may send before TCP connects)
+        // Not connected - byte dropped (SINTRAN may send before TCP connects)
         return;
     }
 
@@ -610,7 +610,7 @@ void Modem_SendBytes(ModemState *modem, const uint8_t *data, int length)
 }
 
 // ============================================================================
-// Modem signal functions — called from emulation thread
+// Modem signal functions - called from emulation thread
 // ============================================================================
 
 void Modem_SetDTR(ModemState *modem, bool value)

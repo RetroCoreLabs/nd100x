@@ -1,0 +1,13 @@
+# Line endings for C sources are always LF, on every platform.
+*.c text eol=lf
+*.h text eol=lf
+
+# Binary images and build products must never be end-of-line converted.
+*.IMG binary
+*.img binary
+*.BPUN binary
+*.bpun binary
+*.wasm binary
+*.bz2 binary
+*.gif binary
+*.png binary

@@ -26,13 +26,13 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-// Networking is available on every native target — POSIX directly, Windows
+// Networking is available on every native target - POSIX directly, Windows
 // via the net_compat.h shim over Winsock2. Only WASM is stubbed out (no
 // sockets / threads in the browser).
 #if !defined(__EMSCRIPTEN__)
 #define MODEM_HAS_NETWORKING 1
 #include <pthread.h>     /* libpthread on POSIX, winpthreads on MinGW */
-#include <stdatomic.h>   /* C11 atomics — works on both toolchains */
+#include <stdatomic.h>   /* C11 atomics - works on both toolchains */
 #endif
 
 typedef struct Device Device;
@@ -96,7 +96,7 @@ typedef struct ModemState {
 #endif
 
 #if defined(__EMSCRIPTEN__)
-    /** Gateway WebSocket channel index 0–3 (thumbwheel − 1); used for TX to JS. */
+    /** Gateway WebSocket channel index 0-3 (thumbwheel - 1); used for TX to JS. */
     int wasmBridgeChannel;
 #endif
 

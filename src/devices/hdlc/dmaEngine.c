@@ -359,7 +359,7 @@ void DMAEngine_CommandInitialize(DMAEngine *dma)
         DMAEngine_DMAWrite(dma, dma_address, 0x8474); // 0102164 octal = 0x8474 hex
     }
 
-    // DMA is now initialized — COM5025 clocking can be stopped
+    // DMA is now initialized - COM5025 clocking can be stopped
     // (burst mode handles all framing via DMA engine + HDLCFrame)
     dma->enabled = true;
 

@@ -78,8 +78,8 @@ void ring_dump(void);
 
 
 #ifdef WITH_DEBUGGER
-	void stop_debugger_thread();
-	extern void start_debugger();
+	void stop_debugger_thread(void);
+	extern void start_debugger(void);
 
 #ifdef __EMSCRIPTEN__
 	/* WASM: single-threaded, no atomics needed */
@@ -110,7 +110,7 @@ int CurrentCPURunMode;
 #include "../machine/machine_types.h"
 #include "../machine/machine_protos.h"
 
-// forward declaration for debugger.c function 
+// forward declaration for debugger.c function
 void debugger_build_stack_trace(uint16_t pc, uint16_t operand);
 void debugger_update_jpl_entrypoint(uint16_t ea);
 
@@ -359,7 +359,7 @@ ushort New_GetEffectiveAddr(ushort instr, bool *use_apt)
 ///  MOR |   9      |    11    | Memory out of range Addressing non-existent memory.
 ///  POW |   10     |    12    | Power fail interrupt
 ///  ----+----------+----------+------------------------------------------------------------------------
-ushort calcIIC()
+ushort calcIIC(void)
 {
 	ushort priorityCode = gIID & gIIE;
 	if (priorityCode == 0)
@@ -385,9 +385,9 @@ ushort calcIIC()
  * Recalculate internal interrupt bits
  * Updates gIID, gPID and gPK
  */
-void recalcInternalInterruptBits()
+void recalcInternalInterruptBits(void)
 {
-	// Check for Z (error) flag	
+	// Check for Z (error) flag
 	if (getbit(_STS, _Z))
 	{
 		gIID |= 1 << 5;
@@ -403,7 +403,7 @@ void recalcInternalInterruptBits()
 }
 
 // Calculate PK based on PID and PIE
-void calcPK()
+void calcPK(void)
 {
 	// Recalculate PK based on PID and PIE
 	int s;
@@ -411,7 +411,7 @@ void calcPK()
 	ushort i;
 	gPK = 0;
 	i = gPIE & gPID;
-		
+
 	if (i)
 	{
 		// Check for detected and enabled bits. Highest bits has highest priority
@@ -502,7 +502,7 @@ void device_interrupt(ushort interruptBits)
 
 	if (tmp != gPID)
 	{
-		gCHKIT = true; // Check if we need to update PK based on new interrupts		
+		gCHKIT = true; // Check if we need to update PK based on new interrupts
 	}
 }
 
@@ -600,7 +600,7 @@ ushort MemoryFetch(ushort addr, bool UseAPT)
 
 /// @brief Check if we need to switch runlevel
 /// @return Returns true if a switch was made, false otherwise
-bool checkAndSwitch()
+bool checkAndSwitch(void)
 {
 	if (gCHKIT)
 	{
@@ -647,7 +647,7 @@ ushort operand;
 
 /// @brief CPU tick function - DO NOT CALL THIS DIRECT AS IT NEES setjmp() setup correctly
 /// @details This function is called every CPU tick. It fetches the next instruction, executes it, and handles interrupts.
-void private_cpu_tick()
+void private_cpu_tick(void)
 {
 	// Check for level shift (typically after an interrupt or WAIT instruction)
 	checkAndSwitch();
@@ -656,7 +656,7 @@ void private_cpu_tick()
 	gReg->myreg_PFB = MemoryFetch(gPC, false); //TODO: Remove this  step?
 	gReg->myreg_IR = gReg->myreg_PFB;
 
-	operand = gReg->myreg_IR;	
+	operand = gReg->myreg_IR;
 
 
 	// Dissasemble ?
@@ -749,11 +749,11 @@ void private_cpu_tick()
 #endif
 }
 
-/// @brief Helper function for debugger to check if the next instruction is a jump, conditional jump or skp 
+/// @brief Helper function for debugger to check if the next instruction is a jump, conditional jump or skp
 /// @return true if the next instruction is a jump, jaf, or similar, false otherwise
-bool cpu_instruction_is_jump()
+bool cpu_instruction_is_jump(void)
 {
-	ushort operand =  MemoryFetch(gPC, false); 
+	ushort operand =  MemoryFetch(gPC, false);
 
 	// JMP
 	if ((operand & 0xF800) == 0124000) return true;
@@ -794,7 +794,7 @@ bool cpu_instruction_is_jump()
 	return false;
 }
 
-/// @brief run the CPU for a number of ticks. 
+/// @brief run the CPU for a number of ticks.
 /// @details This function runs the CPU for a number of ticks. It handles interrupts and checks for level switches.
 /* Ring buffer for last N instructions before exit */
 #define RING_SIZE 65536
@@ -905,7 +905,7 @@ int cpu_run(int ticks)
 #endif
 	}
 
-	
+
 	while (ticks !=0 )
 	{
 		CPURunMode current_run_mode = get_cpu_run_mode();
@@ -933,7 +933,7 @@ int cpu_run(int ticks)
 #endif
 
 
-        
+
 		if (current_run_mode == CPU_RUNNING) // Including Normal and Paused (=debugger mode)
 		{
 			{
@@ -1013,7 +1013,7 @@ int cpu_run(int ticks)
 		}
 	}
 
-	return ticks;	
+	return ticks;
 }
 
 
@@ -1098,8 +1098,8 @@ void cpu_init(bool debuggerEnabled, int debuggerPort)
 /// @brief Initialize the CPU debugger
 /// @details This function initializes the CPU debugger thread
 
-void init_cpu_debugger()
-{	
+void init_cpu_debugger(void)
+{
 #ifdef WITH_DEBUGGER
 	if (!gDebuggerEnabled) return;
 	breakpoint_manager_init();
@@ -1109,7 +1109,7 @@ void init_cpu_debugger()
 
 /// @brief Reset the CPU
 /// @details This function resets the CPU registers and memory. It also destroys the paging tables and recreates them.
-void cpu_reset()
+void cpu_reset(void)
 {
 
 	/* Initialize volatile memory to zero */
@@ -1141,7 +1141,7 @@ void cpu_reset()
 
 /// @brief Cleanup the CPU
 /// @details This function cleans up the CPU. It destroys the paging tables and stops the debugger thread.
-void cleanup_cpu()
+void cleanup_cpu(void)
 {
 	// Destroy paging tables
 	DestroyPagingTables();

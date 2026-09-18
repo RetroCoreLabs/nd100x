@@ -29,7 +29,7 @@
 //
 // POSIX: parses xterm-style byte sequences from stdin and classifies them.
 // Windows: uses ReadConsoleInputW() to read native key events and classifies
-//          them directly from VK_* codes and control-key modifiers — no
+//          them directly from VK_* codes and control-key modifiers - no
 //          synthetic escape sequences.
 //
 // Returns a KeyEvent; type == KEY_NONE when no input is available.

@@ -94,7 +94,7 @@ bool HDLCFrame_AddByte(HDLCFrame *frame, uint8_t data)
             }
             break;
 
-        case HDLC_STATE_RECEIVING:        
+        case HDLC_STATE_RECEIVING:
             if (data == HDLC_FLAG) {
                 if (frame->prevByte == HDLC_FLAG)
                 {

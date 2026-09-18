@@ -51,7 +51,7 @@ extern int IO_Ident(uint16_t level);
 /// Privileged intructions are only available to programs running in system mode (rings 2 and 3) or when memory protection is disabled;
 /// </summary>
 /// <returns>TRUE if allowed to execute</returns>
-bool CheckPriv()
+bool CheckPriv(void)
 {
 	if (!STS_PONI)
 		return true; // memory protection disabled
@@ -576,7 +576,7 @@ void ndfunc_bfill(ushort operand)
 	addr = gX;		   /* just in case we do 0 bytes */
 	d1 = gX;
 	d2 = gT;
-	
+
 	for (i = 0; i < len; i++)
 	{
 		addr = d1 + ((i + right) >> 1); /* Word adress of byte to write */
@@ -585,7 +585,7 @@ void ndfunc_bfill(ushort operand)
 	gT &= 0x7000;				   /* Null number of bytes, as per manual, also null bit 15 */
 	gT |= ((i + right) & 1) << 15; /* set bit 15 to point to next free byte */
 	gX = d1 + ((i + right) >> 1);
-	
+
 
 	gPC++; /* This function has a SKIP return on no error, which is always? */
 }
@@ -1602,7 +1602,7 @@ void ndfunc_versn(ushort operand)
 /// An example is the Error Correction Control Register (ECCR), physically located on the memory modules.
 /// </summary>
 /// <returns>true if the IO address was handled, false otherwise</returns>
-bool UpdateMemoryIO()
+bool UpdateMemoryIO(void)
 {
 	if ((gT < 0x8000) || (gT > 0x81FF))
 		return false;
@@ -1614,7 +1614,7 @@ bool UpdateMemoryIO()
 		// Test #5 in "MEMORY - Version: D00 - 1986-10-30" fails, because it expects and interrupt - but at the moment I dont know why..
 		if (gECCR != gA)
 		{
-			gECCR = gA;			
+			gECCR = gA;
 		}
 		return true;
 	default:
@@ -1629,7 +1629,7 @@ bool UpdateMemoryIO()
  * Format: IOT number
  * Code: 160 nnn. Opcode 5 bits, 11 bits for IO address
  * (0160000 - 0163777)
- * 
+ *
  */
 /* NORD-1 IOT dispatch, implemented in the device manager. Declared locally so
  * the CPU does not have to pull in the whole device-model header. */
@@ -1834,7 +1834,7 @@ void ndfunc_depo(ushort operand)
  */
 void ndfunc_pof(ushort operand)
 {
-	
+
 	if (!CheckPriv())
 		return;
 	setbit_STS_MSB(_PONI, 0);
@@ -1844,11 +1844,11 @@ void ndfunc_pof(ushort operand)
  */
 void ndfunc_piof(ushort operand)
 {
-	
+
 	if (!CheckPriv())
 		return;
 
-	setbit_STS_MSB(_IONI, 0);	
+	setbit_STS_MSB(_IONI, 0);
 	setbit_STS_MSB(_PONI, 0);
 }
 
@@ -1885,7 +1885,7 @@ void ndfunc_iof(ushort operand)
 /// Turn on interrupt system
 /// </summary>
 void ndfunc_ion(ushort operand)
-{	
+{
 	setbit_STS_MSB(_IONI, 1);
 	gCHKIT = true; // recalc PK
 }
@@ -3564,7 +3564,7 @@ void DoMST(ushort instr)
 
 		gPID |= gA;
 		gCHKIT = true; // we need to check PK after this
-		
+
 		break;
 	case 07: // PIE
 		/* This affects interrupt, so do locking and checking. */
@@ -3576,7 +3576,7 @@ void DoMST(ushort instr)
 		break;
 	}
 }
-  
+
 
 /*
  * DoTRA - Transfer to register
@@ -3730,7 +3730,7 @@ void DoWAIT(ushort instr)
 		// To restart the system, type ! on the console terminal
 		printf("\r\nWAIT when IONI is off PIL[%d] PC[%6o] PID[0x%4X] PIE[0x%4X] IONI[%d] PONI[%d] STS_HI[%4X] STS_LO[%4X] A[%6o]\r\n", gPIL, gPC, gPID, gPIE, STS_IONI, STS_PONI, gReg->reg_STS, gReg->reg[gPIL][_STS], gA);
 		gCpuExitCode = (int)(short)gA;
-		set_cpu_run_mode(CPU_STOPPED);		
+		set_cpu_run_mode(CPU_STOPPED);
 		return;
 	}
 
@@ -3739,8 +3739,8 @@ void DoWAIT(ushort instr)
 		// Cant go lower
 		return;
 	}
-	
-	
+
+
 	temp = ~(1 << CurrLEVEL); /* Now we have a 0 in the position we want */
 	gPID &= temp;			  /* Give up this level */
 
@@ -3806,7 +3806,7 @@ void DoTRR(ushort instr)
 		gReg->reg[CurrLEVEL][_STS] = (gReg->reg[CurrLEVEL][_STS] & 0xff00) | (gA & 0x00ff); /* Only change LSB  */
 		break;
 	case 02: // TRR LMP
-		gLMP = gA;        
+		gLMP = gA;
 		ProcessTerminalLamp();
 
 		break;
@@ -3936,9 +3936,9 @@ void DoLRB(ushort operand)
 	gReg->reg[lvl][_A] = MemoryRead(addr + 3, true);
 	gReg->reg[lvl][_D] = MemoryRead(addr + 4, true);
 	gReg->reg[lvl][_L] = MemoryRead(addr + 5, true);
-	gReg->reg[lvl][_STS] = (gReg->reg[lvl][_STS] & 0xff00) | (MemoryRead(addr + 6, true) & 0x00ff); /* Only load LSB STS */	
+	gReg->reg[lvl][_STS] = (gReg->reg[lvl][_STS] & 0xff00) | (MemoryRead(addr + 6, true) & 0x00ff); /* Only load LSB STS */
 	gReg->reg[lvl][_B] = MemoryRead(addr + 7, true);
-	
+
 }
 
 bool IsSkip(ushort instr)
@@ -4449,7 +4449,7 @@ void DoMOVB(ushort instr)
 	gT |= len & 0x0fff;			  /* number of bytes done to lowest 12 bits*/
 
 	gA = addr_s + ((len + s_lr) >> 1);
-	gX = addr_d + ((len + d_lr) >> 1);	
+	gX = addr_d + ((len + d_lr) >> 1);
 
 	gPC++; /* This function has a SKIP return on no error, which is always? */
 }
@@ -5057,7 +5057,7 @@ void Instruction_Add_Mask(int opcode, int mask, void *funcpointer)
  * Add IO handler addresses in this function
  * This also thus actually acts as the new instruction parser also.
  */
-void Setup_Instructions()
+void Setup_Instructions(void)
 {
 	//Instruction_Add_Range(0000000, 0177777, &illegal_instr); /* First make all instructions by default point to illegal_instr  */
 
@@ -5350,7 +5350,7 @@ void Setup_Instructions()
 	// IOT Range 0160000 - 0163777
 	Instruction_Add_Mask(0160000, 0xF800, &ndfunc_iot); /* IOT  - ND1 specific, but exists on all CPU's*/
 
-	Instruction_Add_Mask(0164000, 0xF800, &ndfunc_iox); /* IOX */	
+	Instruction_Add_Mask(0164000, 0xF800, &ndfunc_iox); /* IOX */
 
 	Instruction_Add_Mask(0170000, 0xFF00, &ndfunc_sab); /* SAB */
 	Instruction_Add_Mask(0170400, 0xFF00, &ndfunc_saa); /* SAA */

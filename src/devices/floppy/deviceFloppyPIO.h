@@ -185,4 +185,4 @@ typedef struct {
 Device* CreateFloppyPIODevice(uint8_t thumbwheel);
 void FloppyPIO_ExecuteGo(Device *self, FloppyPIOCommand command);
 
-#endif /* DEVICE_FLOPPY_PIO_H */ 
+#endif /* DEVICE_FLOPPY_PIO_H */

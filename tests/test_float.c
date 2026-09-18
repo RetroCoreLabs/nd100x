@@ -103,7 +103,7 @@ typedef struct {
     int    div_rc;    /* expected NDFloat_Div return (1 = div by zero) */
 } fp48_pair_case;
 
-/* Captured from unmodified float.c on 2026-07-27 — DO NOT RECOMPUTE. */
+/* Captured from unmodified float.c on 2026-07-27 - DO NOT RECOMPUTE. */
 static const fp48_pair_case fp48_pairs[] = {
     /* +1, +1 */
     {{0040001,0100000,0000000}, {0040001,0100000,0000000},
@@ -183,7 +183,7 @@ typedef struct {
     int    z;         /* expected _Z set during the round trip */
 } fp48_nlz_case;
 
-/* Captured from unmodified float.c on 2026-07-27 — DO NOT RECOMPUTE. */
+/* Captured from unmodified float.c on 2026-07-27 - DO NOT RECOMPUTE. */
 static const fp48_nlz_case fp48_nlz[] = {
     {     0,  16, {0000000,0000000,0000000}, {0000000,0000000,0000000}, 0},
     {     1,  16, {0040001,0100000,0000000}, {0000000,0000001,0000000}, 0},

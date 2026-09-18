@@ -103,7 +103,7 @@ static void PaperTape_Write(Device *self, uint32_t address, uint16_t value)
             else
                 data->statusRegister.bits.interruptEnabled = 0;
 
-            // Bit 2: ReadActive from control → status
+            // Bit 2: ReadActive from control -> status
             if (data->controlWord.bits.readActive)
                 data->statusRegister.bits.readActive = 1;
             else

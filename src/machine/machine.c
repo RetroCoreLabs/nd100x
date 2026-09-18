@@ -74,7 +74,7 @@ const char* boot_type_str[] = {
 
 
 // Initialize drive arrays
-void init_drive_arrays() {
+void init_drive_arrays(void) {
     if (!floppy_drives) {
         floppy_drives = calloc(3, sizeof(MountedDriveInfo_t));
     }
@@ -90,7 +90,7 @@ void init_drive_arrays() {
 }
 
 // Clean up drive arrays
-static void cleanup_drive_arrays() {
+static void cleanup_drive_arrays(void) {
     if (floppy_drives) {
         free(floppy_drives);
         floppy_drives = NULL;
@@ -217,14 +217,14 @@ void machine_add_hdlc(int deviceNum, bool isServer, const char *address, int por
     }
 }
 
-void 
+void
 cleanup_machine (void)
 {
     cleanup_cpu();
-    IO_Destroy();    
+    IO_Destroy();
 
     // Unmount all drives to prevent memory leaks
-	
+
 	// Unmount all floppy drives
 	if (floppy_drives) {
 		for (int i = 0; i < 3; i++) {
@@ -233,7 +233,7 @@ cleanup_machine (void)
 			}
 		}
 	}
-	
+
 	// Unmount all SMD drives
 	if (smd_drives) {
 		for (int i = 0; i < 4; i++) {
@@ -242,7 +242,7 @@ cleanup_machine (void)
 			}
 		}
 	}
-	
+
 	// Unmount all Winchester drives
 	if (wd_drives) {
 		for (int i = 0; i < 2; i++) {
@@ -272,11 +272,11 @@ cleanup_machine (void)
 /// @brief Do NOT call from debugger thread
 /// @param ticks Number of ticks to run the CPU. Use -1 for infinite.
 void  machine_run (int ticks)
-{    
+{
     // Run the CPU until it stops but also handle debugger requests
     while (get_cpu_run_mode() != CPU_SHUTDOWN)
-    {    
-        ticks = cpu_run(ticks);  
+    {
+        ticks = cpu_run(ticks);
 
         // Check if DAP adapter has requested a pause
         if (gDebuggerEnabled)
@@ -320,46 +320,46 @@ void  machine_run (int ticks)
         }
 
         if (ticks == 0) return; // No more ticks to run
-    } 
+    }
 }
 
-void machine_stop()
+void machine_stop(void)
 {
     // Stop the CPU
     set_cpu_run_mode(CPU_STOPPED);
 }
 
 
-/* 
- * 
- * 
+/*
+ *
+ *
  *  CONFIGURATION HANDLING
- * 
- * 
+ *
+ *
  */
 
  BOOT_TYPE	BootType; /* Variable holding the way we should boot up the emulator */
- 
+
  void  setdefaultconfig (void)
  {
-     // Set default configuration	
+     // Set default configuration
      BootType = BOOT_SMD;
      STARTADDR = 0;
      DISASM = 0;
  }
- 
 
 
-/* 
- * 
- * 
+
+/*
+ *
+ *
  *  BOOT HANDLING
- * 
- * 
+ *
+ *
  */
 
 
-/// @brief Callback function to write to memory. Used by aout loader.  
+/// @brief Callback function to write to memory. Used by aout loader.
 /// @param address Address to write to
 /// @param value Value to write
 void write_memory(uint32_t address, uint16_t value)
@@ -505,7 +505,7 @@ void mount_smd(const char *imageFile, int unit)
     sprintf(path,"SMD%d.IMG",unit);
 
     const char *smd_img = imageFile ? imageFile : path;
-    
+
     // if file exists  mount it
     FILE *ftmp2 = fopen(smd_img, "rb");
     if (ftmp2) {
@@ -584,7 +584,7 @@ void mount_scsi(const char *imageFile, int unit)
 
 
 // As a default, mount floppy and SMD drives (IF they exists)
-void autoMountDrives()
+void autoMountDrives(void)
 {
     // Automount floppy if file "FLOPPY.IMG" exists
     if (!isMounted(DRIVE_FLOPPY,0))
@@ -906,7 +906,7 @@ static int tape_leader_load(const char *path, bool verbose)
      autoMountDrives();
      return 0;
  }
- 
+
  /** DEVICE MOUNTING */
 
  // Return true if the drive is already mounted
@@ -921,7 +921,7 @@ static int tape_leader_load(const char *path, bool verbose)
         //printf("Error: Invalid drive type\n");
         return false;
     }
-    
+
     // Check if unit is valid
     if (unit < 0 || unit >= max_units) {
         return false;
@@ -971,11 +971,11 @@ void mount_drive(DRIVE_TYPE drive_type, int unit, const char *md5, const char *n
             // For floppy, we'll use 512 bytes as default, but could be determined from file
             drives[unit].block_size = 512;   // 512 bytes for floppy
         }
-        
+
         // Store the image path
         strncpy(drives[unit].image_path, image_path, sizeof(drives[unit].image_path) - 1);
         drives[unit].image_path[sizeof(drives[unit].image_path) - 1] = '\0';
-        
+
         // Check if it's an HTTP URL (case insensitive)
         if (strncasecmp(image_path, "http", 4) == 0) {
             //printf("Downloading image from: %s\n", image_path);
@@ -991,7 +991,7 @@ void mount_drive(DRIVE_TYPE drive_type, int unit, const char *md5, const char *n
             }
         } else {
 
-            
+
             drives[unit].is_writeprotected = false;
 
             // Local file - open for read-write binary
@@ -1025,21 +1025,21 @@ void mount_drive(DRIVE_TYPE drive_type, int unit, const char *md5, const char *n
             }
         }
     }
-    
+
     // Mount the drive
     drives[unit].is_mounted = true;
 
     strncpy(drives[unit].md5, md5, sizeof(drives[unit].md5) - 1);
     drives[unit].md5[sizeof(drives[unit].md5) - 1] = '\0';
-    
+
     strncpy(drives[unit].name, name, sizeof(drives[unit].name) - 1);
     drives[unit].name[sizeof(drives[unit].name) - 1] = '\0';
-    
+
     strncpy(drives[unit].description, description, sizeof(drives[unit].description) - 1);
     drives[unit].description[sizeof(drives[unit].description) - 1] = '\0';
-    
-#if _debug_    
-    printf("Mounted %s to %s unit %d:\n", 
+
+#if _debug_
+    printf("Mounted %s to %s unit %d:\n",
            drive_type_name(drive_type),
            drive_type_name(drive_type),
            unit);
@@ -1055,39 +1055,39 @@ void mount_drive(DRIVE_TYPE drive_type, int unit, const char *md5, const char *n
 void unmount_drive(DRIVE_TYPE drive_type, int unit) {
     MountedDriveInfo_t* drives = NULL;
     int max_units = 0;
-    
+
     // Determine which array to use and max units
     drives = drives_for_type(drive_type, &max_units);
     if (!max_units) {
         printf("Error: Invalid drive type\n");
         return;
     }
-    
+
     // Check if unit is valid
     if (unit < 0 || unit >= max_units) {
         printf("Error: Invalid unit %d for drive type %d\n", unit, drive_type);
         return;
     }
-    
+
     // Check if array is initialized
     if (!drives) {
         printf("Error: Drive arrays not initialized\n");
         return;
     }
-    
+
     // Check if drive is mounted
     if (drives[unit].name[0] == '\0') {
-        printf("Error: No drive mounted on %s unit %d\n", 
+        printf("Error: No drive mounted on %s unit %d\n",
                drive_type_name(drive_type), unit);
         return;
     }
-    
+
     // Unmount the drive
-    printf("Unmounting %s from %s unit %d:\n", 
+    printf("Unmounting %s from %s unit %d:\n",
            drives[unit].name,
            drive_type_name(drive_type),
            unit);
-    
+
     // Clean up data based on type
     if (drives[unit].is_opfs || drives[unit].is_gateway) {
         // OPFS/gateway drives have no FILE* or malloc'd data - nothing to free
@@ -1399,7 +1399,7 @@ int machine_block_disk_info(Device *device, size_t *image_size, bool *is_write_p
     if (!drives) return -1;
 
     MountedDriveInfo_t *entry = &drives[unit];
-    if (!entry->is_mounted) return -1; // not mounted        
+    if (!entry->is_mounted) return -1; // not mounted
 
     *image_size = entry->data_size;
 

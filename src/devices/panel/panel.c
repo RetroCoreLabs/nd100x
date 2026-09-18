@@ -40,7 +40,7 @@
 struct display_panel *gPAP;
 
 
-void setup_pap()
+void setup_pap(void)
 {
 
 	gPANS = 0x8000;			/* Tell system we are here (Bit 15 active will activate MOPC logic in MS20 in microcode every 20 ms)*/
@@ -86,7 +86,7 @@ void ProcessMessageControl(PANC_Register panc)
 /// Called from TRR logic when "TRR PANC" has been executed
 /// Process the command in gPANC
 /// </summary>
-void ProcessTerminalPanc()
+void ProcessTerminalPanc(void)
 {
 	if (!gPAP)
 		return;
@@ -205,7 +205,7 @@ void ProcessTerminalPanc()
 			// TODO: Implement!
 			break;
 		case STATUS_DATA_TO_EXAMINE:
-			// TODO: Implement!			
+			// TODO: Implement!
 			break;
 		case STATUS_ACTIVE_LEVELS:
 			// TODO: Implement!
@@ -225,7 +225,7 @@ void ProcessTerminalPanc()
 }
 
 // respond to TRR LMP
-void ProcessTerminalLamp()
+void ProcessTerminalLamp(void)
 {
 	// read gLMP
 	gPANS = 0x0000;
@@ -236,14 +236,14 @@ void ProcessTerminalLamp()
 /// HW Clock contains an offset since 00:00:00 1.January 1979 (TBASE)
 /// The clock counts seconds and half-days (12 hours) from this time.
 /// </summary>
-void UpdateMachineTime()
+void UpdateMachineTime(void)
 {
 	time_t tbase = 0;
-	time_t now = time(NULL);	
-	
+	time_t now = time(NULL);
+
 	// Set base time to 1979-01-01 00:00:00 CET
 	struct tm *tm_base = localtime(&tbase);
-	tm_base->tm_year = 79;  // Years since 1900, so 79 = 1979	
+	tm_base->tm_year = 79;  // Years since 1900, so 79 = 1979
 	tm_base->tm_mon = 0;    // Months are 0-based, so 0 = January
 	tm_base->tm_mday = 1;   // Day of month
 	tm_base->tm_hour = 0;
@@ -251,17 +251,17 @@ void UpdateMachineTime()
 	tm_base->tm_sec = 0;
 	tbase = mktime(tm_base);
 
-	struct tm *tm_now = localtime(&now);	
-	
+	struct tm *tm_now = localtime(&now);
+
 
 	// Sintran doesn't support Y2K (without patches) so stay in year before 2000...
-	// Subtract 30 years from current time (2025-30 = 1995)	
+	// Subtract 30 years from current time (2025-30 = 1995)
 
 	tm_now->tm_year -= 30;
 	now = mktime(tm_now);
 
 	time_t midnight = now;
-	struct tm *tm_midnight = localtime(&midnight);	
+	struct tm *tm_midnight = localtime(&midnight);
 
 	// Calculate days difference from TBASE
 	int days_diff = (int)(difftime(now, tbase) / (24.0 * 3600.0));
@@ -269,17 +269,17 @@ void UpdateMachineTime()
 
 	// Check if we've passed noon
 	if (tm_now->tm_hour >= 11)
-	{		
+	{
 		gPAP->days++; // Add another half day
 
-		// Get midnight of current day		
+		// Get midnight of current day
 		tm_midnight->tm_hour = 0;
 		tm_midnight->tm_min = 0;
 		tm_midnight->tm_sec = 0;
 		midnight = mktime(tm_midnight);
 
 		// Now counting since noon
-		struct tm *tm_now = localtime(&now);	
+		struct tm *tm_now = localtime(&now);
 		tm_now->tm_hour -= 12;;
 		now = mktime(tm_now);
 	}
@@ -289,7 +289,7 @@ void UpdateMachineTime()
 }
 
 #if _later_
-void panel_thread()
+void panel_thread(void)
 {
 	int s;
 	int sock, connected, bytes_recieved;
@@ -378,7 +378,7 @@ void panel_thread()
 	return;
 }
 
-void panel_event()
+void panel_event(void)
 {
 	char tmpbyte;
 
@@ -475,7 +475,7 @@ void panel_event()
 	}
 }
 
-void panel_processor_thread()
+void panel_processor_thread(void)
 {
 	int s;
 	while (CurrentCPURunMode != SHUTDOWN)

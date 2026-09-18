@@ -46,7 +46,7 @@ static DeviceManager deviceManager = {0}; // Initialize to zero
 
 void DeviceManager_Init(LogLevel level)
 {
-    // Set the minimum log level    
+    // Set the minimum log level
     deviceManager.minLogLevel = level;
     Log_SetMinLevel(level);
 
@@ -371,7 +371,7 @@ bool DeviceManager_AddDevice(DeviceType type, uint8_t thumbwheel)
 
         deviceManager.devices[deviceManager.deviceCount].device = dev;
         // If this is a block device, hook up machine-level block IO callbacks
-        if (dev->deviceClass == DEVICE_CLASS_BLOCK) {            
+        if (dev->deviceClass == DEVICE_CLASS_BLOCK) {
             Device_SetBlockRead(dev, (BlockDeviceReadFunc)machine_block_read, NULL);
             Device_SetBlockWrite(dev, (BlockDeviceWriteFunc)machine_block_write, NULL);
             Device_SetBlockDiskInfo(dev, (BlockDeviceDiskInfoFunc)machine_block_disk_info, NULL);
@@ -402,7 +402,7 @@ uint16_t DeviceManager_Read(uint32_t address)
     }
 
     interrupt(14, 1 << 7); /* IOX error lvl14 */
-#ifdef LOG_DEVICE_NOT_FOUND    
+#ifdef LOG_DEVICE_NOT_FOUND
     Log(LOG_WARNING, "No device found for READ address: %o\n", address);
 #endif
     return 0;
@@ -428,7 +428,7 @@ void DeviceManager_Write(uint32_t address, uint16_t value)
     }
 
     interrupt(14, 1 << 7); /* IOX error lvl14 */
-#ifdef LOG_DEVICE_NOT_FOUND    
+#ifdef LOG_DEVICE_NOT_FOUND
     Log(LOG_WARNING, "No device found for WRITE address: %o\n", address);
 #endif
 }
@@ -461,7 +461,7 @@ int DeviceManager_Ident(uint16_t level)
 #ifdef LOG_DEVICE_NOT_FOUND
     // interrupt(14,1<<7); /* IOX error lvl14 */
      Log(LOG_WARNING, "No device found for IDENT level: %d\n", level);
-#endif    
+#endif
 
     return 0;
 }

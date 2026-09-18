@@ -151,7 +151,7 @@ static uint16_t RTC_Tick(Device *self) {
 
 static uint16_t RTC_Read(Device *self, uint32_t address) {
     if (!self) return 0;
-    
+
     RTCData *data = (RTCData *)self->deviceData;
     uint16_t value = 0;
     uint32_t reg = Device_RegisterAddress(self, address);
@@ -179,7 +179,7 @@ static uint16_t RTC_Read(Device *self, uint32_t address) {
 
 static void RTC_Write(Device *self, uint32_t address, uint16_t value) {
     if (!self) return;
-    
+
     RTCData *data = (RTCData *)self->deviceData;
     uint32_t reg = Device_RegisterAddress(self, address);
 
@@ -198,9 +198,9 @@ static void RTC_Write(Device *self, uint32_t address, uint16_t value) {
             data->controlRegister.raw = value;
 
             // Update status register
-            data->statusRegister.bits.interruptEnabled = data->controlRegister.bits.interruptEnabled;            
-            
-            // Handle interrupt enable/disable            
+            data->statusRegister.bits.interruptEnabled = data->controlRegister.bits.interruptEnabled;
+
+            // Handle interrupt enable/disable
             if (!data->statusRegister.bits.interruptEnabled) {
                 Device_SetInterruptStatus(self, false, self->interruptLevel);
             }
@@ -231,7 +231,7 @@ static void RTC_Write(Device *self, uint32_t address, uint16_t value) {
 
 static uint16_t RTC_Ident(Device *self, uint16_t level) {
     if (!self) return 0;
-    
+
     RTCData *data = (RTCData *)self->deviceData;
     if (!data) return 0;
 
@@ -241,16 +241,16 @@ static uint16_t RTC_Ident(Device *self, uint16_t level) {
 
 #ifdef DEBUG_RTC
         printf("RTC_Ident: %d\n", self->identCode);
-#endif       
+#endif
         Device_SetInterruptStatus(self, false, level);
         return self->identCode;
     }
-#ifdef DEBUG_RTC    
+#ifdef DEBUG_RTC
     else
     {
         printf("RTC_Ident: interrupt not set\n");
     }
-#endif       
+#endif
     return 0;
 }
 
@@ -269,14 +269,14 @@ Device* CreateRTCDevice(uint8_t thumbwheel) {
 
     // Set up device-specific data
     memset(data, 0, sizeof(RTCData));
-    
+
     // Set up device properties based on thumbwheel
     switch (thumbwheel) {
         case 0:
             dev->identCode = 01;
             dev->startAddress = 010;
             dev->endAddress = 013;
-            dev->interruptLevel = 13;            
+            dev->interruptLevel = 13;
             strcpy(dev->memoryName, "RTC 1");
             break;
         case 1:
@@ -310,4 +310,4 @@ Device* CreateRTCDevice(uint8_t thumbwheel) {
 
     printf("RTC device created: %s\n", dev->memoryName);
     return dev;
-} 
+}

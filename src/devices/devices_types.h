@@ -116,7 +116,7 @@ typedef enum {
     DEVICE_TYPE_TERMINAL,
     DEVICE_TYPE_PAPER_TAPE,
     DEVICE_TYPE_FLOPPY_PIO,
-    DEVICE_TYPE_FLOPPY_DMA,    
+    DEVICE_TYPE_FLOPPY_DMA,
     DEVICE_TYPE_DISC_SMD,
     DEVICE_TYPE_HDLC,
     DEVICE_TYPE_LINE_PRINTER,
@@ -136,22 +136,22 @@ typedef struct Device {
     // Device memory range
     uint32_t startAddress;
     uint32_t endAddress;
-    
+
     // Interrupt handling
     uint16_t interruptBits;
     uint16_t interruptLevel;  // Default interrupt level
     uint16_t identCode;      // Identcode for this device
     uint16_t logicalDevice;  // Logical device ID for this device
     DeviceType type;         // Read-only: concrete device type (set at creation)
-    
+
     // Device name
     char memoryName[MAX_DEVICE_NAME];
-    
+
     // IO Delay handling
     DelayedIoInfo *ioDelays;
     int ioDelayCount;
     int ioDelayCapacity;
-    
+
     // Device functions
     void (*Reset)(struct Device *self);
     uint16_t (*Tick)(struct Device *self);
@@ -186,20 +186,20 @@ typedef struct Device {
                   uint16_t *regA, bool *skip);
 
     void (*Destroy)(struct Device *self);
-    
+
     // Device classification
     DeviceClass deviceClass;  // Type of device (standard, character, block, RTC)
-    
+
     // Block device properties (valid when deviceClass == DEVICE_CLASS_BLOCK)
     size_t blockSizeBytes;    // Sector/block size in bytes; set by the concrete device
-    
+
     // Device callbacks
     CharacterDeviceCallbacks charCallbacks;  // Character device callbacks (if deviceClass == DEVICE_CLASS_CHARACTER)
     BlockDeviceCallbacks blockCallbacks;     // Block device callbacks (if deviceClass == DEVICE_CLASS_BLOCK)
-    
+
     // Device-specific data
     void *deviceData;
-    
+
 } Device;
 
 

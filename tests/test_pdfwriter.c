@@ -2,7 +2,7 @@
  * Unit tests for pdfwriter module.
  *
  * Tests verify both the in-memory data model AND the rendered PDF content
- * stream — the actual PDF operators that control font selection, text
+ * stream - the actual PDF operators that control font selection, text
  * positioning, text output, underline drawing, and special-char escaping.
  */
 

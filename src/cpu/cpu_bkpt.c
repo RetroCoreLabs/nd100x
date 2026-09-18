@@ -49,7 +49,7 @@ static void breakpoint_bitmap_rebuild(void)
 
 /// @brief Hash function for the breakpoint manager
 /// @param address Memory address to hash
-/// @return Hash value  
+/// @return Hash value
 static int hash_address(uint16_t address)
 {
     return address % HASH_SIZE;
@@ -58,7 +58,7 @@ static int hash_address(uint16_t address)
 /// @brief Initialize the breakpoint manager
 /// @return void
 /// @note Initialize the breakpoint manager
-void breakpoint_manager_init()
+void breakpoint_manager_init(void)
 {
     mgr= (BreakpointManager *)malloc(sizeof(BreakpointManager));
     if (!mgr)
@@ -74,7 +74,7 @@ void breakpoint_manager_init()
 /// @brief Cleanup the breakpoint manager
 /// @return void
 /// @note Clean up and free the breakpoint manager memory
-void breakpoint_manager_cleanup()
+void breakpoint_manager_cleanup(void)
 {
     if (mgr) {
         breakpoint_manager_clear();
@@ -85,7 +85,7 @@ void breakpoint_manager_cleanup()
 /// @brief Set the step count to 1
 /// @return void
 /// @note Used by the debugger to single step
-void breakpoint_manager_step_one()
+void breakpoint_manager_step_one(void)
 {
     mgr->step_count=1;
     breakpoint_step_pending = 1;
@@ -167,10 +167,10 @@ void breakpoint_manager_remove(uint16_t address, int type)
     breakpoint_bitmap_rebuild();
 }
 
-/// @brief Clear all breakpoints   
+/// @brief Clear all breakpoints
 /// @return void
 /// @note Clear all breakpoints
-void breakpoint_manager_clear()
+void breakpoint_manager_clear(void)
 {
     for (int h = 0; h < HASH_SIZE; h++)
     {
@@ -299,7 +299,7 @@ int check_for_breakpoint(void)
         for (int i = 0; i < hitCount; i++) {
             BreakpointEntry* bp = hits[i];
             //printf("[CPU] Hit breakpoint at %06o type=%d hitCount=%d\n", pc, bp->type, bp->hitCount);
-    
+
             // Evaluate condition expression
             bool condition_ok = true;
             if (bp->condition) {
@@ -312,12 +312,12 @@ int check_for_breakpoint(void)
                 }
             }
             bool hit_ok = true;
-    
+
             if (bp->hitCondition) {
                 int hitCondVal = atoi(bp->hitCondition);
                 hit_ok = (bp->hitCount == hitCondVal);
             }
-    
+
             if (condition_ok && hit_ok) {
                 if (bp->logMessage) {
                     // Expand log message vars (simple demo)
@@ -333,7 +333,7 @@ int check_for_breakpoint(void)
                     mgr->last_hit_address = pc;
                     mgr->last_hit_valid = true;
                 }
-    
+
                 if (bp->type == BP_TYPE_TEMPORARY) {
                     // Auto-remove temp breakpoint
                     breakpoint_manager_remove(bp->address, BP_TYPE_TEMPORARY);

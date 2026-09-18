@@ -168,7 +168,7 @@ static uint16_t SMD_Read(Device *self, uint32_t address)
             // Read Word Counter
             //
             // The Word counter register is read the same way as the memory address register.
-            // After a transfer, the upper/lower memory address(or word count) control bit(flip—flop) is reset.
+            // After a transfer, the upper/lower memory address(or word count) control bit(flip-flop) is reset.
             // A Read Status instruction(DEV.NO. + 4) or a Device Clear will also reset this bit
 
             if ((!data->regs.wcrFlipFlop) || (!data->regs.hasWordCountFlipFlop))
@@ -187,8 +187,8 @@ static uint16_t SMD_Read(Device *self, uint32_t address)
             // Read Core Address
             //
             // The Memory Address regster is read by two successive IOX instructions.
-            // The first one gets the lower 16 bits(Address bits 0—15 into the A - reg. 0—15), and the second one gets the upper bits
-            // (Address bits 16 - 23 into A—reg. 0 - 7). When reading the most significant bits, the upper byte of the A—reg. is undefined and has tobe masked.
+            // The first one gets the lower 16 bits(Address bits 0-15 into the A - reg. 0-15), and the second one gets the upper bits
+            // (Address bits 16 - 23 into A-reg. 0 - 7). When reading the most significant bits, the upper byte of the A-reg. is undefined and has tobe masked.
 
             if ((!data->regs.marFlipFlop) || (!data->regs.hasFlipFlops))
             {
@@ -250,7 +250,7 @@ static uint16_t SMD_Read(Device *self, uint32_t address)
 
             if ((data->controllerType == CONTR_SMD_15MHZ) || (data->controllerType == CONTR_SMD_10MHZ))
             {
-                // Bit 12 = Always 1 for 15Mhz SMD. This bit was always 0 on the NORD—10 controller.
+                // Bit 12 = Always 1 for 15Mhz SMD. This bit was always 0 on the NORD-10 controller.
                 // If this is 1 then SINTRAN M will not r/w/boot from DISC-75-1 ??
                 data->seekCondition.bits.isSMD15Mhz = 1;
             }
@@ -271,7 +271,7 @@ static uint16_t SMD_Read(Device *self, uint32_t address)
             */
             if ((data->controllerType == CONTR_SMD_15MHZ) || (data->controllerType == CONTR_SMD_10MHZ))
             {
-                value |= (1 << 12); // 12 = Always 1 for 15Mhz SMD. This bit was always 0 on the NORD—10 controller.
+                value |= (1 << 12); // 12 = Always 1 for 15Mhz SMD. This bit was always 0 on the NORD-10 controller.
                                     // If this is 1 then SINTRAN M will not r/w/boot from DISC-75-1
             }
 
@@ -296,8 +296,8 @@ static uint16_t SMD_Read(Device *self, uint32_t address)
             +----+----+----+----+----+--------------+
             Bits
                             0 - 10 Error pattern.
-                            11—13 Always 1.
-                            14 Always 0.To distinguish from the old HD—100 SMD controller.
+                            11-13 Always 1.
+                            14 Always 0.To distinguish from the old HD-100 SMD controller.
                             15 Always 1.Read~back of Control Word bit 15.
             */
 
@@ -419,8 +419,8 @@ static void SMD_Write(Device *self, uint32_t address, uint16_t value)
             }
 
             // The Load Memory Address Register is loaded by two successive instructions. The first loads the 8 upper bits(A-reg. 0 - 7 into Address bits 16 - 23),
-            // and the second one loads the lower 16 bits(A—reg. 0 - 15 into Address bits 0 - 15).
-            // After a transfer, the upper/ lower memory address control bit(flip—flop) is reset.A Read Status instruction(DEV.NO. +4) or a Device Clear will also reset this bit.
+            // and the second one loads the lower 16 bits(A-reg. 0 - 15 into Address bits 0 - 15).
+            // After a transfer, the upper/ lower memory address control bit(flip-flop) is reset.A Read Status instruction(DEV.NO. +4) or a Device Clear will also reset this bit.
 
             if (!data->regs.hasFlipFlops)
             {
@@ -636,13 +636,13 @@ static void SMD_Write(Device *self, uint32_t address, uint16_t value)
                         This bit wil cause the ECC polynomisis to reset to the zero initial state. Ths function is only used when a dats error has occurred,
                         otherwise the polynomials automatically go to the zero state upon completion of a Read or Write. Device Cleer function will also reset ECC.
 
-        Bit 1: TST — Force Parity Error
+        Bit 1: TST - Force Parity Error
                         Used for maintenance purposes only, This bit will force ECC parity error to be set.
 
         Bit 2: Long
                         Used for maintenance purposes only. When 8 sector is read or writwen, the date field of the sector is extended by 64 bits (
                         the length of the ECC appendage plus "end of record" byte). The date and the extra bits sre read into of written from the memory of the CPU.
-                        This function i¢ used to diagnose the operation of the ECC circuits and can be used with the following Device Operations: MO, M1, M2 and M3.
+                        This function is used to diagnose the operation of the ECC circuits and can be used with the following Device Operations: MO, M1, M2 and M3.
                         Thas bit is "echoed" in ECR bit 14.
 
         // NEW BITS FOR 15MHZ SMD DISK CONTROLLERS
@@ -703,13 +703,13 @@ static void SMD_Write(Device *self, uint32_t address, uint16_t value)
         {
             // Load Word Counter
             // Load Word Counter; The Word Count register is increased from 16 to 24 bits, and is loaded by two successive instructions.
-            // The first loads the 8 upper bits(A—reg. 0 -? into Word Count bits 16—32), and the second one loads the lower 16 bits(A - reg. 0—15 into Word Count bits 0—15).
+            // The first loads the 8 upper bits(A-reg. 0 -? into Word Count bits 16-32), and the second one loads the lower 16 bits(A - reg. 0-15 into Word Count bits 0-15).
 
-            // After a transfer, the upper/lower Word Count control bit (flip—flop) is reset.A Read Status instruction(DEV.NO. +4) or a Device Clear will also reset this bit.
+            // After a transfer, the upper/lower Word Count control bit (flip-flop) is reset.A Read Status instruction(DEV.NO. +4) or a Device Clear will also reset this bit.
             // The controller is able to transfer a whole cylinder, or up to 16M words(24 bits), with a hardware increment of the head and sector addresses.
 
             // For the 75 Mb disk, the maximum word count is 132000(45k); starting with the head and cylinder address equal to 0.
-            // The Word Count is set to an integer multiple of the number of words in a sector when device operation is M0—M3.
+            // The Word Count is set to an integer multiple of the number of words in a sector when device operation is M0-M3.
 
             // printf("SMD::SMD_LoadWordCounter called [%o] = %o\n", address, value);
 
@@ -858,7 +858,7 @@ static int SMD_Boot(Device *self, int unit)
     free(buffer);
 
     // Return boot addrees. For BPUN this might be different!
-    return 0;    
+    return 0;
 }
 
 ///
@@ -918,19 +918,19 @@ static void ExecuteGO(Device *self)
         {
             // Assume 150 MB disk
             dt = DISK_150_MB;
-        
-        }        
+
+        }
         else if (data->regs.selectedDisk->diskFileSize >= 0x9600000 && data->regs.selectedDisk->diskFileSize <= 0x9601000)
         {
             // Assume 150 MB disk
             dt = DISK_150_MB;
-        
+
         }
         else if (data->regs.selectedDisk->diskFileSize >= 0x12000000 && data->regs.selectedDisk->diskFileSize <= 0x12001000)
         {
             // Assume 288 MB disk
             dt = DISK_288_MB;
-        
+
         }
         else if (data->regs.selectedDisk->diskFileSize >= 0x33900000 )
         {
@@ -1504,7 +1504,7 @@ static int64_t ConvertCHStoLBA(ControllerRegs *regs, int cylinder, int head, int
     if (!regs || !regs->selectedDisk)
         return -1;
 
-    // LBA = (C × HPC + H) × SPT + (S − 1)
+    // LBA = (C x HPC + H) x SPT + (S - 1)
     if ((cylinder == 0) && (head == 0) && (sector == 0))
         return 0; // invalid, but used by SeekToZero
 

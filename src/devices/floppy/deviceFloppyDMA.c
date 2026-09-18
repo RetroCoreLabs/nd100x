@@ -102,7 +102,7 @@ static uint16_t CalculateOrOfErrors(StatusRegister1 s)
 }
 
 // Hardware Status Word (IOX +2 / +4 read): flags + bit 15 dual-density (how SINTRAN detects the
-// 3112 DMA card), but NO numeric error code. ND-11.021.1 §3.7 / §3.1 Note 1 (+2 == +4).
+// 3112 DMA card), but NO numeric error code. ND-11.021.1 section 3.7 / section 3.1 Note 1 (+2 == +4).
 static uint16_t CalculateHardwareStatusWord(Device *self)
 {
     FloppyDMAData *data = (FloppyDMAData *)self->deviceData;
@@ -118,7 +118,7 @@ static uint16_t CalculateHardwareStatusWord(Device *self)
 }
 
 // Status Word 1 (command block +6 memory writeback): flags + error code in bits 9-14, with
-// bit 15 CLEAR (dual-density belongs only on the IOX hardware status word). ND-11.021.1 §3.4.
+// bit 15 CLEAR (dual-density belongs only on the IOX hardware status word). ND-11.021.1 section 3.4.
 static uint16_t CalculateStatusWord1(Device *self)
 {
     FloppyDMAData *data = (FloppyDMAData *)self->deviceData;
@@ -152,7 +152,7 @@ static uint16_t FloppyDMA_Read(Device *self, uint32_t address)
         break;
 
     case FLOPPY_DMA_READ_STATUS2:
-        // §3.1 Note 1: +4 returns the SAME hardware status word as +2 (duplicated for the
+        // section 3.1 Note 1: +4 returns the SAME hardware status word as +2 (duplicated for the
         // ND-100 Binary Format Load / Mass Storage Load microcode) -- NOT status word 2.
         value = CalculateHardwareStatusWord(self);
         break;
@@ -339,7 +339,7 @@ static void ExecuteAutoload(Device *self, int drive)
      * failure: DMA the LOAD-ERROR image into the ND-100 first page (error 50 oct, "no bootstrap
      * found on diskette") so the console shows "** LOAD-ERROR: 50 **", and flag the failure in
      * the status word. TODO: implement the real BPUN autoload (read track 0, scan for '!',
-     * parse header, DMA image) — see NDInsight FloppyDMA docs §4.3; then only error on failure.
+     * parse header, DMA image) - see NDInsight FloppyDMA docs section 4.3; then only error on failure.
      */
     data->status1.bits.errorCode = FLOPPY_ERR_NO_BOOTSTRAP; /* oct 50 */
     data->status1.bits.hardError = true;
@@ -816,12 +816,12 @@ Device *CreateFloppyDMADevice(uint8_t thumbwheel)
 }
 
 
-/* 
+/*
 
  TEST PROGRAM FAILS!!
 
     FLOPPY-STREAM - Version: C03 - 1988-11-08
- 
+
 
 ==TPE42=> UNEXPECTED INTERNAL INTERRUPT
 ========> Interruped level.......: 0D
@@ -830,7 +830,7 @@ Device *CreateFloppyDMADevice(uint8_t thumbwheel)
 ========> Instruction............: 150417B
 ========> Memory address(PEA)....: 000001B
 ========> Bank(PES 0-7)..........: 40B
-========> Error type(PES 13-15)..: 
+========> Error type(PES 13-15)..:
 ========> Error code(PES 8-12)...: 0B
 
 WAIT when IONI is off PIL[14] PC[ 54555] PID[0x6000] PIE[0x6001] IONI[0] PONI[0] STS_HI[1E00] STS_LO[  20]

@@ -99,7 +99,7 @@ typedef enum
 /// +-----------+--------+----------+-------+------------+------------+
 // NOTE on bit-field storage type: every bit-field must share the same
 // underlying storage type (uint16_t). Using an enum (`PANEL_STATUS_FUNCTIONS`)
-// for `pfunc` broke the layout on Windows/MinGW — GCC defaults to
+// for `pfunc` broke the layout on Windows/MinGW - GCC defaults to
 // -mms-bitfields there, which places different-typed bit-fields in separate
 // storage units, so the `raw` uint16_t overlay no longer covered `pfunc`.
 // Comparisons against the enum values still work via implicit promotion.
@@ -125,7 +125,7 @@ typedef union
 /// +---+---+--------------+----+-----------+------------+
 /// | 0 | 0 | Read Request |N.A.|  PFUNC    |   WPAN     |
 /// +---+---+--------------+----+-----------+------------+
-// Same bit-field-storage-type constraint as PANS_Register — keep every
+// Same bit-field-storage-type constraint as PANS_Register - keep every
 // field as uint16_t so the `raw` overlay matches the bits view on both
 // Linux (packed) and Windows/MinGW (-mms-bitfields) ABIs.
 typedef union
@@ -153,7 +153,7 @@ struct display_panel
 	uint16_t days;	  /* 16 bit day counter for realtime clock */
 					  /* So seconds should wrap at 3600x12 = 43200, and day possibly lowest bit is am/pm */
 
-	// bool power_lamp; 
+	// bool power_lamp;
 	// bool run_lamp; // read from RUN signal on ND-100 bus C. Here, maybe CPU in RUN mode?
 	// bool opcom_lamp; // read from signal on ND-100 bus C. Her maybe CPU in STOP mode ?
 
@@ -169,9 +169,9 @@ struct display_panel
 	int function_mode; // Panel Processor Functtion Mode Register (not used yet..)
 };
 
-void ProcessTerminalPanc();
-void ProcessTerminalLamp();
-void UpdateMachineTime();
-void setup_pap();
+void ProcessTerminalPanc(void);
+void ProcessTerminalLamp(void);
+void UpdateMachineTime(void);
+void setup_pap(void);
 
 #endif // PANEL_H

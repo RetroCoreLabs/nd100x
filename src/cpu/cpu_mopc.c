@@ -101,7 +101,7 @@ void mopc_cmd(char *cmdstr, char cmdc)
 		if ((val >= 0) && (val < 65536))
 		{ /* valid range for 16 bit addr */
 			gReg->has_breakpoint = true;
-			gReg->breakpoint = (ushort)(val & 0xffff);			
+			gReg->breakpoint = (ushort)(val & 0xffff);
 			set_cpu_run_mode(CPU_BREAKPOINT);
 		}
 		break;
@@ -112,7 +112,7 @@ void mopc_cmd(char *cmdstr, char cmdc)
 
 /* We run mopc as a thread here, but ticks it either from panel or rtc to get more correct nd behaviour */
 /* TODO:: NO ERROR CHECKING CURRENTLY DONE!!!! Need to see how real ND mopc behaves first */
-void mopc_thread()
+void mopc_thread(void)
 {
 	int s;
 	char ch;
@@ -127,7 +127,7 @@ void mopc_thread()
 		/* This should trigger once every rtc/panel interrupt hopefully */
 
 		if (mopc_in(&ch))
-		{ 
+		{
             /* char available */
 			if ((ch >= '0' && ch <= '7') || (ch >= 'A' && ch <= 'Y'))
 			{
@@ -188,7 +188,7 @@ void mopc_thread()
 			}
 			else if (ch == 27)
 			{
-                // TODO: Handle escape sequence to get out of OPCOM in case we where temporay in it				
+                // TODO: Handle escape sequence to get out of OPCOM in case we where temporay in it
 				//if (CurrentCPURunMode != STOP)
 				//	MODE_OPCOM = 0;
 			}

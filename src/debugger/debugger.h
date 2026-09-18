@@ -1,5 +1,5 @@
-#ifndef _DEBUGGER_H_
-#define _DEBUGGER_H_
+#ifndef DEBUGGER_H
+#define DEBUGGER_H
 
 #include <stdint.h>
 
@@ -39,7 +39,7 @@ typedef struct {
 typedef struct {
     /// @brief Program counter of the stack frame
     uint16_t pc;
-    /// @brief Operand that made the call 
+    /// @brief Operand that made the call
     uint16_t operand;
     /// @brief Return address of the stack frame (where it was called from)
     uint16_t return_address;
@@ -95,9 +95,9 @@ typedef enum {
 } SymbolType;
 
 // Function declarations
-void start_debugger();
+void start_debugger(void);
 int ndx_server_init(int port);
-int ndx_server_stop();
+int ndx_server_stop(void);
 void debugger_kbd_input(char c);
 
 #endif

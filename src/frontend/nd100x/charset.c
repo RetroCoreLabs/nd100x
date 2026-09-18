@@ -199,7 +199,7 @@ static uint32_t decode_one(const char *seq, int len, int *pos)
 
 /* Map a national letter's code point to its 7-bit position, independent of
  * the host keyboard layout. The active variant wins (resolves cross-layout
- * conflicts such as Swedish vs German 'ü'); other variants fill in the rest,
+ * conflicts such as Swedish vs German 'u-umlaut'); other variants fill in the rest,
  * so a Norwegian keyboard can still drive a Swedish/German emulated charset -
  * the key's *position* is what reaches the ND. Returns -1 if unmapped. */
 static int input_byte_for_cp(uint32_t cp)

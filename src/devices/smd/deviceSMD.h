@@ -124,7 +124,7 @@ typedef union
         uint16_t addressBit17 : 1;             // Bit 6: Address bit 17 - Extension of core address register
         uint16_t unitSelect : 3;               // Bits 7-9: Unit select (maximum 4 units)
         uint16_t marginalRecoveryCycle : 1;    // Bit 10: Marginal recovery cycle
-        // Must be uint16_t (not enum DeviceOperation) — see the PANS/PANC
+        // Must be uint16_t (not enum DeviceOperation) - see the PANS/PANC
         // note in panel.h: mixed-type bit-fields break on Windows/MinGW
         // where -mms-bitfields splits different-typed fields into separate
         // storage units, destroying the `raw` uint16_t overlay.
@@ -206,13 +206,13 @@ typedef struct {
     bool comparerError;
     bool addressMismatch;
     bool writeProtectError;
-    
+
     bool diskUnitNotReady;
     bool onCylinder;
         bool seekError;
     uint16_t seekCompleteBits;
 
-    
+
 */
 
     // FlipFlops
@@ -276,7 +276,7 @@ typedef struct {
 
 // SMD device data
 typedef struct
-{    
+{
     const char *smdName;
     uint16_t dataBuffer[1024];
     int16_t loadDriveAddress;
@@ -291,14 +291,14 @@ typedef struct
 
     bool sectorAutoIncrement;
     int testmodeByte;
-    
+
     SMDStatusRegister statusRegister;
     SMDControlRegister controlRegister;
     SMDErrorRegister errorRegister;
     SMDDriveAddress driveAddress;
     SMDSeekCondition seekCondition;
-    ControllerType controllerType;  
-    
+    ControllerType controllerType;
+
 
     ControllerRegs regs;
 } SMDData;

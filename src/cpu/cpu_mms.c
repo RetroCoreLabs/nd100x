@@ -34,10 +34,10 @@ PagingTables pt; // Global paging tables structure
 
 // Create and initialize PagingTables
 // MUST!!!! to be called before using the PagingTables
-bool CreatePagingTables()
-{    
+bool CreatePagingTables(void)
+{
     pt.mmsType = mmsType;
-    
+
     // Allocate shadow RAM based on MMS type
     if (mmsType == MMS1)
     {
@@ -86,7 +86,7 @@ static uint CalcPageTableAddress(uint address)
         // Extended, check if we have MM-1 or MM-II
         if (pt.mmsType == MMS1)
         {
-            // 4 page tables start at 177000 (0xFE00)                    
+            // 4 page tables start at 177000 (0xFE00)
             pageTableAddress = ((address - SHADOW_RAM_EXTENDED_MODE_4PT) & 0x1FF) >> 1;
         }
         else
@@ -105,7 +105,7 @@ static uint CalcPageTableAddress(uint address)
 #endif
 
 // Clean up PagingTables
-void DestroyPagingTables()
+void DestroyPagingTables(void)
 {
     if (pt.shadowRam)
     {
@@ -217,8 +217,8 @@ ushort PT_Read(uint address)
             pageTableEntry = (uint)(pt->shadowRam[offset - 1] << 16 | res);
         }
     }
-    printf("PT R A=%o PT=%d VPN=%d SEXI=%d V=%o <= 0x%08X (%s)\n", 
-           address, pageTable, pageTableAddress & 0x3F, SEXI, res, 
+    printf("PT R A=%o PT=%d VPN=%d SEXI=%d V=%o <= 0x%08X (%s)\n",
+           address, pageTable, pageTableAddress & 0x3F, SEXI, res,
            pageTableEntry, GetPageTableEntryDebugInfo(pt, pageTableEntry, SEXI));
 #endif
 
@@ -317,7 +317,7 @@ bool UpdatePageTableEntry(uint pageTable, uint VPN, PageTableMode ptm, uint PTe)
 
 // Set page used flag
 uint SetPageUsed(uint pageTable, uint VPN, PageTableMode ptm, uint PTe)
-{    
+{
     if ((PTe & PGU_FLAG) == 0)
     {
         PTe |= PGU_FLAG;
@@ -397,8 +397,8 @@ char* GetPageTableEntryDebugInfo(ulong PTe)
 // Map virtual address to physical address
 int mapVirtualToPhysical(uint virtualAddress, AccessMode am, bool UseAPT)
 {
-    
-    
+
+
     if (!pt.isInitialized)
     {
         printf("FATAL! PagingTables not initialized\n");
@@ -468,7 +468,7 @@ int mapVirtualToPhysical(uint virtualAddress, AccessMode am, bool UseAPT)
 
 #ifdef DEBUG_MMS_MAPPING
     printf("mapVirtualToPhysical - PT=%d VPN=%d => Entry=0x%08X (%s)\n",  pageTable, VPN, pageTableEntry, GetPageTableEntryDebugInfo(pageTableEntry));
-#endif    
+#endif
 
     // Check for page protection
     if (!checkPageProtection(VPN, pageTable, pageTableEntry, am, virtualAddress))
@@ -514,9 +514,9 @@ int mapVirtualToPhysical(uint virtualAddress, AccessMode am, bool UseAPT)
 #endif
         UpdatePGS(pageTable, VPN, am, false);
 #ifdef DEBUG_MMS
-        printf("[%d] Ring Protection Violation. Ring=%d PTRing=%d Accessmode=%d PGS=%06o PT=%d VPN=%d PTe=0x%08X\n", 
+        printf("[%d] Ring Protection Violation. Ring=%d PTRing=%d Accessmode=%d PGS=%06o PT=%d VPN=%d PTe=0x%08X\n",
                CurrLEVEL, ring, pageTableRing, am, gReg->reg_PGS, pageTable, VPN, pageTableEntry);
-#endif               
+#endif
         HandleMPV(virtualAddress);
         return -1;
     }
@@ -581,7 +581,7 @@ void UpdatePGS(uint pageTable, uint VPN, AccessMode am, bool permitViolation)
         if (am & READ)
         {
             // READ_FETCH - Indirect read during effective address calculation
-            //printf("PGS update on Indirect read (READ_FETCH) PT=%d VPN=%d Accessmode=%d PGS<=%o\n", pageTable, VPN, am, tmpPGS);            
+            //printf("PGS update on Indirect read (READ_FETCH) PT=%d VPN=%d Accessmode=%d PGS<=%o\n", pageTable, VPN, am, tmpPGS);
         }
         else
         {
@@ -589,7 +589,7 @@ void UpdatePGS(uint pageTable, uint VPN, AccessMode am, bool permitViolation)
         }
     }
 
-    setPGS(tmpPGS);    
+    setPGS(tmpPGS);
 }
 
 // Check page protection
@@ -702,7 +702,7 @@ bool gDMAAccess = false;
 
 bool IsAddressShadowMemory(uint addr, bool privileged)
 {
-    // DMA transfers go directly to physical RAM — never shadow memory
+    // DMA transfers go directly to physical RAM - never shadow memory
     if (gDMAAccess)
         return false;
 
@@ -781,7 +781,7 @@ void WriteVirtualMemory(uint virtualAddress, ushort value, bool UseAPT, WriteMod
 		disasm_set_isdata(virtualAddress);
 
     int pa = mapVirtualToPhysical(virtualAddress, WRITE, UseAPT);
-    /* TRACE: detect writes to VA 0x2F9D (_ov_saved_l_bss) — disabled */
+    /* TRACE: detect writes to VA 0x2F9D (_ov_saved_l_bss) - disabled */
     if (pa == -1) return;
     WritePhysicalMemoryWM(pa, value, false,wm);
 }
@@ -1038,7 +1038,7 @@ void HandleMemoryOutOfRange(uint physicalAddress)
 }
 
 /// @brief Handle memory protection violation. Will TRAP the instruction
-/// @param virtualAddress 
+/// @param virtualAddress
 void HandleMPV(uint virtualAddress)
 {
 #ifdef DEBUG_MMS
@@ -1064,7 +1064,7 @@ void HandleMPV(uint virtualAddress)
 }
 
 /// @brief Handle page fault. Will TRAP the instruction
-/// @param virtualAddress 
+/// @param virtualAddress
 void HandlePF(uint virtualAddress)
 {
     //printf("HandlePF: %06o\n", virtualAddress);

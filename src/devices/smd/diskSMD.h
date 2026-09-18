@@ -43,7 +43,7 @@ typedef enum {
     DISK_38_MB,
 
     //	max 5 surfaces
-    //  max 18 sectors			
+    //  max 18 sectors
     //  max 823 cylinders (0-822)
     //  220526 number of sectors
     //  Table Name: DT075
@@ -57,7 +57,7 @@ typedef enum {
     DISK_150_MB,
 
     //	max 19 surfaces
-    //  max 18 sectors	
+    //  max 18 sectors
     //  max 823 cylinders
     //  1045572 number of sectors
     //  Table Name: DT288
@@ -111,7 +111,7 @@ typedef struct {
 
     long diskFileSize;      // Size of SMD disk file
     bool readOnly;          // Read-only flag
-    
+
 } DiskInfo;
 
 

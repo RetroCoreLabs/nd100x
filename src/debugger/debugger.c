@@ -213,7 +213,7 @@ resolve_source_path(DAPServer *server, const char *file)
 /* WASM: no threads, no atomics */
 static bool debugger_thread_should_exit = false;
 #else
-/* Native (POSIX and Windows via winpthreads) — unified pthread + C11 atomics. */
+/* Native (POSIX and Windows via winpthreads) - unified pthread + C11 atomics. */
 #include <stdatomic.h>
 #include <pthread.h>
 pthread_t p_debugger_thread;
@@ -239,7 +239,7 @@ void *debugger_thread(void *arg)
 {
     (void)arg;
 #ifdef _WIN32
-    // Windows: plain signal() — no sigaction on MinGW CRT.
+    // Windows: plain signal() - no sigaction on MinGW CRT.
     signal(SIGINT, debugger_signal_handler);
 #else
     // POSIX: sigaction for per-thread handling.
@@ -288,7 +288,7 @@ void *debugger_thread(void *arg)
     THREAD_RETURN(0);
 }
 
-void start_debugger()
+void start_debugger(void)
 {
     // Start the debugger thread via pthreads (libpthread on POSIX,
     // winpthreads on MinGW-w64 under Windows).
@@ -305,7 +305,7 @@ void ndx_server_terminate(int sig)
 }
 
 /// @brief Stop the DAP server thread
-void stop_debugger_thread()
+void stop_debugger_thread(void)
 {
     // Signal the thread to exit
     atomic_store(&debugger_thread_should_exit, true);
@@ -323,7 +323,7 @@ void stop_debugger_thread()
 /* WASM: Initialize DAP server struct in-process, no thread/transport */
 static int ndx_server_init_wasm(void);
 
-void start_debugger()
+void start_debugger(void)
 {
     ndx_server_init_wasm();
 }
@@ -333,7 +333,7 @@ void ndx_server_terminate(int sig)
     (void)sig;
 }
 
-void stop_debugger_thread()
+void stop_debugger_thread(void)
 {
     /* no thread to stop */
 }
@@ -420,11 +420,11 @@ static int cmd_check_cpu_events(DAPServer *server)
     if (reason != STOP_REASON_NONE)
     {
         const char *dap_reason_str = cpuStopReasonToString(reason);
-        
+
         // Get current source location for detailed context
         int line = 0;
         const char *file = NULL;
-        
+
         // Try to get source location from symbol tables
         if (symbol_tables.symbol_table_stabs) {
             line = symbols_get_line(symbol_tables.symbol_table_stabs, gPC);
@@ -438,17 +438,17 @@ static int cmd_check_cpu_events(DAPServer *server)
             line = symbols_get_line(symbol_tables.symbol_table_aout, gPC);
             file = symbols_get_file(symbol_tables.symbol_table_aout, gPC);
         }
-        
+
         // Create detailed stop message
         char description[256];
         if (line > 0 && file) {
-            snprintf(description, sizeof(description), 
+            snprintf(description, sizeof(description),
                     "Stopped at %s:%d (PC=%06o)", file, line, gPC);
         } else {
-            snprintf(description, sizeof(description), 
+            snprintf(description, sizeof(description),
                     "Stopped at PC=%06o", gPC);
         }
-        
+
         if (dap_server_send_stopped_event(server, dap_reason_str, description) == 0)
         {
             server->debugger_state.has_stopped = true;
@@ -462,7 +462,7 @@ static int cmd_check_cpu_events(DAPServer *server)
     return 0;
 }
 
-static void ensure_cpu_running()
+static void ensure_cpu_running(void)
 {
     CPURunMode run_mode = get_cpu_run_mode();
     if ((run_mode == CPU_PAUSED) || (run_mode == CPU_BREAKPOINT))
@@ -592,7 +592,7 @@ static uint16_t get_jpl_target_address(uint16_t pc, uint16_t operand)
 
 /// @brief Find the memory address of the return address of the current stack frame.
 /// @return The memory address of the return address of the current stack frame. -1 if no return address is found.
-int32_t find_stack_return_address()
+int32_t find_stack_return_address(void)
 {
     // Check if we have any frames at all
     if (stack_trace.frame_count == 0)
@@ -741,7 +741,7 @@ int step_cpu(DAPServer *server, StepType step_type)
             ensure_cpu_running();
             return 0;
         }
-        
+
         // Check if current instruction is a procedure call (JPL)
         uint16_t current_operand = Dbg_ReadVirtualMemoryISpace(current_pc);
         if (is_procedure_call(current_operand)) {
@@ -773,13 +773,13 @@ int step_cpu(DAPServer *server, StepType step_type)
 
         // If we have symbol table and want to step by line
         // CRITICAL FIX: Check STABS first, then MAP
-        if ((symbol_tables.symbol_table_stabs || symbol_tables.symbol_table_map) && 
+        if ((symbol_tables.symbol_table_stabs || symbol_tables.symbol_table_map) &&
             ((ctx->granularity == DAP_STEP_GRANULARITY_LINE) || (ctx->granularity == DAP_STEP_GRANULARITY_STATEMENT)))
         {
             // Try STABS first (for C programs with STABS debug info)
             if (symbol_tables.symbol_table_stabs) {
                 target_pc = symbols_get_next_line_address(symbol_tables.symbol_table_stabs, current_pc);
-                
+
                 if (target_pc != 0 && target_pc != current_pc) {
                     stepping_to_line = true;
                     snprintf(log_message, sizeof(log_message),
@@ -787,11 +787,11 @@ int step_cpu(DAPServer *server, StepType step_type)
                     dap_server_send_output(server, log_message);
                 }
             }
-            
+
             // Try MAP if STABS didn't work (for assembly programs)
             if ((!stepping_to_line) && symbol_tables.symbol_table_map) {
                 target_pc = symbols_get_next_line_address(symbol_tables.symbol_table_map, current_pc);
-                
+
                 if (target_pc != 0 && target_pc != current_pc) {
                     stepping_to_line = true;
                     snprintf(log_message, sizeof(log_message),
@@ -849,12 +849,12 @@ int step_cpu(DAPServer *server, StepType step_type)
     {
         snprintf(log_message, sizeof(log_message), "Step In from %06o\n", current_pc);
         dap_server_send_output_category(server, DAP_OUTPUT_CONSOLE, log_message);
-        
+
         // Check granularity - are we stepping by line or instruction?
-        bool is_line_granularity = 
-            (ctx->granularity == DAP_STEP_GRANULARITY_LINE) || 
+        bool is_line_granularity =
+            (ctx->granularity == DAP_STEP_GRANULARITY_LINE) ||
             (ctx->granularity == DAP_STEP_GRANULARITY_STATEMENT);
-        
+
         if (is_line_granularity) {
             // Source-level Step In
             // Scan all instructions in the current source line for a procedure call.
@@ -938,18 +938,18 @@ int step_cpu(DAPServer *server, StepType step_type)
                 snprintf(log_message, sizeof(log_message),
                         "Stepping to next line at %06o\n", next_line_addr);
                 dap_server_send_output_category(server, DAP_OUTPUT_CONSOLE, log_message);
-                
+
                 breakpoint_manager_add(next_line_addr, BP_TYPE_TEMPORARY, NULL, NULL, NULL);
                 ensure_cpu_running();
                 return 0;
             }
         }
-        
+
         // Fallback: instruction-level step
-        snprintf(log_message, sizeof(log_message), 
+        snprintf(log_message, sizeof(log_message),
                 "Step In (instruction level) from %06o\n", current_pc);
         dap_server_send_output_category(server, DAP_OUTPUT_CONSOLE, log_message);
-        
+
         breakpoint_manager_step_one();
         ensure_cpu_running();
         return 0;
@@ -1097,12 +1097,12 @@ int step_cpu(DAPServer *server, StepType step_type)
 static bool str_ends_with(const char *str, const char *suffix)
 {
     if (!str || !suffix) return false;
-    
+
     size_t str_len = strlen(str);
     size_t suffix_len = strlen(suffix);
-    
+
     if (suffix_len > str_len) return false;
-    
+
     return strcmp(str + str_len - suffix_len, suffix) == 0;
 }
 
@@ -1112,7 +1112,7 @@ static bool str_ends_with(const char *str, const char *suffix)
 static bool file_exists(const char *filepath)
 {
     if (!filepath) return false;
-    
+
     FILE *f = fopen(filepath, "r");
     if (f) {
         fclose(f);
@@ -1127,14 +1127,14 @@ static bool file_exists(const char *filepath)
 static int get_or_create_source_reference(const char *filepath)
 {
     if (!filepath) return 0;
-    
+
     // Check if we already have a reference for this file
     for (int i = 0; i < source_ref_count; i++) {
         if (source_refs[i].filepath && strcmp(source_refs[i].filepath, filepath) == 0) {
             return source_refs[i].sourceReference;
         }
     }
-    
+
     // Create new reference
     source_ref_count++;
     source_refs = realloc(source_refs, source_ref_count * sizeof(SourceReferenceMap));
@@ -1142,12 +1142,12 @@ static int get_or_create_source_reference(const char *filepath)
         source_ref_count--;
         return 0;
     }
-    
+
     int idx = source_ref_count - 1;
     source_refs[idx].sourceReference = next_source_ref++;
     source_refs[idx].filepath = strdup(filepath);
     source_refs[idx].content = NULL;  // Load on demand
-    
+
     return source_refs[idx].sourceReference;
 }
 
@@ -1163,33 +1163,33 @@ static char *load_source_file_by_reference(int sourceReference)
             if (source_refs[i].content) {
                 return strdup(source_refs[i].content);
             }
-            
+
             // Load from file
             if (source_refs[i].filepath) {
                 FILE *f = fopen(source_refs[i].filepath, "r");
                 if (!f) return NULL;
-                
+
                 // Get file size
                 fseek(f, 0, SEEK_END);
                 long size = ftell(f);
                 fseek(f, 0, SEEK_SET);
-                
+
                 // Read content
                 char *content = malloc(size + 1);
                 if (content) {
                     fread(content, 1, size, f);
                     content[size] = '\0';
-                    
+
                     // Cache it
                     source_refs[i].content = strdup(content);
                 }
-                
+
                 fclose(f);
                 return content;
             }
         }
     }
-    
+
     return NULL;
 }
 
@@ -1273,7 +1273,7 @@ static int cmd_continue(DAPServer *server)
  * @param server The DAP server instance
  * @return int 0 on success, non-zero on failure
  */
-// Last frame_id requested by scopes — used by add_local_variables
+// Last frame_id requested by scopes - used by add_local_variables
 // to show the correct function's variables, not always the top frame.
 static int scopes_active_frame_id = 0;
 
@@ -2897,21 +2897,21 @@ static int cmd_set_breakpoints(DAPServer *server)
         bool validSymbol = false;
         uint16_t address = 0;
         uint16_t diff = 0;
-        
+
         // Try multiple symbol tables in order of preference
-        
+
         // 1. Try STABS (most detailed for C/mixed programs)
         if (!validSymbol && symbol_tables.symbol_table_stabs) {
-            validSymbol = symbols_find_address(symbol_tables.symbol_table_stabs, 
+            validSymbol = symbols_find_address(symbol_tables.symbol_table_stabs,
                                               source_path, &address, &diff, bp->line);
         }
-        
+
         // 2. Try MAP file (reliable for assembly)
         if (!validSymbol && symbol_tables.symbol_table_map) {
-            validSymbol = symbols_find_address(symbol_tables.symbol_table_map, 
+            validSymbol = symbols_find_address(symbol_tables.symbol_table_map,
                                               source_path, &address, &diff, bp->line);
         }
-        
+
         // 3. Try AOUT (last resort - function symbols)
         if (!validSymbol && symbol_tables.symbol_table_aout && str_ends_with(source_path, ".s")) {
             // For assembly files, try to find by label/function name
@@ -3284,7 +3284,7 @@ static int cmd_set_data_breakpoints(DAPServer *server)
     return 0;
 }
 
-void free_symbol_table()
+void free_symbol_table(void)
 {
     if (symbol_tables.symbol_table_map)
     {
@@ -4681,7 +4681,7 @@ int ndx_server_init(int port)
     return 0;
 }
 
-int ndx_server_stop()
+int ndx_server_stop(void)
 {
     if (!server)
     {
@@ -5091,12 +5091,12 @@ int set_default_dap_capabilities(DAPServer *server)
                                        DAP_CAP_RESTART_REQUEST, true,
                                        DAP_CAP_TERMINATE_REQUEST, true,
                                        DAP_CAP_TERMINATE_DEBUGGEE, true,
-                                       
+
                                        // Memory operations
                                        DAP_CAP_READ_MEMORY_REQUEST, true,
                                        DAP_CAP_WRITE_MEMORY_REQUEST, true,
                                        DAP_CAP_DISASSEMBLE_REQUEST, true,
-                                       
+
                                        // Breakpoint features
                                        DAP_CAP_LOG_POINTS, true,  // Already works!
                                        DAP_CAP_STEPPING_GRANULARITY, true,  // Line/instruction stepping
@@ -5120,7 +5120,7 @@ int set_default_dap_capabilities(DAPServer *server)
 // Empty implementations when debugger is not enabled
 #ifndef WITH_DEBUGGER
 
-void start_debugger()
+void start_debugger(void)
 {
     // Do nothing when debugger is not enabled
 }
@@ -5131,7 +5131,7 @@ int ndx_server_init(int port)
     return -1; // Not implemented
 }
 
-int ndx_server_stop()
+int ndx_server_stop(void)
 {
     return -1; // Not implemented
 }

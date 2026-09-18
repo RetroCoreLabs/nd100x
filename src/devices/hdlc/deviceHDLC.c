@@ -262,7 +262,7 @@ static uint16_t HDLC_Tick(Device *self)
     }
 
     // Clock COM5025 only before DMA is initialized (needed for maintenance test).
-    // After INITIALIZE, burst/DMA mode handles all framing — COM5025 is unused.
+    // After INITIALIZE, burst/DMA mode handles all framing - COM5025 is unused.
     if (!data->dmaEngine->enabled) {
         data->cpuTicks++;
         if (data->cpuTicks >= data->cpuTicksPerTx) {
@@ -451,11 +451,11 @@ static void HDLC_Write(Device *self, uint32_t address, uint16_t value)
             // Update RQTS signal logic
             HDLC_UpdateRQTS(self);
 
-            // Check modem status change → IRQ 12 (matches C#: CheckModemStatusChangeTriggerIRQ12)
+            // Check modem status change -> IRQ 12 (matches C#: CheckModemStatusChangeTriggerIRQ12)
             HDLC_CheckTriggerIRQ12(self);
 
             // Check if DMAModuleIE is being enabled while DMAModuleRequest is already pending
-            // (matches C# — does NOT check TBMT/underrun here, only DMA completion state)
+            // (matches C# - does NOT check TBMT/underrun here, only DMA completion state)
             if (data->txTransferControl.bits.dmaModuleIE &&
                 data->txTransferStatus.bits.dmaModuleRequest) {
                 data->irq12Count++;
@@ -568,7 +568,7 @@ static uint16_t HDLC_Ident(Device *self, uint16_t level)
     if (!self) return 0;
 
     // Only respond if OUR interrupt bit is set for this level.
-    // Level 13 is shared with RTC — must not claim RTC's interrupts.
+    // Level 13 is shared with RTC - must not claim RTC's interrupts.
     if (!(self->interruptBits & (1 << level))) {
         return 0; // Not our interrupt
     }
@@ -959,21 +959,21 @@ static void HDLC_OnCOM5025PinValueChanged(Device *device, COM5025SignalPinOut pi
     // - TXACT: update status + UpdateRQTS, NO CheckTriggerInterrupt
     // - TBMT, TSA: update status + CheckTriggerInterrupt
     switch (pin) {
-        case COM5025_PIN_OUT_SFR: // Sync/Flag received — no interrupt check
+        case COM5025_PIN_OUT_SFR: // Sync/Flag received - no interrupt check
             if (value)
                 data->rxTransferStatus.bits.syncFlagReceived = 1;
             else
                 data->rxTransferStatus.bits.syncFlagReceived = 0;
             break;
 
-        case COM5025_PIN_OUT_RXACT: // Receiver Active — no interrupt check
+        case COM5025_PIN_OUT_RXACT: // Receiver Active - no interrupt check
             if (value)
                 data->rxTransferStatus.bits.receiverActive = 1;
             else
                 data->rxTransferStatus.bits.receiverActive = 0;
             break;
 
-        case COM5025_PIN_OUT_RDA: // Receiver Data Available — triggers interrupt check on rising edge only (matches C#)
+        case COM5025_PIN_OUT_RDA: // Receiver Data Available - triggers interrupt check on rising edge only (matches C#)
             if (value) {
                 data->rxTransferStatus.bits.dataAvailable = 1;
                 HDLC_CheckTriggerInterrupt(device);
@@ -982,7 +982,7 @@ static void HDLC_OnCOM5025PinValueChanged(Device *device, COM5025SignalPinOut pi
             }
             break;
 
-        case COM5025_PIN_OUT_TXACT: // Transmitter Active — updates RQTS only
+        case COM5025_PIN_OUT_TXACT: // Transmitter Active - updates RQTS only
             if (value)
                 data->txTransferStatus.bits.transmitterActive = 1;
             else
@@ -990,7 +990,7 @@ static void HDLC_OnCOM5025PinValueChanged(Device *device, COM5025SignalPinOut pi
             HDLC_UpdateRQTS(device);
             break;
 
-        case COM5025_PIN_OUT_TBMT: // Transmitter Buffer Empty — triggers interrupt check
+        case COM5025_PIN_OUT_TBMT: // Transmitter Buffer Empty - triggers interrupt check
             if (value)
                 data->txTransferStatus.bits.transmitBufferEmpty = 1;
             else
@@ -998,7 +998,7 @@ static void HDLC_OnCOM5025PinValueChanged(Device *device, COM5025SignalPinOut pi
             HDLC_CheckTriggerInterrupt(device);
             break;
 
-        case COM5025_PIN_OUT_TSA: // Transmitter Status Available — triggers interrupt check
+        case COM5025_PIN_OUT_TSA: // Transmitter Status Available - triggers interrupt check
             if (value)
                 data->txTransferStatus.bits.transmitterUnderrun = 1;
             else
@@ -1006,7 +1006,7 @@ static void HDLC_OnCOM5025PinValueChanged(Device *device, COM5025SignalPinOut pi
             HDLC_CheckTriggerInterrupt(device);
             break;
 
-        case COM5025_PIN_OUT_RSA: // Receiver Status Available — triggers interrupt check on rising edge only (matches C#)
+        case COM5025_PIN_OUT_RSA: // Receiver Status Available - triggers interrupt check on rising edge only (matches C#)
             if (value) {
                 data->rxTransferStatus.bits.statusAvailable = 1;
                 HDLC_CheckTriggerInterrupt(device);
@@ -1069,7 +1069,7 @@ static void HDLC_CheckTriggerIRQ13(Device *self)
         // Latch modem flags into status register NOW so the mismatch resolves.
         // Without this, the same mismatch fires on every IOX+11 write (because
         // SINTRAN re-enables modemStatusChangeIE before reading IOX+10).
-        // IOX+10 read also latches — this is the same operation done proactively.
+        // IOX+10 read also latches - this is the same operation done proactively.
         data->rxTransferStatus.raw &= ~(data->rxModemFlagsMask.raw);
         data->rxTransferStatus.raw |= (data->rxModemFlags.raw & data->rxModemFlagsMask.raw);
 
@@ -1240,7 +1240,7 @@ bool HDLC_GetRxFrameStatus(const HDLCData *data, HDLCRxFrameStatus *status)
 
 #ifdef MODEM_HAS_NETWORKING
     if (data->modem) {
-        // Lock-free read — head/tail are simple ints, safe for approximate queue depth.
+        // Lock-free read - head/tail are simple ints, safe for approximate queue depth.
         // Do NOT lock the mutex here: this runs in the emulation thread during F12 display,
         // and locking can deadlock with queue_write_all spinning on the worker thread.
         int h = data->modem->txQueue.head;

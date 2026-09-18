@@ -274,7 +274,7 @@ int test_pj_destroy_flushes(const char *tmpdir)
     assert(pj != NULL);
 
     feed_string(pj, "Pending\n");
-    /* Don't call Flush — Destroy should do it */
+    /* Don't call Flush - Destroy should do it */
     PrintJob_Destroy(pj);
 
     char path[512];

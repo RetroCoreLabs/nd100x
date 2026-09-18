@@ -29,7 +29,7 @@
 // Windows implementation.
 //
 // Uses ReadConsoleInputW() to read native console key events. Classification
-// is driven by virtual-key codes and control-key modifiers — no synthetic
+// is driven by virtual-key codes and control-key modifiers - no synthetic
 // xterm escape sequences are generated. Non-key events (mouse, focus, buffer
 // resize) and key-release events are discarded.
 // =============================================================================
@@ -119,7 +119,7 @@ KeyEvent read_key_event(void)
         bool  alt = (cks & (LEFT_ALT_PRESSED  | RIGHT_ALT_PRESSED))  != 0;
         bool  ctl = (cks & (LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED)) != 0;
 
-        // Alt+1..9 — digit pressed with only Alt held.
+        // Alt+1..9 - digit pressed with only Alt held.
         if (alt && !ctl && vk >= '1' && vk <= '9') {
             evt.type      = KEY_ALT_DIGIT;
             evt.ch        = (char)vk;
@@ -128,7 +128,7 @@ KeyEvent read_key_event(void)
             return evt;
         }
 
-        // F12 — dedicated virtual-key code.
+        // F12 - dedicated virtual-key code.
         if (vk == VK_F12) {
             evt.type   = KEY_F12;
             evt.seqLen = 0;
@@ -143,7 +143,7 @@ KeyEvent read_key_event(void)
             return evt;
         }
 
-        // Backspace — ReadConsoleInputW normally sets UnicodeChar to 0x08,
+        // Backspace - ReadConsoleInputW normally sets UnicodeChar to 0x08,
         // but emit it explicitly so any console-mode quirk can't swallow it.
         if (vk == VK_BACK) {
             evt.type   = KEY_CHAR;
@@ -153,7 +153,7 @@ KeyEvent read_key_event(void)
             return evt;
         }
 
-        // Delete — ND-100/SINTRAN uses 0x1F (Unit Separator / "delete") as
+        // Delete - ND-100/SINTRAN uses 0x1F (Unit Separator / "delete") as
         // the rubout character rather than ASCII DEL (0x7F).
         if (vk == VK_DELETE) {
             evt.type   = KEY_CHAR;
@@ -163,7 +163,7 @@ KeyEvent read_key_event(void)
             return evt;
         }
 
-        // Ctrl+Space — NUL (0x00), the XMSG connect-to exit character.
+        // Ctrl+Space - NUL (0x00), the XMSG connect-to exit character.
         // ReadConsoleInputW delivers this as uChar 0x20 with the CTRL
         // modifier set, so without this check a plain space would be sent.
         // (POSIX terminals send the 0x00 byte directly; no special case there.)
@@ -180,7 +180,7 @@ KeyEvent read_key_event(void)
         // contains the exact character the user typed.
         wchar_t wc = ke->uChar.UnicodeChar;
         if (wc != 0 && wc < 0x80) {
-            // ASCII fast path — fits in a single byte.
+            // ASCII fast path - fits in a single byte.
             evt.type   = KEY_CHAR;
             evt.ch     = (char)wc;
             evt.seq[0] = (char)wc;
@@ -268,7 +268,7 @@ static int read_raw_sequence(char *buf, size_t bufsize)
         }
 
         if (buf[0] == 27) {
-            if (keylen == 2 && ch != '[') break;    // ESC + non-[ → complete
+            if (keylen == 2 && ch != '[') break;    // ESC + non-[ -> complete
             if (keylen >= 3 && (ch == '~' || (ch >= 'A' && ch <= 'Z')))
                 break;                              // End of escape sequence
         } else if (utf8len > 1) {
@@ -308,21 +308,21 @@ KeyEvent read_key_event(void)
         return evt;
     }
 
-    // ESC + digit → Alt+digit (xterm's meta-sends-escape convention).
+    // ESC + digit -> Alt+digit (xterm's meta-sends-escape convention).
     if (len == 2 && buf[0] == 27 && buf[1] >= '1' && buf[1] <= '9') {
         evt.type = KEY_ALT_DIGIT;
         evt.ch   = buf[1];
         return evt;
     }
 
-    // F12 — standard "\x1B[24~" and some terminals "\x1B[6~".
+    // F12 - standard "\x1B[24~" and some terminals "\x1B[6~".
     if ((len == 5 && memcmp(buf, "\x1B[24~", 5) == 0) ||
         (len == 4 && memcmp(buf, "\x1B[6~",  4) == 0)) {
         evt.type = KEY_F12;
         return evt;
     }
 
-    // Unknown multi-byte sequence — caller still has the raw bytes in seq.
+    // Unknown multi-byte sequence - caller still has the raw bytes in seq.
     evt.type = KEY_UNKNOWN;
     return evt;
 }

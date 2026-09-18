@@ -23,7 +23,7 @@
 #include <string.h>
 #include <time.h>
 #include <pthread.h>      /* winpthreads on MinGW; libpthread on POSIX */
-#include <stdatomic.h>    /* C11 atomics — supported by MinGW-w64 GCC */
+#include <stdatomic.h>    /* C11 atomics - supported by MinGW-w64 GCC */
 
 #include "net_compat.h"   /* sockets, poll, loopback wake-pair */
 #include "telnetserver.h"
@@ -173,7 +173,7 @@ void telnet_output_handler(struct Device *device, char c)
  *
  * Thread safety: set once in TelnetServer_Start(), read by
  * telnet_output_handler() (called from emulation thread), and
- * cleared in TelnetServer_Stop(). Not protected by a mutex —
+ * cleared in TelnetServer_Stop(). Not protected by a mutex -
  * relies on start/stop ordering (start before emulation begins,
  * stop after emulation ends).
  */
@@ -240,7 +240,7 @@ bool TelnetServer_Start(TelnetServer *server)
     if (!server || server->running) return false;
     if (server->terminalCount == 0) return false;
 
-    // Initialise Winsock (no-op on POSIX). Refcounted — paired with
+    // Initialise Winsock (no-op on POSIX). Refcounted - paired with
     // nd_net_shutdown() in TelnetServer_Stop.
     if (nd_net_init() != 0) {
         Log(LOG_WARNING, "telnet: nd_net_init failed (err %d)\n", nd_last_socket_error());
@@ -616,7 +616,7 @@ static int send_menu(TelnetServer *server, nd_socket_t clientFd)
         server->config.port);
 
     if (menuMapCount == 0) {
-        // Caller should disconnect — this path shouldn't normally be reached
+        // Caller should disconnect - this path shouldn't normally be reached
         pos += snprintf(buf + pos, sizeof(buf) - pos,
             "No terminals available.\r\n");
     } else {
@@ -852,7 +852,7 @@ static void *accept_thread_func(void *arg)
                 RegisteredTerminal *rt = &server->terminals[termIdx];
 
                 if (rt->clientFd != ND_INVALID_SOCKET || rt->locallyActive) {
-                    // Terminal taken since menu was shown — busy message + fresh list
+                    // Terminal taken since menu was shown - busy message + fresh list
                     const char *err = "\r\nTerminal busy (taken by another client).\r\n";
                     send(ND_SOCK_NATIVE(pc->fd), err, (int)strlen(err), MSG_NOSIGNAL);
                     pc->bytesTx += strlen(err);
@@ -865,7 +865,7 @@ static void *accept_thread_func(void *arg)
                         remove_pending(server, i);
                     }
                 } else {
-                    // Use menuMap for try_assign — set it to match the client's intended terminal
+                    // Use menuMap for try_assign - set it to match the client's intended terminal
                     menuMap[0] = termIdx;
                     menuMapCount = 1;
                     if (try_assign_pending(server, pc, 0)) {
@@ -890,7 +890,7 @@ static void *accept_thread_func(void *arg)
                                                        &addrLen);
             if (clientFd == ND_INVALID_SOCKET) {
                 // Transient accept failure; retry. This includes our own
-                // shutdown-triggered close of listenFd — the outer while loop
+                // shutdown-triggered close of listenFd - the outer while loop
                 // condition will pick that up on the next iteration.
                 continue;
             }
@@ -976,7 +976,7 @@ static void *client_thread_func(void *arg)
         int ret = nd_poll(pfds, 2, 50);  // 50ms timeout to check ring buffer
 
         if (ret < 0) {
-            // Transient error — retry. (POSIX EINTR; WSAPoll seldom returns it.)
+            // Transient error - retry. (POSIX EINTR; WSAPoll seldom returns it.)
             continue;
         }
 

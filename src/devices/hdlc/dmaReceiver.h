@@ -46,7 +46,7 @@ typedef enum {
 
 // DMA Receiver state structure
 typedef struct DMAReceiver {
-    // Total bytes received across all buffers (for statistics)    
+    // Total bytes received across all buffers (for statistics)
     int bytesReceived;
 
     // Tick-based delay for rate-limiting frame processing

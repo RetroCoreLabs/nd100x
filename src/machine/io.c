@@ -60,10 +60,10 @@ int IO_Ident(uint16_t level)
 }
 
 void IO_Tick(void)
-{    
+{
     // Tick all devices, and check for interrupts
     uint16_t interruptBits = DeviceManager_Tick();
-    
+
     if (interruptBits)
         device_interrupt(interruptBits);
 }

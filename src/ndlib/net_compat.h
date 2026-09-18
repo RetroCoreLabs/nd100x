@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2025 Ronny Hansen
  *
- * net_compat.h — cross-platform networking shim.
+ * net_compat.h - cross-platform networking shim.
  *
  * The telnetserver code was originally written against BSD sockets + pipe()
  * + poll(). This header lets the same logic compile on both POSIX and
@@ -66,10 +66,10 @@ extern "C" {
 int  nd_net_init(void);
 void nd_net_shutdown(void);
 
-/* Close a socket — uses closesocket() on Windows, close() on POSIX. */
+/* Close a socket - uses closesocket() on Windows, close() on POSIX. */
 int  nd_socket_close(nd_socket_t s);
 
-/* poll() wrapper — WSAPoll() on Windows, poll() on POSIX. */
+/* poll() wrapper - WSAPoll() on Windows, poll() on POSIX. */
 int  nd_poll(nd_pollfd_t *fds, unsigned nfds, int timeout_ms);
 
 /* Get the last socket-layer error. WSAGetLastError on Windows, errno on POSIX. */

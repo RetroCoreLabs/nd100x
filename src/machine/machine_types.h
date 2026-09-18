@@ -20,7 +20,7 @@
  * distribution in the file COPYING); if not, see <http://www.gnu.org/licenses/>.
  */
 
- 
+
 #ifndef MACHINE_TYPES_H
 #define MACHINE_TYPES_H
 
@@ -33,7 +33,7 @@
 #include "../devices/devices_types.h"
 
 
-typedef enum {    
+typedef enum {
     BOOT_NONE = 0,
     BOOT_BPUN,
     BOOT_AOUT,

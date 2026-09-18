@@ -23,10 +23,10 @@
  *
  * Owns the complete pipeline from raw device bytes to output files:
  *
- *   text + txt:  bytes → .txt file  (direct pass-through)
- *   text + pdf:  bytes → monospaced text → PDF pages → .pdf file
- *   escp + txt:  bytes → ESC/P strip → .txt file  (plain text, codes removed)
- *   escp + pdf:  bytes → ESC/P interpreter → styled spans → PDF pages → .pdf file
+ *   text + txt:  bytes -> .txt file  (direct pass-through)
+ *   text + pdf:  bytes -> monospaced text -> PDF pages -> .pdf file
+ *   escp + txt:  bytes -> ESC/P strip -> .txt file  (plain text, codes removed)
+ *   escp + pdf:  bytes -> ESC/P interpreter -> styled spans -> PDF pages -> .pdf file
  */
 
 #include <stdio.h>
