@@ -100,6 +100,56 @@ jobs:
           path: dist/nd100x-linux-${{ matrix.arch }}/
           if-no-files-found: error
 
+  test-linux:
+    # House C standard gate: every warning is an error, and the unit tests
+    # run under AddressSanitizer and UndefinedBehaviorSanitizer. Separate from
+    # the release build so a failure here is visible without blocking the
+    # artifact jobs.
+    name: Test linux-x64 (werror + ASan/UBSan)
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout (without submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+          fetch-depth: 0
+
+      - name: Install build dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            cmake \
+            ninja-build \
+            pkg-config \
+            libcurl4-openssl-dev \
+            libncurses-dev
+
+      - name: Initialise submodules
+        run: |
+          set -euo pipefail
+          git submodule update --init --recursive \
+            external/cJSON \
+            external/libdap \
+            external/libsymbols
+
+      - name: Configure (Debug, -Werror, ASan + UBSan)
+        run: |
+          cmake -S . -B build_test -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DHOUSE_WERROR=ON \
+            "-DCMAKE_C_FLAGS=-fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=undefined" \
+            "-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address,undefined"
+
+      - name: Build
+        run: cmake --build build_test
+
+      - name: Unit tests
+        run: ctest --test-dir build_test --output-on-failure
+
   build-windows:
     name: Build windows-${{ matrix.arch }}
     runs-on: windows-latest
