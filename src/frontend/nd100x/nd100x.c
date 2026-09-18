@@ -288,11 +288,11 @@ void dump_stats(void)
 #endif
     totaltime = (float)usertime + (float)systemtime;
 
-    printf("Number of instructions run: %llu, time used: %f\n", (unsigned long long)instr_counter, totaltime);
+    printf("Number of instructions run: %llu, time used: %f\n", (unsigned long long)g_instr_counter, totaltime);
     printf("usertime: %f  systemtime: %f\n", usertime, systemtime);
-    if (instr_counter > 0) {
+    if (g_instr_counter > 0) {
         printf("Current cpu cycle time is:%f microsecs\n",
-               (totaltime / ((double)instr_counter / 1000000.0)));
+               (totaltime / ((double)g_instr_counter / 1000000.0)));
     }
 }
 
@@ -311,7 +311,7 @@ static void apply_cputype_override(const char *name)
             "ND100CX, ND110, ND110CE, ND110CX, ND110PCX, ND120CX\n", name);
         exit(1);
     }
-    CurrentCPUType = t;
+    g_current_cpu_type = t;
 }
 
 /// @brief Initialize the emulator. Add devices and load program
@@ -340,21 +340,21 @@ void initialize(void)
 	}
 #endif
 
-	if (DISASM) disasm_init();
+	if (g_disasm) disasm_init();
 
 	// Select the MMU paging-system type BEFORE machine_init -> cpu_init -> CreatePagingTables(),
 	// which reads this cpu_mms.c global to size/lay out the shadow RAM (MMS1 = 4 page tables;
 	// MMS2 = 16 page tables). Default MMS2 keeps SINTRAN / every existing machine byte-identical.
-	mmsType = (config.mmsType == 1) ? MMS1 : MMS2;
+	g_mms_type = (config.mmsType == 1) ? MMS1 : MMS2;
 
 	// Install main memory size BEFORE machine_init -> cpu_init (which lazily sizes the
 	// ECC latch calloc(ND_Memsize,...) and the MMS shadow), and before the boot banner
 	// below, so all of them see the configured size. words = MB * 524288; range 1..16 MB
 	// was already validated by --memory / the .ini memory= key. Bounded by the physical
 	// backing array as a belt-and-braces guard (the option parsers already enforce <=16).
-	ND_Memsize = (uint32_t)config.memoryMB * ND_WORDS_PER_MB;
-	if (ND_Memsize > ND_MEMSIZE_MAX_WORDS)
-		ND_Memsize = ND_MEMSIZE_MAX_WORDS;
+	g_nd_memsize = (uint32_t)config.memoryMB * ND_WORDS_PER_MB;
+	if (g_nd_memsize > ND_MEMSIZE_MAX_WORDS)
+		g_nd_memsize = ND_MEMSIZE_MAX_WORDS;
 
 	// Resolve the CPU model BEFORE machine_init, so Setup_Instructions() inside cpu_init
 	// sees the selected model when it gates VERSN / ND-110 opcodes. With no --cputype the
@@ -365,14 +365,14 @@ void initialize(void)
 	// (only the ND110* models gate extra opcodes), so this default is behaviour-neutral for
 	// execution - it only makes the reported label consistent.
 	if (config.cpuType == NULL)
-		CurrentCPUType = ND100CX;
+		g_current_cpu_type = ND100CX;
 	apply_cputype_override(config.cpuType);
 
 	// Select the installed FPP width. The 32-bit single-precision FPP was a factory
 	// option independent of the CPU model, so this is a separate knob from --cputype.
 	// The CLI flag wins over the .ini [machine] fpp= key (applied in
 	// apply_machine_config below only when --fpp was not given). Default: FPP48.
-	CurrentFPPType = (config.fppBits == 32) ? FPP32 : FPP48;
+	g_current_fpp_type = (config.fppBits == 32) ? FPP32 : FPP48;
 
 	// RTC time base. The CLI flag wins over the .ini [machine] rtc= key (applied
 	// in apply_machine_config below only when --rtc was not given). Default: ticks.
@@ -397,9 +397,9 @@ void initialize(void)
 	}
 
 	printf("CPU: %s   Memory: %.3f Mbytes (%u words)\n",
-	       CpuModel_DisplayName(CurrentCPUType),
-	       (double)ND_Memsize * 2.0 / (1024.0 * 1024.0),
-	       (unsigned)ND_Memsize);
+	       CpuModel_DisplayName(g_current_cpu_type),
+	       (double)g_nd_memsize * 2.0 / (1024.0 * 1024.0),
+	       (unsigned)g_nd_memsize);
 
 	if (machine_init(config.debuggerEnabled, config.debuggerPort) != 0) {
 		fprintf(stderr, "nd100x: machine initialisation failed\n");
@@ -492,15 +492,15 @@ void initialize(void)
 	// Same exit codes the library used to produce itself (1 = load, 10 = boot).
 	if (load_rc == PROGRAM_LOAD_ERR_LOAD) exit(1);
 	if (load_rc == PROGRAM_LOAD_ERR_BOOT) exit(10);
-	gPC = STARTADDR;
+	gPC = g_start_addr;
 
 	// An explicit --start / config `start=` overrides the entry that
 	// program_load() derived from the image. Needed for e.g. NORD TSS, whose
 	// BPUN carries no usable autostart cell, so it must be entered at its real
 	// cold-start rather than at address 0.
 	if (config.startAddress != 0) {
-		STARTADDR = (uint16_t)config.startAddress;
-		gPC = STARTADDR;
+		g_start_addr = (uint16_t)config.startAddress;
+		gPC = g_start_addr;
 	}
 
 	// --opr: preset the operator's-panel switch register (what "TRA OPR" returns).
@@ -510,7 +510,7 @@ void initialize(void)
 	// cold start: 131313 (octal) triggers SINIT -> create the SYSTEM user. Also live-
 	// editable at run time via the F12 menu (Control Panel Switches). See
 	// docs/TSS-CONTROL-PANEL-SWITCHES.md.
-	if (config.oprSet && gReg) {
+	if (config.oprSet && g_reg) {
 		gOPR = config.opr;
 	}
 
@@ -905,8 +905,8 @@ int main(int argc, char *argv[])
     }
 
     // Set global variables from config
-    DISASM = config.disasmEnabled;
-    STARTADDR = config.startAddress;
+    g_disasm = config.disasmEnabled;
+    g_start_addr = config.startAddress;
     // --log after the .ini [runtime] log key, so the CLI wins per category.
     // The spec was already checked when the command line was parsed.
     // --smd-debug / --scsi-debug are aliases for --log=smd:debug / scsi:debug;
@@ -925,12 +925,12 @@ int main(int argc, char *argv[])
     if (config.ringAtPf > 0)   cpu_set_ring_at_pf(config.ringAtPf);
     if (config.ringAtClpt > 0) cpu_set_ring_at_clpt(config.ringAtClpt);
 
-    CPU_TRACE = config.traceEnabled;
-    BSD_DEBUG = config.bsdDebug;
-    CPU_MAX_INSTR = config.maxInstructions;
-    CPU_BREAKPOINT_ENABLED = config.breakpointEnabled;
-    CPU_BREAKPOINT_ADDR = (uint16_t)config.breakpointAddr;
-    CPU_RING_DUMP_SIZE = config.ringDumpSize;
+    g_cpu_trace = config.traceEnabled;
+    g_bsd_debug = config.bsdDebug;
+    g_cpu_max_instr = config.maxInstructions;
+    g_cpu_breakpoint_enabled = config.breakpointEnabled;
+    g_cpu_breakpoint_addr = (uint16_t)config.breakpointAddr;
+    g_cpu_ring_dump_size = config.ringDumpSize;
     charset_set(config.charset);  // local-console national 7-bit charset (telnet/TCP unaffected)
 
     initialize();
@@ -958,8 +958,8 @@ int main(int argc, char *argv[])
     }
     /* --watch-skip N: ignore the first N watchpoint hits before halting.
      * (declared here; cpu_protos.h is auto-generated so cannot host the extern) */
-    watchpoint_skip_hits = config.watchSkip;
-    watchpoint_min_value = config.watchMinValue;
+    g_watchpoint_skip_hits = config.watchSkip;
+    g_watchpoint_min_value = config.watchMinValue;
     if (config.watchSkip > 0)
         fprintf(stderr, "Watchpoint skip: ignoring first %d hit(s)\n", config.watchSkip);
     if (config.watchMinValue > 0)
@@ -1280,12 +1280,12 @@ int main(int argc, char *argv[])
     stop_debugger_thread();
 #endif
 
-    if (DISASM)
+    if (g_disasm)
         disasm_dump();
 
     dump_stats();
     cleanup();
 
     // exit with A register value from WAIT instruction
-    return(gCpuExitCode);
+    return(g_cpu_exit_code);
 }

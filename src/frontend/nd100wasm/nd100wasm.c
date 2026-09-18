@@ -439,7 +439,7 @@ EMSCRIPTEN_EXPORT int Boot(int boot_type)
         return -1;
     }
 
-    gPC = STARTADDR;
+    gPC = g_start_addr;
     return (int)gPC;
 }
 
@@ -1747,8 +1747,8 @@ EMSCRIPTEN_EXPORT void Dbg_SetRegL(int val)  { gL   = (uint16_t)(val & 0xFFFF); 
 EMSCRIPTEN_EXPORT void Dbg_SetRegX(int val)  { gX   = (uint16_t)(val & 0xFFFF); }
 EMSCRIPTEN_EXPORT void Dbg_SetSTS(int val)   {
     /* STS MSB is shared, LSB is per-level */
-    gReg->reg_STS = (uint16_t)(val & 0xFF00);
-    gReg->reg[gPIL][_STS] = (uint16_t)(val & 0x00FF);
+    g_reg->reg_STS = (uint16_t)(val & 0xFF00);
+    g_reg->reg[gPIL][_STS] = (uint16_t)(val & 0x00FF);
 }
 
 // --- Register access for any runlevel ---
@@ -1758,9 +1758,9 @@ EMSCRIPTEN_EXPORT int Dbg_GetRegAtLevel(int level, int regIndex)
     if (level < 0 || level > 15 || regIndex < 0 || regIndex > 15) return -1;
     if (regIndex == _STS) {
         /* STS is split: MSB shared, LSB per-level */
-        return (int)((gReg->reg_STS & 0xFF00) | (gReg->reg[level][_STS] & 0x00FF));
+        return (int)((g_reg->reg_STS & 0xFF00) | (g_reg->reg[level][_STS] & 0x00FF));
     }
-    return (int)gReg->reg[level][regIndex];
+    return (int)g_reg->reg[level][regIndex];
 }
 
 // --- Privileged System Registers (read-only) ---
@@ -1781,7 +1781,7 @@ EMSCRIPTEN_EXPORT int Dbg_GetPEA(void)    { return (int)gPEA; }
 EMSCRIPTEN_EXPORT int Dbg_GetPCR(int level)
 {
     if (level < 0 || level > 15) return -1;
-    return (int)gReg->reg_PCR[level];
+    return (int)g_reg->reg_PCR[level];
 }
 
 // --- Privileged System Registers (write-only but readable from struct) ---
@@ -1799,7 +1799,7 @@ EMSCRIPTEN_EXPORT int Dbg_GetECCR(void)   { return (int)gECCR; }
 EMSCRIPTEN_EXPORT double Dbg_GetInstrCount(void)
 {
     /* Return as double since JS numbers can hold 53-bit integers */
-    return (double)instr_counter;
+    return (double)g_instr_counter;
 }
 
 // --- CPU State ---
@@ -1843,14 +1843,14 @@ EMSCRIPTEN_EXPORT void Dbg_WriteMemory(int addr, int val)
 
 EMSCRIPTEN_EXPORT int Dbg_DumpPhysicalMemory(int wordCount)
 {
-    if (wordCount <= 0 || wordCount > (int)(sizeof(VolatileMemory) / sizeof(uint16_t)))
+    if (wordCount <= 0 || wordCount > (int)(sizeof(g_volatile_memory) / sizeof(uint16_t)))
         wordCount = 256 * 1024;
 
     FILE *f = fopen("/nd100_physmem.bin", "wb");
     if (!f) return -1;
 
     for (int i = 0; i < wordCount; i++) {
-        uint16_t w = VolatileMemory.n_Array[i];
+        uint16_t w = g_volatile_memory.n_Array[i];
         unsigned char hi = (w >> 8) & 0xFF;
         unsigned char lo = w & 0xFF;
         fputc(hi, f);
@@ -1862,7 +1862,7 @@ EMSCRIPTEN_EXPORT int Dbg_DumpPhysicalMemory(int wordCount)
 
 EMSCRIPTEN_EXPORT int Dbg_GetPhysMemWords(void)
 {
-    return (int)(sizeof(VolatileMemory) / sizeof(uint16_t));
+    return (int)(sizeof(g_volatile_memory) / sizeof(uint16_t));
 }
 
 // --- Breakpoints ---
@@ -1892,10 +1892,10 @@ EMSCRIPTEN_EXPORT const char* Dbg_GetBreakpointList(void)
     int pos = 0;
     bp_list_buffer[0] = '\0';
 
-    if (!mgr) return bp_list_buffer;
+    if (!g_breakpoint_mgr) return bp_list_buffer;
 
     for (int h = 0; h < HASH_SIZE; h++) {
-        BreakpointEntry *curr = mgr->buckets[h];
+        BreakpointEntry *curr = g_breakpoint_mgr->buckets[h];
         while (curr && pos < (int)sizeof(bp_list_buffer) - 64) {
             int n = snprintf(bp_list_buffer + pos, sizeof(bp_list_buffer) - pos,
                 "%d %d %d\n", curr->address, curr->type, curr->hitCount);
@@ -2035,12 +2035,12 @@ EMSCRIPTEN_EXPORT const char* Dbg_GetLevelInfo(void)
     levels_buffer[0] = '\0';
 
     for (int lev = 0; lev < 16; lev++) {
-        uint16_t pcr = gReg->reg_PCR[lev];
+        uint16_t pcr = g_reg->reg_PCR[lev];
         int ring = pcr & 0x03;
         int pt = (pcr >> 11) & 0x0F;
         int apt = (pcr >> 7) & 0x0F;
-        uint16_t p_reg = gReg->reg[lev][_P];
-        uint16_t sts_lsb = gReg->reg[lev][_STS] & 0xFF;
+        uint16_t p_reg = g_reg->reg[lev][_P];
+        uint16_t sts_lsb = g_reg->reg[lev][_STS] & 0xFF;
 
         int n = snprintf(levels_buffer + pos, sizeof(levels_buffer) - pos,
             "%d %06o %03o R%d PT%d APT%d\n",
@@ -2091,11 +2091,11 @@ static uint16_t phys_block_buffer[4096];
 EMSCRIPTEN_EXPORT int Dbg_ReadPhysicalMemoryBlock(int startAddr, int count)
 {
     if (count <= 0 || count > 4096) count = 4096;
-    int maxAddr = (int)ND_Memsize;
+    int maxAddr = (int)g_nd_memsize;
     for (int i = 0; i < count; i++) {
         int addr = startAddr + i;
         if (addr >= 0 && addr < maxAddr)
-            phys_block_buffer[i] = VolatileMemory.n_Array[addr];
+            phys_block_buffer[i] = g_volatile_memory.n_Array[addr];
         else
             phys_block_buffer[i] = 0;
     }
@@ -2107,7 +2107,7 @@ EMSCRIPTEN_EXPORT int Dbg_ReadPhysicalMemoryBlock(int startAddr, int count)
 EMSCRIPTEN_EXPORT int Dbg_GetPageTableCount(void)
 {
     /* MMS1 = 4 page tables, MMS2 = 16 page tables */
-    return (mmsType == MMS1) ? 4 : 16;
+    return (g_mms_type == MMS1) ? 4 : 16;
 }
 
 EMSCRIPTEN_EXPORT int Dbg_GetPageTableEntryRaw(int pageTable, int vpn)
@@ -2117,7 +2117,7 @@ EMSCRIPTEN_EXPORT int Dbg_GetPageTableEntryRaw(int pageTable, int vpn)
 
     /* Use debugger reader which checks mmsType instead of STS_SEXI,
        so we can read all 16 page tables even when paused at a level without SEXI. */
-    PageTableMode ptm = (mmsType == MMS2) ? Sixteen : Four;
+    PageTableMode ptm = (g_mms_type == MMS2) ? Sixteen : Four;
     uint32_t pte = GetPageTableEntryForDebugger((uint32_t)pageTable, (uint32_t)vpn, ptm);
     return (int)pte;
 }

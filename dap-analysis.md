@@ -59,8 +59,8 @@ static atomic_bool debugger_thread_should_exit = false;
 
 // CPU state flags
 bool gDebuggerEnabled;
-static bool debugger_request_pause = false;
-static bool debugger_control_granted = false;
+static bool s_debugger_request_pause = false;
+static bool s_debugger_control_granted = false;
 ```
 
 ### Integration Flow
@@ -85,7 +85,7 @@ graph TB
         end
 
         subgraph "Shared State"
-            Flags[Atomic Flags<br/>• debugger_request_pause<br/>• debugger_control_granted<br/>• cpu_run_mode]
+            Flags[Atomic Flags<br/>• s_debugger_request_pause<br/>• s_debugger_control_granted<br/>• s_cpu_run_mode]
         end
     end
 
@@ -206,7 +206,7 @@ stateDiagram-v2
 void start_debugger()
 {
     // Start the debugger thread
-    pthread_create(&p_debugger_thread, NULL, debugger_thread, NULL);
+    pthread_create(&s_debugger_thread, NULL, debugger_thread, NULL);
 }
 
 void *debugger_thread(void *arg)
@@ -405,8 +405,8 @@ The CPU maintains debugger state:
 
 ```c
 bool gDebuggerEnabled = false;
-static bool debugger_request_pause = false;
-static bool debugger_control_granted = false;
+static bool s_debugger_request_pause = false;
+static bool s_debugger_control_granted = false;
 
 void init_cpu_debugger()
 {

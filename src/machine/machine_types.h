@@ -53,7 +53,7 @@ typedef enum {
 #define PROGRAM_LOAD_ERR_LOAD (-2)   /* the image could not be loaded (was exit(1))  */
 #define PROGRAM_LOAD_ERR_BOOT (-10)  /* the boot device failed (was exit(10))        */
 
-extern const char* boot_type_str[];
+extern const char* g_boot_type_str[];
 
 
 // Drive types. The numeric values are part of the gateway wire protocol

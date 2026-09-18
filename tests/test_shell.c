@@ -36,7 +36,7 @@ static int   g_prog_load_return = 0100;   /* fake entry point (octal 100) */
 
 /* Real register file the shell's SHOW-REGISTERS path dereferences. */
 static struct CpuRegs g_fake_regs;
-struct CpuRegs *gReg = &g_fake_regs;
+struct CpuRegs *g_reg = &g_fake_regs;
 
 /* Stub loader: never touches disk; just records the request. */
 int program_load(BOOT_TYPE bootType, int bootUnit, const char *imageFile,
@@ -54,7 +54,7 @@ int program_load(BOOT_TYPE bootType, int bootUnit, const char *imageFile,
 }
 
 /* STARTADDR is a real global in cpu.c; define it here so the test links. */
-uint16_t STARTADDR = 0;
+uint16_t g_start_addr = 0;
 
 /* Controllable BPUN header the shell reads via GetLastBPUNHeader(). */
 static BPUN_Header g_fake_bpun;

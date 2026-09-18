@@ -288,7 +288,7 @@ EXIT
 
 ### Memory Access
 - Programs loaded via `program_load()` function
-- Words written to `VolatileMemory.n_Array[address]`
+- Words written to `g_volatile_memory.n_Array[address]`
 - Supports word-addressed ND-100 memory (8 MW max)
 
 ### File Discovery
@@ -300,7 +300,7 @@ EXIT
 - Entry: `nd100x_shell_run(nd100Root, scriptPath)` (nd100x.c line ~1095)
 - Config: CLI options + INI runtime section
 - File loading: reuses existing `program_load()` function
-- Registers: reads global CPU state (gReg, etc)
+- Registers: reads global CPU state (g_reg, etc)
 
 ---
 

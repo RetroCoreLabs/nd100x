@@ -105,8 +105,8 @@ Output to stdout/stderr
 
 ```
 Global State:
-├── gReg (struct CpuRegs*)      [CPU registers]
-├── VolatileMemory              [Main RAM (8 MW max)]
+├── g_reg (struct CpuRegs*)      [CPU registers]
+├── g_volatile_memory              [Main RAM (8 MW max)]
 ├── DeviceManager               [I/O devices]
 └── Config struct               [Configuration]
 
@@ -543,7 +543,7 @@ int program_load(BOOT_TYPE bootType, int bootUnit, const char *imageFile,
                  bool verbose, uint16_t text_start, bool overlay_deposit);
 
 /* From cpu_types.h (extern globals) */
-extern struct CpuRegs *gReg;  /* CPU registers */
+extern struct CpuRegs *g_reg;  /* CPU registers */
 ```
 
 ---

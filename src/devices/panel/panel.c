@@ -37,7 +37,7 @@
 
 #include "panel.h"
 
-struct display_panel *gPAP;
+static struct display_panel *s_pap;
 
 
 void setup_pap(void)
@@ -47,9 +47,9 @@ void setup_pap(void)
 	gPANS = gPANS | 0x4000; /* Set FULL which is active low, so not full */
 
 	/* static storage: allocated once, never freed, cannot fail */
-	static struct display_panel s_pap;
-	memset(&s_pap, 0, sizeof(s_pap));
-	gPAP = &s_pap;
+	static struct display_panel s_pap_storage;
+	memset(&s_pap_storage, 0, sizeof(s_pap_storage));
+	s_pap = &s_pap_storage;
 
 	UpdateMachineTime();
 }
@@ -63,22 +63,22 @@ void ProcessMessageControl(PANC_Register panc)
 	switch (mc)
 	{
 	case StopRotatingMessage:
-		gPAP->function_mode = 0; // Stop rotating
+		s_pap->function_mode = 0; // Stop rotating
 		break;
 	case ReturnDisplayToNormal:
-		gPAP->function_mode = 1; // Return to normal
+		s_pap->function_mode = 1; // Return to normal
 		break;
 	case ClearTextBuffer:
-		gPAP->fdisp_cntr = 0;									   // Clear display counter
-		memset(gPAP->func_display, 0, sizeof(gPAP->func_display)); // Clear display buffer
+		s_pap->fdisp_cntr = 0;									   // Clear display counter
+		memset(s_pap->func_display, 0, sizeof(s_pap->func_display)); // Clear display buffer
 		break;
 	case RotateMessage:
-		gPAP->function_mode = 2; // Start rotating
+		s_pap->function_mode = 2; // Start rotating
 		break;
 	case ClearAndRotate:
-		gPAP->fdisp_cntr = 0;									   // Clear display counter
-		memset(gPAP->func_display, 0, sizeof(gPAP->func_display)); // Clear display buffer
-		gPAP->function_mode = 2;								   // Start rotating
+		s_pap->fdisp_cntr = 0;									   // Clear display counter
+		memset(s_pap->func_display, 0, sizeof(s_pap->func_display)); // Clear display buffer
+		s_pap->function_mode = 2;								   // Start rotating
 		break;
 	default:
 		break;
@@ -91,7 +91,7 @@ void ProcessMessageControl(PANC_Register panc)
 /// </summary>
 void ProcessTerminalPanc(void)
 {
-	if (!gPAP)
+	if (!s_pap)
 		return;
 
 	PANC_Register panc;
@@ -142,9 +142,9 @@ void ProcessTerminalPanc(void)
 						char c = (char)panc.bits.wpan;
 
 						// Check if we have room in the buffer
-						if (gPAP->fdisp_cntr < sizeof(gPAP->func_display) - 1)
+						if (s_pap->fdisp_cntr < sizeof(s_pap->func_display) - 1)
 						{
-							gPAP->func_display[gPAP->fdisp_cntr++] = c;
+							s_pap->func_display[s_pap->fdisp_cntr++] = c;
 						}
 					}
 				}
@@ -163,45 +163,45 @@ void ProcessTerminalPanc(void)
 		case STATUS_UPDATE_LOW_SECONDS:
 			if (panc.bits.read_request)
 			{
-				pans.bits.rpan = (uint16_t)(gPAP->seconds & 0xFF);
+				pans.bits.rpan = (uint16_t)(s_pap->seconds & 0xFF);
 				pans.bits.read_panel_valid = 1; // Yes, we have a valid response
 			}
 			else
 			{
-				gPAP->seconds = (uint16_t)((gPAP->seconds & 0xff00) | panc.bits.wpan);
+				s_pap->seconds = (uint16_t)((s_pap->seconds & 0xff00) | panc.bits.wpan);
 			}
 			break;
 		case STATUS_UPDATE_HIGH_SECONDS:
 			if (panc.bits.read_request)
 			{
-				pans.bits.rpan = (uint16_t)(gPAP->seconds >> 8 & 0xFF);
+				pans.bits.rpan = (uint16_t)(s_pap->seconds >> 8 & 0xFF);
 				pans.bits.read_panel_valid = 1; // Yes, we have a valid response
 			}
 			else
 			{
-				gPAP->seconds = (gPAP->seconds & 0x00ff) | (panc.bits.wpan << 8);
+				s_pap->seconds = (s_pap->seconds & 0x00ff) | (panc.bits.wpan << 8);
 			}
 			break;
 		case STATUS_UPDATE_LOW_DAYS:
 			if (panc.bits.read_request)
 			{
-				pans.bits.rpan = (uint16_t)(gPAP->days & 0x00ff);
+				pans.bits.rpan = (uint16_t)(s_pap->days & 0x00ff);
 				pans.bits.read_panel_valid = 1; // Yes, we have a valid response
 			}
 			else
 			{
-				gPAP->days = (gPAP->days & 0xFF00) | panc.bits.wpan;
+				s_pap->days = (s_pap->days & 0xFF00) | panc.bits.wpan;
 			}
 			break;
 		case STATUS_UPDATE_HIGH_DAYS:
 			if (panc.bits.read_request)
 			{
-				pans.bits.rpan = (uint16_t)(gPAP->days >> 8 & 0x00ff);
+				pans.bits.rpan = (uint16_t)(s_pap->days >> 8 & 0x00ff);
 				pans.bits.read_panel_valid = 1; // Yes, we have a valid response
 			}
 			else
 			{
-				gPAP->days = (gPAP->days & 0x00FF) | (uint16_t)(panc.bits.wpan << 8);
+				s_pap->days = (s_pap->days & 0x00FF) | (uint16_t)(panc.bits.wpan << 8);
 			}
 			break;
 		case STATUS_MEMORY_EXAMINE:
@@ -268,12 +268,12 @@ void UpdateMachineTime(void)
 
 	// Calculate days difference from TBASE
 	int days_diff = (int)(difftime(now, tbase) / (24.0 * 3600.0));
-	gPAP->days = (uint16_t)(days_diff * 2); // Convert to half-days
+	s_pap->days = (uint16_t)(days_diff * 2); // Convert to half-days
 
 	// Check if we've passed noon
 	if (tm_now->tm_hour >= 11)
 	{
-		gPAP->days++; // Add another half day
+		s_pap->days++; // Add another half day
 
 		// Get midnight of current day
 		tm_midnight->tm_hour = 0;
@@ -288,7 +288,7 @@ void UpdateMachineTime(void)
 	}
 
 	// Calculate seconds since midnight
-	gPAP->seconds = (uint16_t)difftime(now, midnight);
+	s_pap->seconds = (uint16_t)difftime(now, midnight);
 }
 
 #ifdef _later_
@@ -341,7 +341,7 @@ void panel_thread(void)
 				/* NOTE:: buggy in that we cannot do STOP and MCL without a running cpu between.. FIXME */
 				while ((s = sem_wait(&sem_stop)) == -1 && errno == EINTR) /* wait for stop lock to be free and take it */
 					continue;											  /* Restart if interrupted by handler */
-				bzero(gReg, sizeof(struct CpuRegs));					  /* clear cpu */
+				bzero(g_reg, sizeof(struct CpuRegs));					  /* clear cpu */
 				setbit(_STS, _O, 1);
 				setbit_STS_MSB(_N100, 1);
 				gCSR = 1 << 2; /* this bit sets the cache as not available */
@@ -350,7 +350,7 @@ void panel_thread(void)
 			{
 				if (debug)
 					fprintf(debugfile, "(#)LOAD_PRESSED\n");
-				gPC = STARTADDR;
+				gPC = g_start_addr;
 				CurrentCPURunMode = RUN;
 				if (sem_post(&sem_run) == -1)
 				{ /* release run lock */
@@ -385,13 +385,13 @@ void panel_event(void)
 {
 	char tmpbyte;
 
-	if (gPAP->trr_panc)
+	if (s_pap->trr_panc)
 	{ /* TRR has been issued, process command */
 		if (debug)
 			fprintf(debugfile, "panel_event: TRR\n");
 		if (debug)
 			fflush(debugfile);
-		gPAP->trr_panc = false;
+		s_pap->trr_panc = false;
 		switch ((gPANC & 0x0700) >> 8)
 		{
 		case 0: /* Illegal */
@@ -407,52 +407,52 @@ void panel_event(void)
 		case 4: /* Update Low Seconds */
 			if (gPANC & 0x2000)
 			{ /* Read */
-				tmpbyte = (gPAP->seconds) & 0x00ff;
+				tmpbyte = (s_pap->seconds) & 0x00ff;
 				gPANS = 0xf400 | tmpbyte;
 			}
 			else
 			{ /*Write */
 				tmpbyte = gPANC & 0x00ff;
-				gPAP->seconds = (gPAP->seconds & 0xff00) | tmpbyte;
+				s_pap->seconds = (s_pap->seconds & 0xff00) | tmpbyte;
 				gPANS = 0xd400;
 			}
 			break;
 		case 5: /* Update High Seconds */
 			if (gPANC & 0x2000)
 			{ /* Read */
-				tmpbyte = (gPAP->seconds >> 8);
+				tmpbyte = (s_pap->seconds >> 8);
 				gPANS = 0xf500 | tmpbyte;
 			}
 			else
 			{ /*Write */
 				tmpbyte = gPANC & 0x00ff;
-				gPAP->seconds = (gPAP->seconds & 0x00ff) | ((uint16_t)tmpbyte) << 8;
+				s_pap->seconds = (s_pap->seconds & 0x00ff) | ((uint16_t)tmpbyte) << 8;
 				gPANS = 0xd500;
 			}
 			break;
 		case 6: /* Update Low Days */
 			if (gPANC & 0x2000)
 			{ /* Read */
-				tmpbyte = (gPAP->days) & 0x00ff;
+				tmpbyte = (s_pap->days) & 0x00ff;
 				gPANS = 0xf600 | tmpbyte;
 			}
 			else
 			{ /*Write */
 				tmpbyte = gPANC & 0x00ff;
-				gPAP->days = (gPAP->days & 0xff00) | tmpbyte;
+				s_pap->days = (s_pap->days & 0xff00) | tmpbyte;
 				gPANS = 0xd600;
 			}
 			break;
 		case 7: /* Update High Days */
 			if (gPANC & 0x2000)
 			{ /* Read */
-				tmpbyte = (gPAP->days >> 8);
+				tmpbyte = (s_pap->days >> 8);
 				gPANS = 0xf700 | tmpbyte;
 			}
 			else
 			{ /*Write */
 				tmpbyte = gPANC & 0x00ff;
-				gPAP->days = (gPAP->days & 0x00ff) | ((uint16_t)tmpbyte) << 8;
+				s_pap->days = (s_pap->days & 0x00ff) | ((uint16_t)tmpbyte) << 8;
 				gPANS = 0xd700;
 			}
 			break;
@@ -464,16 +464,16 @@ void panel_event(void)
 		if (debug)
 			fflush(debugfile);
 	}
-	if (gPAP->sec_tick)
+	if (s_pap->sec_tick)
 	{ /* Seconds tick from rtc, update counters */
 		// if (debug) fprintf(debugfile,"panel_event: 1 second tick\n");
 		// if (debug) fflush(debugfile);
-		gPAP->sec_tick = false;
-		gPAP->seconds++;
-		if (gPAP->seconds >= 43200)
+		s_pap->sec_tick = false;
+		s_pap->seconds++;
+		if (s_pap->seconds >= 43200)
 		{ /* 12h wraparound */
-			gPAP->seconds = 0;
-			gPAP->days++;
+			s_pap->seconds = 0;
+			s_pap->days++;
 		}
 	}
 }

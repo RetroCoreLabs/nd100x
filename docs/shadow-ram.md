@@ -49,17 +49,17 @@ All physical memory reads and writes pass through `IsAddressShadowMemory()` in
 ```c
 bool IsAddressShadowMemory(uint addr, bool privileged)
 {
-    if (gDMAAccess)        return false;   // DMA always hits regular RAM
+    if (g_dma_access)        return false;   // DMA always hits regular RAM
     if (addr > 0xFFFF)     return false;   // Shadow RAM only in first 64K
 
-    ushort pcr = gReg->reg_PCR[CurrLEVEL];
+    ushort pcr = g_reg->reg_PCR[CurrLEVEL];
     unsigned char ring = pcr & 0x03;
     bool mms2Enabled = ((pcr & 1 << 2) != 0);
 
     if ((ring == 3) || (!STS_PONI) || privileged)
     {
         // Check address against current shadow RAM range
-        // (depends on STS_SEXI, mmsType, mms2Enabled)
+        // (depends on STS_SEXI, g_mms_type, mms2Enabled)
         ...
         return true;   // if address is in range
     }
@@ -122,16 +122,16 @@ and the resulting physical address lands in the shadow RAM range:
 
 #### DMA Transfers (Device I/O)
 
-DMA bypasses shadow RAM entirely. When `gDMAAccess=true`, `IsAddressShadowMemory()`
+DMA bypasses shadow RAM entirely. When `g_dma_access=true`, `IsAddressShadowMemory()`
 always returns `false`, routing the access to regular RAM. This matches real hardware
 where the DMA controller is on the memory bus, not the CPU's internal shadow RAM bus.
 
 ```c
 // src/devices/device.c
 void Device_DMAWrite(uint32_t coreAddress, uint16_t data) {
-    gDMAAccess = true;
+    g_dma_access = true;
     WritePhysicalMemory(coreAddress & 0xFFFFFF, data, false);
-    gDMAAccess = false;
+    g_dma_access = false;
 }
 ```
 
@@ -158,7 +158,7 @@ typedef struct {
 In `src/cpu/cpu_mms.c:35`, `CreatePagingTables()` allocates shadow RAM:
 
 ```c
-if (mmsType == MMS1) {
+if (g_mms_type == MMS1) {
     pt.shadowRamSize = 512;     // 4 page tables x 64 entries x 2 words
     pt.shadowRamAddress = SHADOW_RAM_EXTENDED_MODE_4PT;
 } else {
@@ -444,7 +444,7 @@ Three bits in the STS register control shadow RAM behavior:
 ### STS_PONI (bit 14) -- Paging ON Indicator
 
 ```c
-#define STS_PONI ((gReg->reg_STS >> 14) & 0x01)
+#define STS_PONI ((g_reg->reg_STS >> 14) & 0x01)
 ```
 
 - **1**: Memory management is active. Virtual addresses are translated through page
@@ -458,7 +458,7 @@ and `IsAddressShadowMemory()` opens the gate regardless of ring.
 ### STS_SEXI (bit 13) -- Extended MMS Addressing
 
 ```c
-#define STS_SEXI ((gReg->reg_STS >> 13) & 0x01)
+#define STS_SEXI ((g_reg->reg_STS >> 13) & 0x01)
 ```
 
 - **1**: Extended mode. 24-bit physical addresses, 32-bit PTEs. Shadow range
@@ -489,12 +489,12 @@ context.
 ### GetPageTableEntryForDebugger (Debug-Only)
 
 Used by the DAP debugger (`src/cpu/cpu_mms.c:265`). **Bypasses `STS_SEXI`** and uses
-the hardware `mmsType` instead:
+the hardware `g_mms_type` instead:
 
 ```c
 uint GetPageTableEntryForDebugger(uint pageTable, uint VPN, PageTableMode ptm)
 {
-    if (mmsType == MMS2) {
+    if (g_mms_type == MMS2) {
         // Always use 32-bit format, 16PT layout
         ...
     } else {
@@ -523,7 +523,7 @@ RAM path. Regular RAM at 0xF800 is untouched.
 
 **Shadow RAM only.** Same logic -- EXAM passes `privileged=true`, so
 `IsAddressShadowMemory()` returns true, and `PT_Read()` is called. The
-`VolatileMemory` array is never consulted.
+`g_volatile_memory` array is never consulted.
 
 ### Is there an instruction that writes ONLY to shadow RAM?
 
@@ -542,7 +542,7 @@ the user program reads whatever is in regular RAM at that address, not the PTE.
 
 ### What about DMA to the shadow range?
 
-**DMA always hits regular RAM.** The `gDMAAccess` flag forces
+**DMA always hits regular RAM.** The `g_dma_access` flag forces
 `IsAddressShadowMemory()` to return false. This matches the real hardware where the
 DMA controller operates on the memory bus, which connects to physical RAM chips. The
 shadow RAM chip is internal to the CPU and not bus-accessible.
@@ -564,4 +564,4 @@ ring==3, opens the shadow gate, and routes to shadow RAM. STDTX is not the only 
 | `src/cpu/cpu_types.h`         | Shadow RAM constants, PagingTables struct, STS macros, flag definitions |
 | `src/cpu/cpu_mms.c`           | All shadow RAM logic: PT_Read/PT_Write, IsAddressShadowMemory, address translation, PTE format conversion, debugger access |
 | `src/cpu/cpu_instr.c`         | Privileged instruction implementations (STDTX, EXAM, DEPO, MOVEW) |
-| `src/devices/device.c`        | DMA read/write with gDMAAccess bypass          |
+| `src/devices/device.c`        | DMA read/write with g_dma_access bypass          |

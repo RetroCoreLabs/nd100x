@@ -164,7 +164,7 @@ static bool lookup_register(const char *name, int len, uint16_t *value)
     /* Scratch registers U0-U7 (current PIL level) */
     if (buf[0] == 'U' && len == 2 && buf[1] >= '0' && buf[1] <= '7') {
         int idx = buf[1] - '0';
-        *value = gReg->reg[gPIL][_U0 + idx];
+        *value = g_reg->reg[gPIL][_U0 + idx];
         return true;
     }
 

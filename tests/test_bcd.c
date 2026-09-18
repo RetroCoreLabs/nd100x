@@ -38,7 +38,7 @@
 static uint16_t bcdtest_mem[65536];
 static struct CpuRegs bcdtest_regs;
 
-struct CpuRegs *gReg = &bcdtest_regs;
+struct CpuRegs *g_reg = &bcdtest_regs;
 
 /* Stubs for the real functions in src/cpu/cpu_mms.c (cpu_protos.h). */
 uint16_t MemoryRead(uint16_t addr, bool UseAPT);

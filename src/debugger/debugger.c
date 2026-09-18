@@ -118,10 +118,10 @@ DAPServer *g_dap_server;
 
 // Global symbol table
 
-SymbolTables symbol_tables;
+static SymbolTables s_symbol_tables;
 
 // Structure to hold the stack trace information
-StackTrace stack_trace;
+static StackTrace s_stack_trace;
 
 // Source reference mapping for non-disk sources
 typedef struct {
@@ -213,7 +213,7 @@ resolve_source_path(DAPServer *server, const char *file)
 /* Native (POSIX and Windows via winpthreads) - unified pthread + C11 atomics. */
 #include <stdatomic.h>
 #include <pthread.h>
-pthread_t p_debugger_thread;
+static pthread_t s_debugger_thread;
 
 // Add atomic flag for thread termination
 static atomic_bool debugger_thread_should_exit = false;
@@ -289,7 +289,7 @@ void start_debugger(void)
 {
     // Start the debugger thread via pthreads (libpthread on POSIX,
     // winpthreads on MinGW-w64 under Windows).
-    pthread_create(&p_debugger_thread, NULL, debugger_thread, NULL);
+    pthread_create(&s_debugger_thread, NULL, debugger_thread, NULL);
 }
 
 /// @brief Terminate the DAP server
@@ -309,10 +309,10 @@ void stop_debugger_thread(void)
     atomic_store(&debugger_thread_should_exit, true);
 
     // Wait for the thread to finish
-    if (p_debugger_thread)
+    if (s_debugger_thread)
     {
-        pthread_join(p_debugger_thread, NULL);
-        p_debugger_thread = 0;
+        pthread_join(s_debugger_thread, NULL);
+        s_debugger_thread = 0;
     }
 }
 
@@ -426,17 +426,17 @@ static int cmd_check_cpu_events(DAPServer *server)
         const char *file = NULL;
 
         // Try to get source location from symbol tables
-        if (symbol_tables.symbol_table_stabs) {
-            line = symbols_get_line(symbol_tables.symbol_table_stabs, gPC);
-            file = symbols_get_file(symbol_tables.symbol_table_stabs, gPC);
+        if (s_symbol_tables.symbol_table_stabs) {
+            line = symbols_get_line(s_symbol_tables.symbol_table_stabs, gPC);
+            file = symbols_get_file(s_symbol_tables.symbol_table_stabs, gPC);
         }
-        if ((!line || !file) && symbol_tables.symbol_table_map) {
-            line = symbols_get_line(symbol_tables.symbol_table_map, gPC);
-            file = symbols_get_file(symbol_tables.symbol_table_map, gPC);
+        if ((!line || !file) && s_symbol_tables.symbol_table_map) {
+            line = symbols_get_line(s_symbol_tables.symbol_table_map, gPC);
+            file = symbols_get_file(s_symbol_tables.symbol_table_map, gPC);
         }
-        if ((!line || !file) && symbol_tables.symbol_table_aout) {
-            line = symbols_get_line(symbol_tables.symbol_table_aout, gPC);
-            file = symbols_get_file(symbol_tables.symbol_table_aout, gPC);
+        if ((!line || !file) && s_symbol_tables.symbol_table_aout) {
+            line = symbols_get_line(s_symbol_tables.symbol_table_aout, gPC);
+            file = symbols_get_file(s_symbol_tables.symbol_table_aout, gPC);
         }
 
         // Create detailed stop message
@@ -574,14 +574,14 @@ static uint16_t get_jpl_target_address(uint16_t pc, uint16_t operand)
 int32_t find_stack_return_address(void)
 {
     // Check if we have any frames at all
-    if (stack_trace.frame_count == 0)
+    if (s_stack_trace.frame_count == 0)
     {
         // No frames, so we can't find a return address
         return -1;
     }
 
     // Get the return address of the previous frame
-    return stack_trace.frames[stack_trace.current_frame].return_address;
+    return s_stack_trace.frames[s_stack_trace.current_frame].return_address;
 }
 
 /// @brief Update the entry point of the JPL instruction
@@ -589,13 +589,13 @@ int32_t find_stack_return_address(void)
 /// @param operand Operand of the JPL instruction
 void debugger_update_jpl_entrypoint(uint16_t ea)
 {
-    if (stack_trace.frame_count == 0)
+    if (s_stack_trace.frame_count == 0)
     {
         return;
     }
 
     // Update the entry point of the JPL instruction
-    stack_trace.frames[stack_trace.current_frame].entry_point = ea;
+    s_stack_trace.frames[s_stack_trace.current_frame].entry_point = ea;
 }
 
 /// @brief Called by the CPU before executing an instruction
@@ -617,16 +617,16 @@ void debugger_build_stack_trace(uint16_t pc, uint16_t operand)
     bool is_c_return = (operand == 0140136 || operand == 0140137);
 
     // Is this the first frame?
-    if (stack_trace.frame_count == 0)
+    if (s_stack_trace.frame_count == 0)
     {
-        stack_trace.frame_count = 1;
-        stack_trace.current_frame = 0;
+        s_stack_trace.frame_count = 1;
+        s_stack_trace.current_frame = 0;
 
         // Add the root frame to our circular buffer
-        stack_trace.frames[stack_trace.current_frame].operand = operand;
-        stack_trace.frames[stack_trace.current_frame].return_address = pc;
-        stack_trace.frames[stack_trace.current_frame].entry_point = pc;
-        stack_trace.frames[stack_trace.current_frame].pc = pc;
+        s_stack_trace.frames[s_stack_trace.current_frame].operand = operand;
+        s_stack_trace.frames[s_stack_trace.current_frame].return_address = pc;
+        s_stack_trace.frames[s_stack_trace.current_frame].entry_point = pc;
+        s_stack_trace.frames[s_stack_trace.current_frame].pc = pc;
     }
 
     // Handle function calls (JPL or C calling convention)
@@ -636,17 +636,17 @@ void debugger_build_stack_trace(uint16_t pc, uint16_t operand)
         // Calculate the return address (next instruction after call)
         uint16_t return_address = pc + 1;  // Both JPL and typical C calls return to next instruction
 
-        stack_trace.current_frame = (stack_trace.current_frame + 1) % MAX_STACK_FRAMES;
-        if (stack_trace.frame_count < MAX_STACK_FRAMES)
+        s_stack_trace.current_frame = (s_stack_trace.current_frame + 1) % MAX_STACK_FRAMES;
+        if (s_stack_trace.frame_count < MAX_STACK_FRAMES)
         {
-            stack_trace.frame_count++;
+            s_stack_trace.frame_count++;
         }
 
         // Add the new frame to our circular buffer
-        stack_trace.frames[stack_trace.current_frame].pc = pc;
-        stack_trace.frames[stack_trace.current_frame].operand = operand;
-        stack_trace.frames[stack_trace.current_frame].return_address = return_address;
-        stack_trace.frames[stack_trace.current_frame].entry_point = 0; // the address where JPL will jump to (will be updated when JPL is executed)
+        s_stack_trace.frames[s_stack_trace.current_frame].pc = pc;
+        s_stack_trace.frames[s_stack_trace.current_frame].operand = operand;
+        s_stack_trace.frames[s_stack_trace.current_frame].return_address = return_address;
+        s_stack_trace.frames[s_stack_trace.current_frame].entry_point = 0; // the address where JPL will jump to (will be updated when JPL is executed)
 
         return;
     }
@@ -654,24 +654,24 @@ void debugger_build_stack_trace(uint16_t pc, uint16_t operand)
     else if (is_exit || is_c_return)
     {
         // Remove the last frame from stack
-        if (stack_trace.frame_count > 1)
+        if (s_stack_trace.frame_count > 1)
         {
             // Clear the current frame
-            stack_trace.frames[stack_trace.current_frame].pc = 0;
-            stack_trace.frames[stack_trace.current_frame].operand = 0;
-            stack_trace.frames[stack_trace.current_frame].return_address = 0;
-            stack_trace.frames[stack_trace.current_frame].entry_point = 0;
+            s_stack_trace.frames[s_stack_trace.current_frame].pc = 0;
+            s_stack_trace.frames[s_stack_trace.current_frame].operand = 0;
+            s_stack_trace.frames[s_stack_trace.current_frame].return_address = 0;
+            s_stack_trace.frames[s_stack_trace.current_frame].entry_point = 0;
 
             // Move back one frame
-            stack_trace.current_frame = (stack_trace.current_frame - 1 + MAX_STACK_FRAMES) % MAX_STACK_FRAMES;
-            stack_trace.frame_count--;
+            s_stack_trace.current_frame = (s_stack_trace.current_frame - 1 + MAX_STACK_FRAMES) % MAX_STACK_FRAMES;
+            s_stack_trace.frame_count--;
         }
 
         return;
     }
     else
     {
-        stack_trace.frames[stack_trace.current_frame].pc = pc;
+        s_stack_trace.frames[s_stack_trace.current_frame].pc = pc;
     }
 }
 
@@ -700,7 +700,7 @@ int step_cpu(DAPServer *server, StepType step_type)
     {
 
         // Implement special handling for EXIT instruction (P = L)
-        if (gReg->myreg_IR == 014614)
+        if (g_reg->myreg_IR == 014614)
         {
             // EXIT copies L to P, so L IS the return address
             uint16_t return_address = gL;
@@ -733,10 +733,10 @@ int step_cpu(DAPServer *server, StepType step_type)
 
             // Check if calling csav (C calling convention)
             const symbol_entry_t *csav_sym = NULL;
-            if (symbol_tables.symbol_table_aout)
-                csav_sym = symbols_lookup_by_name(symbol_tables.symbol_table_aout, "csav");
-            if (!csav_sym && symbol_tables.symbol_table_map)
-                csav_sym = symbols_lookup_by_name(symbol_tables.symbol_table_map, "csav");
+            if (s_symbol_tables.symbol_table_aout)
+                csav_sym = symbols_lookup_by_name(s_symbol_tables.symbol_table_aout, "csav");
+            if (!csav_sym && s_symbol_tables.symbol_table_map)
+                csav_sym = symbols_lookup_by_name(s_symbol_tables.symbol_table_map, "csav");
 
             if (csav_sym && call_target == csav_sym->address)
                 return_addr = current_pc + 2;  // skip JPL + .word NNN
@@ -752,12 +752,12 @@ int step_cpu(DAPServer *server, StepType step_type)
 
         // If we have symbol table and want to step by line
         // CRITICAL FIX: Check STABS first, then MAP
-        if ((symbol_tables.symbol_table_stabs || symbol_tables.symbol_table_map) &&
+        if ((s_symbol_tables.symbol_table_stabs || s_symbol_tables.symbol_table_map) &&
             ((ctx->granularity == DAP_STEP_GRANULARITY_LINE) || (ctx->granularity == DAP_STEP_GRANULARITY_STATEMENT)))
         {
             // Try STABS first (for C programs with STABS debug info)
-            if (symbol_tables.symbol_table_stabs) {
-                target_pc = symbols_get_next_line_address(symbol_tables.symbol_table_stabs, current_pc);
+            if (s_symbol_tables.symbol_table_stabs) {
+                target_pc = symbols_get_next_line_address(s_symbol_tables.symbol_table_stabs, current_pc);
 
                 if (target_pc != 0 && target_pc != current_pc) {
                     stepping_to_line = true;
@@ -768,8 +768,8 @@ int step_cpu(DAPServer *server, StepType step_type)
             }
 
             // Try MAP if STABS didn't work (for assembly programs)
-            if ((!stepping_to_line) && symbol_tables.symbol_table_map) {
-                target_pc = symbols_get_next_line_address(symbol_tables.symbol_table_map, current_pc);
+            if ((!stepping_to_line) && s_symbol_tables.symbol_table_map) {
+                target_pc = symbols_get_next_line_address(s_symbol_tables.symbol_table_map, current_pc);
 
                 if (target_pc != 0 && target_pc != current_pc) {
                     stepping_to_line = true;
@@ -787,10 +787,10 @@ int step_cpu(DAPServer *server, StepType step_type)
         // file far from here (observed: step_over jumping into a monitor/overlay
         // routine). If the target leaves the current C function's range, don't
         // trust it -- fall back to a single instruction step.
-        if (stepping_to_line && target_pc != 0 && symbol_tables.debug_info)
+        if (stepping_to_line && target_pc != 0 && s_symbol_tables.debug_info)
         {
             symbol_function_t *cur_fn = symbols_find_function_at(
-                symbol_tables.debug_info, current_pc);
+                s_symbol_tables.debug_info, current_pc);
             if (cur_fn &&
                 (target_pc < cur_fn->start_address || target_pc > cur_fn->end_address))
             {
@@ -843,11 +843,11 @@ int step_cpu(DAPServer *server, StepType step_type)
 
             // Find the next line address to know the range of the current line
             uint16_t next_line_addr = 0;
-            if (symbol_tables.symbol_table_stabs) {
-                next_line_addr = symbols_get_next_line_address(symbol_tables.symbol_table_stabs, current_pc);
+            if (s_symbol_tables.symbol_table_stabs) {
+                next_line_addr = symbols_get_next_line_address(s_symbol_tables.symbol_table_stabs, current_pc);
             }
-            if ((!next_line_addr || next_line_addr == current_pc) && symbol_tables.symbol_table_map) {
-                next_line_addr = symbols_get_next_line_address(symbol_tables.symbol_table_map, current_pc);
+            if ((!next_line_addr || next_line_addr == current_pc) && s_symbol_tables.symbol_table_map) {
+                next_line_addr = symbols_get_next_line_address(s_symbol_tables.symbol_table_map, current_pc);
             }
 
             // Scan instructions from current_pc to next_line_addr for a JPL
@@ -876,15 +876,15 @@ int step_cpu(DAPServer *server, StepType step_type)
                     const char *target_file = NULL;
 
                     // Try STABS first (for C functions)
-                    if (symbol_tables.symbol_table_stabs) {
-                        target_line = symbols_get_line(symbol_tables.symbol_table_stabs, call_target);
-                        target_file = symbols_get_file(symbol_tables.symbol_table_stabs, call_target);
+                    if (s_symbol_tables.symbol_table_stabs) {
+                        target_line = symbols_get_line(s_symbol_tables.symbol_table_stabs, call_target);
+                        target_file = symbols_get_file(s_symbol_tables.symbol_table_stabs, call_target);
                     }
 
                     // Try MAP if STABS didn't work (for assembly functions)
-                    if ((!target_line || !target_file) && symbol_tables.symbol_table_map) {
-                        target_line = symbols_get_line(symbol_tables.symbol_table_map, call_target);
-                        target_file = symbols_get_file(symbol_tables.symbol_table_map, call_target);
+                    if ((!target_line || !target_file) && s_symbol_tables.symbol_table_map) {
+                        target_line = symbols_get_line(s_symbol_tables.symbol_table_map, call_target);
+                        target_file = symbols_get_file(s_symbol_tables.symbol_table_map, call_target);
                     }
 
                     if (target_line && target_file) {
@@ -942,14 +942,14 @@ int step_cpu(DAPServer *server, StepType step_type)
         // Look up csav/cret addresses for special handling
         const symbol_entry_t *csav_sym = NULL;
         const symbol_entry_t *cret_sym = NULL;
-        if (symbol_tables.symbol_table_aout) {
-            csav_sym = symbols_lookup_by_name(symbol_tables.symbol_table_aout, "csav");
-            cret_sym = symbols_lookup_by_name(symbol_tables.symbol_table_aout, "cret");
+        if (s_symbol_tables.symbol_table_aout) {
+            csav_sym = symbols_lookup_by_name(s_symbol_tables.symbol_table_aout, "csav");
+            cret_sym = symbols_lookup_by_name(s_symbol_tables.symbol_table_aout, "cret");
         }
-        if (!csav_sym && symbol_tables.symbol_table_map)
-            csav_sym = symbols_lookup_by_name(symbol_tables.symbol_table_map, "csav");
-        if (!cret_sym && symbol_tables.symbol_table_map)
-            cret_sym = symbols_lookup_by_name(symbol_tables.symbol_table_map, "cret");
+        if (!csav_sym && s_symbol_tables.symbol_table_map)
+            csav_sym = symbols_lookup_by_name(s_symbol_tables.symbol_table_map, "csav");
+        if (!cret_sym && s_symbol_tables.symbol_table_map)
+            cret_sym = symbols_lookup_by_name(s_symbol_tables.symbol_table_map, "cret");
 
         // Special case: inside csav (function prologue helper).
         // L points to .word NNN (frame size parameter). The function body
@@ -998,9 +998,9 @@ int step_cpu(DAPServer *server, StepType step_type)
             bool b_chain_valid = false;
 
             // Check B-chain
-            if (symbol_tables.debug_info) {
+            if (s_symbol_tables.debug_info) {
                 symbol_function_t *fn = symbols_find_function_at(
-                    symbol_tables.debug_info, gPC);
+                    s_symbol_tables.debug_info, gPC);
                 if (fn && fn->start_address != gPC) {
                     // Trap-free debugger reads (see dbg_read_data); preserve the
                     // old "unmapped -> 0 -> skip" semantics so the heuristic below
@@ -1018,7 +1018,7 @@ int step_cpu(DAPServer *server, StepType step_type)
                         // (which would mean csav hasn't run yet and B is
                         // still the caller's frame)
                         symbol_function_t *ret_fn = symbols_find_function_at(
-                            symbol_tables.debug_info, saved_ret);
+                            s_symbol_tables.debug_info, saved_ret);
                         if (!ret_fn || ret_fn != fn) {
                             b_ret = saved_ret;
                             b_chain_valid = true;
@@ -1031,11 +1031,11 @@ int step_cpu(DAPServer *server, StepType step_type)
             // own function (meaning csav overwrote it), use B-chain.
             // Otherwise prefer L (still contains the return address).
             if (b_chain_valid) {
-                symbol_function_t *l_fn = symbol_tables.debug_info ?
-                    symbols_find_function_at(symbol_tables.debug_info, l_ret) :
+                symbol_function_t *l_fn = s_symbol_tables.debug_info ?
+                    symbols_find_function_at(s_symbol_tables.debug_info, l_ret) :
                     NULL;
-                symbol_function_t *cur_fn = symbol_tables.debug_info ?
-                    symbols_find_function_at(symbol_tables.debug_info, gPC) :
+                symbol_function_t *cur_fn = s_symbol_tables.debug_info ?
+                    symbols_find_function_at(s_symbol_tables.debug_info, gPC) :
                     NULL;
 
                 if (l_fn && l_fn == cur_fn) {
@@ -1200,13 +1200,13 @@ static int cmd_scopes(DAPServer *server)
 
         // Use the requested frame's PC, not gPC (which is always the top frame)
         uint16_t frame_pc = gPC;
-        if (frame_id >= 0 && frame_id < stack_trace.frame_count)
-            frame_pc = stack_trace.frames[frame_id].pc;
+        if (frame_id >= 0 && frame_id < s_stack_trace.frame_count)
+            frame_pc = s_stack_trace.frames[frame_id].pc;
 
-        if (symbol_tables.debug_info)
+        if (s_symbol_tables.debug_info)
         {
             symbol_function_t *func = symbols_find_function_at(
-                symbol_tables.debug_info, frame_pc);
+                s_symbol_tables.debug_info, frame_pc);
             if (func && func->variable_count > 0)
             {
                 has_c_locals = true;
@@ -1215,10 +1215,10 @@ static int cmd_scopes(DAPServer *server)
         }
 
         if (has_c_locals ||
-            stack_trace.frames[stack_trace.current_frame].variables.number_of_variables > 0)
+            s_stack_trace.frames[s_stack_trace.current_frame].variables.number_of_variables > 0)
         {
             int named_vars = has_c_locals ? c_var_count :
-                stack_trace.frames[stack_trace.current_frame].variables.number_of_variables;
+                s_stack_trace.frames[s_stack_trace.current_frame].variables.number_of_variables;
 
             scopes[scope_index].name = strdup("Locals");
             scopes[scope_index].variables_reference = SCOPE_ID_LOCALS;
@@ -1381,20 +1381,20 @@ static void add_local_variables(DAPServer *server, char *info_message, size_t in
     char value_str[64];
 
     // Check if we have C debug info and are in a C function
-    if (symbol_tables.debug_info)
+    if (s_symbol_tables.debug_info)
     {
         // Use the frame's PC and B register, not the top frame's
         uint16_t frame_pc = gPC;
         uint16_t frame_b = gB;
         int fid = scopes_active_frame_id;
-        if (fid >= 0 && fid < stack_trace.frame_count)
+        if (fid >= 0 && fid < s_stack_trace.frame_count)
         {
-            frame_pc = stack_trace.frames[fid].pc;
-            frame_b = stack_trace.frames[fid].b_reg;
+            frame_pc = s_stack_trace.frames[fid].pc;
+            frame_b = s_stack_trace.frames[fid].b_reg;
         }
 
         symbol_function_t *func = symbols_find_function_at(
-            symbol_tables.debug_info, frame_pc);
+            s_symbol_tables.debug_info, frame_pc);
 
         if (func)
         {
@@ -1442,9 +1442,9 @@ static void add_local_variables(DAPServer *server, char *info_message, size_t in
 
     // Fallback: show any variables from the stack trace frame
     // (assembly-level local variables, if any were set)
-    if (stack_trace.frames[stack_trace.current_frame].variables.number_of_variables > 0)
+    if (s_stack_trace.frames[s_stack_trace.current_frame].variables.number_of_variables > 0)
     {
-        LocalVariables *lv = &stack_trace.frames[stack_trace.current_frame].variables;
+        LocalVariables *lv = &s_stack_trace.frames[s_stack_trace.current_frame].variables;
         for (int i = 0; i < lv->number_of_variables; i++)
         {
             add_variable_to_array(
@@ -1494,8 +1494,8 @@ static void add_level_variables(DAPServer *server, char *info_message, size_t in
 
     for (int i = 0; i < 16; i++)
     {
-        uint16_t rP = gReg->reg[i][_P];
-        uint16_t rPCR = gReg->reg_PCR[i];
+        uint16_t rP = g_reg->reg[i][_P];
+        uint16_t rPCR = g_reg->reg_PCR[i];
         uint16_t pt = 0, apt = 0;
 
         // decode PCR
@@ -1549,7 +1549,7 @@ static void add_pil_register_variables(DAPServer *server, int pil)
     // Note: "D" lives at index 1 in reg[level][] (slot between STS and P).
 
     for (size_t r = 0; r < sizeof(regs)/sizeof(regs[0]); r++) {
-        uint16_t v = gReg->reg[pil][regs[r].idx];
+        uint16_t v = g_reg->reg[pil][regs[r].idx];
         snprintf(value_str, sizeof(value_str), "%06o", v);
         add_variable_to_array(
             server,
@@ -1564,7 +1564,7 @@ static void add_pil_register_variables(DAPServer *server, int pil)
 
     // Also include the per-level paging control register so callers can
     // verify ring/PT/APT/priority/PTM-readiness for that level.
-    snprintf(value_str, sizeof(value_str), "%06o", gReg->reg_PCR[pil]);
+    snprintf(value_str, sizeof(value_str), "%06o", g_reg->reg_PCR[pil]);
     add_variable_to_array(
         server, "PCR", value_str, "integer", 0, 0,
         DAP_VARIABLE_KIND_DATA, DAP_VARIABLE_ATTR_NONE);
@@ -1734,19 +1734,19 @@ static void add_internal_registers_read_variables(DAPServer *server, char *info_
         uint16_t *reg_ptr;
         const char *type;
     } internal_regs[] = {
-        {"PANS", &gReg->reg_PANS, "octal"}, // Panel status
-        {"OPR", &gReg->reg_OPR, "octal"},   // Operator register
-        {"PGS", &gReg->reg_PGS, "octal"},   // Paging status register
-        {"PVL", &gReg->reg_PVL, "octal"},   // Page violation limit register
-        {"IIC", &gReg->reg_IIC, "octal"},   // Internal interrupt code register
-        {"IID", &gReg->reg_IID, "octal"},   // Internal interrupt detect register
-        {"PID", &gReg->reg_PID, "octal"},   // Priority interrupt detect register
-        {"PIE", &gReg->reg_PIE, "octal"},   // Priority interrupt enable register
-        {"CSR", &gReg->reg_CSR, "octal"},   // Control store register
-        {"ALD", &gReg->reg_ALD, "octal"},   // Auto-load descriptor register
-        {"PES", &gReg->reg_PES, "octal"},   // Page error status register
-        {"PGC", &gReg->reg_PGC, "octal"},   // Paging Control Register
-        {"PEA", &gReg->reg_PEA, "octal"},   // Page error address register
+        {"PANS", &g_reg->reg_PANS, "octal"}, // Panel status
+        {"OPR", &g_reg->reg_OPR, "octal"},   // Operator register
+        {"PGS", &g_reg->reg_PGS, "octal"},   // Paging status register
+        {"PVL", &g_reg->reg_PVL, "octal"},   // Page violation limit register
+        {"IIC", &g_reg->reg_IIC, "octal"},   // Internal interrupt code register
+        {"IID", &g_reg->reg_IID, "octal"},   // Internal interrupt detect register
+        {"PID", &g_reg->reg_PID, "octal"},   // Priority interrupt detect register
+        {"PIE", &g_reg->reg_PIE, "octal"},   // Priority interrupt enable register
+        {"CSR", &g_reg->reg_CSR, "octal"},   // Control store register
+        {"ALD", &g_reg->reg_ALD, "octal"},   // Auto-load descriptor register
+        {"PES", &g_reg->reg_PES, "octal"},   // Page error status register
+        {"PGC", &g_reg->reg_PGC, "octal"},   // Paging Control Register
+        {"PEA", &g_reg->reg_PEA, "octal"},   // Page error address register
     };
 
     const int num_regs = sizeof(internal_regs) / sizeof(internal_regs[0]);
@@ -1797,16 +1797,16 @@ static void add_internal_registers_write_variables(DAPServer *server, char *info
         uint16_t *reg_ptr;
         const char *type;
     } internal_regs[] = {
-        {"PANC", &gReg->reg_PANC, "octal"},     // Panel control
-        {"LMP", &gReg->reg_LMP, "octal"},       // Panel data display buffer register
-        {"PCR", &gReg->reg_PCR[gPIL], "octal"}, // Paging Control Register
-        {"IIE", &gReg->reg_IIE, "octal"},       // Internal interrupt enable register
-        {"PID", &gReg->reg_PID, "octal"},       // Priority interrupt detect register
-        {"PIE", &gReg->reg_PIE, "octal"},       // Priority interrupt enable register
-        {"CCL", &gReg->reg_CCL, "octal"},       // Cache clear register
-        {"LCIL", &gReg->reg_LCIL, "octal"},     // Lower cache inhibit limit register
-        {"UCIL", &gReg->reg_UCIL, "octal"},     // Upper cache inhibit limit register
-        {"ECCR", &gReg->reg_ECCR, "octal"},     // Error correction control register
+        {"PANC", &g_reg->reg_PANC, "octal"},     // Panel control
+        {"LMP", &g_reg->reg_LMP, "octal"},       // Panel data display buffer register
+        {"PCR", &g_reg->reg_PCR[gPIL], "octal"}, // Paging Control Register
+        {"IIE", &g_reg->reg_IIE, "octal"},       // Internal interrupt enable register
+        {"PID", &g_reg->reg_PID, "octal"},       // Priority interrupt detect register
+        {"PIE", &g_reg->reg_PIE, "octal"},       // Priority interrupt enable register
+        {"CCL", &g_reg->reg_CCL, "octal"},       // Cache clear register
+        {"LCIL", &g_reg->reg_LCIL, "octal"},     // Lower cache inhibit limit register
+        {"UCIL", &g_reg->reg_UCIL, "octal"},     // Upper cache inhibit limit register
+        {"ECCR", &g_reg->reg_ECCR, "octal"},     // Error correction control register
     };
 
     const int num_regs = sizeof(internal_regs) / sizeof(internal_regs[0]);
@@ -1979,7 +1979,7 @@ static void add_page_mms_entries(DAPServer *server, char *info_message, size_t i
     // Property kind with readonly attribute
 
     // Get PCR for current runlevel
-    uint16_t rPCR = gReg->reg_PCR[gPIL];
+    uint16_t rPCR = g_reg->reg_PCR[gPIL];
     uint16_t pt = 0, apt = 0;
 
     // decode PT and APT PCR
@@ -2052,7 +2052,7 @@ static void add_page_table_entries(DAPServer *server, char *info_message, size_t
     // Property kind with readonly attribute
 
     // Get PCR for current runlevel
-    uint16_t rPCR = gReg->reg_PCR[gPIL];
+    uint16_t rPCR = g_reg->reg_PCR[gPIL];
     uint16_t pt = 0, apt = 0;
     PageTableMode ptm = Four; // Default to four page tables
 
@@ -2236,9 +2236,9 @@ void update_stack_frame(DAPServer *server, int frame_index, int frame_id, uint16
 
     // Try to get symbol information if we have a symbol table
     // Get source location information
-    int line = symbols_get_line(symbol_tables.symbol_table_map, memory_reference);
-    const char *file = symbols_get_file(symbol_tables.symbol_table_map, memory_reference);
-    const symbol_entry_t *symbol = symbols_lookup_by_address(symbol_tables.symbol_table_aout, entry_point);
+    int line = symbols_get_line(s_symbol_tables.symbol_table_map, memory_reference);
+    const char *file = symbols_get_file(s_symbol_tables.symbol_table_map, memory_reference);
+    const symbol_entry_t *symbol = symbols_lookup_by_address(s_symbol_tables.symbol_table_aout, entry_point);
 
     if (line > 0 && file)
     {
@@ -2343,12 +2343,12 @@ frame_line_entry_in_range(const symbol_table_t *t, uint16_t addr,
  */
 static void rebuild_stack_from_b_chain(void)
 {
-    if (!symbol_tables.debug_info)
+    if (!s_symbol_tables.debug_info)
         return;
 
     /* Only rebuild if current PC is inside a known C function */
     symbol_function_t *cur_func = symbols_find_function_at(
-        symbol_tables.debug_info, gPC);
+        s_symbol_tables.debug_info, gPC);
     if (!cur_func)
         return;
 
@@ -2400,7 +2400,7 @@ static void rebuild_stack_from_b_chain(void)
         tmp_frames[nframes].b_reg = old_b;
 
         symbol_function_t *fn = symbols_find_function_at(
-            symbol_tables.debug_info, ret_addr);
+            s_symbol_tables.debug_info, ret_addr);
         tmp_frames[nframes].entry_point =
             fn ? fn->start_address : ret_addr;
 
@@ -2416,21 +2416,21 @@ static void rebuild_stack_from_b_chain(void)
      * the existing cmd_stack_trace expects.
      * Index 0 = oldest, current_frame = newest.
      */
-    memset(&stack_trace, 0, sizeof(stack_trace));
-    stack_trace.frame_count = nframes;
+    memset(&s_stack_trace, 0, sizeof(s_stack_trace));
+    s_stack_trace.frame_count = nframes;
 
     for (int i = 0; i < nframes; i++)
     {
         /* Oldest frame (tmp_frames[nframes-1]) goes to index 0,
          * newest (tmp_frames[0]) goes to index nframes-1. */
         int dst = nframes - 1 - i;
-        stack_trace.frames[dst].pc = tmp_frames[i].pc;
-        stack_trace.frames[dst].entry_point = tmp_frames[i].entry_point;
-        stack_trace.frames[dst].return_address = tmp_frames[i].return_address;
-        stack_trace.frames[dst].b_reg = tmp_frames[i].b_reg;
-        stack_trace.frames[dst].operand = 0;
+        s_stack_trace.frames[dst].pc = tmp_frames[i].pc;
+        s_stack_trace.frames[dst].entry_point = tmp_frames[i].entry_point;
+        s_stack_trace.frames[dst].return_address = tmp_frames[i].return_address;
+        s_stack_trace.frames[dst].b_reg = tmp_frames[i].b_reg;
+        s_stack_trace.frames[dst].operand = 0;
     }
-    stack_trace.current_frame = nframes - 1;
+    s_stack_trace.current_frame = nframes - 1;
 }
 
 /**
@@ -2453,13 +2453,13 @@ static int cmd_stack_trace(DAPServer *server)
     }
 
     /* If we have C debug info, rebuild stack from B-register chain */
-    if (symbol_tables.debug_info)
+    if (s_symbol_tables.debug_info)
     {
         rebuild_stack_from_b_chain();
     }
 
     // Validate stack trace availability
-    if (stack_trace.frame_count == 0)
+    if (s_stack_trace.frame_count == 0)
     {
         dap_server_send_output_category(server, DAP_OUTPUT_CONSOLE,
                                         "No stack trace available\n");
@@ -2469,7 +2469,7 @@ static int cmd_stack_trace(DAPServer *server)
     // Extract and validate request parameters
     int stack_levels = server->current_command.context.stack_trace.levels;
     int stack_start_frame = server->current_command.context.stack_trace.start_frame;
-    int frame_count = stack_trace.frame_count;
+    int frame_count = s_stack_trace.frame_count;
 
     // Validate input parameters
     if (stack_start_frame < 0)
@@ -2522,16 +2522,16 @@ static int cmd_stack_trace(DAPServer *server)
     {
         // Calculate frame index - we want to go from newest to oldest
         // current_frame points to the newest frame, so we start there and go backwards
-        int frame_idx = (stack_trace.current_frame - i + MAX_STACK_FRAMES) % MAX_STACK_FRAMES;
+        int frame_idx = (s_stack_trace.current_frame - i + MAX_STACK_FRAMES) % MAX_STACK_FRAMES;
 
         // For the currrent frame, update PC
-        if (frame_idx == stack_trace.current_frame)
+        if (frame_idx == s_stack_trace.current_frame)
         {
-            stack_trace.frames[frame_idx].pc = gPC;
+            s_stack_trace.frames[frame_idx].pc = gPC;
         }
 
-        uint16_t memory_reference = stack_trace.frames[frame_idx].pc;
-        uint16_t entry_point = stack_trace.frames[frame_idx].entry_point;
+        uint16_t memory_reference = s_stack_trace.frames[frame_idx].pc;
+        uint16_t entry_point = s_stack_trace.frames[frame_idx].entry_point;
 
         // Update frame with enhanced information
         DAPStackFrame *frame = &server->current_command.context.stack_trace.frames[i];
@@ -2555,26 +2555,26 @@ static int cmd_stack_trace(DAPServer *server)
         const char *c_func_name = NULL;
 
         // Try C debug info first (most specific for C programs)
-        if (symbol_tables.debug_info) {
+        if (s_symbol_tables.debug_info) {
             symbol_function_t *cfn = symbols_find_function_at(
-                symbol_tables.debug_info, entry_point);
+                s_symbol_tables.debug_info, entry_point);
             if (cfn)
                 c_func_name = cfn->name;
         }
 
         // Try AOUT symbols (most common for binaries)
-        if (!c_func_name && symbol_tables.symbol_table_aout) {
-            symbol = symbols_lookup_by_address(symbol_tables.symbol_table_aout, entry_point);
+        if (!c_func_name && s_symbol_tables.symbol_table_aout) {
+            symbol = symbols_lookup_by_address(s_symbol_tables.symbol_table_aout, entry_point);
         }
 
         // Try MAP symbols (for assembly programs)
-        if (!c_func_name && (!symbol || !symbol->name) && symbol_tables.symbol_table_map) {
-            symbol = symbols_lookup_by_address(symbol_tables.symbol_table_map, entry_point);
+        if (!c_func_name && (!symbol || !symbol->name) && s_symbol_tables.symbol_table_map) {
+            symbol = symbols_lookup_by_address(s_symbol_tables.symbol_table_map, entry_point);
         }
 
         // Try STABS symbols as last resort
-        if (!c_func_name && (!symbol || !symbol->name) && symbol_tables.symbol_table_stabs) {
-            symbol = symbols_lookup_by_address(symbol_tables.symbol_table_stabs, entry_point);
+        if (!c_func_name && (!symbol || !symbol->name) && s_symbol_tables.symbol_table_stabs) {
+            symbol = symbols_lookup_by_address(s_symbol_tables.symbol_table_stabs, entry_point);
         }
 
         if (c_func_name)
@@ -2615,11 +2615,11 @@ static int cmd_stack_trace(DAPServer *server)
         // nearest-match attributes a PC in an inter-function gap (or a garbage
         // frame from a corrupted stack) to an adjacent unit's file/line. Bound
         // it to [start_address, end_address] to keep frame attribution honest.
-        symbol_function_t *lfn = symbol_tables.debug_info ?
-            symbols_find_function_at(symbol_tables.debug_info, memory_reference) :
+        symbol_function_t *lfn = s_symbol_tables.debug_info ?
+            symbols_find_function_at(s_symbol_tables.debug_info, memory_reference) :
             NULL;
 
-        if (symbol_tables.debug_info && !lfn)
+        if (s_symbol_tables.debug_info && !lfn)
         {
             // C debug info present, but this PC is outside every known C
             // function (garbage / assembly-rooted frame): leave source blank
@@ -2628,9 +2628,9 @@ static int cmd_stack_trace(DAPServer *server)
         else if (lfn)
         {
             const symbol_table_t *tbls[3] = {
-                symbol_tables.symbol_table_stabs,   // C line entries live here
-                symbol_tables.symbol_table_map,
-                symbol_tables.symbol_table_aout,
+                s_symbol_tables.symbol_table_stabs,   // C line entries live here
+                s_symbol_tables.symbol_table_map,
+                s_symbol_tables.symbol_table_aout,
             };
             for (int t = 0; t < 3 && (!line || !file); t++)
             {
@@ -2644,17 +2644,17 @@ static int cmd_stack_trace(DAPServer *server)
         {
             // No C debug info (assembly / SINTRAN): original nearest-match
             // across MAP -> STABS -> AOUT.
-            if (symbol_tables.symbol_table_map) {
-                line = symbols_get_line(symbol_tables.symbol_table_map, memory_reference);
-                file = symbols_get_file(symbol_tables.symbol_table_map, memory_reference);
+            if (s_symbol_tables.symbol_table_map) {
+                line = symbols_get_line(s_symbol_tables.symbol_table_map, memory_reference);
+                file = symbols_get_file(s_symbol_tables.symbol_table_map, memory_reference);
             }
-            if ((!line || !file) && symbol_tables.symbol_table_stabs) {
-                line = symbols_get_line(symbol_tables.symbol_table_stabs, memory_reference);
-                file = symbols_get_file(symbol_tables.symbol_table_stabs, memory_reference);
+            if ((!line || !file) && s_symbol_tables.symbol_table_stabs) {
+                line = symbols_get_line(s_symbol_tables.symbol_table_stabs, memory_reference);
+                file = symbols_get_file(s_symbol_tables.symbol_table_stabs, memory_reference);
             }
-            if ((!line || !file) && symbol_tables.symbol_table_aout) {
-                line = symbols_get_line(symbol_tables.symbol_table_aout, memory_reference);
-                file = symbols_get_file(symbol_tables.symbol_table_aout, memory_reference);
+            if ((!line || !file) && s_symbol_tables.symbol_table_aout) {
+                line = symbols_get_line(s_symbol_tables.symbol_table_aout, memory_reference);
+                file = symbols_get_file(s_symbol_tables.symbol_table_aout, memory_reference);
             }
         }
 
@@ -2767,22 +2767,22 @@ static int cmd_set_breakpoints(DAPServer *server)
         // Try multiple symbol tables in order of preference
 
         // 1. Try STABS (most detailed for C/mixed programs)
-        if (!validSymbol && symbol_tables.symbol_table_stabs) {
-            validSymbol = symbols_find_address(symbol_tables.symbol_table_stabs,
+        if (!validSymbol && s_symbol_tables.symbol_table_stabs) {
+            validSymbol = symbols_find_address(s_symbol_tables.symbol_table_stabs,
                                               source_path, &address, &diff, bp->line);
         }
 
         // 2. Try MAP file (reliable for assembly)
-        if (!validSymbol && symbol_tables.symbol_table_map) {
-            validSymbol = symbols_find_address(symbol_tables.symbol_table_map,
+        if (!validSymbol && s_symbol_tables.symbol_table_map) {
+            validSymbol = symbols_find_address(s_symbol_tables.symbol_table_map,
                                               source_path, &address, &diff, bp->line);
         }
 
         // 3. Try AOUT (last resort - function symbols)
-        if (!validSymbol && symbol_tables.symbol_table_aout && str_ends_with(source_path, ".s")) {
+        if (!validSymbol && s_symbol_tables.symbol_table_aout && str_ends_with(source_path, ".s")) {
             // For assembly files, try to find by label/function name
             // This is a fallback for when line mapping doesn't work
-            validSymbol = symbols_find_address(symbol_tables.symbol_table_aout,
+            validSymbol = symbols_find_address(s_symbol_tables.symbol_table_aout,
                                               source_path, &address, &diff, bp->line);
         }
 
@@ -2933,17 +2933,17 @@ static int cmd_data_breakpoint_info(DAPServer *server)
 
         // Try symbol lookup across all loaded symbol tables
         const symbol_entry_t *sym = NULL;
-        if (!sym && symbol_tables.symbol_table_aout)
+        if (!sym && s_symbol_tables.symbol_table_aout)
         {
-            sym = symbols_lookup_by_name(symbol_tables.symbol_table_aout, lookup_name);
+            sym = symbols_lookup_by_name(s_symbol_tables.symbol_table_aout, lookup_name);
         }
-        if (!sym && symbol_tables.symbol_table_map)
+        if (!sym && s_symbol_tables.symbol_table_map)
         {
-            sym = symbols_lookup_by_name(symbol_tables.symbol_table_map, lookup_name);
+            sym = symbols_lookup_by_name(s_symbol_tables.symbol_table_map, lookup_name);
         }
-        if (!sym && symbol_tables.symbol_table_stabs)
+        if (!sym && s_symbol_tables.symbol_table_stabs)
         {
-            sym = symbols_lookup_by_name(symbol_tables.symbol_table_stabs, lookup_name);
+            sym = symbols_lookup_by_name(s_symbol_tables.symbol_table_stabs, lookup_name);
         }
 
         if (sym)
@@ -3152,28 +3152,28 @@ static int cmd_set_data_breakpoints(DAPServer *server)
 
 void free_symbol_table(void)
 {
-    if (symbol_tables.symbol_table_map)
+    if (s_symbol_tables.symbol_table_map)
     {
-        symbols_free(symbol_tables.symbol_table_map);
-        symbol_tables.symbol_table_map = NULL;
+        symbols_free(s_symbol_tables.symbol_table_map);
+        s_symbol_tables.symbol_table_map = NULL;
     }
 
-    if (symbol_tables.symbol_table_aout)
+    if (s_symbol_tables.symbol_table_aout)
     {
-        symbols_free(symbol_tables.symbol_table_aout);
-        symbol_tables.symbol_table_aout = NULL;
+        symbols_free(s_symbol_tables.symbol_table_aout);
+        s_symbol_tables.symbol_table_aout = NULL;
     }
 
-    if (symbol_tables.symbol_table_stabs)
+    if (s_symbol_tables.symbol_table_stabs)
     {
-        symbols_free(symbol_tables.symbol_table_stabs);
-        symbol_tables.symbol_table_stabs = NULL;
+        symbols_free(s_symbol_tables.symbol_table_stabs);
+        s_symbol_tables.symbol_table_stabs = NULL;
     }
 
-    if (symbol_tables.debug_info)
+    if (s_symbol_tables.debug_info)
     {
-        symbols_debug_info_free(symbol_tables.debug_info);
-        symbol_tables.debug_info = NULL;
+        symbols_debug_info_free(s_symbol_tables.debug_info);
+        s_symbol_tables.debug_info = NULL;
     }
 }
 
@@ -3197,22 +3197,22 @@ int init_symbol_support(const char *filename, SymbolType symbol_type)
     }
 
     // Allocate symbol table if it doesn't exist
-    if (symbol_tables.symbol_table_map == NULL)
+    if (s_symbol_tables.symbol_table_map == NULL)
     {
-        symbol_tables.symbol_table_map = symbols_create();
+        s_symbol_tables.symbol_table_map = symbols_create();
     }
 
-    if (symbol_tables.symbol_table_aout == NULL)
+    if (s_symbol_tables.symbol_table_aout == NULL)
     {
-        symbol_tables.symbol_table_aout = symbols_create();
+        s_symbol_tables.symbol_table_aout = symbols_create();
     }
 
-    if (symbol_tables.symbol_table_stabs == NULL)
+    if (s_symbol_tables.symbol_table_stabs == NULL)
     {
-        symbol_tables.symbol_table_stabs = symbols_create();
+        s_symbol_tables.symbol_table_stabs = symbols_create();
     }
 
-    if (symbol_tables.symbol_table_map == NULL || symbol_tables.symbol_table_aout == NULL || symbol_tables.symbol_table_stabs == NULL)
+    if (s_symbol_tables.symbol_table_map == NULL || s_symbol_tables.symbol_table_aout == NULL || s_symbol_tables.symbol_table_stabs == NULL)
     {
         LOG(LOG_CAT_DAP, LOG_ERROR, "Error: Failed to create symbol table\n");
         free_symbol_table();
@@ -3225,15 +3225,15 @@ int init_symbol_support(const char *filename, SymbolType symbol_type)
     switch (symbol_type)
     {
     case SYMBOL_TYPE_MAP:
-        result = symbols_load_map(symbol_tables.symbol_table_map, filename);
+        result = symbols_load_map(s_symbol_tables.symbol_table_map, filename);
         break;
 
     case SYMBOL_TYPE_AOUT:
-        result = symbols_load_aout(symbol_tables.symbol_table_aout, filename);
+        result = symbols_load_aout(s_symbol_tables.symbol_table_aout, filename);
         break;
 
     case SYMBOL_TYPE_STABS:
-        result = symbols_load_stabs(symbol_tables.symbol_table_stabs, filename);
+        result = symbols_load_stabs(s_symbol_tables.symbol_table_stabs, filename);
         break;
     default:
         LOG(LOG_CAT_DAP, LOG_ERROR, "Error: Unsupported symbol type: %d\n", symbol_type);
@@ -3368,7 +3368,7 @@ static int cmd_launch_callback(DAPServer *server)
                                                 "Loading the a.out program failed.\n");
                 return -1;
             }
-            gPC = STARTADDR;
+            gPC = g_start_addr;
         } else {
             LOG(LOG_CAT_DAP, LOG_DEBUG, "Program file is not a.out format (skipping load, using existing boot): %s\n", program_path);
             dap_server_send_output_category(server, DAP_OUTPUT_CONSOLE,
@@ -3397,13 +3397,13 @@ static int cmd_launch_callback(DAPServer *server)
             dap_server_send_output_category(server, DAP_OUTPUT_IMPORTANT, message);
 
             // Try to load extended C debug info (FUNC/PARAM/LOCAL) from same srcmap
-            symbol_tables.debug_info = symbols_debug_info_create();
-            if (symbol_tables.debug_info &&
-                symbols_load_srcmap_debug(symbol_tables.debug_info, map_path))
+            s_symbol_tables.debug_info = symbols_debug_info_create();
+            if (s_symbol_tables.debug_info &&
+                symbols_load_srcmap_debug(s_symbol_tables.debug_info, map_path))
             {
                 snprintf(message, sizeof(message),
                          "Loaded C debug info: %d functions\n",
-                         symbol_tables.debug_info->function_count);
+                         s_symbol_tables.debug_info->function_count);
                 dap_server_send_output_category(server, DAP_OUTPUT_CONSOLE, message);
             }
         }
@@ -3516,8 +3516,8 @@ static int cmd_launch_callback(DAPServer *server)
     debugger_build_stack_trace(gPC, 0);
 
     // If we have symbols, try to map initial PC to a source line
-    int line = symbols_get_line(symbol_tables.symbol_table_map, gPC);
-    const char *file = symbols_get_file(symbol_tables.symbol_table_map, gPC);
+    int line = symbols_get_line(s_symbol_tables.symbol_table_map, gPC);
+    const char *file = symbols_get_file(s_symbol_tables.symbol_table_map, gPC);
 
     if (line > 0 && file)
     {
@@ -3732,8 +3732,8 @@ static int cmd_set_variable(DAPServer *server)
     }
 
     /* Locals scope - write to memory via B-register offset */
-    if (ref == SCOPE_ID_LOCALS && symbol_tables.debug_info) {
-        symbol_function_t *fn = symbols_find_function_at(symbol_tables.debug_info, gPC);
+    if (ref == SCOPE_ID_LOCALS && s_symbol_tables.debug_info) {
+        symbol_function_t *fn = symbols_find_function_at(s_symbol_tables.debug_info, gPC);
         if (fn) {
             int var_count;
             symbol_variable_t *vars = symbols_get_variables(fn, &var_count);
@@ -3815,9 +3815,9 @@ static int cmd_set_function_breakpoints(DAPServer *server)
         if (!fname) continue;
 
         /* Look up function name in debug_info */
-        if (symbol_tables.debug_info) {
-            for (int f = 0; f < symbol_tables.debug_info->function_count; f++) {
-                symbol_function_t *fn = &symbol_tables.debug_info->functions[f];
+        if (s_symbol_tables.debug_info) {
+            for (int f = 0; f < s_symbol_tables.debug_info->function_count; f++) {
+                symbol_function_t *fn = &s_symbol_tables.debug_info->functions[f];
                 if (fn->name && strcmp(fn->name, fname) == 0) {
                     uint16_t addr = fn->start_address;
                     const char *cond = server->current_command.context.function_breakpoint.conditions ?
@@ -3835,9 +3835,9 @@ static int cmd_set_function_breakpoints(DAPServer *server)
         /* Also try symbol table label lookup */
         if (!results[i].verified) {
             symbol_table_t *tables[] = {
-                symbol_tables.symbol_table_stabs,
-                symbol_tables.symbol_table_map,
-                symbol_tables.symbol_table_aout
+                s_symbol_tables.symbol_table_stabs,
+                s_symbol_tables.symbol_table_map,
+                s_symbol_tables.symbol_table_aout
             };
             for (int t = 0; t < 3 && !results[i].verified; t++) {
                 if (!tables[t]) continue;
@@ -4361,17 +4361,17 @@ static int cmd_symbol_list(DAPServer *server)
     /* Count total symbols across all tables */
     size_t total = 0;
 
-    if (symbol_tables.debug_info) {
-        for (int f = 0; f < symbol_tables.debug_info->function_count; f++) {
+    if (s_symbol_tables.debug_info) {
+        for (int f = 0; f < s_symbol_tables.debug_info->function_count; f++) {
             total++;  /* the function itself */
-            total += (size_t)symbol_tables.debug_info->functions[f].variable_count;
+            total += (size_t)s_symbol_tables.debug_info->functions[f].variable_count;
         }
     }
 
     symbol_table_t *flat_tables[] = {
-        symbol_tables.symbol_table_stabs,
-        symbol_tables.symbol_table_map,
-        symbol_tables.symbol_table_aout,
+        s_symbol_tables.symbol_table_stabs,
+        s_symbol_tables.symbol_table_map,
+        s_symbol_tables.symbol_table_aout,
     };
     for (int t = 0; t < 3; t++) {
         if (flat_tables[t])
@@ -4390,9 +4390,9 @@ static int cmd_symbol_list(DAPServer *server)
     int n = 0;
 
     /* 1. C debug info: functions and their variables */
-    if (symbol_tables.debug_info) {
-        for (int f = 0; f < symbol_tables.debug_info->function_count; f++) {
-            symbol_function_t *func = &symbol_tables.debug_info->functions[f];
+    if (s_symbol_tables.debug_info) {
+        for (int f = 0; f < s_symbol_tables.debug_info->function_count; f++) {
+            symbol_function_t *func = &s_symbol_tables.debug_info->functions[f];
             syms[n].name        = func->name ? strdup(func->name) : strdup("(unknown)");
             syms[n].address     = func->start_address;
             syms[n].type        = strdup("function");
@@ -4838,7 +4838,7 @@ const char *dbg_get_threads_json(void)
     {
         if (lev > 0) pos += snprintf(dbg_json_buf + pos, sizeof(dbg_json_buf) - pos, ",");
 
-        uint16_t pcr = gReg->reg_PCR[lev];
+        uint16_t pcr = g_reg->reg_PCR[lev];
         int ring = pcr & 0x03;
         int pt, apt;
         if (pcr & (1 << 2))
@@ -4851,7 +4851,7 @@ const char *dbg_get_threads_json(void)
             pt = (pcr >> 9) & 0x03;
             apt = (pcr >> 7) & 0x03;
         }
-        uint16_t p_reg = gReg->reg[lev][_P];
+        uint16_t p_reg = g_reg->reg[lev][_P];
         bool is_current = (lev == gPIL);
 
         pos += snprintf(dbg_json_buf + pos, sizeof(dbg_json_buf) - pos,
@@ -4922,7 +4922,7 @@ const char *find_symbol_by_address(symbol_table_t *symtab, uint16_t address)
  */
 const char *get_symbol_for_address(uint16_t address)
 {
-    return find_symbol_by_address(symbol_tables.symbol_table_aout, address);
+    return find_symbol_by_address(s_symbol_tables.symbol_table_aout, address);
 }
 
 /**
@@ -4934,13 +4934,13 @@ const char *get_symbol_for_address(uint16_t address)
  */
 const char *get_source_location(uint16_t address, int *line)
 {
-    if (!symbol_tables.symbol_table_map || !line)
+    if (!s_symbol_tables.symbol_table_map || !line)
     {
         return NULL;
     }
 
-    *line = symbols_get_line(symbol_tables.symbol_table_map, address);
-    return symbols_get_file(symbol_tables.symbol_table_map, address);
+    *line = symbols_get_line(s_symbol_tables.symbol_table_map, address);
+    return symbols_get_file(s_symbol_tables.symbol_table_map, address);
 }
 
 /**

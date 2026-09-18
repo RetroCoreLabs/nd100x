@@ -25,14 +25,14 @@ void MachineConfig_ApplyCpu(const MachineConfig *mc, const MachineConfigApplyOpt
      * the family number cannot express. Falling back to the number keeps a
      * config built by hand (or by an older writer) working. */
     if (mc->cpu_model != 0)
-        CurrentCPUType = (CpuType)mc->cpu_model;
+        g_current_cpu_type = (CpuType)mc->cpu_model;
     else if (MachineConfig_CpuTypeForNumber(mc->cpu_type, &ct))
-        CurrentCPUType = (CpuType)ct;
+        g_current_cpu_type = (CpuType)ct;
 
     // FPP width from the .ini [machine] fpp= key; a --fpp CLI flag wins
     // (mirroring the --memory / memory= precedence rule).
     if (!opts->fpp_already_set)
-        CurrentFPPType = (mc->fpp_bits == 32) ? FPP32 : FPP48;
+        g_current_fpp_type = (mc->fpp_bits == 32) ? FPP32 : FPP48;
 
     // RTC time base from the .ini [machine] rtc= key: ticks (default, one pulse
     // per 10550 instructions) or wall (one pulse per 20 ms of host time).

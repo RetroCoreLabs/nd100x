@@ -28,7 +28,7 @@ void WritePhysicalMemory(int physicalAddress, uint16_t value, bool privileged) {
         g_writes++;
     }
 }
-int  DISASM = 0;
+int  g_disasm = 0;
 void disasm_addword(uint16_t addr, uint16_t myword) { (void)addr; (void)myword; }
 
 #include "../src/ndlib/load_prog.c"

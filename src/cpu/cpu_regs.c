@@ -41,7 +41,7 @@ bool setPIL(char newLevel)
 	gPVL = gPIL; /* Save current runlevel */
 
 	// Update SYSTEM bits - PIL
-	gReg->reg_STS = (gReg->reg_STS & 0xF000) | ((newLevel & 0x0f) << 8);
+	g_reg->reg_STS = (g_reg->reg_STS & 0xF000) | ((newLevel & 0x0f) << 8);
 	return true;
 }
 
@@ -81,11 +81,11 @@ void setreg(int r, int val)
 {
 	if (r == _STS)
 	{
-		gReg->reg[CurrLEVEL][r] = (uint16_t)(val & 0x00FF); // Only lower 8 bits
+		g_reg->reg[CurrLEVEL][r] = (uint16_t)(val & 0x00FF); // Only lower 8 bits
 	}
 	else
 	{
-		gReg->reg[CurrLEVEL][r] = (uint16_t)(val & 0xFFFF);
+		g_reg->reg[CurrLEVEL][r] = (uint16_t)(val & 0xFFFF);
 	}
 }
 
@@ -99,7 +99,7 @@ uint16_t getbit(uint16_t regnum, uint16_t stsbit)
 	}
 	else
 	{
-		tmp = gReg->reg[CurrLEVEL][regnum];
+		tmp = g_reg->reg[CurrLEVEL][regnum];
 	}
 	result = (tmp >> stsbit) & 1;
 	return result;
@@ -109,7 +109,7 @@ void clrbit(uint16_t regnum, uint16_t stsbit)
 {
 	uint16_t thebit;
 	thebit = (1 << stsbit) ^ 0xFFFF;
-	gReg->reg[CurrLEVEL][regnum] = (thebit & gReg->reg[CurrLEVEL][regnum]);
+	g_reg->reg[CurrLEVEL][regnum] = (thebit & g_reg->reg[CurrLEVEL][regnum]);
 }
 
 /*
@@ -124,12 +124,12 @@ void setbit_STS_MSB(uint16_t stsbit, char val)
 	if (val)
 	{
 		thebit = (1 << stsbit);
-		gReg->reg_STS = gReg->reg_STS | thebit;
+		g_reg->reg_STS = g_reg->reg_STS | thebit;
 	}
 	else
 	{
 		thebit = (1 << stsbit) ^ 0xFFFF;
-		gReg->reg_STS = gReg->reg_STS & thebit;
+		g_reg->reg_STS = g_reg->reg_STS & thebit;
 	}
 }
 
@@ -148,7 +148,7 @@ void setbit(uint16_t regnum, uint16_t stsbit, char val)
 	if (val)
 	{
 		thebit = (1 << stsbit);
-		gReg->reg[CurrLEVEL][regnum] = (thebit | gReg->reg[CurrLEVEL][regnum]);
+		g_reg->reg[CurrLEVEL][regnum] = (thebit | g_reg->reg[CurrLEVEL][regnum]);
 
 		if (stsbit == _Z) // error bit is set
 		{
@@ -158,7 +158,7 @@ void setbit(uint16_t regnum, uint16_t stsbit, char val)
 	else
 	{
 		thebit = (1 << stsbit) ^ 0xFFFF;
-		gReg->reg[CurrLEVEL][regnum] = (thebit & gReg->reg[CurrLEVEL][regnum]);
+		g_reg->reg[CurrLEVEL][regnum] = (thebit & g_reg->reg[CurrLEVEL][regnum]);
 	}
 }
 

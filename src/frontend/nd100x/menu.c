@@ -1162,10 +1162,10 @@ static void draw_unmount_popup(void) {
     mvwprintw(popup, 0, 2, " Unmount ");
 
     // Get mounted drives
-    MountedDriveInfo_t* floppy_drives = list_mount(DRIVE_FLOPPY);
-    MountedDriveInfo_t* smd_drives = list_mount(DRIVE_SMD);
+    MountedDriveInfo_t* g_floppy_drives = list_mount(DRIVE_FLOPPY);
+    MountedDriveInfo_t* g_smd_drives = list_mount(DRIVE_SMD);
 
-    if (!floppy_drives || !smd_drives) {
+    if (!g_floppy_drives || !g_smd_drives) {
         mvwprintw(popup, 2, 2, "Error: Could not get mounted drives");
         wnoutrefresh(popup);
         return;
@@ -1176,14 +1176,14 @@ static void draw_unmount_popup(void) {
     // Draw floppy drives section
     mvwprintw(popup, y_pos++, 2, "Floppy Drives (Units 0-2):");
     for (int i = 0; i < 3; i++) {
-        if (floppy_drives[i].is_mounted) {
+        if (g_floppy_drives[i].is_mounted) {
             // Drive is mounted - show name, description, source type, and file size
-            const char* source_type = floppy_drives[i].is_remote ? "REMOTE" : "LOCAL";
+            const char* source_type = g_floppy_drives[i].is_remote ? "REMOTE" : "LOCAL";
             char size_str[32];
-            format_file_size(floppy_drives[i].data_size, size_str, sizeof(size_str));
+            format_file_size(g_floppy_drives[i].data_size, size_str, sizeof(size_str));
             mvwprintw(popup, y_pos++, 4, "%s Unit %d: %s (%s, %s) [%s]",
                       menu_state.unmount_popup.selected_unit == i ? ">" : " ",
-                      i, floppy_drives[i].name, floppy_drives[i].description, size_str, source_type);
+                      i, g_floppy_drives[i].name, g_floppy_drives[i].description, size_str, source_type);
         } else {
             // Drive is not mounted
             mvwprintw(popup, y_pos++, 4, "%s Unit %d: (not mounted)",
@@ -1197,14 +1197,14 @@ static void draw_unmount_popup(void) {
     // Draw SMD drives section
     mvwprintw(popup, y_pos++, 2, "SMD Drives (Units 0-3):");
     for (int i = 0; i < 4; i++) {
-        if (smd_drives[i].is_mounted) {
+        if (g_smd_drives[i].is_mounted) {
             // Drive is mounted - show name, description, source type, and file size
-            const char* source_type = smd_drives[i].is_remote ? "REMOTE" : "LOCAL";
+            const char* source_type = g_smd_drives[i].is_remote ? "REMOTE" : "LOCAL";
             char size_str[32];
-            format_file_size(smd_drives[i].data_size, size_str, sizeof(size_str));
+            format_file_size(g_smd_drives[i].data_size, size_str, sizeof(size_str));
             mvwprintw(popup, y_pos++, 4, "%s Unit %d: %s (%s, %s) [%s]",
                       menu_state.unmount_popup.selected_unit == (i + 3) ? ">" : " ",
-                      i, smd_drives[i].name, smd_drives[i].description, size_str, source_type);
+                      i, g_smd_drives[i].name, g_smd_drives[i].description, size_str, source_type);
         } else {
             // Drive is not mounted
             mvwprintw(popup, y_pos++, 4, "%s Unit %d: (not mounted)",

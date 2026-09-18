@@ -454,9 +454,9 @@ All size fields are in **words** (not bytes), except `a_syms`:
 ### 2. DAP Uses Atomic Flags for Thread Coordination
 
 The dual-thread model uses atomic boolean flags:
-- `debugger_request_pause`
-- `debugger_control_granted`
-- `cpu_run_mode`
+- `s_debugger_request_pause`
+- `s_debugger_control_granted`
+- `s_cpu_run_mode`
 
 **No mutex needed** - simple atomic flags are sufficient.
 

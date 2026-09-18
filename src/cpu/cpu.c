@@ -80,24 +80,24 @@ void ring_dump(void);
 
 #ifdef __EMSCRIPTEN__
 	/* WASM: single-threaded, no atomics needed */
-	int cpu_run_mode;
-	int cpu_stop_reason;
-	bool debugger_request_pause;
-	bool debugger_control_granted;
+	static int s_cpu_run_mode;
+	static int s_cpu_stop_reason;
+	static bool s_debugger_request_pause;
+	static bool s_debugger_control_granted;
 #elif defined(_WIN32)
     #include <windows.h>
-	volatile LONG cpu_run_mode;
-	volatile LONG cpu_stop_reason;
-	volatile LONG debugger_request_pause;
-	volatile LONG debugger_control_granted;
+	static volatile LONG s_cpu_run_mode;
+	static volatile LONG s_cpu_stop_reason;
+	static volatile LONG s_debugger_request_pause;
+	static volatile LONG s_debugger_control_granted;
 #else
     #include <stdatomic.h>
 	#include <pthread.h>
 
-	atomic_int cpu_run_mode;           // CPURunMode
-	atomic_int cpu_stop_reason;     // CpuStopReason
-	atomic_bool debugger_request_pause; // set by DAP thread to request pause
-	atomic_bool debugger_control_granted; // set by CPU thread when paused and debugger can access
+	static atomic_int s_cpu_run_mode;           // CPURunMode
+	static atomic_int s_cpu_stop_reason;     // CpuStopReason
+	static atomic_bool s_debugger_request_pause; // set by DAP thread to request pause
+	static atomic_bool s_debugger_control_granted; // set by CPU thread when paused and debugger can access
 #endif
 
 #else
@@ -113,7 +113,7 @@ void debugger_update_jpl_entrypoint(uint16_t ea);
 
 
 // Global CPU variable definitions
-_NDRAM_ VolatileMemory;
+_NDRAM_ g_volatile_memory;
 
 /*
  * The CPU model this emulator presents to the guest.
@@ -146,27 +146,27 @@ _NDRAM_ VolatileMemory;
  * ND100X_CPUTYPE remains a full run-time override in BOTH directions (including selecting
  * ND100CX again) - see cpu_set_type_from_env().
  */
-CpuType CurrentCPUType = ND110CX;
+CpuType g_current_cpu_type = ND110CX;
 
 /* Which FPP is installed. Default is the standard 48-bit unit so existing
  * boots, images and tests keep today's behaviour; the 32-bit option is
  * selected with [machine] fpp = 32 or the --fpp=32 command line flag. */
-FppType CurrentFPPType = FPP48;
+FppType g_current_fpp_type = FPP48;
 
 // Installed main-memory size in 16-bit WORDS. Default 4 MB (4 MW = 2097152 words);
 // overridden at start-up by --memory / the .ini memory= key (range 1..16 MB). The
 // backing VolatileMemory array is always the 16 MB maximum; this caps how much is
 // actually installed/visible (see the `addr >= ND_Memsize` guards in cpu_mms.c).
-uint32_t ND_Memsize = 4u * ND_WORDS_PER_MB;   // 2097152 words
+uint32_t g_nd_memsize = 4u * ND_WORDS_PER_MB;   // 2097152 words
 
 
-struct CpuRegs *gReg = NULL;
+struct CpuRegs *g_reg = NULL;
 
-uint64_t  instr_counter = 0;
-uint16_t STARTADDR = 0;
-int DISASM = 0;
-int gCpuExitCode = 0;
-int CPU_TRACE = 0;
+uint64_t  g_instr_counter = 0;
+uint16_t g_start_addr = 0;
+int g_disasm = 0;
+int g_cpu_exit_code = 0;
+int g_cpu_trace = 0;
 
 /*
  * BSD kernel-stack high-water tracking (--bsd-debug).
@@ -176,14 +176,14 @@ int CPU_TRACE = 0;
  * the B register is the current kernel frame pointer; its minimum value is
  * the deepest frame reached = the stack high-water.  used = KERN_STOP - min.
  */
-int BSD_DEBUG = 0;
+int g_bsd_debug = 0;
 #define BSD_KSTK_BASE  0162000		/* u-area base (0xE400) */
 #define BSD_KSTK_TOP   0170000		/* KERN_STOP (0xF000, USIZE=3/KERN_SSIZE=1) */
-unsigned short bsd_kstk_min = BSD_KSTK_TOP;
-uint64_t CPU_MAX_INSTR = 0;
-int CPU_BREAKPOINT_ENABLED = 0;
-uint16_t CPU_BREAKPOINT_ADDR = 0;
-int CPU_RING_DUMP_SIZE = 0;
+static unsigned short s_bsd_kstk_min = BSD_KSTK_TOP;
+uint64_t g_cpu_max_instr = 0;
+int g_cpu_breakpoint_enabled = 0;
+uint16_t g_cpu_breakpoint_addr = 0;
+int g_cpu_ring_dump_size = 0;
 
 
 
@@ -196,7 +196,7 @@ int CPU_RING_DUMP_SIZE = 0;
 
 
 // Used for TRAP handling to exit an instruction that fails
-jmp_buf cpu_jmp_buf;
+static jmp_buf s_cpu_jmp_buf;
 
 
 
@@ -210,7 +210,7 @@ static int nd110_trace_enabled = 0;
  * console SCREEN BUFFER, so a trace on stdout scrolls the guest's own output away.  Writing
  * the trace to a side file keeps the screen pristine while still capturing every opcode.
  */
-FILE *nd110_trace_fp = NULL;
+FILE *g_nd110_trace_fp = NULL;
 
 /**
  * @brief Turn the ND-110 opcode trace on (--trace-nd110[=FILE]).
@@ -226,7 +226,7 @@ int cpu_trace_nd110_set(const char *path)
 		if (fp == NULL)
 			return -1;
 	}
-	nd110_trace_fp = fp;
+	g_nd110_trace_fp = fp;
 	nd110_trace_enabled = 1;
 	return 0;
 }
@@ -237,7 +237,7 @@ void do_op(uint16_t operand, bool isEXR)
 	if (!isEXR)
 		gPC++; // Move P before starting instruction. (but not if executed from register)
 
-	if (instr_funcs[operand] == NULL)
+	if (g_instr_funcs[operand] == NULL)
 	{
 		illegal_instr(operand);
 		return;
@@ -256,14 +256,14 @@ void do_op(uint16_t operand, bool isEXR)
 		    (operand >= 0140500 && operand <= 0140517) ||
 		    (operand >= 0140700 && operand <= 0140777))
 		{
-			fprintf(nd110_trace_fp,
+			fprintf(g_nd110_trace_fp,
 				"ND110OP %06o at %06o A=%06o T=%06o X=%06o D=%06o B=%06o STBNK=%06o STSRT=%06o CMBUK=%06o\n",
 				operand, (uint16_t)(gPC - 1), gA, gT, gX, gD, gB, gSTBNK, gSTSRT, gCMBUK);
-			fflush(nd110_trace_fp);
+			fflush(g_nd110_trace_fp);
 		}
 	}
 
-	instr_funcs[operand](operand); /* call using a function pointer from the array
+	g_instr_funcs[operand](operand); /* call using a function pointer from the array
 				   this way we are as flexible as possible as we
 				   implement io calls. */
 
@@ -460,7 +460,7 @@ void interrupt(uint16_t lvl, uint16_t sub)
 	// Check for MPV (bit 2), PF (bit 3), or illegal instruction (bit 4)
 	if (lvl == 14 && (sub & ((1 << 2) | (1 << 3) | (1 << 4))))
 	{
-		if (CPU_TRACE)
+		if (g_cpu_trace)
 			fprintf(stderr, "*** TRAP lvl=14 sub=%d(0x%x) P=%06o PGS=%04x PEA=%06o PIL=%d MMU=%d %s%s%s\n",
 				sub, sub, gPC, gPGS, gPEA, gPIL, STS_PONI,
 				(sub & (1<<2)) ? "MPV " : "",
@@ -468,7 +468,7 @@ void interrupt(uint16_t lvl, uint16_t sub)
 				(sub & (1<<4)) ? "ILL " : "");
 		if (ND100X_HOT_TRACE && Log_IsEnabled(LOG_CAT_TRAP, LOG_TRACE))
 			Log_Write(LOG_CAT_TRAP, LOG_TRACE, "TRAP at P:[%6o], sub=%d", gPC, sub);
-		longjmp(cpu_jmp_buf, 1); // Jump back to cpurun() in cpu_thread
+		longjmp(s_cpu_jmp_buf, 1); // Jump back to cpurun() in cpu_thread
 	}
 }
 
@@ -554,9 +554,9 @@ void MemoryWrite(uint16_t value, uint16_t addr, bool UseAPT, unsigned char byte_
 	// Hot path: counter check -> bitmap check -> slow path
 	// Cost when no watchpoints: 1 int compare (branch predictor: always not-taken)
 	// Cost when watchpoints active but addr miss: + 1 byte load + 1 bit test
-	if (watchpoint_count > 0
-	    && (watchpoint_bitmap[addr >> 3] & (1 << (addr & 7)))
-	    && (watchpoint_min_value == 0 || value >= (uint16_t)watchpoint_min_value)
+	if (g_watchpoint_count > 0
+	    && (g_watchpoint_bitmap[addr >> 3] & (1 << (addr & 7)))
+	    && (g_watchpoint_min_value == 0 || value >= (uint16_t)g_watchpoint_min_value)
 	    && watchpoint_check_slow(addr, true, UseAPT)) {
 		cpu_watchpoint_triggered(addr, true);
 	}
@@ -571,8 +571,8 @@ void MemoryWrite(uint16_t value, uint16_t addr, bool UseAPT, unsigned char byte_
 uint16_t MemoryRead(uint16_t addr, bool UseAPT)
 {
 #ifdef WITH_DEBUGGER
-	if (watchpoint_count > 0
-	    && (watchpoint_bitmap[addr >> 3] & (1 << (addr & 7)))
+	if (g_watchpoint_count > 0
+	    && (g_watchpoint_bitmap[addr >> 3] & (1 << (addr & 7)))
 	    && watchpoint_check_slow(addr, false, UseAPT)) {
 		cpu_watchpoint_triggered(addr, false);
 	}
@@ -611,7 +611,7 @@ bool checkAndSwitch(void)
 				if (!isRTC)
 				{
 					Log_Write(LOG_CAT_PKSWITCH, LOG_TRACE, "Switched from %d P[%6o] to %d P[%6o]",
-					          gPVL, gReg->reg[gPVL][_P], gPIL, gReg->reg[gPIL][_P]);
+					          gPVL, g_reg->reg[gPVL][_P], gPIL, g_reg->reg[gPIL][_P]);
 					Log_Write(LOG_CAT_PKSWITCH, LOG_TRACE, "New pc after switch %6o", gPC);
 				}
 			}
@@ -627,8 +627,8 @@ bool checkAndSwitch(void)
 // The ND CPU is idle when running in level 0 in SINTRAN.
 // We detect that the CPU is idle by checking the gPIL register is == 0
 // But we only activate sleep when the CPU is idle for a while, and after it has been in another PIL level to achieve a quick boot.
-uint16_t lvlcnt=0;
-bool activateSleep = false;
+static uint16_t s_lvlcnt=0;
+static bool s_activate_sleep = false;
 
 // allocate once
 uint16_t g_operand;
@@ -641,73 +641,73 @@ void private_cpu_tick(void)
 	checkAndSwitch();
 
 	// Fetch next instruction
-	gReg->myreg_PFB = MemoryFetch(gPC, false); //TODO: Remove this  step?
-	gReg->myreg_IR = gReg->myreg_PFB;
+	g_reg->myreg_PFB = MemoryFetch(gPC, false); //TODO: Remove this  step?
+	g_reg->myreg_IR = g_reg->myreg_PFB;
 
-	g_operand = gReg->myreg_IR;
+	g_operand = g_reg->myreg_IR;
 
 
 	// Dissasemble ?
-	if (DISASM)
+	if (g_disasm)
 		disasm_instr(gPC, g_operand);
 
 	// CPU execution trace to stderr
-	if (CPU_TRACE)
+	if (g_cpu_trace)
 	{
 		char disasm_str[128];
 		OpToStr(disasm_str, sizeof(disasm_str), g_operand);
 		fprintf(stderr, "%06o %06o %-24s PIL=%d prevPIL=%d A=%06o D=%06o T=%06o X=%06o B=%06o L=%06o P=%06o STS=%04x PIE=%04x PID=%04x IIE=%04x IID=%04x PGS=%04x MMU=%d INT=%d SEX=%d\n",
 			gPC, g_operand, disasm_str,
-			gPIL, (gReg->reg_STS >> 8) & 0x0F,
+			gPIL, (g_reg->reg_STS >> 8) & 0x0F,
 			gA, gD, gT, gX, gB, gL, gPC,
 			gSTSr, gPIE, gPID, gIIE, gIID, gPGS,
 			STS_PONI, STS_IONI, STS_SEXI);
 	}
 
 	// BSD kernel-stack high-water: track deepest kernel frame pointer (B).
-	if (BSD_DEBUG && gPIL >= 2) {
+	if (g_bsd_debug && gPIL >= 2) {
 		unsigned short b = gB;
-		if (b >= BSD_KSTK_BASE && b < BSD_KSTK_TOP && b < bsd_kstk_min) {
-			bsd_kstk_min = b;
+		if (b >= BSD_KSTK_BASE && b < BSD_KSTK_TOP && b < s_bsd_kstk_min) {
+			s_bsd_kstk_min = b;
 			fprintf(stderr, "KSTKHW min=%06o used=%d\n",
-				bsd_kstk_min, BSD_KSTK_TOP - bsd_kstk_min);
+				s_bsd_kstk_min, BSD_KSTK_TOP - s_bsd_kstk_min);
 		}
 	}
 
 	// Check max instruction limit
-	if (CPU_MAX_INSTR > 0 && instr_counter >= CPU_MAX_INSTR)
+	if (g_cpu_max_instr > 0 && g_instr_counter >= g_cpu_max_instr)
 	{
 		fprintf(stderr, "\n--- CPU stopped: max instruction count reached (%llu) ---\n",
-			(unsigned long long)CPU_MAX_INSTR);
+			(unsigned long long)g_cpu_max_instr);
 		ring_dump();
 		set_cpu_run_mode(CPU_SHUTDOWN);
 		return;
 	}
 
 	// Check breakpoint
-	if (CPU_BREAKPOINT_ENABLED && gPC == CPU_BREAKPOINT_ADDR)
+	if (g_cpu_breakpoint_enabled && gPC == g_cpu_breakpoint_addr)
 	{
-		fprintf(stderr, "\n--- CPU stopped: breakpoint at %06o ---\n", CPU_BREAKPOINT_ADDR);
+		fprintf(stderr, "\n--- CPU stopped: breakpoint at %06o ---\n", g_cpu_breakpoint_addr);
 		ring_dump();
 		set_cpu_run_mode(CPU_SHUTDOWN);
 		return;
 	}
 
 	if (gPIL>0)
-		activateSleep = true;
+		s_activate_sleep = true;
 
 
-	if (activateSleep)
+	if (s_activate_sleep)
 	{
 		// Check if we need to sleep
-		lvlcnt = (gPIL == 0) ? (lvlcnt + 1) : 0;
+		s_lvlcnt = (gPIL == 0) ? (s_lvlcnt + 1) : 0;
 
-		if (lvlcnt > 10000)
+		if (s_lvlcnt > 10000)
 		{
 #ifndef __EMSCRIPTEN__
 			sleep_ms(1); // Sleep 1 ms - skip on WASM to avoid blocking browser
 #endif
-			lvlcnt = 0;
+			s_lvlcnt = 0;
 		}
 	}
 
@@ -720,7 +720,7 @@ void private_cpu_tick(void)
 #endif
 
 	// Execute instruction
-	instr_counter++;
+	g_instr_counter++;
 	do_op(g_operand, false);
 
 #ifdef WITH_DEBUGGER
@@ -801,7 +801,7 @@ static struct {
 static int ring_idx = 0;
 
 static void ring_record(unsigned short pc, unsigned char pil, unsigned short opcode) {
-    if (CPU_RING_DUMP_SIZE <= 0) return;
+    if (g_cpu_ring_dump_size <= 0) return;
     ring_buf[ring_idx].pc = pc;
     ring_buf[ring_idx].pil = pil;
     ring_buf[ring_idx].opcode = opcode;
@@ -819,9 +819,9 @@ void ring_dump(void) {
     int i;
     char disasm_str[128];
 
-    if (CPU_RING_DUMP_SIZE <= 0) return;
+    if (g_cpu_ring_dump_size <= 0) return;
 
-    int count = CPU_RING_DUMP_SIZE;
+    int count = g_cpu_ring_dump_size;
     if (count > RING_SIZE) count = RING_SIZE;
 
     fprintf(stderr, "\r\n--- CPU state at exit ---\r\n");
@@ -831,11 +831,11 @@ void ring_dump(void) {
            gSTSr, gPID, gPIE, gIID, gIIE, gPVL);
     fprintf(stderr, "STS per-level: ");
     for (i = 0; i < 16; i++)
-        fprintf(stderr, "[%d]=%03o ", i, gReg->reg[i][0] & 0xFF);
+        fprintf(stderr, "[%d]=%03o ", i, g_reg->reg[i][0] & 0xFF);
     fprintf(stderr, "\r\n");
     fprintf(stderr, "PC per-level:  ");
     for (i = 0; i < 16; i++)
-        fprintf(stderr, "[%d]=%06o ", i, gReg->reg[i][_P]);
+        fprintf(stderr, "[%d]=%06o ", i, g_reg->reg[i][_P]);
     fprintf(stderr, "\r\n");
 
     fprintf(stderr, "\r\n--- Last %d instructions before exit ---\r\n", count);
@@ -874,7 +874,7 @@ int cpu_run(int ticks_arg)
 #endif
 
 	// Set up longjmp target once at startup
-	if (setjmp(cpu_jmp_buf) != 0)
+	if (setjmp(s_cpu_jmp_buf) != 0)
 	{
 		// We had an interrupt (MPV, PF, or illegal instruction)
 		// PGS bit 15 indicates if fault was during fetch (1) or data cycle (0)
@@ -888,7 +888,7 @@ int cpu_run(int ticks_arg)
 		// In this case, the P register points to the instruction after the instruction causing the internal hardware status interrupt.
 		// When the cause of the internal hardware status interrupt has been removed, the restart point will be found by subtracting one from the P register.
 
-		if (CPU_TRACE)
+		if (g_cpu_trace)
 			fprintf(stderr, "*** FAULT RETURN PC=%06o PGS=%04x PEA=%06o PIL=%d MMU=%d\n",
 				gPC, gPGS, gPEA, gPIL, STS_PONI);
 		if (ND100X_HOT_TRACE && Log_IsEnabled(LOG_CAT_TRAP, LOG_TRACE))
@@ -978,9 +978,9 @@ int cpu_run(int ticks_arg)
 			// this is one compare; the hash walk in check_for_breakpoint() only
 			// runs when gPC actually has a breakpoint (or a single-step is pending).
 			if (gDebuggerEnabled
-			    && (breakpoint_step_pending
-			        || (breakpoint_entry_count > 0
-			            && (breakpoint_bitmap[gPC >> 3] & (1 << (gPC & 7))))))
+			    && (g_breakpoint_step_pending
+			        || (g_breakpoint_entry_count > 0
+			            && (g_breakpoint_bitmap[gPC >> 3] & (1 << (gPC & 7))))))
 			{
 				if (check_for_breakpoint() != STOP_REASON_NONE)
 				{
@@ -1025,19 +1025,19 @@ void cpu_set_type_from_env(void)
 		return;
 
 	if (strcmp(name, "ND100") == 0)
-		CurrentCPUType = ND100;
+		g_current_cpu_type = ND100;
 	else if (strcmp(name, "ND100CE") == 0)
-		CurrentCPUType = ND100CE;
+		g_current_cpu_type = ND100CE;
 	else if (strcmp(name, "ND100CX") == 0)
-		CurrentCPUType = ND100CX;
+		g_current_cpu_type = ND100CX;
 	else if (strcmp(name, "ND110") == 0)
-		CurrentCPUType = ND110;
+		g_current_cpu_type = ND110;
 	else if (strcmp(name, "ND110CE") == 0)
-		CurrentCPUType = ND110CE;
+		g_current_cpu_type = ND110CE;
 	else if (strcmp(name, "ND110CX") == 0)
-		CurrentCPUType = ND110CX;
+		g_current_cpu_type = ND110CX;
 	else if (strcmp(name, "ND110PCX") == 0)
-		CurrentCPUType = ND110PCX;
+		g_current_cpu_type = ND110PCX;
 	else
 		LOG(LOG_CAT_CPU, LOG_WARN, "Unknown ND100X_CPUTYPE '%s' - keeping the default", name);
 }
@@ -1047,10 +1047,10 @@ void cpu_init(bool debuggerEnabled, int debuggerPort)
 	/* initialize an empty register set (static storage: never freed, cannot fail) */
 	static struct CpuRegs s_cpu_regs;
 	memset(&s_cpu_regs, 0, sizeof(s_cpu_regs));
-	gReg = &s_cpu_regs;
+	g_reg = &s_cpu_regs;
 
 	/* Initialize volatile memory to zero */
-	memset(&VolatileMemory, 0, sizeof(VolatileMemory));
+	memset(&g_volatile_memory, 0, sizeof(g_volatile_memory));
 
 	// setbit(_STS, _O, 1);
 	setbit_STS_MSB(_N100, 1);
@@ -1058,7 +1058,7 @@ void cpu_init(bool debuggerEnabled, int debuggerPort)
 
 	/* Set cpu as running for now. Probably should depend on settings */
 	set_cpu_run_mode(CPU_RUNNING);
-	instr_counter = 0;
+	g_instr_counter = 0;
 
 	// Allocate ShadowMemory for pagetables
 	CreatePagingTables();
@@ -1082,7 +1082,7 @@ void cpu_init(bool debuggerEnabled, int debuggerPort)
 	gDebuggerEnabled = debuggerEnabled;
 	gDebuggerPort = debuggerPort;
 
-	if (DISASM)
+	if (g_disasm)
 		disasm_setlbl(gPC);
 
 }
@@ -1105,13 +1105,13 @@ void cpu_reset(void)
 {
 
 	/* Initialize volatile memory to zero */
-	memset(&VolatileMemory, 0, sizeof(VolatileMemory));
+	memset(&g_volatile_memory, 0, sizeof(g_volatile_memory));
 
 	// Reset registers (preserve debugger state across reset)
 #ifdef WITH_DEBUGGER
 	bool saved_debugger_enabled = gDebuggerEnabled;
 #endif
-	memset(gReg, 0, sizeof(struct CpuRegs));
+	memset(g_reg, 0, sizeof(struct CpuRegs));
 #ifdef WITH_DEBUGGER
 	gDebuggerEnabled = saved_debugger_enabled;
 #endif
@@ -1128,7 +1128,7 @@ void cpu_reset(void)
 
 
 	set_cpu_run_mode(CPU_RUNNING);
-	instr_counter = 0;
+	g_instr_counter = 0;
 }
 
 /// @brief Cleanup the CPU
@@ -1155,11 +1155,11 @@ void set_debugger_request_pause(bool requested)
 {
 #ifdef WITH_DEBUGGER
 	#ifdef __EMSCRIPTEN__
-		debugger_request_pause = requested;
+		s_debugger_request_pause = requested;
 	#elif defined(_WIN32)
-		InterlockedExchange((volatile LONG *)&debugger_request_pause, (LONG)requested);
+		InterlockedExchange((volatile LONG *)&s_debugger_request_pause, (LONG)requested);
 	#else
-		atomic_store(&debugger_request_pause, requested);
+		atomic_store(&s_debugger_request_pause, requested);
 	#endif
 #endif
 }
@@ -1170,15 +1170,15 @@ void set_debugger_request_pause(bool requested)
 bool get_debugger_request_pause(void) {
 #ifdef WITH_DEBUGGER
 	#ifdef __EMSCRIPTEN__
-		return debugger_request_pause;
+		return s_debugger_request_pause;
 	#elif defined(_WIN32)
 		return (CPURunMode)InterlockedCompareExchange(
-			(volatile LONG *)&debugger_request_pause,
+			(volatile LONG *)&s_debugger_request_pause,
 			0,  // Exchange value (ignored)
 			0   // Comparand (ignored)
 		);
 	#else
-		return atomic_load(&debugger_request_pause);
+		return atomic_load(&s_debugger_request_pause);
 	#endif
 #else
 	return false;
@@ -1192,11 +1192,11 @@ void set_debugger_control_granted(bool requested)
 {
 #ifdef WITH_DEBUGGER
 	#ifdef __EMSCRIPTEN__
-		debugger_control_granted = requested;
+		s_debugger_control_granted = requested;
 	#elif defined(_WIN32)
-		InterlockedExchange((volatile LONG *)&debugger_control_granted, (LONG)requested);
+		InterlockedExchange((volatile LONG *)&s_debugger_control_granted, (LONG)requested);
 	#else
-		atomic_store(&debugger_control_granted, requested);
+		atomic_store(&s_debugger_control_granted, requested);
 	#endif
 #endif
 }
@@ -1207,15 +1207,15 @@ void set_debugger_control_granted(bool requested)
 bool get_debugger_control_granted(void) {
 #ifdef WITH_DEBUGGER
 	#ifdef __EMSCRIPTEN__
-		return debugger_control_granted;
+		return s_debugger_control_granted;
 	#elif defined(_WIN32)
 		return (CPURunMode)InterlockedCompareExchange(
-			(volatile LONG *)&debugger_control_granted,
+			(volatile LONG *)&s_debugger_control_granted,
 			0,  // Exchange value (ignored)
 			0   // Comparand (ignored)
 		);
 	#else
-		return atomic_load(&debugger_control_granted);
+		return atomic_load(&s_debugger_control_granted);
 	#endif
 #else
 	return false;
@@ -1227,11 +1227,11 @@ bool get_debugger_control_granted(void) {
 void set_cpu_stop_reason(CpuStopReason reason) {
 #ifdef WITH_DEBUGGER
 	#ifdef __EMSCRIPTEN__
-		cpu_stop_reason = reason;
+		s_cpu_stop_reason = reason;
 	#elif defined(_WIN32)
-		InterlockedExchange((volatile LONG *)&cpu_stop_reason, (LONG)reason);
+		InterlockedExchange((volatile LONG *)&s_cpu_stop_reason, (LONG)reason);
 	#else
-		atomic_store(&cpu_stop_reason, reason);
+		atomic_store(&s_cpu_stop_reason, reason);
 	#endif
 #endif
 }
@@ -1240,15 +1240,15 @@ void set_cpu_stop_reason(CpuStopReason reason) {
 CpuStopReason get_cpu_stop_reason(void) {
 #ifdef WITH_DEBUGGER
 	#ifdef __EMSCRIPTEN__
-		return (CpuStopReason)cpu_stop_reason;
+		return (CpuStopReason)s_cpu_stop_reason;
 	#elif defined(_WIN32)
 		return (CpuStopReason)InterlockedCompareExchange(
-			(volatile LONG *)&cpu_stop_reason,
+			(volatile LONG *)&s_cpu_stop_reason,
 			0,  // Exchange value (ignored)
 			0   // Comparand (ignored)
 		);
 	#else
-		return atomic_load(&cpu_stop_reason);
+		return atomic_load(&s_cpu_stop_reason);
 	#endif
 #else
 	return STOP_REASON_NONE;
@@ -1260,11 +1260,11 @@ CpuStopReason get_cpu_stop_reason(void) {
 void set_cpu_run_mode(CPURunMode new_mode) {
 #ifdef WITH_DEBUGGER
 	#ifdef __EMSCRIPTEN__
-		cpu_run_mode = new_mode;
+		s_cpu_run_mode = new_mode;
 	#elif defined(_WIN32)
-		InterlockedExchange((volatile LONG *)&cpu_run_mode, (LONG)new_mode);
+		InterlockedExchange((volatile LONG *)&s_cpu_run_mode, (LONG)new_mode);
 	#else
-		atomic_store(&cpu_run_mode, new_mode);
+		atomic_store(&s_cpu_run_mode, new_mode);
 	#endif
 #else
 	CurrentCPURunMode = new_mode;
@@ -1275,15 +1275,15 @@ void set_cpu_run_mode(CPURunMode new_mode) {
 CPURunMode get_cpu_run_mode(void) {
 #ifdef WITH_DEBUGGER
 	#ifdef __EMSCRIPTEN__
-		return (CPURunMode)cpu_run_mode;
+		return (CPURunMode)s_cpu_run_mode;
 	#elif defined(_WIN32)
 		return (CPURunMode)InterlockedCompareExchange(
-			(volatile LONG *)&cpu_run_mode,
+			(volatile LONG *)&s_cpu_run_mode,
 			0,  // Exchange value (ignored)
 			0   // Comparand (ignored)
 		);
 	#else
-		return atomic_load(&cpu_run_mode);
+		return atomic_load(&s_cpu_run_mode);
 	#endif
 #else
 	return CurrentCPURunMode;

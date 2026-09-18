@@ -47,7 +47,7 @@ void cpu_set_ring_at_clpt(long n)
 
 
 // Initialize the instruction function array
-InstrFunc instr_funcs[65536];
+InstrFunc g_instr_funcs[65536];
 
 /*********** TODO ***********/
 
@@ -66,7 +66,7 @@ bool CheckPriv(void)
 		return true; // memory protection disabled
 
 	// Check ring
-	uint16_t pcr = gReg->reg_PCR[CurrLEVEL];
+	uint16_t pcr = g_reg->reg_PCR[CurrLEVEL];
 	uint16_t ring = pcr & 0x03;
 
 	if ((ring == 2) || (ring == 3))
@@ -234,7 +234,7 @@ void ndfunc_mon(uint16_t operand)
 				monitor_number |= 0xFE00; // Sign extend
 			}
 
-			gReg->reg[14][_T] = monitor_number;
+			g_reg->reg[14][_T] = monitor_number;
 			interrupt(14, 1 << 1); /* Monitor Call */
 			gCHKIT = true;
 		}
@@ -300,7 +300,7 @@ void ndfunc_shifts(uint16_t operand)
  */
 void ndfunc_nlz(uint16_t operand)
 {
-	if (CurrentFPPType == FPP48)
+	if (g_current_fpp_type == FPP48)
 		DoNLZ(operand & 0xFF);
 	else
 		DoNLZ32(operand & 0xFF);   /* 32-bit FPP: gT is not touched */
@@ -310,7 +310,7 @@ void ndfunc_nlz(uint16_t operand)
  */
 void ndfunc_dnz(uint16_t operand)
 {
-	if (CurrentFPPType == FPP48)
+	if (g_current_fpp_type == FPP48)
 		DoDNZ(operand & 0xFF);
 	else
 		DoDNZ32(operand & 0xFF);   /* 32-bit FPP: gT is not touched */
@@ -373,7 +373,7 @@ void CJP(bool jmp_flag, uint16_t operand)
 		 */
 		gPC = (uint16_t)((uint16_t)(gPC - 1) + (uint16_t)temp);
 
-		if (DISASM)
+		if (g_disasm)
 			disasm_userel(old_gPC, gPC);
 	}
 }
@@ -522,7 +522,7 @@ void ndfunc_jpl(uint16_t operand)
 
 	gPC = gEA;
 
-	if (DISASM)
+	if (g_disasm)
 		disasm_userel(old_gPC, gPC);
 }
 
@@ -924,7 +924,7 @@ void ndfunc_fad(uint16_t operand)
 {
 	gEA = New_GetEffectiveAddr(operand, &gUseAPT);
 
-	if (CurrentFPPType == FPP48) {
+	if (g_current_fpp_type == FPP48) {
 		uint16_t a[3], b[3], r[3];
 
 		a[0] = gT;
@@ -956,7 +956,7 @@ void ndfunc_fsb(uint16_t operand)
 {
 	gEA = New_GetEffectiveAddr(operand, &gUseAPT);
 
-	if (CurrentFPPType == FPP48) {
+	if (g_current_fpp_type == FPP48) {
 		uint16_t a[3], b[3], r[3];
 
 		a[0] = gT;
@@ -988,7 +988,7 @@ void ndfunc_fmu(uint16_t operand)
 {
 	gEA = New_GetEffectiveAddr(operand, &gUseAPT);
 
-	if (CurrentFPPType == FPP48) {
+	if (g_current_fpp_type == FPP48) {
 		uint16_t a[3], b[3], r[3];
 
 		a[0] = gT;
@@ -1020,7 +1020,7 @@ void ndfunc_fdv(uint16_t operand)
 {
 	gEA = New_GetEffectiveAddr(operand, &gUseAPT);
 
-	if (CurrentFPPType == FPP48) {
+	if (g_current_fpp_type == FPP48) {
 		uint16_t a[3], b[3], r[3];
 
 		a[0] = gT;
@@ -1061,7 +1061,7 @@ void ndfunc_jmp(uint16_t operand)
 	gEA = New_GetEffectiveAddr(operand, &gUseAPT);
 	gPC = gEA;
 
-	if (DISASM)
+	if (g_disasm)
 		disasm_userel(old_gPC, gPC);
 }
 
@@ -1195,7 +1195,7 @@ static void versn_load_default_prom(void)
 	for (i = 0; i < VERSN_PROM_SIZE; i++)
 		g_versn.prom[i] = 0x00;
 
-	if ((CurrentCPUType == ND100) || (CurrentCPUType == ND100CE) || (CurrentCPUType == ND100CX)) {
+	if ((g_current_cpu_type == ND100) || (g_current_cpu_type == ND100CE) || (g_current_cpu_type == ND100CX)) {
 		/* Historical filler - preserved byte for byte. 040171 = CPU? */
 		static const unsigned char historical[VERSN_PROM_SIZE] = {
 			0x01, 0x04, 0x00, 0x01, 0x07, 0x01, 0x01, 0x01,
@@ -1534,7 +1534,7 @@ void cpu_versn_set_identity_from_env(void)
  */
 static bool versn_is_nd120(void)
 {
-	return (CurrentCPUType == ND120CX);
+	return (g_current_cpu_type == ND120CX);
 }
 
 void ndfunc_versn(uint16_t operand)
@@ -1563,7 +1563,7 @@ void ndfunc_versn(uint16_t operand)
 	//   bits 6-4   PRINT RELEASE = 4   (100 binary => release "D")
 	//   bits 3-0   ALD switch code
 	// This is what makes TPE print a real "Print number: 3202" / "Print release: D" for the ND-120.
-	if (CurrentCPUType == ND120CX)
+	if (g_current_cpu_type == ND120CX)
 	{
 		gA = (uint16_t)(((5  & 0x07) << 13)   /* PRINT NUMBER  = 5  => 3202 */
 		            | ((20 & 0x1F) << 8)    /* ECO LEVEL     = 20 (straps 6,8,9) */
@@ -1779,11 +1779,11 @@ void ndfunc_irw(uint16_t operand)
 	if (dr == _STS)
 	{
 		// Update STS lower bits (which is unique for each runlevel)
-		gReg->reg[level][_STS] = (gA & 0x00FF);
+		g_reg->reg[level][_STS] = (gA & 0x00FF);
 	}
 	else
 	{
-		gReg->reg[level][dr] = gA;
+		g_reg->reg[level][dr] = gA;
 	}
 }
 
@@ -1805,11 +1805,11 @@ void ndfunc_irr(uint16_t operand)
 
 	if (sr == 0) // STS
 	{
-		gA = gReg->reg[level][_STS] & 0xFF; // read only lower 8 bits
+		gA = g_reg->reg[level][_STS] & 0xFF; // read only lower 8 bits
 	}
 	else
 	{
-		gA = gReg->reg[level][sr];
+		gA = g_reg->reg[level][sr];
 	}
 }
 
@@ -2840,14 +2840,14 @@ void ndfunc_clpt(uint16_t operand)
 			}
 
 			/* DIAG (--trace-nd110): what CLPT read back out of the page table. */
-			if (nd110_trace_fp != NULL)
+			if (g_nd110_trace_fp != NULL)
 			{
-				fprintf(nd110_trace_fp,
+				fprintf(g_nd110_trace_fp,
 					"  CLPT node X=%06o e=%06o -> B=%06o APT[B]=%06o shadow=%d PCR=%06o PONI=%d\n",
 					x_reg, entry, b_reg, r3,
 					IsAddressShadowMemory(b_reg, false) ? 1 : 0,
-					gReg->reg_PCR[CurrLEVEL], STS_PONI ? 1 : 0);
-				fflush(nd110_trace_fp);
+					g_reg->reg_PCR[CurrLEVEL], STS_PONI ? 1 : 0);
+				fflush(g_nd110_trace_fp);
 			}
 		}
 
@@ -2896,14 +2896,14 @@ void nd110_enter_page_table(uint16_t r4_mask)
 		WriteVirtualMemory((uint16_t)((b_reg + 1) & 0xFFFF), (uint16_t)(x_reg >> 2), true, WRITEMODE_WORD);
 
 		/* DIAG (--trace-nd110): per-node dump of the page-table entry actually written. */
-		if (nd110_trace_fp != NULL)
+		if (g_nd110_trace_fp != NULL)
 		{
-			fprintf(nd110_trace_fp,
+			fprintf(g_nd110_trace_fp,
 				"  ENPT node X=%06o w0=%06o w1=%06o -> B=%06o APT[B]=%06o APT[B+1]=%06o shadow=%d PCR=%06o PONI=%d\n",
 				x_reg, word0, word1, b_reg, gA, (uint16_t)(x_reg >> 2),
 				IsAddressShadowMemory(b_reg, false) ? 1 : 0,
-				gReg->reg_PCR[CurrLEVEL], STS_PONI ? 1 : 0);
-			fflush(nd110_trace_fp);
+				g_reg->reg_PCR[CurrLEVEL], STS_PONI ? 1 : 0);
+			fflush(g_nd110_trace_fp);
 		}
 
 		/* 004577-004600: advance X := [X] (forward link, physical CMBUK segment). */
@@ -3310,7 +3310,7 @@ void ndfunc_init(uint16_t operand)
 		gPC += 5;
 		return;
 	}
-	if ((flag & 0x01) != (gReg->reg[gPIL][_STS] & 0x01))
+	if ((flag & 0x01) != (g_reg->reg[gPIL][_STS] & 0x01))
 	{
 		gPC += 5;
 		return;
@@ -3477,8 +3477,8 @@ void regop(uint16_t operand)
 	 * the STS register, so a write to register 0 must be suppressed or it corrupts STS. dr=0 must read
 	 * as 0 here too (NOT reg[0]=STS). Oracle-validated against the RASK microcode; see RetroCore commits
 	 * 0890b6fbb (SWAP reg-0), 7dbdbe729 (REXO;CM1), 581e7270a (RADD dr=0). */
-	source = (sr == 0) ? 0 : gReg->reg[CurrLEVEL][sr] & 0xFFFF;
-	destination = (CLD) ? 0 : ((dr == 0) ? 0 : gReg->reg[CurrLEVEL][dr] & 0xFFFF);
+	source = (sr == 0) ? 0 : g_reg->reg[CurrLEVEL][sr] & 0xFFFF;
+	destination = (CLD) ? 0 : ((dr == 0) ? 0 : g_reg->reg[CurrLEVEL][dr] & 0xFFFF);
 
 	switch (RAD)
 	{
@@ -3488,31 +3488,31 @@ void regop(uint16_t operand)
 		{
 		case 0:								/* SWAP: dr <- source (CM1->~source), sr <- old dr (CLD->0) */
 		{
-			uint16_t old_dr = (dr == 0) ? 0 : (uint16_t)(gReg->reg[CurrLEVEL][dr] & 0xFFFF);
+			uint16_t old_dr = (dr == 0) ? 0 : (uint16_t)(g_reg->reg[CurrLEVEL][dr] & 0xFFFF);
 			uint16_t new_dr = (CM1) ? (uint16_t)~source : source;
 			uint16_t new_sr = (CLD) ? 0 : old_dr;
-			if (dr != 0) gReg->reg[CurrLEVEL][dr] = new_dr;      /* discard write to register 0 (=STS) */
-			if (sr != 0) gReg->reg[CurrLEVEL][sr] = new_sr;      /* discard write to register 0 (=STS) */
+			if (dr != 0) g_reg->reg[CurrLEVEL][dr] = new_dr;      /* discard write to register 0 (=STS) */
+			if (sr != 0) g_reg->reg[CurrLEVEL][sr] = new_sr;      /* discard write to register 0 (=STS) */
 			break;
 		}
 		case 1: /* RAND: dr <- dest & (CM1?~src:src) */
-			if (dr != 0) gReg->reg[CurrLEVEL][dr] = (uint16_t)(destination & ((CM1) ? (uint16_t)~source : source));
+			if (dr != 0) g_reg->reg[CurrLEVEL][dr] = (uint16_t)(destination & ((CM1) ? (uint16_t)~source : source));
 			break;
 		case 2: /* REXO: plain = dest ^ src; but CM1 is OR-of-complement (dest | ~src), NOT XOR - the RASK
 		         * REXO;CM1;CLD=0 routes through REX02 (ALUF,ORAB). CLD (dest=0) yields ~src / src for free. */
 			if (dr != 0)
-				gReg->reg[CurrLEVEL][dr] = (CM1) ? (uint16_t)(destination | (uint16_t)~source)
+				g_reg->reg[CurrLEVEL][dr] = (CM1) ? (uint16_t)(destination | (uint16_t)~source)
 				                                : (uint16_t)(destination ^ source);
 			break;
 		case 3: /* RORA: dr <- dest | (CM1?~src:src) */
-			if (dr != 0) gReg->reg[CurrLEVEL][dr] = (uint16_t)(destination | ((CM1) ? (uint16_t)~source : source));
+			if (dr != 0) g_reg->reg[CurrLEVEL][dr] = (uint16_t)(destination | ((CM1) ? (uint16_t)~source : source));
 			break;
 		}
 		break;
 	case 1: /* Arithmetic - RADD/RSUB. RASK has NO dr==0 special case: run do_add (which sets C/O/Q) on
 	         * EVERY path and only discard the register write for dr=0. The manual's "dr=0 resets carry,
 	         * else no-op" is WRONG for the ND-110 silicon (oracle-confirmed). */
-		tmp = (dr == 0) ? 0 : gReg->reg[CurrLEVEL][dr]; /* NOOP-variant fallthrough value (unchanged dr) */
+		tmp = (dr == 0) ? 0 : g_reg->reg[CurrLEVEL][dr]; /* NOOP-variant fallthrough value (unchanged dr) */
 		switch ((operand & 0x0380) >> 7)
 		{
 		case 0: tmp = do_add(destination, source, 0); break;                 /* RADD */
@@ -3526,11 +3526,11 @@ void regop(uint16_t operand)
 		case 7: /* NOOP */
 			break;
 		}
-		if (dr != 0) gReg->reg[CurrLEVEL][dr] = (uint16_t)(tmp & 0xFFFF); /* discard write to register 0 (=STS) */
+		if (dr != 0) g_reg->reg[CurrLEVEL][dr] = (uint16_t)(tmp & 0xFFFF); /* discard write to register 0 (=STS) */
 		break;
 	}
 
-	if ((DISASM) && (dr == _P))
+	if ((g_disasm) && (dr == _P))
 	{
 		disasm_userel(old_gPC, gPC);
 	}
@@ -3557,7 +3557,7 @@ void DoMCL(uint16_t instr)
 	switch (instr & 0x0F)
 	{
 	case 01: // STS
-		gReg->reg[CurrLEVEL][_STS] &= ~(gA & 0x00FF);
+		g_reg->reg[CurrLEVEL][_STS] &= ~(gA & 0x00FF);
 		break;
 	case 06: // PID
 		/* This affects interrupt, so do locking and checking. */
@@ -3594,7 +3594,7 @@ void DoMST(uint16_t instr)
 	switch (instr & 0x0F)
 	{
 	case 01: // STS
-		gReg->reg[CurrLEVEL][0] |= (gA & 0x00ff);
+		g_reg->reg[CurrLEVEL][0] |= (gA & 0x00ff);
 		break;
 	case 06: // PID
 		/* This affects interrupt, so do locking and checking. */
@@ -3634,8 +3634,8 @@ void DoTRA(uint16_t instr)
 		gA = gPANS;
 		break;
 	case 01:								 /* TRA STS */
-		gA = gReg->reg[gPIL][_STS] & 0x00FF; /* Only lower 8 bits */
-		gA |= gReg->reg_STS & 0xFF00;		 /* Upper 8 bits - SYSTEM bits*/
+		gA = g_reg->reg[gPIL][_STS] & 0x00FF; /* Only lower 8 bits */
+		gA |= g_reg->reg_STS & 0xFF00;		 /* Upper 8 bits - SYSTEM bits*/
 
 		break;
 	case 02: /* TRA OPR */
@@ -3688,8 +3688,8 @@ void DoTRA(uint16_t instr)
 	case 014: /* PGC/PCR - Paging Control Register */
 		temp = gA;
 		level = (temp >> 3) & 0x0f;
-		gA = gReg->reg_PCR[level];
-		if (mmsType == MMS1)
+		gA = g_reg->reg_PCR[level];
+		if (g_mms_type == MMS1)
 		{
 			gA &= ~(1 << 2); // Clear bit 2 for MMS1 mode
 		}
@@ -3730,7 +3730,7 @@ void DoEXR(uint16_t instr)
 	uint16_t sr, exr_instr;
 	sr = (instr >> 3) & 0x07;
 	if (sr)
-		exr_instr = gReg->reg[CurrLEVEL][sr];
+		exr_instr = g_reg->reg[CurrLEVEL][sr];
 	else
 		exr_instr = 0;
 
@@ -3739,7 +3739,7 @@ void DoEXR(uint16_t instr)
 		setbit(_STS, _Z, 1); //: TODO: activate CPU trap on level 14!!!
 		return;
 	}
-	if (DISASM)
+	if (g_disasm)
 		disasm_exr(gPC, exr_instr);
 
 	// Execute opcode but do not touch Program Counter
@@ -3764,8 +3764,8 @@ void DoWAIT(uint16_t instr)
 		// If the interrupt system is OFF
 		// The ND-110 stops with the program counter (P register) pointing at the instruction after the WAIT and the front panel RUN indicator is turned off.
 		// To restart the system, type ! on the console terminal
-		printf("\r\nWAIT when IONI is off PIL[%d] PC[%6o] PID[0x%4X] PIE[0x%4X] IONI[%d] PONI[%d] STS_HI[%4X] STS_LO[%4X] A[%6o]\r\n", gPIL, gPC, gPID, gPIE, STS_IONI, STS_PONI, gReg->reg_STS, gReg->reg[gPIL][_STS], gA);
-		gCpuExitCode = (int)(short)gA;
+		printf("\r\nWAIT when IONI is off PIL[%d] PC[%6o] PID[0x%4X] PIE[0x%4X] IONI[%d] PONI[%d] STS_HI[%4X] STS_LO[%4X] A[%6o]\r\n", gPIL, gPC, gPID, gPIE, STS_IONI, STS_PONI, g_reg->reg_STS, g_reg->reg[gPIL][_STS], gA);
+		g_cpu_exit_code = (int)(short)gA;
 		set_cpu_run_mode(CPU_STOPPED);
 		return;
 	}
@@ -3792,7 +3792,7 @@ void ndfunc_halt(uint16_t operand)
 {
 	(void)operand;
 	printf("\r\nHALT opcode at PIL[%d] PC[%6o] A[%6o]\r\n", gPIL, gPC, gA);
-	gCpuExitCode = (int)(short)gA;
+	g_cpu_exit_code = (int)(short)gA;
 	set_cpu_run_mode(CPU_STOPPED);
 }
 
@@ -3838,7 +3838,7 @@ void DoTRR(uint16_t instr)
 		break;
 	case 01: // TRR STS
 		/* ND-06.029.1 ND-110 Instruction Set, lists only lower 8 bits as changeable... */
-		gReg->reg[CurrLEVEL][_STS] = (gReg->reg[CurrLEVEL][_STS] & 0xff00) | (gA & 0x00ff); /* Only change LSB  */
+		g_reg->reg[CurrLEVEL][_STS] = (g_reg->reg[CurrLEVEL][_STS] & 0xff00) | (gA & 0x00ff); /* Only change LSB  */
 		break;
 	case 02: // TRR LMP
 		gLMP = gA;
@@ -3848,7 +3848,7 @@ void DoTRR(uint16_t instr)
 	case 03: /* PGC/PCR - Paging Control Register */
 		temp = gA;
 		level = (temp >> 3) & 0x0f;
-		if (mmsType == MMS1)
+		if (g_mms_type == MMS1)
 		{
 			temp &= ~(1 << 2); // Force Clear bit 2 for MMS1 mode
 		}
@@ -3859,7 +3859,7 @@ void DoTRR(uint16_t instr)
 		// (PAGING CONTROL REGISTERS on all levels) flags as "Failing data bits" under
 		// MMS1. Real PCR content is ring (0-1), the MMS2 enable (2) and PT/APT (7-14).
 		temp &= ~(0x0f << 3);
-		gReg->reg_PCR[level] = temp;
+		g_reg->reg_PCR[level] = temp;
 
 		break;
 	case 05: // TRR IIE
@@ -3914,17 +3914,17 @@ void DoSRB(uint16_t operand)
 	lvl = ((operand & 0x0078) >> 3);
 	addr = gX;
 
-    sts_temp = gReg->reg[lvl][_STS] & 0x00ff;
+    sts_temp = g_reg->reg[lvl][_STS] & 0x00ff;
 
 	// If the current program level is specified, the stored P register points to the instruction following SRB.
-	MemoryWrite(gReg->reg[lvl][_P], addr, true, 2);
-	MemoryWrite(gReg->reg[lvl][_X], addr + 1, true, 2);
-	MemoryWrite(gReg->reg[lvl][_T], addr + 2, true, 2);
-	MemoryWrite(gReg->reg[lvl][_A], addr + 3, true, 2);
-	MemoryWrite(gReg->reg[lvl][_D], addr + 4, true, 2);
-	MemoryWrite(gReg->reg[lvl][_L], addr + 5, true, 2);
+	MemoryWrite(g_reg->reg[lvl][_P], addr, true, 2);
+	MemoryWrite(g_reg->reg[lvl][_X], addr + 1, true, 2);
+	MemoryWrite(g_reg->reg[lvl][_T], addr + 2, true, 2);
+	MemoryWrite(g_reg->reg[lvl][_A], addr + 3, true, 2);
+	MemoryWrite(g_reg->reg[lvl][_D], addr + 4, true, 2);
+	MemoryWrite(g_reg->reg[lvl][_L], addr + 5, true, 2);
 	MemoryWrite(sts_temp, addr + 6, true, 2); /* Only write LSB of STS */
-	MemoryWrite(gReg->reg[lvl][_B], addr + 7, true, 2);
+	MemoryWrite(g_reg->reg[lvl][_B], addr + 7, true, 2);
 }
 
 /*
@@ -3964,15 +3964,15 @@ void DoLRB(uint16_t operand)
 
 	if (lvl != CurrLEVEL)
 	{ /* Dont change P on current level if this happens to be specified */
-		gReg->reg[lvl][_P] = MemoryRead(addr, true);
+		g_reg->reg[lvl][_P] = MemoryRead(addr, true);
 	}
-	gReg->reg[lvl][_X] = MemoryRead(addr + 1, true);
-	gReg->reg[lvl][_T] = MemoryRead(addr + 2, true);
-	gReg->reg[lvl][_A] = MemoryRead(addr + 3, true);
-	gReg->reg[lvl][_D] = MemoryRead(addr + 4, true);
-	gReg->reg[lvl][_L] = MemoryRead(addr + 5, true);
-	gReg->reg[lvl][_STS] = (gReg->reg[lvl][_STS] & 0xff00) | (MemoryRead(addr + 6, true) & 0x00ff); /* Only load LSB STS */
-	gReg->reg[lvl][_B] = MemoryRead(addr + 7, true);
+	g_reg->reg[lvl][_X] = MemoryRead(addr + 1, true);
+	g_reg->reg[lvl][_T] = MemoryRead(addr + 2, true);
+	g_reg->reg[lvl][_A] = MemoryRead(addr + 3, true);
+	g_reg->reg[lvl][_D] = MemoryRead(addr + 4, true);
+	g_reg->reg[lvl][_L] = MemoryRead(addr + 5, true);
+	g_reg->reg[lvl][_STS] = (g_reg->reg[lvl][_STS] & 0xff00) | (MemoryRead(addr + 6, true) & 0x00ff); /* Only load LSB STS */
+	g_reg->reg[lvl][_B] = MemoryRead(addr + 7, true);
 
 }
 
@@ -3983,8 +3983,8 @@ bool IsSkip(uint16_t instr)
 	char z, o, c, s;
 	sr = (instr >> 3) & 0x07;
 	dr = (instr >> 0) & 0x07;
-	source = (0 == sr) ? 0 : gReg->reg[CurrLEVEL][sr]; /* Never use STS reg but zero value instead */
-	desti = (0 == dr) ? 0 : gReg->reg[CurrLEVEL][dr];  /* Never use STS reg but zero value instead */
+	source = (0 == sr) ? 0 : g_reg->reg[CurrLEVEL][sr]; /* Never use STS reg but zero value instead */
+	desti = (0 == dr) ? 0 : g_reg->reg[CurrLEVEL][dr];  /* Never use STS reg but zero value instead */
 	ss = (signed short)source;
 	sd = (signed short)desti;
 
@@ -4811,7 +4811,7 @@ void rdiv_org(uint16_t instr)
 	/* :TODO: Apparently Carry can be set too. CHECK that... Might be RAD=1??? */
 	/* Overflow and division with zero also need to be fixed!! */
 	/* :NOTE: The way it is described in the manual, we assume this is a fraction (numerator/denominator and return a quotient and remainder as per manual */
-	divider = ((instr & 0x0038) >> 3) ? (int16_t)gReg->reg[gPIL][((instr & 0x0038) >> 3)] : 0;
+	divider = ((instr & 0x0038) >> 3) ? (int16_t)g_reg->reg[gPIL][((instr & 0x0038) >> 3)] : 0;
 
 	if (divider == 0)
 	{
@@ -4855,7 +4855,7 @@ void rdiv(uint16_t instr)
 	 * "divide-by-zero -> A/D unchanged" is an abstraction (magnitude == original for a POSITIVE dividend,
 	 * so they coincide there - which is why the old code passed only for positive dividends). */
 	int dividend = ((int)gA << 16) | (int)gD;
-	short divisor = ((instr & 0x0038) >> 3) ? (short)gReg->reg[gPIL][((instr & 0x0038) >> 3)] : 0;
+	short divisor = ((instr & 0x0038) >> 3) ? (short)g_reg->reg[gPIL][((instr & 0x0038) >> 3)] : 0;
 
 	int dividendNegative = (dividend < 0);
 	uint16_t origLow = gD; /* low word the microcode negates at CS 000434 (`-B`) */
@@ -4911,8 +4911,8 @@ void rmpy_org(uint16_t instr)
 {
 	/* :TODO: Apparently Carry can be set too. CHECK that... Might be RAD=1??? */
 	int a, b, result;
-	a = ((instr & 0x0038) >> 3) ? (int)gReg->reg[gPIL][((instr & 0x0038) >> 3)] : 0;
-	b = (instr & 0x0007) ? (int)gReg->reg[gPIL][(instr & 0x0007)] : 0;
+	a = ((instr & 0x0038) >> 3) ? (int)g_reg->reg[gPIL][((instr & 0x0038) >> 3)] : 0;
+	b = (instr & 0x0007) ? (int)g_reg->reg[gPIL][(instr & 0x0007)] : 0;
 	result = a * b;
 	if (abs(result) > INT_MAX)
 	{ /* Set O and Q */
@@ -4948,8 +4948,8 @@ void rmpy_org(uint16_t instr)
 void rmpy(uint16_t instr)
 {
 	int minusCnt = 0;
-	short source_value = (short)((instr & 0x0038) >> 3) ? (short)gReg->reg[gPIL][((instr & 0x0038) >> 3)] : 0;
-	short dest_value = (short)(instr & 0x0007) ? (short)gReg->reg[gPIL][(instr & 0x0007)] : 0;
+	short source_value = (short)((instr & 0x0038) >> 3) ? (short)g_reg->reg[gPIL][((instr & 0x0038) >> 3)] : 0;
+	short dest_value = (short)(instr & 0x0007) ? (short)g_reg->reg[gPIL][(instr & 0x0007)] : 0;
 
 	// Use int for absolute values to avoid overflow when negating -32768
 	int abs_src = (int)source_value;
@@ -5019,19 +5019,19 @@ void mpy(uint16_t operand)
 /************************ BCD instructions *************************/
 
 /* BCD registers and helper functions */
-uint16_t D1 = 0;
-uint16_t D2 = 0;
+static uint16_t s_bcd_d1 = 0;
+static uint16_t s_bcd_d2 = 0;
 
 void GetBCD(uint16_t address)
 {
-	D1 = MemoryRead(address, true);
-	D2 = MemoryRead((address + 1) & 0xFFFF, true);
+	s_bcd_d1 = MemoryRead(address, true);
+	s_bcd_d2 = MemoryRead((address + 1) & 0xFFFF, true);
 }
 
 void StoreBCD(uint16_t address)
 {
-	MemoryWrite(address, D1, true, WRITEMODE_WORD);
-	MemoryWrite((address + 1) & 0xFFFF, D2, true, WRITEMODE_WORD);
+	MemoryWrite(address, s_bcd_d1, true, WRITEMODE_WORD);
+	MemoryWrite((address + 1) & 0xFFFF, s_bcd_d2, true, WRITEMODE_WORD);
 }
 
 /* ADDD, SUBD, COMD, PACK, UPACK, SHDE are in bcd.c */
@@ -5041,12 +5041,12 @@ void StoreBCD(uint16_t address)
 
 void Instruction_Add(int opcode, void *funcpointer)
 {
-	if (instr_funcs[opcode] != NULL)
+	if (g_instr_funcs[opcode] != NULL)
 	{
 		LOG(LOG_CAT_CPU, LOG_WARN, "Overwriting instruction %06o", opcode);
 	}
 
-	instr_funcs[opcode] = funcpointer;
+	g_instr_funcs[opcode] = funcpointer;
 }
 
 void Instruction_Add_Range(int start, int stop, void *funcpointer)
@@ -5054,12 +5054,12 @@ void Instruction_Add_Range(int start, int stop, void *funcpointer)
 	int i;
 	for (i = start; i <= stop; i++)
 	{
-		if (instr_funcs[i] != NULL)
+		if (g_instr_funcs[i] != NULL)
 		{
 			LOG(LOG_CAT_CPU, LOG_WARN, "Overwriting instruction %06o",i);
 		}
 
-		instr_funcs[i] = funcpointer;
+		g_instr_funcs[i] = funcpointer;
 	}
 	return;
 }
@@ -5074,12 +5074,12 @@ void Instruction_Add_Mask(int opcode, int mask, void *funcpointer)
 	{
 		if ((i & mask) == signature)
 		{
-			if (instr_funcs[i] != NULL)
+			if (g_instr_funcs[i] != NULL)
 			{
 				LOG(LOG_CAT_CPU, LOG_WARN, "Overwriting instruction %06o with %06o", i, opcode);
 			}
 
-			instr_funcs[i] = funcpointer;
+			g_instr_funcs[i] = funcpointer;
 		}
 	}
 	return;
@@ -5211,7 +5211,7 @@ void Setup_Instructions(void)
 		// Instruction_Add(0140132, &ndfunc_movbf); /* MOVBF */
 	}
 
-	switch (CurrentCPUType)
+	switch (g_current_cpu_type)
 	{
 	case ND110:
 	case ND110CE:
@@ -5236,7 +5236,7 @@ void Setup_Instructions(void)
 	// Instruction_Add(0140200, 0140277, &illegal_instr); /* USER1 (microcode defined by user or illegal instruction otherwise) */
 	Instruction_Add(0140200, &ndfunc_halt); /* HALT - emulator exit, A=exit code */
 
-	switch (CurrentCPUType)
+	switch (g_current_cpu_type)
 	{
 	case ND110:
 	case ND110CE:
@@ -5273,7 +5273,7 @@ void Setup_Instructions(void)
 	}
 
 	Instruction_Add_Mask(0140600, 0xFFC0, &DoEXR); /* EXR */
-	switch (CurrentCPUType)
+	switch (g_current_cpu_type)
 	{
 	case ND110:
 	case ND110CE:
@@ -5344,7 +5344,7 @@ void Setup_Instructions(void)
 	Instruction_Add(0150400, &ndfunc_opcom);		 /* OPCOM */
 	Instruction_Add(0150401, &ndfunc_iof);			 /* IOF */
 	Instruction_Add(0150402, &ndfunc_ion);			 /* ION */
-	switch (CurrentCPUType)
+	switch (g_current_cpu_type)
 	{
 	case ND110PCX:
 		/* ND110 Butterfly only instruction */

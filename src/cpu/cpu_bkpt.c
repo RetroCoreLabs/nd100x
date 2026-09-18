@@ -27,23 +27,23 @@
 #include "expr_eval.h"
 
 
-BreakpointManager *mgr;
+BreakpointManager *g_breakpoint_mgr;
 
 // PC-breakpoint hot-path gates (mirror the watchpoint design).
-int breakpoint_entry_count = 0;     // live breakpoint entries (any type)
-int breakpoint_step_pending = 0;    // nonzero while a single-step is in flight
-uint8_t breakpoint_bitmap[8192];    // 1 bit per 16-bit PC address
+int g_breakpoint_entry_count = 0;     // live breakpoint entries (any type)
+int g_breakpoint_step_pending = 0;    // nonzero while a single-step is in flight
+uint8_t g_breakpoint_bitmap[8192];    // 1 bit per 16-bit PC address
 
 /// @brief Rebuild the PC-breakpoint bitmap from the live entries
 static void breakpoint_bitmap_rebuild(void)
 {
-    memset(breakpoint_bitmap, 0, sizeof(breakpoint_bitmap));
-    breakpoint_entry_count = 0;
-    if (!mgr) return;
+    memset(g_breakpoint_bitmap, 0, sizeof(g_breakpoint_bitmap));
+    g_breakpoint_entry_count = 0;
+    if (!g_breakpoint_mgr) return;
     for (int h = 0; h < HASH_SIZE; h++) {
-        for (BreakpointEntry *curr = mgr->buckets[h]; curr; curr = curr->next) {
-            breakpoint_bitmap[curr->address >> 3] |= (1 << (curr->address & 7));
-            breakpoint_entry_count++;
+        for (BreakpointEntry *curr = g_breakpoint_mgr->buckets[h]; curr; curr = curr->next) {
+            g_breakpoint_bitmap[curr->address >> 3] |= (1 << (curr->address & 7));
+            g_breakpoint_entry_count++;
         }
     }
 }
@@ -64,10 +64,10 @@ void breakpoint_manager_init(void)
     /* Static storage: one manager for the process lifetime, so nothing can
      * fail here and cleanup has nothing to free. */
     static BreakpointManager s_mgr;
-    mgr = &s_mgr;
+    g_breakpoint_mgr = &s_mgr;
 
-    mgr->step_count = 0;
-    memset(mgr->buckets, 0, sizeof(mgr->buckets));
+    g_breakpoint_mgr->step_count = 0;
+    memset(g_breakpoint_mgr->buckets, 0, sizeof(g_breakpoint_mgr->buckets));
 }
 
 /// @brief Cleanup the breakpoint manager
@@ -75,9 +75,9 @@ void breakpoint_manager_init(void)
 /// @note Clean up and free the breakpoint manager memory
 void breakpoint_manager_cleanup(void)
 {
-    if (mgr) {
+    if (g_breakpoint_mgr) {
         breakpoint_manager_clear();
-        mgr = NULL;   /* the lazy "if (mgr == NULL) init" callers re-create it */
+        g_breakpoint_mgr = NULL;   /* the lazy "if (mgr == NULL) init" callers re-create it */
     }
 }
 
@@ -86,8 +86,8 @@ void breakpoint_manager_cleanup(void)
 /// @note Used by the debugger to single step
 void breakpoint_manager_step_one(void)
 {
-    mgr->step_count=1;
-    breakpoint_step_pending = 1;
+    g_breakpoint_mgr->step_count=1;
+    g_breakpoint_step_pending = 1;
 }
 
 /// @brief Add breakpoint (create new entry or append to list)
@@ -99,7 +99,7 @@ void breakpoint_manager_step_one(void)
 void breakpoint_manager_add(uint16_t address, BreakpointType type, const char *condition, const char *hitCondition, const char *logMessage)
 {
 
-    if (mgr == NULL) {
+    if (g_breakpoint_mgr == NULL) {
         breakpoint_manager_init();
     }
 
@@ -107,7 +107,7 @@ void breakpoint_manager_add(uint16_t address, BreakpointType type, const char *c
 
     // Prevent adding duplicate temporary breakpoint at address
     if (type == BP_TYPE_TEMPORARY) {
-    BreakpointEntry* curr = mgr->buckets[h];
+    BreakpointEntry* curr = g_breakpoint_mgr->buckets[h];
     while (curr) {
         if (curr->address == address && curr->type == BP_TYPE_TEMPORARY) {
             LOG(LOG_CAT_DAP, LOG_DEBUG, "Temporary breakpoint already exists at %04X", address);
@@ -124,12 +124,12 @@ void breakpoint_manager_add(uint16_t address, BreakpointType type, const char *c
     entry->hitCondition = hitCondition ? strdup(hitCondition) : NULL;
     entry->logMessage = logMessage ? strdup(logMessage) : NULL;
     entry->hitCount = 0;
-    entry->next = mgr->buckets[h];
+    entry->next = g_breakpoint_mgr->buckets[h];
 
-    mgr->buckets[h] = entry;
+    g_breakpoint_mgr->buckets[h] = entry;
 
-    breakpoint_bitmap[address >> 3] |= (1 << (address & 7));
-    breakpoint_entry_count++;
+    g_breakpoint_bitmap[address >> 3] |= (1 << (address & 7));
+    g_breakpoint_entry_count++;
 }
 
 /// @brief Remove entries at address matching type (or all if type == -1)
@@ -139,7 +139,7 @@ void breakpoint_manager_remove(uint16_t address, int type)
 {
     int h = hash_address(address);
     BreakpointEntry *prev = NULL;
-    BreakpointEntry *curr = mgr->buckets[h];
+    BreakpointEntry *curr = g_breakpoint_mgr->buckets[h];
 
     while (curr)
     {
@@ -149,13 +149,13 @@ void breakpoint_manager_remove(uint16_t address, int type)
             if (prev)
                 prev->next = curr->next;
             else
-                mgr->buckets[h] = curr->next;
+                g_breakpoint_mgr->buckets[h] = curr->next;
 
             free(to_delete->condition);
             free(to_delete->hitCondition);
             free(to_delete->logMessage);
             free(to_delete);
-            curr = (prev) ? prev->next : mgr->buckets[h];
+            curr = (prev) ? prev->next : g_breakpoint_mgr->buckets[h];
         }
         else
         {
@@ -173,7 +173,7 @@ void breakpoint_manager_clear(void)
 {
     for (int h = 0; h < HASH_SIZE; h++)
     {
-        BreakpointEntry *curr = mgr->buckets[h];
+        BreakpointEntry *curr = g_breakpoint_mgr->buckets[h];
         while (curr)
         {
             BreakpointEntry *next = curr->next;
@@ -183,22 +183,22 @@ void breakpoint_manager_clear(void)
             free(curr);
             curr = next;
         }
-        mgr->buckets[h] = NULL;
+        g_breakpoint_mgr->buckets[h] = NULL;
     }
-    memset(breakpoint_bitmap, 0, sizeof(breakpoint_bitmap));
-    breakpoint_entry_count = 0;
+    memset(g_breakpoint_bitmap, 0, sizeof(g_breakpoint_bitmap));
+    g_breakpoint_entry_count = 0;
 }
 
 /// @brief Clear only breakpoints of a specific type
 /// @param type Breakpoint type to clear (BP_TYPE_USER, BP_TYPE_FUNCTION, etc.)
 void breakpoint_manager_clear_type(BreakpointType type)
 {
-    if (!mgr) return;
+    if (!g_breakpoint_mgr) return;
 
     for (int h = 0; h < HASH_SIZE; h++)
     {
         BreakpointEntry *prev = NULL;
-        BreakpointEntry *curr = mgr->buckets[h];
+        BreakpointEntry *curr = g_breakpoint_mgr->buckets[h];
         while (curr)
         {
             BreakpointEntry *next = curr->next;
@@ -207,7 +207,7 @@ void breakpoint_manager_clear_type(BreakpointType type)
                 if (prev)
                     prev->next = next;
                 else
-                    mgr->buckets[h] = next;
+                    g_breakpoint_mgr->buckets[h] = next;
                 free(curr->condition);
                 free(curr->hitCondition);
                 free(curr->logMessage);
@@ -230,7 +230,7 @@ void breakpoint_manager_clear_type(BreakpointType type)
 /// @return Number of matching entries
 int breakpoint_manager_check( uint16_t address, BreakpointEntry** matches[], int* matchCount) {
     int h = hash_address(address);
-    BreakpointEntry* curr = mgr->buckets[h];
+    BreakpointEntry* curr = g_breakpoint_mgr->buckets[h];
 
     BreakpointEntry* tempList[10];
     int tempCount = 0;
@@ -281,7 +281,7 @@ int check_for_breakpoint(void)
 {
 
     // Auto-initialize the breakpoint manager if it is not initialized
-    if (mgr == NULL) {
+    if (g_breakpoint_mgr == NULL) {
         breakpoint_manager_init();
     }
 
@@ -291,10 +291,10 @@ int check_for_breakpoint(void)
     uint16_t pc = gPC;
 
     // Check for single step
-    if (mgr->step_count > 0) {
-        mgr->step_count--;
-        if (mgr->step_count == 0) {
-            breakpoint_step_pending = 0;
+    if (g_breakpoint_mgr->step_count > 0) {
+        g_breakpoint_mgr->step_count--;
+        if (g_breakpoint_mgr->step_count == 0) {
+            g_breakpoint_step_pending = 0;
             set_cpu_stop_reason(STOP_REASON_STEP);
             set_cpu_run_mode(CPU_BREAKPOINT);
             return STOP_REASON_STEP;
@@ -336,8 +336,8 @@ int check_for_breakpoint(void)
                     set_cpu_stop_reason(sr);
                     set_cpu_run_mode(CPU_BREAKPOINT);
                     // Record hit address for DAP hitBreakpointIds
-                    mgr->last_hit_address = pc;
-                    mgr->last_hit_valid = true;
+                    g_breakpoint_mgr->last_hit_address = pc;
+                    g_breakpoint_mgr->last_hit_valid = true;
                 }
 
                 if (bp->type == BP_TYPE_TEMPORARY) {
@@ -369,9 +369,9 @@ CpuStopReason stopReasonFromBreakpoint(BreakpointType t) {
 /// @param address Pointer to store the hit address
 /// @return true if a breakpoint was recently hit, false otherwise
 bool breakpoint_manager_get_last_hit(uint16_t *address) {
-    if (mgr && mgr->last_hit_valid) {
-        if (address) *address = mgr->last_hit_address;
-        mgr->last_hit_valid = false;
+    if (g_breakpoint_mgr && g_breakpoint_mgr->last_hit_valid) {
+        if (address) *address = g_breakpoint_mgr->last_hit_address;
+        g_breakpoint_mgr->last_hit_valid = false;
         return true;
     }
     return false;
@@ -385,9 +385,9 @@ bool breakpoint_manager_get_last_hit(uint16_t *address) {
 //   - watchpoint_check_slow(): only called when bitmap says this address has a WP
 //   - Both bitmap and count are extern-visible for inlining in cpu.c hot path
 
-WatchpointEntry watchpoints[MAX_WATCHPOINTS];
-int watchpoint_count = 0;
-uint8_t watchpoint_bitmap[8192]; // 64K addresses, 1 bit each (8KB, fits L1)
+static WatchpointEntry s_watchpoints[MAX_WATCHPOINTS];
+int g_watchpoint_count = 0;
+uint8_t g_watchpoint_bitmap[8192]; // 64K addresses, 1 bit each (8KB, fits L1)
 
 /*
  * Ignore-count: skip the first N watchpoint hits before halting.  Set from the
@@ -395,7 +395,7 @@ uint8_t watchpoint_bitmap[8192]; // 64K addresses, 1 bit each (8KB, fits L1)
  * reused stack slot (e.g. csav storing a return address) and halt on a later
  * corrupting write instead.  Decremented on each would-trigger match.
  */
-int watchpoint_skip_hits = 0;
+int g_watchpoint_skip_hits = 0;
 
 /*
  * Value filter: when nonzero, a WRITE watchpoint only triggers if the value
@@ -404,15 +404,15 @@ int watchpoint_skip_hits = 0;
  * storing a return address) and halt only on an out-of-range value (a heap
  * pointer smashed into the return slot).  0 = disabled.
  */
-int watchpoint_min_value = 0;
+int g_watchpoint_min_value = 0;
 
 /// @brief Rebuild bitmap from active watchpoints (called after remove/clear)
 static void watchpoint_bitmap_rebuild(void)
 {
-    memset(watchpoint_bitmap, 0, sizeof(watchpoint_bitmap));
-    for (int i = 0; i < watchpoint_count; i++)
-        if (watchpoints[i].active)
-            watchpoint_bitmap[watchpoints[i].address >> 3] |= (1 << (watchpoints[i].address & 7));
+    memset(g_watchpoint_bitmap, 0, sizeof(g_watchpoint_bitmap));
+    for (int i = 0; i < g_watchpoint_count; i++)
+        if (s_watchpoints[i].active)
+            g_watchpoint_bitmap[s_watchpoints[i].address >> 3] |= (1 << (s_watchpoints[i].address & 7));
 }
 
 /// @brief Add a watchpoint at a memory address
@@ -424,33 +424,33 @@ static void watchpoint_bitmap_rebuild(void)
 int watchpoint_add(uint16_t address, WatchpointType type, WatchpointSpace space, int8_t pil)
 {
     /* Update existing watchpoint at same address+space+pil */
-    for (int i = 0; i < watchpoint_count; i++) {
-        if (watchpoints[i].active && watchpoints[i].address == address
-            && watchpoints[i].space == space && watchpoints[i].pil == pil) {
-            watchpoints[i].type = type;
+    for (int i = 0; i < g_watchpoint_count; i++) {
+        if (s_watchpoints[i].active && s_watchpoints[i].address == address
+            && s_watchpoints[i].space == space && s_watchpoints[i].pil == pil) {
+            s_watchpoints[i].type = type;
             return 0;
         }
     }
-    if (watchpoint_count >= MAX_WATCHPOINTS) return -1;
+    if (g_watchpoint_count >= MAX_WATCHPOINTS) return -1;
 
-    watchpoints[watchpoint_count].address = address;
-    watchpoints[watchpoint_count].type = type;
-    watchpoints[watchpoint_count].space = space;
-    watchpoints[watchpoint_count].pil = pil;
-    watchpoints[watchpoint_count].active = true;
-    watchpoint_bitmap[address >> 3] |= (1 << (address & 7));
-    watchpoint_count++;
+    s_watchpoints[g_watchpoint_count].address = address;
+    s_watchpoints[g_watchpoint_count].type = type;
+    s_watchpoints[g_watchpoint_count].space = space;
+    s_watchpoints[g_watchpoint_count].pil = pil;
+    s_watchpoints[g_watchpoint_count].active = true;
+    g_watchpoint_bitmap[address >> 3] |= (1 << (address & 7));
+    g_watchpoint_count++;
     return 0;
 }
 
 /// @brief Remove watchpoint at address
 void watchpoint_remove(uint16_t address)
 {
-    for (int i = 0; i < watchpoint_count; i++) {
-        if (watchpoints[i].active && watchpoints[i].address == address) {
-            watchpoints[i] = watchpoints[watchpoint_count - 1];
-            watchpoints[watchpoint_count - 1].active = false;
-            watchpoint_count--;
+    for (int i = 0; i < g_watchpoint_count; i++) {
+        if (s_watchpoints[i].active && s_watchpoints[i].address == address) {
+            s_watchpoints[i] = s_watchpoints[g_watchpoint_count - 1];
+            s_watchpoints[g_watchpoint_count - 1].active = false;
+            g_watchpoint_count--;
             watchpoint_bitmap_rebuild();
             return;
         }
@@ -465,8 +465,8 @@ void watchpoint_remove(uint16_t address)
 int watchpoint_check_slow(uint16_t address, bool isWrite, bool useAPT)
 {
     int8_t curPIL = (int8_t)CurrLEVEL;
-    for (int i = 0; i < watchpoint_count; i++) {
-        WatchpointEntry *w = &watchpoints[i];
+    for (int i = 0; i < g_watchpoint_count; i++) {
+        WatchpointEntry *w = &s_watchpoints[i];
         if (!w->active) continue;
         if (w->address != address) continue;
         if (w->pil >= 0 && w->pil != curPIL) continue;
@@ -478,8 +478,8 @@ int watchpoint_check_slow(uint16_t address, bool isWrite, bool useAPT)
                    || (!isWrite && t == WATCH_READ);
         if (matched) {
             /* Ignore-count: swallow the first N matches, halt after. */
-            if (watchpoint_skip_hits > 0) {
-                watchpoint_skip_hits--;
+            if (g_watchpoint_skip_hits > 0) {
+                g_watchpoint_skip_hits--;
                 return 0;
             }
             return 1;
@@ -498,74 +498,74 @@ int watchpoint_check(uint16_t address, bool isWrite)
 void watchpoint_clear(void)
 {
     for (int i = 0; i < MAX_WATCHPOINTS; i++)
-        watchpoints[i].active = false;
-    watchpoint_count = 0;
-    memset(watchpoint_bitmap, 0, sizeof(watchpoint_bitmap));
+        s_watchpoints[i].active = false;
+    g_watchpoint_count = 0;
+    memset(g_watchpoint_bitmap, 0, sizeof(g_watchpoint_bitmap));
 }
 
 /// @brief Get number of active watchpoints
 int watchpoint_get_count(void)
 {
-    return watchpoint_count;
+    return g_watchpoint_count;
 }
 
 /// @brief Get watchpoint at index
 int watchpoint_get(int index, uint16_t *out_addr, int *out_type)
 {
-    if (index < 0 || index >= watchpoint_count) return -1;
-    if (!watchpoints[index].active) return -1;
-    *out_addr = watchpoints[index].address;
-    *out_type = (int)watchpoints[index].type;
+    if (index < 0 || index >= g_watchpoint_count) return -1;
+    if (!s_watchpoints[index].active) return -1;
+    *out_addr = s_watchpoints[index].address;
+    *out_type = (int)s_watchpoints[index].type;
     return 0;
 }
 
 //********** Physical Watchpoints **********
 
 static PhysicalWatchpointEntry phys_watchpoints[MAX_WATCHPOINTS];
-int phys_watchpoint_count = 0;                       // non-static: read on cpu_mms.c hot path
-uint8_t phys_watchpoint_pagemap[PHYS_WP_BITMAP_BYTES];
+int g_phys_watchpoint_count = 0;                       // non-static: read on cpu_mms.c hot path
+uint8_t g_phys_watchpoint_pagemap[PHYS_WP_BITMAP_BYTES];
 
 /// @brief Rebuild the physical-watchpoint page bitmap from active entries
 static void phys_watchpoint_pagemap_rebuild(void)
 {
-    memset(phys_watchpoint_pagemap, 0, sizeof(phys_watchpoint_pagemap));
-    for (int i = 0; i < phys_watchpoint_count; i++) {
+    memset(g_phys_watchpoint_pagemap, 0, sizeof(g_phys_watchpoint_pagemap));
+    for (int i = 0; i < g_phys_watchpoint_count; i++) {
         if (!phys_watchpoints[i].active) continue;
         uint32_t idx = (phys_watchpoints[i].address >> 10) & (PHYS_WP_BITMAP_BYTES * 8u - 1u);
-        phys_watchpoint_pagemap[idx >> 3] |= (1u << (idx & 7u));
+        g_phys_watchpoint_pagemap[idx >> 3] |= (1u << (idx & 7u));
     }
 }
 
 /// @brief Add a physical memory watchpoint
 int phys_watchpoint_add(uint32_t address, WatchpointType type, int8_t pil)
 {
-    for (int i = 0; i < phys_watchpoint_count; i++) {
+    for (int i = 0; i < g_phys_watchpoint_count; i++) {
         if (phys_watchpoints[i].active && phys_watchpoints[i].address == address
             && phys_watchpoints[i].pil == pil) {
             phys_watchpoints[i].type = type;
             return 0;
         }
     }
-    if (phys_watchpoint_count >= MAX_WATCHPOINTS) return -1;
+    if (g_phys_watchpoint_count >= MAX_WATCHPOINTS) return -1;
 
-    phys_watchpoints[phys_watchpoint_count].address = address;
-    phys_watchpoints[phys_watchpoint_count].type = type;
-    phys_watchpoints[phys_watchpoint_count].pil = pil;
-    phys_watchpoints[phys_watchpoint_count].active = true;
-    phys_watchpoint_count++;
+    phys_watchpoints[g_phys_watchpoint_count].address = address;
+    phys_watchpoints[g_phys_watchpoint_count].type = type;
+    phys_watchpoints[g_phys_watchpoint_count].pil = pil;
+    phys_watchpoints[g_phys_watchpoint_count].active = true;
+    g_phys_watchpoint_count++;
     uint32_t idx = (address >> 10) & (PHYS_WP_BITMAP_BYTES * 8u - 1u);
-    phys_watchpoint_pagemap[idx >> 3] |= (1u << (idx & 7u));
+    g_phys_watchpoint_pagemap[idx >> 3] |= (1u << (idx & 7u));
     return 0;
 }
 
 /// @brief Remove physical watchpoint at address
 void phys_watchpoint_remove(uint32_t address)
 {
-    for (int i = 0; i < phys_watchpoint_count; i++) {
+    for (int i = 0; i < g_phys_watchpoint_count; i++) {
         if (phys_watchpoints[i].active && phys_watchpoints[i].address == address) {
-            phys_watchpoints[i] = phys_watchpoints[phys_watchpoint_count - 1];
-            phys_watchpoints[phys_watchpoint_count - 1].active = false;
-            phys_watchpoint_count--;
+            phys_watchpoints[i] = phys_watchpoints[g_phys_watchpoint_count - 1];
+            phys_watchpoints[g_phys_watchpoint_count - 1].active = false;
+            g_phys_watchpoint_count--;
             phys_watchpoint_pagemap_rebuild();
             return;
         }
@@ -576,7 +576,7 @@ void phys_watchpoint_remove(uint32_t address)
 int phys_watchpoint_check(uint32_t address, bool isWrite)
 {
     int8_t curPIL = (int8_t)CurrLEVEL;
-    for (int i = 0; i < phys_watchpoint_count; i++) {
+    for (int i = 0; i < g_phys_watchpoint_count; i++) {
         if (!phys_watchpoints[i].active) continue;
         if (phys_watchpoints[i].address != address) continue;
         if (phys_watchpoints[i].pil >= 0 && phys_watchpoints[i].pil != curPIL) continue;
@@ -593,20 +593,20 @@ void phys_watchpoint_clear(void)
 {
     for (int i = 0; i < MAX_WATCHPOINTS; i++)
         phys_watchpoints[i].active = false;
-    phys_watchpoint_count = 0;
-    memset(phys_watchpoint_pagemap, 0, sizeof(phys_watchpoint_pagemap));
+    g_phys_watchpoint_count = 0;
+    memset(g_phys_watchpoint_pagemap, 0, sizeof(g_phys_watchpoint_pagemap));
 }
 
 /// @brief Get number of active physical watchpoints
 int phys_watchpoint_get_count(void)
 {
-    return phys_watchpoint_count;
+    return g_phys_watchpoint_count;
 }
 
 /// @brief Get physical watchpoint at index
 int phys_watchpoint_get(int index, uint32_t *out_addr, int *out_type)
 {
-    if (index < 0 || index >= phys_watchpoint_count) return -1;
+    if (index < 0 || index >= g_phys_watchpoint_count) return -1;
     if (!phys_watchpoints[index].active) return -1;
     *out_addr = phys_watchpoints[index].address;
     *out_type = (int)phys_watchpoints[index].type;

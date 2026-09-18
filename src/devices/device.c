@@ -34,7 +34,7 @@
 #define INITIAL_IO_DELAY_CAPACITY 16
 
 // Odd parity lookup table
-const uint8_t Device_OddParityTable[PARITY_TABLE_SIZE] = {
+const uint8_t g_odd_parity_table[PARITY_TABLE_SIZE] = {
     0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0,
     1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1,
     1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1,
@@ -55,7 +55,7 @@ const uint8_t Device_OddParityTable[PARITY_TABLE_SIZE] = {
 // Helper function to get odd parity for a value
 uint8_t Device_GetOddParity(uint8_t value)
 {
-    return Device_OddParityTable[value];
+    return g_odd_parity_table[value];
 }
 
 
@@ -371,21 +371,19 @@ int32_t Device_IO_BufferWriteWord(Device *dev,uint8_t *buf, int32_t word_offset,
 }
 
 // DMA bypasses shadow memory (page tables) - it's a physical bus transfer.
-// Set gDMAAccess flag so IsAddressShadowMemory skips the shadow check.
-
-const char *gDMADeviceName = "?";
+// Set g_dma_access so IsAddressShadowMemory skips the shadow check.
 
 void Device_DMAWrite(uint32_t coreAddress, uint16_t data) {
-    gDMAAccess = true;
+    g_dma_access = true;
     WritePhysicalMemory(coreAddress & 0xFFFFFF, data, false);
-    gDMAAccess = false;
+    g_dma_access = false;
 }
 
 int32_t Device_DMARead(uint32_t coreAddress)
 {
-    gDMAAccess = true;
+    g_dma_access = true;
     int32_t result = ReadPhysicalMemory(coreAddress & 0xFFFFFF, false);
-    gDMAAccess = false;
+    g_dma_access = false;
     return result;
 }
 

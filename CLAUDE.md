@@ -174,7 +174,7 @@ The project includes HDLC (High-Level Data Link Control) support on the `hdlc` b
 - **HDLC Features**: CRC calculation, register management, interrupt handling
 
 ### CPU Architecture
-- **Registers**: 16 registers x 16 runlevels (interrupt priority levels), accessed via `gReg->reg[level][regIndex]`
+- **Registers**: 16 registers x 16 runlevels (interrupt priority levels), accessed via `g_reg->reg[level][regIndex]`
 - **Register macros** (`src/cpu/cpu_types.h`): `gPC`, `gA`, `gD`, `gB`, `gT`, `gX`, `gL` - all reference current PIL
 - **CPURunMode enum**: 0=`CPU_UNKNOWN_STATE`, 1=`CPU_RUNNING`, 2=`CPU_BREAKPOINT`, 3=`CPU_PAUSED`, 4=`CPU_STOPPED`, 5=`CPU_SHUTDOWN`
 - **STS register**: MSB shared across all levels (`reg_STS`), LSB per-level (`reg[level][_STS]`)

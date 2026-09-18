@@ -57,7 +57,7 @@ extern void WritePhysicalMemory(int physicalAddress, uint16_t value, bool privil
 
 // Parity table size
 #define PARITY_TABLE_SIZE 256
-extern const uint8_t Device_OddParityTable[PARITY_TABLE_SIZE];
+extern const uint8_t g_odd_parity_table[PARITY_TABLE_SIZE];
 
 
 // Device initialization/classification types

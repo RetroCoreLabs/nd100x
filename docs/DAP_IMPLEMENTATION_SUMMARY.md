@@ -82,19 +82,19 @@ DAP_CAP_INSTRUCTION_BREAKPOINTS, true,  // Assembly breakpoints
 **Logic:**
 ```c
 // Try MAP file first (reliable for assembly)
-if (symbol_tables.symbol_table_map) {
+if (s_symbol_tables.symbol_table_map) {
     line = symbols_get_line(...);
     file = symbols_get_file(...);
 }
 
 // Try STABS if MAP didn't work
-if ((!line || !file) && symbol_tables.symbol_table_stabs) {
+if ((!line || !file) && s_symbol_tables.symbol_table_stabs) {
     line = symbols_get_line(...);
     file = symbols_get_file(...);
 }
 
 // Try AOUT as last resort
-if ((!line || !file) && symbol_tables.symbol_table_aout) {
+if ((!line || !file) && s_symbol_tables.symbol_table_aout) {
     line = symbols_get_line(...);
     file = symbols_get_file(...);
 }
@@ -121,17 +121,17 @@ if (file_exists(file)) {
 **Logic:**
 ```c
 // 1. Try STABS (most detailed for C/mixed programs)
-if (symbol_tables.symbol_table_stabs) {
+if (s_symbol_tables.symbol_table_stabs) {
     validSymbol = symbols_find_address(...);
 }
 
 // 2. Try MAP file (reliable for assembly)
-if (!validSymbol && symbol_tables.symbol_table_map) {
+if (!validSymbol && s_symbol_tables.symbol_table_map) {
     validSymbol = symbols_find_address(...);
 }
 
 // 3. Try AOUT (last resort - function symbols)
-if (!validSymbol && symbol_tables.symbol_table_aout && str_ends_with(source_path, ".s")) {
+if (!validSymbol && s_symbol_tables.symbol_table_aout && str_ends_with(source_path, ".s")) {
     validSymbol = symbols_find_address(...);
 }
 ```

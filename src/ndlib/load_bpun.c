@@ -209,7 +209,7 @@ bool LoadBPUNStream(FILE* bpunStream, BPUN_Header* header)
                     data_word |= (b & 0xFF);
                 }
 
-                if (DISASM)
+                if (g_disasm)
                     disasm_addword(dataLoadAddress, data_word);
 
 				WritePhysicalMemory(dataLoadAddress++, data_word, false);
@@ -275,7 +275,7 @@ bool LoadBPUNStream(FILE* bpunStream, BPUN_Header* header)
 
                     WritePhysicalMemory(header->address+floWords, data_word, false);
 
-                    if (DISASM)
+                    if (g_disasm)
                         disasm_addword(header->address+floWords, data_word);
 
 

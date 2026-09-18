@@ -91,7 +91,7 @@ static int load_bank(FILE* f, uint16_t first, uint16_t last, bool verbose,
             return -1;
         }
         uint16_t addr = (uint16_t)(first + i);
-        if (DISASM) disasm_addword(addr, (uint16_t)w);
+        if (g_disasm) disasm_addword(addr, (uint16_t)w);
         WritePhysicalMemory(addr, (uint16_t)w, false);
     }
     return count;

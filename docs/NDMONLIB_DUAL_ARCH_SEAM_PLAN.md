@@ -114,7 +114,7 @@ void     mon_param_out(MonContext* ctx, int idx, uint32_t v);  /* write output*/
 uint32_t mon_mem_read (MonContext* ctx, uint32_t addr, MonWidth w);
 void     mon_mem_write(MonContext* ctx, uint32_t addr, uint32_t v, MonWidth w);
 
-/* Registers - uniform names; adapter maps to gReg[_A..] or I1.. */
+/* Registers - uniform names; adapter maps to g_reg[_A..] or I1.. */
 uint32_t mon_reg_get(MonContext* ctx, MonReg r);
 void     mon_reg_set(MonContext* ctx, MonReg r, uint32_t v);
 
@@ -173,7 +173,7 @@ MonContext gains: `MonArch arch;`, `uint32_t params_in[MON_MAX_ARGS];`,
 
 New file `src/cpu/nd100_mon_glue.c`:
 - `mon_read_word/halfword/byte` + `write_*` over the ND-100 bus.
-- `get_reg/set_reg` over `gReg->reg[gPIL][_A.._B]`, `set_k_flag` over STS K bit.
+- `get_reg/set_reg` over `g_reg->reg[gPIL][_A.._B]`, `set_k_flag` over STS K bit.
 - `nd100_mon_build_context(MonContext* ctx, ushort mon_number)`.
 
 `ndfunc_mon` (`src/cpu/cpu_instr.c`), flag-gated:

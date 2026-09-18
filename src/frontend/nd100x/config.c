@@ -938,9 +938,9 @@ bool Config_ParseCommandLine(Config_t *config, int argc, char *argv[]) {
             // Boot device comes from the INI, resolved after this summary prints.
             printf("  Boot type: (from config file %s)\n", config->iniFile);
         } else if (config->bootType == BOOT_SMD || config->bootType == BOOT_SCSI) {
-            printf("  Boot type: %s unit %d\n", boot_type_str[config->bootType], config->bootUnit);
+            printf("  Boot type: %s unit %d\n", g_boot_type_str[config->bootType], config->bootUnit);
         } else {
-            printf("  Boot type: %s\n", boot_type_str[config->bootType]);
+            printf("  Boot type: %s\n", g_boot_type_str[config->bootType]);
         }
         printf("  Image file: %s\n", config->imageFile);
         for (int i = 0; i < 4; i++) {

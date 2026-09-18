@@ -26,7 +26,6 @@
 #include "ndlib_types.h"
 #include "ndlib_protos.h"
 
-struct config_t *pCFG = NULL;
 
 /* Terminal raw-mode handling (console "cbreak" mode). */
 
@@ -68,11 +67,11 @@ void setcbreak(void)
 #include <termios.h>
 #include <signal.h>
 
-struct termios saved_tty;
+static struct termios s_saved_tty;
 
 void unsetcbreak(void)
 {
-    tcsetattr(0, TCSADRAIN, &saved_tty);
+    tcsetattr(0, TCSADRAIN, &s_saved_tty);
 }
 
 void setcbreak(void)
@@ -83,7 +82,7 @@ void setcbreak(void)
      * background process (e.g. under timeout(1) or make). */
     signal(SIGTTOU, SIG_IGN);
 
-    tcgetattr(0, &saved_tty);
+    tcgetattr(0, &s_saved_tty);
     tcgetattr(0, &tty);
     tty.c_lflag &= ~(ECHO | ECHONL | ICANON | IEXTEN);
     tty.c_cc[VTIME] = (cc_t)0;

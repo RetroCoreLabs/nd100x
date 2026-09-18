@@ -31,7 +31,7 @@
 /* ---------------------------------------------------------------- */
 
 static struct CpuRegs fptest_regs;
-struct CpuRegs *gReg = &fptest_regs;
+struct CpuRegs *g_reg = &fptest_regs;
 
 static int fptest_z_set;
 

@@ -16,16 +16,16 @@ During analysis of the DAP integration for mixed-language support, **three criti
 
 ```c
 // PROBLEM: Only checks MAP table!
-if (symbol_tables.symbol_table_map && 
+if (s_symbol_tables.symbol_table_map && 
     ((ctx->granularity == DAP_STEP_GRANULARITY_LINE) || 
      (ctx->granularity == DAP_STEP_GRANULARITY_STATEMENT)))
 {
-    target_pc = symbols_get_next_line_address(symbol_tables.symbol_table_map, current_pc);
+    target_pc = symbols_get_next_line_address(s_symbol_tables.symbol_table_map, current_pc);
     // ...
 }
 ```
 
-**Never checks:** `symbol_tables.symbol_table_stabs`
+**Never checks:** `s_symbol_tables.symbol_table_stabs`
 
 ### Impact
 
@@ -39,16 +39,16 @@ if (symbol_tables.symbol_table_map &&
 ```c
 // FIXED VERSION:
 // Try STABS first (for C programs)
-if (symbol_tables.symbol_table_stabs && 
+if (s_symbol_tables.symbol_table_stabs && 
     ((ctx->granularity == DAP_STEP_GRANULARITY_LINE) || 
      (ctx->granularity == DAP_STEP_GRANULARITY_STATEMENT)))
 {
-    target_pc = symbols_get_next_line_address(symbol_tables.symbol_table_stabs, current_pc);
+    target_pc = symbols_get_next_line_address(s_symbol_tables.symbol_table_stabs, current_pc);
 }
 
 // Fallback to MAP (for assembly)
-if ((!target_pc || target_pc == current_pc) && symbol_tables.symbol_table_map) {
-    target_pc = symbols_get_next_line_address(symbol_tables.symbol_table_map, current_pc);
+if ((!target_pc || target_pc == current_pc) && s_symbol_tables.symbol_table_map) {
+    target_pc = symbols_get_next_line_address(s_symbol_tables.symbol_table_map, current_pc);
 }
 ```
 
@@ -330,20 +330,20 @@ Just fix Step Over to check STABS:
 
 ```c
 // Change line 461 from:
-if (symbol_tables.symbol_table_map && ...)
+if (s_symbol_tables.symbol_table_map && ...)
 
 // To:
-if ((symbol_tables.symbol_table_stabs || symbol_tables.symbol_table_map) && ...)
+if ((s_symbol_tables.symbol_table_stabs || s_symbol_tables.symbol_table_map) && ...)
 
 // And line 464 from:
-target_pc = symbols_get_next_line_address(symbol_tables.symbol_table_map, current_pc);
+target_pc = symbols_get_next_line_address(s_symbol_tables.symbol_table_map, current_pc);
 
 // To:
-if (symbol_tables.symbol_table_stabs) {
-    target_pc = symbols_get_next_line_address(symbol_tables.symbol_table_stabs, current_pc);
+if (s_symbol_tables.symbol_table_stabs) {
+    target_pc = symbols_get_next_line_address(s_symbol_tables.symbol_table_stabs, current_pc);
 }
-if ((!target_pc || target_pc == current_pc) && symbol_tables.symbol_table_map) {
-    target_pc = symbols_get_next_line_address(symbol_tables.symbol_table_map, current_pc);
+if ((!target_pc || target_pc == current_pc) && s_symbol_tables.symbol_table_map) {
+    target_pc = symbols_get_next_line_address(s_symbol_tables.symbol_table_map, current_pc);
 }
 ```
 

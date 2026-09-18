@@ -171,15 +171,15 @@ if (step_type == STEP_IN)
                 const char *target_file = NULL;
                 
                 // Try STABS first (for C functions)
-                if (symbol_tables.symbol_table_stabs) {
-                    target_line = symbols_get_line(symbol_tables.symbol_table_stabs, call_target);
-                    target_file = symbols_get_file(symbol_tables.symbol_table_stabs, call_target);
+                if (s_symbol_tables.symbol_table_stabs) {
+                    target_line = symbols_get_line(s_symbol_tables.symbol_table_stabs, call_target);
+                    target_file = symbols_get_file(s_symbol_tables.symbol_table_stabs, call_target);
                 }
                 
                 // Try MAP if STABS didn't work (for assembly functions)
-                if ((!target_line || !target_file) && symbol_tables.symbol_table_map) {
-                    target_line = symbols_get_line(symbol_tables.symbol_table_map, call_target);
-                    target_file = symbols_get_file(symbol_tables.symbol_table_map, call_target);
+                if ((!target_line || !target_file) && s_symbol_tables.symbol_table_map) {
+                    target_line = symbols_get_line(s_symbol_tables.symbol_table_map, call_target);
+                    target_file = symbols_get_file(s_symbol_tables.symbol_table_map, call_target);
                 }
                 
                 if (target_line && target_file) {
@@ -210,13 +210,13 @@ if (step_type == STEP_IN)
         uint16_t next_line_addr = 0;
         
         // Try STABS first
-        if (symbol_tables.symbol_table_stabs) {
-            next_line_addr = symbols_get_next_line_address(symbol_tables.symbol_table_stabs, current_pc);
+        if (s_symbol_tables.symbol_table_stabs) {
+            next_line_addr = symbols_get_next_line_address(s_symbol_tables.symbol_table_stabs, current_pc);
         }
         
         // Try MAP if STABS didn't work
-        if ((!next_line_addr || next_line_addr == current_pc) && symbol_tables.symbol_table_map) {
-            next_line_addr = symbols_get_next_line_address(symbol_tables.symbol_table_map, current_pc);
+        if ((!next_line_addr || next_line_addr == current_pc) && s_symbol_tables.symbol_table_map) {
+            next_line_addr = symbols_get_next_line_address(s_symbol_tables.symbol_table_map, current_pc);
         }
         
         if (next_line_addr && next_line_addr != current_pc) {
@@ -254,7 +254,7 @@ if (step_type == STEP_OVER)
     // Handle special cases first
     
     // 1. EXIT instruction - step out
-    if (gReg->myreg_IR == 0146142)
+    if (g_reg->myreg_IR == 0146142)
     {
         int return_address = find_stack_return_address();
         if (return_address < 0)
@@ -295,13 +295,13 @@ if (step_type == STEP_OVER)
         (ctx->granularity == DAP_STEP_GRANULARITY_STATEMENT);
     
     if (is_line_granularity && 
-        (symbol_tables.symbol_table_stabs || symbol_tables.symbol_table_map))
+        (s_symbol_tables.symbol_table_stabs || s_symbol_tables.symbol_table_map))
     {
         uint16_t target_pc = 0;
         
         // Try STABS first (for C programs with STABS debug info)
-        if (symbol_tables.symbol_table_stabs) {
-            target_pc = symbols_get_next_line_address(symbol_tables.symbol_table_stabs, current_pc);
+        if (s_symbol_tables.symbol_table_stabs) {
+            target_pc = symbols_get_next_line_address(s_symbol_tables.symbol_table_stabs, current_pc);
             
             if (target_pc && target_pc != current_pc) {
                 snprintf(log_message, sizeof(log_message),
@@ -311,8 +311,8 @@ if (step_type == STEP_OVER)
         }
 
         // Try MAP if STABS didn't work (for assembly programs)
-        if ((!target_pc || target_pc == current_pc) && symbol_tables.symbol_table_map) {
-            target_pc = symbols_get_next_line_address(symbol_tables.symbol_table_map, current_pc);
+        if ((!target_pc || target_pc == current_pc) && s_symbol_tables.symbol_table_map) {
+            target_pc = symbols_get_next_line_address(s_symbol_tables.symbol_table_map, current_pc);
             
             if (target_pc && target_pc != current_pc) {
                 snprintf(log_message, sizeof(log_message),
@@ -454,7 +454,7 @@ void debugger_build_stack_trace(uint16_t pc, uint16_t operand)
         
         // Log the call
         const symbol_entry_t *symbol = symbols_lookup_by_address(
-            symbol_tables.symbol_table_aout, 
+            s_symbol_tables.symbol_table_aout, 
             get_jpl_target_address(pc, operand)
         );
         
@@ -475,7 +475,7 @@ void debugger_build_stack_trace(uint16_t pc, uint16_t operand)
         if (stack_trace.frame_count > 1)
         {
             const symbol_entry_t *symbol = symbols_lookup_by_address(
-                symbol_tables.symbol_table_aout,
+                s_symbol_tables.symbol_table_aout,
                 stack_trace.frames[stack_trace.current_frame].entry_point
             );
             

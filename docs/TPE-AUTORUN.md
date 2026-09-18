@@ -167,7 +167,7 @@ they differ per program.
 The verifier banners are CPU-identity-aware. Under the current default `--cputype=ND110CX`
 the banner reads `ND-110/CX`; under `ND100`/`ND100CE`/`ND100CX` it reads
 `ND-100/CX upgraded for 16 PITs`. Pass `--cputype=...` (or `ND100X_CPUTYPE=...`) to the
-runner to sweep identities. See `src/cpu/cpu.c` (`CurrentCPUType`,
+runner to sweep identities. See `src/cpu/cpu.c` (`g_current_cpu_type`,
 `cpu_set_type_from_env`).
 
 ## 6. Manual driving (no script)

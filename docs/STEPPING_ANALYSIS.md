@@ -17,12 +17,12 @@
 **Current Implementation:**
 ```c:460:473:debugger.c
 // If we have symbol table and want to step by line
-if (symbol_tables.symbol_table_map && 
+if (s_symbol_tables.symbol_table_map && 
     ((ctx->granularity == DAP_STEP_GRANULARITY_LINE) || 
      (ctx->granularity == DAP_STEP_GRANULARITY_STATEMENT)))
 {
     // PROBLEM: Only checks MAP table, not STABS!
-    target_pc = symbols_get_next_line_address(symbol_tables.symbol_table_map, current_pc);
+    target_pc = symbols_get_next_line_address(s_symbol_tables.symbol_table_map, current_pc);
     
     if (target_pc != 0 && target_pc != current_pc) {
         stepping_to_line = true;
@@ -32,8 +32,8 @@ if (symbol_tables.symbol_table_map &&
 ```
 
 **Problem:**
-- Only checks `symbol_tables.symbol_table_map`
-- **Never checks** `symbol_tables.symbol_table_stabs`
+- Only checks `s_symbol_tables.symbol_table_map`
+- **Never checks** `s_symbol_tables.symbol_table_stabs`
 - C programs don't have MAP files!
 
 **Result:** When debugging C, step over **always falls back to single instruction step**.
@@ -44,16 +44,16 @@ if (symbol_tables.symbol_table_map &&
 ```c
 // FIXED VERSION:
 // Try STABS first (for C programs)
-if (symbol_tables.symbol_table_stabs && 
+if (s_symbol_tables.symbol_table_stabs && 
     ((ctx->granularity == DAP_STEP_GRANULARITY_LINE) || 
      (ctx->granularity == DAP_STEP_GRANULARITY_STATEMENT)))
 {
-    target_pc = symbols_get_next_line_address(symbol_tables.symbol_table_stabs, current_pc);
+    target_pc = symbols_get_next_line_address(s_symbol_tables.symbol_table_stabs, current_pc);
 }
 
 // Fallback to MAP (for assembly)
-if ((!target_pc || target_pc == current_pc) && symbol_tables.symbol_table_map) {
-    target_pc = symbols_get_next_line_address(symbol_tables.symbol_table_map, current_pc);
+if ((!target_pc || target_pc == current_pc) && s_symbol_tables.symbol_table_map) {
+    target_pc = symbols_get_next_line_address(s_symbol_tables.symbol_table_map, current_pc);
 }
 
 // If we found a different line, set temp breakpoint
@@ -128,15 +128,15 @@ if (step_type == STEP_IN) {
             const char *target_file = NULL;
             
             // Try STABS first
-            if (symbol_tables.symbol_table_stabs) {
-                target_line = symbols_get_line(symbol_tables.symbol_table_stabs, call_target);
-                target_file = symbols_get_file(symbol_tables.symbol_table_stabs, call_target);
+            if (s_symbol_tables.symbol_table_stabs) {
+                target_line = symbols_get_line(s_symbol_tables.symbol_table_stabs, call_target);
+                target_file = symbols_get_file(s_symbol_tables.symbol_table_stabs, call_target);
             }
             
             // Fallback to MAP
-            if ((!target_line || !target_file) && symbol_tables.symbol_table_map) {
-                target_line = symbols_get_line(symbol_tables.symbol_table_map, call_target);
-                target_file = symbols_get_file(symbol_tables.symbol_table_map, call_target);
+            if ((!target_line || !target_file) && s_symbol_tables.symbol_table_map) {
+                target_line = symbols_get_line(s_symbol_tables.symbol_table_map, call_target);
+                target_file = symbols_get_file(s_symbol_tables.symbol_table_map, call_target);
             }
             
             if (target_line && target_file) {
@@ -150,11 +150,11 @@ if (step_type == STEP_IN) {
         // Not a call, or couldn't find source info - try next source line
         uint16_t next_line_addr = 0;
         
-        if (symbol_tables.symbol_table_stabs) {
-            next_line_addr = symbols_get_next_line_address(symbol_tables.symbol_table_stabs, current_pc);
+        if (s_symbol_tables.symbol_table_stabs) {
+            next_line_addr = symbols_get_next_line_address(s_symbol_tables.symbol_table_stabs, current_pc);
         }
-        if ((!next_line_addr || next_line_addr == current_pc) && symbol_tables.symbol_table_map) {
-            next_line_addr = symbols_get_next_line_address(symbol_tables.symbol_table_map, current_pc);
+        if ((!next_line_addr || next_line_addr == current_pc) && s_symbol_tables.symbol_table_map) {
+            next_line_addr = symbols_get_next_line_address(s_symbol_tables.symbol_table_map, current_pc);
         }
         
         if (next_line_addr && next_line_addr != current_pc) {
@@ -385,20 +385,20 @@ typedef struct {
 
 ```c
 // CURRENT (BROKEN FOR C):
-if (symbol_tables.symbol_table_map && ...) {
-    target_pc = symbols_get_next_line_address(symbol_tables.symbol_table_map, current_pc);
+if (s_symbol_tables.symbol_table_map && ...) {
+    target_pc = symbols_get_next_line_address(s_symbol_tables.symbol_table_map, current_pc);
 }
 
 // FIXED (WORKS FOR C AND ASSEMBLY):
-if ((symbol_tables.symbol_table_stabs || symbol_tables.symbol_table_map) && ...) {
+if ((s_symbol_tables.symbol_table_stabs || s_symbol_tables.symbol_table_map) && ...) {
     // Try STABS first (C programs)
-    if (symbol_tables.symbol_table_stabs) {
-        target_pc = symbols_get_next_line_address(symbol_tables.symbol_table_stabs, current_pc);
+    if (s_symbol_tables.symbol_table_stabs) {
+        target_pc = symbols_get_next_line_address(s_symbol_tables.symbol_table_stabs, current_pc);
     }
     
     // Fallback to MAP (assembly programs)
-    if ((!target_pc || target_pc == current_pc) && symbol_tables.symbol_table_map) {
-        target_pc = symbols_get_next_line_address(symbol_tables.symbol_table_map, current_pc);
+    if ((!target_pc || target_pc == current_pc) && s_symbol_tables.symbol_table_map) {
+        target_pc = symbols_get_next_line_address(s_symbol_tables.symbol_table_map, current_pc);
     }
 }
 ```
@@ -432,11 +432,11 @@ if (step_type == STEP_IN) {
         // Not a call - step to next source line
         uint16_t next_line_addr = 0;
         
-        if (symbol_tables.symbol_table_stabs) {
-            next_line_addr = symbols_get_next_line_address(symbol_tables.symbol_table_stabs, current_pc);
+        if (s_symbol_tables.symbol_table_stabs) {
+            next_line_addr = symbols_get_next_line_address(s_symbol_tables.symbol_table_stabs, current_pc);
         }
-        if ((!next_line_addr || next_line_addr == current_pc) && symbol_tables.symbol_table_map) {
-            next_line_addr = symbols_get_next_line_address(symbol_tables.symbol_table_map, current_pc);
+        if ((!next_line_addr || next_line_addr == current_pc) && s_symbol_tables.symbol_table_map) {
+            next_line_addr = symbols_get_next_line_address(s_symbol_tables.symbol_table_map, current_pc);
         }
         
         if (next_line_addr && next_line_addr != current_pc) {

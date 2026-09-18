@@ -24,7 +24,7 @@ step-out heuristic, JPL-target resolver and set-variable handler read/wrote
 emulated memory through the normal `ReadVirtualMemory`/`WriteVirtualMemory`
 path. On an unmapped/protected address — exactly what a corrupted B-chain
 produces — that path runs `checkPageProtection`, which raises an *emulated* CPU
-fault: `HandlePF`/`HandleMPV` → `interrupt(14)` → `longjmp(cpu_jmp_buf)`
+fault: `HandlePF`/`HandleMPV` → `interrupt(14)` → `longjmp(s_cpu_jmp_buf)`
 (`cpu.c:380`). Fired from inside a DAP handler, that `longjmp` unwinds back to
 `cpurun()`'s `setjmp` — a different (and in the threaded server, different-
 thread) stack context — and trips the stack protector.

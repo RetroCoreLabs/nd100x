@@ -213,7 +213,7 @@ void  OpToStr(char *return_string, uint16_t max_len, uint16_t operand)
 		(void)snprintf(opstr, BUFSTRSIZE, "MOVBF");
 		break;
 	case 0140133:																				  /* VERSN - ND110 specific */
-		if ((CurrentCPUType == ND100) || (CurrentCPUType == ND100CE) || (CurrentCPUType == ND100CX)) /* We are ND100 */
+		if ((g_current_cpu_type == ND100) || (g_current_cpu_type == ND100CE) || (g_current_cpu_type == ND100CX)) /* We are ND100 */
 			break;
 		else /* We are a ND110, print instruction */
 			(void)snprintf(opstr, BUFSTRSIZE, "VERSN");
@@ -249,7 +249,7 @@ void  OpToStr(char *return_string, uint16_t max_len, uint16_t operand)
 		(void)snprintf(opstr, BUFSTRSIZE, "USER0");
 		break;
 	case 0140500:																				  /* USER1 or ND110 instruction WGLOB */
-		if ((CurrentCPUType == ND100) || (CurrentCPUType == ND100CE) || (CurrentCPUType == ND100CX)) /* We are ND100 */
+		if ((g_current_cpu_type == ND100) || (g_current_cpu_type == ND100CE) || (g_current_cpu_type == ND100CX)) /* We are ND100 */
 			(void)snprintf(opstr, BUFSTRSIZE, "USER1");
 		else
 			(void)snprintf(opstr, BUFSTRSIZE, "WGLOB"); /* We are ND110 */
@@ -297,7 +297,7 @@ void  OpToStr(char *return_string, uint16_t max_len, uint16_t operand)
 		(void)snprintf(opstr, BUFSTRSIZE, "EXR %s", skipregn_src[((operand & 0x0038) >> 3)]);
 		break;
 	case 0140700:																				  /* USER2 */
-		if ((CurrentCPUType == ND100) || (CurrentCPUType == ND100CE) || (CurrentCPUType == ND100CX)) /* We are ND100 */
+		if ((g_current_cpu_type == ND100) || (g_current_cpu_type == ND100CE) || (g_current_cpu_type == ND100CX)) /* We are ND100 */
 			(void)snprintf(opstr, BUFSTRSIZE, "USER2");
 		else
 			(void)snprintf(opstr, BUFSTRSIZE, "LASB %s", deltastr); /* We are ND110 */
@@ -680,34 +680,34 @@ void  OpToStr(char *return_string, uint16_t max_len, uint16_t operand)
 
 
 // Declare and define the disasm array and pointer to it
-DisasmArray disasm_arr = { NULL };
-DisasmArray* p_DIS = &disasm_arr;
+DisasmArray g_disasm_arr = { NULL };
+DisasmArray* g_dis = &g_disasm_arr;
 
-int disasm_ctr = 0;
+static int s_disasm_ctr = 0;
 
 void disasm_allocate(uint16_t addr) {
-	if ((*p_DIS)[addr]) return; /* already exists */
+	if ((*g_dis)[addr]) return; /* already exists */
 
 	// Allocate memory for the disasm entry at the given address
-	(*p_DIS)[addr] = calloc(1,sizeof(struct disasm_entry));
+	(*g_dis)[addr] = calloc(1,sizeof(struct disasm_entry));
 }
 
 void disasm_instr(uint16_t addr, uint16_t instr){
 
 	// Add the instruction to the disassembly array if it doesn't exist
-	if ((*p_DIS)[addr] == NULL)
+	if ((*g_dis)[addr] == NULL)
 	{
 		disasm_addword(addr, instr);
 	}
 
 	// If the instruction exists, set it to code and copy the disassembly string
-	if ((*p_DIS)[addr] != NULL) {
+	if ((*g_dis)[addr] != NULL) {
 		char disasm_str[BUFSTRSIZE];
 		OpToStr(disasm_str, BUFSTRSIZE, instr);
 
 
-		(*p_DIS)[addr]->iscode = true;
-		snprintf((*p_DIS)[addr]->asm_str,32,"%s",disasm_str);
+		(*g_dis)[addr]->iscode = true;
+		snprintf((*g_dis)[addr]->asm_str,32,"%s",disasm_str);
 	}
 }
 
@@ -715,53 +715,53 @@ void disasm_exr(uint16_t addr, uint16_t instr){
 	char disasm_str[BUFSTRSIZE];
 	OpToStr(disasm_str, BUFSTRSIZE, instr);
 
-	if ((*p_DIS)[addr] != NULL) {
-		(*p_DIS)[addr]->isexr = true;
-		snprintf((*p_DIS)[addr]->exr,32,"%s",disasm_str);
+	if ((*g_dis)[addr] != NULL) {
+		(*g_dis)[addr]->isexr = true;
+		snprintf((*g_dis)[addr]->exr,32,"%s",disasm_str);
 	}
 }
 
 void disasm_addword(uint16_t addr, uint16_t myword){
-	if ((*p_DIS)[addr]) return; /* already exists */
+	if ((*g_dis)[addr]) return; /* already exists */
 
-	(*p_DIS)[addr] = calloc(1,sizeof(struct disasm_entry));
-	if ((*p_DIS)[addr] != NULL) {
-		(*p_DIS)[addr]->theword = myword;
+	(*g_dis)[addr] = calloc(1,sizeof(struct disasm_entry));
+	if ((*g_dis)[addr] != NULL) {
+		(*g_dis)[addr]->theword = myword;
 	}
 }
 
 void disasm_init(void){
 	int i;
 	for(i=0;i<65536;i++){
-		(*p_DIS)[i]= NULL;
+		(*g_dis)[i]= NULL;
 	}
-	disasm_ctr=0;
+	s_disasm_ctr=0;
 }
 
 void disasm_setlbl(uint16_t addr){
-	disasm_ctr++;
-	if ((*p_DIS)[addr] != NULL) {
-		(*p_DIS)[addr]->labelno = disasm_ctr;
+	s_disasm_ctr++;
+	if ((*g_dis)[addr] != NULL) {
+		(*g_dis)[addr]->labelno = s_disasm_ctr;
 	}
 }
 
 void disasm_set_isdata(uint16_t addr){
-	if ((*p_DIS)[addr] != NULL) {
-		(*p_DIS)[addr]->isdata = true;
+	if ((*g_dis)[addr] != NULL) {
+		(*g_dis)[addr]->isdata = true;
 	}
 }
 
 void disasm_userel(uint16_t addr, uint16_t where){
-	if ((*p_DIS)[addr] != NULL) {
-		if ((*p_DIS)[addr]->use_rel) { /* we have already used relative from here */
+	if ((*g_dis)[addr] != NULL) {
+		if ((*g_dis)[addr]->use_rel) { /* we have already used relative from here */
 		} else {
-			(*p_DIS)[addr]->use_rel = true;
+			(*g_dis)[addr]->use_rel = true;
 			disasm_allocate(where); // make sure we dont have a null ptr.
-			if ((*p_DIS)[where]->labelno) { /* Where already has a label  */
-				(*p_DIS)[addr]->rel_acc_lbl = (*p_DIS)[where]->labelno;
+			if ((*g_dis)[where]->labelno) { /* Where already has a label  */
+				(*g_dis)[addr]->rel_acc_lbl = (*g_dis)[where]->labelno;
 			} else {
 				disasm_setlbl(where);
-				(*p_DIS)[addr]->rel_acc_lbl = (*p_DIS)[where]->labelno;
+				(*g_dis)[addr]->rel_acc_lbl = (*g_dis)[where]->labelno;
 			}
 		}
 	}
@@ -782,25 +782,25 @@ void disasm_dump(void){
 	FILE* disasm_file = fopen(disasm_fname,disasm_ftype);
 
 	for(i=0;i<65536;i++){
-		if ((*p_DIS)[i] != NULL) {
-			w = (*p_DIS)[i]->theword;
+		if ((*g_dis)[i] != NULL) {
+			w = (*g_dis)[i]->theword;
 			u = (w >> 8) & 0xff;
 			l = w & 0xff;
 
-			fprintf(disasm_file,"%06o    %06o   ",i,(*p_DIS)[i]->theword);
-			if ((*p_DIS)[i]->labelno)
-				fprintf(disasm_file," L%05d ",(*p_DIS)[i]->labelno);
+			fprintf(disasm_file,"%06o    %06o   ",i,(*g_dis)[i]->theword);
+			if ((*g_dis)[i]->labelno)
+				fprintf(disasm_file," L%05d ",(*g_dis)[i]->labelno);
 			else
 				fprintf(disasm_file,"       ");
-			if ((*p_DIS)[i]->iscode) {
-				fprintf(disasm_file,"%s",(*p_DIS)[i]->asm_str);
-				tmp=strlen((const char*)(*p_DIS)[i]->asm_str);
+			if ((*g_dis)[i]->iscode) {
+				fprintf(disasm_file,"%s",(*g_dis)[i]->asm_str);
+				tmp=strlen((const char*)(*g_dis)[i]->asm_str);
 				fprintf(disasm_file,"%.*s", (32-tmp), "                                 "); /* align */
-				if ((*p_DIS)[i]->use_rel)
-					fprintf(disasm_file,"%% L%05d ",(*p_DIS)[i]->rel_acc_lbl);
-				if ((*p_DIS)[i]->isexr)
-					fprintf(disasm_file,"%% %s",(*p_DIS)[i]->exr);
-			} else if ((*p_DIS)[i]->isdata) {
+				if ((*g_dis)[i]->use_rel)
+					fprintf(disasm_file,"%% L%05d ",(*g_dis)[i]->rel_acc_lbl);
+				if ((*g_dis)[i]->isexr)
+					fprintf(disasm_file,"%% %s",(*g_dis)[i]->exr);
+			} else if ((*g_dis)[i]->isdata) {
 				fprintf(disasm_file,"DATA: ");
 				if (u>=32 && u<=127)
 					fprintf(disasm_file,"\'%c\'",u);
@@ -814,7 +814,7 @@ void disasm_dump(void){
 					fprintf(disasm_file,"\'%c\'",l);
 
 				fprintf(disasm_file,"          ");
-				OpToStr(disasm_str, BUFSTRSIZE,(*p_DIS)[i]->theword);
+				OpToStr(disasm_str, BUFSTRSIZE,(*g_dis)[i]->theword);
 				fprintf(disasm_file,"%% %s",disasm_str);
 			}
 			fprintf(disasm_file,"\n");
@@ -872,7 +872,7 @@ uint16_t decode_140k(uint16_t instr) {
 	case 0140132: /* MOVBF */
 		return(instr);
 	case 0140133: /* VERSN - ND110 specific */
-		if ((CurrentCPUType == ND110) || (CurrentCPUType == ND110CE) || (CurrentCPUType == ND110CX))
+		if ((g_current_cpu_type == ND110) || (g_current_cpu_type == ND110CE) || (g_current_cpu_type == ND110CX))
 			return(instr);
 		else
 			break;
@@ -898,7 +898,7 @@ uint16_t decode_140k(uint16_t instr) {
 	case 0140200: /* USER1 (microcode defined by user or illegal instruction otherwise) */
 		return instr & (0xFFFF<<6);
 	case 0140500: /* USER2 (microcode defined by user or illegal instruction otherwise) */
-		if ((CurrentCPUType == ND100) || (CurrentCPUType == ND100CE) || (CurrentCPUType == ND100CX)) /* We are ND100 */
+		if ((g_current_cpu_type == ND100) || (g_current_cpu_type == ND100CE) || (g_current_cpu_type == ND100CX)) /* We are ND100 */
 			return instr & (0xFFFF<<6);
 		else switch (instr & (0xFFFF)) {							/* We are not */
 			case 0140500: /* WGLOB - ND110 Specific */
@@ -923,7 +923,7 @@ uint16_t decode_140k(uint16_t instr) {
 	case 0140600: /* EXR */
 		return instr & (0xFFFF<<6);
 	case 0140700: /* USER3 (microcode defined by user or illegal instruction otherwise) */
-		if ((CurrentCPUType == ND100) || (CurrentCPUType == ND100CE) || (CurrentCPUType == ND100CX)) /* We are ND100 */
+		if ((g_current_cpu_type == ND100) || (g_current_cpu_type == ND100CE) || (g_current_cpu_type == ND100CX)) /* We are ND100 */
 			return instr & (0xFFFF<<6);
 		else switch (instr & (0xFFC7)) {							/* We are not */
 			case 0140700: /* LASB - ND110 Specific */

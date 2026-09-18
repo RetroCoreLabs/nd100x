@@ -13,7 +13,7 @@ nd100x loads programs into a flat, word-addressed memory space (8 MW max) via th
 2. **AOUT** — Unix a.out binary format (with symbolic debugging support)
 3. **FLOPPY** — Floppy disk image (boots via embedded BPUN bootstrap)
 
-All paths funnel through the same write-memory pipeline into `VolatileMemory.n_Array[physicalAddress]`.
+All paths funnel through the same write-memory pipeline into `g_volatile_memory.n_Array[physicalAddress]`.
 
 ---
 
@@ -38,7 +38,7 @@ typedef union ndram {
 - **Addresses:** 0x0000 → 0x7FFFFF (word-addressed, 21-bit physical address space)
 - **Word size:** 16-bit (`uint16_t`)
 
-**Access:** Via global `extern _NDRAM_ VolatileMemory;`
+**Access:** Via global `extern _NDRAM_ g_volatile_memory;`
 
 ### Memory Zones
 
@@ -135,7 +135,7 @@ bootAddress = load_aout(imageFile, verbose, write_memory, text_start, overlay_de
 1. Mount disk image: `mount_floppy(imageFile, 0)`
 2. Extract embedded BPUN: `LoadBPUN(imageFile, verbose)`
 3. Boot address = BPUN bootstrap entry
-4. Set `STARTADDR = bootAddress`
+4. Set `g_start_addr = bootAddress`
 
 **Note:** Floppy image must contain valid BPUN bootstrap sector.
 
@@ -154,19 +154,19 @@ int program_load(BOOT_TYPE bootType, int bootUnit, const char *imageFile,
     switch (bootType) {
         case BOOT_BPUN:
             bootAddress = LoadBPUN(imageFile, verbose);
-            STARTADDR = bootAddress;
+            g_start_addr = bootAddress;
             break;
             
         case BOOT_AOUT:
             bootAddress = load_aout(imageFile, verbose, write_memory, 
                                    text_start, overlay_deposit);
-            STARTADDR = bootAddress;
+            g_start_addr = bootAddress;
             break;
             
         case BOOT_FLOPPY:
             mount_floppy(imageFile, 0);
             bootAddress = LoadBPUN(imageFile, verbose);
-            STARTADDR = bootAddress;
+            g_start_addr = bootAddress;
             break;
     }
     
@@ -189,7 +189,7 @@ WritePhysicalMemory(int physicalAddress, uint16_t value, bool privileged)
 WritePhysicalMemoryWM(int physicalAddress, uint16_t value, bool privileged, WriteMode wm)
   [in cpu_mms.c:956]
   ↓
-VolatileMemory.n_Array[physicalAddress] = value
+g_volatile_memory.n_Array[physicalAddress] = value
   [Direct word write]
   ↓
 Returns to machine_load()
@@ -200,7 +200,7 @@ Returns to machine_load()
 **After file load completes:**
 ```c
 gPC = 0;              // Set program counter to 0
-STARTADDR = bootAddress;  // Store entry point for debugger/UI
+g_start_addr = bootAddress;  // Store entry point for debugger/UI
 ```
 
 **Note:** `gPC` is NOT immediately set to `bootAddress`. It starts at 0. The bootstrap loader at 0x0000 must jump to the actual program entry point.
@@ -322,8 +322,8 @@ The shell can use **ndmonlib's file table** to:
 ### What's already available:
 
 - ✅ `program_load()` function (loads BPUN/AOUT/FLOPPY)
-- ✅ `write_memory()` callback (writes to VolatileMemory)
-- ✅ `VolatileMemory.n_Array[]` (direct word access)
+- ✅ `write_memory()` callback (writes to g_volatile_memory)
+- ✅ `g_volatile_memory.n_Array[]` (direct word access)
 - ✅ ndmonlib `mon_file_table.c` (file listing + SINTRAN semantics)
 - ✅ CPU registers in global scope (`gPC`, `gSTAT`, etc)
 
@@ -343,13 +343,13 @@ To verify this architecture:
 
 ```bash
 # 1. Check memory structure
-grep -n "VolatileMemory" src/cpu/cpu_types.h
+grep -n "g_volatile_memory" src/cpu/cpu_types.h
 
 # 2. Trace BPUN load flow
 grep -n "LoadBPUN\|write_memory" src/machine/machine.c
 
 # 3. Verify word write
-objdump -t build/bin/nd100x | grep VolatileMemory
+objdump -t build/bin/nd100x | grep g_volatile_memory
 
 # 4. Test existing loader
 ./build/bin/nd100x --boot-type=BPUN --image=examples/hello.bpun --debug

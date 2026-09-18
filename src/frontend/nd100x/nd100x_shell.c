@@ -369,15 +369,15 @@ static int cmd_show_regs(const char *nd100Root, int argc, char **argv) {
 
     printf("CPU Registers:\n");
 
-    if (gReg) {
-        printf("  A:     0o%06o\n", gReg->reg[gPIL][_A]);
-        printf("  B:     0o%06o\n", gReg->reg[gPIL][_B]);
-        printf("  D:     0o%06o\n", gReg->reg[gPIL][_D]);
-        printf("  X:     0o%06o\n", gReg->reg[gPIL][_X]);
-        printf("  L:     0o%06o\n", gReg->reg[gPIL][_L]);
-        printf("  T:     0o%06o\n", gReg->reg[gPIL][_T]);
-        printf("  P:     0o%06o\n", gReg->reg[gPIL][_P]);
-        printf("  STS:   0o%06o\n", gReg->reg_STS);
+    if (g_reg) {
+        printf("  A:     0o%06o\n", g_reg->reg[gPIL][_A]);
+        printf("  B:     0o%06o\n", g_reg->reg[gPIL][_B]);
+        printf("  D:     0o%06o\n", g_reg->reg[gPIL][_D]);
+        printf("  X:     0o%06o\n", g_reg->reg[gPIL][_X]);
+        printf("  L:     0o%06o\n", g_reg->reg[gPIL][_L]);
+        printf("  T:     0o%06o\n", g_reg->reg[gPIL][_T]);
+        printf("  P:     0o%06o\n", g_reg->reg[gPIL][_P]);
+        printf("  STS:   0o%06o\n", g_reg->reg_STS);
     }
 
     return 0;

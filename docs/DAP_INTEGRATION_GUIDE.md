@@ -47,9 +47,9 @@ The ND100X emulator implements a complete Debug Adapter Protocol (DAP) server th
 │  │  └────────────────┘  │    │  └──────────────┘  │   │
 │  └──────────────────────┘    └─────────────────────┘   │
 │                                                         │
-│  Atomic Flags: debugger_request_pause,                  │
-│                debugger_control_granted,                │
-│                cpu_run_mode                            │
+│  Atomic Flags: s_debugger_request_pause,                  │
+│                s_debugger_control_granted,                │
+│                s_cpu_run_mode                            │
 └─────────────────────────────────────────────────────────┘
                          ▲
                          │ TCP Socket (DAP Protocol)
@@ -64,16 +64,16 @@ The ND100X emulator implements a complete Debug Adapter Protocol (DAP) server th
 
 **Pause Flow:**
 1. DAP client sends `pause` command → Debugger thread
-2. Debugger thread sets `debugger_request_pause = true`
+2. Debugger thread sets `s_debugger_request_pause = true`
 3. CPU checks flag after each instruction
-4. CPU sets `cpu_run_mode = CPU_PAUSED`
-5. CPU sets `debugger_control_granted = true`
+4. CPU sets `s_cpu_run_mode = CPU_PAUSED`
+5. CPU sets `s_debugger_control_granted = true`
 6. Debugger thread sends `stopped` event
 
 **Resume Flow:**
 1. DAP client sends `continue` command → Debugger thread
-2. Debugger thread sets `cpu_run_mode = CPU_RUNNING`
-3. Debugger thread sets `debugger_control_granted = false`
+2. Debugger thread sets `s_cpu_run_mode = CPU_RUNNING`
+3. Debugger thread sets `s_debugger_control_granted = false`
 4. CPU resumes execution
 5. Debugger thread sends `continued` event
 
@@ -357,17 +357,17 @@ The emulator supports three symbol table formats:
 **For Breakpoints:**
 ```c
 // 1. Try STABS (best for C)
-if (symbol_tables.symbol_table_stabs) {
+if (s_symbol_tables.symbol_table_stabs) {
     found = symbols_find_address(stabs_table, source_file, &addr, &diff, line);
 }
 
 // 2. Try MAP (best for assembly)
-if (!found && symbol_tables.symbol_table_map) {
+if (!found && s_symbol_tables.symbol_table_map) {
     found = symbols_find_address(map_table, source_file, &addr, &diff, line);
 }
 
 // 3. Try a.out (functions only)
-if (!found && symbol_tables.symbol_table_aout) {
+if (!found && s_symbol_tables.symbol_table_aout) {
     found = symbols_find_address(aout_table, source_file, &addr, &diff, line);
 }
 ```
@@ -397,7 +397,7 @@ static int cmd_launch_callback(DAPServer *server)
     // 1. Load program binary at the specified text segment address
     uint16_t text_start = (uint16_t)server->debugger_state.text_start;
     program_load(BOOT_AOUT, program_path, true, text_start);
-    gPC = STARTADDR;
+    gPC = g_start_addr;
     
     // 2. Clear old symbols
     free_symbol_table();
@@ -426,8 +426,8 @@ static int cmd_launch_callback(DAPServer *server)
     debugger_build_stack_trace(gPC, 0);
     
     // 7. Map initial PC to source
-    int line = symbols_get_line(symbol_tables.symbol_table_map, gPC);
-    const char *file = symbols_get_file(symbol_tables.symbol_table_map, gPC);
+    int line = symbols_get_line(s_symbol_tables.symbol_table_map, gPC);
+    const char *file = symbols_get_file(s_symbol_tables.symbol_table_map, gPC);
     
     // 8. Send events
     dap_server_send_process_event(server, program_path, 1, true, "launch");
@@ -718,7 +718,7 @@ bool my_custom_symbol_loader(symbol_table_t *table, const char *filename) {
 
 // Register in debugger.c
 if (custom_format) {
-    my_custom_symbol_loader(symbol_tables.symbol_table_custom, filename);
+    my_custom_symbol_loader(s_symbol_tables.symbol_table_custom, filename);
 }
 ```
 
@@ -776,7 +776,7 @@ const char *cached_get_file(uint16_t addr) {
     }
     
     // Cache miss - do lookup and cache result
-    const char *file = symbols_get_file(symbol_tables.symbol_table_stabs, addr);
+    const char *file = symbols_get_file(s_symbol_tables.symbol_table_stabs, addr);
     // Add to cache...
     return file;
 }

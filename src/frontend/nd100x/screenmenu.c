@@ -137,18 +137,18 @@ static void draw_cpu_speed(void)
     if (cpu_speed_initialized) {
         double elapsed = (now.tv_sec - cpu_speed_last_time.tv_sec)
                        + (now.tv_nsec - cpu_speed_last_time.tv_nsec) / 1e9;
-        uint64_t delta_instr = instr_counter - cpu_speed_last_instr;
+        uint64_t delta_instr = g_instr_counter - cpu_speed_last_instr;
         if (elapsed > 0.01) {
             actual_mhz = (delta_instr / elapsed) / 1e6;
         }
     }
-    cpu_speed_last_instr = instr_counter;
+    cpu_speed_last_instr = g_instr_counter;
     cpu_speed_last_time = now;
     cpu_speed_initialized = true;
 
     bool throttle_on = cpu_throttle_get_enabled();
 
-    printf("  Instructions executed: %" PRIu64 "\n", instr_counter);
+    printf("  Instructions executed: %" PRIu64 "\n", g_instr_counter);
     printf("  Actual speed:          %.3f MHz (%.1f KIPS)\n", actual_mhz, actual_mhz * 1000.0);
     printf("\n");
     printf("  Throttle:              %s\n", throttle_on ? "ON" : "OFF");
@@ -242,7 +242,7 @@ static void draw_charset(void)
 // block, TSS1.SYMB:4031). Full reference: docs/TSS-CONTROL-PANEL-SWITCHES.md.
 static void draw_panel_switches(void)
 {
-    uint16_t opr = (gReg != NULL) ? gOPR : 0;
+    uint16_t opr = (g_reg != NULL) ? gOPR : 0;
 
     printf("\033[2J\033[H");
     printf("=== Control Panel Switches (OPR register / TRA OPR) ===\n\n");
@@ -292,7 +292,7 @@ static void draw_f12(void)
     printf("  [3] HDLC Status\n");
     printf("  [4] CPU Speed\n");
     printf("  [5] Character Set  (local console: %s)\n", charset_name(charset_get()));
-    printf("  [6] Control Panel Switches  (OPR = %06o)\n", (unsigned)((gReg != NULL) ? gOPR : 0));
+    printf("  [6] Control Panel Switches  (OPR = %06o)\n", (unsigned)((g_reg != NULL) ? gOPR : 0));
     printf("  [A] About\n");
     printf("\nPress 1-6/A to select, ESC to cancel: ");
     fflush(stdout);
@@ -883,7 +883,7 @@ void menu_process_key(MenuState *state, const KeyEvent *key, void *telnetServer)
             if (cpu_speed_initialized) {
                 double elapsed = (now.tv_sec - cpu_speed_last_time.tv_sec)
                                + (now.tv_nsec - cpu_speed_last_time.tv_nsec) / 1e9;
-                uint64_t delta = instr_counter - cpu_speed_last_instr;
+                uint64_t delta = g_instr_counter - cpu_speed_last_instr;
                 if (elapsed > 0.1) {
                     double actual = (delta / elapsed) / 1e6;
                     cpu_throttle_set_mhz(actual);
@@ -909,7 +909,7 @@ void menu_process_key(MenuState *state, const KeyEvent *key, void *telnetServer)
     case MENU_PANEL_SWITCHES:
         if (is_esc) {
             menu_set_mode(state, MENU_F12, telnetServer);
-        } else if (gReg != NULL) {
+        } else if (g_reg != NULL) {
             if (ch >= '0' && ch <= '7') {
                 gOPR = (uint16_t)(((gOPR << 3) | (uint16_t)(ch - '0')) & 0xFFFFu);
                 draw_panel_switches();

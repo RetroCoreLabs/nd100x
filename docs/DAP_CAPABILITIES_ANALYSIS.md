@@ -254,7 +254,7 @@ int step_cpu(DAPServer *server, StepType step_type)
         if ((ctx->granularity == DAP_STEP_GRANULARITY_LINE) || 
             (ctx->granularity == DAP_STEP_GRANULARITY_STATEMENT)) {
             // Get next line's address
-            target_pc = symbols_get_next_line_address(symbol_tables.symbol_table_map, current_pc);
+            target_pc = symbols_get_next_line_address(s_symbol_tables.symbol_table_map, current_pc);
             
             if (target_pc != 0 && target_pc != current_pc) {
                 // Set temporary breakpoint at next line
@@ -434,14 +434,14 @@ The enhanced implementation searches symbol tables in priority order:
 // Priority: STABS (most detailed) → MAP (assembly) → AOUT (functions)
 
 // For breakpoints (debugger.c:1980-2000)
-if (symbol_tables.symbol_table_stabs) {
-    validSymbol = symbols_find_address(symbol_tables.symbol_table_stabs, ...);
+if (s_symbol_tables.symbol_table_stabs) {
+    validSymbol = symbols_find_address(s_symbol_tables.symbol_table_stabs, ...);
 }
-if (!validSymbol && symbol_tables.symbol_table_map) {
-    validSymbol = symbols_find_address(symbol_tables.symbol_table_map, ...);
+if (!validSymbol && s_symbol_tables.symbol_table_map) {
+    validSymbol = symbols_find_address(s_symbol_tables.symbol_table_map, ...);
 }
-if (!validSymbol && symbol_tables.symbol_table_aout && str_ends_with(source_path, ".s")) {
-    validSymbol = symbols_find_address(symbol_tables.symbol_table_aout, ...);
+if (!validSymbol && s_symbol_tables.symbol_table_aout && str_ends_with(source_path, ".s")) {
+    validSymbol = symbols_find_address(s_symbol_tables.symbol_table_aout, ...);
 }
 ```
 
@@ -493,11 +493,11 @@ if (bp->logMessage) {
 
 **Implementation:**
 ```c:420:432:debugger.c
-if (symbol_tables.symbol_table_map && 
+if (s_symbol_tables.symbol_table_map && 
     ((ctx->granularity == DAP_STEP_GRANULARITY_LINE) || 
      (ctx->granularity == DAP_STEP_GRANULARITY_STATEMENT))) {
     
-    target_pc = symbols_get_next_line_address(symbol_tables.symbol_table_map, current_pc);
+    target_pc = symbols_get_next_line_address(s_symbol_tables.symbol_table_map, current_pc);
     
     if (target_pc != 0 && target_pc != current_pc) {
         // Set temporary breakpoint at next line

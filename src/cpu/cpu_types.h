@@ -128,13 +128,13 @@ typedef struct {
 } PagingTables;
 
 
-extern MMSType mmsType; // What MMS type is currently in use
+extern MMSType g_mms_type; // What MMS type is currently in use
 extern PagingTables g_paging_tables; // Global paging tables structure
 
 /********************* CPU *********************/
 
 typedef void (*InstrFunc)(unsigned short);
-extern InstrFunc instr_funcs[65536];
+extern InstrFunc g_instr_funcs[65536];
 
 
 
@@ -261,7 +261,7 @@ typedef union ndram {
 // allocation (ECC latch, MMS), and never changed afterwards. Every physical
 // access guards on `addr >= ND_Memsize` so the extra backing above the installed
 // size reads as unmapped (MOR) - which is how the memory-size probe stops here.
-extern uint32_t ND_Memsize;
+extern uint32_t g_nd_memsize;
 
 // Absolute maximum installed size (words) = the whole backing array. Used to
 // bound-check a configured value at start-up.
@@ -426,83 +426,83 @@ typedef enum {
 	FPP48    /* standard 48-bit FPP (T,A,D floating accumulator)         */
 } FppType;
 
-#define gPC	gReg->reg[gPIL][_P]
-#define gA	gReg->reg[gPIL][_A]
-#define gT	gReg->reg[gPIL][_T]
-#define gB	gReg->reg[gPIL][_B]
-#define gD	gReg->reg[gPIL][_D]
-#define gX	gReg->reg[gPIL][_X]
-#define gL	gReg->reg[gPIL][_L]
+#define gPC	g_reg->reg[gPIL][_P]
+#define gA	g_reg->reg[gPIL][_A]
+#define gT	g_reg->reg[gPIL][_T]
+#define gB	g_reg->reg[gPIL][_B]
+#define gD	g_reg->reg[gPIL][_D]
+#define gX	g_reg->reg[gPIL][_X]
+#define gL	g_reg->reg[gPIL][_L]
 
-#define gPANC	gReg->reg_PANC
-#define gPANS	gReg->reg_PANS
-#define gOPR	gReg->reg_OPR
-#define gLMP	gReg->reg_LMP
-#define gPGS	gReg->reg_PGS
-#define gPVL	gReg->reg_PVL
-#define gIIC	gReg->reg_IIC
-#define gIID	gReg->reg_IID
-#define gIIE	gReg->reg_IIE
-#define gPID	gReg->reg_PID
-#define gPIE	gReg->reg_PIE
-#define gCSR	gReg->reg_CSR
-#define gCCL	gReg->reg_CCL
-#define gLCIL	gReg->reg_LCIL
-#define gALD	gReg->reg_ALD
-#define gUCIL	gReg->reg_UCIL
-#define gPES	gReg->reg_PES
-#define gPGC	gReg->reg_PGC
-#define gPEA	gReg->reg_PEA
-#define gECCR	gReg->reg_ECCR
-#define gECBits	gReg->reg_ECBits
+#define gPANC	g_reg->reg_PANC
+#define gPANS	g_reg->reg_PANS
+#define gOPR	g_reg->reg_OPR
+#define gLMP	g_reg->reg_LMP
+#define gPGS	g_reg->reg_PGS
+#define gPVL	g_reg->reg_PVL
+#define gIIC	g_reg->reg_IIC
+#define gIID	g_reg->reg_IID
+#define gIIE	g_reg->reg_IIE
+#define gPID	g_reg->reg_PID
+#define gPIE	g_reg->reg_PIE
+#define gCSR	g_reg->reg_CSR
+#define gCCL	g_reg->reg_CCL
+#define gLCIL	g_reg->reg_LCIL
+#define gALD	g_reg->reg_ALD
+#define gUCIL	g_reg->reg_UCIL
+#define gPES	g_reg->reg_PES
+#define gPGC	g_reg->reg_PGC
+#define gPEA	g_reg->reg_PEA
+#define gECCR	g_reg->reg_ECCR
+#define gECBits	g_reg->reg_ECBits
 
 /* ND-110 global pointers - see the reg_STBNK/reg_STSRT/reg_CMBUK comment above. */
-#define gSTBNK	gReg->reg_STBNK
-#define gSTSRT	gReg->reg_STSRT
-#define gCMBUK	gReg->reg_CMBUK
+#define gSTBNK	g_reg->reg_STBNK
+#define gSTSRT	g_reg->reg_STSRT
+#define gCMBUK	g_reg->reg_CMBUK
 
 
-#define gPEA_Lock 	gReg->mylock_PEA
-#define gPES_Lock 	gReg->mylock_PES
-#define gPGS_Lock 	gReg->mylock_PES
-#define gIIC_Lock 	gReg->mylock_IIC
+#define gPEA_Lock 	g_reg->mylock_PEA
+#define gPES_Lock 	g_reg->mylock_PES
+#define gPGS_Lock 	g_reg->mylock_PES
+#define gIIC_Lock 	g_reg->mylock_IIC
 
 
-#define CurrLEVEL	((gReg->reg_STS & 0x0f00) >>8)
-#define gPIL		((gReg->reg_STS & 0x0f00) >>8)
+#define CurrLEVEL	((g_reg->reg_STS & 0x0f00) >>8)
+#define gPIL		((g_reg->reg_STS & 0x0f00) >>8)
 
 /* Highest runlevel with PIE AND PID bits both set */
-#define gPK		gReg->myreg_PK
+#define gPK		g_reg->myreg_PK
 
 /* Should CPU levels be checked ? */
-#define gCHKIT	gReg->chkit
+#define gCHKIT	g_reg->chkit
 
 /* The complete Status register both MSB and LSB for current runlevel. Read only MACRO */
-#define gSTSr		((gReg->reg_STS & 0xFF00) | (gReg->reg[gPIL][_STS] & 0x00FF))
+#define gSTSr		((g_reg->reg_STS & 0xFF00) | (g_reg->reg[gPIL][_STS] & 0x00FF))
 
-#define InstructionRegister	gReg->myreg_IR
-#define PrefetchBuffer		gReg->myreg_PFB
+#define InstructionRegister	g_reg->myreg_IR
+#define PrefetchBuffer		g_reg->myreg_PFB
 
-#define gEA                 gReg->effectiveAddress
-#define gUseAPT             gReg->useAPT
+#define gEA                 g_reg->effectiveAddress
+#define gUseAPT             g_reg->useAPT
 
-#define STS_PTM  ((gReg->reg[gPIL][_STS]>>0) & 0x01)	/* */
-#define STS_TG   ((gReg->reg[gPIL][_STS]>>1) & 0x01)	/* */
-#define STS_K    ((gReg->reg[gPIL][_STS]>>2) & 0x01)	/* */
-#define STS_Z    ((gReg->reg[gPIL][_STS]>>3) & 0x01)	/* */
-#define STS_Q    ((gReg->reg[gPIL][_STS]>>4) & 0x01)	/* */
-#define STS_O    ((gReg->reg[gPIL][_STS]>>5) & 0x01)	/* */
-#define STS_C    ((gReg->reg[gPIL][_STS]>>6) & 0x01)	/* */
-#define STS_M    ((gReg->reg[gPIL][_STS]>>7) & 0x01)	/* */
+#define STS_PTM  ((g_reg->reg[gPIL][_STS]>>0) & 0x01)	/* */
+#define STS_TG   ((g_reg->reg[gPIL][_STS]>>1) & 0x01)	/* */
+#define STS_K    ((g_reg->reg[gPIL][_STS]>>2) & 0x01)	/* */
+#define STS_Z    ((g_reg->reg[gPIL][_STS]>>3) & 0x01)	/* */
+#define STS_Q    ((g_reg->reg[gPIL][_STS]>>4) & 0x01)	/* */
+#define STS_O    ((g_reg->reg[gPIL][_STS]>>5) & 0x01)	/* */
+#define STS_C    ((g_reg->reg[gPIL][_STS]>>6) & 0x01)	/* */
+#define STS_M    ((g_reg->reg[gPIL][_STS]>>7) & 0x01)	/* */
 
-#define STS_PL   ((gReg->reg_STS >>8  ) & 0x0F)	/* Program runlevel */
-#define STS_N100 ((gReg->reg_STS >>12 ) & 0x01)	/* Nord 100 indicator */
-#define STS_SEXI ((gReg->reg_STS >>13 ) & 0x01)	/* Extended MMS adressing on/off indicator (24 bit instead of 19 bit*/
-#define STS_PONI ((gReg->reg_STS >>14 ) & 0x01)	/* Memory management on/off indicator */
-#define STS_IONI ((gReg->reg_STS >>15 ) & 0x01)	/* Interrupt system on/off indicator */
+#define STS_PL   ((g_reg->reg_STS >>8  ) & 0x0F)	/* Program runlevel */
+#define STS_N100 ((g_reg->reg_STS >>12 ) & 0x01)	/* Nord 100 indicator */
+#define STS_SEXI ((g_reg->reg_STS >>13 ) & 0x01)	/* Extended MMS adressing on/off indicator (24 bit instead of 19 bit*/
+#define STS_PONI ((g_reg->reg_STS >>14 ) & 0x01)	/* Memory management on/off indicator */
+#define STS_IONI ((g_reg->reg_STS >>15 ) & 0x01)	/* Interrupt system on/off indicator */
 
-#define gDebuggerEnabled gReg->debugger_enabled
-#define gDebuggerPort gReg->debugger_port
+#define gDebuggerEnabled g_reg->debugger_enabled
+#define gDebuggerPort g_reg->debugger_port
 
 /*
 
@@ -546,20 +546,20 @@ struct disasm_entry {
 };
 
 typedef struct disasm_entry* DisasmArray[65536];
-extern DisasmArray disasm_arr;
-extern DisasmArray* p_DIS;
+extern DisasmArray g_disasm_arr;
+extern DisasmArray* g_dis;
 
 
 
 // Global CPU variable definitions
-extern struct CpuRegs *gReg;
-extern _NDRAM_ VolatileMemory;
-extern CpuType CurrentCPUType;
-extern FppType CurrentFPPType;
+extern struct CpuRegs *g_reg;
+extern _NDRAM_ g_volatile_memory;
+extern CpuType g_current_cpu_type;
+extern FppType g_current_fpp_type;
 
-extern uint64_t  instr_counter ;
-extern uint16_t STARTADDR;
-extern int DISASM;
+extern uint64_t  g_instr_counter ;
+extern uint16_t g_start_addr;
+extern int g_disasm;
 
 /* Called by the CPU but defined in other modules, whose prototypes are only
  * in their generated *_protos.h. Declared here so the defining files, which
@@ -570,14 +570,14 @@ void start_debugger(void);                        /* debugger/debugger.c */
 
 /* Set by device DMA (devices/device.c) around a transfer so the shadow-RAM
  * check in cpu_mms.c is skipped: DMA is a physical bus access. */
-extern bool gDMAAccess;
-extern int gCpuExitCode;
-extern int CPU_TRACE;
-extern int BSD_DEBUG;
-extern uint64_t CPU_MAX_INSTR;
-extern int CPU_BREAKPOINT_ENABLED;
-extern uint16_t CPU_BREAKPOINT_ADDR;
-extern int CPU_RING_DUMP_SIZE;
+extern bool g_dma_access;
+extern int g_cpu_exit_code;
+extern int g_cpu_trace;
+extern int g_bsd_debug;
+extern uint64_t g_cpu_max_instr;
+extern int g_cpu_breakpoint_enabled;
+extern uint16_t g_cpu_breakpoint_addr;
+extern int g_cpu_ring_dump_size;
 
 /*
  * ND-110 diagnostic trace sink (see cpu.c do_op()).  NULL when tracing is off.
@@ -585,7 +585,7 @@ extern int CPU_RING_DUMP_SIZE;
  * so that console-driven sessions (TPE, the SINTRAN SMD boot) keep a clean screen buffer.
  * Declared here and NOT in cpu_protos.h - that header is auto-generated from the .c files.
  */
-extern FILE *nd110_trace_fp;
+extern FILE *g_nd110_trace_fp;
 
 
 
@@ -624,7 +624,7 @@ typedef struct {
 } BreakpointManager;
 
 /* The breakpoint manager (cpu_bkpt.c); NULL until first use. */
-extern BreakpointManager *mgr;
+extern BreakpointManager *g_breakpoint_mgr;
 
 //********** Watchpoints (memory access breakpoints) **********
 
@@ -652,17 +652,17 @@ typedef struct {
 } WatchpointEntry;
 
 // Extern globals for hot-path access from cpu.c (defined in cpu_bkpt.c)
-extern int watchpoint_count;
-extern int watchpoint_skip_hits;   // --watch-skip: ignore first N hits before halting
-extern int watchpoint_min_value;   // --watch-min-value: WRITE triggers only if value >= this
-extern uint8_t watchpoint_bitmap[8192]; // 64K addresses, 1 bit each
+extern int g_watchpoint_count;
+extern int g_watchpoint_skip_hits;   // --watch-skip: ignore first N hits before halting
+extern int g_watchpoint_min_value;   // --watch-min-value: WRITE triggers only if value >= this
+extern uint8_t g_watchpoint_bitmap[8192]; // 64K addresses, 1 bit each
 
 // PC-breakpoint hot-path gates (defined in cpu_bkpt.c). Mirror the watchpoint
 // design so check_for_breakpoint() costs ~1 compare when nothing is armed and
 // only does the hash walk when gPC actually has a breakpoint.
-extern int breakpoint_entry_count;        // live breakpoint entries (any type)
-extern int breakpoint_step_pending;       // nonzero while a single-step is in flight
-extern uint8_t breakpoint_bitmap[8192];   // 1 bit per 16-bit PC address
+extern int g_breakpoint_entry_count;        // live breakpoint entries (any type)
+extern int g_breakpoint_step_pending;       // nonzero while a single-step is in flight
+extern uint8_t g_breakpoint_bitmap[8192];   // 1 bit per 16-bit PC address
 
 //********** Physical Watchpoints (physical memory address breakpoints) **********
 
@@ -677,13 +677,13 @@ typedef struct {
 // pre-filter: 1 bit per 1K-word page, masked into a small L1-resident map.
 // Aliasing only yields false positives, which fall through to the exact scan.
 #define PHYS_WP_BITMAP_BYTES 4096               // covers 2^15 pages = 32M-word phys space without aliasing
-extern int phys_watchpoint_count;
-extern uint8_t phys_watchpoint_pagemap[PHYS_WP_BITMAP_BYTES];
+extern int g_phys_watchpoint_count;
+extern uint8_t g_phys_watchpoint_pagemap[PHYS_WP_BITMAP_BYTES];
 
 static inline int phys_watchpoint_page_armed(uint32_t addr)
 {
     uint32_t idx = (addr >> 10) & (PHYS_WP_BITMAP_BYTES * 8u - 1u);
-    return phys_watchpoint_pagemap[idx >> 3] & (1u << (idx & 7u));
+    return g_phys_watchpoint_pagemap[idx >> 3] & (1u << (idx & 7u));
 }
 
 /// @brief Enumeration of CPU stop reasons for the debugger

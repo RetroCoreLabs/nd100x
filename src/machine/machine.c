@@ -47,18 +47,18 @@
 
 
 // Global arrays for mounted drive information
-MountedDriveInfo_t* floppy_drives = NULL;
-MountedDriveInfo_t* smd_drives = NULL;
+MountedDriveInfo_t* g_floppy_drives = NULL;
+MountedDriveInfo_t* g_smd_drives = NULL;
 // Winchester (ST506/8 inch, cards 3041/3038). TWO units per disk system:
 // ND-11.015.01 sec 3.1 and the single unit bit (control word b9).
-MountedDriveInfo_t* wd_drives = NULL;
-MountedDriveInfo_t* scsi_drives = NULL;
+static MountedDriveInfo_t* s_wd_drives = NULL;
+static MountedDriveInfo_t* s_scsi_drives = NULL;
 
 
 /* Must stay index-aligned with BOOT_TYPE in machine_types.h.
  * "prog" was missing, which shifted every entry from BOOT_FLOPPY on:
  * boot_type_str[BOOT_FLOPPY] printed "smd". */
-const char* boot_type_str[] = {
+const char* g_boot_type_str[] = {
     "none",
     "bpun",
     "aout",
@@ -76,19 +76,19 @@ const char* boot_type_str[] = {
 // Initialize drive arrays. Returns 0, or -1 if memory ran out (the arrays
 // that were allocated stay allocated; cleanup_drive_arrays() frees them).
 int init_drive_arrays(void) {
-    if (!floppy_drives) {
-        floppy_drives = calloc(3, sizeof(MountedDriveInfo_t));
+    if (!g_floppy_drives) {
+        g_floppy_drives = calloc(3, sizeof(MountedDriveInfo_t));
     }
-    if (!smd_drives) {
-        smd_drives = calloc(4, sizeof(MountedDriveInfo_t));
+    if (!g_smd_drives) {
+        g_smd_drives = calloc(4, sizeof(MountedDriveInfo_t));
     }
-    if (!scsi_drives) {
-        scsi_drives = calloc(SCSI_MAX_UNITS, sizeof(MountedDriveInfo_t));
+    if (!s_scsi_drives) {
+        s_scsi_drives = calloc(SCSI_MAX_UNITS, sizeof(MountedDriveInfo_t));
     }
-    if (!wd_drives) {
-        wd_drives = calloc(2, sizeof(MountedDriveInfo_t));
+    if (!s_wd_drives) {
+        s_wd_drives = calloc(2, sizeof(MountedDriveInfo_t));
     }
-    if (!floppy_drives || !smd_drives || !scsi_drives || !wd_drives) {
+    if (!g_floppy_drives || !g_smd_drives || !s_scsi_drives || !s_wd_drives) {
         return -1;
     }
     return 0;
@@ -96,21 +96,21 @@ int init_drive_arrays(void) {
 
 // Clean up drive arrays
 static void cleanup_drive_arrays(void) {
-    if (floppy_drives) {
-        free(floppy_drives);
-        floppy_drives = NULL;
+    if (g_floppy_drives) {
+        free(g_floppy_drives);
+        g_floppy_drives = NULL;
     }
-    if (smd_drives) {
-        free(smd_drives);
-        smd_drives = NULL;
+    if (g_smd_drives) {
+        free(g_smd_drives);
+        g_smd_drives = NULL;
     }
-    if (scsi_drives) {
-        free(scsi_drives);
-        scsi_drives = NULL;
+    if (s_scsi_drives) {
+        free(s_scsi_drives);
+        s_scsi_drives = NULL;
     }
-    if (wd_drives) {
-        free(wd_drives);
-        wd_drives = NULL;
+    if (s_wd_drives) {
+        free(s_wd_drives);
+        s_wd_drives = NULL;
     }
 }
 
@@ -125,19 +125,19 @@ static MountedDriveInfo_t *drives_for_type(DRIVE_TYPE drive_type, int *max_units
 
     switch (drive_type) {
     case DRIVE_SMD:
-        drives = smd_drives;
+        drives = g_smd_drives;
         units = 4;              // SMD has units 0-3
         break;
     case DRIVE_FLOPPY:
-        drives = floppy_drives;
+        drives = g_floppy_drives;
         units = 3;              // Floppy has units 0-2
         break;
     case DRIVE_SCSI:
-        drives = scsi_drives;
+        drives = s_scsi_drives;
         units = SCSI_MAX_UNITS; // SCSI targets are IDs 0-6 (7 is the controller)
         break;
     case DRIVE_WINCHESTER:
-        drives = wd_drives;
+        drives = s_wd_drives;
         units = 2;              // Winchester has units 0-1 (one unit-select bit)
         break;
     default:
@@ -239,36 +239,36 @@ cleanup_machine (void)
     // Unmount all drives to prevent memory leaks
 
 	// Unmount all floppy drives
-	if (floppy_drives) {
+	if (g_floppy_drives) {
 		for (int i = 0; i < 3; i++) {
-			if (floppy_drives[i].name[0] != '\0') {
+			if (g_floppy_drives[i].name[0] != '\0') {
 				unmount_drive(DRIVE_FLOPPY, i);
 			}
 		}
 	}
 
 	// Unmount all SMD drives
-	if (smd_drives) {
+	if (g_smd_drives) {
 		for (int i = 0; i < 4; i++) {
-			if (smd_drives[i].name[0] != '\0') {
+			if (g_smd_drives[i].name[0] != '\0') {
 				unmount_drive(DRIVE_SMD, i);
 			}
 		}
 	}
 
 	// Unmount all Winchester drives
-	if (wd_drives) {
+	if (s_wd_drives) {
 		for (int i = 0; i < 2; i++) {
-			if (wd_drives[i].name[0] != '\0') {
+			if (s_wd_drives[i].name[0] != '\0') {
 				unmount_drive(DRIVE_WINCHESTER, i);
 			}
 		}
 	}
 
 	// Unmount all SCSI drives
-	if (scsi_drives) {
+	if (s_scsi_drives) {
 		for (int i = 0; i < SCSI_MAX_UNITS; i++) {
-			if (scsi_drives[i].name[0] != '\0') {
+			if (s_scsi_drives[i].name[0] != '\0') {
 				unmount_drive(DRIVE_SCSI, i);
 			}
 		}
@@ -351,14 +351,14 @@ void machine_stop(void)
  *
  */
 
- BOOT_TYPE	BootType; /* Variable holding the way we should boot up the emulator */
+ static BOOT_TYPE s_boot_type; /* Variable holding the way we should boot up the emulator */
 
  void  setdefaultconfig (void)
  {
      // Set default configuration
-     BootType = BOOT_SMD;
-     STARTADDR = 0;
-     DISASM = 0;
+     s_boot_type = BOOT_SMD;
+     g_start_addr = 0;
+     g_disasm = 0;
  }
 
 
@@ -379,7 +379,7 @@ void write_memory(uint32_t address, uint16_t value)
 {
     // Write the value to physical memory at the given address
     WritePhysicalMemory((int)address, value, false);
-    if (DISASM && address <= 0xFFFF) disasm_addword((uint16_t)address, value);
+    if (g_disasm && address <= 0xFFFF) disasm_addword((uint16_t)address, value);
 }
 
 
@@ -729,7 +729,7 @@ static int tape_leader_load(const char *path, bool verbose)
  int program_load(BOOT_TYPE bootType, int bootUnit, const char *imageFile, bool verbose, uint16_t text_start, bool overlay_deposit)
  {
      int bootAddress;
-     STARTADDR = 0;
+     g_start_addr = 0;
 
      switch (bootType)
      {
@@ -749,7 +749,7 @@ static int tape_leader_load(const char *path, bool verbose)
              LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error loading BPUN file '%s'\n", imageFile);
              return PROGRAM_LOAD_ERR_LOAD;
          }
-         STARTADDR = bootAddress;
+         g_start_addr = bootAddress;
          break;
     case BOOT_AOUT:
 #ifdef _WIN32
@@ -762,7 +762,7 @@ static int tape_leader_load(const char *path, bool verbose)
             LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error loading AOUT file '%s'\n", imageFile);
             return PROGRAM_LOAD_ERR_LOAD;
         }
-        STARTADDR = bootAddress;
+        g_start_addr = bootAddress;
 #endif
         break;
     case BOOT_PROG:
@@ -775,7 +775,7 @@ static int tape_leader_load(const char *path, bool verbose)
             LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error loading PROG file '%s'\n", imageFile);
             return PROGRAM_LOAD_ERR_LOAD;
         }
-        STARTADDR = bootAddress;
+        g_start_addr = bootAddress;
         break;
      case BOOT_FLOPPY:
         // Record mount state for UI/menus; device still boots via BPUN for now
@@ -788,7 +788,7 @@ static int tape_leader_load(const char *path, bool verbose)
              return PROGRAM_LOAD_ERR_LOAD;
          }
 
-         STARTADDR = bootAddress;
+         g_start_addr = bootAddress;
          break;
      case BOOT_SMD:
 
@@ -803,7 +803,7 @@ static int tape_leader_load(const char *path, bool verbose)
              LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error booting from SMD unit %d\n", bootUnit);
              return PROGRAM_LOAD_ERR_BOOT;
          }
-         STARTADDR = bootAddress;
+         g_start_addr = bootAddress;
          break;
      case BOOT_WINCHESTER:
 
@@ -818,7 +818,7 @@ static int tape_leader_load(const char *path, bool verbose)
              LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error booting from Winchester unit %d\n", bootUnit);
              return PROGRAM_LOAD_ERR_BOOT;
          }
-         STARTADDR = bootAddress;
+         g_start_addr = bootAddress;
          break;
      case BOOT_SCSI:
 
@@ -833,7 +833,7 @@ static int tape_leader_load(const char *path, bool verbose)
              LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error booting from SCSI unit %d\n", bootUnit);
              return PROGRAM_LOAD_ERR_BOOT;
          }
-         STARTADDR = bootAddress;
+         g_start_addr = bootAddress;
          break;
      case BOOT_TAPE:
          bootAddress = tape_leader_load(imageFile, verbose);
@@ -842,7 +842,7 @@ static int tape_leader_load(const char *path, bool verbose)
              LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error booting tape '%s'\n", imageFile);
              return PROGRAM_LOAD_ERR_BOOT;
          }
-         STARTADDR = bootAddress;
+         g_start_addr = bootAddress;
          break;
 
      case BOOT_CDC:
@@ -858,7 +858,7 @@ static int tape_leader_load(const char *path, bool verbose)
              LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error booting from CDC disc\n");
              return PROGRAM_LOAD_ERR_BOOT;
          }
-         STARTADDR = bootAddress;
+         g_start_addr = bootAddress;
          break;
      case BOOT_NONE:
          return -1;
