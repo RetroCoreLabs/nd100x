@@ -405,6 +405,86 @@ static char *get_cached_or_download_json(bool force_download, bool *from_cache) 
 }
 
 // Parse JSON and populate floppy list
+// valuestring of a JSON item, or "" if the item or its string is missing.
+static const char *json_str_or_empty(const cJSON *item)
+{
+    return (item && item->valuestring) ? item->valuestring : "";
+}
+
+// Free the directory_content of the first count parsed floppies.
+static void free_floppy_contents(int count)
+{
+    for (int j = 0; j < count; j++)
+    {
+        if (menu_state.floppies[j].directory_content)
+        {
+            free(menu_state.floppies[j].directory_content);
+            menu_state.floppies[j].directory_content = NULL;
+        }
+    }
+}
+
+// Fill floppy from one catalog record. Returns 1 if the record was taken,
+// 0 if it is skipped (Status != 0), -1 if memory ran out.
+static int parse_one_floppy(cJSON *item, FloppyDisk_t *floppy)
+{
+    // Parse JSON fields
+    cJSON *id = cJSON_GetObjectItem(item, "Id");
+    cJSON *name = cJSON_GetObjectItem(item, "Name");
+    cJSON *desc = cJSON_GetObjectItem(item, "Description");
+    cJSON *ref = cJSON_GetObjectItem(item, "Reference");
+    cJSON *md5 = cJSON_GetObjectItem(item, "Md5");
+    cJSON *dir_content = cJSON_GetObjectItem(item, "DirectoryContent");
+    cJSON *product = cJSON_GetObjectItem(item, "Product");
+    cJSON *status = cJSON_GetObjectItem(item, "Status");
+
+    // Only include records with Status = 0
+    if (status && status->valueint != 0)
+    {
+        return 0; // Skip this record
+    }
+
+    floppy->id = id ? id->valueint : 0;
+
+    // Safe string copying with NULL checks
+    const char *name_str = json_str_or_empty(name);
+    const char *desc_str = json_str_or_empty(desc);
+    const char *ref_str = json_str_or_empty(ref);
+    const char *md5_str = json_str_or_empty(md5);
+    const char *dir_content_str = json_str_or_empty(dir_content);
+    const char *product_str = json_str_or_empty(product);
+
+    snprintf(floppy->name, sizeof(floppy->name), "%s", name_str);
+
+    snprintf(floppy->description, sizeof(floppy->description), "%s", desc_str);
+
+    snprintf(floppy->reference, sizeof(floppy->reference), "%s", ref_str);
+
+    snprintf(floppy->md5, sizeof(floppy->md5), "%s", md5_str);
+
+    // Dynamically allocate directory content based on actual length
+    if (dir_content_str && strlen(dir_content_str) > 0)
+    {
+        floppy->directory_content = strdup(dir_content_str);
+    }
+    else
+    {
+        floppy->directory_content = strdup("");
+    }
+
+    // Check if strdup failed
+    if (!floppy->directory_content)
+    {
+        return -1;
+    }
+
+    snprintf(floppy->product, sizeof(floppy->product), "%s", product_str);
+
+    // Detect drive type based on filesystem image size
+    floppy->drive_type = detect_drive_type(floppy->directory_content);
+    return 1;
+}
+
 static bool parse_floppies_json(const char* json_data) {
     cJSON *json = cJSON_Parse(json_data);
     if (!json) {
@@ -437,65 +517,20 @@ static bool parse_floppies_json(const char* json_data) {
 
         FloppyDisk_t *floppy = &menu_state.floppies[menu_state.floppy_count];
 
-        // Parse JSON fields
-        cJSON *id = cJSON_GetObjectItem(item, "Id");
-        cJSON *name = cJSON_GetObjectItem(item, "Name");
-        cJSON *desc = cJSON_GetObjectItem(item, "Description");
-        cJSON *ref = cJSON_GetObjectItem(item, "Reference");
-        cJSON *md5 = cJSON_GetObjectItem(item, "Md5");
-        cJSON *dir_content = cJSON_GetObjectItem(item, "DirectoryContent");
-        cJSON *product = cJSON_GetObjectItem(item, "Product");
-        cJSON *status = cJSON_GetObjectItem(item, "Status");
-
-        // Only include records with Status = 0
-        if (status && status->valueint != 0) {
+        int rc = parse_one_floppy(item, floppy);
+        if (rc == 0)
+        {
             skipped_count++;
             continue; // Skip this record
         }
-
-        floppy->id = id ? id->valueint : 0;
-
-        // Safe string copying with NULL checks
-        const char *name_str = (name && name->valuestring) ? name->valuestring : "";
-        const char *desc_str = (desc && desc->valuestring) ? desc->valuestring : "";
-        const char *ref_str = (ref && ref->valuestring) ? ref->valuestring : "";
-        const char *md5_str = (md5 && md5->valuestring) ? md5->valuestring : "";
-        const char *dir_content_str = (dir_content && dir_content->valuestring) ? dir_content->valuestring : "";
-        const char *product_str = (product && product->valuestring) ? product->valuestring : "";
-
-        snprintf(floppy->name, sizeof(floppy->name), "%s", name_str);
-
-        snprintf(floppy->description, sizeof(floppy->description), "%s", desc_str);
-
-        snprintf(floppy->reference, sizeof(floppy->reference), "%s", ref_str);
-
-        snprintf(floppy->md5, sizeof(floppy->md5), "%s", md5_str);
-
-        // Dynamically allocate directory content based on actual length
-        if (dir_content_str && strlen(dir_content_str) > 0) {
-            floppy->directory_content = strdup(dir_content_str);
-        } else {
-            floppy->directory_content = strdup("");
-        }
-
-        // Check if strdup failed
-        if (!floppy->directory_content) {
+        if (rc < 0)
+        {
             // Clean up any previously allocated directory_content
-            for (int j = 0; j < menu_state.floppy_count; j++) {
-                if (menu_state.floppies[j].directory_content) {
-                    free(menu_state.floppies[j].directory_content);
-                    menu_state.floppies[j].directory_content = NULL;
-                }
-            }
+            free_floppy_contents(menu_state.floppy_count);
             free(menu_state.floppies);
             cJSON_Delete(json);
             return false;
         }
-
-        snprintf(floppy->product, sizeof(floppy->product), "%s", product_str);
-
-        // Detect drive type based on filesystem image size
-        floppy->drive_type = detect_drive_type(floppy->directory_content);
 
         menu_state.floppy_count++;
     }
@@ -679,6 +714,54 @@ static void safe_print_line_no_scroll(WINDOW *win, int y, int x, const char *tex
 }
 
 // Draw floppy details
+// Print the current page of the floppy's directory listing into the detail
+// window from row y on. Returns the next free row, or -1 if the listing
+// could not be copied (out of memory).
+static int print_directory_page(FloppyDisk_t *floppy, int y, int win_height, int max_width)
+{
+    int lines_printed = 0;
+
+    if (menu_state.directory_pages && menu_state.current_page < menu_state.directory_page_count)
+    {
+        DirectoryPage_t *current_page = &menu_state.directory_pages[menu_state.current_page];
+
+        // Create a copy to avoid destroying the original string with strtok
+        char *content_copy = strdup(floppy->directory_content);
+        if (!content_copy)
+        {
+            return -1;
+        }
+
+        char *line = strtok(content_copy, "\r\n");
+        int current_line = 0;
+
+        // Skip lines to reach the start of current page
+        while (line && current_line < current_page->start_line)
+        {
+            line = strtok(NULL, "\r\n");
+            current_line++;
+        }
+
+        // Display lines for current page
+        while (line && current_line <= current_page->end_line && y < win_height - 2)
+        {
+            // Use safe printing to handle long lines
+            safe_print_line(menu_state.detail_win, y, 2, line, max_width);
+            y++;
+            lines_printed++;
+            line = strtok(NULL, "\r\n");
+            current_line++;
+        }
+
+        // Update scroll position to match current page
+        menu_state.detail_scroll_y = current_page->scroll_y;
+        menu_state.detail_page_size = current_page->lines_count;
+
+        free(content_copy); // Free the dynamically allocated copy
+    }
+    return y;
+}
+
 static void draw_floppy_details(void) {
     werase(menu_state.detail_win);
     box(menu_state.detail_win, 0, 0);
@@ -728,41 +811,11 @@ static void draw_floppy_details(void) {
             build_directory_pages(floppy);
         }
 
-        int lines_printed = 0;
-
-        if (menu_state.directory_pages && menu_state.current_page < menu_state.directory_page_count) {
-            DirectoryPage_t *current_page = &menu_state.directory_pages[menu_state.current_page];
-
-            // Create a copy to avoid destroying the original string with strtok
-            char *content_copy = strdup(floppy->directory_content);
-            if (!content_copy) return;
-
-            char *line = strtok(content_copy, "\r\n");
-            int current_line = 0;
-
-            // Skip lines to reach the start of current page
-            while (line && current_line < current_page->start_line) {
-                line = strtok(NULL, "\r\n");
-                current_line++;
-            }
-
-            // Display lines for current page
-            while (line && current_line <= current_page->end_line && y < win_height - 2) {
-                // Use safe printing to handle long lines
-                safe_print_line(menu_state.detail_win, y, 2, line, max_width);
-                y++;
-                lines_printed++;
-                line = strtok(NULL, "\r\n");
-                current_line++;
-            }
-
-            // Update scroll position to match current page
-            menu_state.detail_scroll_y = current_page->scroll_y;
-            menu_state.detail_page_size = current_page->lines_count;
-
-            free(content_copy);  // Free the dynamically allocated copy
+        y = print_directory_page(floppy, y, win_height, max_width);
+        if (y < 0)
+        {
+            return;
         }
-
 
 
         // Show page information
@@ -1416,19 +1469,10 @@ static void menu_loop(void) {
 }
 
 // Main menu function
-int show_floppy_menu(void) {
-    // Initialize menu state
-    memset(&menu_state, 0, sizeof(menu_state));
-    menu_state.selected_index = 0;
-    menu_state.filtered_indices = NULL;
-    menu_state.filtered_count = 0;
-    menu_state.detail_scroll_x = 0;
-    menu_state.detail_scroll_y = 0;
-    menu_state.search_cursor = 0;  // Initialize search cursor
-
-    // Initialize CURL
-    curl_global_init(CURL_GLOBAL_DEFAULT);
-
+// Show the loading message, get the catalog JSON (cache or network) and
+// parse it into menu_state. Returns 0, or -1 if it cannot be had.
+static int load_catalog(void)
+{
     // Check cache age to decide what message to show
     long age = cache_age_seconds();
     bool have_valid_cache = (age >= 0 && age < CACHE_MAX_AGE_SECONDS);
@@ -1460,6 +1504,27 @@ int show_floppy_menu(void) {
     }
 
     free(json_data);
+    return 0;
+}
+
+int show_floppy_menu(void)
+{
+    // Initialize menu state
+    memset(&menu_state, 0, sizeof(menu_state));
+    menu_state.selected_index = 0;
+    menu_state.filtered_indices = NULL;
+    menu_state.filtered_count = 0;
+    menu_state.detail_scroll_x = 0;
+    menu_state.detail_scroll_y = 0;
+    menu_state.search_cursor = 0; // Initialize search cursor
+
+    // Initialize CURL
+    curl_global_init(CURL_GLOBAL_DEFAULT);
+
+    if (load_catalog() < 0)
+    {
+        return -1;
+    }
 
     if (menu_state.floppy_count == 0) {
         return -1;

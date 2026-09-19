@@ -106,6 +106,62 @@ static long pulses_over_ticks(Device *rtc, RTCData *data, long n)
     return pulses;
 }
 
+/* Pulses in 1 s of host time, ticking as fast as possible. */
+static int64_t wall_pulses_tight(Device *rtc, RTCData *data)
+{
+    long pulses = 0;
+    uint64_t start = now_ns();
+    while (now_ns() - start < 1000000000ULL)
+    {
+        rtc->Tick(rtc);
+        if (data->statusRegister.bits.readyForTransfer)
+        {
+            pulses++;
+            data->statusRegister.bits.readyForTransfer = false;
+        }
+    }
+    return pulses;
+}
+
+/* Pulses in 1 s of host time at ~200 calls/s (5 ms sleeps). */
+static int64_t wall_pulses_slow(Device *rtc, RTCData *data)
+{
+    long pulses = 0;
+    uint64_t start = now_ns();
+    struct timespec nap = {0, 5000000}; /* 5 ms */
+    while (now_ns() - start < 1000000000ULL)
+    {
+        rtc->Tick(rtc);
+        if (data->statusRegister.bits.readyForTransfer)
+        {
+            pulses++;
+            data->statusRegister.bits.readyForTransfer = false;
+        }
+        nanosleep(&nap, NULL);
+    }
+    return pulses;
+}
+
+/* Pulses in 1 s of host time when a slow guest handler issues clear-counter ~10 ms after each pulse. */
+static int64_t wall_pulses_slow_handler(Device *rtc, RTCData *data)
+{
+    long pulses = 0;
+    uint64_t start = now_ns();
+    struct timespec lat = {0, 10000000}; /* 10 ms service latency */
+    while (now_ns() - start < 1000000000ULL)
+    {
+        rtc->Tick(rtc);
+        if (data->statusRegister.bits.readyForTransfer)
+        {
+            pulses++;
+            data->statusRegister.bits.readyForTransfer = false;
+            nanosleep(&lat, NULL);                     /* slow guest handler */
+            rtc->Write(rtc, rtc->startAddress + 1, 0); /* IOX clear counter */
+        }
+    }
+    return pulses;
+}
+
 int main(void)
 {
     Device *rtc = CreateRTCDevice(0);
@@ -134,37 +190,14 @@ int main(void)
 
     /* Spin for 1.0 s of host time; expect ~50 pulses (20 ms period).
      * The band is generous to tolerate scheduler jitter on loaded hosts. */
-    {
-        long pulses = 0;
-        uint64_t start = now_ns();
-        while (now_ns() - start < 1000000000ULL) {
-            rtc->Tick(rtc);
-            if (data->statusRegister.bits.readyForTransfer) {
-                pulses++;
-                data->statusRegister.bits.readyForTransfer = false;
-            }
-        }
-        rtc_check_range("wall: ~50 pulses in 1 s (tight spin)", 40, 52, pulses);
-    }
+    rtc_check_range("wall: ~50 pulses in 1 s (tight spin)", 40, 52, wall_pulses_tight(rtc, data));
 
     /* Same measurement at a artificially slow call rate (~200 calls/s via
      * 5 ms sleeps): pulse count must stay ~50/s, NOT drop with the call rate.
      * This is the 10x-slow-clock regression: in ticks mode 200 calls/s would
      * give 0 pulses here. */
-    {
-        long pulses = 0;
-        uint64_t start = now_ns();
-        struct timespec nap = { 0, 5000000 }; /* 5 ms */
-        while (now_ns() - start < 1000000000ULL) {
-            rtc->Tick(rtc);
-            if (data->statusRegister.bits.readyForTransfer) {
-                pulses++;
-                data->statusRegister.bits.readyForTransfer = false;
-            }
-            nanosleep(&nap, NULL);
-        }
-        rtc_check_range("wall: ~50 pulses in 1 s (slow call rate)", 30, 52, pulses);
-    }
+    rtc_check_range("wall: ~50 pulses in 1 s (slow call rate)", 30, 52,
+                    wall_pulses_slow(rtc, data));
 
     /* The guest's clock handler hits IOX clear-counter (and IDENT restarts
      * the countdown) after EVERY pulse. In wall mode those must NOT move the
@@ -173,22 +206,8 @@ int main(void)
      * of 50 Hz on a debugger-loaded TSS boot). Simulate a handler that takes
      * ~10 ms to issue clear-counter after each pulse: the rate must stay ~50/s,
      * not drop to ~33/s (30 ms effective period). */
-    {
-        long pulses = 0;
-        uint64_t start = now_ns();
-        struct timespec lat = { 0, 10000000 }; /* 10 ms service latency */
-        while (now_ns() - start < 1000000000ULL) {
-            rtc->Tick(rtc);
-            if (data->statusRegister.bits.readyForTransfer) {
-                pulses++;
-                data->statusRegister.bits.readyForTransfer = false;
-                nanosleep(&lat, NULL);                  /* slow guest handler */
-                rtc->Write(rtc, rtc->startAddress + 1, 0); /* IOX clear counter */
-            }
-        }
-        rtc_check_range("wall: ~50/s despite 10 ms clear-counter latency",
-                        40, 52, pulses);
-    }
+    rtc_check_range("wall: ~50/s despite 10 ms clear-counter latency", 40, 52,
+                    wall_pulses_slow_handler(rtc, data));
 
     /* Back to ticks mode: behavior must return to the deterministic count. */
     RTC_SetWallClockMode(false);

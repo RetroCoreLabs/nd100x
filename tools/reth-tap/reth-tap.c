@@ -337,21 +337,29 @@ static void usage(const char* argv0) {
         argv0, DEFAULT_DEV, DEFAULT_HOST, DEFAULT_PORT);
 }
 
-int main(int argc, char** argv) {
-    const char* dev  = DEFAULT_DEV;
-    const char* host = DEFAULT_HOST;
-    int port = DEFAULT_PORT;
-    int quiet = 0;
-    int tapfd, sock = -1, i;
-    unsigned char rx[2 * (2 + RETH_MAX_FRAME)];
-    size_t rxlen = 0;
-    unsigned long last_reported = ~0UL;
-
+/* Parse the command line into *dev, *host, *port, *quiet. Returns -1 to
+ * carry on, or the exit code for main (0 after --help, 2 on a bad argument). */
+static int parse_args(int argc, char **argv, const char **dev, const char **host, int *port,
+                      int *quiet)
+{
+    int i;
     for (i = 1; i < argc; i++) {
-        if (!strcmp(argv[i], "--dev")  && i + 1 < argc) dev  = argv[++i];
-        else if (!strcmp(argv[i], "--host") && i + 1 < argc) host = argv[++i];
-        else if (!strcmp(argv[i], "--port") && i + 1 < argc) port = atoi(argv[++i]);
-        else if (!strcmp(argv[i], "--quiet")) quiet = 1;
+        if (!strcmp(argv[i], "--dev") && i + 1 < argc)
+        {
+            *dev = argv[++i];
+        }
+        else if (!strcmp(argv[i], "--host") && i + 1 < argc)
+        {
+            *host = argv[++i];
+        }
+        else if (!strcmp(argv[i], "--port") && i + 1 < argc)
+        {
+            *port = atoi(argv[++i]);
+        }
+        else if (!strcmp(argv[i], "--quiet"))
+        {
+            *quiet = 1;
+        }
         else if (!strcmp(argv[i], "-h") || !strcmp(argv[i], "--help")) {
             usage(argv[0]);
             return 0;
@@ -360,6 +368,25 @@ int main(int argc, char** argv) {
             usage(argv[0]);
             return 2;
         }
+    }
+    return -1;
+}
+
+int main(int argc, char **argv)
+{
+    const char *dev = DEFAULT_DEV;
+    const char *host = DEFAULT_HOST;
+    int port = DEFAULT_PORT;
+    int quiet = 0;
+    int tapfd, sock = -1, i;
+    unsigned char rx[2 * (2 + RETH_MAX_FRAME)];
+    size_t rxlen = 0;
+    unsigned long last_reported = ~0UL;
+
+    i = parse_args(argc, argv, &dev, &host, &port, &quiet);
+    if (i >= 0)
+    {
+        return i;
     }
 
     /* SIGPIPE would kill the process on a write to a gateway that has just

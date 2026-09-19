@@ -25,11 +25,10 @@
     "src/devices/smd/device_smd.c": 11,
     "src/devices/smd/disk_smd.h": 7,
     "src/frontend/nd100wasm/nd100wasm.c": 1,
-    "src/frontend/nd100x/menu.c": 1,
     "src/frontend/nd100x/nd100x.c": 166,
     "src/frontend/nd100x/nd100x_types.h": 1
    },
-   "total": 5438
+   "total": 5437
   },
   "10.3": {
    "files": {},
@@ -179,10 +178,10 @@
     "src/cpu/cpu_regs.c": 8,
     "src/cpu/expr_eval.c": 41,
     "src/cpu/float.c": 13,
-    "src/debugger/debugger.c": 79,
+    "src/debugger/debugger.c": 77,
     "src/frontend/nd100x/charset.c": 17,
     "src/frontend/nd100x/config.c": 14,
-    "src/frontend/nd100x/menu.c": 36,
+    "src/frontend/nd100x/menu.c": 35,
     "src/frontend/nd100x/nd100x.c": 38,
     "src/frontend/nd100x/nd100x_shell.c": 17,
     "src/frontend/nd100x/screenmenu.c": 20,
@@ -204,11 +203,11 @@
     "tests/test_tcp_receive_buffer.c": 1,
     "tests/test_winchester.c": 14,
     "tests/wd_trace.c": 10,
-    "tools/reth-tap/reth-tap.c": 23,
+    "tools/reth-tap/reth-tap.c": 19,
     "tools/reth-tap/test-framing.c": 2,
     "tools/reth-tap/test-gateway.c": 9
    },
-   "total": 824
+   "total": 817
   },
   "2.4": {
    "files": {
@@ -276,20 +275,20 @@
     "src/cpu/cpu_types.h": 473,
     "src/cpu/expr_eval.c": 275,
     "src/cpu/float.c": 490,
-    "src/debugger/debugger.c": 1008,
+    "src/debugger/debugger.c": 1002,
     "src/debugger/debugger.h": 11,
     "src/debugger/symbols_support.h": 11,
     "src/frontend/nd100wasm/nd100wasm.c": 726,
     "src/frontend/nd100wasm/nd500_wasm.c": 450,
     "src/frontend/nd100x/charset.c": 228,
     "src/frontend/nd100x/charset.h": 11,
-    "src/frontend/nd100x/config.c": 802,
-    "src/frontend/nd100x/menu.c": 604,
+    "src/frontend/nd100x/config.c": 778,
+    "src/frontend/nd100x/menu.c": 586,
     "src/frontend/nd100x/nd100x.c": 515,
     "src/frontend/nd100x/nd100x_shell.c": 128,
     "src/frontend/nd100x/nd100x_shell.h": 4,
     "src/frontend/nd100x/nd100x_types.h": 61,
-    "src/frontend/nd100x/screenmenu.c": 239,
+    "src/frontend/nd100x/screenmenu.c": 221,
     "src/frontend/nd100x/screenmenu.h": 8,
     "src/frontend/nd100x/vscreen.c": 51,
     "src/frontend/nd100x/vscreen.h": 13,
@@ -308,17 +307,17 @@
     "tests/test_pdfwriter.c": 90,
     "tests/test_printer_main.c": 9,
     "tests/test_printjob.c": 48,
-    "tests/test_rtc.c": 31,
+    "tests/test_rtc.c": 19,
     "tests/test_shell.c": 132,
     "tests/test_tcp_receive_buffer.c": 28,
     "tests/test_winchester.c": 92,
     "tests/wd_conformance_seq.h": 248,
     "tests/wd_trace.c": 31,
-    "tools/reth-tap/reth-tap.c": 171,
+    "tools/reth-tap/reth-tap.c": 153,
     "tools/reth-tap/test-framing.c": 47,
     "tools/reth-tap/test-gateway.c": 67
    },
-   "total": 15183
+   "total": 15087
   },
   "3.1": {
    "files": {

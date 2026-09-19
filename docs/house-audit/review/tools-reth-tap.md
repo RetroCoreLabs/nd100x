@@ -15,7 +15,8 @@ One row per function. A cell is empty until reviewed; write `ok`, or
 | pump_tap_to_wire | 235 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
 | pump_wire_to_tap | 264 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
 | usage | 322 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
-| main | 340 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| parse_args | 342 | n/a | n/a | ok | ok | n/a | n/a | n/a | ok | n/a | ok -1 continue / exit code | n/a static | ok | n/a | n/a | n/a | ok | n/a single thread | n/a | ok | n/a |
+| main | 375 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
 
 ## tools/reth-tap/test-framing.c
 

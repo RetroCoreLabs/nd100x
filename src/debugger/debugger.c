@@ -4071,6 +4071,51 @@ void OpToStr(char *return_string, uint16_t max_len, uint16_t operand);
 /// @brief DAP command to disassemble
 /// @param server
 /// @return
+// Read one word for the disassembler from the requested address space
+// (trap-free Dbg_* reads). Returns the word, or a negative value if it
+// cannot be read.
+static int read_disasm_word(DAPDataBreakpointAddressSpace addr_space, int virtual_address,
+                            int8_t pil)
+{
+    int word;
+    switch (addr_space)
+    {
+    case DAP_DATA_BP_ADDR_PHYSICAL:
+        word = Dbg_ReadPhysicalMemory((uint32_t)virtual_address);
+        break;
+    case DAP_DATA_BP_ADDR_DSPACE:
+        word = Dbg_ReadVirtualMemoryDSpace_PIL(virtual_address, pil);
+        break;
+    case DAP_DATA_BP_ADDR_ISPACE:
+    default:
+        // Default: I-space (instructions are always in I-space)
+        word = Dbg_ReadVirtualMemoryISpace_PIL(virtual_address, pil);
+        break;
+    }
+    return word;
+}
+
+// Disassembly text for one word: "<octal> <mnemonic>", or a marker when the
+// word could not be read (word < 0).
+static void format_disasm_text(char *text, size_t text_size, int word)
+{
+    if (word < 0)
+    {
+        // The word could not be read (page not present, or address
+        // outside installed memory). Say so - substituting a zero here
+        // would disassemble as a perfectly plausible "000000 STZ 0".
+        snprintf(text, text_size, "?????? <unreadable>");
+    }
+    else
+    {
+        // Disassemble the instruction
+        uint16_t operand = (uint16_t)word;
+        char operand_str[50];
+        OpToStr(operand_str, sizeof(operand_str), operand);
+        snprintf(text, text_size, "%06o %s", operand, operand_str);
+    }
+}
+
 static int cmd_disassemble(DAPServer *server)
 {
     uint16_t memory_reference = server->current_command.context.disassemble.memory_reference;
@@ -4110,41 +4155,14 @@ static int cmd_disassemble(DAPServer *server)
         {
 
             // Read instruction word using the requested address space + PIL
-            int word;
-            switch (addr_space) {
-            case DAP_DATA_BP_ADDR_PHYSICAL:
-                word = Dbg_ReadPhysicalMemory((uint32_t)virtualAddress);
-                break;
-            case DAP_DATA_BP_ADDR_DSPACE:
-                word = Dbg_ReadVirtualMemoryDSpace_PIL(virtualAddress, pil);
-                break;
-            case DAP_DATA_BP_ADDR_ISPACE:
-            default:
-                // Default: I-space (instructions are always in I-space)
-                word = Dbg_ReadVirtualMemoryISpace_PIL(virtualAddress, pil);
-                break;
-            }
+            int word = read_disasm_word(addr_space, virtualAddress, pil);
             // Get the address of the instruction (DAP SPEC says it must be hex)
             char address_str[10];
             snprintf(address_str, sizeof(address_str), "0x%04x", virtualAddress);
             instruction->address = strdup(address_str);
 
             char instruction_str[100];
-            if (word < 0)
-            {
-                // The word could not be read (page not present, or address
-                // outside installed memory). Say so - substituting a zero here
-                // would disassemble as a perfectly plausible "000000 STZ 0".
-                snprintf(instruction_str, sizeof(instruction_str), "?????? <unreadable>");
-            }
-            else
-            {
-                // Disassemble the instruction
-                uint16_t operand = (uint16_t)word;
-                char operand_str[50];
-                OpToStr(operand_str, sizeof(operand_str), operand);
-                snprintf(instruction_str, sizeof(instruction_str), "%06o %s", operand, operand_str);
-            }
+            format_disasm_text(instruction_str, sizeof(instruction_str), word);
 
             instruction->instruction = strdup(instruction_str);
             instruction->symbol = NULL;
@@ -4353,10 +4371,11 @@ static const char *symbol_type_to_dap_string(symbol_type_t type)
 /**
  * @brief Symbol list callback - returns all symbols from all symbol tables
  */
-static int cmd_symbol_list(DAPServer *server)
+/* Number of symbols cmd_symbol_list() will emit: every debug-info function
+ * and its variables, plus every entry of the three flat tables (an upper
+ * bound: file and line entries are skipped later). */
+static size_t count_symbols(symbol_table_t *const flat_tables[3])
 {
-    if (!server) return -1;
-
     /* Count total symbols across all tables */
     size_t total = 0;
 
@@ -4367,28 +4386,17 @@ static int cmd_symbol_list(DAPServer *server)
         }
     }
 
-    symbol_table_t *flat_tables[] = {
-        s_symbol_tables.symbol_table_stabs,
-        s_symbol_tables.symbol_table_map,
-        s_symbol_tables.symbol_table_aout,
-    };
     for (int t = 0; t < 3; t++) {
         if (flat_tables[t])
             total += flat_tables[t]->count;
     }
+    return total;
+}
 
-    if (total == 0) {
-        server->current_command.context.symbol_list.symbols = NULL;
-        server->current_command.context.symbol_list.symbol_count = 0;
-        return 0;
-    }
-
-    DAPSymbol *syms = calloc(total, sizeof(DAPSymbol));
-    if (!syms) return -1;
-
-    int n = 0;
-
-    /* 1. C debug info: functions and their variables */
+/* Append the C debug-info functions and their variables to syms starting
+ * at index n; returns the new count. */
+static int add_debug_info_symbols(DAPSymbol *syms, int n)
+{
     if (s_symbol_tables.debug_info) {
         for (int f = 0; f < s_symbol_tables.debug_info->function_count; f++) {
             symbol_function_t *func = &s_symbol_tables.debug_info->functions[f];
@@ -4410,6 +4418,40 @@ static int cmd_symbol_list(DAPServer *server)
             }
         }
     }
+    return n;
+}
+
+static int cmd_symbol_list(DAPServer *server)
+{
+    if (!server)
+    {
+        return -1;
+    }
+
+    symbol_table_t *flat_tables[] = {
+        s_symbol_tables.symbol_table_stabs,
+        s_symbol_tables.symbol_table_map,
+        s_symbol_tables.symbol_table_aout,
+    };
+    size_t total = count_symbols(flat_tables);
+
+    if (total == 0)
+    {
+        server->current_command.context.symbol_list.symbols = NULL;
+        server->current_command.context.symbol_list.symbol_count = 0;
+        return 0;
+    }
+
+    DAPSymbol *syms = calloc(total, sizeof(DAPSymbol));
+    if (!syms)
+    {
+        return -1;
+    }
+
+    int n = 0;
+
+    /* 1. C debug info: functions and their variables */
+    n = add_debug_info_symbols(syms, n);
 
     /* 2. Flat symbol tables (stabs, map, aout) */
     for (int t = 0; t < 3; t++) {

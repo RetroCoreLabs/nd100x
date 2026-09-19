@@ -266,6 +266,38 @@ static void make_file(const char *dir, const char *name) {
     if (f) { fputs("x", f); fclose(f); }
 }
 
+/* RUN-PROGRAM on a :PROG image: always autostarts at hdr.startAddress. */
+static void check_run_prog_image(const char *dir, char *sink, size_t sink_size)
+{
+    /* :PROG image: always autostarts at hdr.startAddress (no action field). */
+    make_file(dir, "tool.prog");
+    g_prog_load_calls = 0;
+    g_fake_prog_valid = true;
+    g_fake_prog.startAddress = 0177777;
+    g_fake_prog.twoBank = false;
+    g_run_mode = CPU_STOPPED;
+    g_fake_regs.reg[0][_P] = 0;
+    snprintf(g_runprog_line, sizeof(g_runprog_line), "RUN-PROGRAM tool.prog");
+    capture_stdout(run_runprog, NULL, sink, sink_size);
+    CHECK(g_runprog_rc == SHELL_RESULT_RUN, ":PROG image must return SHELL_RESULT_RUN");
+    CHECK(g_prog_load_calls == 1, ":PROG must call program_load once, got %d", g_prog_load_calls);
+    CHECK(g_run_mode == CPU_RUNNING, ":PROG must arm CPU_RUNNING");
+    CHECK(g_fake_regs.reg[0][_P] == 0177777, ":PROG must set gPC = hdr.startAddress");
+}
+
+/* RUN-PROGRAM on a missing file: error, loader not called, CPU not armed. */
+static void check_run_missing_file(char *sink, size_t sink_size)
+{
+    /* Missing file: no resolve -> error, loader NOT called, CPU NOT armed. */
+    g_prog_load_calls = 0;
+    g_run_mode = CPU_STOPPED;
+    snprintf(g_runprog_line, sizeof(g_runprog_line), "RUN-PROGRAM does-not-exist");
+    capture_stdout(run_runprog, NULL, sink, sink_size);
+    CHECK(g_runprog_rc == -1, "missing file must return -1, got %d", g_runprog_rc);
+    CHECK(g_prog_load_calls == 0, "missing file: program_load must NOT be called");
+    CHECK(g_run_mode == CPU_STOPPED, "missing file must NOT arm the CPU");
+}
+
 static void test_run_program_path(void)
 {
     printf("TEST: RUN-PROGRAM resolve + pre-check + CPU arming\n");
@@ -332,29 +364,8 @@ static void test_run_program_path(void)
     CHECK(g_fake_regs.reg[0][_P] == 0100, "action!=0 must still set P = hdr.start");
     g_fake_bpun.action = 0;          /* restore for later cases */
 
-    /* :PROG image: always autostarts at hdr.startAddress (no action field). */
-    make_file(dir, "tool.prog");
-    g_prog_load_calls = 0;
-    g_fake_prog_valid = true;
-    g_fake_prog.startAddress = 0177777;
-    g_fake_prog.twoBank = false;
-    g_run_mode = CPU_STOPPED;
-    g_fake_regs.reg[0][_P] = 0;
-    snprintf(g_runprog_line, sizeof(g_runprog_line), "RUN-PROGRAM tool.prog");
-    capture_stdout(run_runprog, NULL, sink, sizeof(sink));
-    CHECK(g_runprog_rc == SHELL_RESULT_RUN, ":PROG image must return SHELL_RESULT_RUN");
-    CHECK(g_prog_load_calls == 1, ":PROG must call program_load once, got %d", g_prog_load_calls);
-    CHECK(g_run_mode == CPU_RUNNING, ":PROG must arm CPU_RUNNING");
-    CHECK(g_fake_regs.reg[0][_P] == 0177777, ":PROG must set gPC = hdr.startAddress");
-
-    /* Missing file: no resolve -> error, loader NOT called, CPU NOT armed. */
-    g_prog_load_calls = 0;
-    g_run_mode = CPU_STOPPED;
-    snprintf(g_runprog_line, sizeof(g_runprog_line), "RUN-PROGRAM does-not-exist");
-    capture_stdout(run_runprog, NULL, sink, sizeof(sink));
-    CHECK(g_runprog_rc == -1, "missing file must return -1, got %d", g_runprog_rc);
-    CHECK(g_prog_load_calls == 0, "missing file: program_load must NOT be called");
-    CHECK(g_run_mode == CPU_STOPPED, "missing file must NOT arm the CPU");
+    check_run_prog_image(dir, sink, sizeof(sink));
+    check_run_missing_file(sink, sizeof(sink));
 
     /* Cleanup */
     char p[512];

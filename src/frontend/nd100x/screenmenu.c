@@ -461,6 +461,93 @@ static void draw_hdlc_status(void)
     fflush(stdout);
 }
 
+#if !defined(__EMSCRIPTEN__)
+// Byte counters of the connected telnet terminal named name; *rx and *tx
+// are left unchanged if no connected terminal has that name.
+static void telnet_screen_stats(TelnetServer *ts, const char *name, uint64_t *rx, uint64_t *tx)
+{
+    int tcount = TelnetServer_GetTerminalCount(ts);
+    for (int t = 0; t < tcount; t++)
+    {
+        const char *tname = NULL;
+        bool conn = false;
+        TelnetServer_GetTerminalStatus(ts, t, &tname, NULL, &conn, NULL, NULL, 0);
+        if (conn && tname && strcmp(tname, name) == 0)
+        {
+            TelnetServer_GetTerminalStats(ts, t, rx, tx);
+            break;
+        }
+    }
+}
+#endif
+
+// The status suffix shown after screen i's name: active marker, output
+// only, telnet client with byte counters, inactive or virtual. buf holds
+// the text when it has to be formatted.
+static const char *screen_status_text(MenuState *state, int i, void *telnet_server, char *buf,
+                                      size_t buf_size)
+{
+    bool has_telnet = (telnet_server != NULL);
+    const char *status = "";
+
+    if (i == *state->activeScreen)
+    {
+        status = " *";
+    }
+    else if (!state->screens[i].isInputCapable)
+    {
+        status = " (output only)";
+    }
+#if !defined(__EMSCRIPTEN__)
+    else if (has_telnet)
+    {
+        TelnetServer *ts = (TelnetServer *)telnet_server;
+        if (TelnetServer_IsDeviceConnected(ts, state->screens[i].device))
+        {
+            const char *addr = TelnetServer_GetDeviceClientAddr(ts, state->screens[i].device);
+
+            // Find terminal index in server for byte stats
+            uint64_t rx = 0, tx = 0;
+            telnet_screen_stats(ts, state->screens[i].name, &rx, &tx);
+
+            char rxStr[16], txStr[16];
+            format_bytes(rx, rxStr, sizeof(rxStr));
+            format_bytes(tx, txStr, sizeof(txStr));
+
+            if (addr && addr[0])
+            {
+                snprintf(buf, buf_size, " [Telnet %s] rx:%s tx:%s", addr, rxStr, txStr);
+            }
+            else
+            {
+                snprintf(buf, buf_size, " [Telnet] rx:%s tx:%s", rxStr, txStr);
+            }
+            status = buf;
+        }
+        else if (!state->screens[i].localActive)
+        {
+            status = " [Inactive]";
+        }
+        else if (state->screens[i].isInputCapable && i > 0)
+        {
+            status = " [Virtual]";
+        }
+    }
+#else
+    else if (!state->screens[i].localActive)
+    {
+        status = " [Inactive]";
+    }
+    (void)telnet_server;
+#endif
+#if defined(__EMSCRIPTEN__)
+    (void)has_telnet;
+    (void)buf;
+    (void)buf_size;
+#endif
+    return status;
+}
+
 static void draw_screen_select(MenuState *state, void *telnetServer)
 {
     bool hasTelnet = (telnetServer != NULL);
@@ -486,56 +573,8 @@ static void draw_screen_select(MenuState *state, void *telnetServer)
 
     for (int i = 0; i < state->screenCount; i++) {
         char statusBuf[128];
-        const char *status = "";
-
-        if (i == *state->activeScreen) {
-            status = " *";
-        } else if (!state->screens[i].isInputCapable) {
-            status = " (output only)";
-        }
-#if !defined(__EMSCRIPTEN__)
-        else if (hasTelnet) {
-            TelnetServer *ts = (TelnetServer *)telnetServer;
-            if (TelnetServer_IsDeviceConnected(ts, state->screens[i].device)) {
-                const char *addr = TelnetServer_GetDeviceClientAddr(ts, state->screens[i].device);
-
-                // Find terminal index in server for byte stats
-                uint64_t rx = 0, tx = 0;
-                int tcount = TelnetServer_GetTerminalCount(ts);
-                for (int t = 0; t < tcount; t++) {
-                    const char *tname = NULL;
-                    bool conn = false;
-                    TelnetServer_GetTerminalStatus(ts, t, &tname, NULL, &conn, NULL, NULL, 0);
-                    if (conn && tname && strcmp(tname, state->screens[i].name) == 0) {
-                        TelnetServer_GetTerminalStats(ts, t, &rx, &tx);
-                        break;
-                    }
-                }
-
-                char rxStr[16], txStr[16];
-                format_bytes(rx, rxStr, sizeof(rxStr));
-                format_bytes(tx, txStr, sizeof(txStr));
-
-                if (addr && addr[0]) {
-                    snprintf(statusBuf, sizeof(statusBuf),
-                             " [Telnet %s] rx:%s tx:%s", addr, rxStr, txStr);
-                } else {
-                    snprintf(statusBuf, sizeof(statusBuf),
-                             " [Telnet] rx:%s tx:%s", rxStr, txStr);
-                }
-                status = statusBuf;
-            } else if (!state->screens[i].localActive) {
-                status = " [Inactive]";
-            } else if (state->screens[i].isInputCapable && i > 0) {
-                status = " [Virtual]";
-            }
-        }
-#else
-        else if (!state->screens[i].localActive) {
-            status = " [Inactive]";
-        }
-        (void)telnetServer;
-#endif
+        const char *status =
+            screen_status_text(state, i, telnetServer, statusBuf, sizeof(statusBuf));
 
         if (i < 9)
             printf("  [%d] %-24s%s\n", i + 1, state->screens[i].name, status);

@@ -198,12 +198,25 @@ static bool parseBootSpec(Config_t *config, const char *bootStr) {
 
     config->bootUnit = 0;
 
-    if (strcmp("bp", bootStr) == 0)     { config->bootType = BOOT_BP;     return true; }
-    if (strcmp("bpun", bootStr) == 0)   { config->bootType = BOOT_BPUN;   return true; }
-    if (strcmp("aout", bootStr) == 0)   { config->bootType = BOOT_AOUT;   return true; }
-    if (strcmp("floppy", bootStr) == 0) { config->bootType = BOOT_FLOPPY; return true; }
-    if (strcmp("cdc", bootStr) == 0)    { config->bootType = BOOT_CDC;    return true; }
-    if (strcmp("tape", bootStr) == 0)   { config->bootType = BOOT_TAPE;   return true; }
+    /* Boot types without a unit number. */
+    // clang-format off
+    static const struct { const char *name; BOOT_TYPE type; } simple[] = {
+        { "bp",     BOOT_BP     },
+        { "bpun",   BOOT_BPUN   },
+        { "aout",   BOOT_AOUT   },
+        { "floppy", BOOT_FLOPPY },
+        { "cdc",    BOOT_CDC    },
+        { "tape",   BOOT_TAPE   },
+    };
+    // clang-format on
+    for (size_t i = 0; i < sizeof(simple) / sizeof(simple[0]); i++)
+    {
+        if (strcmp(simple[i].name, bootStr) == 0)
+        {
+            config->bootType = simple[i].type;
+            return true;
+        }
+    }
 
     if (strncmp("smd", bootStr, 3) == 0) {
         const char *u = bootStr + 3;
