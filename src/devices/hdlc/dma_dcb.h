@@ -162,39 +162,159 @@ void DCB_SetDataMemoryAddress(HdlcDCB *dcb, uint32_t address);
 
 // Accessor functions
 
+/**
+ * @brief Set the memory address this buffer description was loaded from.
+ * @param dcb Descriptor to modify.
+ * @param address Memory address of the buffer.
+ */
 void DCB_SetBufferAddress(HdlcDCB *dcb, uint32_t address);
+
+/**
+ * @brief Get the memory address this buffer description was loaded from.
+ * @param dcb Descriptor to read.
+ * @return bufferAddress field, or 0 if dcb is NULL.
+ */
 uint32_t DCB_GetBufferAddress(const HdlcDCB *dcb);
 
+/**
+ * @brief Set the buffer's offset (in 4-word blocks) from the list pointer.
+ * @param dcb Descriptor to modify.
+ * @param offset Offset value to store.
+ */
 void DCB_SetOffsetFromLP(HdlcDCB *dcb, uint16_t offset);
+
+/**
+ * @brief Get the buffer's offset (in 4-word blocks) from the list pointer.
+ * @param dcb Descriptor to read.
+ * @return offsetFromLP field, or 0 if dcb is NULL.
+ */
 uint16_t DCB_GetOffsetFromLP(const HdlcDCB *dcb);
 
+/**
+ * @brief Set the raw KEY value (flags plus control information).
+ * @param dcb Descriptor to modify.
+ * @param keyValue Raw key value to store.
+ */
 void DCB_SetKeyValue(HdlcDCB *dcb, uint16_t keyValue);
+
+/**
+ * @brief Get the raw KEY value (flags plus control information).
+ * @param dcb Descriptor to read.
+ * @return keyValue field, or 0 if dcb is NULL.
+ */
 uint16_t DCB_GetKeyValue(const HdlcDCB *dcb);
 
+/**
+ * @brief Set the byte count (number of information bytes).
+ * @param dcb Descriptor to modify.
+ * @param byteCount Byte count to store.
+ */
 void DCB_SetByteCount(HdlcDCB *dcb, uint16_t byteCount);
+
+/**
+ * @brief Get the byte count (number of information bytes).
+ * @param dcb Descriptor to read.
+ * @return byteCount field, or 0 if dcb is NULL.
+ */
 uint16_t DCB_GetByteCount(const HdlcDCB *dcb);
 
+/**
+ * @brief Set the Displacement1/Displacement2 value applied to this buffer.
+ * @param dcb Descriptor to modify.
+ * @param displacement Displacement value, in bytes.
+ */
 void DCB_SetDisplacement(HdlcDCB *dcb, uint16_t displacement);
+
+/**
+ * @brief Get the Displacement1/Displacement2 value applied to this buffer.
+ * @param dcb Descriptor to read.
+ * @return displacement field, or 0 if dcb is NULL.
+ */
 uint16_t DCB_GetDisplacement(const HdlcDCB *dcb);
 
+/**
+ * @brief Set the list pointer value (start-of-list address this buffer belongs to).
+ * @param dcb Descriptor to modify.
+ * @param listPointer List pointer value to store.
+ */
 void DCB_SetListPointer(HdlcDCB *dcb, uint32_t listPointer);
+
+/**
+ * @brief Get the list pointer value (start-of-list address this buffer belongs to).
+ * @param dcb Descriptor to read.
+ * @return listPointer field, or 0 if dcb is NULL.
+ */
 uint32_t DCB_GetListPointer(const HdlcDCB *dcb);
 
 // DMA helper functions
 
+/**
+ * @brief Set the memory address to use for the next DMA read/write.
+ * @param dcb Descriptor to modify.
+ * @param address Memory address to store.
+ */
 void DCB_SetDMAAddress(HdlcDCB *dcb, uint32_t address);
+
+/**
+ * @brief Get the memory address to use for the next DMA read/write.
+ * @param dcb Descriptor to read.
+ * @return dmaAddress field, or 0 if dcb is NULL.
+ */
 uint32_t DCB_GetDMAAddress(const HdlcDCB *dcb);
 
+/**
+ * @brief Set the count of bytes read so far during this buffer's DMA transfer.
+ * @param dcb Descriptor to modify.
+ * @param bytesRead Byte count to store.
+ */
 void DCB_SetDMABytesRead(HdlcDCB *dcb, int bytesRead);
+
+/**
+ * @brief Get the count of bytes read so far during this buffer's DMA transfer.
+ * @param dcb Descriptor to read.
+ * @return dmaBytesRead field, or 0 if dcb is NULL.
+ */
 int DCB_GetDMABytesRead(const HdlcDCB *dcb);
 
+/**
+ * @brief Set the count of bytes written so far during this buffer's DMA transfer.
+ * @param dcb Descriptor to modify.
+ * @param bytesWritten Byte count to store.
+ */
 void DCB_SetDMABytesWritten(HdlcDCB *dcb, int bytesWritten);
+
+/**
+ * @brief Get the count of bytes written so far during this buffer's DMA transfer.
+ * @param dcb Descriptor to read.
+ * @return dmaBytesWritten field, or 0 if dcb is NULL.
+ */
 int DCB_GetDMABytesWritten(const HdlcDCB *dcb);
 
+/**
+ * @brief Set the last 16-bit word read from ND memory for this buffer.
+ * @param dcb Descriptor to modify.
+ * @param data Word value to store, or -1 to mark as not read.
+ */
 void DCB_SetDMAReadData(HdlcDCB *dcb, int data);
+
+/**
+ * @brief Get the last 16-bit word read from ND memory for this buffer.
+ * @param dcb Descriptor to read.
+ * @return dmaReadData field, or -1 if dcb is NULL or the data was not read.
+ */
 int DCB_GetDMAReadData(const HdlcDCB *dcb);
 
+/**
+ * @brief Check whether a DMA read word is cached (dmaReadData != -1).
+ * @param dcb Descriptor to read.
+ * @return true if a read word is cached, false otherwise (including on NULL dcb).
+ */
 bool DCB_IsDMAReadDataValid(const HdlcDCB *dcb);
+
+/**
+ * @brief Reset the cached DMA read word to -1 (not read).
+ * @param dcb Descriptor to modify.
+ */
 void DCB_ClearDMAReadData(HdlcDCB *dcb);
 
 #endif // DMA_DCB_H

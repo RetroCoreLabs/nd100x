@@ -87,8 +87,16 @@ typedef struct {
 } SCSIHDDDevice;
 // clang-format on
 
-/* Attach a hard disk target to the bus at scsi_id, backed by owner's block
- * callbacks on the given unit. */
+/**
+ * @brief Attach a hard disk target to the bus at scsi_id, backed by owner's
+ *        block callbacks on the given unit.
+ * @param hdd Device state to initialize; zeroed and filled in.
+ * @param bus SCSI bus to attach the target to.
+ * @param scsi_id SCSI id the target answers to.
+ * @param owner Block device whose callbacks back this SCSI target.
+ * @param unit Unit number on owner to read/write sectors from.
+ * @param diskType Drive geometry/identity to report (see disk_scsi.h).
+ */
 void SCSIHDD_Init(SCSIHDDDevice *hdd, SCSIBus *bus, uint8_t scsi_id, struct Device *owner, int unit,
                   SCSIDiskType diskType);
 

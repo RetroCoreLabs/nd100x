@@ -560,7 +560,7 @@ void cpu_watchpoint_triggered(uint32_t addr, bool isWrite)
  * Write a word to memory.
  * Here we implement all Memory Management System functions.
  */
-void MemoryWrite(uint16_t value, uint16_t addr, bool UseAPT, unsigned char byte_select)
+void MemoryWrite(uint16_t value, uint16_t addr, bool UseAPT, uint8_t byte_select)
 {
 #ifdef WITH_DEBUGGER
     // Hot path: counter check -> bitmap check -> slow path

@@ -96,29 +96,152 @@ typedef struct
 } ParameterBuffer;
 
 // Function declarations
+
+/**
+ * @brief Zero the whole ParameterBuffer structure.
+ * @param paramBuf Buffer to initialize.
+ */
 void ParameterBuffer_Init(ParameterBuffer *paramBuf);
+
+/**
+ * @brief Reset every field of the ParameterBuffer to 0 (same effect as Init,
+ * field by field).
+ * @param paramBuf Buffer to clear.
+ */
 void ParameterBuffer_Clear(ParameterBuffer *paramBuf);
 
 // Getter functions
+
+/**
+ * @brief Get the Parameter Control Register (PCR) value.
+ * @param paramBuf Buffer to read.
+ * @return parameterControlRegister field, or 0 if paramBuf is NULL.
+ */
 int ParameterBuffer_GetParameterControlRegister(const ParameterBuffer *paramBuf);
+
+/**
+ * @brief Get the Sync/Address Register value.
+ * @param paramBuf Buffer to read.
+ * @return syncAddressRegister field, or 0 if paramBuf is NULL.
+ */
 int ParameterBuffer_GetSyncAddressRegister(const ParameterBuffer *paramBuf);
+
+/**
+ * @brief Get the Character Length value.
+ * @param paramBuf Buffer to read.
+ * @return characterLength field, or 0 if paramBuf is NULL.
+ */
 int ParameterBuffer_GetCharacterLength(const ParameterBuffer *paramBuf);
+
+/**
+ * @brief Get Displacement1 (free bytes reserved at the start of a buffer
+ * that begins a frame).
+ * @param paramBuf Buffer to read.
+ * @return displacement1 field, or 0 if paramBuf is NULL.
+ */
 int ParameterBuffer_GetDisplacement1(const ParameterBuffer *paramBuf);
+
+/**
+ * @brief Get Displacement2 (free bytes reserved at the start of a buffer
+ * that does not begin a frame).
+ * @param paramBuf Buffer to read.
+ * @return displacement2 field, or 0 if paramBuf is NULL.
+ */
 int ParameterBuffer_GetDisplacement2(const ParameterBuffer *paramBuf);
+
+/**
+ * @brief Get the maximum receiver block length, including displacement.
+ * @param paramBuf Buffer to read.
+ * @return maxReceiverBlockLength field, or 0 if paramBuf is NULL.
+ */
 int ParameterBuffer_GetMaxReceiverBlockLength(const ParameterBuffer *paramBuf);
+
+/**
+ * @brief Get the Receiver Status Register value.
+ * @param paramBuf Buffer to read.
+ * @return receiverStatusReg field, or 0 if paramBuf is NULL.
+ */
 int ParameterBuffer_GetReceiverStatusReg(const ParameterBuffer *paramBuf);
+
+/**
+ * @brief Get the Transmitter Status Register value.
+ * @param paramBuf Buffer to read.
+ * @return transmitterStatusReg field, or 0 if paramBuf is NULL.
+ */
 int ParameterBuffer_GetTransmitterStatusReg(const ParameterBuffer *paramBuf);
+
+/**
+ * @brief Get the DMA Bank Bits value.
+ * @param paramBuf Buffer to read.
+ * @return dmaBankBits field, or 0 if paramBuf is NULL.
+ */
 int ParameterBuffer_GetDmaBankBits(const ParameterBuffer *paramBuf);
 
 // Setter functions
+
+/**
+ * @brief Set the Parameter Control Register (PCR) value.
+ * @param paramBuf Buffer to modify.
+ * @param value Value to store.
+ */
 void ParameterBuffer_SetParameterControlRegister(ParameterBuffer *paramBuf, int value);
+
+/**
+ * @brief Set the Sync/Address Register value.
+ * @param paramBuf Buffer to modify.
+ * @param value Value to store.
+ */
 void ParameterBuffer_SetSyncAddressRegister(ParameterBuffer *paramBuf, int value);
+
+/**
+ * @brief Set the Character Length value.
+ * @param paramBuf Buffer to modify.
+ * @param value Value to store.
+ */
 void ParameterBuffer_SetCharacterLength(ParameterBuffer *paramBuf, int value);
+
+/**
+ * @brief Set Displacement1 (free bytes reserved at the start of a buffer
+ * that begins a frame).
+ * @param paramBuf Buffer to modify.
+ * @param value Value to store.
+ */
 void ParameterBuffer_SetDisplacement1(ParameterBuffer *paramBuf, int value);
+
+/**
+ * @brief Set Displacement2 (free bytes reserved at the start of a buffer
+ * that does not begin a frame).
+ * @param paramBuf Buffer to modify.
+ * @param value Value to store.
+ */
 void ParameterBuffer_SetDisplacement2(ParameterBuffer *paramBuf, int value);
+
+/**
+ * @brief Set the maximum receiver block length, including displacement.
+ * @param paramBuf Buffer to modify.
+ * @param value Value to store.
+ */
 void ParameterBuffer_SetMaxReceiverBlockLength(ParameterBuffer *paramBuf, int value);
+
+/**
+ * @brief Set the Receiver Status Register value.
+ * @param paramBuf Buffer to modify.
+ * @param value Value to store.
+ */
 void ParameterBuffer_SetReceiverStatusReg(ParameterBuffer *paramBuf, int value);
+
+/**
+ * @brief Set the Transmitter Status Register value.
+ * @param paramBuf Buffer to modify.
+ * @param value Value to store.
+ */
 void ParameterBuffer_SetTransmitterStatusReg(ParameterBuffer *paramBuf, int value);
+
+/**
+ * @brief Set the DMA Bank Bits value.
+ * @param paramBuf Buffer to modify.
+ * @param value Value to store.
+ */
 void ParameterBuffer_SetDmaBankBits(ParameterBuffer *paramBuf, int value);
 
 

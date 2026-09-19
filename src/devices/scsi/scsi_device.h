@@ -179,24 +179,91 @@ typedef struct SCSITarget {
 } SCSITarget;
 // clang-format on
 
-/* Wire a target onto the bus at the given SCSI id. */
+/**
+ * @brief Wire a target onto a SCSI bus at the given SCSI id.
+ * @param t Target to initialize; the caller owns the struct and may have
+ *        already filled in the concrete-target hooks - this does not memset.
+ * @param bus Bus to attach the target to.
+ * @param scsi_id SCSI id the target answers to.
+ * @param name Target name, used in log messages.
+ */
 void SCSITarget_Init(SCSITarget *t, SCSIBus *bus, uint8_t scsi_id, const char *name);
+
+/**
+ * @brief Reset a target to idle state, as on a SCSI bus RST condition.
+ * @param t Target to reset; ignored if NULL.
+ */
 void SCSITarget_DeviceReset(SCSITarget *t);
 
 /* Queue phase actions from inside a scsi_command() implementation. */
+/**
+ * @brief Queue a DATA IN phase transfer from a target buffer to the host.
+ * @param t Target queuing the phase.
+ * @param buf Buffer id (SBUF_MAIN or SBUF_SENSE) to source data from.
+ * @param size Number of bytes to transfer.
+ */
 void SCSITarget_DataIn(SCSITarget *t, SBUF buf, int size);
+
+/**
+ * @brief Queue a DATA OUT phase transfer from the host into a target buffer.
+ * @param t Target queuing the phase.
+ * @param buf Buffer id (SBUF_MAIN or SBUF_SENSE) to receive data into.
+ * @param size Number of bytes to transfer.
+ */
 void SCSITarget_DataOut(SCSITarget *t, SBUF buf, int size);
+
+/**
+ * @brief Queue STATUS, COMMAND COMPLETE message, and BUS FREE phases.
+ * @param t Target queuing the phases.
+ * @param status SCSI status byte to report.
+ */
 void SCSITarget_StatusComplete(SCSITarget *t, uint8_t status);
 
 /* Sense handling. */
+/**
+ * @brief Build and store a REQUEST SENSE reply for a target.
+ * @param t Target whose sense buffer is filled in.
+ * @param deferred True for a deferred error (sets the deferred error code).
+ * @param key Sense key (SK_* value).
+ * @param asc Additional sense code.
+ * @param ascq Additional sense code qualifier.
+ */
 void SCSITarget_Sense(SCSITarget *t, bool deferred, uint8_t key, int asc, int ascq);
 
+/**
+ * @brief Report CHECK CONDITION / ILLEGAL REQUEST for an unrecognized CDB.
+ * @param t Target reporting the error.
+ * @param cmd Command opcode byte that was not recognized.
+ */
 void SCSITarget_ReportBadCmd(SCSITarget *t, uint8_t cmd);
+
+/**
+ * @brief Report CHECK CONDITION / ILLEGAL REQUEST for an unsupported LUN.
+ * @param t Target reporting the error.
+ * @param cmd Command opcode byte the CDB carried.
+ * @param lun Logical unit number that is not supported.
+ */
 void SCSITarget_ReportBadLun(SCSITarget *t, uint8_t cmd, uint8_t lun);
 
 /* Default buffer accessors - concrete targets call these for the ids they do
  * not handle themselves. */
+/**
+ * @brief Read one byte from a target's default data buffer (main or sense).
+ * @param t Target owning the buffer.
+ * @param id Buffer id (SBUF_MAIN or SBUF_SENSE).
+ * @param pos Byte offset into the buffer.
+ * @return The byte at pos, or 0 if id is unknown or pos is out of range.
+ */
 uint8_t SCSITarget_DefaultGetData(SCSITarget *t, SBUF id, int pos);
+
+/**
+ * @brief Write one byte into a target's default data buffer (main or sense).
+ * @param t Target owning the buffer.
+ * @param id Buffer id (SBUF_MAIN or SBUF_SENSE).
+ * @param pos Byte offset into the buffer.
+ * @param data Byte value to store; ignored if id is unknown or pos is out of
+ *        range.
+ */
 void SCSITarget_DefaultPutData(SCSITarget *t, SBUF id, int pos, uint8_t data);
 
 /*
@@ -206,11 +273,47 @@ void SCSITarget_DefaultPutData(SCSITarget *t, SBUF id, int pos, uint8_t data);
  * first) - READ CAPACITY, INQUIRY lengths, LBAs, sense ASC/ASCQ. These are the
  * only correct way to touch them; do not hand-roll shifts at the call sites.
  */
+/**
+ * @brief Store a 16-bit value into a buffer, most significant byte first.
+ * @param buf Destination buffer; must have room for 2 bytes.
+ * @param value Value to store.
+ */
 void scsi_put_u16be(uint8_t *buf, uint16_t value);
+
+/**
+ * @brief Store the low 24 bits of a value into a buffer, MSB first.
+ * @param buf Destination buffer; must have room for 3 bytes.
+ * @param value Value whose low 24 bits are stored.
+ */
 void scsi_put_u24be(uint8_t *buf, uint32_t value);
+
+/**
+ * @brief Store a 32-bit value into a buffer, most significant byte first.
+ * @param buf Destination buffer; must have room for 4 bytes.
+ * @param value Value to store.
+ */
 void scsi_put_u32be(uint8_t *buf, uint32_t value);
+
+/**
+ * @brief Read a big-endian 16-bit value from a buffer.
+ * @param buf Source buffer; must have at least 2 bytes.
+ * @return The 16-bit value, most significant byte first.
+ */
 uint16_t scsi_get_u16be(const uint8_t *buf);
+
+/**
+ * @brief Read a big-endian 24-bit value from a buffer.
+ * @param buf Source buffer; must have at least 3 bytes.
+ * @return The 24-bit value, most significant byte first, in the low 24 bits
+ *         of the result.
+ */
 uint32_t scsi_get_u24be(const uint8_t *buf);
+
+/**
+ * @brief Read a big-endian 32-bit value from a buffer.
+ * @param buf Source buffer; must have at least 4 bytes.
+ * @return The 32-bit value, most significant byte first.
+ */
 uint32_t scsi_get_u32be(const uint8_t *buf);
 
 #endif // SCSI_DEVICE_H

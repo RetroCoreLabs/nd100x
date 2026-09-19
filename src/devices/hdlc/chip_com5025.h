@@ -286,34 +286,164 @@ typedef struct COM5025State
 } COM5025State;
 
 // Function declarations
+
+/**
+ * @brief Zero the chip state, init the register file and set BOP mode, 8-bit
+ *        characters and a CRC register of 0xFFFF.
+ * @param chip Chip state to initialize.
+ * @return void.
+ */
 void COM5025_Init(COM5025State *chip);
+
+/**
+ * @brief Apply the MR (Master Reset) signal: clear flags and status, set
+ *        TBMT=1, TSO=1 and select primary BOP mode, 8-bit TX/RX length and
+ *        CRC CCITT initialized to all 1s.
+ * @param chip Chip state to reset.
+ * @return void.
+ */
 void COM5025_Reset(COM5025State *chip);
 
-
+/**
+ * @brief Read one of the byte-wide registers (BYTE OP = 1) selected by reg,
+ *        clearing the matching output pin (RDA/RSA) as a side effect where
+ *        the real chip does.
+ * @param chip Chip state to read from.
+ * @param reg Byte register to read (COM5025RegistersByte).
+ * @return Register value, or 0 if chip is NULL.
+ */
 uint8_t COM5025_ReadByte(COM5025State *chip, COM5025RegistersByte reg);
+
+/**
+ * @brief Write one of the byte-wide registers (BYTE OP = 1) selected by reg.
+ *        Read-only registers (receiver data buffer, receiver status) are
+ *        ignored.
+ * @param chip Chip state to write to.
+ * @param reg Byte register to write (COM5025RegistersByte).
+ * @param value Value to store in the register.
+ * @return void.
+ */
 void COM5025_WriteByte(COM5025State *chip, COM5025RegistersByte reg, uint8_t value);
 
+/**
+ * @brief Read one of the word-wide registers (BYTE OP = 0) selected by reg,
+ *        clearing the matching output pin (RDA/RSA) as a side effect where
+ *        the real chip does.
+ * @param chip Chip state to read from.
+ * @param reg Word register to read (COM5025RegistersWord).
+ * @return Register value, or 0 if chip is NULL.
+ */
 uint16_t COM5025_ReadWord(COM5025State *chip, COM5025RegistersWord reg);
+
+/**
+ * @brief Write one of the word-wide registers (BYTE OP = 0) selected by reg.
+ *        The read-only TERR bit of the TX status/control register is
+ *        preserved across the write.
+ * @param chip Chip state to write to.
+ * @param reg Word register to write (COM5025RegistersWord).
+ * @param value Value to store in the register.
+ * @return void.
+ */
 void COM5025_WriteWord(COM5025State *chip, COM5025RegistersWord reg, uint16_t value);
 
+/**
+ * @brief Set one of the chip input pins (RCP, RSI, RXENA, MR, TXENA, MSEL) to
+ *        a new level; a rising edge on MR triggers a master reset and MSEL
+ *        toggles maintenance (loopback) mode.
+ * @param chip Chip state to update.
+ * @param pin Input pin to drive (COM5025SignalPinIn).
+ * @param value New pin level.
+ * @return void.
+ */
 void COM5025_SetInputPin(COM5025State *chip, COM5025SignalPinIn pin, bool value);
+
+/**
+ * @brief Read the current level of a chip input pin.
+ * @param chip Chip state to read from.
+ * @param pin Input pin to read (COM5025SignalPinIn).
+ * @return Current pin level, or false if chip is NULL or pin is out of range.
+ */
 bool COM5025_GetInputPin(COM5025State *chip, COM5025SignalPinIn pin);
 
+/**
+ * @brief Read the current level of a chip output pin.
+ * @param chip Chip state to read from.
+ * @param pin Output pin to read (COM5025SignalPinOut).
+ * @return Current pin level, or false if chip is NULL or pin is out of range.
+ */
 bool COM5025_GetOutputPin(COM5025State *chip, COM5025SignalPinOut pin);
 
+/**
+ * @brief Advance the receiver by one bit time (RCP edge): shift in the RSI
+ *        bit when RXENA is set and process it through the receiver state
+ *        machine.
+ * @param chip Chip state to clock.
+ * @return void.
+ */
 void COM5025_ClockReceiver(COM5025State *chip);
+
+/**
+ * @brief Advance the transmitter by one bit time (TCP edge) when TXENA and
+ *        TXACT are set: refill the transmit shift register from TDB when
+ *        empty and shift out the next bit.
+ * @param chip Chip state to clock.
+ * @return void.
+ */
 void COM5025_ClockTransmitter(COM5025State *chip);
 
-
+/**
+ * @brief Queue a block of received bytes into the shared register file's
+ *        receive queue for later pull-based consumption.
+ * @param chip Chip state (currently unused beyond the NULL check - the queue
+ *        lives in the static register file); unverified.
+ * @param data Bytes to enqueue.
+ * @param length Number of bytes in data.
+ * @return void.
+ */
 void COM5025_ReceiveData(COM5025State *chip, const uint8_t *data, int length);
+
+/**
+ * @brief Load one byte into the transmitter data/shift registers, start the
+ *        bit counter at the configured character length and assert TXACT
+ *        while clearing TBMT.
+ * @param chip Chip state to update.
+ * @param data Byte to transmit.
+ * @return void.
+ */
 void COM5025_TransmitData(COM5025State *chip, uint8_t data);
 
 // Callback setup functions
+
+/**
+ * @brief Replace the receiver status register with newRxStatus and assert
+ *        the RSA output pin when any status bit other than RSOM transitions
+ *        from 0 to 1.
+ * @param chip Chip state to update.
+ * @param newRxStatus New receiver status register value.
+ * @return void.
+ */
 void COM5025_SetReceiverStatus(COM5025State *chip, uint16_t newRxStatus);
 
+/**
+ * @brief Register the callback invoked when the chip serializes a
+ *        transmitted byte (TSO output).
+ * @param chip Chip state to update.
+ * @param callback Function to call with each transmitted byte.
+ * @param context Opaque pointer passed back to callback.
+ * @return void.
+ */
 void COM5025_SetTransmitterOutputCallback(COM5025State *chip,
                                           void (*callback)(void *context, uint8_t data),
                                           void *context);
+
+/**
+ * @brief Register the callback invoked whenever a chip output pin changes
+ *        level.
+ * @param chip Chip state to update.
+ * @param callback Function to call with the changed pin and its new value.
+ * @param context Opaque pointer passed back to callback.
+ * @return void.
+ */
 void COM5025_SetPinValueChangedCallback(COM5025State *chip,
                                         void (*callback)(void *context, COM5025SignalPinOut pin,
                                                          bool value),

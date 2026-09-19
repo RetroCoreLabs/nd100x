@@ -115,7 +115,20 @@ typedef struct
 } PaperTapeData;
 
 // Function declarations
+/**
+ * @brief Create and initialize the paper tape reader device.
+ * @param thumbwheel Card thumbwheel; selects the IOX address block.
+ * @return The new Device, or NULL on allocation failure.
+ */
 Device *CreatePaperTapeDevice(uint8_t thumbwheel);
+
+/**
+ * @brief Replace the reader's tape buffer with new tape data and rewind to
+ *        position 0.
+ * @param self The paper tape reader device.
+ * @param data Tape bytes to load.
+ * @param length Number of bytes in data.
+ */
 void PaperTape_LoadTape(Device *self, const uint8_t *data, size_t length);
 
 #endif /* DEVICE_PAPER_TAPE_H */

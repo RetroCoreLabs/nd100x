@@ -381,8 +381,36 @@ typedef struct {
 // clang-format on
 
 // Function declarations
+
+/**
+ * @brief Allocate and initialize an HDLC device (COM5025 chip, modem and DMA
+ *        engine) for the given thumbwheel address/IDENT selection.
+ * @param thumbwheel Card thumbwheel setting; must be in the range 1-5.
+ * @return Newly allocated Device, or NULL if thumbwheel is out of range or
+ *         allocation failed.
+ */
 Device *CreateHDLCDevice(uint8_t thumbwheel);
+
+/**
+ * @brief Fill in an HDLCRxFrameStatus snapshot (RX/TX enable, DMA state,
+ *        sender state, queue depths, TX diagnostics) for external inspection
+ *        (menu, debugging) without disturbing device state.
+ * @param data HDLC device data to read from.
+ * @param status Struct to fill in; zeroed first.
+ * @return true if the status was filled in, false if data, status or the
+ *         device's DMA engine/control blocks are NULL.
+ */
 bool HDLC_GetRxFrameStatus(const HDLCData *data, HDLCRxFrameStatus *status);
+
+/**
+ * @brief Inject externally-sourced bytes into the HDLC receiver as if they
+ *        arrived over the modem link, but only while the receiver is marked
+ *        active (ignored after e.g. a LIST_EMPTY condition).
+ * @param device HDLC device to inject into.
+ * @param data Bytes to inject.
+ * @param length Number of bytes in data.
+ * @return void.
+ */
 void HDLC_BridgeInjectRx(Device *device, const uint8_t *data, int length);
 
 #endif // DEVICE_HDLC_H

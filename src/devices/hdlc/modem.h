@@ -126,25 +126,160 @@ typedef struct ModemState {
 } ModemState;
 // clang-format on
 
+/**
+ * @brief Zero the modem state, store the owning HDLC device and, when
+ *        networking is compiled in, init the network subsystem and the
+ *        RX/TX byte queues.
+ * @param modem Modem state to initialize.
+ * @param hdlcDevice Owning HDLC device, passed back to callbacks.
+ * @return void.
+ */
 void Modem_Init(ModemState *modem, Device *hdlcDevice);
+
+/**
+ * @brief Signal the worker thread to shut down, join it, and (when
+ *        networking is compiled in) destroy the RX/TX queues and shut down
+ *        the network subsystem.
+ * @param modem Modem state to destroy.
+ * @return void.
+ */
 void Modem_Destroy(ModemState *modem);
+
+/**
+ * @brief Store the server/client role, address and port, then start the TCP
+ * worker thread (or the WASM gateway bridge) that carries the modem link.
+ * @param modem Modem state to configure and start.
+ * @param isServer true to listen for a connection, false to connect out.
+ * @param address Remote address to connect to (client mode); unverified for
+ *        server mode.
+ * @param port TCP port to listen on or connect to.
+ * @return void.
+ */
 void Modem_StartModem(ModemState *modem, bool isServer, const char *address, int port);
+
+/**
+ * @brief Called once per CPU loop iteration: drain any bytes the worker
+ *        thread queued from the network into the HDLC receiver callback.
+ *        Never touches a socket directly.
+ * @param modem Modem state to service.
+ * @return void.
+ */
 void Modem_Tick(ModemState *modem);
 
+/**
+ * @brief Set the Data Terminal Ready line and, since this modem model loops
+ *        DTR back to DSR, also update Data Set Ready and fire the DTR
+ *        callback on change.
+ * @param modem Modem state to update.
+ * @param value New DTR level.
+ * @return void.
+ */
 void Modem_SetDTR(ModemState *modem, bool value);
+
+/**
+ * @brief Set the Request To Send line and, since this modem model loops RTS
+ *        back to CTS, also update Clear To Send and fire the RTS callback on
+ *        change.
+ * @param modem Modem state to update.
+ * @param value New RTS level.
+ * @return void.
+ */
 void Modem_SetRTS(ModemState *modem, bool value);
+
+/**
+ * @brief Set the Data Set Ready line and fire the DSR callback on change.
+ * @param modem Modem state to update.
+ * @param value New DSR level.
+ * @return void.
+ */
 void Modem_SetDSR(ModemState *modem, bool value);
+
+/**
+ * @brief Set the Clear To Send line and fire the CTS callback on change.
+ * @param modem Modem state to update.
+ * @param value New CTS level.
+ * @return void.
+ */
 void Modem_SetCTS(ModemState *modem, bool value);
 
+/**
+ * @brief Enqueue one byte for transmission over the TCP link (or WASM
+ *        gateway bridge); the byte is dropped if the link is not connected.
+ * @param modem Modem state to send through.
+ * @param data Byte to transmit.
+ * @return void.
+ */
 void Modem_SendByte(ModemState *modem, uint8_t data);
+
+/**
+ * @brief Enqueue a block of bytes for transmission over the TCP link (or
+ *        WASM gateway bridge); the block is dropped if the link is not
+ *        connected.
+ * @param modem Modem state to send through.
+ * @param data Bytes to transmit.
+ * @param length Number of bytes in data.
+ * @return void.
+ */
 void Modem_SendBytes(ModemState *modem, const uint8_t *data, int length);
 
+/**
+ * @brief Register the callback invoked with bytes drained from the RX queue
+ *        by Modem_Tick.
+ * @param modem Modem state to update.
+ * @param callback Function to call with received data.
+ * @return void.
+ */
 void Modem_SetReceivedDataCallback(ModemState *modem, ModemDataCallback callback);
+
+/**
+ * @brief Register the callback invoked when the Ring Indicator line changes.
+ * @param modem Modem state to update.
+ * @param callback Function to call with the new signal level.
+ * @return void.
+ */
 void Modem_SetRingIndicatorCallback(ModemState *modem, ModemSignalCallback callback);
+
+/**
+ * @brief Register the callback invoked when the Data Set Ready line changes.
+ * @param modem Modem state to update.
+ * @param callback Function to call with the new signal level.
+ * @return void.
+ */
 void Modem_SetDataSetReadyCallback(ModemState *modem, ModemSignalCallback callback);
+
+/**
+ * @brief Register the callback invoked when the Signal Detector line
+ *        changes.
+ * @param modem Modem state to update.
+ * @param callback Function to call with the new signal level.
+ * @return void.
+ */
 void Modem_SetSignalDetectorCallback(ModemState *modem, ModemSignalCallback callback);
+
+/**
+ * @brief Register the callback invoked when the Clear To Send line changes.
+ * @param modem Modem state to update.
+ * @param callback Function to call with the new signal level.
+ * @return void.
+ */
 void Modem_SetClearToSendCallback(ModemState *modem, ModemSignalCallback callback);
+
+/**
+ * @brief Register the callback invoked when the Request To Send line
+ *        changes.
+ * @param modem Modem state to update.
+ * @param callback Function to call with the new signal level.
+ * @return void.
+ */
 void Modem_SetRequestToSendCallback(ModemState *modem, ModemSignalCallback callback);
+
+/**
+ * @brief Register the callback invoked when the Data Terminal Ready line
+ *        changes.
+ * @param modem Modem state to update.
+ * @param callback Function to call with the new signal level.
+ * @return void.
+ */
 void Modem_SetDataTerminalReadyCallback(ModemState *modem, ModemSignalCallback callback);
 
 #if defined(__EMSCRIPTEN__)

@@ -125,6 +125,11 @@ typedef struct {
 // clang-format on
 
 
+/**
+ * @brief Fill in an SMD DiskInfo's geometry fields for a given disk type.
+ * @param disk The DiskInfo to fill in.
+ * @param dt Disk type selecting heads/cylinder, sectors/track and cylinder count.
+ */
 void DiskSMD_SetDiskType(DiskInfo *disk, DiskType dt);
 
 

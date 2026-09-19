@@ -327,6 +327,11 @@ typedef struct
 } SMDData;
 // Function declarations
 // Only expose the factory; internal helpers are kept private in the .c file
+/**
+ * @brief Create and initialize the SMD disc controller device.
+ * @param thumbwheel Card thumbwheel; selects the IOX address block.
+ * @return The new Device, or NULL on allocation failure.
+ */
 Device *CreateSMDDevice(uint8_t thumbwheel);
 
 #endif /* DEVICE_SMD_H */

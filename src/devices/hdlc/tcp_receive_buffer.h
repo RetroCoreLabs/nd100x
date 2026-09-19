@@ -45,19 +45,65 @@ typedef struct {
 // clang-format on
 
 // Initialize buffer (caller provides pre-allocated struct)
+
+/**
+ * @brief Allocate the backing storage for a ring buffer of the given
+ *        capacity and reset its head/tail/count to empty. Caller provides
+ *        the pre-allocated TcpReceiveBuffer struct.
+ * @param buf Buffer struct to initialize.
+ * @param capacity Number of bytes to allocate for the ring.
+ * @return void.
+ */
 void TcpReceiveBuffer_Init(TcpReceiveBuffer *buf, int capacity);
+
+/**
+ * @brief Free the ring buffer's backing storage and reset head/tail/count.
+ * @param buf Buffer to destroy.
+ * @return void.
+ */
 void TcpReceiveBuffer_Destroy(TcpReceiveBuffer *buf);
 
-// Enqueue TCP data. Returns number of bytes actually enqueued.
+/**
+ * @brief Copy as much of data as fits into the free space of the ring
+ *        buffer, wrapping around the end of the backing array as needed.
+ * @param buf Buffer to enqueue into.
+ * @param data Bytes to enqueue.
+ * @param length Number of bytes in data.
+ * @return Number of bytes actually enqueued (less than length if the buffer
+ *         did not have enough free space), or 0 if buf, buf->buffer or data
+ *         is NULL or length <= 0.
+ */
 int TcpReceiveBuffer_Enqueue(TcpReceiveBuffer *buf, const uint8_t *data, int length);
 
 // Dequeue a single byte (pull-based). Returns true if byte was read.
+
+/**
+ * @brief Pop a single byte from the tail of the ring buffer (pull-based
+ *        consumption).
+ * @param buf Buffer to dequeue from.
+ * @param out Receives the dequeued byte (set to 0 if the buffer is empty).
+ * @return true if a byte was read, false if buf, buf->buffer is NULL or the
+ *         buffer is empty.
+ */
 bool TcpReceiveBuffer_DequeueByte(TcpReceiveBuffer *buf, uint8_t *out);
 
 // Number of bytes available to read
+
+/**
+ * @brief Read how many bytes are currently queued.
+ * @param buf Buffer to query.
+ * @return Current byte count, or 0 if buf is NULL.
+ */
 int TcpReceiveBuffer_Available(TcpReceiveBuffer *buf);
 
 // Clear all data
+
+/**
+ * @brief Reset head, tail and count to empty without freeing the backing
+ *        storage.
+ * @param buf Buffer to clear.
+ * @return void.
+ */
 void TcpReceiveBuffer_Clear(TcpReceiveBuffer *buf);
 
 #endif // TCP_RECEIVE_BUFFER_H

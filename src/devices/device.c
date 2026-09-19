@@ -318,14 +318,14 @@ void Device_SetInterruptStatus(Device *dev, bool active, uint16_t level)
     }
 }
 
-int32_t Device_IO_Seek(Device *dev, FILE *f, long offset)
+int32_t Device_IO_Seek(Device *dev, FILE *f, int64_t offset)
 {
     (void)dev;
     if (!f)
     {
         return -1;
     }
-    return fseek(f, offset, SEEK_SET);
+    return fseek(f, (long)offset, SEEK_SET); /* fseek takes long; images are far below 2 GB */
 }
 
 

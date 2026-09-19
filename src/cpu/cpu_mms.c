@@ -43,7 +43,7 @@ static long s_ring_at_pf = 0;
  * @brief Set the page fault at which to dump the instruction ring (--ring-at-pf).
  * @param n Page-fault number counted from 1; 0 turns the dump off.
  */
-void cpu_set_ring_at_pf(long n)
+void cpu_set_ring_at_pf(int64_t n)
 {
     s_ring_at_pf = n > 0 ? n : 0;
 }

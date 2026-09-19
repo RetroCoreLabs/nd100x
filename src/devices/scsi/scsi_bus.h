@@ -95,17 +95,76 @@ typedef struct SCSIBus {
 } SCSIBus;
 // clang-format on
 
+/**
+ * @brief Reset a SCSI bus to its empty, all-lines-idle state.
+ * @param bus Bus to reset; ignored if NULL.
+ */
 void SCSIBus_Init(SCSIBus *bus);
+
+/**
+ * @brief Attach a device to the next free slot on a SCSI bus.
+ * @param bus Bus to attach to.
+ * @param dev Device to attach; its bus and refid fields are set on success.
+ * @return The assigned refid (0-based slot index), or -1 if bus/dev is NULL
+ *         or the bus already has SCSI_BUS_MAX_DEVICES devices.
+ */
 int SCSIBus_AddDevice(SCSIBus *bus, SCSIDevice *dev);
+
+/**
+ * @brief Clock every attached device's Clock() callback for one bus tick.
+ * @param bus Bus whose devices are clocked; ignored if NULL.
+ */
 void SCSIBus_Clock(SCSIBus *bus);
 
+/**
+ * @brief Read the current OR of all devices' control lines.
+ * @param bus Bus to read; NULL returns 0.
+ * @return Bitwise OR of every device's control line word.
+ */
 uint32_t SCSIBus_ControlRead(SCSIBus *bus);
+
+/**
+ * @brief Drive one device's control lines and notify devices waiting on the
+ *        lines that changed.
+ * @param bus Bus to update; ignored if NULL.
+ * @param refid Slot index of the driving device, as returned by
+ *        SCSIBus_AddDevice.
+ * @param lines New line values, masked by mask.
+ * @param mask Bits of lines that are being changed by this call.
+ */
 void SCSIBus_ControlWrite(SCSIBus *bus, int refid, uint32_t lines, uint32_t mask);
+
+/**
+ * @brief Register which control lines a device wants ctrl_changed() callbacks
+ *        for.
+ * @param bus Bus to update; ignored if NULL.
+ * @param refid Slot index of the device, as returned by SCSIBus_AddDevice.
+ * @param lines New wait-mask bit values, masked by mask.
+ * @param mask Bits of the wait mask being changed by this call.
+ */
 void SCSIBus_ControlWait(SCSIBus *bus, int refid, uint32_t lines, uint32_t mask);
+
+/**
+ * @brief Read the current OR of all devices' data lines.
+ * @param bus Bus to read; NULL returns 0.
+ * @return Bitwise OR of every device's driven data byte.
+ */
 uint8_t SCSIBus_DataRead(SCSIBus *bus);
+
+/**
+ * @brief Drive one device's data byte onto the bus and recompute the OR.
+ * @param bus Bus to update; ignored if NULL.
+ * @param refid Slot index of the driving device, as returned by
+ *        SCSIBus_AddDevice.
+ * @param data Data byte this device is driving.
+ */
 void SCSIBus_DataWrite(SCSIBus *bus, int refid, uint8_t data);
 
-/* "DATA OUT" / "COMMAND" / ... for logging; index with (ctrl & S_PHASE_MASK). */
+/**
+ * @brief Name a SCSI bus phase for logging ("DATA OUT" / "COMMAND" / ...).
+ * @param phase Phase value; only the bits under S_PHASE_MASK are used.
+ * @return Static string naming the phase, or "*" for a reserved phase value.
+ */
 const char *SCSIBus_PhaseName(uint32_t phase);
 
 #endif // SCSI_BUS_H

@@ -100,6 +100,11 @@ typedef struct
 } LinePrinterData;
 
 // Function declarations
+/**
+ * @brief Create and initialize the line printer character device.
+ * @param thumbwheel Card thumbwheel; selects the IOX address block.
+ * @return The new Device, or NULL on allocation failure.
+ */
 Device *CreateLinePrinterDevice(uint8_t thumbwheel);
 
 #endif /* DEVICE_LINE_PRINTER_H */

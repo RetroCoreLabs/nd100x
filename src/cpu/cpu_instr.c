@@ -40,7 +40,7 @@ static long s_ring_at_clpt = 0;
  * @brief Set the CLPT call at which to dump the instruction ring (--ring-at-clpt).
  * @param n CLPT call number counted from 1; 0 turns the dump off.
  */
-void cpu_set_ring_at_clpt(long n)
+void cpu_set_ring_at_clpt(int64_t n)
 {
     s_ring_at_clpt = n > 0 ? n : 0;
 }
@@ -92,7 +92,7 @@ static bool check_priv(void)
 }
 
 
-short signExtend(uint16_t x)
+int16_t signExtend(uint16_t x)
 {
     short res = (uint16_t)x;
 

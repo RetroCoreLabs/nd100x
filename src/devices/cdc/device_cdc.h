@@ -274,14 +274,20 @@ typedef struct {
 } CdcData;
 // clang-format on
 
-/* Set the CDC backing-image path used by the NEXT CreateCdcDevice() call.
- * Pass NULL for an in-memory-only disc. If the file does not exist it is created
- * and zero-filled; if it exists it is loaded and the surface grown to fit it.
- * The image is raw big-endian 16-bit words (ND word order), sector S at byte
- * offset S*512 - the same layout mac-as -c writes, so the two agree. */
+/**
+ * @brief Set the CDC backing-image path used by the NEXT CreateCdcDevice() call.
+ *        If the file does not exist it is created and zero-filled; if it exists
+ *        it is loaded and the surface grown to fit it. The image is raw
+ *        big-endian 16-bit words (ND word order), sector S at byte offset S*512.
+ * @param path Path to the backing image, or NULL/empty for an in-memory-only disc.
+ */
 void CdcDevice_SetBackingFile(const char *path);
 
-/* Factory. thumbwheel selects the device address block; 0 -> 500. */
+/**
+ * @brief Create and initialize a CDC/NCR cartridge disc device.
+ * @param thumbwheel Card thumbwheel; selects the IOX address block (0 -> 500).
+ * @return The new Device, or NULL on allocation failure.
+ */
 Device *CreateCdcDevice(uint8_t thumbwheel);
 
 /*

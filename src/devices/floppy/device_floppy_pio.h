@@ -206,6 +206,11 @@ typedef struct
 } FloppyPIOData;
 
 // Function declarations
+/**
+ * @brief Create and initialize the PIO floppy controller device.
+ * @param thumbwheel Card thumbwheel; selects the IOX address block.
+ * @return The new Device, or NULL on allocation failure.
+ */
 Device *CreateFloppyPIODevice(uint8_t thumbwheel);
 
 

@@ -398,6 +398,11 @@ typedef struct
 
 
 // Function declarations
+/**
+ * @brief Create and initialize the DMA floppy controller device.
+ * @param thumbwheel Card thumbwheel; selects the IOX address block.
+ * @return The new Device, or NULL on allocation failure.
+ */
 Device *CreateFloppyDMADevice(uint8_t thumbwheel);
 
 #endif /* DEVICE_FLOPPY_DMA_H */

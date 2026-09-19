@@ -111,6 +111,19 @@ typedef struct
 } RTCData;
 
 // Function declarations
+/**
+ * @brief Create and initialize the real-time clock device.
+ * @param thumbwheel Card thumbwheel; selects the IOX address block.
+ * @return The new Device, or NULL on allocation failure.
+ */
 Device *CreateRTCDevice(uint8_t thumbwheel);
+
+/**
+ * @brief Select the RTC time base: instruction ticks (default) or host wall
+ *        clock. Wall mode fires the 20 ms pulse from host monotonic time, so
+ *        the clock runs at a real 50 Hz regardless of emulation speed.
+ * @param enable true selects wall-clock mode, false selects instruction-tick mode.
+ */
+void RTC_SetWallClockMode(bool enable);
 
 #endif // DEVICE_RTC_H

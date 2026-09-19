@@ -100,7 +100,24 @@ typedef struct
     size_t diskFileSize;
 } WDDiskInfo;
 
+/**
+ * @brief Fill in a Winchester WDDiskInfo's geometry fields for a given drive
+ *        type. All drives use 1024-byte (512-word) sectors.
+ * @param disk The WDDiskInfo to fill in.
+ * @param dt Drive type selecting heads/cylinder, sectors/track, cylinder count
+ *        and bad-track count; WD_DISK_TYPE_UNKNOWN zeroes the geometry.
+ */
 void DiskWinchester_SetDiskType(WDDiskInfo *disk, WDDiskType dt);
+
+/**
+ * @brief Convert a cylinder/head/sector address to a linear block address using
+ *        the same formula as the SMD controller's ConvertCHStoLBA.
+ * @param disk The drive geometry to convert against.
+ * @param cylinder Cylinder number.
+ * @param head Head number.
+ * @param sector Sector number (0-based).
+ * @return The linear block address, or -1 if disk has no geometry set.
+ */
 long DiskWinchester_ChsToLba(const WDDiskInfo *disk, int cylinder, int head, int sector);
 
 #endif /* DISK_WINCHESTER_H */

@@ -59,13 +59,51 @@ typedef struct DMATransmitter
 } DMATransmitter;
 
 // Core functions
+
+/**
+ * @brief Zero the transmitter state and store the COM5025 chip, DMA control
+ *        block set and owning HDLC device references.
+ * @param transmitter Transmitter state to initialize.
+ * @param com5025 COM5025State chip instance (stored as a raw pointer).
+ * @param dmaCB DMA control block set the transmitter drains from.
+ * @param hdlcDevice Owning HDLC device.
+ * @return void.
+ */
 void DMATransmitter_Init(DMATransmitter *transmitter, void *com5025, DMAControlBlocks *dmaCB,
                          struct Device *hdlcDevice);
+
+/**
+ * @brief Clear the transmitter's callback pointers.
+ * @param transmitter Transmitter state to destroy.
+ * @return void.
+ */
 void DMATransmitter_Destroy(DMATransmitter *transmitter);
+
+/**
+ * @brief Reset the transmitter to inactive with zero bytes sent.
+ * @param transmitter Transmitter state to clear.
+ * @return void.
+ */
 void DMATransmitter_Clear(DMATransmitter *transmitter);
+
+/**
+ * @brief Burst-mode transmit state machine tick: while DMA and TX are
+ *        enabled and the rate-limit wait has expired, send all ready DMA
+ *        buffers as HDLC frames.
+ * @param transmitter Transmitter state to advance.
+ * @return void.
+ */
 void DMATransmitter_Tick(DMATransmitter *transmitter);
 
 // State management
+
+/**
+ * @brief Set the DMA engine sender state machine state and mirror whether
+ *        the transmitter is active (state == DMA_SENDER_BLOCK_READY_TO_SEND).
+ * @param transmitter Transmitter state to update.
+ * @param senderState New DmaEngineSenderState value.
+ * @return void.
+ */
 void DMATransmitter_SetSenderState(DMATransmitter *transmitter, int senderState);
 
 
@@ -73,8 +111,24 @@ void DMATransmitter_SetSenderState(DMATransmitter *transmitter, int senderState)
 
 
 // Callback setup
+
+/**
+ * @brief Register the callback invoked to hand a completed HDLC frame to the
+ *        modem for sending.
+ * @param transmitter Transmitter state to update.
+ * @param callback Function to call with the frame to send.
+ * @return void.
+ */
 void DMATransmitter_SetSendFrameCallback(DMATransmitter *transmitter,
                                          DMATransmitterSendFrameCallback callback);
+
+/**
+ * @brief Register the callback invoked to raise or clear a transmitter
+ *        interrupt bit.
+ * @param transmitter Transmitter state to update.
+ * @param callback Function to call with the interrupt bit to set.
+ * @return void.
+ */
 void DMATransmitter_SetInterruptCallback(DMATransmitter *transmitter,
                                          DMATransmitterSetInterruptCallback callback);
 

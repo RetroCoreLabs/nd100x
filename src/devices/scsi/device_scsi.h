@@ -141,18 +141,40 @@ typedef enum {
 #define SCSI_CTRL_RESET_SCSI_BUS     (1 << 10)
 // clang-format on
 
-/* Parse a unit type name ("hdd", "tape", "cdrom", "floppy") as used by the
- * --scsiN=TYPE:FILE option. Returns SCSI_UNIT_NONE if the name is unknown. */
+/**
+ * @brief Parse a unit type name ("hdd", "tape", "cdrom", "floppy") as used by
+ *        the --scsiN=TYPE:FILE option.
+ * @param name Unit type name to parse, or NULL.
+ * @return The matching SCSIUnitType, or SCSI_UNIT_NONE if name is NULL or
+ *         unknown.
+ */
 SCSIUnitType SCSI_ParseUnitType(const char *name);
 
-/* Human-readable name for a unit type, for help text and logging. */
+/**
+ * @brief Human-readable name for a unit type, for help text and logging.
+ * @param type Unit type to name.
+ * @return Static string naming the type; "none" for SCSI_UNIT_NONE or any
+ *         unrecognized value.
+ */
 const char *SCSI_UnitTypeName(SCSIUnitType type);
 
-/* Factory. Only expose the factory - everything else is static. */
+/**
+ * @brief Allocate and initialize one ND-3201/3204 SCSI controller device.
+ * @param thumbwheel TW2 thumbwheel setting selecting IOX base / IDENT /
+ *        logical device.
+ * @return Newly allocated Device with SCSI vtable and state, or NULL on
+ *         allocation failure.
+ */
 Device *CreateSCSIDevice(uint8_t thumbwheel);
 
-/* Set the target class for one SCSI ID. Must be called before the first
- * transfer. Returns false on a bad unit or an unimplemented type. */
+/**
+ * @brief Set the target class for one SCSI ID on a controller device.
+ * @param dev Controller device returned by CreateSCSIDevice.
+ * @param unit SCSI ID (0 to SCSI_MAX_UNITS - 1) to configure.
+ * @param type Target class to assign to that unit.
+ * @return true on success; false if dev/deviceData is NULL, unit is out of
+ *         range, or type is not SCSI_UNIT_HDD/SCSI_UNIT_NONE (unimplemented).
+ */
 bool SCSI_SetUnitType(Device *dev, int unit, SCSIUnitType type);
 
 #endif // DEVICE_SCSI_H

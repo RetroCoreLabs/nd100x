@@ -641,6 +641,21 @@ def check_symbols(objmap, files, f):
     return per_file
 
 
+def count_params(params):
+    """Number of parameters in a declaration's parameter list: commas inside
+    parentheses (a function-pointer parameter's own arguments) do not count."""
+    depth = 0
+    n = 1
+    for c in params:
+        if c == "(":
+            depth += 1
+        elif c == ")":
+            depth -= 1
+        elif c == "," and depth == 0:
+            n += 1
+    return n
+
+
 def check_doxygen(per_file, files, f):
     """11.2: every exported function has a Doxygen block (@brief, one @param
     per parameter, @return unless void) at a declaration in a hand-written
@@ -711,7 +726,7 @@ def check_doxygen(per_file, files, f):
             ok = False
             reason = "no declaration in a hand-written header"
             for h, doc, decl, params in decls.get(name, []):
-                nparams = 0 if params in ("", "void") else params.count(",") + 1
+                nparams = 0 if params in ("", "void") else count_params(params)
                 if not doc:
                     reason = "declared in " + h + " without a Doxygen block"
                     continue

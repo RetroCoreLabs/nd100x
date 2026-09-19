@@ -163,6 +163,18 @@ typedef struct
 } TerminalData;
 
 // Function declarations
+/**
+ * @brief Create and initialize the console terminal character device.
+ * @param thumbwheel Card thumbwheel; selects the IOX address block.
+ * @return The new Device, or NULL on allocation failure.
+ */
 Device *CreateTerminalDevice(uint8_t thumbwheel);
+
+/**
+ * @brief Append a keycode to the terminal's input queue, or set the overrun
+ *        error bit if the queue is full.
+ * @param self The terminal device.
+ * @param keycode The keycode to queue.
+ */
 void Terminal_QueueKeyCode(Device *self, uint8_t keycode);
 #endif // DEVICE_TERMINAL_H

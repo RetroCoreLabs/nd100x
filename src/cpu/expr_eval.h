@@ -22,14 +22,19 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-/* Evaluate a condition expression string.
- * Returns true if the expression evaluates to non-zero.
- * On parse error, sets *error to a static error string and returns false.
+/**
+ * @brief Evaluate a breakpoint condition string against the CPU registers and report truth.
+ * @param expr Condition text, for example "PIL == 7"; empty or NULL counts as a parse error.
+ * @param error If non-NULL, receives a static error string, or NULL when the parse succeeded.
+ * @return true when the expression evaluates to a non-zero value, false on zero or parse error.
  */
 bool expr_eval_condition(const char *expr, const char **error);
 
-/* Evaluate an expression and return its numeric value.
- * On parse error, sets *error to a static error string and returns 0.
+/**
+ * @brief Evaluate an expression against the CPU registers and return its 16-bit value.
+ * @param expr Expression text; empty or NULL sets "empty expression" and yields 0.
+ * @param error If non-NULL, receives a static error string, or NULL when the parse succeeded.
+ * @return The value of the expression, or 0 on any parse error including trailing characters.
  */
 uint16_t expr_eval_value(const char *expr, const char **error);
 

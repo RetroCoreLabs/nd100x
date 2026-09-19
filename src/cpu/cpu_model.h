@@ -20,19 +20,44 @@
 #include <stdbool.h>
 #include "cpu_types.h"
 
-/* Case-insensitive name -> CpuType. True on a match. */
+/**
+ * @brief Look up a CPU model name case-insensitively in the model table and return its CpuType.
+ * @param name Model spelling to look up, for example "ND110CX"; NULL is rejected.
+ * @param out Receives the matching CpuType; may be NULL if only the match result is wanted.
+ * @return true on a match (and *out written when out is non-NULL), false for NULL or unknown name.
+ */
 bool CpuModel_FromName(const char *name, CpuType *out);
 
 /* CpuType -> the canonical config-file spelling ("ND110CX"). This is what the
  * parser accepts, so it round-trips; "ND?" for an unknown value. */
+/**
+ * @brief Return the canonical config-file spelling of a CpuType, for example "ND110CX".
+ * @param t CPU model to name.
+ * @return Pointer to a static string; "ND?" when the value is not in the model table.
+ */
 const char *CpuModel_Name(CpuType t);
 
 /* CpuType -> the human form TPE and CONFIGURATION print ("ND-110/CX"). For
  * display only - it does NOT round-trip through the config parser. */
+/**
+ * @brief Return the display form TPE and CONFIGURATION print for a CpuType, e.g. "ND-110/CX".
+ * @param t CPU model to name.
+ * @return Pointer to a static string; "ND?" for a CpuType the switch does not cover.
+ */
 const char *CpuModel_DisplayName(CpuType t);
 
 /* The list, for building a picker. */
+/**
+ * @brief Return the number of entries in the CPU model table.
+ * @return Count of models, used to bound CpuModel_NameByIndex().
+ */
 int CpuModel_Count(void);
+
+/**
+ * @brief Return the config-file name of the model table entry at an index, for building a picker.
+ * @param i Zero-based index into the model table.
+ * @return Pointer to a static name string, or NULL when i is negative or past the last entry.
+ */
 const char *CpuModel_NameByIndex(int i);
 
 #endif /* CPU_MODEL_H */

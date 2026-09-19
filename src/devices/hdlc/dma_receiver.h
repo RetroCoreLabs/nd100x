@@ -73,16 +73,67 @@ typedef struct DMAReceiver
 } DMAReceiver;
 
 // Core functions
+
+/**
+ * @brief Zero the receiver state, store the COM5025 chip, DMA control block
+ *        set and owning HDLC device references, and init the TCP receive
+ *        ring buffer at its default capacity.
+ * @param receiver Receiver state to initialize.
+ * @param com5025 COM5025State chip instance (stored as a raw pointer).
+ * @param dmaCB DMA control block set the receiver fills.
+ * @param hdlcDevice Owning HDLC device.
+ * @return void.
+ */
 void DMAReceiver_Init(DMAReceiver *receiver, void *com5025, DMAControlBlocks *dmaCB,
                       struct Device *hdlcDevice);
+
+/**
+ * @brief Free the TCP receive ring buffer and clear the interrupt callback.
+ * @param receiver Receiver state to destroy.
+ * @return void.
+ */
 void DMAReceiver_Destroy(DMAReceiver *receiver);
+
+/**
+ * @brief Reset the received-byte counter and clear the TCP receive ring
+ *        buffer.
+ * @param receiver Receiver state to clear.
+ * @return void.
+ */
 void DMAReceiver_Clear(DMAReceiver *receiver);
+
+/**
+ * @brief Called every CPU cycle from DMAEngine_Tick: after an adaptive
+ *        delay, process one complete HDLC frame's worth of buffered TCP
+ *        data into the DMA receive buffers.
+ * @param receiver Receiver state to advance.
+ * @return void.
+ */
 void DMAReceiver_Tick(DMAReceiver *receiver);
 
 // State management
+
+/**
+ * @brief Called by CommandReceiverStart / CommandReceiverContinue: enable
+ *        receiver DMA and the HDLC receiver hardware, clear overrun/empty
+ *        error flags, mark the receiver active, and load or find the next
+ *        empty receive buffer.
+ * @param receiver Receiver state to update.
+ * @return void.
+ */
 void DMAReceiver_SetReceiverState(DMAReceiver *receiver);
 
 // Data processing - TCP ring buffer path (burst mode, always active)
+
+/**
+ * @brief Non-blocking enqueue of data arriving from the modem's TCP link
+ *        into the receiver's ring buffer; the byte-stuffed HDLC processing
+ *        happens later in DMAReceiver_Tick. Bypasses the COM5025 chip.
+ * @param receiver Receiver state to enqueue into.
+ * @param data Bytes received from the modem.
+ * @param length Number of bytes in data.
+ * @return void.
+ */
 void DMAReceiver_ReceiveDataFromModem(DMAReceiver *receiver, const uint8_t *data, int length);
 
 
@@ -91,7 +142,13 @@ void DMAReceiver_ReceiveDataFromModem(DMAReceiver *receiver, const uint8_t *data
 
 // Flag and interrupt management
 
-
+/**
+ * @brief Register the callback invoked to raise or clear a receiver
+ *        interrupt bit.
+ * @param receiver Receiver state to update.
+ * @param callback Function to call with the interrupt bit to set.
+ * @return void.
+ */
 void DMAReceiver_SetInterruptCallback(DMAReceiver *receiver,
                                       DMAReceiverSetInterruptCallback callback);
 
