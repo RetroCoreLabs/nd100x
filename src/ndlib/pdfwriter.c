@@ -38,6 +38,7 @@
  *   trailer
  */
 
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -204,6 +205,53 @@ static char *build_page_content(PdfPage *page, size_t *outLen)
     return buf;
 }
 
+/* Header, catalog (object 1), page tree (object 2) and the four fonts
+ * (objects 3-6); records each object's file offset in offsets[]. */
+static void write_head_objects(FILE *f, int64_t *offsets, int num_pages)
+{
+    // Header
+    fprintf(f, "%%PDF-1.4\n");
+
+    // Object 1: Catalog
+    offsets[1] = ftell(f);
+    fprintf(f, "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n");
+
+    // Object 2: Pages
+    offsets[2] = ftell(f);
+    fprintf(f, "2 0 obj\n<< /Type /Pages /Kids [");
+    for (int i = 0; i < num_pages; i++) {
+        fprintf(f, " %d 0 R", OBJ_FIRST_PAGE + i);
+    }
+    fprintf(f, " ] /Count %d >>\nendobj\n", num_pages);
+
+    // Objects 3-6: Fonts
+    static const char *fontNames[] = {
+        "Courier", "Courier-Bold", "Courier-Oblique", "Courier-BoldOblique"
+    };
+    for (int i = 0; i < 4; i++) {
+        int objNum = OBJ_FONT_REGULAR + i;
+        offsets[objNum] = ftell(f);
+        fprintf(f, "%d 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /%s >>\nendobj\n",
+                objNum, fontNames[i]);
+    }
+}
+
+/* Cross-reference table and trailer for objects 1..total_objects. */
+static void write_xref_and_trailer(FILE *f, const int64_t *offsets, int total_objects)
+{
+    // Cross-reference table
+    int64_t xrefOffset = ftell(f);
+    fprintf(f, "xref\n0 %d\n", total_objects + 1);
+    fprintf(f, "0000000000 65535 f \n");
+    for (int i = 1; i <= total_objects; i++) {
+        fprintf(f, "%010" PRId64 " 00000 n \n", offsets[i]);
+    }
+
+    // Trailer
+    fprintf(f, "trailer\n<< /Size %d /Root 1 0 R >>\n", total_objects + 1);
+    fprintf(f, "startxref\n%" PRId64 "\n%%%%EOF\n", xrefOffset);
+}
+
 bool Pdf_WriteToFile(PdfDocument *doc, const char *filename)
 {
     if (!doc || !filename || doc->pageCount == 0) return false;
@@ -216,34 +264,10 @@ bool Pdf_WriteToFile(PdfDocument *doc, const char *filename)
     int totalObjects = 6 + numPages * 2;
 
     // Track byte offsets for xref
-    long *offsets = calloc(totalObjects + 1, sizeof(long));
+    int64_t *offsets = calloc(totalObjects + 1, sizeof(int64_t));
     if (!offsets) { fclose(f); return false; }
 
-    // Header
-    fprintf(f, "%%PDF-1.4\n");
-
-    // Object 1: Catalog
-    offsets[1] = ftell(f);
-    fprintf(f, "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n");
-
-    // Object 2: Pages
-    offsets[2] = ftell(f);
-    fprintf(f, "2 0 obj\n<< /Type /Pages /Kids [");
-    for (int i = 0; i < numPages; i++) {
-        fprintf(f, " %d 0 R", OBJ_FIRST_PAGE + i);
-    }
-    fprintf(f, " ] /Count %d >>\nendobj\n", numPages);
-
-    // Objects 3-6: Fonts
-    static const char *fontNames[] = {
-        "Courier", "Courier-Bold", "Courier-Oblique", "Courier-BoldOblique"
-    };
-    for (int i = 0; i < 4; i++) {
-        int objNum = OBJ_FONT_REGULAR + i;
-        offsets[objNum] = ftell(f);
-        fprintf(f, "%d 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /%s >>\nendobj\n",
-                objNum, fontNames[i]);
-    }
+    write_head_objects(f, offsets, numPages);
 
     // Build content streams first so we know their lengths
     char **contentBufs = calloc(numPages, sizeof(char *));
@@ -279,17 +303,7 @@ bool Pdf_WriteToFile(PdfDocument *doc, const char *filename)
         fprintf(f, "endstream\nendobj\n");
     }
 
-    // Cross-reference table
-    long xrefOffset = ftell(f);
-    fprintf(f, "xref\n0 %d\n", totalObjects + 1);
-    fprintf(f, "0000000000 65535 f \n");
-    for (int i = 1; i <= totalObjects; i++) {
-        fprintf(f, "%010ld 00000 n \n", offsets[i]);
-    }
-
-    // Trailer
-    fprintf(f, "trailer\n<< /Size %d /Root 1 0 R >>\n", totalObjects + 1);
-    fprintf(f, "startxref\n%ld\n%%%%EOF\n", xrefOffset);
+    write_xref_and_trailer(f, offsets, totalObjects);
 
     // Cleanup
     for (int i = 0; i < numPages; i++) {

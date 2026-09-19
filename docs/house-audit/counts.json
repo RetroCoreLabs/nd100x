@@ -1124,7 +1124,6 @@
     "src/ndlib/floppydb.h": 1,
     "src/ndlib/keyboard.c": 2,
     "src/ndlib/log.c": 1,
-    "src/ndlib/pdfwriter.c": 2,
     "tests/test_bcd.c": 2,
     "tests/test_float.c": 1,
     "tests/test_floppydb.c": 1,
@@ -1136,7 +1135,7 @@
     "tools/reth-tap/test-framing.c": 9,
     "tools/reth-tap/test-gateway.c": 10
    },
-   "total": 202
+   "total": 200
   },
   "5.3": {
    "files": {

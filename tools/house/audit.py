@@ -705,13 +705,33 @@ def check_doxygen(per_file, files, f):
                 f.add("11.2", rel, find_def_line(rel, name), name + ": " + reason)
 
 
-def check_review(f):
+def check_review(f, per_file, files):
     """REVIEW: every empty cell in docs/house-audit/review/*.md is one
-    finding. A missing review directory is itself a finding, never a 0."""
+    finding, and every function that has no row at all is one finding (run
+    tools/house/review_skeleton.py to add the rows). A missing review
+    directory is itself a finding, never a 0."""
     rdir = os.path.join(REPO, "docs", "house-audit", "review")
     if not os.path.isdir(rdir):
         f.add("REVIEW", "docs/house-audit/review", 1, "review files missing")
         return
+    rows = set()
+    for name in os.listdir(rdir):
+        cur = None
+        with open(os.path.join(rdir, name)) as fh:
+            for ln in fh:
+                if ln.startswith("## "):
+                    cur = ln[3:].strip()
+                elif ln.startswith("| ") and cur and not ln.startswith(("| Function", "|---")):
+                    rows.add((cur, ln.strip().strip("|").split("|")[0].strip()))
+    for rel, syms in per_file.items():
+        for t, name in syms:
+            if t not in ("T", "t") or name.startswith((".", "_")) or "." in name:
+                continue
+            line = find_def_line(rel, name, strict=True)
+            if line is None:
+                continue
+            if (rel, name) not in rows:
+                f.add("REVIEW", rel, line, f"{name}: no row in the review file")
     for name in sorted(os.listdir(rdir)):
         rel = os.path.join("docs", "house-audit", "review", name)
         cur = None
@@ -758,7 +778,7 @@ def main():
     if not a.no_cc:
         check_cc(entries, files, f, a.jobs)
 
-    check_review(f)
+    check_review(f, per_file, files)
     counts = f.counts()
     for rule in WHAT:
         counts.setdefault(rule, {"total": 0, "files": {}})
