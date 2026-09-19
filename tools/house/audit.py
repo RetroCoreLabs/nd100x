@@ -69,6 +69,7 @@ PRAGMA_ONCE = re.compile(r"^\s*#\s*pragma\s+once\b")
 THREADS_H = re.compile(r"#\s*include\s*<threads\.h>|\b\w+_s\s*\(")
 INCLUDE = re.compile(r'^\s*#\s*include\s*([<"])([^>"]+)[>"]')
 BAD_TYPES = re.compile(r"\b(short|long|unsigned\s+char)\b")
+UCHAR_CAST = re.compile(r"\(\s*unsigned\s+char\s*\)")
 VOLATILE = re.compile(r"\bvolatile\b")
 SETJMP = re.compile(r"\b(setjmp|longjmp|sigsetjmp|siglongjmp)\s*\(")
 SETJMP_FILES = {"src/cpu/cpu.c"}
@@ -335,29 +336,33 @@ def check_text(path, f):
             f.add("1.4", path, no, full)
         if THREADS_H.search(full if full.lstrip().startswith("#") else ln):
             f.add("1.2", path, no, full)
-        if BANNED.search(ln):
+        for _ in BANNED.finditer(ln):
             f.add("8.4", path, no, full)
         if REALLOC_SELF.search(ln):
             f.add("8.3", path, no, full)
-        if is_library(path) and PRINT_DIAG.search(ln):
+        for _ in (PRINT_DIAG.finditer(ln) if is_library(path) else ()):
             f.add("9.4", path, no, full)
-        if is_library(path) and EXIT_CALL.search(ln):
+        for _ in (EXIT_CALL.finditer(ln) if is_library(path) else ()):
             f.add("7.4", path, no, full)
-        if GETENV.search(ln) and not path.startswith("tests/"):
+        for _ in (GETENV.finditer(ln) if not path.startswith("tests/") else ()):
             f.add("9.7", path, no, full)
         if DEBUG_GATE.search(ln):
             f.add("9.7", path, no, full)
         if IF0.search(ln):
             f.add("6.7", path, no, full)
-        if RETIRED_PLATFORM.search(ln):
+        for _ in RETIRED_PLATFORM.finditer(ln):
             f.add("12.1", path, no, full)
         if PLATFORM_TEST.search(ln) and re.match(r"src/(cpu|devices)/", path):
             f.add("12.2", path, no, full)
         if re.search(r"\balloca\s*\(", ln):
             f.add("6.5", path, no, full)
-        if BAD_TYPES.search(ln) and not ln.lstrip().startswith("#"):
-            f.add("5.2", path, no, full)
-        if VOLATILE.search(ln):
+        if not ln.lstrip().startswith("#"):
+            # one finding per occurrence (a line split by clang-format must
+            # not change the count); a cast to unsigned char is not a data
+            # type and is what rule 5.6 asks for
+            for _ in BAD_TYPES.finditer(UCHAR_CAST.sub(" ", ln)):
+                f.add("5.2", path, no, full)
+        for _ in VOLATILE.finditer(ln):
             f.add("5.10", path, no, full)
         if SETJMP.search(ln) and path not in SETJMP_FILES:
             f.add("10.3", path, no, full)
