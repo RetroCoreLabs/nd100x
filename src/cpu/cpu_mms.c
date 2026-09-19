@@ -575,6 +575,37 @@ void UpdatePGS(uint32_t pageTable, uint32_t VPN, AccessMode am, bool permitViola
 }
 
 // Check page protection
+/* Page-fault diagnostics for checkPageProtection(): the one-shot ring dump
+ * (--ring-at-pf) and the --trace-nd110 line. Both are off by default. */
+static void page_fault_diag(uint32_t vpn, uint32_t page_table, uint32_t page_table_entry,
+                            AccessMode am, uint32_t virtual_address)
+{
+    /*
+     * DIAG (--ring-at-pf=<n>): one-shot CPU instruction ring dump at the n'th
+     * page fault, so we can see the SINTRAN page-fault handler path that leads back into
+     * the ENPT/CLPT swap loop without ever mapping the demanded page.
+     */
+    {
+        static long pf_calls = 0;
+
+        pf_calls++;
+        if (s_ring_at_pf > 0 && pf_calls == s_ring_at_pf)
+        {
+            ring_dump();
+        }
+    }
+
+    /* DIAG (--trace-nd110): correlate page faults with the ENPT/CLPT swap loop. */
+    if (g_nd110_trace_fp != NULL)
+    {
+        fprintf(g_nd110_trace_fp,
+                "  PF   VA=%06o PT=%d vpn=%d PTe=0x%08X am=%d APT=%d PIL=%d PC=%06o\n",
+                virtual_address, page_table, vpn, (uint32_t)page_table_entry, am, gUseAPT ? 1 : 0,
+                CurrLEVEL, gPC);
+        fflush(g_nd110_trace_fp);
+    }
+}
+
 bool checkPageProtection(uint32_t VPN, uint32_t pageTable, uint32_t pageTableEntry, AccessMode am, uint32_t virtualAddress)
 {
     // Unsigned 32-bit: a PTE is 32 bits, and 1L << 31 overflowed a 32-bit long on wasm.
@@ -615,26 +646,7 @@ bool checkPageProtection(uint32_t VPN, uint32_t pageTable, uint32_t pageTableEnt
         // access-denied raises IIC=2 (MPV, in the branch further down).
         // Re-check against TPE test 6 before touching this line again.
 
-        /*
-         * DIAG (--ring-at-pf=<n>): one-shot CPU instruction ring dump at the n'th
-         * page fault, so we can see the SINTRAN page-fault handler path that leads back into
-         * the ENPT/CLPT swap loop without ever mapping the demanded page.
-         */
-        {
-            static long pf_calls = 0;
-
-            pf_calls++;
-            if (s_ring_at_pf > 0 && pf_calls == s_ring_at_pf)
-                ring_dump();
-        }
-
-        /* DIAG (--trace-nd110): correlate page faults with the ENPT/CLPT swap loop. */
-        if (g_nd110_trace_fp != NULL)
-        {
-            fprintf(g_nd110_trace_fp, "  PF   VA=%06o PT=%d VPN=%d PTe=0x%08X am=%d APT=%d PIL=%d PC=%06o\n",
-                    virtualAddress, pageTable, VPN, (uint32_t)pageTableEntry, am, gUseAPT ? 1 : 0, CurrLEVEL, gPC);
-            fflush(g_nd110_trace_fp);
-        }
+        page_fault_diag(VPN, pageTable, pageTableEntry, am, virtualAddress);
 
         UpdatePGS(pageTable, VPN, am, true);
         HandlePF(virtualAddress);

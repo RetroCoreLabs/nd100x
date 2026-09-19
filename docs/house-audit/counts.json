@@ -10,10 +10,10 @@
   },
   "1.5": {
    "files": {
-    "src/cpu/cpu.c": 631,
+    "src/cpu/cpu.c": 621,
     "src/cpu/cpu_bkpt.c": 1,
     "src/cpu/cpu_disasm.c": 886,
-    "src/cpu/cpu_instr.c": 3064,
+    "src/cpu/cpu_instr.c": 3013,
     "src/cpu/cpu_mms.c": 17,
     "src/cpu/cpu_regs.c": 91,
     "src/cpu/cpu_types.h": 157,
@@ -24,7 +24,7 @@
     "src/devices/smd/device_smd.c": 11,
     "src/devices/smd/disk_smd.h": 7
    },
-   "total": 5268
+   "total": 5207
   },
   "10.3": {
    "files": {},
@@ -164,18 +164,18 @@
   },
   "2.2": {
    "files": {
-    "src/cpu/bcd.c": 63,
-    "src/cpu/cpu.c": 40,
+    "src/cpu/bcd.c": 61,
+    "src/cpu/cpu.c": 39,
     "src/cpu/cpu_bkpt.c": 31,
     "src/cpu/cpu_disasm.c": 30,
-    "src/cpu/cpu_instr.c": 167,
-    "src/cpu/cpu_mms.c": 70,
+    "src/cpu/cpu_instr.c": 161,
+    "src/cpu/cpu_mms.c": 69,
     "src/cpu/cpu_model.c": 5,
     "src/cpu/cpu_regs.c": 8,
     "src/cpu/expr_eval.c": 41,
     "src/cpu/float.c": 13
    },
-   "total": 468
+   "total": 458
   },
   "2.4": {
    "files": {
@@ -231,20 +231,20 @@
   },
   "2.x": {
    "files": {
-    "src/cpu/bcd.c": 279,
-    "src/cpu/cpu.c": 755,
+    "src/cpu/bcd.c": 275,
+    "src/cpu/cpu.c": 745,
     "src/cpu/cpu_bkpt.c": 170,
     "src/cpu/cpu_disasm.c": 1301,
-    "src/cpu/cpu_instr.c": 3014,
-    "src/cpu/cpu_mms.c": 272,
+    "src/cpu/cpu_instr.c": 2926,
+    "src/cpu/cpu_mms.c": 268,
     "src/cpu/cpu_model.c": 49,
     "src/cpu/cpu_model.h": 1,
     "src/cpu/cpu_regs.c": 95,
     "src/cpu/cpu_types.h": 473,
-    "src/cpu/expr_eval.c": 275,
+    "src/cpu/expr_eval.c": 207,
     "src/cpu/float.c": 490
    },
-   "total": 7174
+   "total": 7000
   },
   "3.1": {
    "files": {
@@ -358,7 +358,7 @@
     "src/cpu/cpu.c": 26,
     "src/cpu/cpu_bkpt.c": 18,
     "src/cpu/cpu_disasm.c": 13,
-    "src/cpu/cpu_instr.c": 56,
+    "src/cpu/cpu_instr.c": 55,
     "src/cpu/cpu_mms.c": 95,
     "src/cpu/cpu_model.c": 1,
     "src/cpu/cpu_regs.c": 1,
@@ -460,7 +460,7 @@
     "tools/reth-tap/test-framing.c": 1,
     "tools/reth-tap/test-gateway.c": 1
    },
-   "total": 1152
+   "total": 1151
   },
   "3.8": {
    "files": {

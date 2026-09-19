@@ -634,22 +634,10 @@ uint16_t g_operand;
 
 /// @brief CPU tick function - DO NOT CALL THIS DIRECT AS IT NEES setjmp() setup correctly
 /// @details This function is called every CPU tick. It fetches the next instruction, executes it, and handles interrupts.
-void private_cpu_tick(void)
+// The --trace line and the BSD kernel-stack high-water mark, both off
+// unless asked for; kept out of private_cpu_tick() so the hot path stays short.
+static void trace_before_exec(void)
 {
-	// Check for level shift (typically after an interrupt or WAIT instruction)
-	checkAndSwitch();
-
-	// Fetch next instruction
-	g_reg->myreg_PFB = MemoryFetch(gPC, false); //TODO: Remove this  step?
-	g_reg->myreg_IR = g_reg->myreg_PFB;
-
-	g_operand = g_reg->myreg_IR;
-
-
-	// Dissasemble ?
-	if (g_disasm)
-		disasm_instr(gPC, g_operand);
-
 	// CPU execution trace to stderr
 	if (g_cpu_trace)
 	{
@@ -672,8 +660,29 @@ void private_cpu_tick(void)
 				s_bsd_kstk_min, BSD_KSTK_TOP - s_bsd_kstk_min);
 		}
 	}
+}
 
-	// Check max instruction limit
+void private_cpu_tick(void)
+{
+    // Check for level shift (typically after an interrupt or WAIT instruction)
+    checkAndSwitch();
+
+    // Fetch next instruction
+    g_reg->myreg_PFB = MemoryFetch(gPC, false); //TODO: Remove this  step?
+    g_reg->myreg_IR = g_reg->myreg_PFB;
+
+    g_operand = g_reg->myreg_IR;
+
+
+    // Dissasemble ?
+    if (g_disasm)
+    {
+        disasm_instr(gPC, g_operand);
+    }
+
+    trace_before_exec();
+
+    // Check max instruction limit
 	if (g_cpu_max_instr > 0 && g_instr_counter >= g_cpu_max_instr)
 	{
 		fprintf(stderr, "\n--- CPU stopped: max instruction count reached (%llu) ---\n",

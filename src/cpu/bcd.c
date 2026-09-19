@@ -1165,6 +1165,35 @@ void ndfunc_pack(uint16_t instr)
  * UPACK DOES validate its source: an illegal sign or digit nibble reports error
  * code 2.
  */
+/* The unpacked (ASCII) byte for one digit at byte position pos: the plain
+ * digit 0x30|digit, or, at the sign byte of an embedded-sign format, the
+ * Manual Table 5 overpunch of sign and digit. */
+static uint8_t unpacked_digit_byte(const bcd_operand *dst, int pos, int sign_byte,
+                                   bool unsigned_req, int sign, int digit)
+{
+    uint8_t b;
+
+    if ((pos == sign_byte) && !unsigned_req &&
+        ((dst->ascii_format == BCD_ASCII_EMBEDDED_TRAILING) ||
+         (dst->ascii_format == BCD_ASCII_EMBEDDED_LEADING)))
+    {
+        /* Manual Table 5 overpunch: sign and digit share one byte. */
+        if (sign < 0)
+        {
+            b = (digit == 0) ? (uint8_t)0x7D : (uint8_t)(0x49 + digit);
+        }
+        else
+        {
+            b = (digit == 0) ? (uint8_t)0x7B : (uint8_t)(0x40 + digit);
+        }
+    }
+    else
+    {
+        b = (uint8_t)(0x30 | digit);
+    }
+    return b;
+}
+
 static bool bcd_convert_to_unpacked(bcd_operand *dst, const bcd_operand *src)
 {
     uint8_t digits[BCD_MAX_NIBBLES];  /* MSD..LSD */
@@ -1230,23 +1259,8 @@ static bool bcd_convert_to_unpacked(bcd_operand *dst, const bcd_operand *src)
     for (pos = last; pos >= first; pos--)
     {
         int digit = (di >= 0) ? digits[di--] : 0;
-        uint8_t b;
 
-        if ((pos == sign_byte) && !unsigned_req &&
-            ((dst->ascii_format == BCD_ASCII_EMBEDDED_TRAILING) ||
-             (dst->ascii_format == BCD_ASCII_EMBEDDED_LEADING)))
-        {
-            /* Manual Table 5 overpunch: sign and digit share one byte. */
-            if (sign < 0)
-                b = (digit == 0) ? (uint8_t)0x7D : (uint8_t)(0x49 + digit);
-            else
-                b = (digit == 0) ? (uint8_t)0x7B : (uint8_t)(0x40 + digit);
-        }
-        else
-        {
-            b = (uint8_t)(0x30 | digit);
-        }
-        bcd_set_byte(dst, pos, b);
+        bcd_set_byte(dst, pos, unpacked_digit_byte(dst, pos, sign_byte, unsigned_req, sign, digit));
     }
 
     /* Separate sign byte: '+' = 0x2B, '-' = 0x2D; unsigned => plain '0'. */

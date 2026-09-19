@@ -2386,6 +2386,21 @@ void ndfunc_chreent_pages(uint16_t operand)
 ///
 /// Affected: (?)
 /// </summary>
+/* CLEPU PGU block (RASK 004100-004114): mark page idx in the 8-word
+ * working-set table at L in the page-map bank; word = page >> 4,
+ * bit = page & 0xF. */
+static void clepu_mark_working_set(uint32_t idx)
+{
+    uint32_t page = idx & 0x7F;   /* 8 words * 16 bits = 128 pages */
+    uint32_t word = page >> 4;    /* word number (0..7) */
+    int bit = (int)(page & 0x0F); /* bit within the word */
+    uint32_t table_addr = (uint32_t)((gL + word) & 0xFFFF);
+    uint16_t tw = (uint16_t)ReadPhysicalMemory((int)table_addr, true); /* 004107 EXRQ */
+
+    tw |= (uint16_t)(1 << bit);                     /* 004112 set bit */
+    WritePhysicalMemory((int)table_addr, tw, true); /* 004114 DERQ */
+}
+
 void ndfunc_clepu(uint16_t operand)
 {
 	(void)operand;
@@ -2470,15 +2485,8 @@ void ndfunc_clepu(uint16_t operand)
 			 */
 			if ((gA & ND110_PGU_BIT) != 0)
 			{
-				uint32_t page = idx & 0x7F;		/* 8 words * 16 bits = 128 pages */
-				uint32_t word = page >> 4;		/* word number (0..7) */
-				int bit = (int)(page & 0x0F);	/* bit within the word */
-				uint32_t table_addr = (uint32_t)((gL + word) & 0xFFFF);
-				uint16_t tw = (uint16_t)ReadPhysicalMemory((int)table_addr, true);	/* 004107 EXRQ */
-
-				tw |= (uint16_t)(1 << bit);					/* 004112 set bit */
-				WritePhysicalMemory((int)table_addr, tw, true);			/* 004114 DERQ */
-			}
+                clepu_mark_working_set(idx);
+            }
 
 			/* 004116 (STZ ,B): clear the page-table entry via the alternative page table. */
 			WriteVirtualMemory(gB, 0, true, WRITEMODE_WORD);
@@ -3459,14 +3467,101 @@ void ndfunc_mix3(uint16_t operand)
 /*********************** REGISTER OPERANDS ***********************/
 
 // Math register operations
+/* regop, RAD=0: SWAP RAND REXO RORA (see the comments in regop). */
+static inline void regop_logical(uint16_t operand, uint16_t sr, uint16_t dr, uint16_t source,
+                                 uint16_t destination)
+{
+    int cm1 = (int)((operand & 0x0080u) >> 7);
+    int cld = (int)((operand & 0x0040u) >> 6);
+
+    switch ((operand & 0x0300) >> 8)
+    {
+    case 0: /* SWAP: dr <- source (cm1->~source), sr <- old dr (cld->0) */
+    {
+        uint16_t old_dr = (dr == 0) ? 0 : (uint16_t)(g_reg->reg[CurrLEVEL][dr] & 0xFFFF);
+        uint16_t new_dr = (cm1) ? (uint16_t)~source : source;
+        uint16_t new_sr = (cld) ? 0 : old_dr;
+        if (dr != 0)
+        {
+            g_reg->reg[CurrLEVEL][dr] = new_dr; /* discard write to register 0 (=STS) */
+        }
+        if (sr != 0)
+        {
+            g_reg->reg[CurrLEVEL][sr] = new_sr; /* discard write to register 0 (=STS) */
+        }
+        break;
+    }
+    case 1: /* RAND: dr <- dest & (cm1?~src:src) */
+        if (dr != 0)
+        {
+            g_reg->reg[CurrLEVEL][dr] =
+                (uint16_t)(destination & ((cm1) ? (uint16_t)~source : source));
+        }
+        break;
+    case 2: /* REXO: plain = dest ^ src; but cm1 is OR-of-complement (dest | ~src), NOT XOR - the RASK
+	         * REXO;cm1;cld=0 routes through REX02 (ALUF,ORAB). cld (dest=0) yields ~src / src for free. */
+        if (dr != 0)
+        {
+            g_reg->reg[CurrLEVEL][dr] = (cm1) ? (uint16_t)(destination | (uint16_t)~source)
+                                              : (uint16_t)(destination ^ source);
+        }
+        break;
+    case 3: /* RORA: dr <- dest | (cm1?~src:src) */
+        if (dr != 0)
+        {
+            g_reg->reg[CurrLEVEL][dr] =
+                (uint16_t)(destination | ((cm1) ? (uint16_t)~source : source));
+        }
+        break;
+    }
+}
+
+/* regop, RAD=1: RADD / RSUB (see the comments in regop). */
+static inline void regop_arith(uint16_t operand, uint16_t dr, uint16_t source, uint16_t destination)
+{
+    int tmp;
+
+    tmp = (dr == 0) ? 0
+                    : g_reg->reg[CurrLEVEL][dr]; /* NOOP-variant fallthrough value (unchanged dr) */
+    switch ((operand & 0x0380) >> 7)
+    {
+    case 0:
+        tmp = do_add(destination, source, 0);
+        break; /* RADD */
+    case 1:
+        tmp = do_add(destination, ~source, 0);
+        break; /* RADD CM1 */
+    case 2:
+        tmp = do_add(destination, source, 1);
+        break; /* RADD AD1 */
+    case 3:
+        tmp = do_add(destination, ~source, 1);
+        break; /* RADD AD1 CM1 */
+    case 4:
+        tmp = do_add(destination, source, getbit(_STS, _C));
+        break; /* RADD ADC */
+    case 5:
+        tmp = do_add(destination, ~source, getbit(_STS, _C));
+        break; /* RADD ADC CM1 */
+    case 6:    /* NOOP */
+        break;
+    case 7: /* NOOP */
+        break;
+    }
+    if (dr != 0)
+    {
+        g_reg->reg[CurrLEVEL][dr] =
+            (uint16_t)(tmp & 0xFFFF); /* discard write to register 0 (=STS) */
+    }
+}
+
 void regop(uint16_t operand)
 { /* SWAP RAND REXO RORA RADD RCLR EXIT RDCR RING RSUB */
-	int RAD, CLD, CM1, tmp;
-	uint16_t sr, dr, source, destination;
+    int RAD, CLD;
+    uint16_t sr, dr, source, destination;
 	uint16_t old_gPC = gPC-1;
 
 	RAD = ((operand & 0x0400) >> 10);
-	CM1 = ((operand & 0x0080) >> 7);
 	CLD = ((operand & 0x0040) >> 6);
 
 	sr = ((operand & 0x0038) >> 3);
@@ -3483,50 +3578,13 @@ void regop(uint16_t operand)
 	{
 	case 0: /* Logical operation - SWAP RAND REXO RORA. NO dr!=0 guard: reg field 0 writes are discarded
 	         * (SWAP writes BOTH sr and dr, so dr=0 still writes the source-register half). */
-		switch ((operand & 0x0300) >> 8)
-		{
-		case 0:								/* SWAP: dr <- source (CM1->~source), sr <- old dr (CLD->0) */
-		{
-			uint16_t old_dr = (dr == 0) ? 0 : (uint16_t)(g_reg->reg[CurrLEVEL][dr] & 0xFFFF);
-			uint16_t new_dr = (CM1) ? (uint16_t)~source : source;
-			uint16_t new_sr = (CLD) ? 0 : old_dr;
-			if (dr != 0) g_reg->reg[CurrLEVEL][dr] = new_dr;      /* discard write to register 0 (=STS) */
-			if (sr != 0) g_reg->reg[CurrLEVEL][sr] = new_sr;      /* discard write to register 0 (=STS) */
-			break;
-		}
-		case 1: /* RAND: dr <- dest & (CM1?~src:src) */
-			if (dr != 0) g_reg->reg[CurrLEVEL][dr] = (uint16_t)(destination & ((CM1) ? (uint16_t)~source : source));
-			break;
-		case 2: /* REXO: plain = dest ^ src; but CM1 is OR-of-complement (dest | ~src), NOT XOR - the RASK
-		         * REXO;CM1;CLD=0 routes through REX02 (ALUF,ORAB). CLD (dest=0) yields ~src / src for free. */
-			if (dr != 0)
-				g_reg->reg[CurrLEVEL][dr] = (CM1) ? (uint16_t)(destination | (uint16_t)~source)
-				                                : (uint16_t)(destination ^ source);
-			break;
-		case 3: /* RORA: dr <- dest | (CM1?~src:src) */
-			if (dr != 0) g_reg->reg[CurrLEVEL][dr] = (uint16_t)(destination | ((CM1) ? (uint16_t)~source : source));
-			break;
-		}
-		break;
+        regop_logical(operand, sr, dr, source, destination);
+        break;
 	case 1: /* Arithmetic - RADD/RSUB. RASK has NO dr==0 special case: run do_add (which sets C/O/Q) on
 	         * EVERY path and only discard the register write for dr=0. The manual's "dr=0 resets carry,
 	         * else no-op" is WRONG for the ND-110 silicon (oracle-confirmed). */
-		tmp = (dr == 0) ? 0 : g_reg->reg[CurrLEVEL][dr]; /* NOOP-variant fallthrough value (unchanged dr) */
-		switch ((operand & 0x0380) >> 7)
-		{
-		case 0: tmp = do_add(destination, source, 0); break;                 /* RADD */
-		case 1: tmp = do_add(destination, ~source, 0); break;                /* RADD CM1 */
-		case 2: tmp = do_add(destination, source, 1); break;                 /* RADD AD1 */
-		case 3: tmp = do_add(destination, ~source, 1); break;                /* RADD AD1 CM1 */
-		case 4: tmp = do_add(destination, source, getbit(_STS, _C)); break;  /* RADD ADC */
-		case 5: tmp = do_add(destination, ~source, getbit(_STS, _C)); break; /* RADD ADC CM1 */
-		case 6: /* NOOP */
-			break;
-		case 7: /* NOOP */
-			break;
-		}
-		if (dr != 0) g_reg->reg[CurrLEVEL][dr] = (uint16_t)(tmp & 0xFFFF); /* discard write to register 0 (=STS) */
-		break;
+        regop_arith(operand, dr, source, destination);
+        break;
 	}
 
 	if ((g_disasm) && (dr == _P))

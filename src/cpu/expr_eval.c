@@ -116,6 +116,97 @@ static bool match_char(Parser *p, char c)
 
 /* Look up a register name, return its current value.
  * Returns true if found, false if not a register. */
+/* Internal registers by name (PANS, PANC, OPR, ... ECCR), buf upper case. */
+static bool lookup_internal_register(const char *buf, uint16_t *value)
+{
+    if (strcmp(buf, "PANS") == 0)
+    {
+        *value = gPANS;
+        return true;
+    }
+    if (strcmp(buf, "PANC") == 0)
+    {
+        *value = gPANC;
+        return true;
+    }
+    if (strcmp(buf, "OPR") == 0)
+    {
+        *value = gOPR;
+        return true;
+    }
+    if (strcmp(buf, "LMP") == 0)
+    {
+        *value = gLMP;
+        return true;
+    }
+    if (strcmp(buf, "PGS") == 0)
+    {
+        *value = gPGS;
+        return true;
+    }
+    if (strcmp(buf, "PVL") == 0)
+    {
+        *value = gPVL;
+        return true;
+    }
+    if (strcmp(buf, "IIC") == 0)
+    {
+        *value = gIIC;
+        return true;
+    }
+    if (strcmp(buf, "IID") == 0)
+    {
+        *value = gIID;
+        return true;
+    }
+    if (strcmp(buf, "PID") == 0)
+    {
+        *value = gPID;
+        return true;
+    }
+    if (strcmp(buf, "PIE") == 0)
+    {
+        *value = gPIE;
+        return true;
+    }
+    if (strcmp(buf, "CSR") == 0)
+    {
+        *value = gCSR;
+        return true;
+    }
+    if (strcmp(buf, "CCL") == 0)
+    {
+        *value = gCCL;
+        return true;
+    }
+    if (strcmp(buf, "ALD") == 0)
+    {
+        *value = gALD;
+        return true;
+    }
+    if (strcmp(buf, "PES") == 0)
+    {
+        *value = gPES;
+        return true;
+    }
+    if (strcmp(buf, "PGC") == 0)
+    {
+        *value = gPGC;
+        return true;
+    }
+    if (strcmp(buf, "PEA") == 0)
+    {
+        *value = gPEA;
+        return true;
+    }
+    if (strcmp(buf, "ECCR") == 0)
+    {
+        *value = gECCR;
+        return true;
+    }
+    return false;
+}
+
 static bool lookup_register(const char *name, int len, uint16_t *value)
 {
     /* Build a null-terminated copy */
@@ -143,23 +234,10 @@ static bool lookup_register(const char *name, int len, uint16_t *value)
     if (strcmp(buf, "EA") == 0)  { *value = gEA; return true; }
 
     /* Internal registers */
-    if (strcmp(buf, "PANS") == 0) { *value = gPANS; return true; }
-    if (strcmp(buf, "PANC") == 0) { *value = gPANC; return true; }
-    if (strcmp(buf, "OPR") == 0)  { *value = gOPR; return true; }
-    if (strcmp(buf, "LMP") == 0)  { *value = gLMP; return true; }
-    if (strcmp(buf, "PGS") == 0)  { *value = gPGS; return true; }
-    if (strcmp(buf, "PVL") == 0)  { *value = gPVL; return true; }
-    if (strcmp(buf, "IIC") == 0)  { *value = gIIC; return true; }
-    if (strcmp(buf, "IID") == 0)  { *value = gIID; return true; }
-    if (strcmp(buf, "PID") == 0)  { *value = gPID; return true; }
-    if (strcmp(buf, "PIE") == 0)  { *value = gPIE; return true; }
-    if (strcmp(buf, "CSR") == 0)  { *value = gCSR; return true; }
-    if (strcmp(buf, "CCL") == 0)  { *value = gCCL; return true; }
-    if (strcmp(buf, "ALD") == 0)  { *value = gALD; return true; }
-    if (strcmp(buf, "PES") == 0)  { *value = gPES; return true; }
-    if (strcmp(buf, "PGC") == 0)  { *value = gPGC; return true; }
-    if (strcmp(buf, "PEA") == 0)  { *value = gPEA; return true; }
-    if (strcmp(buf, "ECCR") == 0) { *value = gECCR; return true; }
+    if (lookup_internal_register(buf, value))
+    {
+        return true;
+    }
 
     /* Scratch registers U0-U7 (current PIL level) */
     if (buf[0] == 'U' && len == 2 && buf[1] >= '0' && buf[1] <= '7') {
