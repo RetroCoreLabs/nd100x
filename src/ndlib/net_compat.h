@@ -64,25 +64,60 @@ extern "C"
 {
 #endif
 
-    /* Lifecycle. Safe to call multiple times (refcounted). Must be called before
- * any other socket call on Windows. No-op on POSIX. */
+    /**
+ * @brief Start the socket layer: WSAStartup(2,2) on Windows, nothing on POSIX.
+ * @details Refcounted, so it is safe to call several times; each call must be
+ *          paired with one nd_net_shutdown(). Must be called before any other
+ *          socket call on Windows.
+ * @return 0 on success, -1 if WSAStartup failed.
+ */
     int nd_net_init(void);
+
+    /**
+ * @brief Release the socket layer: drops the refcount and calls WSACleanup()
+ *        on Windows when it reaches zero. Does nothing on POSIX.
+ * @details An extra call that would drive the refcount below zero is ignored
+ *          and the count is clamped back to zero.
+ */
     void nd_net_shutdown(void);
 
-    /* Close a socket - uses closesocket() on Windows, close() on POSIX. */
+    /**
+ * @brief Close a socket: closesocket() on Windows, close() on POSIX.
+ * @param s The socket descriptor.
+ * @return 0 on success, -1 on error (as the platform call reports it).
+ */
     int nd_socket_close(nd_socket_t s);
 
-    /* poll() wrapper - WSAPoll() on Windows, poll() on POSIX. */
+    /**
+ * @brief Wait for events on a set of sockets: WSAPoll() on Windows, poll()
+ *        on POSIX.
+ * @param fds        Array of descriptors and their requested events.
+ * @param nfds       Number of entries in fds.
+ * @param timeout_ms Timeout in milliseconds; -1 waits forever.
+ * @return Number of descriptors with events, 0 on timeout, -1 on error.
+ */
     int nd_poll(nd_pollfd_t *fds, unsigned nfds, int timeout_ms);
 
-    /* Get the last socket-layer error. WSAGetLastError on Windows, errno on POSIX. */
+    /**
+ * @brief Last socket-layer error: WSAGetLastError() on Windows, errno on
+ *        POSIX.
+ * @return The platform error code.
+ */
     int nd_last_socket_error(void);
 
-    /* Create a connected TCP-loopback socket pair:
- *   pair[0] = read end  (poll for POLLIN to detect wake signal)
- *   pair[1] = write end (send a single byte to wake the reader)
- * Portable stand-in for POSIX pipe(). Returns 0 on success, -1 on failure;
- * on failure both elements are set to ND_INVALID_SOCKET. */
+    /**
+ * @brief Create a connected TCP-loopback socket pair used to wake a thread
+ *        that is sitting in nd_poll().
+ * @details pair[0] is the read end (poll for POLLIN to see the wake signal)
+ *          and pair[1] the write end (send one byte to wake the reader). A
+ *          portable stand-in for POSIX pipe(): a listener is bound to
+ *          127.0.0.1 on a kernel-assigned port, a second socket connects to
+ *          it, the accepted socket becomes the read end and the listener is
+ *          closed.
+ * @param pair Receives the two socket descriptors.
+ * @return 0 on success; -1 on failure, with both elements set to
+ *         ND_INVALID_SOCKET.
+ */
     int nd_wake_pair(nd_socket_t pair[2]);
 
 #ifdef __cplusplus

@@ -63,20 +63,55 @@ typedef struct PdfDocument
     float pageHeight; // Points (A4 = 841.89)
 } PdfDocument;
 
-// Create a new PDF document (A4 page size)
+/**
+ * @brief Allocate an empty PDF document with A4 pages (595.28 x 841.89
+ *        points) and no pages yet.
+ * @return New document the caller frees with Pdf_Destroy(), or NULL if
+ *         allocation failed.
+ */
 PdfDocument *Pdf_Create(void);
 
-// Add a new page to the document, returns page index
+/**
+ * @brief Append an empty page to the document, growing the page array when
+ *        needed.
+ * @param doc The document.
+ * @return 0-based index of the new page, or -1 if doc is NULL or an
+ *         allocation failed.
+ */
 int Pdf_AddPage(PdfDocument *doc);
 
-// Add a text span to a page
+/**
+ * @brief Append one styled text span to a page. The text is copied into the
+ *        document.
+ * @param doc       The document.
+ * @param pageIndex 0-based page index; out-of-range values are ignored.
+ * @param x         X position in points from the left edge.
+ * @param y         Y position in points, in PDF coordinates (origin bottom
+ *                  left).
+ * @param style     Combination of PDF_STYLE_* flags selecting the font.
+ * @param fontSize  Font size in points.
+ * @param text      NUL-terminated text; NULL is ignored.
+ */
 void Pdf_AddTextSpan(PdfDocument *doc, int pageIndex, float x, float y, uint8_t style,
                      float fontSize, const char *text);
 
-// Write the PDF document to a file, returns true on success
+/**
+ * @brief Write the whole document as a PDF file: catalog, page tree, the four
+ *        standard Helvetica fonts, one page and one content stream object per
+ *        page, then the xref table and trailer.
+ * @param doc      The document; must hold at least one page.
+ * @param filename Path of the file, opened with mode "wb" and overwritten.
+ * @return true on success; false if doc or filename is NULL, the document has
+ *         no pages, the file could not be opened, or a buffer allocation
+ *         failed.
+ */
 bool Pdf_WriteToFile(PdfDocument *doc, const char *filename);
 
-// Free the PDF document and all its contents
+/**
+ * @brief Free every span's text, the span arrays, the page array and the
+ *        document.
+ * @param doc The document; NULL is ignored.
+ */
 void Pdf_Destroy(PdfDocument *doc);
 
 #endif /* PDFWRITER_H */

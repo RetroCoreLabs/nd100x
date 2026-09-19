@@ -63,21 +63,104 @@ typedef struct
 
 typedef struct TelnetServer TelnetServer;
 
-// Lifecycle
+/**
+ * @brief Allocate a telnet server, copy the configuration and initialise the
+ *        terminal and pending-client tables and their mutexes.
+ * @details A port of 0 or less becomes 9000 and a maxConnections of 0 or less
+ *          becomes 8. No socket is opened until TelnetServer_Start().
+ * @param config Configuration to copy; must not be NULL.
+ * @return New server the caller frees with TelnetServer_Destroy(), or NULL if
+ *         allocation failed.
+ */
 TelnetServer *TelnetServer_Create(const TelnetServerConfig *config);
+
+/**
+ * @brief Add one terminal device to the server's table of terminals a client
+ *        can be attached to.
+ * @param server The server.
+ * @param info   Registration record; copied into the server.
+ * @return true on success; false if server or info is NULL, or the table is
+ *         already full (TELNET_MAX_TERMINALS entries).
+ */
 bool TelnetServer_RegisterTerminal(TelnetServer *server, const TelnetTerminalInfo *info);
+
+/**
+ * @brief Open the listening TCP socket on the configured port and start the
+ *        accept thread.
+ * @details Initialises Winsock on Windows, creates a loopback socket pair used
+ *          to wake the accept thread on shutdown, binds with SO_REUSEADDR to
+ *          INADDR_ANY and listens with a backlog of 4.
+ * @param server The server; must have at least one registered terminal and
+ *               must not already be running.
+ * @return true when the server is listening; false on any setup failure, in
+ *         which case every socket opened here is closed again.
+ */
 bool TelnetServer_Start(TelnetServer *server);
+
+/**
+ * @brief Stop the server: wake and join the accept thread, close the listening
+ *        socket, disconnect every client and join its thread, close the wake
+ *        socket pair and release Winsock.
+ * @param server The server; NULL or a server that is not running is ignored.
+ */
 void TelnetServer_Stop(TelnetServer *server);
+
+/**
+ * @brief Stop the server if it is still running, destroy the per-terminal and
+ *        pending mutexes, close any pending client sockets and free the
+ *        server.
+ * @param server The server; NULL is ignored.
+ */
 void TelnetServer_Destroy(TelnetServer *server);
 
-// Status query (for F12 menu)
+/**
+ * @brief Number of terminals registered with the server.
+ * @param server The server; NULL yields 0.
+ * @return Registered terminal count.
+ */
 int TelnetServer_GetTerminalCount(TelnetServer *server);
+
+/**
+ * @brief Read one terminal's name, IDENT code, connection state, local
+ *        activity flag and client address. Used by the F12 menu.
+ * @param server        The server.
+ * @param index         Terminal index in [0, TelnetServer_GetTerminalCount()).
+ * @param name          Receives the terminal name, owned by the server; may
+ *                      be NULL.
+ * @param identCode     Receives the IDENT code; may be NULL.
+ * @param connected     Receives true when a telnet client holds the terminal;
+ *                      may be NULL.
+ * @param locallyActive Receives true when the local screen holds it; may be
+ *                      NULL.
+ * @param clientAddr    Receives the client "IP:port" string, truncated to
+ *                      fit; may be NULL.
+ * @param addrLen       Size of clientAddr in bytes.
+ * @return true on success; false if server is NULL or index is out of range.
+ */
 bool TelnetServer_GetTerminalStatus(TelnetServer *server, int index, const char **name,
                                     uint16_t *identCode, bool *connected, bool *locallyActive,
                                     char *clientAddr, int addrLen);
+
+/**
+ * @brief Read one terminal's byte counters.
+ * @param server  The server.
+ * @param index   Terminal index in [0, TelnetServer_GetTerminalCount()).
+ * @param bytesRx Receives bytes received from the client; may be NULL.
+ * @param bytesTx Receives bytes sent to the client; may be NULL.
+ * @return true on success; false if server is NULL or index is out of range.
+ */
 bool TelnetServer_GetTerminalStats(TelnetServer *server, int index, uint64_t *bytesRx,
                                    uint64_t *bytesTx);
 
+/**
+ * @brief Disconnect the telnet client attached to a device: close its socket,
+ *        join its client thread, signal carrier missing and clear the stored
+ *        client address.
+ * @param server The server.
+ * @param device The terminal device whose client should be dropped.
+ * @return true if a client was disconnected; false if server or device is
+ *         NULL, the device is not registered, or it had no client.
+ */
 bool TelnetServer_DisconnectDevice(TelnetServer *server, struct Device *device);
 
 /**
@@ -87,22 +170,98 @@ bool TelnetServer_DisconnectDevice(TelnetServer *server, struct Device *device);
  * @param c      The character.
  */
 void telnet_output_handler(struct Device *device, char c);
+/**
+ * @brief TCP port the server listens on.
+ * @param server The server; NULL yields 0.
+ * @return The configured port number.
+ */
 int TelnetServer_GetPort(TelnetServer *server);
 
-// Local activity state (mutual exclusion with VScreen)
+/**
+ * @brief Mark a terminal as held by the local screen, which excludes it from
+ *        the telnet terminal picker (mutual exclusion with VScreen).
+ * @param server The server.
+ * @param index  Terminal index in [0, TelnetServer_GetTerminalCount()).
+ * @param active true when the local screen holds the terminal.
+ * @return true on success; false if server is NULL or index is out of range.
+ */
 bool TelnetServer_SetTerminalLocallyActive(TelnetServer *server, int index, bool active);
+
+/**
+ * @brief Same as TelnetServer_SetTerminalLocallyActive() but naming the
+ *        terminal by its device.
+ * @param server The server.
+ * @param device The terminal device.
+ * @param active true when the local screen holds the terminal.
+ * @return true on success; false if server or device is NULL or the device is
+ *         not registered.
+ */
 bool TelnetServer_SetDeviceLocallyActive(TelnetServer *server, struct Device *device, bool active);
+
+/**
+ * @brief Whether a telnet client is currently attached to a device.
+ * @param server The server.
+ * @param device The terminal device.
+ * @return true if the device is registered and holds an open client socket;
+ *         false otherwise.
+ */
 bool TelnetServer_IsDeviceConnected(TelnetServer *server, struct Device *device);
+
+/**
+ * @brief Call the device's carrier callback with "carrier present", used when
+ *        a client takes the terminal.
+ * @param server The server; NULL is ignored.
+ * @param device The terminal device; NULL, or one with no carrier callback,
+ *               is ignored.
+ */
 void TelnetServer_ClearDeviceCarrier(TelnetServer *server, struct Device *device);
 
-// Get the IP:port string for the client connected to a device (NULL if not connected)
+/**
+ * @brief Address of the telnet client attached to a device.
+ * @param server The server.
+ * @param device The terminal device.
+ * @return "IP:port" string owned by the server, or NULL when server or device
+ *         is NULL, the device is not registered, or no client is attached.
+ */
 const char *TelnetServer_GetDeviceClientAddr(TelnetServer *server, struct Device *device);
 
-// Pending client management (connected but not yet assigned to a terminal)
+/**
+ * @brief Number of clients that have connected but are not yet assigned to a
+ *        terminal.
+ * @param server The server; NULL yields 0.
+ * @return Pending client count, read under the pending mutex.
+ */
 int TelnetServer_GetPendingCount(TelnetServer *server);
+
+/**
+ * @brief Read one pending client's address, age and byte counters.
+ * @param server     The server.
+ * @param index      Pending index in [0, TelnetServer_GetPendingCount()).
+ * @param addrBuf    Receives the "IP:port" string, truncated to fit; may be
+ *                   NULL.
+ * @param addrBufLen Size of addrBuf in bytes.
+ * @param ageSecs    Receives seconds since the client connected; may be NULL.
+ * @param bytesRx    Receives bytes received from the client; may be NULL.
+ * @param bytesTx    Receives bytes sent to the client; may be NULL.
+ * @return true on success; false if server is NULL or index is out of range.
+ */
 bool TelnetServer_GetPendingInfo(TelnetServer *server, int index, char *addrBuf, int addrBufLen,
                                  int *ageSecs, uint64_t *bytesRx, uint64_t *bytesTx);
+
+/**
+ * @brief Send "Disconnected by operator." to one pending client and remove it
+ *        from the pending list.
+ * @param server The server.
+ * @param index  Pending index in [0, TelnetServer_GetPendingCount()).
+ * @return true on success; false if server is NULL or index is out of range.
+ */
 bool TelnetServer_DropPending(TelnetServer *server, int index);
+
+/**
+ * @brief Send "Disconnected by operator." to every pending client and empty
+ *        the pending list.
+ * @param server The server; NULL is ignored.
+ */
 void TelnetServer_DropAllPending(TelnetServer *server);
 
 #endif // TELNETSERVER_H

@@ -29,19 +29,25 @@
 
 #include "ndlib_types.h" // KeyType, KeyEvent
 
-// Read the next keyboard event (non-blocking).
-//
-// POSIX: parses xterm-style byte sequences from stdin and classifies them.
-// Windows: uses ReadConsoleInputW() to read native key events and classifies
-//          them directly from VK_* codes and control-key modifiers - no
-//          synthetic escape sequences.
-//
-// Returns a KeyEvent; type == KEY_NONE when no input is available.
+/**
+ * @brief Read the next keyboard event without blocking.
+ * @details POSIX: parses xterm-style byte sequences from stdin and classifies
+ *          them. Windows: uses ReadConsoleInputW() to read native key events
+ *          and classifies them directly from VK_* codes and control-key
+ *          modifiers - no synthetic escape sequences.
+ * @return The event; its type is KEY_NONE when no input is available.
+ */
 KeyEvent read_key_event(void);
 
-// Enable --pipe mode: read keyboard bytes from a redirected stdin (a parent process / automation
-// driver) instead of the interactive console. No-op on POSIX (that path already polls stdin); on
-// Windows it switches read_key_event from ReadConsoleInputW to a non-blocking stdin pipe/file read.
+/**
+ * @brief Enable --pipe mode: read keyboard bytes from a redirected stdin (a
+ *        parent process or automation driver) instead of the interactive
+ *        console.
+ * @details No effect on POSIX, where read_key_event() already polls stdin. On
+ *          Windows it switches read_key_event() from ReadConsoleInputW() to a
+ *          non-blocking one-byte-per-call read of the stdin pipe or file.
+ * @param on true selects pipe mode, false the interactive console.
+ */
 void keyboard_set_pipe_mode(bool on);
 
 #endif // KEYBOARD_H

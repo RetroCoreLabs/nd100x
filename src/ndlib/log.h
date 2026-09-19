@@ -93,12 +93,15 @@ static inline bool Log_IsEnabled(LogCategory cat, LogLevel lvl)
  * @param cat Category of the message.
  * @param lvl Level of the message.
  * @param fmt printf-style format; a trailing newline is optional.
+ * @param ... Arguments consumed by the conversions in fmt.
  */
 void Log_Write(LogCategory cat, LogLevel lvl, const char *fmt, ...)
     __attribute__((format(printf, 3, 4)));
 
 /**
  * @brief Set the minimum level of one category.
+ * @param cat Category to change; out-of-range values are ignored.
+ * @param lvl New minimum level for that category.
  */
 void Log_SetLevel(LogCategory cat, LogLevel lvl);
 
@@ -112,6 +115,7 @@ void Log_SetLevel(LogCategory cat, LogLevel lvl);
  * @details Comma-separated "category:level" pairs, applied left to right.
  *          "*" or "all" names every category. Levels: error, warn, info,
  *          debug, trace. Category and level names are case-insensitive.
+ * @param spec The specification string; NULL is treated as an error.
  * @return 0 on success; -1 on the first unknown category or level, in which
  *         case the pairs before it have already been applied.
  */
@@ -121,11 +125,15 @@ int Log_ParseSpec(const char *spec);
  * @brief Route finished lines to a sink instead of the default stream
  *        (stderr on native builds, stdout on WebAssembly). NULL restores
  *        the default.
+ * @param sink Function called with each finished line, or NULL.
+ * @param ctx  Opaque pointer passed back to sink as its last argument.
  */
 void Log_SetSink(LogSinkFunc sink, void *ctx);
 
 /**
  * @brief Name of a category as used in a level specification ("smd").
+ * @param cat Category to name.
+ * @return Static string with the category name, or "?" if cat is out of range.
  */
 const char *Log_CategoryName(LogCategory cat);
 

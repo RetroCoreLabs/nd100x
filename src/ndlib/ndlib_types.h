@@ -116,4 +116,76 @@ typedef enum
 } LoadState;
 
 
+/**
+ * @brief Copy the header of the most recently loaded BPUN file into *out.
+ * @details LoadBPUN() only returns the obsolete bootstrap-loader "boot"
+ *          address, so callers that need the real program entry ("start") or
+ *          the "action" autostart flag read them from here.
+ * @param out Receives the cached header; untouched when the call fails.
+ * @return true when a BPUN has been loaded successfully at least once and out
+ *         is not NULL, false otherwise.
+ */
+bool GetLastBPUNHeader(BPUN_Header *out);
+
+/**
+ * @brief Load a BPUN (boot program unprotected) file into physical memory and
+ *        cache its header for GetLastBPUNHeader().
+ * @param filename Path of the BPUN file, opened with mode "rb".
+ * @param verbose  true logs the parsed header fields and the checksum result.
+ * @return The bootstrap-loader "boot" address from the file on success, 0 if
+ *         the file could not be opened, and -1 if parsing failed.
+ */
+int LoadBPUN(const char *filename, bool verbose);
+
+/**
+ * @brief Binary load from a boot device. Not implemented - the argument is
+ *        ignored and the call always fails.
+ * @param bpfile Name of the device or file to load from.
+ * @return -1 always.
+ */
+int bp_load(const char *bpfile);
+
+/**
+ * @brief Copy the header of the most recently loaded :PROG file into *out.
+ * @param out Receives the cached header; untouched when the call fails.
+ * @return true when a :PROG has been loaded successfully at least once and
+ *         out is not NULL, false otherwise.
+ */
+bool GetLastPROGHeader(PROG_Header *out);
+
+/**
+ * @brief Load a SINTRAN :PROG image into physical memory and cache its header
+ *        for GetLastPROGHeader().
+ * @details Reads the six big-endian 16-bit header words, then the Bank 1 words
+ *          from file offset 512 into addresses firstBank1..lastBank1. A 2-bank
+ *          image is detected but Bank 2 is NOT loaded, because it belongs in
+ *          the alternative page table, which nd100x does not map separately;
+ *          only Bank 1 is loaded and a message is logged.
+ * @param filename Path of the :PROG file, opened with mode "rb".
+ * @param verbose  true logs the header fields and the loaded ranges.
+ * @return The program start address (P register) on success, -1 if the file
+ *         could not be opened, the header was short, a seek failed, or a bank
+ *         could not be read.
+ */
+int LoadPROG(const char *filename, bool verbose);
+
+/**
+ * @brief Put the console into cbreak mode so keys arrive one at a time without
+ *        being echoed.
+ * @details POSIX: saves the current termios of file descriptor 0, then clears
+ *          ECHO, ECHONL, ICANON and IEXTEN and sets VMIN and VTIME to 0 for a
+ *          non-blocking read; SIGTTOU is ignored so the call also works from a
+ *          background process. Windows: saves the console mode of the standard
+ *          input handle, then clears ENABLE_LINE_INPUT, ENABLE_ECHO_INPUT and
+ *          ENABLE_PROCESSED_INPUT and sets ENABLE_WINDOW_INPUT.
+ */
+void setcbreak(void);
+
+/**
+ * @brief Restore the console settings saved by setcbreak().
+ * @details Does nothing on Windows when no console handle was saved.
+ */
+void unsetcbreak(void);
+
+
 #endif //

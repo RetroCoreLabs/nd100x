@@ -654,6 +654,23 @@ def check_doxygen(per_file, files, f):
         with open(os.path.join(REPO, h), errors="replace") as fh:
             src = fh.read()
         code, comments = strip_comments_and_strings(src)
+        # extern "C" { ... } wraps declarations without nesting them: blank the
+        # braces so the scan below still sees them at file scope.
+        m = re.search(r'extern\s+"?\s*"?\s*\{', code)
+        if m:
+            # blank the whole "extern "C" {" so the next declaration does not
+            # look like a continuation of it
+            blank = "".join("\n" if c == "\n" else " " for c in code[m.start():m.end()])
+            code = code[:m.start()] + blank + code[m.end():]
+            depth = 1
+            for i in range(m.end(), len(code)):
+                if code[i] == "{":
+                    depth += 1
+                elif code[i] == "}":
+                    depth -= 1
+                    if depth == 0:
+                        code = code[:i] + " " + code[i + 1:]
+                        break
         comment_end = {}                     # last line of comment -> text
         for line, text in comments:
             comment_end[line + text.count("\n")] = text
@@ -684,6 +701,10 @@ def check_doxygen(per_file, files, f):
                 decls[m.group(1)].append((h, doc, stmt.strip(), m.group(2).strip()))
 
     for rel, syms in per_file.items():
+        # Test files define stand-ins for real functions (Device_Init, ...);
+        # their documentation belongs at the real declaration, counted there.
+        if rel.startswith(("tests/", "tools/")):
+            continue
         for t, name in syms:
             if t != "T" or name == "main":
                 continue

@@ -47,44 +47,76 @@ typedef struct
     char *directory_content;  /* full listing, owned by floppydb (may be "")     */
 } FloppyDbEntry;
 
-/*
- * Load the catalog: use the cached floppies.json when fresh, otherwise download
- * and cache it ($HOME/.cache/nd100x/floppies.json), then parse. force_refresh
- * bypasses the cache. Only records with Status == 0 are included. Idempotent -
- * frees any previous load first. Returns the entry count, or -1 on failure
- * (no data, e.g. offline AND no cache, or a build without libcurl and no cache).
+/**
+ * @brief Load the catalog: use the cached floppies.json when fresh, otherwise
+ *        download and cache it ($HOME/.cache/nd100x/floppies.json), then parse.
+ * @details Only records with Status == 0 are included. Idempotent - any
+ *          previous load is freed first.
+ * @param force_refresh true bypasses the cache and downloads a fresh copy.
+ * @return Entry count on success, or -1 on failure (no data, for example
+ *         offline with no cache, or a build without libcurl and no cache).
  */
 int floppydb_load(bool force_refresh);
 
-/*
- * Parse a floppies.json text buffer directly into the entry list (no cache, no
- * network). Same result as floppydb_load() once the JSON is in hand - used by the
- * unit tests and by any caller that already has the catalog text. Returns the
- * entry count, or -1 on a parse error. Idempotent (frees any previous load).
+/**
+ * @brief Parse a floppies.json text buffer directly into the entry list, with
+ *        no cache and no network access.
+ * @details Same result as floppydb_load() once the JSON is in hand - used by
+ *          the unit tests and by any caller that already has the catalog text.
+ *          Idempotent - any previous load is freed first.
+ * @param json_text The catalog JSON as a NUL-terminated string.
+ * @return Entry count on success, or -1 if json_text is NULL, is not valid
+ *         JSON, is not an array, or the entry array could not be allocated.
  */
 int floppydb_load_json(const char *json_text);
 
-/* Number of loaded entries (0 before a successful load). */
+/**
+ * @brief Number of loaded catalog entries.
+ * @return Entry count, 0 before a successful load.
+ */
 int floppydb_count(void);
 
-/* Entry by index [0, floppydb_count()), or NULL if out of range. */
+/**
+ * @brief Catalog entry by position.
+ * @param index Index in the range [0, floppydb_count()).
+ * @return Pointer to the entry, owned by floppydb, or NULL if index is out
+ *         of range.
+ */
 const FloppyDbEntry *floppydb_get(int index);
 
-/* Entry whose md5 matches (case-insensitive), or NULL. md5 is unique. */
+/**
+ * @brief Find the single catalog entry with this md5, which is unique.
+ * @param md5 The 32-character md5 string; compared case-insensitively.
+ * @return Pointer to the entry, owned by floppydb, or NULL if md5 is NULL or
+ *         no entry matches.
+ */
 const FloppyDbEntry *floppydb_find_md5(const char *md5);
 
-/*
- * All entries whose SINTRAN "Directory name" equals directory_name
- * (case-insensitive). Fills out[] with up to max pointers and returns the TOTAL
- * number of matches (which may exceed max - the caller should log/disambiguate
- * when it is > 1, then pin a specific image by its md5).
+/**
+ * @brief Find every entry whose SINTRAN "Directory name" equals
+ *        directory_name, compared case-insensitively.
+ * @param directory_name The volume name to look for.
+ * @param out            Receives up to max entry pointers; may be NULL.
+ * @param max            Capacity of out[].
+ * @return TOTAL number of matches, which may exceed max. When it is greater
+ *         than 1 the caller should disambiguate and pin one image by its md5.
+ *         0 when directory_name is NULL or nothing matches.
  */
 int floppydb_find_directory(const char *directory_name, const FloppyDbEntry **out, int max);
 
-/* Build the image download URL (images/<md5>.img) into buf. Returns buf or NULL. */
+/**
+ * @brief Build the image download URL (<base>/<md5>.img) for an entry.
+ * @param e      Catalog entry.
+ * @param buf    Destination buffer; the URL is truncated to fit.
+ * @param buflen Size of buf in bytes.
+ * @return buf on success, or NULL if e or buf is NULL or buflen is 0.
+ */
 const char *floppydb_image_url(const FloppyDbEntry *e, char *buf, size_t buflen);
 
-/* Free the loaded catalog. */
+/**
+ * @brief Free the loaded catalog, including each entry's directory listing,
+ *        and set the entry count back to 0.
+ */
 void floppydb_free(void);
 
 #endif /* FLOPPYDB_H */

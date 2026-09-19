@@ -29,10 +29,26 @@
 
 #include <stddef.h>
 
-// Unified download function that can handle both JSON and binary files
+/**
+ * @brief Fetch a URL over HTTP/HTTPS with libcurl into one heap buffer.
+ * @details Follows redirects, times out after 30 seconds, rejects a body
+ *          larger than 500 MB and requires HTTP status 200. The buffer is
+ *          NUL-terminated one byte past the body, so it also works with
+ *          string functions for JSON. The caller frees it with free().
+ *          Builds without libcurl (WebAssembly, RISC-V, HAVE_CURL unset)
+ *          link a stub that always fails.
+ * @param url Absolute URL to fetch; NULL is an error.
+ * @return Pointer to the NUL-terminated body on success, NULL on any error.
+ */
 char *download_file(const char *url);
 
-// Get the actual size of downloaded data (for binary files)
+/**
+ * @brief Body size in bytes of the last successful download_file() call.
+ * @details Set by download_file() on success and cleared to 0 on failure.
+ *          Use this for binary data, where the NUL terminator makes strlen()
+ *          useless. The stub build always returns 0.
+ * @return Number of body bytes, not counting the added NUL terminator.
+ */
 size_t get_downloaded_size(void);
 
 #endif // DOWNLOAD_H

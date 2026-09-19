@@ -86,20 +86,52 @@ typedef struct PrintJob
     EscpContext *escpCtx;
 } PrintJob;
 
-// Create a print job manager
+/**
+ * @brief Allocate a print job manager, copy the output directory and, for the
+ *        ESC/P printer type, create the ESC/P interpreter.
+ * @details The job timeout starts at the default 5 seconds of silence. No job
+ *          is open until the first character arrives.
+ * @param printerType PJ_PRINTER_TEXT for plain ASCII pass-through, or
+ *                    PJ_PRINTER_ESCP for the Epson ESC/P interpreter.
+ * @param format      PJ_FORMAT_TXT writes .txt files, PJ_FORMAT_PDF .pdf.
+ * @param outputDir   Directory for the output files; NULL means "./prints".
+ * @return New manager the caller frees with PrintJob_Destroy(), or NULL if an
+ *         allocation failed.
+ */
 PrintJob *PrintJob_Create(PjPrinterType printerType, PjOutputFormat format, const char *outputDir);
 
-// Feed a single character from the device into the print job
+/**
+ * @brief Feed one character from the printer device into the current job.
+ * @details Flushes the open job first when it has been silent for at least
+ *          jobTimeout seconds, opens a new job when none is active, counts the
+ *          byte and any LF, then routes the character through the text or
+ *          ESC/P pipeline for the chosen output format. In text plus .txt
+ *          mode a form feed (0x0C) also ends the job at once.
+ * @param pj The manager; NULL is ignored.
+ * @param c  The character received from the device.
+ */
 void PrintJob_PutChar(PrintJob *pj, char c);
 
-// Check for job timeout (call periodically from main loop)
-// Returns true if a job was flushed
+/**
+ * @brief End the open job if no character has arrived for jobTimeout seconds.
+ *        Call this periodically from the main loop.
+ * @param pj The manager; NULL is ignored.
+ * @return true if a job was written out and closed, false otherwise.
+ */
 bool PrintJob_CheckTimeout(PrintJob *pj);
 
-// Flush and close the current job (call on shutdown)
+/**
+ * @brief Write out and close the open job immediately, regardless of the
+ *        timeout. Call this on shutdown.
+ * @param pj The manager; NULL is ignored.
+ */
 void PrintJob_Flush(PrintJob *pj);
 
-// Destroy the print job manager and free all resources
+/**
+ * @brief Flush the open job, destroy the ESC/P interpreter if present, and
+ *        free the output directory string and the manager.
+ * @param pj The manager; NULL is ignored.
+ */
 void PrintJob_Destroy(PrintJob *pj);
 
 #endif /* PRINTJOB_H */

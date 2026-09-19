@@ -94,26 +94,66 @@ typedef struct EscpContext
     int lineBufCap;
 } EscpContext;
 
-// Create a new ESC/P interpreter context
+/**
+ * @brief Allocate an ESC/P interpreter context with an empty span array and
+ *        line buffer, and set the printer defaults (10 cpi, 1/6 inch line
+ *        spacing, 66 lines per page, no attributes).
+ * @return New context the caller frees with Escp_Destroy(), or NULL if any
+ *         allocation failed.
+ */
 EscpContext *Escp_Create(void);
 
-// Feed a single byte to the interpreter
+/**
+ * @brief Feed one byte to the interpreter state machine, which appends
+ *        printable characters to the current line and applies ESC commands
+ *        (attributes, pitch, line spacing, page geometry, positioning).
+ * @param ctx Interpreter context; NULL is ignored.
+ * @param c   The byte received from the emulated printer port.
+ */
 void Escp_PutChar(EscpContext *ctx, uint8_t c);
 
-// Get accumulated spans (caller does NOT free these; they are owned by ctx)
+/**
+ * @brief Flush the pending line and return the accumulated styled spans.
+ * @details The spans stay owned by ctx and are freed by Escp_Reset() or
+ *          Escp_Destroy(); the caller must not free them.
+ * @param ctx   Interpreter context; NULL yields NULL and a count of 0.
+ * @param count Receives the number of spans; may be NULL.
+ * @return Pointer to the first span, or NULL when ctx is NULL.
+ */
 const EscpSpan *Escp_GetSpans(EscpContext *ctx, int *count);
 
-// Get current page count
+/**
+ * @brief Number of pages produced so far.
+ * @param ctx Interpreter context; NULL yields 0.
+ * @return Current 0-based page index plus one, or 0 when nothing has been
+ *         printed yet.
+ */
 int Escp_GetPageCount(EscpContext *ctx);
 
-// Reset the interpreter (clear all spans and state)
+/**
+ * @brief Free all span text, drop the line buffer and return the parser,
+ *        column, line, page and printer settings to their defaults.
+ * @param ctx Interpreter context; NULL is ignored.
+ */
 void Escp_Reset(EscpContext *ctx);
 
-// Free the interpreter context and all its data
+/**
+ * @brief Free the span text, the span array, the line buffer and the context.
+ * @param ctx Interpreter context; NULL is ignored.
+ */
 void Escp_Destroy(EscpContext *ctx);
 
-// Strip ESC/P codes from a byte, returns the printable char or 0 if consumed
-// (Convenience for text-only output: feed bytes through this to get plain text)
+/**
+ * @brief Run one byte through the ESC command state machine for text-only
+ *        output, returning just the characters that should appear in a
+ *        plain text file.
+ * @details Passes through printable ASCII 0x20-0x7E plus CR, LF, FF and TAB;
+ *          ESC sequences and their parameter bytes, and all other control
+ *          characters, are swallowed.
+ * @param ctx Interpreter context; NULL yields 0.
+ * @param c   The byte received from the emulated printer port.
+ * @return The character to emit, or 0 when the byte was consumed.
+ */
 char Escp_StripToPlainChar(EscpContext *ctx, uint8_t c);
 
 #endif /* ESCP_H */
