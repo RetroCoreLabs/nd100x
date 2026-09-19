@@ -56,16 +56,16 @@ typedef enum {
 
 // Device operation codes
 typedef enum {
-    DEVICE_OP_READ_TRANSFER = 0,      // M0 - Read Transfer
-    DEVICE_OP_WRITE_TRANSFER = 1,     // M1 - Write Transfer
-    DEVICE_OP_READ_PARITY = 2,        // M2 - Read Parity Transfer
-    DEVICE_OP_COMPARE_TRANSFER = 3,   // M3 - Compare Transfer
-    DEVICE_OP_INITIATE_SEEK = 4,      // M4 - Initiate Seek
-    DEVICE_OP_WRITE_FORMAT = 5,       // M5 - Write Format
-    DEVICE_OP_SEEK_COMPLETE = 6,      // M6 - Seek Complete Search
-    DEVICE_OP_RETURN_TO_ZERO = 7,     // M7 - Return To Zero Seek
-    DEVICE_OP_RUN_ECC = 8,            // M8 - Run ECC Operation
-    DEVICE_OP_SELECT_RELEASE = 9      // M9 - Select Release
+    DEVICE_OP_READ_TRANSFER = 0,          // Read Transfer
+    DEVICE_OP_WRITE_TRANSFER = 1,         // Write Transfer
+    DEVICE_OP_READ_PARITY_TRANSFER = 2,   // Read Parity Transfer
+    DEVICE_OP_COMPARE_TRANSFER = 3,       // Compare Transfer
+    DEVICE_OP_INITIATE_SEEK = 4,          // Initiate Seek
+    DEVICE_OP_WRITE_FORMAT = 5,           // Write Format
+    DEVICE_OP_SEEK_COMPLETE_SEARCH = 6,   // Seek Complete Search
+    DEVICE_OP_RETURN_TO_ZERO_SEEK = 7,    // Return To Zero Seek
+    DEVICE_OP_RUN_ECC_OPERATION = 8,      // Run ECC Operation
+    DEVICE_OP_SELECT_RELEASE = 9          // Select Release
 } DeviceOperation;
 
 

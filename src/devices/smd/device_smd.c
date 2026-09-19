@@ -33,15 +33,6 @@
 
 #include "device_smd.h"
 
-// Emulated SEEK duration in ticks. Deliberately much longer than the ordinary
-// completion delay (IODELAY_HDD_SMD = 10): the heads must be observably OFF
-// cylinder while a seek (M4/M7) is in flight - DISC-TEMA reads the status
-// register right after the GO and requires b14 (on cylinder) to be 0, then
-// polls until it returns to 1. With only 10 ticks the seek "completed" before
-// the first status read. Still far below any test/driver patience (a real
-// seek is ~30 ms; the controller timeout alone is 500 ms).
-#define SMD_SEEK_TICKS 2000
-
 // Emulated controller-timeout window in ticks (the real card gives up after
 // 500 ms). Used by M6 with no outstanding seek: the controller must stay
 // ACTIVE while it searches, and only then raise timeout (status b6) -
@@ -67,17 +58,17 @@ static bool LoadIsIllegal(Device *self, SMDData *data);
 
 static const char *SMD_OpName(DeviceOperation op) {
     switch (op) {
-    case DEVICE_OP_READ_TRANSFER:    return "M0-Read";
-    case DEVICE_OP_WRITE_TRANSFER:   return "M1-Write";
-    case DEVICE_OP_READ_PARITY:      return "M2-ReadParity";
-    case DEVICE_OP_COMPARE_TRANSFER: return "M3-Compare";
-    case DEVICE_OP_INITIATE_SEEK:    return "M4-Seek";
-    case DEVICE_OP_WRITE_FORMAT:     return "M5-Format";
-    case DEVICE_OP_SEEK_COMPLETE:    return "M6-SeekComplete";
-    case DEVICE_OP_RETURN_TO_ZERO:   return "M7-ReturnToZero";
-    case DEVICE_OP_RUN_ECC:          return "M8-RunECC";
-    case DEVICE_OP_SELECT_RELEASE:   return "M9-Release";
-    default:                         return "Unknown";
+    case DEVICE_OP_READ_TRANSFER:         return "DEVICE_OP_READ_TRANSFER";
+    case DEVICE_OP_WRITE_TRANSFER:        return "DEVICE_OP_WRITE_TRANSFER";
+    case DEVICE_OP_READ_PARITY_TRANSFER:  return "DEVICE_OP_READ_PARITY_TRANSFER";
+    case DEVICE_OP_COMPARE_TRANSFER:      return "DEVICE_OP_COMPARE_TRANSFER";
+    case DEVICE_OP_INITIATE_SEEK:         return "DEVICE_OP_INITIATE_SEEK";
+    case DEVICE_OP_WRITE_FORMAT:          return "DEVICE_OP_WRITE_FORMAT";
+    case DEVICE_OP_SEEK_COMPLETE_SEARCH:  return "DEVICE_OP_SEEK_COMPLETE_SEARCH";
+    case DEVICE_OP_RETURN_TO_ZERO_SEEK:   return "DEVICE_OP_RETURN_TO_ZERO_SEEK";
+    case DEVICE_OP_RUN_ECC_OPERATION:     return "DEVICE_OP_RUN_ECC_OPERATION";
+    case DEVICE_OP_SELECT_RELEASE:        return "DEVICE_OP_SELECT_RELEASE";
+    default:                              return "Unknown";
     }
 }
 
@@ -999,6 +990,7 @@ static void ExecuteGO(Device *self)
         if (!buffer)
         {
             HandleError(self, DISK_ERR_READ_ERROR); // READ_ERROR
+            FinishOperation(self);  // ends the operation, as RetroCore's HandleError clears Active
             return;
         }
 
@@ -1008,6 +1000,7 @@ static void ExecuteGO(Device *self)
         {
             HandleError(self, DISK_ERR_READ_ERROR); // READ_ERROR
             free(buffer);
+            FinishOperation(self);  // ends the operation, as RetroCore's HandleError clears Active
             return;
         }
 
@@ -1038,6 +1031,7 @@ static void ExecuteGO(Device *self)
         if (!buffer)
         {
             HandleError(self, DISK_ERR_READ_ERROR); // READ_ERROR
+            FinishOperation(self);  // ends the operation, as RetroCore's HandleError clears Active
             return;
         }
 
@@ -1051,6 +1045,7 @@ static void ExecuteGO(Device *self)
             {
                 HandleError(self, DISK_ERR_READ_ERROR); // DMA READ ERROR??
                 free(buffer);
+                FinishOperation(self);  // ends the operation, as RetroCore's HandleError clears Active
                 return;
             }
             // Write word to disk buffer
@@ -1058,6 +1053,7 @@ static void ExecuteGO(Device *self)
             {
                 HandleError(self, DISK_ERR_READ_ERROR); // WRITE_ERROR
                 free(buffer);
+                FinishOperation(self);  // ends the operation, as RetroCore's HandleError clears Active
                 return;
             }
 
@@ -1071,6 +1067,7 @@ static void ExecuteGO(Device *self)
         {
             HandleError(self, DISK_ERR_WRITE_ERROR); // READ_ERROR
             free(buffer);
+            FinishOperation(self);  // ends the operation, as RetroCore's HandleError clears Active
             return;
         }
 
@@ -1079,16 +1076,17 @@ static void ExecuteGO(Device *self)
         Device_QueueIODelay(self, IODELAY_HDD_SMD, (IODelayedCallback)SMDReadEnd, data->regs.selectedDisk->unit, self->interruptLevel);
         break;
 
-    case DEVICE_OP_READ_PARITY:
+    case DEVICE_OP_READ_PARITY_TRANSFER:
 
         if (Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG))
             Log_Write(LOG_CAT_SMD, LOG_DEBUG, "GO Op=%s Unit=%d C/H/S=%d/%d/%d LBA=%" PRId64 " WC=%d CoreAddr=%o\n",
-                    SMD_OpName(DEVICE_OP_READ_PARITY), data->regs.selectedUnit,
+                    SMD_OpName(DEVICE_OP_READ_PARITY_TRANSFER), data->regs.selectedUnit,
                     cylinder, head, sector, lba, wordCounter, coreAddress);
         buffer = (uint8_t *)malloc(blockCounter * self->blockSizeBytes);
         if (!buffer)
         {
             HandleError(self, DISK_ERR_READ_ERROR); // READ_ERROR
+            FinishOperation(self);  // ends the operation, as RetroCore's HandleError clears Active
             return;
         }
 
@@ -1098,6 +1096,7 @@ static void ExecuteGO(Device *self)
         {
             HandleError(self, DISK_ERR_READ_ERROR); // READ_ERROR
             free(buffer);
+            FinishOperation(self);  // ends the operation, as RetroCore's HandleError clears Active
             return;
         }
 
@@ -1129,6 +1128,7 @@ static void ExecuteGO(Device *self)
         if (!buffer)
         {
             HandleError(self, DISK_ERR_READ_ERROR); // READ_ERROR
+            FinishOperation(self);  // ends the operation, as RetroCore's HandleError clears Active
             return;
         }
 
@@ -1138,6 +1138,7 @@ static void ExecuteGO(Device *self)
         {
             HandleError(self, DISK_ERR_READ_ERROR); // READ_ERROR
             free(buffer);
+            FinishOperation(self);  // ends the operation, as RetroCore's HandleError clears Active
             return;
         }
 
@@ -1155,6 +1156,7 @@ static void ExecuteGO(Device *self)
             {
                 HandleError(self, DISK_ERR_COMPARER_ERROR); // COMPARER_ERROR
                 free(buffer);
+                FinishOperation(self);  // ends the operation, as RetroCore's HandleError clears Active
                 return;
             }
 
@@ -1198,7 +1200,13 @@ static void ExecuteGO(Device *self)
         data->regs.selectedDisk->onCylinder = 0;               // heads moving
         data->regs.seekIssuedMask |= (uint8_t)(1 << data->regs.selectedUnit);
 
-        Device_QueueIODelay(self, SMD_SEEK_TICKS, (IODelayedCallback)SMDReadEnd, data->regs.selectedDisk->unit, self->interruptLevel);
+        // IODELAY_HDD_SMD, as RetroCore's NDBusDiscControllerSMD.cs does for
+        // Initiate Seek. With a 2000-tick seek the controller was still active
+        // when SINTRAN gave Seek Complete Search straight after Initiate Seek;
+        // that control word was refused as an illegal load and SINTRAN
+        // reported "Parallel seek disabled". Known cost: DISC-TEMA's check that
+        // on-cylinder (status b14) is 0 right after Initiate Seek likely fails.
+        Device_QueueIODelay(self, IODELAY_HDD_SMD, (IODelayedCallback)SMDReadEnd, data->regs.selectedDisk->unit, self->interruptLevel);
         break;
 
     case DEVICE_OP_WRITE_FORMAT:
@@ -1234,10 +1242,10 @@ static void ExecuteGO(Device *self)
         Device_QueueIODelay(self, IODELAY_HDD_SMD, (IODelayedCallback)SMDReadEnd, data->regs.selectedDisk->unit, self->interruptLevel);
         break;
 
-    case DEVICE_OP_SEEK_COMPLETE:
+    case DEVICE_OP_SEEK_COMPLETE_SEARCH:
         if (Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG))
             Log_Write(LOG_CAT_SMD, LOG_DEBUG, "GO Op=%s Unit=%d seekIssued=%d\n",
-                    SMD_OpName(DEVICE_OP_SEEK_COMPLETE), data->regs.selectedUnit,
+                    SMD_OpName(DEVICE_OP_SEEK_COMPLETE_SEARCH), data->regs.selectedUnit,
                     (data->regs.seekIssuedMask >> data->regs.selectedUnit) & 1);
         // M6 searches for the seek-complete pulse of a PREVIOUSLY initiated
         // seek. With no seek outstanding on this unit there is no pulse to
@@ -1259,10 +1267,10 @@ static void ExecuteGO(Device *self)
         Device_QueueIODelay(self, IODELAY_HDD_SMD, (IODelayedCallback)SMDReadEnd, data->regs.selectedDisk->unit, self->interruptLevel);
         break;
 
-    case DEVICE_OP_RETURN_TO_ZERO:
+    case DEVICE_OP_RETURN_TO_ZERO_SEEK:
         if (Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG))
             Log_Write(LOG_CAT_SMD, LOG_DEBUG, "GO Op=%s Unit=%d\n",
-                    SMD_OpName(DEVICE_OP_RETURN_TO_ZERO), data->regs.selectedUnit);
+                    SMD_OpName(DEVICE_OP_RETURN_TO_ZERO_SEEK), data->regs.selectedUnit);
         // RTZ is a seek to cylinder 0: heads move, so on-cylinder DROPS now and
         // the completion callback restores it (DISC-TEMA: "Error after
         // Return-To-Zero Seek, Bit 16b (on cylinder) remained 1 !"). The
@@ -1271,13 +1279,14 @@ static void ExecuteGO(Device *self)
         regs->selectedDisk->onCylinder = 0;
         data->regs.seekIssuedMask |= (uint8_t)(1 << data->regs.selectedUnit);
 
-        Device_QueueIODelay(self, SMD_SEEK_TICKS, (IODelayedCallback)SMDReadEnd, data->regs.selectedDisk->unit, self->interruptLevel);
+        // IODELAY_HDD_SMD as in RetroCore; see the Initiate Seek case.
+        Device_QueueIODelay(self, IODELAY_HDD_SMD, (IODelayedCallback)SMDReadEnd, data->regs.selectedDisk->unit, self->interruptLevel);
         break;
 
-    case DEVICE_OP_RUN_ECC:
+    case DEVICE_OP_RUN_ECC_OPERATION:
         if (Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG))
             Log_Write(LOG_CAT_SMD, LOG_DEBUG, "GO Op=%s (NOT IMPLEMENTED)\n",
-                    SMD_OpName(DEVICE_OP_RUN_ECC));
+                    SMD_OpName(DEVICE_OP_RUN_ECC_OPERATION));
         // Run ECC operation
         // TODO: Implement ECC operation
         // Unimplemented, but it WAS activated (control-word bit 2), so it still
@@ -1324,12 +1333,12 @@ static bool SMDReadEnd(Device *self, int drive)
     switch (data->controlRegister.bits.deviceOperation)
     {
     case DEVICE_OP_INITIATE_SEEK:
-    case DEVICE_OP_SEEK_COMPLETE:
+    case DEVICE_OP_SEEK_COMPLETE_SEARCH:
         data->seekCondition.bits.seekComplete |= (uint16_t)(1 << drive);
         if (drive >= 0 && drive < data->regs.maxUnits)
             data->regs.disks[drive].onCylinder = 1;
         break;
-    case DEVICE_OP_RETURN_TO_ZERO:
+    case DEVICE_OP_RETURN_TO_ZERO_SEEK:
         // RTZ puts the heads back on cylinder 0 but does NOT raise the
         // seek-complete condition: the manual ties that condition to "the
         // initiate seek commands", and DISC-TEMA section 7 reads the seek
