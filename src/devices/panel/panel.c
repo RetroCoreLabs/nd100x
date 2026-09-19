@@ -27,19 +27,16 @@
  * distribution in the file COPYING); if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "panel.h"
+
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
 
 #include "../devices_types.h"
 #include "../devices_protos.h"
-
-
 #include "../../cpu/cpu_types.h"
 #include "../../cpu/cpu_protos.h"
-
-
-#include "panel.h"
 
 static struct display_panel *s_pap;
 

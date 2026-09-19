@@ -31,13 +31,14 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <errno.h>
-#include <fcntl.h>
-#include <sys/stat.h>
 #include <signal.h> // For signal / sigaction
 #include <string.h> // For memset
-#include <pthread.h>
 #include <limits.h>
 #include <time.h> // for time()
+
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <pthread.h>
 
 #ifdef _WIN32
 #include <windows.h> /* Sleep, GetProcessTimes, CreateDirectoryA */

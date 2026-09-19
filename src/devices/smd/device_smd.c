@@ -24,18 +24,19 @@
  * distribution in the file COPYING); if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "device_smd.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#include <unistd.h>
 #include <limits.h>
 #include <inttypes.h>
 
+#include <unistd.h>
+
 #include "../devices_types.h"
 #include "../devices_protos.h"
-
-#include "device_smd.h"
 
 // Emulated controller-timeout window in ticks (the real card gives up after
 // 500 ms). Used by M6 with no outstanding seek: the controller must stay

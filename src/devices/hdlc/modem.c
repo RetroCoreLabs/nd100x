@@ -21,13 +21,14 @@
  * (at your option) any later version.
  */
 
+#include "modem.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
 #include <time.h>
 
-#include "modem.h"
 #include "../devices_types.h"
 
 #if defined(__EMSCRIPTEN__)

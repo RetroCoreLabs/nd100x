@@ -25,14 +25,14 @@
  */
 
 
+#include "disk_smd.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "../devices_types.h"
 #include "../devices_protos.h"
-
-#include "disk_smd.h"
 
 void DiskSMD_SetDiskType(DiskInfo *disk, DiskType dt)
 {

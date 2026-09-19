@@ -24,6 +24,8 @@
  * distribution in the file COPYING); if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "dma_engine.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -35,7 +37,6 @@
 #include "dma_param_buf.h"
 #include "dma_transmitter.h"
 #include "dma_receiver.h"
-#include "dma_engine.h"
 #include "chip_com5025.h"
 #include "chip_com5025_registers.h"
 #include "modem.h"

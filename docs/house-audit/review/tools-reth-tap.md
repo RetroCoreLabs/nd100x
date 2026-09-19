@@ -7,17 +7,17 @@ One row per function. A cell is empty until reviewed; write `ok`, or
 
 | Function | Line | 2.8 | 3.10 | 5.1 | 5.4 | 5.7 | 5.8 | 5.10 | 6.3 | 6.8 | 7.2 | 7.5 | 7.6 | 8.1 | 8.2 | 8.5 | 9.5 | 10.1 | 10.2 | 11.3 | 12.3 |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| on_signal | 74 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
-| tap_open | 90 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
-| write_all | 160 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
-| read_exact | 183 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
-| reth_connect | 211 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
-| pump_tap_to_wire | 291 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
-| pump_wire_to_tap | 333 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
-| usage | 414 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
-| parse_args | 435 | n/a | n/a | ok | ok | n/a | n/a | n/a | ok | n/a | ok -1 continue / exit code | n/a static | ok | n/a | n/a | n/a | ok | n/a single thread | n/a | ok | n/a |
-| pump_ready | 475 | n/a | n/a | ok | ok | n/a | n/a | n/a | ok | n/a | ok 1 = reconnect, 0 = go on | n/a static | ok | n/a | ok socket closed here on loss | n/a | ok | n/a single thread | n/a | ok | n/a |
-| main | 501 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| on_signal | 73 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| tap_open | 89 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| write_all | 159 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| read_exact | 182 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| reth_connect | 210 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| pump_tap_to_wire | 290 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| pump_wire_to_tap | 332 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| usage | 413 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| parse_args | 434 | n/a | n/a | ok | ok | n/a | n/a | n/a | ok | n/a | ok -1 continue / exit code | n/a static | ok | n/a | n/a | n/a | ok | n/a single thread | n/a | ok | n/a |
+| pump_ready | 474 | n/a | n/a | ok | ok | n/a | n/a | n/a | ok | n/a | ok 1 = reconnect, 0 = go on | n/a static | ok | n/a | ok socket closed here on loss | n/a | ok | n/a single thread | n/a | ok | n/a |
+| main | 500 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
 
 ## tools/reth-tap/test-framing.c
 

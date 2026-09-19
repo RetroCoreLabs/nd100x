@@ -31,14 +31,14 @@
  * Buffer-based tape reading (no direct file I/O)
  */
 
+#include "device_paper_tape.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "../devices_types.h"
 #include "../devices_protos.h"
-
-#include "device_paper_tape.h"
 
 static void PaperTape_Reset(Device *self)
 {

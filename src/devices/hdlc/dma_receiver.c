@@ -24,13 +24,14 @@
  * distribution in the file COPYING); if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "dma_receiver.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "dma_receiver.h"
 #include "dma_control_blocks.h"
 #include "chip_com5025.h"
 #include "device_hdlc.h"

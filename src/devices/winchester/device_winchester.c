@@ -31,6 +31,8 @@
  * (two-access memory address, SINGLE-access word count).
  */
 
+#include "device_winchester.h"
+
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -39,8 +41,6 @@
 
 #include "../devices_types.h"
 #include "../devices_protos.h"
-
-#include "device_winchester.h"
 
 /* Registers, offset from the device base address (ND-11.015.01 sec 3.1). */
 // clang-format off

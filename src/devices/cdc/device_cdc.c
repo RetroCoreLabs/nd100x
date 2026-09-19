@@ -25,11 +25,12 @@
  * (at your option) any later version.
  */
 
+#include "device_cdc.h"
+
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 
-#include "device_cdc.h"
 #include "devices_protos.h"
 
 /* Forward declarations (fixed signatures from the Device struct). */

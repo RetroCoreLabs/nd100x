@@ -24,13 +24,14 @@
  * distribution in the file COPYING); if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "hdlc_frame.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "hdlc_frame.h"
 #include "hdlc_crc.h"
 
 // Standard HDLC FCS: init=0xFFFF, good residue=0xF0B8

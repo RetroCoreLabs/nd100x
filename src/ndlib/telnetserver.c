@@ -22,15 +22,17 @@
  * distribution in the file COPYING); if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "telnetserver.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <pthread.h>   /* winpthreads on MinGW; libpthread on POSIX */
 #include <stdatomic.h> /* C11 atomics - supported by MinGW-w64 GCC */
 
+#include <pthread.h> /* winpthreads on MinGW; libpthread on POSIX */
+
 #include "net_compat.h" /* sockets, poll, loopback wake-pair */
-#include "telnetserver.h"
 #include "ndlib_types.h"
 #include "ndlib_protos.h"
 

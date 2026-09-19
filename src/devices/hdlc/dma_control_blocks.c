@@ -24,6 +24,8 @@
  * distribution in the file COPYING); if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "dma_control_blocks.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -31,7 +33,6 @@
 #include <stdbool.h>
 #include <stdarg.h>
 
-#include "dma_control_blocks.h"
 #include "dma_param_buf.h"
 #include "hdlc_frame.h"
 #include "dma_dcb.h"

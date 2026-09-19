@@ -34,12 +34,12 @@
  * "no ND-500" has to be a value returned at runtime, not a missing symbol.
  */
 
+#include "nd500_wasm.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
-
-#include "nd500_wasm.h"
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>

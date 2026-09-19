@@ -24,14 +24,14 @@
  * distribution in the file COPYING); if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "disk_winchester.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "../devices_types.h"
 #include "../devices_protos.h"
-
-#include "disk_winchester.h"
 
 /*
  * Geometry table. Sources per entry are in disk_winchester.h; all Winchester

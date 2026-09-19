@@ -25,14 +25,14 @@
  */
 
 
+#include "device_terminal.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "../devices_types.h"
 #include "../devices_protos.h"
-
-#include "device_terminal.h"
 
 
 // Device definitions array

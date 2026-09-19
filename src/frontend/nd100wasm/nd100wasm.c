@@ -29,8 +29,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
-#include <unistd.h>
 #include <errno.h>
+
+#include <unistd.h>
 
 // Add Emscripten specific headers when building for WASM
 #ifdef __EMSCRIPTEN__

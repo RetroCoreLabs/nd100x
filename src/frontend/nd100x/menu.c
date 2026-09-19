@@ -28,13 +28,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <ctype.h>
+#include <errno.h>
+
 #include <unistd.h>
 #include <curl/curl.h>
 #include <cjson/cJSON.h>
 #include <ncurses.h>
-#include <ctype.h>
 #include <sys/stat.h>
-#include <errno.h>
 
 #include "nd100x_types.h"
 #include "nd100x_protos.h"

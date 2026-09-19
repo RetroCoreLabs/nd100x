@@ -42,12 +42,12 @@
  *   trailer
  */
 
+#include "pdfwriter.h"
+
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include "pdfwriter.h"
 
 // Initial capacities
 #define INITIAL_PAGES 8

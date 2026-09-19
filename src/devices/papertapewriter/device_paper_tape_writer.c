@@ -30,14 +30,14 @@
  * Ported from RetroCore NDBusPapertapeWriter.cs
  */
 
+#include "device_paper_tape_writer.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "../devices_types.h"
 #include "../devices_protos.h"
-
-#include "device_paper_tape_writer.h"
 
 // Forward declaration
 static bool PunchEnd(void *context, int param);

@@ -24,11 +24,12 @@
  * distribution in the file COPYING); if not, see <http://www.gnu.org/licenses/>.
  */
 #include <inttypes.h>
-#include <pthread.h>
-#include <unistd.h>
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
+
+#include <pthread.h>
+#include <unistd.h>
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>

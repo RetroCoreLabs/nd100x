@@ -13,10 +13,10 @@
  * (at your option) any later version.
  */
 
+#include "charset.h"
+
 #include <stdio.h>
 #include <string.h>
-
-#include "charset.h"
 
 /*
  * One mapped position in an ISO 646 national variant.

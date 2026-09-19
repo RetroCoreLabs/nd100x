@@ -24,13 +24,13 @@
  * distribution in the file COPYING); if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "dma_param_buf.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
 #include <stdbool.h>
-
-#include "dma_param_buf.h"
 
 void ParameterBuffer_Init(ParameterBuffer *paramBuf)
 {

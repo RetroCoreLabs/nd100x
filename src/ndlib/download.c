@@ -24,11 +24,12 @@
  * distribution in the file COPYING); if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "download.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "download.h"
 #include "log.h"
 
 #if defined(__EMSCRIPTEN__) || defined(__riscv) || !defined(HAVE_CURL)

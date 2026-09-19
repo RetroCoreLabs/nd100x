@@ -49,11 +49,11 @@
  *   ESC 3 n          Set line spacing to n/216"
  */
 
+#include "escp.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include "escp.h"
 
 #define INITIAL_SPANS   256
 #define INITIAL_LINEBUF 256

@@ -13,11 +13,12 @@
  * (at your option) any later version.
  */
 
+#include "vscreen.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "vscreen.h"
 #include "charset.h"
 
 void VScreen_Init(VScreen *vs, const char *name, Device *dev, int cols, bool inputCapable)

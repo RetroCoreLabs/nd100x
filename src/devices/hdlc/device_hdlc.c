@@ -26,14 +26,14 @@
 
 // Uncomment to enable HDLC debug logging (register reads/writes, interrupts, DMA commands)
 
+#include "device_hdlc.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "../devices_types.h"
 #include "../devices_protos.h"
-
-#include "device_hdlc.h"
 #include "hdlc_frame.h"
 #include "chip_com5025.h"
 #include "chip_com5025_registers.h"

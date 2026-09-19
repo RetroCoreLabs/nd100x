@@ -14,10 +14,11 @@
  * Kept in lock-step with the CpuType enum in cpu_types.h. Adding a model is two
  * rows here and one enum value there.
  */
-#include "cpu_types.h"
 #include "cpu_model.h"
 
 #include <string.h>
+
+#include "cpu_types.h"
 #ifdef _WIN32
 #define nd_strcasecmp _stricmp
 #else

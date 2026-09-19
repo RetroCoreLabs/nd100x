@@ -31,14 +31,14 @@
  * Ported from RetroCore NDBusLinePrinter.cs
  */
 
+#include "device_line_printer.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "../devices_types.h"
 #include "../devices_protos.h"
-
-#include "device_line_printer.h"
 
 static void LinePrinter_Reset(Device *self)
 {

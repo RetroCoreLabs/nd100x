@@ -13,6 +13,8 @@
  * (at your option) any later version.
  */
 
+#include "screenmenu.h"
+
 #include <stdio.h>
 #include <string.h>
 #include <inttypes.h>
@@ -21,7 +23,6 @@
 #include "keyboard.h"
 #include "nd100x_version.h" /* generated into the build dir by cmake/git_stamp.cmake */
 #include "vscreen.h"
-#include "screenmenu.h"
 #include "nd100x_types.h"
 #include "nd100x_protos.h" /* show_floppy_menu() from menu.c */
 #include "charset.h"

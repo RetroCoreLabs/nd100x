@@ -7,10 +7,10 @@
  * test_log.c - unit tests for the category/level logger (src/ndlib/log.c).
  */
 
-#include "log.h"
-
 #include <stdio.h>
 #include <string.h>
+
+#include "log.h"
 
 static int g_pass;
 static int g_fail;

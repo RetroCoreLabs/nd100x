@@ -25,12 +25,14 @@
  */
 
 
+#include "device_floppy_pio.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "../devices_types.h"
 #include "../devices_protos.h"
-#include "device_floppy_pio.h"
 
 
 // Floppy boot sector data

@@ -25,12 +25,14 @@
  */
 
 
+#include "device_floppy_dma.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "../devices_types.h"
 #include "../devices_protos.h"
-#include "device_floppy_dma.h"
 
 /* File-local helpers (defined below) */
 static void ExecuteFloppyGo(Device *self);

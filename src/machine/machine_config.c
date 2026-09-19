@@ -13,6 +13,8 @@
  * short "what/why/how to fix" message.
  */
 
+#include "machine_config.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -20,7 +22,6 @@
 #include <stdarg.h>
 #include <errno.h>
 
-#include "machine_config.h"
 #include "../cpu/cpu_types.h" /* CpuType (ND100, ND110, ...) */
 #include "../cpu/cpu_model.h" /* CpuModel_FromName / _Name    */
 

@@ -24,13 +24,14 @@
  * distribution in the file COPYING); if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "dma_dcb.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "dma_dcb.h"
 #include "hdlc_constants.h"
 
 void DCB_Init(HdlcDCB *dcb)

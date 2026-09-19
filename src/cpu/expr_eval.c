@@ -23,12 +23,13 @@
  */
 
 #include "expr_eval.h"
-#include "cpu_types.h"
-#include "cpu_protos.h"
 
 #include <string.h>
 #include <ctype.h>
 #include <stdlib.h>
+
+#include "cpu_types.h"
+#include "cpu_protos.h"
 
 /* Parser state */
 typedef struct

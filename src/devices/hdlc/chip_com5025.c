@@ -24,9 +24,11 @@
  * distribution in the file COPYING); if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "chip_com5025.h"
+
 #include <string.h>
 #include <stdio.h>
-#include "chip_com5025.h"
+
 #include "chip_com5025_registers.h"
 #include "hdlc_crc.h"
 

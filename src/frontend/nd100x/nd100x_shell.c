@@ -22,15 +22,17 @@
  * distribution in the file COPYING); if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "nd100x_shell.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include <dirent.h>
 #include <errno.h>
+
+#include <dirent.h>
 #include <sys/stat.h>
 
-#include "nd100x_shell.h"
 #include "../ndlib/ndlib_types.h"
 #include "../ndlib/ndlib_protos.h"
 #include "../../machine/machine_types.h"

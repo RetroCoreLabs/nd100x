@@ -23,11 +23,12 @@
  * more than it saves.
  */
 #include "machine_config_json.h"
-#include "../cpu/cpu_model.h"
 
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
+
+#include "../cpu/cpu_model.h"
 
 /* Append to a bounded buffer, tracking overflow rather than truncating
  * silently: a half-written JSON object would fail to parse in the browser with

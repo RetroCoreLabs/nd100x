@@ -24,10 +24,10 @@
  * distribution in the file COPYING); if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "tcp_receive_buffer.h"
+
 #include <stdlib.h>
 #include <string.h>
-
-#include "tcp_receive_buffer.h"
 
 void TcpReceiveBuffer_Init(TcpReceiveBuffer *buf, int capacity)
 {
