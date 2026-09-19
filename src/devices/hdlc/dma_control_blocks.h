@@ -43,7 +43,8 @@ typedef void (*DMAControlBlocks_InterruptCallback)(void *context, uint8_t bit);
 #include "dma_param_buf.h"
 
 // DMA Control Blocks structure
-typedef struct DMAControlBlocks {
+typedef struct DMAControlBlocks
+{
     // Buffer pointers
     uint8_t *outboundBuffer;
     int outboundBufferSize;
@@ -97,12 +98,19 @@ void DMAControlBlocks_LoadRXBuffer(DMAControlBlocks *dmaCB);
 bool DMAControlBlocks_LoadNextRXBuffer(DMAControlBlocks *dmaCB);
 bool DMAControlBlocks_IsNextRXbufValid(DMAControlBlocks *dmaCB);
 void DMAControlBlocks_MarkBufferReceived(DMAControlBlocks *dmaCB, uint8_t rxStatus);
-HdlcDCB *DMAControlBlocks_LoadBufferDescription(DMAControlBlocks *dmaCB, uint32_t listPointer, uint16_t offset, bool isRX);
+HdlcDCB *DMAControlBlocks_LoadBufferDescription(DMAControlBlocks *dmaCB, uint32_t listPointer,
+                                                uint16_t offset, bool isRX);
 uint8_t DMAControlBlocks_ReadNextByteDMA(DMAControlBlocks *dmaCB, bool isRx);
 void DMAControlBlocks_WriteNextByteDMA(DMAControlBlocks *dmaCB, uint8_t data, bool isRx);
-void DMAControlBlocks_SetReadDMACallback(DMAControlBlocks *dmaCB, DMAControlBlocks_ReadCallback callback, void *context);
-void DMAControlBlocks_SetWriteDMACallback(DMAControlBlocks *dmaCB, DMAControlBlocks_WriteCallback callback, void *context);
-void DMAControlBlocks_SetSendHDLCFrameCallback(DMAControlBlocks *dmaCB, DMAControlBlocks_SendFrameCallback callback, void *context);
-void DMAControlBlocks_SetInterruptCallback(DMAControlBlocks *dmaCB, DMAControlBlocks_InterruptCallback callback, void *context);
+void DMAControlBlocks_SetReadDMACallback(DMAControlBlocks *dmaCB,
+                                         DMAControlBlocks_ReadCallback callback, void *context);
+void DMAControlBlocks_SetWriteDMACallback(DMAControlBlocks *dmaCB,
+                                          DMAControlBlocks_WriteCallback callback, void *context);
+void DMAControlBlocks_SetSendHDLCFrameCallback(DMAControlBlocks *dmaCB,
+                                               DMAControlBlocks_SendFrameCallback callback,
+                                               void *context);
+void DMAControlBlocks_SetInterruptCallback(DMAControlBlocks *dmaCB,
+                                           DMAControlBlocks_InterruptCallback callback,
+                                           void *context);
 
 #endif // DMA_CONTROL_BLOCKS_H

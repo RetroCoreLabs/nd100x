@@ -29,7 +29,8 @@
 
 // Register address selection where "BYTE OP" = 0 (data port 16 bits wide)
 // Ignores A0
-typedef enum {
+typedef enum
+{
     COM5025_REG_WORD_RECEIVER_STATUS = 0,
     COM5025_REG_WORD_TRANSMITTER_STATUS = 1,
     COM5025_REG_WORD_MODE_CONTROL_SYNC_ADDRESS = 2,
@@ -37,7 +38,8 @@ typedef enum {
 } COM5025RegistersWord;
 
 // Register address selection where "BYTE OP" = 1 (8 bit data)
-typedef enum {
+typedef enum
+{
     COM5025_REG_BYTE_RECEIVER_DATA_BUFFER = 0,
     COM5025_REG_BYTE_RECEIVER_STATUS = 1,
     COM5025_REG_BYTE_TRANSMITTER_DATA = 2,
@@ -49,7 +51,8 @@ typedef enum {
 } COM5025RegistersByte;
 
 // Receiver Status (Read only)
-typedef enum {
+typedef enum
+{
     // RSOM - Receiver Start of Message (read-only)
     // BOP: Set when a FLAG followed by a non-FLAG has been received
     // and the latter character matches the secondary station address if SAM = 1.
@@ -83,17 +86,18 @@ typedef enum {
     COM5025_RX_STATUS_ERR_CHK = 1 << 15,
 
     // Masks for clearing flags
-    COM5025_RX_STATUS_MASK_CLEAR_ON_RSR = ~(COM5025_RX_STATUS_REOM | COM5025_RX_STATUS_RAB_GA |
-                                           COM5025_RX_STATUS_ROR | COM5025_RX_STATUS_ABC_A |
-                                           COM5025_RX_STATUS_ABC_B | COM5025_RX_STATUS_ABC_C),
+    COM5025_RX_STATUS_MASK_CLEAR_ON_RSR =
+        ~(COM5025_RX_STATUS_REOM | COM5025_RX_STATUS_RAB_GA | COM5025_RX_STATUS_ROR |
+          COM5025_RX_STATUS_ABC_A | COM5025_RX_STATUS_ABC_B | COM5025_RX_STATUS_ABC_C),
 
-    COM5025_RX_STATUS_MASK_CLEAR_ON_RECEIVER_DISABLE = ~(COM5025_RX_STATUS_REOM | COM5025_RX_STATUS_RAB_GA |
-                                                         COM5025_RX_STATUS_ROR | COM5025_RX_STATUS_ABC_A |
-                                                         COM5025_RX_STATUS_ABC_B | COM5025_RX_STATUS_ABC_C)
+    COM5025_RX_STATUS_MASK_CLEAR_ON_RECEIVER_DISABLE =
+        ~(COM5025_RX_STATUS_REOM | COM5025_RX_STATUS_RAB_GA | COM5025_RX_STATUS_ROR |
+          COM5025_RX_STATUS_ABC_A | COM5025_RX_STATUS_ABC_B | COM5025_RX_STATUS_ABC_C)
 } COM5025ReceiverStatusFlags;
 
 // TX Status and Control (Read/Write)
-typedef enum {
+typedef enum
+{
     // TSOM - Transmitter Start of Message (W/R bit)
     // Provided TXENA=1, TSOM initiates start of message.
     // In BOP: TSOM=1 generates FLAG and continues to send FLAG's until TSOM=0, then begin data.
@@ -119,6 +123,7 @@ typedef enum {
 } COM5025TXStatusFlags;
 
 // Mode Control (Read/Write)
+// clang-format off
 typedef enum {
     // CRC SELECT bits X, Y and Z = Error Control Mode
     COM5025_MODE_CONTROL_X = 1 << 8,  // CRC SELECT X
@@ -146,9 +151,11 @@ typedef enum {
     // Used in ring networks to enable all connected computers as receivers
     COM5025_MODE_CONTROL_APA = 1 << 15
 } COM5025ModeControlFlags;
+// clang-format on
 
 // Data Length Select (Read/Write)
-typedef enum {
+typedef enum
+{
     COM5025_DATA_LENGTH_RXDL1 = 1 << 8,
     COM5025_DATA_LENGTH_RXDL2 = 1 << 9,
     COM5025_DATA_LENGTH_RXDL3 = 1 << 10,
@@ -160,7 +167,8 @@ typedef enum {
 } COM5025DataLengthSelectFlags;
 
 // Chip pin OUTPUT signals
-typedef enum {
+typedef enum
+{
     // Sync/Flag received (SFR) - pin 4
     // Set high for 1 clock time each time a sync or flag character is received
     COM5025_PIN_OUT_SFR = 0,
@@ -197,7 +205,8 @@ typedef enum {
 } COM5025SignalPinOut;
 
 // Chip pin INPUT signals
-typedef enum {
+typedef enum
+{
     // Receiver Clock (RCP) - Pin 2
     // Positive-going edge shifts data into the receiver shift register
     COM5025_PIN_IN_RCP = 0,
@@ -226,13 +235,16 @@ typedef enum {
 } COM5025SignalPinIn;
 
 // Multi-Protocol mode selection
+// clang-format off
 typedef enum {
     COM5025_MODE_BOP = 0,  // Bit Oriented Protocols: SDLC, HDLC, ADCCP
     COM5025_MODE_CCP = 1   // Control Character Protocols: BiSync, DDCMP
 } COM5025MPCCMode;
+// clang-format on
 
 // COM5025 chip state structure
-typedef struct COM5025State {
+typedef struct COM5025State
+{
     // Registers
     uint8_t receiverDataBuffer;
     uint16_t receiverStatusRegister;
@@ -295,7 +307,12 @@ void COM5025_TransmitData(COM5025State *chip, uint8_t data);
 // Callback setup functions
 void COM5025_SetReceiverStatus(COM5025State *chip, uint16_t newRxStatus);
 
-void COM5025_SetTransmitterOutputCallback(COM5025State *chip, void (*callback)(void *context, uint8_t data), void *context);
-void COM5025_SetPinValueChangedCallback(COM5025State *chip, void (*callback)(void *context, COM5025SignalPinOut pin, bool value), void *context);
+void COM5025_SetTransmitterOutputCallback(COM5025State *chip,
+                                          void (*callback)(void *context, uint8_t data),
+                                          void *context);
+void COM5025_SetPinValueChangedCallback(COM5025State *chip,
+                                        void (*callback)(void *context, COM5025SignalPinOut pin,
+                                                         bool value),
+                                        void *context);
 
 #endif // CHIP_COM5025_H

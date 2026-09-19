@@ -27,11 +27,17 @@
 
 void TcpReceiveBuffer_Init(TcpReceiveBuffer *buf, int capacity)
 {
-    if (!buf) return;
+    if (!buf)
+    {
+        return;
+    }
 
     buf->capacity = capacity;
     buf->buffer = malloc((size_t)capacity);
-    if (!buf->buffer) buf->capacity = 0;   /* read/write already test buffer */
+    if (!buf->buffer)
+    {
+        buf->capacity = 0; /* read/write already test buffer */
+    }
     buf->head = 0;
     buf->tail = 0;
     buf->count = 0;
@@ -39,9 +45,13 @@ void TcpReceiveBuffer_Init(TcpReceiveBuffer *buf, int capacity)
 
 void TcpReceiveBuffer_Destroy(TcpReceiveBuffer *buf)
 {
-    if (!buf) return;
+    if (!buf)
+    {
+        return;
+    }
 
-    if (buf->buffer) {
+    if (buf->buffer)
+    {
         free(buf->buffer);
         buf->buffer = NULL;
     }
@@ -52,23 +62,33 @@ void TcpReceiveBuffer_Destroy(TcpReceiveBuffer *buf)
 
 int TcpReceiveBuffer_Enqueue(TcpReceiveBuffer *buf, const uint8_t *data, int length)
 {
-    if (!buf || !buf->buffer || !data || length <= 0) return 0;
+    if (!buf || !buf->buffer || !data || length <= 0)
+    {
+        return 0;
+    }
 
     int bytesToWrite = length;
     int freeSpace = buf->capacity - buf->count;
-    if (bytesToWrite > freeSpace) {
+    if (bytesToWrite > freeSpace)
+    {
         bytesToWrite = freeSpace;
     }
-    if (bytesToWrite == 0) return 0;
+    if (bytesToWrite == 0)
+    {
+        return 0;
+    }
 
     // Write in two parts if wrapping around
-    if (buf->head + bytesToWrite > buf->capacity) {
+    if (buf->head + bytesToWrite > buf->capacity)
+    {
         int firstPart = buf->capacity - buf->head;
         memcpy(&buf->buffer[buf->head], data, (size_t)firstPart);
         int secondPart = bytesToWrite - firstPart;
         memcpy(&buf->buffer[0], &data[firstPart], (size_t)secondPart);
         buf->head = secondPart;
-    } else {
+    }
+    else
+    {
         memcpy(&buf->buffer[buf->head], data, (size_t)bytesToWrite);
         buf->head = (buf->head + bytesToWrite) % buf->capacity;
     }
@@ -79,8 +99,12 @@ int TcpReceiveBuffer_Enqueue(TcpReceiveBuffer *buf, const uint8_t *data, int len
 
 bool TcpReceiveBuffer_DequeueByte(TcpReceiveBuffer *buf, uint8_t *out)
 {
-    if (!buf || !buf->buffer || buf->count == 0) {
-        if (out) *out = 0;
+    if (!buf || !buf->buffer || buf->count == 0)
+    {
+        if (out)
+        {
+            *out = 0;
+        }
         return false;
     }
 
@@ -92,13 +116,19 @@ bool TcpReceiveBuffer_DequeueByte(TcpReceiveBuffer *buf, uint8_t *out)
 
 int TcpReceiveBuffer_Available(TcpReceiveBuffer *buf)
 {
-    if (!buf) return 0;
+    if (!buf)
+    {
+        return 0;
+    }
     return buf->count;
 }
 
 void TcpReceiveBuffer_Clear(TcpReceiveBuffer *buf)
 {
-    if (!buf) return;
+    if (!buf)
+    {
+        return;
+    }
     buf->head = 0;
     buf->tail = 0;
     buf->count = 0;

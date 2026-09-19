@@ -40,24 +40,24 @@ typedef struct
     /* Per-SCSI-ID target class. Index is the SCSI ID (0-6); ID 7 is us. */
     SCSIUnitType unitType[SCSI_MAX_UNITS];
 
-    SCSIBus       bus;
-    NCR5386       ncr;
+    SCSIBus bus;
+    NCR5386 ncr;
     SCSIHDDDevice disks[SCSI_MAX_UNITS];
-    bool          diskPresent[SCSI_MAX_UNITS];
+    bool diskPresent[SCSI_MAX_UNITS];
 
     /* ---- ND card registers ---- */
-    uint16_t memoryAddressLSB;      /* MAR bits 0-15 */
-    uint16_t memoryAddressMSB;      /* MAR bits 16-23 */
-    uint16_t readWriteData;         /* IOX PIO data buffer */
-    uint16_t externalWordCount;     /* 3204 only, not driven */
+    uint16_t memoryAddressLSB;  /* MAR bits 0-15 */
+    uint16_t memoryAddressMSB;  /* MAR bits 16-23 */
+    uint16_t readWriteData;     /* IOX PIO data buffer */
+    uint16_t externalWordCount; /* 3204 only, not driven */
     uint16_t externalWordCountMSB;
 
     bool interruptEnabled;
-    bool active;                    /* GO / busy */
+    bool active; /* GO / busy */
     bool readyForTransfer;
     bool testMode;
     bool dmaEnable;
-    bool writeNDMemory;             /* DMA direction: true = SCSI -> ND memory */
+    bool writeNDMemory; /* DMA direction: true = SCSI -> ND memory */
     bool resetOnSCSIBus;
 
     bool dataRequestFromNCR;
@@ -67,7 +67,7 @@ typedef struct
     /* DMA byte<->word packing state. */
     uint32_t dma_bytes_read;
     uint32_t dma_bytes_written;
-    int32_t  dma_read_data;         /* latched word for the odd byte */
+    int32_t dma_read_data; /* latched word for the odd byte */
 
     int bytesPrSector;
 } SCSIData;
@@ -78,7 +78,9 @@ static void SCSI_Log(const char *fmt, ...) __attribute__((format(printf, 1, 2)))
 static void SCSI_Log(const char *fmt, ...)
 {
     if (!Log_IsEnabled(LOG_CAT_SCSI, LOG_DEBUG))
+    {
         return;
+    }
 
     char msg[512];
     va_list args;
@@ -106,16 +108,26 @@ static void SCSI_IncrementMAR(SCSIData *data)
 SCSIUnitType SCSI_ParseUnitType(const char *name)
 {
     if (!name)
+    {
         return SCSI_UNIT_NONE;
+    }
 
     if (strcmp(name, "hdd") == 0)
+    {
         return SCSI_UNIT_HDD;
+    }
     if (strcmp(name, "tape") == 0)
+    {
         return SCSI_UNIT_TAPE;
+    }
     if (strcmp(name, "cdrom") == 0)
+    {
         return SCSI_UNIT_CDROM;
+    }
     if (strcmp(name, "floppy") == 0)
+    {
         return SCSI_UNIT_FLOPPY;
+    }
 
     return SCSI_UNIT_NONE;
 }
@@ -125,12 +137,17 @@ const char *SCSI_UnitTypeName(SCSIUnitType type)
 {
     switch (type)
     {
-    case SCSI_UNIT_HDD:    return "hdd";
-    case SCSI_UNIT_TAPE:   return "tape";
-    case SCSI_UNIT_CDROM:  return "cdrom";
-    case SCSI_UNIT_FLOPPY: return "floppy";
+    case SCSI_UNIT_HDD:
+        return "hdd";
+    case SCSI_UNIT_TAPE:
+        return "tape";
+    case SCSI_UNIT_CDROM:
+        return "cdrom";
+    case SCSI_UNIT_FLOPPY:
+        return "floppy";
     case SCSI_UNIT_NONE:
-    default:               return "none";
+    default:
+        return "none";
     }
 }
 
@@ -138,16 +155,21 @@ const char *SCSI_UnitTypeName(SCSIUnitType type)
 bool SCSI_SetUnitType(Device *dev, int unit, SCSIUnitType type)
 {
     if (!dev || !dev->deviceData)
+    {
         return false;
+    }
     if (unit < 0 || unit >= SCSI_MAX_UNITS)
+    {
         return false;
+    }
 
     /* Only the hard disk target is implemented. Reject the rest loudly rather
      * than silently mounting an image that nothing will ever answer for. */
     if (type != SCSI_UNIT_HDD && type != SCSI_UNIT_NONE)
     {
-        LOG(LOG_CAT_SCSI, LOG_ERROR, "SCSI: unit %d type '%s' is not implemented yet (only 'hdd')\n",
-               unit, SCSI_UnitTypeName(type));
+        LOG(LOG_CAT_SCSI, LOG_ERROR,
+            "SCSI: unit %d type '%s' is not implemented yet (only 'hdd')\n", unit,
+            SCSI_UnitTypeName(type));
         return false;
     }
 
@@ -179,8 +201,8 @@ static void SCSI_OnNCRInterrupt(void *context, uint8_t state)
         /* Only latch. The flag is consumed in SCSI_StepGoState, and cleared
          * when the ND reads RITRG - never by reading RSTAU. */
         data->interruptFromNCR = true;
-        SCSI_Log("NCR interrupt raised active=%d intEnabled=%d",
-                 data->active, data->interruptEnabled);
+        SCSI_Log("NCR interrupt raised active=%d intEnabled=%d", data->active,
+                 data->interruptEnabled);
     }
 }
 
@@ -274,23 +296,28 @@ static void SCSI_StepGoState(Device *self)
     SCSIData *data = (SCSIData *)self->deviceData;
 
     if (!data->active)
+    {
         return;
+    }
 
     if (data->interruptFromNCR)
     {
         data->active = false;
         data->readyForTransfer = true;
 
-        SCSI_Log("completion: active->false rft->true intEnabled=%d -> %s",
-                 data->interruptEnabled,
+        SCSI_Log("completion: active->false rft->true intEnabled=%d -> %s", data->interruptEnabled,
                  data->interruptEnabled ? "INTERRUPT" : "no IRQ (int disabled)");
 
         if (data->interruptEnabled)
+        {
             Device_GenerateInterrupt(self, self->interruptLevel);
+        }
     }
 
     if (!data->dmaEnable)
+    {
         return;
+    }
 
     uint32_t startWritten = data->dma_bytes_written;
 
@@ -312,9 +339,11 @@ static void SCSI_StepGoState(Device *self)
     }
 
     if (Log_IsEnabled(LOG_CAT_SCSI, LOG_DEBUG) && data->dma_bytes_written > startWritten)
+    {
         SCSI_Log("DMA->ND xfer bytes=%u totalWritten=%u MAR=0x%06X",
                  data->dma_bytes_written - startWritten, data->dma_bytes_written,
                  SCSI_GetMAR(data));
+    }
 }
 
 
@@ -322,7 +351,9 @@ static void SCSI_Reset(Device *self)
 {
     SCSIData *data = (SCSIData *)self->deviceData;
     if (!data)
+    {
         return;
+    }
 
     self->blockSizeBytes = 1024; /* ND SCSI disk sector = 1024 bytes = 512 ND words */
     data->bytesPrSector = 1024;
@@ -380,18 +411,30 @@ static int ncr_read_register(uint32_t reg)
 {
     switch (reg)
     {
-    case SCSI_REG_RNDAT: return NCR_REG_DATA;
-    case SCSI_REG_RNCOM: return NCR_REG_COMMAND;
-    case SCSI_REG_RNCNT: return NCR_REG_CONTROL;
-    case SCSI_REG_RDESI: return NCR_REG_DESTINATION_ID;
-    case SCSI_REG_RAUXS: return NCR_REG_AUX_STATUS;
-    case SCSI_REG_ROIDN: return NCR_REG_ID;
-    case SCSI_REG_RSOUI: return NCR_REG_SOURCE_ID;
-    case SCSI_REG_RDIST: return NCR_REG_DIAGNOSTIC_STATUS;
-    case SCSI_REG_RTCM:  return NCR_REG_TRANSFER_COUNT_MSB;
-    case SCSI_REG_RTC2:  return NCR_REG_TRANSFER_COUNT_MID;
-    case SCSI_REG_RTCL:  return NCR_REG_TRANSFER_COUNT_LSB;
-    default:             return -1;
+    case SCSI_REG_RNDAT:
+        return NCR_REG_DATA;
+    case SCSI_REG_RNCOM:
+        return NCR_REG_COMMAND;
+    case SCSI_REG_RNCNT:
+        return NCR_REG_CONTROL;
+    case SCSI_REG_RDESI:
+        return NCR_REG_DESTINATION_ID;
+    case SCSI_REG_RAUXS:
+        return NCR_REG_AUX_STATUS;
+    case SCSI_REG_ROIDN:
+        return NCR_REG_ID;
+    case SCSI_REG_RSOUI:
+        return NCR_REG_SOURCE_ID;
+    case SCSI_REG_RDIST:
+        return NCR_REG_DIAGNOSTIC_STATUS;
+    case SCSI_REG_RTCM:
+        return NCR_REG_TRANSFER_COUNT_MSB;
+    case SCSI_REG_RTC2:
+        return NCR_REG_TRANSFER_COUNT_MID;
+    case SCSI_REG_RTCL:
+        return NCR_REG_TRANSFER_COUNT_LSB;
+    default:
+        return -1;
     }
 }
 
@@ -399,17 +442,50 @@ static int ncr_read_register(uint32_t reg)
 static uint16_t scsi_status_word(SCSIData *data)
 {
     uint16_t rval = 0;
-    if (data->interruptEnabled)             rval |= SCSI_STAT_INTERRUPT_ENABLED;
-    if (data->active)                       rval |= SCSI_STAT_ACTIVE;
-    if (data->readyForTransfer)             rval |= SCSI_STAT_READY_FOR_TRANSFER;
-    if (data->resetOnSCSIBus)               rval |= SCSI_STAT_RESET_ON_SCSI_BUS;
-    if (NCR5386_ChipDisabled(&data->ncr))   rval |= SCSI_STAT_NCR_DISABLED;
-    if (data->dataRequestFromNCR)           rval |= SCSI_STAT_DATA_REQUEST;
-    if (data->interruptFromNCR)             rval |= SCSI_STAT_INTERRUPT_FROM_NCR;
-    if (data->dataAcknowledgeToNCR)         rval |= SCSI_STAT_DATA_ACKNOWLEDGE;
-    if (NCR5386_SCSI_BSY(&data->ncr))       rval |= SCSI_STAT_SCSI_BSY;
-    if (NCR5386_SCSI_REQ(&data->ncr))       rval |= SCSI_STAT_SCSI_REQ;
-    if (NCR5386_SCSI_ACK(&data->ncr))       rval |= SCSI_STAT_SCSI_ACK;
+    if (data->interruptEnabled)
+    {
+        rval |= SCSI_STAT_INTERRUPT_ENABLED;
+    }
+    if (data->active)
+    {
+        rval |= SCSI_STAT_ACTIVE;
+    }
+    if (data->readyForTransfer)
+    {
+        rval |= SCSI_STAT_READY_FOR_TRANSFER;
+    }
+    if (data->resetOnSCSIBus)
+    {
+        rval |= SCSI_STAT_RESET_ON_SCSI_BUS;
+    }
+    if (NCR5386_ChipDisabled(&data->ncr))
+    {
+        rval |= SCSI_STAT_NCR_DISABLED;
+    }
+    if (data->dataRequestFromNCR)
+    {
+        rval |= SCSI_STAT_DATA_REQUEST;
+    }
+    if (data->interruptFromNCR)
+    {
+        rval |= SCSI_STAT_INTERRUPT_FROM_NCR;
+    }
+    if (data->dataAcknowledgeToNCR)
+    {
+        rval |= SCSI_STAT_DATA_ACKNOWLEDGE;
+    }
+    if (NCR5386_SCSI_BSY(&data->ncr))
+    {
+        rval |= SCSI_STAT_SCSI_BSY;
+    }
+    if (NCR5386_SCSI_REQ(&data->ncr))
+    {
+        rval |= SCSI_STAT_SCSI_REQ;
+    }
+    if (NCR5386_SCSI_ACK(&data->ncr))
+    {
+        rval |= SCSI_STAT_SCSI_ACK;
+    }
     return rval;
 }
 
@@ -431,7 +507,9 @@ static uint16_t SCSI_Read(Device *self, uint32_t address)
          * MAR check -> MARER -> SCSI bus reset. Dormant with 1024-byte
          * sectors (all transfers even-length), but matches the hardware. */
         if (data->testMode)
+        {
             SCSI_IncrementMAR(data);
+        }
         break;
 
     case SCSI_REG_REDAT:
@@ -482,8 +560,10 @@ static uint16_t SCSI_Read(Device *self, uint32_t address)
     }
 
     if (Log_IsEnabled(LOG_CAT_SCSI, LOG_DEBUG))
+    {
         Log_Write(LOG_CAT_SCSI, LOG_DEBUG, "IOX READ  addr=%o reg=%o -> value=%o (0x%04X)\n",
-                address, reg, rval, rval);
+                  address, reg, rval, rval);
+    }
 
     return rval;
 }
@@ -494,24 +574,30 @@ static uint16_t SCSI_Read(Device *self, uint32_t address)
 static void scsi_write_control(Device *self, SCSIData *data, uint16_t value)
 {
     data->interruptEnabled = (value & SCSI_CTRL_ENABLE_INTERRUPT) != 0;
-    data->active           = (value & SCSI_CTRL_ACTIVATE) != 0;
-    data->testMode         = (value & SCSI_CTRL_TEST_MODE) != 0;
-    data->dmaEnable        = (value & SCSI_CTRL_DMA_ENABLE) != 0;
-    data->writeNDMemory    = (value & SCSI_CTRL_WRITE_ND_MEMORY) != 0;
+    data->active = (value & SCSI_CTRL_ACTIVATE) != 0;
+    data->testMode = (value & SCSI_CTRL_TEST_MODE) != 0;
+    data->dmaEnable = (value & SCSI_CTRL_DMA_ENABLE) != 0;
+    data->writeNDMemory = (value & SCSI_CTRL_WRITE_ND_MEMORY) != 0;
 
     if (Log_IsEnabled(LOG_CAT_SCSI, LOG_DEBUG))
-        SCSI_Log("CONTROL WORD=%o (0x%04X) IntEn=%d Active=%d Test=%d DMA=%d WriteND=%d",
-                 value, value, data->interruptEnabled, data->active,
-                 data->testMode, data->dmaEnable, data->writeNDMemory);
+    {
+        SCSI_Log("CONTROL WORD=%o (0x%04X) IntEn=%d Active=%d Test=%d DMA=%d WriteND=%d", value,
+                 value, data->interruptEnabled, data->active, data->testMode, data->dmaEnable,
+                 data->writeNDMemory);
+    }
 
     /* Test mode does a single PIO word through the DMA path. */
     if (data->testMode)
     {
         uint32_t dma_address = SCSI_GetMAR(data);
         if (data->writeNDMemory)
+        {
             Device_DMAWrite(dma_address, data->readWriteData);
+        }
         else
+        {
             data->readWriteData = (uint16_t)Device_DMARead(dma_address);
+        }
     }
 
     /* Clear device: zeroes the MAR and buffer pointers, resets the NCR and
@@ -533,12 +619,16 @@ static void scsi_write_control(Device *self, SCSIData *data, uint16_t value)
 
     data->resetOnSCSIBus = (value & SCSI_CTRL_RESET_SCSI_BUS) != 0;
     if (data->resetOnSCSIBus)
+    {
         NCR5386_InitiateResetSCSIBus(&data->ncr);
+    }
 
     /* Writing the activate bit starts the transfer and clears
      * ready-for-transfer. */
     if (data->active)
+    {
         data->readyForTransfer = false;
+    }
     else if (data->interruptEnabled && data->readyForTransfer)
     {
         /* "Interrupt when ready" (alignment 2026-07-17, ported from
@@ -562,8 +652,10 @@ static void SCSI_Write(Device *self, uint32_t address, uint16_t value)
     uint32_t reg = Device_RegisterAddress(self, address);
 
     if (Log_IsEnabled(LOG_CAT_SCSI, LOG_DEBUG))
-        Log_Write(LOG_CAT_SCSI, LOG_DEBUG, "IOX WRITE addr=%o reg=%o value=%o (0x%04X)\n",
-                address, reg, value, value);
+    {
+        Log_Write(LOG_CAT_SCSI, LOG_DEBUG, "IOX WRITE addr=%o reg=%o value=%o (0x%04X)\n", address,
+                  reg, value, value);
+    }
 
     switch (reg)
     {
@@ -584,15 +676,33 @@ static void SCSI_Write(Device *self, uint32_t address, uint16_t value)
         break;
 
     /* ---- NCR chip registers ---- */
-    case SCSI_REG_WNDAT: NCR5386_Write(&data->ncr, NCR_REG_DATA, (uint8_t)value); break;
-    case SCSI_REG_WNCOM: NCR5386_Write(&data->ncr, NCR_REG_COMMAND, (uint8_t)value); break;
-    case SCSI_REG_WNCNT: NCR5386_Write(&data->ncr, NCR_REG_CONTROL, (uint8_t)value); break;
-    case SCSI_REG_WDESI: NCR5386_Write(&data->ncr, NCR_REG_DESTINATION_ID, (uint8_t)value); break;
-    case SCSI_REG_WAUXS: NCR5386_Write(&data->ncr, NCR_REG_AUX_STATUS, (uint8_t)value); break;
-    case SCSI_REG_WOIDN: NCR5386_Write(&data->ncr, NCR_REG_ID, (uint8_t)value); break;
-    case SCSI_REG_WTCM:  NCR5386_Write(&data->ncr, NCR_REG_TRANSFER_COUNT_MSB, (uint8_t)value); break;
-    case SCSI_REG_WTC2:  NCR5386_Write(&data->ncr, NCR_REG_TRANSFER_COUNT_MID, (uint8_t)value); break;
-    case SCSI_REG_WTCL:  NCR5386_Write(&data->ncr, NCR_REG_TRANSFER_COUNT_LSB, (uint8_t)value); break;
+    case SCSI_REG_WNDAT:
+        NCR5386_Write(&data->ncr, NCR_REG_DATA, (uint8_t)value);
+        break;
+    case SCSI_REG_WNCOM:
+        NCR5386_Write(&data->ncr, NCR_REG_COMMAND, (uint8_t)value);
+        break;
+    case SCSI_REG_WNCNT:
+        NCR5386_Write(&data->ncr, NCR_REG_CONTROL, (uint8_t)value);
+        break;
+    case SCSI_REG_WDESI:
+        NCR5386_Write(&data->ncr, NCR_REG_DESTINATION_ID, (uint8_t)value);
+        break;
+    case SCSI_REG_WAUXS:
+        NCR5386_Write(&data->ncr, NCR_REG_AUX_STATUS, (uint8_t)value);
+        break;
+    case SCSI_REG_WOIDN:
+        NCR5386_Write(&data->ncr, NCR_REG_ID, (uint8_t)value);
+        break;
+    case SCSI_REG_WTCM:
+        NCR5386_Write(&data->ncr, NCR_REG_TRANSFER_COUNT_MSB, (uint8_t)value);
+        break;
+    case SCSI_REG_WTC2:
+        NCR5386_Write(&data->ncr, NCR_REG_TRANSFER_COUNT_MID, (uint8_t)value);
+        break;
+    case SCSI_REG_WTCL:
+        NCR5386_Write(&data->ncr, NCR_REG_TRANSFER_COUNT_LSB, (uint8_t)value);
+        break;
 
     default:
         break;
@@ -611,18 +721,24 @@ static void SCSI_Write(Device *self, uint32_t address, uint16_t value)
 static uint16_t SCSI_Tick(Device *self)
 {
     if (!self)
+    {
         return 0;
+    }
 
     SCSIData *data = (SCSIData *)self->deviceData;
     if (!data)
+    {
         return 0;
+    }
 
     Device_TickIODelay(self);
 
     SCSIBus_Clock(&data->bus);
 
     if (data->active)
+    {
         SCSI_StepGoState(self);
+    }
 
     return self->interruptBits;
 }
@@ -631,10 +747,14 @@ static uint16_t SCSI_Tick(Device *self)
 static uint16_t SCSI_Ident(Device *self, uint16_t level)
 {
     if (!self)
+    {
         return 0;
+    }
 
     if (Log_IsEnabled(LOG_CAT_SCSI, LOG_DEBUG))
+    {
         Log_Write(LOG_CAT_SCSI, LOG_DEBUG, "IDENT level=%d identCode=%o\n", level, self->identCode);
+    }
 
     if ((self->interruptBits & (1 << level)) != 0)
     {
@@ -663,25 +783,33 @@ static uint16_t SCSI_Ident(Device *self, uint16_t level)
 static int SCSI_Boot(Device *self, int unit)
 {
     if (!self)
+    {
         return -1;
+    }
 
     if (!self->blockCallbacks.readFunc)
+    {
         return -1; /* Need callbacks hooked up */
+    }
 
     SCSIData *data = (SCSIData *)self->deviceData;
     if (!data)
+    {
         return -1;
+    }
 
     if (unit < 0 || unit >= SCSI_MAX_UNITS)
     {
-        LOG(LOG_CAT_SCSI, LOG_ERROR, "Error: SCSI boot unit %d out of range (0-%d)\n", unit, SCSI_MAX_UNITS - 1);
+        LOG(LOG_CAT_SCSI, LOG_ERROR, "Error: SCSI boot unit %d out of range (0-%d)\n", unit,
+            SCSI_MAX_UNITS - 1);
         return -1;
     }
 
     if (data->unitType[unit] != SCSI_UNIT_HDD)
     {
-        LOG(LOG_CAT_SCSI, LOG_ERROR, "Error: SCSI boot needs a 'hdd' target on unit %d (unit %d is '%s')\n",
-               unit, unit, SCSI_UnitTypeName(data->unitType[unit]));
+        LOG(LOG_CAT_SCSI, LOG_ERROR,
+            "Error: SCSI boot needs a 'hdd' target on unit %d (unit %d is '%s')\n", unit, unit,
+            SCSI_UnitTypeName(data->unitType[unit]));
         return -1;
     }
 
@@ -695,13 +823,15 @@ static int SCSI_Boot(Device *self, int unit)
 
     uint8_t *buffer = (uint8_t *)malloc(blockCounter * self->blockSizeBytes);
     if (!buffer)
+    {
         return -1;
+    }
 
     int blocksRead = self->blockCallbacks.readFunc(self, buffer, blockCounter, 0, unit);
     if ((blocksRead < 0) || (blocksRead != (int)blockCounter))
     {
         LOG(LOG_CAT_SCSI, LOG_ERROR, "[SCSI Boot] Block read failed: got %d blocks, expected %d\n",
-               blocksRead, blockCounter);
+            blocksRead, blockCounter);
         free(buffer);
         return -1;
     }
@@ -719,7 +849,8 @@ static int SCSI_Boot(Device *self, int unit)
         }
         if (allZero)
         {
-            LOG(LOG_CAT_SCSI, LOG_ERROR, "Error: SCSI boot sector is all zeros (blank or unformatted disk)\n");
+            LOG(LOG_CAT_SCSI, LOG_ERROR,
+                "Error: SCSI boot sector is all zeros (blank or unformatted disk)\n");
             free(buffer);
             return -1;
         }
@@ -738,8 +869,10 @@ static int SCSI_Boot(Device *self, int unit)
     free(buffer);
 
     if (Log_IsEnabled(LOG_CAT_SCSI, LOG_DEBUG))
+    {
         Log_Write(LOG_CAT_SCSI, LOG_DEBUG, "Boot loaded %d words from unit %d to address 0\n",
-                wordCounter, unit);
+                  wordCounter, unit);
+    }
 
     /* Return boot address. */
     return 0;
@@ -749,7 +882,9 @@ static int SCSI_Boot(Device *self, int unit)
 void SCSI_Destroy(Device *dev)
 {
     if (!dev)
+    {
         return;
+    }
 
     /* The bus, chip and targets are all embedded in SCSIData - nothing to free
      * beyond deviceData itself, which the generic teardown handles. */
@@ -760,7 +895,9 @@ Device *CreateSCSIDevice(uint8_t thumbwheel)
 {
     Device *dev = (Device *)malloc(sizeof(Device));
     if (!dev)
+    {
         return NULL;
+    }
 
     SCSIData *data = (SCSIData *)malloc(sizeof(SCSIData));
     if (!data)
@@ -837,13 +974,13 @@ Device *CreateSCSIDevice(uint8_t thumbwheel)
      * targets are attached later by SCSI_SetUnitType, once the command line
      * has said which units exist. */
     SCSIBus_Init(&data->bus);
-    NCR5386_Init(&data->ncr, &data->bus, SCSI_CONTROLLER_ID,
-                 SCSI_OnNCRInterrupt, SCSI_OnNCRDataRequest, dev);
+    NCR5386_Init(&data->ncr, &data->bus, SCSI_CONTROLLER_ID, SCSI_OnNCRInterrupt,
+                 SCSI_OnNCRDataRequest, dev);
 
     SCSI_Reset(dev);
 
     LOG(LOG_CAT_SCSI, LOG_INFO, "SCSI Device object created at IOX %o (ident %o).\n",
-           dev->startAddress, dev->identCode);
+        dev->startAddress, dev->identCode);
 
     return dev;
 }

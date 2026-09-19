@@ -34,7 +34,8 @@
  * In memory transmit and receive buffers
  * This structure represents a DMA Control Block used for HDLC data transfers.
  */
-typedef struct {
+typedef struct
+{
     /**
      * @brief Where in memory was this buffer description loaded from
      */

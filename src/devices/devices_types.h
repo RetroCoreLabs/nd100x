@@ -41,18 +41,18 @@ extern void WritePhysicalMemory(int physicalAddress, uint16_t value, bool privil
 
 // ** Device **
 
-#define MAX_DEVICES 16
+#define MAX_DEVICES     16
 #define MAX_DEVICE_NAME 64
 
 // IO Delay definitions
-#define IODELAY_TERMINAL 100
-#define IODELAY_FLOPPY 300
-#define IODELAY_HDD 10
-#define IODELAY_HDD_SMD 10
-#define IODELAY_LINEPRINTER 150
-#define IODELAY_PAPERTAPE 200
-#define IODELAY_SLOW 10
-#define IODELAY_SCSI_SHORT 10
+#define IODELAY_TERMINAL     100
+#define IODELAY_FLOPPY       300
+#define IODELAY_HDD          10
+#define IODELAY_HDD_SMD      10
+#define IODELAY_LINEPRINTER  150
+#define IODELAY_PAPERTAPE    200
+#define IODELAY_SLOW         10
+#define IODELAY_SCSI_SHORT   10
 #define IODELAY_SCSI_TIMEOUT 0xFFFF
 
 // Parity table size
@@ -61,12 +61,14 @@ extern const uint8_t g_odd_parity_table[PARITY_TABLE_SIZE];
 
 
 // Device initialization/classification types
+// clang-format off
 typedef enum {
     DEVICE_CLASS_STANDARD = 0,  // Standard device (no character or block I/O)
     DEVICE_CLASS_CHARACTER,     // Character device (terminal, serial, etc.)
     DEVICE_CLASS_BLOCK,         // Block device (disk, tape, etc.)
     DEVICE_CLASS_RTC            // Real-time clock device
 } DeviceClass;
+// clang-format on
 
 // Forward declaration of Device structure
 struct Device;
@@ -76,32 +78,40 @@ typedef void (*CharacterDeviceOutputFunc)(struct Device *device, char c);
 typedef void (*CharacterDeviceInputFunc)(struct Device *device, char c);
 
 // Character Device callback structure
+// clang-format off
 typedef struct {
     CharacterDeviceOutputFunc outputFunc;  // Called when device outputs a character
     CharacterDeviceInputFunc inputFunc;    // Called when device receives input
 } CharacterDeviceCallbacks;
+// clang-format on
 
 // Generic Block Device callback function types
 #define MAX_BLOCK_SIZE 2048
 
 
-typedef int (*BlockDeviceReadFunc)(struct Device *device, uint8_t *buffer, size_t size, uint32_t blockAddress, int unit);
-typedef int (*BlockDeviceWriteFunc)(struct Device *device, const uint8_t *buffer, size_t size, uint32_t blockAddress, int unit);
-typedef int (*BlockDeviceDiskInfoFunc)(struct Device *device, size_t *image_size, bool *is_write_protected, int unit);
+typedef int (*BlockDeviceReadFunc)(struct Device *device, uint8_t *buffer, size_t size,
+                                   uint32_t blockAddress, int unit);
+typedef int (*BlockDeviceWriteFunc)(struct Device *device, const uint8_t *buffer, size_t size,
+                                    uint32_t blockAddress, int unit);
+typedef int (*BlockDeviceDiskInfoFunc)(struct Device *device, size_t *image_size,
+                                       bool *is_write_protected, int unit);
 
 // Block Device callback structure
+// clang-format off
 typedef struct {
     BlockDeviceReadFunc readFunc;        // Called when device reads a block
     BlockDeviceWriteFunc writeFunc;      // Called when device writes a block
     BlockDeviceDiskInfoFunc diskInfoFunc; // Called to read disk info (size, write-protect)
     void *userData;                      // User-defined data passed to callbacks (optional)
 } BlockDeviceCallbacks;
+// clang-format on
 
 // IO Delay callback function type
 typedef bool (*IODelayedCallback)(void *context, int param);
 
 // IO Delay information structure
-typedef struct {
+typedef struct
+{
     int delayTicks;
     IODelayedCallback callback;
     void *context;
@@ -110,6 +120,7 @@ typedef struct {
 } DelayedIoInfo;
 
 // Device types
+// clang-format off
 typedef enum {
     DEVICE_TYPE_NONE = 0,
     DEVICE_TYPE_RTC,
@@ -130,8 +141,10 @@ typedef enum {
     DEVICE_TYPE_DISC_WINCHESTER,
     DEVICE_TYPE_MAX
 } DeviceType;
+// clang-format on
 
 // Device structure
+// clang-format off
 typedef struct Device {
     // Device memory range
     uint32_t startAddress;
@@ -201,9 +214,11 @@ typedef struct Device {
     void *deviceData;
 
 } Device;
+// clang-format on
 
 
-typedef struct {
+typedef struct
+{
     Device *devices[MAX_DEVICES];
     int count;
 } DeviceList;
@@ -212,17 +227,18 @@ typedef struct {
 // ** Device Manager **
 
 // Device info structure
-typedef struct {
+typedef struct
+{
     Device *device;
 } DeviceInfo;
 
 // Device manager structure
-typedef struct {
+typedef struct
+{
     DeviceInfo *devices;
     int deviceCount;
     int deviceCapacity;
 } DeviceManager;
-
 
 
 #include "./floppy/device_floppy_pio.h"
@@ -258,4 +274,3 @@ typedef struct {
 #include "./papertapewriter/device_paper_tape_writer.h"
 #include "./panel/panel.h"
 #endif // DEVICES_TYPES_H
-

@@ -55,7 +55,10 @@ static uint64_t rtc_now_ns(void)
 {
 #if defined(_WIN32) || defined(_WIN64)
     static LARGE_INTEGER freq = {0};
-    if (freq.QuadPart == 0) QueryPerformanceFrequency(&freq);
+    if (freq.QuadPart == 0)
+    {
+        QueryPerformanceFrequency(&freq);
+    }
     LARGE_INTEGER now;
     QueryPerformanceCounter(&now);
     return (uint64_t)(now.QuadPart * 1000000000ULL / freq.QuadPart);
@@ -66,9 +69,13 @@ static uint64_t rtc_now_ns(void)
 #endif
 }
 
-static void RTC_Reset(Device *self) {
+static void RTC_Reset(Device *self)
+{
     RTCData *data = (RTCData *)self->deviceData;
-    if (!data) return;
+    if (!data)
+    {
+        return;
+    }
 
     // Clear all registers and status
     data->rtcCounter = 0;
@@ -80,9 +87,13 @@ static void RTC_Reset(Device *self) {
     data->nextPulseNs = 0;
 }
 
-static void RTC_ClearClockTicks(Device *self) {
+static void RTC_ClearClockTicks(Device *self)
+{
     RTCData *data = (RTCData *)self->deviceData;
-    if (!data) return;
+    if (!data)
+    {
+        return;
+    }
 
     data->rtcCounter = data->divisionNumberN;
     /* Wall-clock mode: deliberately do NOT touch nextPulseNs here. This is
@@ -96,11 +107,18 @@ static void RTC_ClearClockTicks(Device *self) {
      * that fidelity for a clock that keeps real time. */
 }
 
-static uint16_t RTC_Tick(Device *self) {
-    if (!self) return 0;
+static uint16_t RTC_Tick(Device *self)
+{
+    if (!self)
+    {
+        return 0;
+    }
 
     RTCData *data = (RTCData *)self->deviceData;
-    if (!data) return 0;
+    if (!data)
+    {
+        return 0;
+    }
 
     // Process I/O delays
     Device_TickIODelay(self);
@@ -108,19 +126,26 @@ static uint16_t RTC_Tick(Device *self) {
     // Count down the timer
     data->rtcCounter--;
 
-    if (rtcWallClockMode) {
+    if (rtcWallClockMode)
+    {
         // Wall-clock mode: the counter keeps running for data-register readers,
         // but the pulse fires on host time, not on the countdown.
         if (data->rtcCounter <= 0)
+        {
             data->rtcCounter = data->divisionNumberN;
+        }
 
         uint64_t now = rtc_now_ns();
         if (data->nextPulseNs == 0)
+        {
             data->nextPulseNs = now + RTC_WALL_PERIOD_NS;
+        }
 
-        if (now >= data->nextPulseNs) {
+        if (now >= data->nextPulseNs)
+        {
             data->statusRegister.bits.readyForTransfer = true;
-            if (data->statusRegister.bits.interruptEnabled) {
+            if (data->statusRegister.bits.interruptEnabled)
+            {
                 Device_SetInterruptStatus(self, true, self->interruptLevel);
             }
             RTC_ClearClockTicks(self); // reload the countdown register only
@@ -133,11 +158,16 @@ static uint16_t RTC_Tick(Device *self) {
              * services them), a chronic one cannot queue unbounded. */
             data->nextPulseNs += RTC_WALL_PERIOD_NS;
             if ((int64_t)(now - data->nextPulseNs) > (int64_t)(10 * RTC_WALL_PERIOD_NS))
+            {
                 data->nextPulseNs = now + RTC_WALL_PERIOD_NS;
+            }
         }
-    } else if (data->rtcCounter <= 0) {
+    }
+    else if (data->rtcCounter <= 0)
+    {
         data->statusRegister.bits.readyForTransfer = true;
-        if (data->statusRegister.bits.interruptEnabled) {
+        if (data->statusRegister.bits.interruptEnabled)
+        {
             Device_SetInterruptStatus(self, true, self->interruptLevel);
         }
         RTC_ClearClockTicks(self);
@@ -146,101 +176,124 @@ static uint16_t RTC_Tick(Device *self) {
     return self->interruptBits;
 }
 
-static uint16_t RTC_Read(Device *self, uint32_t address) {
-    if (!self) return 0;
+static uint16_t RTC_Read(Device *self, uint32_t address)
+{
+    if (!self)
+    {
+        return 0;
+    }
 
     RTCData *data = (RTCData *)self->deviceData;
     uint16_t value = 0;
     uint32_t reg = Device_RegisterAddress(self, address);
 
-    switch (reg) {
-        case RTC_READ_DATA_REGISTER:
-            value = (uint16_t)data->rtcCounter;
-            break;
+    switch (reg)
+    {
+    case RTC_READ_DATA_REGISTER:
+        value = (uint16_t)data->rtcCounter;
+        break;
 
-        case RTC_READ_STATUS:
-            value = data->statusRegister.raw;
-            break;
+    case RTC_READ_STATUS:
+        value = data->statusRegister.raw;
+        break;
 
-        default:
-            break;
+    default:
+        break;
     }
 
     if (Log_IsEnabled(LOG_CAT_RTC, LOG_DEBUG))
     {
-    Log_Write(LOG_CAT_RTC, LOG_DEBUG, "RTC Reading from address: %o value: %o\n", address, value);
+        Log_Write(LOG_CAT_RTC, LOG_DEBUG, "RTC Reading from address: %o value: %o\n", address,
+                  value);
     }
 
 
     return value;
 }
 
-static void RTC_Write(Device *self, uint32_t address, uint16_t value) {
-    if (!self) return;
+static void RTC_Write(Device *self, uint32_t address, uint16_t value)
+{
+    if (!self)
+    {
+        return;
+    }
 
     RTCData *data = (RTCData *)self->deviceData;
     uint32_t reg = Device_RegisterAddress(self, address);
 
     if (Log_IsEnabled(LOG_CAT_RTC, LOG_DEBUG))
     {
-    Log_Write(LOG_CAT_RTC, LOG_DEBUG, "RTC Writing value: %o to address: %o\n", value, address);
+        Log_Write(LOG_CAT_RTC, LOG_DEBUG, "RTC Writing value: %o to address: %o\n", value, address);
     }
 
-    switch (reg) {
-        case RTC_CLEAR_COUNTER:
-            RTC_ClearClockTicks(self);
-            data->statusRegister.bits.readyForTransfer = false;
+    switch (reg)
+    {
+    case RTC_CLEAR_COUNTER:
+        RTC_ClearClockTicks(self);
+        data->statusRegister.bits.readyForTransfer = false;
+        Device_SetInterruptStatus(self, false, self->interruptLevel);
+        break;
+
+    case RTC_WRITE_CONTROL:
+        data->controlRegister.raw = value;
+
+        // Update status register
+        data->statusRegister.bits.interruptEnabled = data->controlRegister.bits.interruptEnabled;
+
+        // Handle interrupt enable/disable
+        if (!data->statusRegister.bits.interruptEnabled)
+        {
             Device_SetInterruptStatus(self, false, self->interruptLevel);
-            break;
-
-        case RTC_WRITE_CONTROL:
-            data->controlRegister.raw = value;
-
-            // Update status register
-            data->statusRegister.bits.interruptEnabled = data->controlRegister.bits.interruptEnabled;
-
-            // Handle interrupt enable/disable
-            if (!data->statusRegister.bits.interruptEnabled) {
-                Device_SetInterruptStatus(self, false, self->interruptLevel);
-            }
+        }
 
 
-            // Clear ready for transfer if requested and clear interrupt bit 13 (Needed for testprogram TPE Monitor version B)
-            if (data->controlRegister.bits.clearReadyForTransfer) {
-                data->statusRegister.bits.readyForTransfer = 0;
-                self->interruptBits &= ~(1 << 13);
-            }
+        // Clear ready for transfer if requested and clear interrupt bit 13 (Needed for testprogram TPE Monitor version B)
+        if (data->controlRegister.bits.clearReadyForTransfer)
+        {
+            data->statusRegister.bits.readyForTransfer = 0;
+            self->interruptBits &= ~(1 << 13);
+        }
 
-            // Clear external hold signal if requested
-            if (data->controlRegister.bits.clearExternalHold) {
-                data->statusRegister.bits.externalHoldPulse = 0;
-            }
+        // Clear external hold signal if requested
+        if (data->controlRegister.bits.clearExternalHold)
+        {
+            data->statusRegister.bits.externalHoldPulse = 0;
+        }
 
-            // Restart clock if requested
-            if (data->controlRegister.bits.restartClock) {
-                RTC_ClearClockTicks(self); // reset countdown (and re-arm wall-clock pulse)
-                data->clockCountingStarted = true;
-            }
-            break;
+        // Restart clock if requested
+        if (data->controlRegister.bits.restartClock)
+        {
+            RTC_ClearClockTicks(self); // reset countdown (and re-arm wall-clock pulse)
+            data->clockCountingStarted = true;
+        }
+        break;
 
-        default:
-            break;
+    default:
+        break;
     }
 }
 
-static uint16_t RTC_Ident(Device *self, uint16_t level) {
-    if (!self) return 0;
+static uint16_t RTC_Ident(Device *self, uint16_t level)
+{
+    if (!self)
+    {
+        return 0;
+    }
 
     RTCData *data = (RTCData *)self->deviceData;
-    if (!data) return 0;
+    if (!data)
+    {
+        return 0;
+    }
 
-    if ((self->interruptBits & (1 << level)) != 0) {
+    if ((self->interruptBits & (1 << level)) != 0)
+    {
         RTC_ClearClockTicks(self);
         data->statusRegister.bits.interruptEnabled = false;
 
         if (Log_IsEnabled(LOG_CAT_RTC, LOG_DEBUG))
         {
-        Log_Write(LOG_CAT_RTC, LOG_DEBUG, "RTC_Ident: %d\n", self->identCode);
+            Log_Write(LOG_CAT_RTC, LOG_DEBUG, "RTC_Ident: %d\n", self->identCode);
         }
         Device_SetInterruptStatus(self, false, level);
         return self->identCode;
@@ -250,50 +303,56 @@ static uint16_t RTC_Ident(Device *self, uint16_t level) {
     return 0;
 }
 
-Device* CreateRTCDevice(uint8_t thumbwheel) {
+Device *CreateRTCDevice(uint8_t thumbwheel)
+{
     Device *dev = malloc(sizeof(Device));
-    if (!dev) return NULL;
+    if (!dev)
+    {
+        return NULL;
+    }
 
     RTCData *data = malloc(sizeof(RTCData));
-    if (!data) {
+    if (!data)
+    {
         free(dev);
         return NULL;
     }
 
     // Initialize device base structure
-    Device_Init(dev, thumbwheel,DEVICE_CLASS_RTC,0);
+    Device_Init(dev, thumbwheel, DEVICE_CLASS_RTC, 0);
 
     // Set up device-specific data
     memset(data, 0, sizeof(RTCData));
 
     // Set up device properties based on thumbwheel
-    switch (thumbwheel) {
-        case 0:
-            dev->identCode = 01;
-            dev->startAddress = 010;
-            dev->endAddress = 013;
-            dev->interruptLevel = 13;
-            snprintf(dev->memoryName, sizeof(dev->memoryName), "%s", "RTC 1");
-            break;
-        case 1:
-            dev->identCode = 02;
-            dev->startAddress = 014;
-            dev->endAddress = 017;
-            dev->interruptLevel = 13;
-            snprintf(dev->memoryName, sizeof(dev->memoryName), "%s", "RTC 2");
-            break;
-        case 2:
-            dev->identCode = 06;
-            dev->startAddress = 020;
-            dev->endAddress = 023;
-            dev->interruptLevel = 13;
-            snprintf(dev->memoryName, sizeof(dev->memoryName), "%s", "RTC 3");
-            break;
-        default:
-            LOG(LOG_CAT_RTC, LOG_WARN, "Unexpected thumbwheel code %d\n", thumbwheel);
-            free(data);
-            free(dev);
-            return NULL;
+    switch (thumbwheel)
+    {
+    case 0:
+        dev->identCode = 01;
+        dev->startAddress = 010;
+        dev->endAddress = 013;
+        dev->interruptLevel = 13;
+        snprintf(dev->memoryName, sizeof(dev->memoryName), "%s", "RTC 1");
+        break;
+    case 1:
+        dev->identCode = 02;
+        dev->startAddress = 014;
+        dev->endAddress = 017;
+        dev->interruptLevel = 13;
+        snprintf(dev->memoryName, sizeof(dev->memoryName), "%s", "RTC 2");
+        break;
+    case 2:
+        dev->identCode = 06;
+        dev->startAddress = 020;
+        dev->endAddress = 023;
+        dev->interruptLevel = 13;
+        snprintf(dev->memoryName, sizeof(dev->memoryName), "%s", "RTC 3");
+        break;
+    default:
+        LOG(LOG_CAT_RTC, LOG_WARN, "Unexpected thumbwheel code %d\n", thumbwheel);
+        free(data);
+        free(dev);
+        return NULL;
     }
 
     // Set up device function pointers

@@ -28,18 +28,18 @@
 #include "devices_protos.h"
 
 /* Forward declarations (fixed signatures from the Device struct). */
-static void     Cdc_Reset(Device *self);
+static void Cdc_Reset(Device *self);
 static uint16_t Cdc_Read(Device *self, uint32_t address);
-static void     Cdc_Write(Device *self, uint32_t address, uint16_t value);
+static void Cdc_Write(Device *self, uint32_t address, uint16_t value);
 static uint16_t Cdc_Tick(Device *self);
 static uint16_t Cdc_Ident(Device *self, uint16_t level);
-static void     Cdc_Destroy(Device *self);
-static void     Cdc_ExecuteGO(Device *self);
-static bool     Cdc_End(void *context, int param);
+static void Cdc_Destroy(Device *self);
+static void Cdc_ExecuteGO(Device *self);
+static bool Cdc_End(void *context, int param);
 
 /* Path for the next CreateCdcDevice() to attach; NULL = in-memory only. */
 static char g_cdcBackingPath[1024];
-static int  g_cdcHasBackingPath = 0;
+static int g_cdcHasBackingPath = 0;
 
 void CdcDevice_SetBackingFile(const char *path)
 {
@@ -75,10 +75,10 @@ static uint32_t cdc_lba_to_sector(uint16_t lba)
  * ------------------------------------------------------------------------------ */
 static uint32_t cdc_effective_core(const CdcData *d)
 {
-    uint32_t addr = (uint32_t)d->coreAddrLow;                      /* bits 0-15   */
-    addr |= (uint32_t)d->control.bits.addressBit16 << 16;          /* bit 16 (CW5)*/
-    addr |= (uint32_t)d->control.bits.addressBit17 << 17;          /* bit 17 (CW6)*/
-    addr |= (uint32_t)d->coreAddrHigh << 16;                       /* ND-100 hi-8 */
+    uint32_t addr = (uint32_t)d->coreAddrLow;             /* bits 0-15   */
+    addr |= (uint32_t)d->control.bits.addressBit16 << 16; /* bit 16 (CW5)*/
+    addr |= (uint32_t)d->control.bits.addressBit17 << 17; /* bit 17 (CW6)*/
+    addr |= (uint32_t)d->coreAddrHigh << 16;              /* ND-100 hi-8 */
     return addr;
 }
 
@@ -86,11 +86,15 @@ static uint32_t cdc_effective_core(const CdcData *d)
 static int Cdc_EnsureSurface(CdcData *d, uint32_t sectors)
 {
     if (sectors <= d->surfaceSectors)
+    {
         return 1;
+    }
     uint32_t newWords = sectors * CDC_WORDS_PER_SECTOR;
     uint16_t *grown = (uint16_t *)realloc(d->surface, newWords * sizeof(uint16_t));
     if (!grown)
+    {
         return 0;
+    }
     /* zero the freshly added tail */
     memset(grown + d->surfaceWords, 0, (newWords - d->surfaceWords) * sizeof(uint16_t));
     d->surface = grown;
@@ -104,17 +108,19 @@ static int Cdc_EnsureSurface(CdcData *d, uint32_t sectors)
  * The FILE* is kept open for optional write-back in Cdc_Destroy. Returns 1 ok. */
 static int Cdc_AttachBacking(CdcData *d, const char *path)
 {
-    FILE *f = fopen(path, "rb+");   /* existing file, read/write */
+    FILE *f = fopen(path, "rb+"); /* existing file, read/write */
     if (!f)
     {
         /* Create a fresh, empty disc image at the current default surface size. */
         f = fopen(path, "wb+");
         if (!f)
+        {
             return 0;
+        }
         for (uint32_t i = 0; i < d->surfaceWords; i++)
         {
-            putc(0, f);            /* high byte */
-            putc(0, f);            /* low byte  */
+            putc(0, f); /* high byte */
+            putc(0, f); /* low byte  */
         }
         fflush(f);
     }
@@ -144,7 +150,9 @@ static int Cdc_AttachBacking(CdcData *d, const char *path)
             int hi = getc(f);
             int lo = getc(f);
             if (hi == EOF || lo == EOF)
-                break;             /* short file: leave the rest zeroed */
+            {
+                break; /* short file: leave the rest zeroed */
+            }
             d->surface[i] = (uint16_t)((hi << 8) | lo);
         }
     }
@@ -156,19 +164,21 @@ static int Cdc_AttachBacking(CdcData *d, const char *path)
 static uint16_t Cdc_Read(Device *self, uint32_t address)
 {
     if (!self)
+    {
         return 0;
+    }
     CdcData *d = (CdcData *)self->deviceData;
     uint32_t reg = address - self->startAddress;
 
     switch (reg)
     {
-    case CDC_REG_RST:               /* IOX 504 Read Status - the register DWAIT polls */
+    case CDC_REG_RST: /* IOX 504 Read Status - the register DWAIT polls */
         /* [VERIFIED - MANUAL-N100 p.188 footnote] a read-status re-initialises
          * the two-access address read sequence. */
         d->rcaReadPhase = 0;
         return d->status.raw;
 
-    case CDC_REG_RCA:               /* IOX 500 Read Core Address */
+    case CDC_REG_RCA: /* IOX 500 Read Core Address */
         /* [MANUAL-N100 p.188] two-read 24-bit form: first read = low 16 bits,
          * second consecutive read = high 8 bits. A lone read (TSS / the maint.
          * check) always yields the low 16 - so single-read callers are unharmed.
@@ -177,21 +187,23 @@ static uint16_t Cdc_Read(Device *self, uint32_t address)
         if (d->rcaReadPhase == 0)
         {
             d->rcaReadPhase = 1;
-            return (uint16_t)(cdc_effective_core(d) & 0xFFFFu);       /* low 16  */
+            return (uint16_t)(cdc_effective_core(d) & 0xFFFFu); /* low 16  */
         }
         d->rcaReadPhase = 0;
-        return (uint16_t)((cdc_effective_core(d) >> 16) & 0x00FFu);   /* high 8  */
+        return (uint16_t)((cdc_effective_core(d) >> 16) & 0x00FFu); /* high 8  */
 
-    case CDC_REG_RSECT:             /* IOX 502 Read Sector Counter */
+    case CDC_REG_RSECT: /* IOX 502 Read Sector Counter */
         /* [MANUAL-N10 p.17] only bits 0-4 are relevant (rotational position). */
         return d->sectorCounter;
 
-    case CDC_REG_SEEK:              /* IOX 506 Seek / (test mode) Read Block Address */
+    case CDC_REG_SEEK: /* IOX 506 Seek / (test mode) Read Block Address */
         /* [VERIFIED - MANUAL-N10 p.13 and MANUAL-N100 p.189] "Load the control
          * word with bit 3 (Test Mode) set. IOX 506 will then return the
          * previously loaded block address to the A-register." */
         if (d->control.bits.testMode)
+        {
             return d->blockAddress;
+        }
         /* Otherwise this is a Seek. An emulated fixed image is always
          * on-cylinder; positioning is a no-op, so return status so a driver that
          * reads SEEK sees a ready device (TSS's XDISK does exactly this). */
@@ -206,32 +218,34 @@ static uint16_t Cdc_Read(Device *self, uint32_t address)
 static void Cdc_Write(Device *self, uint32_t address, uint16_t value)
 {
     if (!self)
+    {
         return;
+    }
     CdcData *d = (CdcData *)self->deviceData;
     uint32_t reg = address - self->startAddress;
 
     switch (reg)
     {
-    case CDC_REG_LCA:               /* IOX 501 Load Core Address */
+    case CDC_REG_LCA: /* IOX 501 Load Core Address */
         /* [VERIFIED - TSS] TSS loads the whole (16-bit) core address in ONE
          * write; the NORD-10 controller extends it to 18 bits via control-word
          * bits 5-6 (see cdc_effective_core). We deliberately do NOT model the
          * ND-100 two-write high-8/low-16 form here (a single TSS write would then
          * load only the high 8 bits and corrupt the address). A load re-inits the
          * RCA read sequence. */
-        d->coreAddrLow  = value;
+        d->coreAddrLow = value;
         d->rcaReadPhase = 0;
         break;
 
-    case CDC_REG_LBA:               /* IOX 503 Load Block (disc) Address */
+    case CDC_REG_LBA: /* IOX 503 Load Block (disc) Address */
         d->blockAddress = value;
         break;
 
-    case CDC_REG_LWC:               /* IOX 507 Load Word Count Register */
+    case CDC_REG_LWC: /* IOX 507 Load Word Count Register */
         d->wordCount = value;
         break;
 
-    case CDC_REG_LCW:               /* IOX 505 Load Control Word - starts a transfer */
+    case CDC_REG_LCW: /* IOX 505 Load Control Word - starts a transfer */
         d->control.raw = value;
         if (d->control.bits.activate)
         {
@@ -251,18 +265,18 @@ static void Cdc_Write(Device *self, uint32_t address, uint16_t value)
             /* [VERIFIED - MANUAL-N10 p.14 bit 4; TSS2.SYMB:557 / TSS1.SYMB:3543
              * "SAA 20; IOX LMR"] device clear (0o20 written alone) clears the
              * active flip-flop and the controller error state. */
-            d->status.bits.active           = 0;
-            d->status.bits.errorOr          = 0;
-            d->status.bits.transferOn       = 0;
-            d->status.bits.writeProtect     = 0;
-            d->status.bits.timeOut          = 0;
-            d->status.bits.hardwareError    = 0;
-            d->status.bits.addressMismatch  = 0;
-            d->status.bits.parityError      = 0;
-            d->status.bits.compareError     = 0;
-            d->status.bits.dmaError         = 0;
+            d->status.bits.active = 0;
+            d->status.bits.errorOr = 0;
+            d->status.bits.transferOn = 0;
+            d->status.bits.writeProtect = 0;
+            d->status.bits.timeOut = 0;
+            d->status.bits.hardwareError = 0;
+            d->status.bits.addressMismatch = 0;
+            d->status.bits.parityError = 0;
+            d->status.bits.compareError = 0;
+            d->status.bits.dmaError = 0;
             d->interruptEnabled = false;
-            d->rcaReadPhase     = 0;
+            d->rcaReadPhase = 0;
         }
         break;
 
@@ -281,33 +295,34 @@ static void Cdc_ExecuteGO(Device *self)
      * live] with the mac-c SHR fix DKTR now emits 000004 for the overlay READ -> op 0.
      * (The earlier (op+1)<<12 model was an artifact of the mac-c SHR compiler bug that
      * had made DKTR emit 010004; that bug is fixed. See device_cdc.h NOTE.) */
-    uint16_t op      = (uint16_t)d->control.bits.deviceOperation;
-    uint32_t sector  = cdc_lba_to_sector(d->blockAddress);
+    uint16_t op = (uint16_t)d->control.bits.deviceOperation;
+    uint32_t sector = cdc_lba_to_sector(d->blockAddress);
     uint32_t wordOff = sector * CDC_WORDS_PER_SECTOR;
-    uint32_t count   = d->wordCount;
-    uint32_t core    = cdc_effective_core(d);
+    uint32_t count = d->wordCount;
+    uint32_t core = cdc_effective_core(d);
 
     d->sectorCounter = (uint16_t)sector;
 
     /* Transfer trace: --log=cdc:trace (was the ND100X_CDC_TRACE variable). */
-    LOG(LOG_CAT_CDC, LOG_TRACE, "op=%u blockAddr=%06o sector=%u core=%06o "
-                                "count=%u surfaceSectors=%u%s",
+    LOG(LOG_CAT_CDC, LOG_TRACE,
+        "op=%u blockAddr=%06o sector=%u core=%06o "
+        "count=%u surfaceSectors=%u%s",
         op, d->blockAddress, sector, core, count, d->surfaceSectors,
-        (wordOff > d->surfaceWords ||
-         count > d->surfaceWords - wordOff) ? "  <-- OUT OF RANGE" : "");
+        (wordOff > d->surfaceWords || count > d->surfaceWords - wordOff) ? "  <-- OUT OF RANGE"
+                                                                         : "");
 
     /* Fresh transfer: clear the error bits and completion, mark active/on. */
-    d->status.bits.errorOr          = 0;
-    d->status.bits.writeProtect     = 0;
-    d->status.bits.timeOut          = 0;
-    d->status.bits.hardwareError    = 0;
-    d->status.bits.addressMismatch  = 0;
-    d->status.bits.parityError      = 0;
-    d->status.bits.compareError     = 0;
-    d->status.bits.dmaError         = 0;
+    d->status.bits.errorOr = 0;
+    d->status.bits.writeProtect = 0;
+    d->status.bits.timeOut = 0;
+    d->status.bits.hardwareError = 0;
+    d->status.bits.addressMismatch = 0;
+    d->status.bits.parityError = 0;
+    d->status.bits.compareError = 0;
+    d->status.bits.dmaError = 0;
     d->status.bits.transferComplete = 0;
-    d->status.bits.active           = 1;   /* BUSY (bit 2) */
-    d->status.bits.transferOn       = 1;   /* transfer on (bit 13) */
+    d->status.bits.active = 1;     /* BUSY (bit 2) */
+    d->status.bits.transferOn = 1; /* transfer on (bit 13) */
 
     /* ---- TEST MODE (control bit 3): pre-wired self-test, no real surface ----
      * [VERIFIED - MANUAL-N10 p.14] A Read Transfer with Test returns pre-wired
@@ -319,8 +334,7 @@ static void Cdc_ExecuteGO(Device *self)
         {
             for (uint32_t i = 0; i < count; i++)
             {
-                uint16_t w = (i & 1u) ? (uint16_t)CDC_TESTMODE_ODD
-                                      : (uint16_t)CDC_TESTMODE_EVEN;
+                uint16_t w = (i & 1u) ? (uint16_t)CDC_TESTMODE_ODD : (uint16_t)CDC_TESTMODE_EVEN;
                 Device_DMAWrite(core + i, w);
             }
         }
@@ -329,10 +343,10 @@ static void Cdc_ExecuteGO(Device *self)
             /* Wrong block during test -> the manual's "successful transfer"
              * precondition fails; flag address mismatch. */
             d->status.bits.addressMismatch = 1;
-            d->status.bits.errorOr         = 1;
+            d->status.bits.errorOr = 1;
         }
-        Device_QueueIODelay(self, IODELAY_HDD_SMD,
-                            (IODelayedCallback)Cdc_End, 0, self->interruptLevel);
+        Device_QueueIODelay(self, IODELAY_HDD_SMD, (IODelayedCallback)Cdc_End, 0,
+                            self->interruptLevel);
         return;
     }
 
@@ -340,11 +354,11 @@ static void Cdc_ExecuteGO(Device *self)
      * end of the image is an error (matches a real illegal-address status). */
     if (wordOff > d->surfaceWords || count > d->surfaceWords - wordOff)
     {
-        d->status.bits.errorOr         = 1;
-        d->status.bits.addressMismatch = 1;   /* seek/address out of range */
+        d->status.bits.errorOr = 1;
+        d->status.bits.addressMismatch = 1; /* seek/address out of range */
         /* Still raise completion so the driver takes its error exit. */
-        Device_QueueIODelay(self, IODELAY_HDD_SMD,
-                            (IODelayedCallback)Cdc_End, 0, self->interruptLevel);
+        Device_QueueIODelay(self, IODELAY_HDD_SMD, (IODelayedCallback)Cdc_End, 0,
+                            self->interruptLevel);
         return;
     }
 
@@ -353,7 +367,9 @@ static void Cdc_ExecuteGO(Device *self)
     {
     case CDC_OP_READ: /* disc -> core (the overlay load path; control word 000004) */
         for (uint32_t i = 0; i < count; i++)
+        {
             Device_DMAWrite(core + i, d->surface[wordOff + i]);
+        }
         break;
 
     case CDC_OP_WRITE: /* 01: core -> disc */
@@ -393,7 +409,7 @@ static void Cdc_ExecuteGO(Device *self)
             if ((uint16_t)(mem & 0xFFFF) != d->surface[wordOff + i])
             {
                 d->status.bits.compareError = 1; /* bit 10 */
-                d->status.bits.errorOr      = 1; /* bit 4  */
+                d->status.bits.errorOr = 1;      /* bit 4  */
                 break;
             }
         }
@@ -405,8 +421,7 @@ static void Cdc_ExecuteGO(Device *self)
 
     /* Queue the delayed completion, exactly like the drum/SMD. The callback
      * clears BUSY and (returning true) raises the level-11 interrupt. */
-    Device_QueueIODelay(self, IODELAY_HDD_SMD,
-                        (IODelayedCallback)Cdc_End, 0, self->interruptLevel);
+    Device_QueueIODelay(self, IODELAY_HDD_SMD, (IODelayedCallback)Cdc_End, 0, self->interruptLevel);
 }
 
 /* ----- delayed completion: clears busy, requests the interrupt ---------- */
@@ -415,16 +430,20 @@ static bool Cdc_End(void *context, int param)
     (void)param;
     Device *self = (Device *)context;
     if (!self)
+    {
         return false;
+    }
     CdcData *d = (CdcData *)self->deviceData;
     if (!d)
+    {
         return false;
+    }
 
     /* Transfer finished: [MANUAL-N100 p.190] clear device active (bit 2) and
      * transfer-on (bit 13), set transfer-complete (bit 12) and ready-for-transfer
      * (bit 3). Error bits already set by the engine are left in place. */
-    d->status.bits.active           = 0;
-    d->status.bits.transferOn       = 0;
+    d->status.bits.active = 0;
+    d->status.bits.transferOn = 0;
     d->status.bits.transferComplete = 1;
     d->status.bits.readyForTransfer = 1;
 
@@ -456,7 +475,9 @@ static bool Cdc_End(void *context, int param)
 static uint16_t Cdc_Tick(Device *self)
 {
     if (!self)
+    {
         return 0;
+    }
     Device_TickIODelay(self);
     return self->interruptBits;
 }
@@ -464,7 +485,9 @@ static uint16_t Cdc_Tick(Device *self)
 static uint16_t Cdc_Ident(Device *self, uint16_t level)
 {
     if (!self)
+    {
         return 0;
+    }
     if ((self->interruptBits & (1 << level)) != 0)
     {
         /* IDENT acknowledges the interrupt: clear the pending bit for this level
@@ -476,7 +499,9 @@ static uint16_t Cdc_Ident(Device *self, uint16_t level)
          * bit-for-bit identical to floppy/SMD. */
         CdcData *d = (CdcData *)self->deviceData;
         if (d)
+        {
             d->interruptEnabled = false;
+        }
         Device_SetInterruptStatus(self, false, level);
         return self->identCode;
     }
@@ -486,7 +511,9 @@ static uint16_t Cdc_Ident(Device *self, uint16_t level)
 static void Cdc_Reset(Device *self)
 {
     if (!self)
+    {
         return;
+    }
     CdcData *d = (CdcData *)self->deviceData;
     d->coreAddrLow = 0;
     d->coreAddrHigh = 0;
@@ -499,14 +526,16 @@ static void Cdc_Reset(Device *self)
     /* Idle status: ON CYLINDER / READY set (so the pre-transfer poll
      * BSKP ONE 160 proceeds), all BUSY/ERR bits clear. */
     d->status.raw = 0;
-    d->status.bits.onCylinder = 1;   /* bit 14 = READY */
+    d->status.bits.onCylinder = 1; /* bit 14 = READY */
     self->interruptBits = 0;
 }
 
 static void Cdc_Destroy(Device *self)
 {
     if (!self)
+    {
         return;
+    }
     CdcData *d = (CdcData *)self->deviceData;
     if (d)
     {
@@ -540,12 +569,13 @@ static void Cdc_Destroy(Device *self)
  * One 256-word sector is transferred, matching the CDC transfer unit. */
 static int Cdc_Boot(Device *self, int unit)
 {
-    (void)unit;                       /* single-unit controller */
+    (void)unit; /* single-unit controller */
     CdcData *d = (CdcData *)self->deviceData;
 
     if (!d || !d->surface || d->surfaceWords < CDC_WORDS_PER_SECTOR)
     {
-        LOG(LOG_CAT_CDC, LOG_ERROR, "Error: CDC boot - no disc surface attached (use --cdc=FILE)\n");
+        LOG(LOG_CAT_CDC, LOG_ERROR,
+            "Error: CDC boot - no disc surface attached (use --cdc=FILE)\n");
         return -1;
     }
 
@@ -554,12 +584,17 @@ static int Cdc_Boot(Device *self, int unit)
     int allZero = 1;
     for (uint32_t i = 0; i < CDC_WORDS_PER_SECTOR; i++)
     {
-        if (d->surface[i] != 0) { allZero = 0; break; }
+        if (d->surface[i] != 0)
+        {
+            allZero = 0;
+            break;
+        }
     }
     if (allZero)
     {
-        LOG(LOG_CAT_CDC, LOG_ERROR, "Error: CDC boot sector (sector 0) is all zeros - the disc "
-               "carries no bootstrap\n");
+        LOG(LOG_CAT_CDC, LOG_ERROR,
+            "Error: CDC boot sector (sector 0) is all zeros - the disc "
+            "carries no bootstrap\n");
         return -1;
     }
 
@@ -568,7 +603,7 @@ static int Cdc_Boot(Device *self, int unit)
         Device_DMAWrite(i, d->surface[i]);
     }
 
-    return 0;                         /* start address: core 0 */
+    return 0; /* start address: core 0 */
 }
 
 
@@ -598,13 +633,17 @@ static int Cdc_Boot(Device *self, int unit)
  * [INFERRED, from TSS's own comment and its use in RDKOP] RST skips when the
  * status is good; DISC+SKA skips when the controller is not busy. Everything
  * else routes to the identical register the NORD-10 path uses. */
-static bool Cdc_IotOp(Device *self, uint8_t devno, uint8_t func,
-                      uint16_t *regA, bool *skip)
+static bool Cdc_IotOp(Device *self, uint8_t devno, uint8_t func, uint16_t *regA, bool *skip)
 {
     CdcData *d = (CdcData *)self->deviceData;
-    enum { FN_ACT = 1, FN_SKA = 2, FN_PIN = 4 };   /* IOT bits 8,9,10 */
+    enum
+    {
+        FN_ACT = 1,
+        FN_SKA = 2,
+        FN_PIN = 4
+    }; /* IOT bits 8,9,10 */
 
-    if (devno == CDC_N1_DISC)               /* 144 - start transfer / ready test */
+    if (devno == CDC_N1_DISC) /* 144 - start transfer / ready test */
     {
         /* PIN is "prepare interrupt: turn on the interrupt system of the
          * specified device" (NORD-1 Reference Manual sec 3.7). Only PIN
@@ -614,28 +653,38 @@ static bool Cdc_IotOp(Device *self, uint8_t devno, uint8_t func,
          * LOADV has just done MCL PIE / INTDS and the vectors are not set up
          * again until INIT runs. */
         if (func & FN_PIN)
+        {
             d->interruptEnabled = true;
+        }
 
-        if (func & FN_SKA)                  /* "skip if start acceptable" */
+        if (func & FN_SKA) /* "skip if start acceptable" */
+        {
             *skip = (d->status.bits.active == 0);
+        }
 
-        if (func & FN_ACT)                  /* activate: the same transfer the
+        if (func & FN_ACT) /* activate: the same transfer the
                                              * control-word activate bit starts */
+        {
             Cdc_ExecuteGO(self);
+        }
 
         return true;
     }
 
-    if (devno != CDC_N1_DCT)                /* 145 - the control port */
+    if (devno != CDC_N1_DCT) /* 145 - the control port */
+    {
         return false;
+    }
 
     switch (func)
     {
-    case 0:                                  /* SNI          -> LCA  (501) */
-        Cdc_Write(self, self->startAddress + CDC_REG_LCA, *regA);   break;
-    case FN_ACT:                             /* ACT          -> LBA  (503) */
-        Cdc_Write(self, self->startAddress + CDC_REG_LBA, *regA);   break;
-    case FN_SKA:                             /* SKA -> LMR, "load modus register"
+    case 0: /* SNI          -> LCA  (501) */
+        Cdc_Write(self, self->startAddress + CDC_REG_LCA, *regA);
+        break;
+    case FN_ACT: /* ACT          -> LBA  (503) */
+        Cdc_Write(self, self->startAddress + CDC_REG_LBA, *regA);
+        break;
+    case FN_SKA: /* SKA -> LMR, "load modus register"
                                               *
                                               * [INFERRED - and this is the one
                                               * place the two decodes are NOT a
@@ -653,18 +702,22 @@ static bool Cdc_IotOp(Device *self, uint8_t devno, uint8_t func,
                                               * wordCount at 0, every transfer
                                               * moved nothing, and the reloaded
                                               * system span in its disc driver. */
-        Cdc_Write(self, self->startAddress + CDC_REG_LWC, *regA);   break;
-    case (uint8_t)(FN_SKA | FN_ACT):         /* SEEK         -> 506        */
-        *regA = Cdc_Read(self, self->startAddress + CDC_REG_SEEK);  break;
-    case FN_PIN:                             /* RST, skip if OK -> 504     */
+        Cdc_Write(self, self->startAddress + CDC_REG_LWC, *regA);
+        break;
+    case (uint8_t)(FN_SKA | FN_ACT): /* SEEK         -> 506        */
+        *regA = Cdc_Read(self, self->startAddress + CDC_REG_SEEK);
+        break;
+    case FN_PIN: /* RST, skip if OK -> 504     */
         *regA = Cdc_Read(self, self->startAddress + CDC_REG_RST);
         *skip = (d->status.bits.errorOr == 0);
         break;
-    case (uint8_t)(FN_PIN | FN_ACT):         /* RCA          -> 500        */
-        *regA = Cdc_Read(self, self->startAddress + CDC_REG_RCA);   break;
-    case (uint8_t)(FN_PIN | FN_SKA):         /* RSECT        -> 502        */
-        *regA = Cdc_Read(self, self->startAddress + CDC_REG_RSECT); break;
-    case (uint8_t)(FN_PIN | FN_SKA | FN_ACT):/* RDC: reset the controller  */
+    case (uint8_t)(FN_PIN | FN_ACT): /* RCA          -> 500        */
+        *regA = Cdc_Read(self, self->startAddress + CDC_REG_RCA);
+        break;
+    case (uint8_t)(FN_PIN | FN_SKA): /* RSECT        -> 502        */
+        *regA = Cdc_Read(self, self->startAddress + CDC_REG_RSECT);
+        break;
+    case (uint8_t)(FN_PIN | FN_SKA | FN_ACT): /* RDC: reset the controller  */
         Cdc_Reset(self);
         break;
     default:
@@ -677,7 +730,9 @@ Device *CreateCdcDevice(uint8_t thumbwheel)
 {
     Device *dev = (Device *)malloc(sizeof(Device));
     if (!dev)
+    {
         return NULL;
+    }
 
     CdcData *d = (CdcData *)malloc(sizeof(CdcData));
     if (!d)
@@ -694,8 +749,8 @@ Device *CreateCdcDevice(uint8_t thumbwheel)
     dev->deviceData = d;
     dev->type = DEVICE_TYPE_CDC;
     dev->Boot = Cdc_Boot;
-    dev->IotOp = Cdc_IotOp;                 /* NORD-1 IOT access */
-    dev->nord1Device = CDC_N1_DISC;         /* 144 and 145       */
+    dev->IotOp = Cdc_IotOp;         /* NORD-1 IOT access */
+    dev->nord1Device = CDC_N1_DISC; /* 144 and 145       */
     dev->nord1DeviceCount = 2;
 
     /* Allocate and zero the default surface; a larger backing file grows it. */
@@ -712,8 +767,10 @@ Device *CreateCdcDevice(uint8_t thumbwheel)
     if (g_cdcHasBackingPath)
     {
         if (!Cdc_AttachBacking(d, g_cdcBackingPath))
+        {
             LOG(LOG_CAT_CDC, LOG_WARN, "CDC: could not open backing file '%s' (in-memory only)\n",
-                   g_cdcBackingPath);
+                g_cdcBackingPath);
+        }
     }
 
     dev->Read = Cdc_Read;
@@ -738,12 +795,12 @@ Device *CreateCdcDevice(uint8_t thumbwheel)
         free(dev);
         return NULL;
     }
-    dev->endAddress = dev->startAddress + 7;   /* answers 500..507 */
-    dev->identCode = CDC_IDENT_CODE;           /* [VERIFIED] ND 500-slot ident 01 */
-    dev->interruptLevel = CDC_INT_LEVEL;       /* [VERIFIED] ND 500-slot level 11 */
+    dev->endAddress = dev->startAddress + 7; /* answers 500..507 */
+    dev->identCode = CDC_IDENT_CODE;         /* [VERIFIED] ND 500-slot ident 01 */
+    dev->interruptLevel = CDC_INT_LEVEL;     /* [VERIFIED] ND 500-slot level 11 */
 
-    LOG(LOG_CAT_CDC, LOG_INFO, "CDC disc device created: %s ident %o level %d (%u sectors, %u words surface)\n",
-           dev->memoryName, dev->identCode, dev->interruptLevel,
-           d->surfaceSectors, d->surfaceWords);
+    LOG(LOG_CAT_CDC, LOG_INFO,
+        "CDC disc device created: %s ident %o level %d (%u sectors, %u words surface)\n",
+        dev->memoryName, dev->identCode, dev->interruptLevel, d->surfaceSectors, d->surfaceWords);
     return dev;
 }

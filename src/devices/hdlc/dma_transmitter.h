@@ -37,7 +37,8 @@ typedef void (*DMATransmitterSendFrameCallback)(void *context, HDLCFrame *frame)
 typedef void (*DMATransmitterSetInterruptCallback)(void *context, uint8_t bit);
 
 // DMA Transmitter state structure
-typedef struct DMATransmitter {
+typedef struct DMATransmitter
+{
     bool active;
     int bytesSent;
 
@@ -54,7 +55,8 @@ typedef struct DMATransmitter {
 } DMATransmitter;
 
 // Core functions
-void DMATransmitter_Init(DMATransmitter *transmitter, void *com5025, DMAControlBlocks *dmaCB, struct Device *hdlcDevice);
+void DMATransmitter_Init(DMATransmitter *transmitter, void *com5025, DMAControlBlocks *dmaCB,
+                         struct Device *hdlcDevice);
 void DMATransmitter_Destroy(DMATransmitter *transmitter);
 void DMATransmitter_Clear(DMATransmitter *transmitter);
 void DMATransmitter_Tick(DMATransmitter *transmitter);
@@ -68,7 +70,9 @@ bool DMATransmitter_SendAllBuffers(DMATransmitter *transmitter);
 void DMATransmitter_SetTXDMAFlag(DMATransmitter *transmitter, uint16_t flag);
 
 // Callback setup
-void DMATransmitter_SetSendFrameCallback(DMATransmitter *transmitter, DMATransmitterSendFrameCallback callback);
-void DMATransmitter_SetInterruptCallback(DMATransmitter *transmitter, DMATransmitterSetInterruptCallback callback);
+void DMATransmitter_SetSendFrameCallback(DMATransmitter *transmitter,
+                                         DMATransmitterSendFrameCallback callback);
+void DMATransmitter_SetInterruptCallback(DMATransmitter *transmitter,
+                                         DMATransmitterSetInterruptCallback callback);
 
 #endif // DMA_TRANSMITTER_H

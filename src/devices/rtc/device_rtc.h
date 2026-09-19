@@ -21,7 +21,6 @@
  */
 
 
-
 #ifndef DEVICE_RTC_H
 #define DEVICE_RTC_H
 
@@ -31,6 +30,7 @@
 #include "../devices_types.h"
 
 // RTC registers
+// clang-format off
 typedef enum {
     RTC_READ_DATA_REGISTER = 0,           // IOX 010: Returns 0
 
@@ -41,17 +41,21 @@ typedef enum {
 
     RTC_WRITE_CONTROL = 3                 // IOX 013: Set real-time clock control word
 } RTCRegister;
+// clang-format on
 
 // Selected frequency for programmable clock
+// clang-format off
 typedef enum {
     RTC_FREQ_STOP = 0,                    // Stop
     RTC_FREQ_100_USEC = 1,                // 100 uSec (1/1000 of time base)
     RTC_FREQ_10_USEC = 2,                 // 10 uSec (1/100 of time base)
     RTC_FREQ_1_USEC = 3                   // 1 uSec (1/10 of time base)
 } RTCFrequency;
+// clang-format on
 
 
 // Status register bit fields
+// clang-format off
 typedef union {
     uint16_t raw;
     struct {
@@ -62,8 +66,10 @@ typedef union {
         uint16_t unused4_15 : 12;         // Bits 4-15: Unused
     } bits;
 } RTCStatusRegister;
+// clang-format on
 
 // Control register bit fields
+// clang-format off
 typedef union {
     uint16_t raw;
     struct {
@@ -77,10 +83,12 @@ typedef union {
         uint16_t restartClock : 1;          // Bit 15: Restart clock (Preset to N-1) if 1
     } bits;
 } RTCControlRegister;
+// clang-format on
 
 
 // RTC device data structure
-typedef struct {
+typedef struct
+{
     int rtcCounter;
     int divisionNumberN;
     uint16_t register1;
@@ -90,7 +98,8 @@ typedef struct {
 
     bool clockCountingStarted;
 
-    uint64_t nextPulseNs;   /* wall-clock mode only: host monotonic time (ns) of next 20 ms pulse; 0 = not armed yet */
+    uint64_t
+        nextPulseNs; /* wall-clock mode only: host monotonic time (ns) of next 20 ms pulse; 0 = not armed yet */
 
     RTCControlRegister controlRegister;
     RTCStatusRegister statusRegister;
@@ -98,6 +107,6 @@ typedef struct {
 } RTCData;
 
 // Function declarations
-Device* CreateRTCDevice(uint8_t thumbwheel);
+Device *CreateRTCDevice(uint8_t thumbwheel);
 
 #endif // DEVICE_RTC_H

@@ -32,7 +32,8 @@
  * This structure contains the parameter buffer used by the DMA module
  * for HDLC communication configuration and status tracking.
  */
-typedef struct {
+typedef struct
+{
     /**
      * PCR (PCRH/High byte and PCRL/low byte)
      * Parameter Control Register (8 least significant bits)

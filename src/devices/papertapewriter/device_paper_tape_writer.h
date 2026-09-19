@@ -38,14 +38,17 @@
  */
 
 // Paper tape writer registers
+// clang-format off
 typedef enum {
     PTW_READ_DATA_REGISTER = 0,     // +0: Read data (test mode only)
     PTW_WRITE_DATA_BUFFER = 1,      // +1: Write data (8-bit)
     PTW_READ_STATUS_REGISTER = 2,   // +2: Read status
     PTW_WRITE_CONTROL_WORD = 3      // +3: Write control
 } PaperTapeWriterRegisters;
+// clang-format on
 
 // Status register bits (IOX +2, Read)
+// clang-format off
 typedef union {
     uint16_t raw;
     struct {
@@ -67,8 +70,10 @@ typedef union {
         uint16_t notUsed15 : 1;           // Bit 15
     } bits;
 } PaperTapeWriterStatus;
+// clang-format on
 
 // Control word bits (IOX +3, Write)
+// clang-format off
 typedef union {
     uint16_t raw;
     struct {
@@ -80,11 +85,13 @@ typedef union {
         uint16_t notUsed5 : 11;           // Bits 5-15: Not used
     } bits;
 } PaperTapeWriterControl;
+// clang-format on
 
 #define PTW_INITIAL_TAPE_CAPACITY 65536
 
 // Paper tape writer device data
-typedef struct {
+typedef struct
+{
     uint8_t characterBuffer;
     PaperTapeWriterStatus statusRegister;
     PaperTapeWriterControl controlWord;
@@ -96,7 +103,7 @@ typedef struct {
 } PaperTapeWriterData;
 
 // Function declarations
-Device* CreatePaperTapeWriterDevice(uint8_t thumbwheel);
-const uint8_t* PaperTapeWriter_GetTapeData(Device *self, size_t *length);
+Device *CreatePaperTapeWriterDevice(uint8_t thumbwheel);
+const uint8_t *PaperTapeWriter_GetTapeData(Device *self, size_t *length);
 
 #endif /* DEVICE_PAPERTAPEWRITER_H */

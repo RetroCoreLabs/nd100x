@@ -38,14 +38,17 @@
  */
 
 // Paper tape registers
+// clang-format off
 typedef enum {
     PAPERTAPE_READ_DATA_REGISTER = 0,    // 0400: Read data (8-bit)
     PAPERTAPE_WRITE_DATA_BUFFER = 1,     // 0401: Not used for reader
     PAPERTAPE_READ_STATUS_REGISTER = 2,  // 0402: Read status
     PAPERTAPE_WRITE_CONTROL_WORD = 3     // 0403: Write control
 } PaperTapeRegisters;
+// clang-format on
 
 // Status register bits (IOX +2, Read)
+// clang-format off
 typedef union {
     uint16_t raw;
     struct {
@@ -67,8 +70,10 @@ typedef union {
         uint16_t notUsed15 : 1;           // Bit 15
     } bits;
 } PaperTapeStatus;
+// clang-format on
 
 // Control word bits (IOX +3, Write)
+// clang-format off
 typedef union {
     uint16_t raw;
     struct {
@@ -90,9 +95,11 @@ typedef union {
         uint16_t notUsed15 : 1;           // Bit 15
     } bits;
 } PaperTapeControl;
+// clang-format on
 
 // Paper tape device data
-typedef struct {
+typedef struct
+{
     uint8_t characterBuffer;
     PaperTapeStatus statusRegister;
     PaperTapeControl controlWord;
@@ -104,7 +111,7 @@ typedef struct {
 } PaperTapeData;
 
 // Function declarations
-Device* CreatePaperTapeDevice(uint8_t thumbwheel);
+Device *CreatePaperTapeDevice(uint8_t thumbwheel);
 void PaperTape_LoadTape(Device *self, const uint8_t *data, size_t length);
 
 #endif /* DEVICE_PAPERTAPE_H */

@@ -31,8 +31,8 @@
 // sockets / threads in the browser).
 #if !defined(__EMSCRIPTEN__)
 #define MODEM_HAS_NETWORKING 1
-#include <pthread.h>     /* libpthread on POSIX, winpthreads on MinGW */
-#include <stdatomic.h>   /* C11 atomics - works on both toolchains */
+#include <pthread.h>   /* libpthread on POSIX, winpthreads on MinGW */
+#include <stdatomic.h> /* C11 atomics - works on both toolchains */
 #endif
 
 typedef struct Device Device;
@@ -43,12 +43,14 @@ typedef struct Device Device;
 #define MODEM_QUEUE_SIZE (512 * 1024)
 
 #ifdef MODEM_HAS_NETWORKING
+// clang-format off
 typedef struct {
     uint8_t buf[MODEM_QUEUE_SIZE];
     int head;           // written by producer
     int tail;           // read by consumer
     pthread_mutex_t mtx;
 } ModemQueue;
+// clang-format on
 #endif
 
 // Modem signal callback function types
@@ -56,6 +58,7 @@ typedef void (*ModemDataCallback)(Device *device, const uint8_t *data, int lengt
 typedef void (*ModemSignalCallback)(Device *device, bool pinValue);
 
 // Modem state structure
+// clang-format off
 typedef struct ModemState {
     // Modem signal states (read by emulation, set by callbacks)
     bool ringIndicator;
@@ -117,6 +120,7 @@ typedef struct ModemState {
     ModemSignalCallback onDataTerminalReady;
 
 } ModemState;
+// clang-format on
 
 void Modem_Init(ModemState *modem, Device *hdlcDevice);
 void Modem_Destroy(ModemState *modem);

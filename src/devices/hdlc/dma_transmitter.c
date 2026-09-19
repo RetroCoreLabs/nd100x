@@ -36,9 +36,13 @@
 #include "../devices_types.h"
 
 
-void DMATransmitter_Init(DMATransmitter *transmitter, void *com5025, DMAControlBlocks *dmaCB, struct Device *hdlcDevice)
+void DMATransmitter_Init(DMATransmitter *transmitter, void *com5025, DMAControlBlocks *dmaCB,
+                         struct Device *hdlcDevice)
 {
-    if (!transmitter) return;
+    if (!transmitter)
+    {
+        return;
+    }
     memset(transmitter, 0, sizeof(DMATransmitter));
 
     transmitter->com5025 = (COM5025State *)com5025;
@@ -53,14 +57,20 @@ void DMATransmitter_Init(DMATransmitter *transmitter, void *com5025, DMAControlB
 
 void DMATransmitter_Destroy(DMATransmitter *transmitter)
 {
-    if (!transmitter) return;
+    if (!transmitter)
+    {
+        return;
+    }
     transmitter->onSendHDLCFrame = NULL;
     transmitter->onSetInterruptBit = NULL;
 }
 
 void DMATransmitter_Clear(DMATransmitter *transmitter)
 {
-    if (!transmitter) return;
+    if (!transmitter)
+    {
+        return;
+    }
     transmitter->active = false;
     transmitter->bytesSent = 0;
 }
@@ -71,41 +81,54 @@ void DMATransmitter_Clear(DMATransmitter *transmitter)
 // ---------------------------------------------------------------------------
 void DMATransmitter_Tick(DMATransmitter *transmitter)
 {
-    if (!transmitter || !transmitter->dmaCB || !transmitter->hdlcDevice) return;
+    if (!transmitter || !transmitter->dmaCB || !transmitter->hdlcDevice)
+    {
+        return;
+    }
 
     HDLCData *hdlcData = (HDLCData *)transmitter->hdlcDevice->deviceData;
-    if (!hdlcData) return;
+    if (!hdlcData)
+    {
+        return;
+    }
 
     DMAControlBlocks *dmaCB = transmitter->dmaCB;
 
-    switch (dmaCB->dmaSenderState) {
-        case DMA_SENDER_STOPPED:
-            break;
+    switch (dmaCB->dmaSenderState)
+    {
+    case DMA_SENDER_STOPPED:
+        break;
 
-        case DMA_SENDER_BLOCK_READY_TO_SEND:
-            if (hdlcData->txTransferControl.bits.transmitterEnabled &&
-                hdlcData->txTransferControl.bits.enableTransmitterDMA) {
+    case DMA_SENDER_BLOCK_READY_TO_SEND:
+        if (hdlcData->txTransferControl.bits.transmitterEnabled &&
+            hdlcData->txTransferControl.bits.enableTransmitterDMA)
+        {
 
-                if (dmaCB->dmaWaitTicks > 0) {
-                    dmaCB->dmaWaitTicks--;
+            if (dmaCB->dmaWaitTicks > 0)
+            {
+                dmaCB->dmaWaitTicks--;
+            }
+
+            if (dmaCB->dmaWaitTicks == 0)
+            {
+                if (DMATransmitter_SendAllBuffers(transmitter))
+                {
+                    dmaCB->dmaWaitTicks = -1; // disable
                 }
-
-                if (dmaCB->dmaWaitTicks == 0) {
-                    if (DMATransmitter_SendAllBuffers(transmitter)) {
-                        dmaCB->dmaWaitTicks = -1; // disable
-                    } else {
-                        dmaCB->dmaWaitTicks = 50; // Wait before next block
-                    }
+                else
+                {
+                    dmaCB->dmaWaitTicks = 50; // Wait before next block
                 }
             }
-            break;
+        }
+        break;
 
-        case DMA_SENDER_SENDING_BLOCK:
-        case DMA_SENDER_FRAME_SENT:
-            break;
+    case DMA_SENDER_SENDING_BLOCK:
+    case DMA_SENDER_FRAME_SENT:
+        break;
 
-        default:
-            break;
+    default:
+        break;
     }
 }
 
@@ -114,29 +137,41 @@ void DMATransmitter_Tick(DMATransmitter *transmitter)
 // ---------------------------------------------------------------------------
 void DMATransmitter_SetTXDMAFlag(DMATransmitter *transmitter, uint16_t flag)
 {
-    if (!transmitter || !transmitter->hdlcDevice) return;
+    if (!transmitter || !transmitter->hdlcDevice)
+    {
+        return;
+    }
 
     HDLCData *hdlcData = (HDLCData *)transmitter->hdlcDevice->deviceData;
-    if (!hdlcData) return;
+    if (!hdlcData)
+    {
+        return;
+    }
 
     hdlcData->txTransferStatus.raw |= flag;
 
-    if (flag & TTS_TRANSMISSION_FINISHED) {
+    if (flag & TTS_TRANSMISSION_FINISHED)
+    {
         hdlcData->txTransferStatus.bits.dmaModuleRequest = 1;
     }
-    if (hdlcData->txTransferControl.bits.blockEndIE && hdlcData->txTransferStatus.bits.blockEnd) {
+    if (hdlcData->txTransferControl.bits.blockEndIE && hdlcData->txTransferStatus.bits.blockEnd)
+    {
         hdlcData->txTransferStatus.bits.dmaModuleRequest = 1;
     }
-    if (hdlcData->txTransferControl.bits.frameEndIE && hdlcData->txTransferStatus.bits.frameEnd) {
+    if (hdlcData->txTransferControl.bits.frameEndIE && hdlcData->txTransferStatus.bits.frameEnd)
+    {
         hdlcData->txTransferStatus.bits.dmaModuleRequest = 1;
     }
-    if (hdlcData->txTransferControl.bits.listEndIE && hdlcData->txTransferStatus.bits.listEnd) {
+    if (hdlcData->txTransferControl.bits.listEndIE && hdlcData->txTransferStatus.bits.listEnd)
+    {
         hdlcData->txTransferStatus.bits.dmaModuleRequest = 1;
     }
 
     if (hdlcData->txTransferControl.bits.dmaModuleIE &&
-        hdlcData->txTransferStatus.bits.dmaModuleRequest) {
-        if (transmitter->onSetInterruptBit) {
+        hdlcData->txTransferStatus.bits.dmaModuleRequest)
+    {
+        if (transmitter->onSetInterruptBit)
+        {
             transmitter->onSetInterruptBit(transmitter->callbackContext, 12);
         }
     }
@@ -146,7 +181,8 @@ void DMATransmitter_SetTXDMAFlag(DMATransmitter *transmitter, uint16_t flag)
 static void record_tx_history(DMATransmitter *transmitter, HdlcDCB *dcb,
                               const uint8_t *frame_buffer, int frame_length)
 {
-    if (transmitter->hdlcDevice && transmitter->hdlcDevice->deviceData) {
+    if (transmitter->hdlcDevice && transmitter->hdlcDevice->deviceData)
+    {
         HDLCData *hd = (HDLCData *)transmitter->hdlcDevice->deviceData;
         int idx = hd->txHistoryIdx % HDLC_TX_HISTORY_SIZE;
         hd->txHistory[idx].listPtr = DCB_GetBufferAddress(dcb);
@@ -154,7 +190,8 @@ static void record_tx_history(DMATransmitter *transmitter, HdlcDCB *dcb,
         hd->txHistory[idx].byteCount = dcb->byteCount;
         hd->txHistory[idx].keyBefore = DCB_GetKeyValue(dcb);
         hd->txHistory[idx].frameSize = (uint16_t)frame_length;
-        int copyLen = frame_length < HDLC_TX_HISTORY_DATA_SIZE ? frame_length : HDLC_TX_HISTORY_DATA_SIZE;
+        int copyLen =
+            frame_length < HDLC_TX_HISTORY_DATA_SIZE ? frame_length : HDLC_TX_HISTORY_DATA_SIZE;
         memcpy(hd->txHistory[idx].data, frame_buffer, (size_t)copyLen);
         hd->txHistory[idx].dataLen = (uint8_t)copyLen;
         hd->txHistoryIdx++;
@@ -165,13 +202,13 @@ static void record_tx_history(DMATransmitter *transmitter, HdlcDCB *dcb,
 // the send callback (and the TX history).
 static void send_outbound_frame(DMATransmitter *transmitter, DMAControlBlocks *dma_cb)
 {
-    if (dma_cb->outboundBuffer && dma_cb->outboundBufferSize > 0 &&
-        transmitter->onSendHDLCFrame) {
+    if (dma_cb->outboundBuffer && dma_cb->outboundBufferSize > 0 && transmitter->onSendHDLCFrame)
+    {
         uint8_t frameBuffer[HDLC_MAX_FRAME_SIZE + 10];
-        int frameLength = HDLCFrame_BuildFrame(dma_cb->outboundBuffer,
-                                              dma_cb->outboundBufferSize,
-                                              frameBuffer, sizeof(frameBuffer));
-        if (frameLength > 0) {
+        int frameLength = HDLCFrame_BuildFrame(dma_cb->outboundBuffer, dma_cb->outboundBufferSize,
+                                               frameBuffer, sizeof(frameBuffer));
+        if (frameLength > 0)
+        {
             record_tx_history(transmitter, dma_cb->txDCB, frameBuffer, frameLength);
 
             HDLCFrame callbackFrame;
@@ -190,45 +227,65 @@ static void send_outbound_frame(DMATransmitter *transmitter, DMAControlBlocks *d
 // ---------------------------------------------------------------------------
 bool DMATransmitter_SendAllBuffers(DMATransmitter *transmitter)
 {
-    if (!transmitter || !transmitter->dmaCB) return true;
+    if (!transmitter || !transmitter->dmaCB)
+    {
+        return true;
+    }
 
     DMAControlBlocks *dmaCB = transmitter->dmaCB;
     uint16_t tmpTSB = 0;
 
-    if (dmaCB->txListPointer == 0) return true;
+    if (dmaCB->txListPointer == 0)
+    {
+        return true;
+    }
 
     // Track call count
-    if (transmitter->hdlcDevice && transmitter->hdlcDevice->deviceData) {
+    if (transmitter->hdlcDevice && transmitter->hdlcDevice->deviceData)
+    {
         ((HDLCData *)transmitter->hdlcDevice->deviceData)->txSendCalls++;
     }
 
     DMAControlBlocks_LoadTXBuffer(dmaCB);
 
-    while (true) {
-        if (!dmaCB->txDCB) return true;
+    while (true)
+    {
+        if (!dmaCB->txDCB)
+        {
+            return true;
+        }
 
         // Skip already transmitted blocks (compare KEY bits 8-10 only, not RCOST low byte)
-        while (dmaCB->txDCB &&
-               DCB_GetKey(dmaCB->txDCB) == KEYFLAG_ALREADY_TRANSMITTED_BLOCK) {
-            if (transmitter->hdlcDevice && transmitter->hdlcDevice->deviceData) {
+        while (dmaCB->txDCB && DCB_GetKey(dmaCB->txDCB) == KEYFLAG_ALREADY_TRANSMITTED_BLOCK)
+        {
+            if (transmitter->hdlcDevice && transmitter->hdlcDevice->deviceData)
+            {
                 ((HDLCData *)transmitter->hdlcDevice->deviceData)->txAlreadySent++;
             }
             DMAControlBlocks_LoadNextTXBuffer(dmaCB);
         }
 
-        if (!dmaCB->txDCB) return true;
+        if (!dmaCB->txDCB)
+        {
+            return true;
+        }
 
-        if (DCB_GetKey(dmaCB->txDCB) == KEYFLAG_BLOCK_TO_BE_TRANSMITTED) {
+        if (DCB_GetKey(dmaCB->txDCB) == KEYFLAG_BLOCK_TO_BE_TRANSMITTED)
+        {
             // Start of new frame: clear outbound buffer
-            if (DCB_HasRSOMFlag(dmaCB->txDCB)) {
+            if (DCB_HasRSOMFlag(dmaCB->txDCB))
+            {
                 dmaCB->outboundBufferSize = 0;
             }
 
             // Read all bytes from this block into outbound buffer
             uint16_t bytesToSend = dmaCB->txDCB->byteCount + dmaCB->txDCB->displacement;
-            while (dmaCB->txDCB->dmaBytesRead < bytesToSend) {
+            while (dmaCB->txDCB->dmaBytesRead < bytesToSend)
+            {
                 uint8_t data = DMAControlBlocks_ReadNextByteDMA(dmaCB, false);
-                if (dmaCB->outboundBuffer && dmaCB->outboundBufferSize < dmaCB->outboundBufferCapacity) {
+                if (dmaCB->outboundBuffer &&
+                    dmaCB->outboundBufferSize < dmaCB->outboundBufferCapacity)
+                {
                     dmaCB->outboundBuffer[dmaCB->outboundBufferSize++] = data;
                 }
             }
@@ -236,7 +293,8 @@ bool DMATransmitter_SendAllBuffers(DMATransmitter *transmitter)
             tmpTSB |= TTS_BLOCK_END;
 
             // End of frame: build HDLC frame and send it
-            if (DCB_HasREOMFlag(dmaCB->txDCB)) {
+            if (DCB_HasREOMFlag(dmaCB->txDCB))
+            {
                 send_outbound_frame(transmitter, dmaCB);
                 dmaCB->outboundBufferSize = 0;
                 tmpTSB |= TTS_FRAME_END;
@@ -244,16 +302,21 @@ bool DMATransmitter_SendAllBuffers(DMATransmitter *transmitter)
 
             DMAControlBlocks_MarkBufferSent(dmaCB);
 
-            if (!DMAControlBlocks_LoadNextTXBuffer(dmaCB)) {
+            if (!DMAControlBlocks_LoadNextTXBuffer(dmaCB))
+            {
                 tmpTSB |= TTS_TRANSMISSION_FINISHED | TTS_LIST_END;
                 DMATransmitter_SetTXDMAFlag(transmitter, tmpTSB);
                 DMATransmitter_SetEngineSenderState(transmitter, DMA_SENDER_STOPPED);
                 return true;
-            } else {
+            }
+            else
+            {
                 DMATransmitter_SetTXDMAFlag(transmitter, tmpTSB);
                 tmpTSB = 0;
             }
-        } else {
+        }
+        else
+        {
             // End of list
             DMATransmitter_SetTXDMAFlag(transmitter, TTS_TRANSMISSION_FINISHED | TTS_LIST_END);
             DMATransmitter_SetEngineSenderState(transmitter, DMA_SENDER_STOPPED);
@@ -267,14 +330,20 @@ bool DMATransmitter_SendAllBuffers(DMATransmitter *transmitter)
 // ---------------------------------------------------------------------------
 void DMATransmitter_SetEngineSenderState(DMATransmitter *transmitter, int state)
 {
-    if (!transmitter || !transmitter->dmaCB) return;
+    if (!transmitter || !transmitter->dmaCB)
+    {
+        return;
+    }
 
     transmitter->dmaCB->dmaSenderState = state;
 
-    if (state == DMA_SENDER_STOPPED) {
-        if (transmitter->hdlcDevice) {
+    if (state == DMA_SENDER_STOPPED)
+    {
+        if (transmitter->hdlcDevice)
+        {
             HDLCData *hdlcData = (HDLCData *)transmitter->hdlcDevice->deviceData;
-            if (hdlcData) {
+            if (hdlcData)
+            {
                 hdlcData->txTransferControl.bits.transmitterEnabled = 0;
             }
         }
@@ -282,27 +351,39 @@ void DMATransmitter_SetEngineSenderState(DMATransmitter *transmitter, int state)
         transmitter->dmaCB->txDCB = NULL;
     }
 
-    if (state == DMA_SENDER_BLOCK_READY_TO_SEND) {
+    if (state == DMA_SENDER_BLOCK_READY_TO_SEND)
+    {
         transmitter->dmaCB->dmaWaitTicks = 10; // matches C# RetroCore
     }
 }
 
 void DMATransmitter_SetSenderState(DMATransmitter *transmitter, int senderState)
 {
-    if (!transmitter) return;
+    if (!transmitter)
+    {
+        return;
+    }
     DMATransmitter_SetEngineSenderState(transmitter, senderState);
 
     transmitter->active = (senderState == DMA_SENDER_BLOCK_READY_TO_SEND);
 }
 
-void DMATransmitter_SetSendFrameCallback(DMATransmitter *transmitter, DMATransmitterSendFrameCallback callback)
+void DMATransmitter_SetSendFrameCallback(DMATransmitter *transmitter,
+                                         DMATransmitterSendFrameCallback callback)
 {
-    if (!transmitter) return;
+    if (!transmitter)
+    {
+        return;
+    }
     transmitter->onSendHDLCFrame = callback;
 }
 
-void DMATransmitter_SetInterruptCallback(DMATransmitter *transmitter, DMATransmitterSetInterruptCallback callback)
+void DMATransmitter_SetInterruptCallback(DMATransmitter *transmitter,
+                                         DMATransmitterSetInterruptCallback callback)
 {
-    if (!transmitter) return;
+    if (!transmitter)
+    {
+        return;
+    }
     transmitter->onSetInterruptBit = callback;
 }

@@ -30,6 +30,7 @@
 // without dropping data while the emulation thread drains it
 #define TCP_RECV_BUF_DEFAULT_CAPACITY (2 * 1024 * 1024)
 
+// clang-format off
 typedef struct {
     uint8_t *buffer;
     int head;       // Write position
@@ -37,6 +38,7 @@ typedef struct {
     int count;      // Bytes available
     int capacity;
 } TcpReceiveBuffer;
+// clang-format on
 
 // Initialize buffer (caller provides pre-allocated struct)
 void TcpReceiveBuffer_Init(TcpReceiveBuffer *buf, int capacity);

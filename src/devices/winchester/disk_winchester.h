@@ -40,7 +40,8 @@
  * The manual gives sectors/track, tracks/cylinder, total cylinders and the
  * bad-track count for each drive; "tracks per cylinder" is the head count.
  */
-typedef enum {
+typedef enum
+{
     WD_DISK_TYPE_UNKNOWN = 0,
 
     /* 5 1/4 inch (ST506), ND-11.015.01 printed p.4 */
@@ -67,7 +68,8 @@ typedef enum {
 
 /* One drive. Mirrors DiskInfo in disk_smd.h so the two block controllers keep
  * the same shape. */
-typedef struct {
+typedef struct
+{
     /* Is a disk pack mounted on this unit? A unit with no attached image is a
      * powered-off drive: it must report not ready. Resolved lazily on first
      * use (the image-size callback stats a file) and then cached. */

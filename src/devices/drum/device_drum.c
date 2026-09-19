@@ -19,18 +19,18 @@
 #include "devices_protos.h"
 
 /* Forward declarations */
-static void     Drum_Reset(Device *self);
+static void Drum_Reset(Device *self);
 static uint16_t Drum_Read(Device *self, uint32_t address);
-static void     Drum_Write(Device *self, uint32_t address, uint16_t value);
+static void Drum_Write(Device *self, uint32_t address, uint16_t value);
 static uint16_t Drum_Tick(Device *self);
 static uint16_t Drum_Ident(Device *self, uint16_t level);
-static void     Drum_Destroy(Device *self);
-static void     Drum_ExecuteGO(Device *self);
-static bool     Drum_End(void *context, int param);
+static void Drum_Destroy(Device *self);
+static void Drum_ExecuteGO(Device *self);
+static bool Drum_End(void *context, int param);
 
 /* Path for the next CreateDrumDevice() to attach; NULL = in-memory only. */
 static char g_drumBackingPath[1024];
-static int  g_drumHasBackingPath = 0;
+static int g_drumHasBackingPath = 0;
 
 void DrumDevice_SetBackingFile(const char *path)
 {
@@ -50,18 +50,20 @@ void DrumDevice_SetBackingFile(const char *path)
  * Keeps the FILE* open for write-back in Drum_Destroy. Returns 1 on success. */
 static int Drum_AttachBacking(DrumData *d, const char *path)
 {
-    FILE *f = fopen(path, "rb+");   /* existing file, read/write */
+    FILE *f = fopen(path, "rb+"); /* existing file, read/write */
     if (!f)
     {
         /* Create a fresh, empty drum image of the maximum size. */
         f = fopen(path, "wb+");
         if (!f)
+        {
             return 0;
+        }
         /* The surface is already calloc'd to zero; persist that as the image. */
         for (uint32_t i = 0; i < d->surfaceWords; i++)
         {
-            putc(0, f);            /* high byte */
-            putc(0, f);            /* low byte  */
+            putc(0, f); /* high byte */
+            putc(0, f); /* low byte  */
         }
         fflush(f);
     }
@@ -73,7 +75,9 @@ static int Drum_AttachBacking(DrumData *d, const char *path)
             int hi = getc(f);
             int lo = getc(f);
             if (hi == EOF || lo == EOF)
-                break;             /* short file: leave the rest zeroed */
+            {
+                break; /* short file: leave the rest zeroed */
+            }
             d->surface[i] = (uint16_t)((hi << 8) | lo);
         }
     }
@@ -85,15 +89,17 @@ static int Drum_AttachBacking(DrumData *d, const char *path)
 static uint16_t Drum_Read(Device *self, uint32_t address)
 {
     if (!self)
+    {
         return 0;
+    }
     DrumData *d = (DrumData *)self->deviceData;
     uint32_t reg = address - self->startAddress;
 
     switch (reg)
     {
-    case DRUM_REG_READ_STATUS:      /* 544 RSX - the only register TSS reads */
+    case DRUM_REG_READ_STATUS: /* 544 RSX - the only register TSS reads */
         return d->status;
-    case DRUM_REG_READ_CORE:        /* 540 RCX - defined but XDRUM never uses */
+    case DRUM_REG_READ_CORE: /* 540 RCX - defined but XDRUM never uses */
         return (uint16_t)(d->coreAddress & 0xFFFF);
     default:
         return 0;
@@ -104,27 +110,28 @@ static uint16_t Drum_Read(Device *self, uint32_t address)
 static void Drum_Write(Device *self, uint32_t address, uint16_t value)
 {
     if (!self)
+    {
         return;
+    }
     DrumData *d = (DrumData *)self->deviceData;
     uint32_t reg = address - self->startAddress;
 
     switch (reg)
     {
-    case DRUM_REG_LOAD_CORE:        /* 541 LCX - low 16 bits of core address */
+    case DRUM_REG_LOAD_CORE: /* 541 LCX - low 16 bits of core address */
         /* high bits 16-17 are supplied by the control word, keep them */
         d->coreAddress = (d->coreAddress & 0x30000u) | value;
         break;
-    case DRUM_REG_LOAD_BLOCK:       /* 543 LBX - drum block address          */
+    case DRUM_REG_LOAD_BLOCK: /* 543 LBX - drum block address          */
         d->blockAddress = value;
         break;
-    case DRUM_REG_LOAD_WORDCNT:     /* 547 LWX - word count                  */
+    case DRUM_REG_LOAD_WORDCNT: /* 547 LWX - word count                  */
         d->wordCount = value;
         break;
-    case DRUM_REG_LOAD_CONTROL:     /* 545 LCR - control; may trigger a go   */
+    case DRUM_REG_LOAD_CONTROL: /* 545 LCR - control; may trigger a go   */
         d->control = value;
         /* Fold in the extended core-address bits 16-17 from the control word. */
-        d->coreAddress = (d->coreAddress & 0xFFFFu)
-                       | ((uint32_t)DRUM_CTRL_ADDR_HI(value) << 16);
+        d->coreAddress = (d->coreAddress & 0xFFFFu) | ((uint32_t)DRUM_CTRL_ADDR_HI(value) << 16);
         if ((value & DRUM_CTRL_GO_MASK) == DRUM_CTRL_GO_VALUE)
         {
             /* bits 0-2 == 7 : activate transfer, interrupt on completion */
@@ -148,14 +155,14 @@ static void Drum_ExecuteGO(Device *self)
 {
     DrumData *d = (DrumData *)self->deviceData;
 
-    uint16_t func   = DRUM_CTRL_FUNC(d->control);
+    uint16_t func = DRUM_CTRL_FUNC(d->control);
     uint16_t sector = (uint16_t)DRUM_BLOCK_SECTOR(d->blockAddress);
-    uint16_t track  = (uint16_t)DRUM_BLOCK_TRACK(d->blockAddress);
+    uint16_t track = (uint16_t)DRUM_BLOCK_TRACK(d->blockAddress);
 
     /* Linear word offset into the drum surface.
      * [VERIFIED sector/track split] + [PROVISIONAL words-per-sector], see .h */
-    uint32_t wordOffset = ((uint32_t)track * DRUM_SECTORS_PER_TRACK + sector)
-                          * DRUM_WORDS_PER_SECTOR;
+    uint32_t wordOffset =
+        ((uint32_t)track * DRUM_SECTORS_PER_TRACK + sector) * DRUM_WORDS_PER_SECTOR;
     uint32_t count = d->wordCount;
 
     /* Clear any previous error, mark the device active. */
@@ -167,33 +174,35 @@ static void Drum_ExecuteGO(Device *self)
     {
         d->status |= DRUM_STATUS_ERR;
         /* Still raise completion so the driver takes its error exit. */
-        Device_QueueIODelay(self, IODELAY_HDD_SMD,
-                            (IODelayedCallback)Drum_End, 0, self->interruptLevel);
+        Device_QueueIODelay(self, IODELAY_HDD_SMD, (IODelayedCallback)Drum_End, 0,
+                            self->interruptLevel);
         return;
     }
 
     for (uint32_t i = 0; i < count; i++)
     {
-        uint32_t core = d->coreAddress + i;   /* DMA into physical memory */
+        uint32_t core = d->coreAddress + i; /* DMA into physical memory */
         switch (func)
         {
-        case DRUM_FUNC_READ:                  /* drum -> memory */
+        case DRUM_FUNC_READ: /* drum -> memory */
             Device_DMAWrite(core, d->surface[wordOffset + i]);
             break;
-        case DRUM_FUNC_WRITE:                 /* memory -> drum */
+        case DRUM_FUNC_WRITE: /* memory -> drum */
         {
             int32_t w = Device_DMARead(core);
             d->surface[wordOffset + i] = (uint16_t)(w & 0xFFFF);
             break;
         }
-        case DRUM_FUNC_READ_TEST:             /* read drum, no store */
+        case DRUM_FUNC_READ_TEST: /* read drum, no store */
             (void)d->surface[wordOffset + i];
             break;
-        case DRUM_FUNC_COMPARE:               /* compare drum vs memory */
+        case DRUM_FUNC_COMPARE: /* compare drum vs memory */
         {
             int32_t w = Device_DMARead(core);
             if ((uint16_t)(w & 0xFFFF) != d->surface[wordOffset + i])
+            {
                 d->status |= DRUM_STATUS_ERR;
+            }
             break;
         }
         default:
@@ -217,8 +226,8 @@ static void Drum_ExecuteGO(Device *self)
 
     /* Queue the delayed completion, exactly like SMD. The callback clears DVA
      * and (returning true) raises the level-11 interrupt. */
-    Device_QueueIODelay(self, IODELAY_HDD_SMD,
-                        (IODelayedCallback)Drum_End, 0, self->interruptLevel);
+    Device_QueueIODelay(self, IODELAY_HDD_SMD, (IODelayedCallback)Drum_End, 0,
+                        self->interruptLevel);
 }
 
 /* ----- delayed completion: clears busy, requests the interrupt ---------- */
@@ -227,12 +236,16 @@ static bool Drum_End(void *context, int param)
     (void)param;
     Device *self = (Device *)context;
     if (!self)
+    {
         return false;
+    }
     DrumData *d = (DrumData *)self->deviceData;
     if (!d)
+    {
         return false;
+    }
 
-    d->status &= (uint16_t)~DRUM_STATUS_DVA;   /* no longer active */
+    d->status &= (uint16_t)~DRUM_STATUS_DVA; /* no longer active */
 
     /* Returning true tells Device_TickIODelay to generate the interrupt. */
     return d->interruptEnabled;
@@ -242,7 +255,9 @@ static bool Drum_End(void *context, int param)
 static uint16_t Drum_Tick(Device *self)
 {
     if (!self)
+    {
         return 0;
+    }
     Device_TickIODelay(self);
     return self->interruptBits;
 }
@@ -250,7 +265,9 @@ static uint16_t Drum_Tick(Device *self)
 static uint16_t Drum_Ident(Device *self, uint16_t level)
 {
     if (!self)
+    {
         return 0;
+    }
     if ((self->interruptBits & (1 << level)) != 0)
     {
         Device_SetInterruptStatus(self, false, level);
@@ -262,7 +279,9 @@ static uint16_t Drum_Ident(Device *self, uint16_t level)
 static void Drum_Reset(Device *self)
 {
     if (!self)
+    {
         return;
+    }
     DrumData *d = (DrumData *)self->deviceData;
     d->coreAddress = 0;
     d->blockAddress = 0;
@@ -276,7 +295,9 @@ static void Drum_Reset(Device *self)
 static void Drum_Destroy(Device *self)
 {
     if (!self)
+    {
         return;
+    }
     DrumData *d = (DrumData *)self->deviceData;
     if (d)
     {
@@ -303,7 +324,9 @@ Device *CreateDrumDevice(uint8_t thumbwheel)
 {
     Device *dev = (Device *)malloc(sizeof(Device));
     if (!dev)
+    {
         return NULL;
+    }
 
     DrumData *d = (DrumData *)malloc(sizeof(DrumData));
     if (!d)
@@ -334,8 +357,10 @@ Device *CreateDrumDevice(uint8_t thumbwheel)
     if (g_drumHasBackingPath)
     {
         if (!Drum_AttachBacking(d, g_drumBackingPath))
+        {
             LOG(LOG_CAT_DRUM, LOG_WARN, "DRUM: could not open backing file '%s' (in-memory only)\n",
-                   g_drumBackingPath);
+                g_drumBackingPath);
+        }
     }
 
     dev->Read = Drum_Read;
@@ -361,10 +386,10 @@ Device *CreateDrumDevice(uint8_t thumbwheel)
         return NULL;
     }
     dev->endAddress = dev->startAddress + 7;
-    dev->identCode = DRUM_IDENT_CODE;   /* PROVISIONAL - see device_drum.h */
+    dev->identCode = DRUM_IDENT_CODE; /* PROVISIONAL - see device_drum.h */
     dev->interruptLevel = DRUM_INT_LEVEL;
 
     LOG(LOG_CAT_DRUM, LOG_INFO, "DRUM device created: %s ident %o level %d (%u words surface)\n",
-           dev->memoryName, dev->identCode, dev->interruptLevel, d->surfaceWords);
+        dev->memoryName, dev->identCode, dev->interruptLevel, d->surfaceWords);
     return dev;
 }

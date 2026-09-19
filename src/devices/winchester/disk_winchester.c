@@ -36,7 +36,9 @@
 void DiskWinchester_SetDiskType(WDDiskInfo *disk, WDDiskType dt)
 {
     if (!disk)
+    {
         return;
+    }
 
     disk->diskType = dt;
     disk->bytesPrSector = 1024; /* 1024 bytes = 512 words, all drives */
@@ -103,7 +105,9 @@ void DiskWinchester_SetDiskType(WDDiskInfo *disk, WDDiskType dt)
 long DiskWinchester_ChsToLba(const WDDiskInfo *disk, int cylinder, int head, int sector)
 {
     if (!disk || disk->headsPrCylinder <= 0 || disk->sectorsPrTrack <= 0)
+    {
         return -1;
+    }
 
     return ((long)cylinder * disk->headsPrCylinder + head) * disk->sectorsPrTrack + sector;
 }

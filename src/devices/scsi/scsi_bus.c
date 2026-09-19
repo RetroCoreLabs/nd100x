@@ -17,9 +17,8 @@
 #include "../devices_types.h"
 #include "../devices_protos.h"
 
-static const char *scsiPhaseDescription[8] = {
-    "DATA OUT", "DATA IN", "COMMAND", "STATUS", "*", "*", "MESSAGE OUT", "MESSAGE IN"
-};
+static const char *scsiPhaseDescription[8] = {"DATA OUT", "DATA IN", "COMMAND",     "STATUS",
+                                              "*",        "*",       "MESSAGE OUT", "MESSAGE IN"};
 
 
 const char *SCSIBus_PhaseName(uint32_t phase)
@@ -31,7 +30,9 @@ const char *SCSIBus_PhaseName(uint32_t phase)
 void SCSIBus_Init(SCSIBus *bus)
 {
     if (!bus)
+    {
         return;
+    }
     memset(bus, 0, sizeof(SCSIBus));
 }
 
@@ -39,9 +40,13 @@ void SCSIBus_Init(SCSIBus *bus)
 int SCSIBus_AddDevice(SCSIBus *bus, SCSIDevice *dev)
 {
     if (!bus || !dev)
+    {
         return -1;
+    }
     if (bus->devCnt >= SCSI_BUS_MAX_DEVICES)
+    {
         return -1;
+    }
 
     int id = bus->devCnt;
     bus->devices[id].dev = dev;
@@ -59,13 +64,17 @@ int SCSIBus_AddDevice(SCSIBus *bus, SCSIDevice *dev)
 void SCSIBus_Clock(SCSIBus *bus)
 {
     if (!bus)
+    {
         return;
+    }
 
     for (int i = 0; i < bus->devCnt; i++)
     {
         SCSIDevice *dev = bus->devices[i].dev;
         if (dev && dev->Clock)
+        {
             dev->Clock(dev);
+        }
     }
 }
 
@@ -75,7 +84,9 @@ static void SCSIBus_RegenData(SCSIBus *bus)
 {
     uint8_t data = 0;
     for (int i = 0; i < bus->devCnt; i++)
+    {
         data |= bus->devices[i].data;
+    }
     bus->data = data;
 }
 
@@ -91,23 +102,33 @@ static void SCSIBus_RegenCtrl(SCSIBus *bus, int refid)
     uint32_t ctrl = 0;
 
     for (int i = 0; i < bus->devCnt; i++)
+    {
         ctrl |= bus->devices[i].ctrl;
+    }
     bus->ctrl = ctrl;
 
     uint32_t signal_bits_changed = octrl ^ ctrl;
     if (signal_bits_changed == 0)
+    {
         return;
+    }
 
     for (int i = 0; i < bus->devCnt; i++)
     {
         if (i == refid)
+        {
             continue;
+        }
         if ((bus->devices[i].wait_ctrl & signal_bits_changed) == 0)
+        {
             continue;
+        }
 
         SCSIDevice *dev = bus->devices[i].dev;
         if (dev && dev->ctrl_changed)
+        {
             dev->ctrl_changed(dev);
+        }
     }
 }
 
@@ -115,7 +136,9 @@ static void SCSIBus_RegenCtrl(SCSIBus *bus, int refid)
 uint32_t SCSIBus_ControlRead(SCSIBus *bus)
 {
     if (!bus)
+    {
         return 0;
+    }
     return bus->ctrl;
 }
 
@@ -124,9 +147,13 @@ uint32_t SCSIBus_ControlRead(SCSIBus *bus)
 void SCSIBus_ControlWait(SCSIBus *bus, int refid, uint32_t lines, uint32_t mask)
 {
     if (!bus || refid < 0 || refid >= SCSI_BUS_MAX_DEVICES)
+    {
         return;
+    }
     if (!bus->devices[refid].dev)
+    {
         return;
+    }
 
     uint32_t w = bus->devices[refid].wait_ctrl;
     bus->devices[refid].wait_ctrl = (w & ~mask) | (lines & mask);
@@ -136,7 +163,9 @@ void SCSIBus_ControlWait(SCSIBus *bus, int refid, uint32_t lines, uint32_t mask)
 void SCSIBus_ControlWrite(SCSIBus *bus, int refid, uint32_t lines, uint32_t mask)
 {
     if (!bus || refid < 0 || refid >= SCSI_BUS_MAX_DEVICES)
+    {
         return;
+    }
 
     if (bus->devices[refid].dev)
     {
@@ -153,7 +182,9 @@ void SCSIBus_ControlWrite(SCSIBus *bus, int refid, uint32_t lines, uint32_t mask
 uint8_t SCSIBus_DataRead(SCSIBus *bus)
 {
     if (!bus)
+    {
         return 0;
+    }
     return bus->data;
 }
 
@@ -161,9 +192,13 @@ uint8_t SCSIBus_DataRead(SCSIBus *bus)
 void SCSIBus_DataWrite(SCSIBus *bus, int refid, uint8_t data)
 {
     if (!bus || refid < 0 || refid >= SCSI_BUS_MAX_DEVICES)
+    {
         return;
+    }
     if (!bus->devices[refid].dev)
+    {
         return;
+    }
 
     bus->devices[refid].data = data;
     SCSIBus_RegenData(bus);

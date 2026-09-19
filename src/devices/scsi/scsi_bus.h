@@ -32,6 +32,7 @@
 /* (ctrl & S_PHASE_MASK) is numerically identical to the NCRPhase enum */
 /* in ncr5386.h. No translation between the two is needed.             */
 /* ------------------------------------------------------------------ */
+// clang-format off
 #define S_INP  0x0001   /* I/O  */
 #define S_CTL  0x0002   /* C/D  */
 #define S_MSG  0x0004   /* MSG  */
@@ -42,6 +43,7 @@
 #define S_ATN  0x0080
 #define S_RST  0x0100
 #define S_ALL  0x01ff
+// clang-format on
 
 #define S_PHASE_DATA_OUT 0
 #define S_PHASE_DATA_IN  (S_INP)
@@ -56,6 +58,7 @@
 struct SCSIBus;
 
 /* Base "class" for anything on the bus (the NCR chip, and each target). */
+// clang-format off
 typedef struct SCSIDevice {
     struct SCSIBus *bus;
     int   refid;                /* index into the bus device table, -1 = detached */
@@ -69,30 +72,35 @@ typedef struct SCSIDevice {
 
     void *impl;                 /* concrete device state (NCR5386 / target) */
 } SCSIDevice;
+// clang-format on
 
+// clang-format off
 typedef struct {
     SCSIDevice *dev;
     uint32_t    ctrl;           /* lines this device is asserting */
     uint32_t    wait_ctrl;      /* lines this device wants to be notified about */
     uint8_t     data;           /* data this device is driving */
 } SCSIBusDevice;
+// clang-format on
 
+// clang-format off
 typedef struct SCSIBus {
     SCSIBusDevice devices[SCSI_BUS_MAX_DEVICES];
     int      devCnt;
     uint8_t  data;              /* OR of all devices' data */
     uint32_t ctrl;              /* OR of all devices' control lines */
 } SCSIBus;
+// clang-format on
 
-void     SCSIBus_Init(SCSIBus *bus);
-int      SCSIBus_AddDevice(SCSIBus *bus, SCSIDevice *dev);
-void     SCSIBus_Clock(SCSIBus *bus);
+void SCSIBus_Init(SCSIBus *bus);
+int SCSIBus_AddDevice(SCSIBus *bus, SCSIDevice *dev);
+void SCSIBus_Clock(SCSIBus *bus);
 
 uint32_t SCSIBus_ControlRead(SCSIBus *bus);
-void     SCSIBus_ControlWrite(SCSIBus *bus, int refid, uint32_t lines, uint32_t mask);
-void     SCSIBus_ControlWait(SCSIBus *bus, int refid, uint32_t lines, uint32_t mask);
-uint8_t  SCSIBus_DataRead(SCSIBus *bus);
-void     SCSIBus_DataWrite(SCSIBus *bus, int refid, uint8_t data);
+void SCSIBus_ControlWrite(SCSIBus *bus, int refid, uint32_t lines, uint32_t mask);
+void SCSIBus_ControlWait(SCSIBus *bus, int refid, uint32_t lines, uint32_t mask);
+uint8_t SCSIBus_DataRead(SCSIBus *bus);
+void SCSIBus_DataWrite(SCSIBus *bus, int refid, uint8_t data);
 
 /* "DATA OUT" / "COMMAND" / ... for logging; index with (ctrl & S_PHASE_MASK). */
 const char *SCSIBus_PhaseName(uint32_t phase);

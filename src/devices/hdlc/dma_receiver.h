@@ -37,7 +37,8 @@ struct Device;
 typedef void (*DMAReceiverSetInterruptCallback)(void *context, uint8_t bit);
 
 // DMA Receiver status enumeration
-typedef enum {
+typedef enum
+{
     DMA_RECEIVE_OK,
     DMA_RECEIVE_FAILED,
     DMA_RECEIVE_BUFFER_FULL,
@@ -45,7 +46,8 @@ typedef enum {
 } DMAReceiveStatus;
 
 // DMA Receiver state structure
-typedef struct DMAReceiver {
+typedef struct DMAReceiver
+{
     // Total bytes received across all buffers (for statistics)
     int bytesReceived;
 
@@ -67,7 +69,8 @@ typedef struct DMAReceiver {
 } DMAReceiver;
 
 // Core functions
-void DMAReceiver_Init(DMAReceiver *receiver, void *com5025, DMAControlBlocks *dmaCB, struct Device *hdlcDevice);
+void DMAReceiver_Init(DMAReceiver *receiver, void *com5025, DMAControlBlocks *dmaCB,
+                      struct Device *hdlcDevice);
 void DMAReceiver_Destroy(DMAReceiver *receiver);
 void DMAReceiver_Clear(DMAReceiver *receiver);
 void DMAReceiver_Tick(DMAReceiver *receiver);
@@ -88,6 +91,7 @@ DMAReceiveStatus DMAReceiver_ReceiveDataBufferByte(DMAReceiver *receiver, uint8_
 // Flag and interrupt management
 void DMAReceiver_SetRXDMAFlag(DMAReceiver *receiver, uint16_t flag);
 void DMAReceiver_EnableHDLCReceiver(DMAReceiver *receiver, bool enable);
-void DMAReceiver_SetInterruptCallback(DMAReceiver *receiver, DMAReceiverSetInterruptCallback callback);
+void DMAReceiver_SetInterruptCallback(DMAReceiver *receiver,
+                                      DMAReceiverSetInterruptCallback callback);
 
 #endif // DMA_RECEIVER_H

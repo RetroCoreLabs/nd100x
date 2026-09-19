@@ -47,6 +47,7 @@
  * instantiates SCSIHDDMicropolis, so there is no validated ND-100 reference
  * behaviour for the other classes yet.
  */
+// clang-format off
 typedef enum {
     SCSI_UNIT_NONE = 0,  /* no target at this SCSI ID */
     SCSI_UNIT_HDD,       /* Micropolis 1375-ND hard disk (implemented) */
@@ -54,6 +55,7 @@ typedef enum {
     SCSI_UNIT_CDROM,     /* CD-ROM (not implemented) */
     SCSI_UNIT_FLOPPY     /* SCSI floppy (not implemented) */
 } SCSIUnitType;
+// clang-format on
 
 /* Enable the SCSI controller debug log to stderr (--scsi-debug).
  * Set by the frontend from the scsi log category (--log=scsi:debug). */
@@ -68,6 +70,7 @@ extern int scsi_debug_enabled;
  * hardware - they give a "connect error" and undefined data. The card claims
  * all 64 addresses, so nd100x's unmapped-address IOX trap never fires for them.
  */
+// clang-format off
 typedef enum {
     SCSI_REG_RLMAR  = 0x00,  /* read  Memory Address Register bits 0-15 */
     SCSI_REG_WLMAR  = 0x01,  /* write MAR bits 0-15 */
@@ -103,6 +106,7 @@ typedef enum {
     SCSI_REG_WTCL   = 0x3D   /* o75 write transfer counter LSB */
     /* o76-o77 (0x3E-0x3F) not used */
 } SCSIRegisters;
+// clang-format on
 
 /* Status word (RSTAU, read). Bits 4, 7, 11 and 15 are never set by the
  * emulator: bit 4/11 are DMA/bus errors that cannot happen, and 7/15 report
@@ -124,6 +128,7 @@ typedef enum {
 #define SCSI_STAT_DIFFERENTIAL       (1 << 15)
 
 /* Control word (WCONT, write). */
+// clang-format off
 #define SCSI_CTRL_ENABLE_INTERRUPT   (1 << 0)
 #define SCSI_CTRL_ACTIVATE           (1 << 2)  /* GO */
 #define SCSI_CTRL_TEST_MODE          (1 << 3)
@@ -131,6 +136,7 @@ typedef enum {
 #define SCSI_CTRL_DMA_ENABLE         (1 << 5)
 #define SCSI_CTRL_WRITE_ND_MEMORY    (1 << 6)  /* 1 = SCSI->ND mem, 0 = ND mem->SCSI */
 #define SCSI_CTRL_RESET_SCSI_BUS     (1 << 10)
+// clang-format on
 
 /* Parse a unit type name ("hdd", "tape", "cdrom", "floppy") as used by the
  * --scsiN=TYPE:FILE option. Returns SCSI_UNIT_NONE if the name is unknown. */

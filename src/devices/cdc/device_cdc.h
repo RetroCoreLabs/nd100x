@@ -61,6 +61,7 @@
  * Write() (io.c parity split), which matches this map exactly: every "read"
  * register (RCA/RSECT/RST/SEEK) is even, every "load" register (LCA/LBA/LCW/LWC)
  * is odd. */
+// clang-format off
 typedef enum {
     CDC_REG_RCA   = 0, /* IOX 500  Read Core Address register     (even -> Read)  */
     CDC_REG_LCA   = 1, /* IOX 501  Load Core Address register     (odd  -> Write) */
@@ -71,13 +72,16 @@ typedef enum {
     CDC_REG_SEEK  = 6, /* IOX 506  Seek / Read Block Address(test) (even -> Read)  */
     CDC_REG_LWC   = 7  /* IOX 507  Load Word Count Register        (odd  -> Write) */
 } CdcRegister;
+// clang-format on
 
 /* NORD-1 device numbers for the same controller, reached with IOT instead of
  * IOX. DCHN=100 on NORD-1 (TSS1.SYMB:43), so DISC=DCHN+44 and DCT=DCHN+45. */
+// clang-format off
 enum {
     CDC_N1_DISC = 0144,  /* start transfer / ready test  */
     CDC_N1_DCT  = 0145   /* control port, function bits select the register */
 };
+// clang-format on
 
 /* --- Control Word (LCW = IOX 505) bit model --------------------------------
  * [VERIFIED - MANUAL-N10 p.14-15 "Load Control Word (CW)"]. Modelled as a
@@ -105,6 +109,7 @@ enum {
  * That compiler bug is now fixed, so DKTR emits the manual-correct 000004 and the
  * (op+1)<<12 model must NOT be used: it decodes 000004 as op 3 (compare), runs the
  * compare path, never DMAs, and hangs the boot in DWAIT. Back to bits 11-12. */
+// clang-format off
 typedef union {
     uint16_t raw;
     struct {
@@ -122,6 +127,7 @@ typedef union {
         uint16_t writeFormat          : 1; /* bit 15 : write format (write sector tags)    */
     } bits;
 } CdcControlRegister;
+// clang-format on
 
 /* Convenience masks for the control word (same bit positions as the union).
  * Kept so the transfer engine and the unit tests can build/inspect the word
@@ -137,18 +143,22 @@ typedef union {
 #define CDC_CTRL_UNIT_MASK  0003000u /* bits 9-10                                */
 /* Operation is a plain 2-bit field at bits 11-12 (control = op<<11 | activate),
  * per ND-11.008.01 / ND-06.016.01. To build/decode: field = op; op = (raw>>11)&3. */
+// clang-format off
 #define CDC_CTRL_OP_SHIFT   11
 #define CDC_CTRL_OP_MASK    0030000u /* bits 11-12 : holds the 2-bit operation   */
 #define CDC_CTRL_WRFORMAT   0100000u /* bit 15                                   */
+// clang-format on
 
 /* Device operation code. The enum values ARE the 2-bit field carried in control
  * bits 11-12 (op<<11 | activate) - see the header NOTE above and the ND manual. */
+// clang-format off
 typedef enum {
     CDC_OP_READ        = 0, /* control 000004 : disc -> core (overlay load)  */
     CDC_OP_WRITE       = 1, /* control 002004 : core -> disc                 */
     CDC_OP_READ_PARITY = 2, /* control 004004 : verify CRC, no transfer      */
     CDC_OP_COMPARE     = 3  /* control 006004 : compare disc vs core         */
 } CdcOperation;
+// clang-format on
 
 /* --- Status Register (RST = IOX 504) bit model -----------------------------
  * [VERIFIED - MANUAL-N100 p.190 "Status Word"] (the fuller bit names) which
@@ -161,6 +171,7 @@ typedef enum {
  *   bit 4  errorOr    : error exit             (TSS2.SYMB:555  BSKP ZRO 40 DA)
  *   bit 14 onCylinder : pre-transfer ready poll(TSS2.SYMB:549  BSKP ONE 160 DA)
  * (ND bit-skip operand = bit-number<<3: 020>>3=2, 040>>3=4, 0160>>3=14.) */
+// clang-format off
 typedef union {
     uint16_t raw;
     struct {
@@ -182,6 +193,7 @@ typedef union {
         uint16_t loadedByPrevCw    : 1; /* bit 15 : bit 15 loaded by previous control wd */
     } bits;
 } CdcStatusRegister;
+// clang-format on
 
 /* Status masks for the three TSS-verified bits (kept for the engine and tests).
  * These names match the historical nd100x usage; the union above is the full
@@ -227,7 +239,7 @@ typedef union {
  * the overlay logical range 0160..0257 packs into physical sectors 0450..0712
  * (max 458 dec). 512 sectors (256 KiB) covers it with headroom; the surface
  * still grows to a larger backing file if one is attached. */
-#define CDC_DEFAULT_SECTORS  512u /* covers corrected DKADR overlay range (max phys 458) */
+#define CDC_DEFAULT_SECTORS 512u /* covers corrected DKADR overlay range (max phys 458) */
 
 /* --- Bus identity ---
  * [VERIFIED - MANUAL-N10 p.20 and MANUAL-N100 p.190] "The disc interrupt level
@@ -238,6 +250,7 @@ typedef union {
 #define CDC_INT_LEVEL  11
 
 /* Per-device state hung off Device.deviceData. */
+// clang-format off
 typedef struct {
     uint16_t coreAddrLow;    /* LCA: least-significant 16 bits of the core address */
     uint8_t  coreAddrHigh;   /* high 8 bits (ND-100 24-bit variant; 0 for TSS)     */
@@ -254,6 +267,7 @@ typedef struct {
     uint32_t surfaceWords;   /* surfaceSectors * 256                               */
     FILE    *backingFile;    /* optional persistence; NULL = in-memory only        */
 } CdcData;
+// clang-format on
 
 /* Set the CDC backing-image path used by the NEXT CreateCdcDevice() call.
  * Pass NULL for an in-memory-only disc. If the file does not exist it is created

@@ -165,9 +165,9 @@ typedef enum
         ILLEGAL COMPETION(CONT.TRANSF) = oct 45
         ADR-REG ERROR = 46
     */
-    FLOPPY_ERR_NO_BOOTSTRAP = 0x28, // oct 50
+    FLOPPY_ERR_NO_BOOTSTRAP = 0x28,    // oct 50
     FLOPPY_ERR_WRONG_BOOTSTRAP = 0x29, // oct 51
-    /*
+                                       /*
         STREAMER HANDSHAKE ERROR = 60
         STREAMER STATUS TRANSFER ERROR = 61
         BAD CARTRIGE = 62
@@ -178,7 +178,7 @@ typedef enum
         ILLEGAL COMMAND TO STREAMER = 67
         PROM CHECKSUM ERROR = oct 70
     */
-        RAM_ERROR = 57, // oct 71
+    RAM_ERROR = 57,                    // oct 71
     /*
         CTC ERROR = oct 72
         DMACTRL ERROR = oct 73 (selftest error)
@@ -292,6 +292,7 @@ Exit information:
     Bit 0-3	- If READ FORMAT command or FORMAT ERROR : Format read from diskette, otherwhise =0
 */
 
+// clang-format off
 typedef union {
     struct {
         uint16_t commandWord;        // Offset 0: Command word
@@ -309,9 +310,11 @@ typedef union {
     } fields;
     uint16_t raw[12];               // Raw access to command block words
 } CommandBlock;
+// clang-format on
 
 
 // Status Register 1 bits
+// clang-format off
 typedef union {
     uint16_t raw;
     struct {
@@ -329,8 +332,10 @@ typedef union {
 
     } bits;
 } StatusRegister1;
+// clang-format on
 
 // Control Word bits
+// clang-format off
 typedef union {
     uint16_t raw;
     struct {
@@ -347,8 +352,10 @@ typedef union {
         uint16_t notUsed15 : 1;        // Bit 15: Not used
     } bits;
 } ControlWord;
+// clang-format on
 
 // Status Register 2 bits
+// clang-format off
 typedef union {
     uint16_t raw;
     struct {
@@ -358,22 +365,23 @@ typedef union {
         uint16_t notUsed4 : 12;        // Bits 4-15: Not used
     } bits;
 } StatusRegister2;
+// clang-format on
 
 // Floppy DMA device data
 // TODO: Refactor to support multiple units
 typedef struct
 {
-    StatusRegister1 status1;       // Status register 1
-    StatusRegister2 status2;       // Status register 2
-    ControlWord controlWord;       // Control word
+    StatusRegister1 status1; // Status register 1
+    StatusRegister2 status2; // Status register 2
+    ControlWord controlWord; // Control word
 
     uint32_t commandBlockAddress;
-    CommandBlock commandBlock;     // Command black for DMA  read and write to ND memory
+    CommandBlock commandBlock; // Command black for DMA  read and write to ND memory
 
-    uint8_t data;           // Data register
-    uint8_t sector;         // Current sector
-    uint8_t track;          // Current track
-    uint8_t drive;          // Selected drive
+    uint8_t data;   // Data register
+    uint8_t sector; // Current sector
+    uint8_t track;  // Current track
+    uint8_t drive;  // Selected drive
 
     FloppyError errorCode;  // Current error code
     FloppyFunction command; // Current command
@@ -383,7 +391,6 @@ typedef struct
     long diskFileSize;      // Size of floppy disk file
     bool readOnly;          // Read-only flag
 } FloppyDMAData;
-
 
 
 // Function declarations

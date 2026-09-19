@@ -21,7 +21,6 @@
  */
 
 
-
 #ifndef DEVICE_TERMINAL_H
 #define DEVICE_TERMINAL_H
 
@@ -31,18 +30,20 @@
 #include "../devices_types.h"
 
 #define TERMINAL_QUEUE_SIZE 256
-#define MAX_TICKS 100  // Check for new incoming characters
+#define MAX_TICKS           100 // Check for new incoming characters
 
 
 // Circular buffer structure for input queue
-typedef struct {
+typedef struct
+{
     uint8_t buffer[TERMINAL_QUEUE_SIZE];
     size_t head;
     size_t tail;
-    volatile size_t count;  /* written by DAP thread, read by CPU thread */
+    volatile size_t count; /* written by DAP thread, read by CPU thread */
 } CircularBuffer;
 
 // Terminal registers
+// clang-format off
 typedef enum {
     TERMINAL_READ_INPUT_DATA = 0,      // 300: Read input data
     TERMINAL_WRITE_NO_OPERATION = 1,   // 301: No operation
@@ -53,9 +54,11 @@ typedef enum {
     TERMINAL_READ_OUTPUT_STATUS = 6,   // 306: Read output status.
     TERMINAL_WRITE_SET_OUTPUT_CONTROL = 7 // 307: Set output control
 } TerminalRegister;
+// clang-format on
 
 // Input status register bits
 // IOX 302: Read input status.
+// clang-format off
 typedef union {
     uint16_t raw;
     struct {
@@ -73,9 +76,11 @@ typedef union {
         //Bits 1-2 and 8-15 are always zero.
     } bits;
 } InputStatusRegister;
+// clang-format on
 
 // Input control register bits
 // IOX 303: Set input control.
+// clang-format off
 typedef union {
     uint16_t raw;
     struct {
@@ -91,8 +96,10 @@ typedef union {
         uint16_t reserved3 : 1;            // Bit 15: Not used
     } bits;
 } InputControlRegister;
+// clang-format on
 
 // Output status register bits
+// clang-format off
 typedef union {
     uint16_t raw;
     struct {
@@ -103,8 +110,10 @@ typedef union {
         uint16_t reserved3 : 10;           // Bits 6-15: Not used
     } bits;
 } OutputStatusRegister;
+// clang-format on
 
 // Output control register bits
+// clang-format off
 typedef union {
     uint16_t raw;
     struct {
@@ -112,18 +121,21 @@ typedef union {
         uint16_t reserved : 15;            // Bits 1-15: Not used
     } bits;
 } OutputControlRegister;
+// clang-format on
 
 // Device definition structure
-typedef struct {
+typedef struct
+{
     uint16_t addressBase;
     uint16_t identCode;
     uint16_t logicalDevice;
-    const char* deviceName;
+    const char *deviceName;
 } DeviceDefinition;
 
 // Terminal device data structure
-typedef struct {
-   /*
+typedef struct
+{
+    /*
     bool active;
     bool inputReadyForTransfer;
 
@@ -147,6 +159,6 @@ typedef struct {
 } TerminalData;
 
 // Function declarations
-Device* CreateTerminalDevice(uint8_t thumbwheel);
+Device *CreateTerminalDevice(uint8_t thumbwheel);
 void Terminal_QueueKeyCode(Device *self, uint8_t keycode);
 #endif // DEVICE_TERMINAL_H

@@ -29,6 +29,7 @@
 
 /* --- Register offsets within the 540-547 block (address - startAddress) ---
  * [VERIFIED] DRUM-DEVICE-SPEC.md section 1, TSS1.SYMB:3763-3769,3803,3838. */
+// clang-format off
 typedef enum {
     DRUM_REG_READ_CORE    = 0, /* 540 RCX - defined, never issued by XDRUM */
     DRUM_REG_LOAD_CORE    = 1, /* 541 LCX - load core (memory) address     */
@@ -37,6 +38,7 @@ typedef enum {
     DRUM_REG_LOAD_CONTROL = 5, /* 545 LCR - load control (triggers go)     */
     DRUM_REG_LOAD_WORDCNT = 7  /* 547 LWX - load word count                */
 } DrumRegister;
+// clang-format on
 
 /* --- Status register bit MASKS (the values the driver BSKP-tests) ---
  * [VERIFIED] TSS1.SYMB:3773-3774,3784,3786. The driver branches on exactly
@@ -50,24 +52,30 @@ typedef enum {
  *   bits 5-6  = core address bits 16-17 (extended memory address)
  *   bits 13-14 = function: 0 read, 1 write, 2 read-test, 3 compare
  * On a transfer error the driver instead writes control = 4 (bit 2 alone). */
+// clang-format off
 #define DRUM_CTRL_GO_MASK    07     /* (control & 7)==7 -> start + interrupt   */
 #define DRUM_CTRL_GO_VALUE   07
 #define DRUM_CTRL_CLEAR      04     /* control==4 on error -> stop/clear       */
 #define DRUM_CTRL_ADDR_HI(c) (((c) >> 5) & 03)   /* core addr bits 16-17      */
 #define DRUM_CTRL_FUNC(c)    (((c) >> 13) & 03)   /* device operation, 2 bits */
+// clang-format on
 
+// clang-format off
 typedef enum {
     DRUM_FUNC_READ      = 0, /* drum -> memory                    */
     DRUM_FUNC_WRITE     = 1, /* memory -> drum                    */
     DRUM_FUNC_READ_TEST = 2, /* read drum, no memory store        */
     DRUM_FUNC_COMPARE   = 3  /* read drum, compare with memory    */
 } DrumFunction;
+// clang-format on
 
 /* --- Drum block address decode ---
  * [VERIFIED] TSS1.SYMB:3808-3812 comments: sector in bits 15-11, track in
  * bits 10-0 of the LBX word. */
+// clang-format off
 #define DRUM_BLOCK_SECTOR(b) (((b) >> 11) & 037)  /* 5 bits: 0..31           */
 #define DRUM_BLOCK_TRACK(b)  ((b) & 03777)         /* 11 bits: 0..2047        */
+// clang-format on
 
 /* --- Geometry ---
  * [VERIFIED] 32 sectors/track (TSS1.SYMB); DRMSZ default = 2000 octal = 1024
@@ -75,21 +83,27 @@ typedef enum {
  * holds one page.
  * [PROVISIONAL] 64 words/sector is INFERRED (32*64 = 2048 = one page); the
  * source does not state the sector word count explicitly. Confirm on DAP. */
+// clang-format off
 #define DRUM_SECTORS_PER_TRACK 32
 #define DRUM_WORDS_PER_SECTOR  64   /* PROVISIONAL - see note above           */
 #define DRUM_WORDS_PER_TRACK   (DRUM_SECTORS_PER_TRACK * DRUM_WORDS_PER_SECTOR)
+// clang-format on
 
 /* DRMSZ logical size (TSS1.SYMB:46 "SIZE OF DRUM IN 256 WORD PAGES"):
  * 1024 x 256 = 262144 words = 512 KiB. This is TSS's *configured* drum size. */
+// clang-format off
 #define DRUM_PAGES             1024 /* DRMSZ = 2000 octal                     */
 #define DRUM_DRMSZ_WORDS       ((uint32_t)DRUM_PAGES * 256u)
+// clang-format on
 
 /* Physical MAX size = the full 16-bit block address space the LBX register can
  * express: 65536 blocks (sector 5 bits + track 11 bits) x 64 words/sector =
  * 4194304 words = 8 MiB. The emulated surface and the drum.img backing file use
  * this MAX so any address the driver can form is in range (no spurious ERR). */
+// clang-format off
 #define DRUM_MAX_BLOCKS        65536u
 #define DRUM_MAX_WORDS         (DRUM_MAX_BLOCKS * (uint32_t)DRUM_WORDS_PER_SECTOR)
+// clang-format on
 
 /* --- Interrupt ---
  * [VERIFIED-by-user] all ND HDD controllers share the same interrupt level,
@@ -101,6 +115,7 @@ typedef enum {
 #define DRUM_IDENT_CODE 024 /* PROVISIONAL - confirm against TSS level-11 handler */
 
 /* Per-device state hung off Device.deviceData. */
+// clang-format off
 typedef struct {
     uint32_t coreAddress;   /* LCX + control bits 16-17, 18-bit DMA address  */
     uint16_t blockAddress;  /* LBX: sector(15-11) | track(10-0)              */
@@ -113,6 +128,7 @@ typedef struct {
     uint32_t surfaceWords;
     FILE *backingFile;      /* optional persistence; NULL = in-memory only    */
 } DrumData;
+// clang-format on
 
 /* Set the drum backing-image path used by the NEXT CreateDrumDevice() call.
  * Pass NULL for an in-memory-only drum. If the file does not exist it is created

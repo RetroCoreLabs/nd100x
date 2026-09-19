@@ -29,6 +29,7 @@
 #include "dma_engine.h"
 
 // HDLC device registers
+// clang-format off
 typedef enum {
     HDLC_READ_RX_DATA = 0,              // IOX +0: Read Receiver Data Register (RxDR)
     HDLC_WRITE_PARAMETER_CONTROL = 1,   // IOX +1: Write Parameter Control Register (PCSARH)
@@ -47,9 +48,11 @@ typedef enum {
     HDLC_READ_DMA_COMMAND = 14,         // IOX +16: Read DMA Command Register
     HDLC_WRITE_DMA_COMMAND = 15         // IOX +17: Write DMA Command
 } HDLCRegister;
+// clang-format on
 
 // DMA Commands to the ND HDLC interface
-typedef enum {
+typedef enum
+{
     HDLC_DMA_DEVICE_CLEAR = 0,
     HDLC_DMA_INITIALIZE = 1,
     HDLC_DMA_RECEIVER_START = 2,
@@ -61,6 +64,7 @@ typedef enum {
 } HDLCDMACommand;
 
 // TH1 - baud rate selection thumbwheel
+// clang-format off
 typedef enum {
     HDLC_BAUD_307200 = 0,     // TW0 = 307.2 kbps
     HDLC_BAUD_INVALID_1 = 1,  // Invalid choice 1
@@ -78,9 +82,11 @@ typedef enum {
     HDLC_BAUD_4800 = 13,      // 13 - 4.8 kbps
     HDLC_BAUD_2400 = 14       // 14 - 2.4 kbps
 } HDLCBaudRate;
+// clang-format on
 
 // DMA receive operation status results
-typedef enum {
+typedef enum
+{
     HDLC_DMA_RX_OK = 0,
     HDLC_DMA_RX_FAILED = 1,
     HDLC_DMA_RX_BUFFER_FULL = 2,
@@ -88,7 +94,8 @@ typedef enum {
 } HDLCDMAReceiveStatus;
 
 // DMA sender state machine states
-typedef enum {
+typedef enum
+{
     HDLC_DMA_TX_STOPPED = 0,
     HDLC_DMA_TX_BLOCK_READY = 1,
     HDLC_DMA_TX_SENDING_BLOCK = 2,
@@ -96,7 +103,8 @@ typedef enum {
 } HDLCDMATxState;
 
 // DMA block sending states
-typedef enum {
+typedef enum
+{
     HDLC_DMA_BLOCK_IDLE = 0,
     HDLC_DMA_BLOCK_START = 1,
     HDLC_DMA_BLOCK_SEND_DATA = 2,
@@ -104,6 +112,7 @@ typedef enum {
 } HDLCDMABlockState;
 
 // Receiver Transfer Status Bits (RRTS register, IOX+10)
+// clang-format off
 typedef union {
     uint16_t raw;
     struct {
@@ -128,8 +137,10 @@ typedef union {
         uint16_t receiverOverrun : 1;       // Bit 15: Receiver Overrun
     } bits;
 } HDLCReceiverTransferStatus;
+// clang-format on
 
 // Receiver Transfer Control Bits (Written to by WRTC)
+// clang-format off
 typedef union {
     uint16_t raw;
     struct {
@@ -151,8 +162,10 @@ typedef union {
         uint16_t bit15 : 1;                 // Bit 15: Always 1 after IOX + 11 if inspected after DUMP
     } bits;
 } HDLCReceiverTransferControl;
+// clang-format on
 
 // Transmitter Transfer Status Flags (RTTS) (IOX+12)
+// clang-format off
 typedef union {
     uint16_t raw;
     struct {
@@ -177,8 +190,10 @@ typedef union {
         uint16_t illegal : 1;               // Bit 15: ERR - Illegal Key or Format (NOT auto-cleared)
     } bits;
 } HDLCTransmitterTransferStatus;
+// clang-format on
 
 // Transmitter Transfer Control (Written to by WTTC) (IOX+13)
+// clang-format off
 typedef union {
     uint16_t raw;
     struct {
@@ -200,12 +215,16 @@ typedef union {
         uint16_t bit15 : 1;                 // Bit 15: Always 1 after IOX + 13 if inspected after DUMP
     } bits;
 } HDLCTransmitterTransferControl;
+// clang-format on
 
 // IDENT masks to clear interrupt enable bits
+// clang-format off
 #define HDLC_RTC_MASK_CLEAR_IDENT  (~((1 << 0) | (1 << 1) | (1 << 4) | (1 << 7)))  // Clear dataAvailableIE, statusAvailableIE, dmaModuleIE, modemStatusChangeIE
 #define HDLC_TTC_MASK_CLEAR_IDENT  (~((1 << 0) | (1 << 1) | (1 << 4) | (1 << 7)))  // Clear transmitBufferEmptyIE, transmitterUnderrunIE, dmaModuleIE, modemStatusChangeIE
+// clang-format on
 
 // Key Flags for the DMA Data Buffer
+// clang-format off
 typedef enum {
     // RCOST flags (identical to Receiver Status Register in the MPCC)
     HDLC_KEY_RCOST_RSOM = 1 << 0,       // Receiver Start of Message
@@ -232,8 +251,10 @@ typedef enum {
     HDLC_KEY_MASK_KEY = 0x7 << 8,           // Key mask (bits 8-10)
     HDLC_KEY_MASK_DATAFLOW_COST = 0xFF      // Dataflow COST mask (bits 0-7)
 } HDLCKeyFlags;
+// clang-format on
 
 // HDLC device data structure
+// clang-format off
 typedef struct {
     // Device configuration
     HDLCBaudRate baudRate;
@@ -328,8 +349,10 @@ typedef struct {
     } txHistory[HDLC_TX_HISTORY_SIZE];
     int txHistoryIdx;           // next write index (wraps)
 } HDLCData;
+// clang-format on
 
 // HDLC status for external inspection (menu, debugging)
+// clang-format off
 typedef struct {
     // RX status
     int state;          // HDLCReceiveState: 0=IDLE, 1=RECEIVING, 2=ESCAPE, 3=ERROR
@@ -351,9 +374,10 @@ typedef struct {
     uint64_t txSendCalls;   // SendAllBuffers invocations
     uint64_t txAlreadySent; // AlreadyTransmittedBlock skips
 } HDLCRxFrameStatus;
+// clang-format on
 
 // Function declarations
-Device* CreateHDLCDevice(uint8_t thumbwheel);
+Device *CreateHDLCDevice(uint8_t thumbwheel);
 bool HDLC_GetRxFrameStatus(const HDLCData *data, HDLCRxFrameStatus *status);
 void HDLC_BridgeInjectRx(Device *device, const uint8_t *data, int length);
 

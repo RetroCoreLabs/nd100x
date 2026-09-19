@@ -49,7 +49,8 @@ typedef void (*DMAClearCommandCallback)(struct Device *device);
 // DMA Engine state enums are defined in dma_enum.h
 
 // DMA Engine state structure
-typedef struct DMAEngine {
+typedef struct DMAEngine
+{
     // DMA Control Blocks - main coordination structure
     struct DMAControlBlocks *dmaCB;
 
@@ -85,7 +86,8 @@ typedef struct DMAEngine {
 } DMAEngine;
 
 // Core DMA Engine functions
-void DMAEngine_Init(DMAEngine *dma, bool burstMode, struct Device *hdlcDevice, void *modem, void *com5025);
+void DMAEngine_Init(DMAEngine *dma, bool burstMode, struct Device *hdlcDevice, void *modem,
+                    void *com5025);
 void DMAEngine_Destroy(DMAEngine *dma);
 void DMAEngine_Clear(DMAEngine *dma);
 void DMAEngine_Tick(DMAEngine *dma);
@@ -123,7 +125,8 @@ void DMAEngine_SetWriteDMACallback(DMAEngine *dma, DMAWriteCallback callback);
 void DMAEngine_SetReadDMACallback(DMAEngine *dma, DMAReadCallback callback);
 void DMAEngine_SetInterruptCallback(DMAEngine *dma, DMASetInterruptCallback callback);
 void DMAEngine_SetSendFrameCallback(DMAEngine *dma, DMASendFrameCallback callback);
-void DMAEngine_SetUpdateReceiverStatusCallback(DMAEngine *dma, DMAUpdateReceiverStatusCallback callback);
+void DMAEngine_SetUpdateReceiverStatusCallback(DMAEngine *dma,
+                                               DMAUpdateReceiverStatusCallback callback);
 void DMAEngine_SetClearCommandCallback(DMAEngine *dma, DMAClearCommandCallback callback);
 
 // Debug functions

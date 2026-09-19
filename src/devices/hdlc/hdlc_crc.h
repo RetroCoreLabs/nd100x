@@ -27,7 +27,8 @@
 #include <stdbool.h>
 
 // Parity modes
-typedef enum {
+typedef enum
+{
     HDLC_PARITY_ODD,
     HDLC_PARITY_EVEN
 } HDLCParityMode;

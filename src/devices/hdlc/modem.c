@@ -36,21 +36,21 @@ void HDLC_QueueTxFrame(int channel, const uint8_t *data, int length);
  * Sleep() path) has to come after net_compat.h to silence the
  * "#warning Please include winsock2.h before windows.h" diagnostic. */
 #ifdef MODEM_HAS_NETWORKING
-#include "../../ndlib/net_compat.h"   /* sockets, poll, WSAStartup */
+#include "../../ndlib/net_compat.h" /* sockets, poll, WSAStartup */
 #endif
-#include "../../cpu/cpu_types.h"       /* sleep_ms() - portable Sleep/nanosleep */
+#include "../../cpu/cpu_types.h" /* sleep_ms() - portable Sleep/nanosleep */
 
 #ifdef MODEM_HAS_NETWORKING
-#  ifdef _WIN32
-     /* gethostbyname + ioctlsocket come from winsock2.h pulled in by
+#ifdef _WIN32
+/* gethostbyname + ioctlsocket come from winsock2.h pulled in by
       * net_compat.h; no <netdb.h> on Windows. */
-#    include <windows.h>
-#  else
-#    include <errno.h>
-#    include <fcntl.h>
-#    include <unistd.h>
-#    include <netdb.h>                /* gethostbyname on POSIX */
-#  endif
+#include <windows.h>
+#else
+#include <errno.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <netdb.h> /* gethostbyname on POSIX */
+#endif
 
 /* Portable non-blocking-mode toggle for a socket. */
 static void nd_set_nonblocking(nd_socket_t fd, bool nonblocking)
@@ -60,9 +60,18 @@ static void nd_set_nonblocking(nd_socket_t fd, bool nonblocking)
     ioctlsocket(ND_SOCK_NATIVE(fd), FIONBIO, &mode);
 #else
     int flags = fcntl(fd, F_GETFL, 0);
-    if (flags < 0) return;
-    if (nonblocking) flags |=  O_NONBLOCK;
-    else             flags &= ~O_NONBLOCK;
+    if (flags < 0)
+    {
+        return;
+    }
+    if (nonblocking)
+    {
+        flags |= O_NONBLOCK;
+    }
+    else
+    {
+        flags &= ~O_NONBLOCK;
+    }
     fcntl(fd, F_SETFL, flags);
 #endif
 }
@@ -100,13 +109,20 @@ static void queue_destroy(ModemQueue *q)
 // Returns number of bytes actually enqueued (may be less if full)
 static int queue_write(ModemQueue *q, const uint8_t *data, int len)
 {
-    if (len <= 0) return 0;
+    if (len <= 0)
+    {
+        return 0;
+    }
     pthread_mutex_lock(&q->mtx);
 
     int written = 0;
-    for (int i = 0; i < len; i++) {
+    for (int i = 0; i < len; i++)
+    {
         int next = (q->head + 1) % MODEM_QUEUE_SIZE;
-        if (next == q->tail) break; // full
+        if (next == q->tail)
+        {
+            break; // full
+        }
         q->buf[q->head] = data[i];
         q->head = next;
         written++;
@@ -120,14 +136,19 @@ static int queue_write(ModemQueue *q, const uint8_t *data, int len)
 // Never drops data. Used for RX path where losing bytes corrupts HDLC frames.
 static int queue_write_all(ModemQueue *q, const uint8_t *data, int len, uint64_t *dropped)
 {
-    if (len <= 0) return 0;
+    if (len <= 0)
+    {
+        return 0;
+    }
     (void)dropped; // tracked for stats but we never actually drop
 
     int totalWritten = 0;
-    while (totalWritten < len) {
+    while (totalWritten < len)
+    {
         int n = queue_write(q, data + totalWritten, len - totalWritten);
         totalWritten += n;
-        if (totalWritten < len) {
+        if (totalWritten < len)
+        {
 #if defined(_WIN32) || defined(_WIN64)
             Sleep(0); // yield timeslice on Windows
 #else
@@ -141,11 +162,15 @@ static int queue_write_all(ModemQueue *q, const uint8_t *data, int len, uint64_t
 // Returns number of bytes read into dst
 static int queue_read(ModemQueue *q, uint8_t *dst, int maxlen)
 {
-    if (maxlen <= 0) return 0;
+    if (maxlen <= 0)
+    {
+        return 0;
+    }
     pthread_mutex_lock(&q->mtx);
 
     int count = 0;
-    while (count < maxlen && q->tail != q->head) {
+    while (count < maxlen && q->tail != q->head)
+    {
         dst[count++] = q->buf[q->tail];
         q->tail = (q->tail + 1) % MODEM_QUEUE_SIZE;
     }
@@ -171,8 +196,7 @@ static bool queue_has_data(ModemQueue *q)
 static void set_nodelay(nd_socket_t fd)
 {
     int flag = 1;
-    setsockopt(ND_SOCK_NATIVE(fd), IPPROTO_TCP, TCP_NODELAY,
-               (const char *)&flag, sizeof(flag));
+    setsockopt(ND_SOCK_NATIVE(fd), IPPROTO_TCP, TCP_NODELAY, (const char *)&flag, sizeof(flag));
 }
 
 // ============================================================================
@@ -188,13 +212,15 @@ static int resolve_address(const char *host, int port, struct sockaddr_in *out)
     out->sin_port = htons((uint16_t)port);
 
     // Try numeric IP first (instant)
-    if (inet_pton(AF_INET, host, &out->sin_addr) == 1) {
+    if (inet_pton(AF_INET, host, &out->sin_addr) == 1)
+    {
         return 0;
     }
 
     // DNS lookup (may take seconds - worker thread, so that's fine)
     struct hostent *he = gethostbyname(host);
-    if (!he) {
+    if (!he)
+    {
         return -1;
     }
     memcpy(&out->sin_addr, he->h_addr_list[0], (size_t)he->h_length);
@@ -206,20 +232,25 @@ static int resolve_address(const char *host, int port, struct sockaddr_in *out)
 static nd_socket_t try_connect(struct sockaddr_in *addr, int timeout_ms)
 {
     nd_socket_t fd = (nd_socket_t)socket(AF_INET, SOCK_STREAM, 0);
-    if (fd == ND_INVALID_SOCKET) return ND_INVALID_SOCKET;
+    if (fd == ND_INVALID_SOCKET)
+    {
+        return ND_INVALID_SOCKET;
+    }
 
     // Set non-blocking for connect so we can give it a timeout.
     nd_set_nonblocking(fd, true);
 
     int ret = connect(ND_SOCK_NATIVE(fd), (struct sockaddr *)addr, sizeof(*addr));
-    if (ret == 0) {
+    if (ret == 0)
+    {
         // Connected instantly
         nd_set_nonblocking(fd, false); // restore blocking
         set_nodelay(fd);
         return fd;
     }
 
-    if (!nd_connect_in_progress()) {
+    if (!nd_connect_in_progress())
+    {
         nd_socket_close(fd);
         return ND_INVALID_SOCKET;
     }
@@ -231,13 +262,15 @@ static nd_socket_t try_connect(struct sockaddr_in *addr, int timeout_ms)
     pfd.revents = 0;
     ret = nd_poll(&pfd, 1, timeout_ms);
 
-    if (ret <= 0) {
+    if (ret <= 0)
+    {
         // Timeout or error
         nd_socket_close(fd);
         return ND_INVALID_SOCKET;
     }
 
-    if (pfd.revents & (POLLERR | POLLHUP)) {
+    if (pfd.revents & (POLLERR | POLLHUP))
+    {
         nd_socket_close(fd);
         return ND_INVALID_SOCKET;
     }
@@ -246,7 +279,8 @@ static nd_socket_t try_connect(struct sockaddr_in *addr, int timeout_ms)
     int err = 0;
     nd_socklen_t errlen = sizeof(err);
     getsockopt(ND_SOCK_NATIVE(fd), SOL_SOCKET, SO_ERROR, (char *)&err, &errlen);
-    if (err != 0) {
+    if (err != 0)
+    {
         nd_socket_close(fd);
         return ND_INVALID_SOCKET;
     }
@@ -259,8 +293,12 @@ static nd_socket_t try_connect(struct sockaddr_in *addr, int timeout_ms)
 // Sleep helper that checks shutdown flag, returns true if shutdown requested
 static bool sleep_check_shutdown(ModemState *modem, int seconds)
 {
-    for (int i = 0; i < seconds * 10; i++) {
-        if (atomic_load(&modem->shutdownReq)) return true;
+    for (int i = 0; i < seconds * 10; i++)
+    {
+        if (atomic_load(&modem->shutdownReq))
+        {
+            return true;
+        }
         sleep_ms(100); // 100ms (portable - Sleep/nanosleep)
     }
     return atomic_load(&modem->shutdownReq);
@@ -272,15 +310,16 @@ static void *server_worker(void *arg)
     ModemState *modem = (ModemState *)arg;
 
     nd_socket_t listenFd = (nd_socket_t)socket(AF_INET, SOCK_STREAM, 0);
-    if (listenFd == ND_INVALID_SOCKET) {
+    if (listenFd == ND_INVALID_SOCKET)
+    {
         LOG(LOG_CAT_NET, LOG_ERROR, "Modem: Failed to create listen socket (err %d)\n",
-                nd_last_socket_error());
+            nd_last_socket_error());
         return NULL;
     }
 
     int reuse = 1;
-    setsockopt(ND_SOCK_NATIVE(listenFd), SOL_SOCKET, SO_REUSEADDR,
-               (const char *)&reuse, sizeof(reuse));
+    setsockopt(ND_SOCK_NATIVE(listenFd), SOL_SOCKET, SO_REUSEADDR, (const char *)&reuse,
+               sizeof(reuse));
 
     struct sockaddr_in addr;
     memset(&addr, 0, sizeof(addr));
@@ -288,14 +327,16 @@ static void *server_worker(void *arg)
     addr.sin_addr.s_addr = INADDR_ANY;
     addr.sin_port = htons((uint16_t)modem->port);
 
-    if (bind(ND_SOCK_NATIVE(listenFd), (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-        LOG(LOG_CAT_NET, LOG_ERROR, "Modem: Failed to bind port %d (err %d)\n",
-                modem->port, nd_last_socket_error());
+    if (bind(ND_SOCK_NATIVE(listenFd), (struct sockaddr *)&addr, sizeof(addr)) < 0)
+    {
+        LOG(LOG_CAT_NET, LOG_ERROR, "Modem: Failed to bind port %d (err %d)\n", modem->port,
+            nd_last_socket_error());
         nd_socket_close(listenFd);
         return NULL;
     }
 
-    if (listen(ND_SOCK_NATIVE(listenFd), 1) < 0) {
+    if (listen(ND_SOCK_NATIVE(listenFd), 1) < 0)
+    {
         LOG(LOG_CAT_NET, LOG_ERROR, "Modem: Failed to listen (err %d)\n", nd_last_socket_error());
         nd_socket_close(listenFd);
         return NULL;
@@ -303,66 +344,90 @@ static void *server_worker(void *arg)
 
     LOG(LOG_CAT_NET, LOG_INFO, "Modem: Listening on port %d\n", modem->port);
 
-    while (!atomic_load(&modem->shutdownReq)) {
+    while (!atomic_load(&modem->shutdownReq))
+    {
         // Accept with timeout so we can check shutdown
         nd_pollfd_t pfd;
         pfd.fd = ND_SOCK_NATIVE(listenFd);
         pfd.events = POLLIN;
         pfd.revents = 0;
         int ret = nd_poll(&pfd, 1, 500); // 500ms timeout
-        if (ret <= 0) continue;
+        if (ret <= 0)
+        {
+            continue;
+        }
 
         struct sockaddr_in peer;
         nd_socklen_t peerlen = sizeof(peer);
-        nd_socket_t clientFd = (nd_socket_t)accept(ND_SOCK_NATIVE(listenFd),
-                                                   (struct sockaddr *)&peer, &peerlen);
-        if (clientFd == ND_INVALID_SOCKET) continue;
+        nd_socket_t clientFd =
+            (nd_socket_t)accept(ND_SOCK_NATIVE(listenFd), (struct sockaddr *)&peer, &peerlen);
+        if (clientFd == ND_INVALID_SOCKET)
+        {
+            continue;
+        }
 
         set_nodelay(clientFd);
         LOG(LOG_CAT_NET, LOG_INFO, "Modem: Accepted connection from %s:%d\n",
-                inet_ntoa(peer.sin_addr), ntohs(peer.sin_port));
+            inet_ntoa(peer.sin_addr), ntohs(peer.sin_port));
         atomic_store(&modem->connected, true);
 
         // Service this connection: shuttle data between socket and queues
-        while (!atomic_load(&modem->shutdownReq)) {
+        while (!atomic_load(&modem->shutdownReq))
+        {
             nd_pollfd_t fds;
             fds.fd = ND_SOCK_NATIVE(clientFd);
             fds.events = POLLIN;
             fds.revents = 0;
 
             // Check if we have TX data to send
-            if (queue_has_data(&modem->txQueue)) {
+            if (queue_has_data(&modem->txQueue))
+            {
                 fds.events |= POLLOUT;
             }
 
             int pr = nd_poll(&fds, 1, 100); // 100ms
-            if (pr < 0) break;
+            if (pr < 0)
+            {
+                break;
+            }
 
             // Read from socket -> RX queue
-            if (fds.revents & POLLIN) {
+            if (fds.revents & POLLIN)
+            {
                 uint8_t buf[4096];
                 int n = recv(ND_SOCK_NATIVE(clientFd), (char *)buf, (int)sizeof(buf), 0);
-                if (n <= 0) break; // disconnect or error
+                if (n <= 0)
+                {
+                    break; // disconnect or error
+                }
                 queue_write_all(&modem->rxQueue, buf, n, &modem->rxDropped);
             }
 
             // Write TX queue -> socket
-            if (fds.revents & POLLOUT) {
+            if (fds.revents & POLLOUT)
+            {
                 uint8_t buf[4096];
                 int n = queue_read(&modem->txQueue, buf, sizeof(buf));
-                if (n > 0) {
+                if (n > 0)
+                {
                     int sent = 0;
-                    while (sent < n) {
-                        int w = send(ND_SOCK_NATIVE(clientFd),
-                                     (const char *)(buf + sent),
-                                     n - sent, MSG_NOSIGNAL);
-                        if (w <= 0) break;
+                    while (sent < n)
+                    {
+                        int w = send(ND_SOCK_NATIVE(clientFd), (const char *)(buf + sent), n - sent,
+                                     MSG_NOSIGNAL);
+                        if (w <= 0)
+                        {
+                            break;
+                        }
                         sent += w;
                     }
                 }
             }
 
-            if (fds.revents & (POLLERR | POLLHUP)) break;
+            if (fds.revents & (POLLERR | POLLHUP))
+            {
+                break;
+            }
         }
 
         // Connection ended
@@ -380,42 +445,59 @@ static void *server_worker(void *arg)
 // modem queues until the peer closes, an error occurs or shutdown is asked.
 static void service_connection(ModemState *modem, nd_socket_t client_fd)
 {
-    while (!atomic_load(&modem->shutdownReq)) {
+    while (!atomic_load(&modem->shutdownReq))
+    {
         nd_pollfd_t fds;
         fds.fd = ND_SOCK_NATIVE(client_fd);
         fds.events = POLLIN;
         fds.revents = 0;
 
-        if (queue_has_data(&modem->txQueue)) {
+        if (queue_has_data(&modem->txQueue))
+        {
             fds.events |= POLLOUT;
         }
 
         int pr = nd_poll(&fds, 1, 100);
-        if (pr < 0) break;
+        if (pr < 0)
+        {
+            break;
+        }
 
-        if (fds.revents & POLLIN) {
+        if (fds.revents & POLLIN)
+        {
             uint8_t buf[4096];
             int n = recv(ND_SOCK_NATIVE(client_fd), (char *)buf, (int)sizeof(buf), 0);
-            if (n <= 0) break;
+            if (n <= 0)
+            {
+                break;
+            }
             queue_write_all(&modem->rxQueue, buf, n, &modem->rxDropped);
         }
 
-        if (fds.revents & POLLOUT) {
+        if (fds.revents & POLLOUT)
+        {
             uint8_t buf[4096];
             int n = queue_read(&modem->txQueue, buf, sizeof(buf));
-            if (n > 0) {
+            if (n > 0)
+            {
                 int sent = 0;
-                while (sent < n) {
-                    int w = send(ND_SOCK_NATIVE(client_fd),
-                                 (const char *)(buf + sent),
-                                 n - sent, MSG_NOSIGNAL);
-                    if (w <= 0) return;
+                while (sent < n)
+                {
+                    int w = send(ND_SOCK_NATIVE(client_fd), (const char *)(buf + sent), n - sent,
+                                 MSG_NOSIGNAL);
+                    if (w <= 0)
+                    {
+                        return;
+                    }
                     sent += w;
                 }
             }
         }
 
-        if (fds.revents & (POLLERR | POLLHUP)) break;
+        if (fds.revents & (POLLERR | POLLHUP))
+        {
+            break;
+        }
     }
 }
 
@@ -427,24 +509,37 @@ static void *client_worker(void *arg)
 
     // Resolve address (may block for DNS - fine, we're in worker thread)
     struct sockaddr_in addr;
-    if (resolve_address(host, modem->port, &addr) < 0) {
+    if (resolve_address(host, modem->port, &addr) < 0)
+    {
         LOG(LOG_CAT_NET, LOG_ERROR, "Modem: Failed to resolve '%s' - giving up\n", host);
         return NULL;
     }
     LOG(LOG_CAT_NET, LOG_DEBUG, "Modem: Resolved %s -> %s\n", host, inet_ntoa(addr.sin_addr));
 
-    while (!atomic_load(&modem->shutdownReq)) {
+    while (!atomic_load(&modem->shutdownReq))
+    {
         attempt++;
-        LOG(LOG_CAT_NET, LOG_DEBUG, "Modem: Connecting to %s:%d (attempt %d)...\n", host, modem->port, attempt);
+        LOG(LOG_CAT_NET, LOG_DEBUG, "Modem: Connecting to %s:%d (attempt %d)...\n", host,
+            modem->port, attempt);
 
         nd_socket_t clientFd = try_connect(&addr, 5000); // 5 second timeout
-        if (clientFd == ND_INVALID_SOCKET) {
+        if (clientFd == ND_INVALID_SOCKET)
+        {
             // Backoff: 1s, 2s, 4s, 8s, 16s, 30s max
             int delay = 1;
-            for (int i = 1; i < attempt && i < 5; i++) delay *= 2;
-            if (delay > 30) delay = 30;
+            for (int i = 1; i < attempt && i < 5; i++)
+            {
+                delay *= 2;
+            }
+            if (delay > 30)
+            {
+                delay = 30;
+            }
             LOG(LOG_CAT_NET, LOG_WARN, "Modem: Connect failed, retry in %d seconds\n", delay);
-            if (sleep_check_shutdown(modem, delay)) break;
+            if (sleep_check_shutdown(modem, delay))
+            {
+                break;
+            }
             continue;
         }
 
@@ -458,9 +553,13 @@ static void *client_worker(void *arg)
         atomic_store(&modem->connected, false);
         LOG(LOG_CAT_NET, LOG_INFO, "Modem: Disconnected from %s:%d\n", host, modem->port);
 
-        if (!atomic_load(&modem->shutdownReq)) {
+        if (!atomic_load(&modem->shutdownReq))
+        {
             LOG(LOG_CAT_NET, LOG_DEBUG, "Modem: Will reconnect in 1 second\n");
-            if (sleep_check_shutdown(modem, 1)) break;
+            if (sleep_check_shutdown(modem, 1))
+            {
+                break;
+            }
         }
     }
 
@@ -475,7 +574,10 @@ static void *client_worker(void *arg)
 
 void Modem_Init(ModemState *modem, Device *hdlcDevice)
 {
-    if (!modem) return;
+    if (!modem)
+    {
+        return;
+    }
     memset(modem, 0, sizeof(ModemState));
     modem->hdlcDevice = hdlcDevice;
 
@@ -493,12 +595,16 @@ void Modem_Init(ModemState *modem, Device *hdlcDevice)
 
 void Modem_Destroy(ModemState *modem)
 {
-    if (!modem) return;
+    if (!modem)
+    {
+        return;
+    }
 
 #ifdef MODEM_HAS_NETWORKING
     // Signal worker to stop and wait for it
     atomic_store(&modem->shutdownReq, true);
-    if (modem->workerRunning) {
+    if (modem->workerRunning)
+    {
         pthread_join(modem->workerThread, NULL);
         modem->workerRunning = false;
     }
@@ -513,11 +619,15 @@ void Modem_Destroy(ModemState *modem)
 
 void Modem_StartModem(ModemState *modem, bool isServer, const char *address, int port)
 {
-    if (!modem) return;
+    if (!modem)
+    {
+        return;
+    }
 
     modem->isServer = isServer;
     modem->port = port;
-    if (address) {
+    if (address)
+    {
         snprintf(modem->address, sizeof(modem->address), "%s", address);
     }
 
@@ -526,15 +636,21 @@ void Modem_StartModem(ModemState *modem, bool isServer, const char *address, int
 
     // Spawn worker thread - ALL socket ops happen there
     int err;
-    if (isServer) {
+    if (isServer)
+    {
         err = pthread_create(&modem->workerThread, NULL, server_worker, modem);
-    } else {
+    }
+    else
+    {
         err = pthread_create(&modem->workerThread, NULL, client_worker, modem);
     }
 
-    if (err != 0) {
+    if (err != 0)
+    {
         LOG(LOG_CAT_NET, LOG_ERROR, "Modem: Failed to create worker thread: %s\n", strerror(err));
-    } else {
+    }
+    else
+    {
         modem->workerRunning = true;
     }
 #else
@@ -547,8 +663,14 @@ void Modem_StartModem(ModemState *modem, bool isServer, const char *address, int
     /* Native: line signals up once modem worker is started */
     modem->dataSetReady = true;
     modem->signalDetector = true;
-    if (modem->onDataSetReady) modem->onDataSetReady(modem->hdlcDevice, true);
-    if (modem->onSignalDetector) modem->onSignalDetector(modem->hdlcDevice, true);
+    if (modem->onDataSetReady)
+    {
+        modem->onDataSetReady(modem->hdlcDevice, true);
+    }
+    if (modem->onSignalDetector)
+    {
+        modem->onSignalDetector(modem->hdlcDevice, true);
+    }
 #elif defined(__EMSCRIPTEN__)
     /* Browser: defer DSR/SD until gateway TCP client connects (0x12 carrier) */
     modem->dataSetReady = false;
@@ -559,14 +681,19 @@ void Modem_StartModem(ModemState *modem, bool isServer, const char *address, int
 // Called from CPU loop. Never touches a socket. Just drains RX queue.
 void Modem_Tick(ModemState *modem)
 {
-    if (!modem || !atomic_load(&modem->networkStarted)) return;
+    if (!modem || !atomic_load(&modem->networkStarted))
+    {
+        return;
+    }
 
 #ifdef MODEM_HAS_NETWORKING
     // Drain RX queue into HDLC receiver (no syscalls, just memcpy from queue)
-    if (queue_has_data(&modem->rxQueue) && modem->onReceivedData) {
+    if (queue_has_data(&modem->rxQueue) && modem->onReceivedData)
+    {
         uint8_t buf[4096];
         int n = queue_read(&modem->rxQueue, buf, sizeof(buf));
-        if (n > 0) {
+        if (n > 0)
+        {
             modem->bytesRx += n;
             modem->onReceivedData(modem->hdlcDevice, buf, n);
         }
@@ -577,8 +704,12 @@ void Modem_Tick(ModemState *modem)
 // Called from emulation. Enqueues to TX queue, worker sends it.
 void Modem_SendByte(ModemState *modem, uint8_t data)
 {
-    if (!modem) return;
-    if (!atomic_load(&modem->connected)) {
+    if (!modem)
+    {
+        return;
+    }
+    if (!atomic_load(&modem->connected))
+    {
         // Not connected - byte dropped (SINTRAN may send before TCP connects)
         return;
     }
@@ -594,7 +725,10 @@ void Modem_SendByte(ModemState *modem, uint8_t data)
 
 void Modem_SendBytes(ModemState *modem, const uint8_t *data, int length)
 {
-    if (!modem || !data || length <= 0 || !atomic_load(&modem->connected)) return;
+    if (!modem || !data || length <= 0 || !atomic_load(&modem->connected))
+    {
+        return;
+    }
 
 #ifdef MODEM_HAS_NETWORKING
     queue_write_all(&modem->txQueue, data, length, &modem->txDropped);
@@ -611,56 +745,128 @@ void Modem_SendBytes(ModemState *modem, const uint8_t *data, int length)
 
 void Modem_SetDTR(ModemState *modem, bool value)
 {
-    if (!modem || modem->dataTerminalReady == value) return;
+    if (!modem || modem->dataTerminalReady == value)
+    {
+        return;
+    }
     modem->dataTerminalReady = value;
     Modem_SetDSR(modem, value);
-    if (modem->onDataTerminalReady) modem->onDataTerminalReady(modem->hdlcDevice, value);
+    if (modem->onDataTerminalReady)
+    {
+        modem->onDataTerminalReady(modem->hdlcDevice, value);
+    }
 }
 
 void Modem_SetRTS(ModemState *modem, bool value)
 {
-    if (!modem || modem->requestToSend == value) return;
+    if (!modem || modem->requestToSend == value)
+    {
+        return;
+    }
     modem->requestToSend = value;
     Modem_SetCTS(modem, value);
-    if (modem->onRequestToSend) modem->onRequestToSend(modem->hdlcDevice, value);
+    if (modem->onRequestToSend)
+    {
+        modem->onRequestToSend(modem->hdlcDevice, value);
+    }
 }
 
 void Modem_SetDSR(ModemState *modem, bool value)
 {
-    if (!modem || modem->dataSetReady == value) return;
+    if (!modem || modem->dataSetReady == value)
+    {
+        return;
+    }
     modem->dataSetReady = value;
-    if (modem->onDataSetReady) modem->onDataSetReady(modem->hdlcDevice, value);
+    if (modem->onDataSetReady)
+    {
+        modem->onDataSetReady(modem->hdlcDevice, value);
+    }
 }
 
 void Modem_SetCTS(ModemState *modem, bool value)
 {
-    if (!modem || modem->clearToSend == value) return;
+    if (!modem || modem->clearToSend == value)
+    {
+        return;
+    }
     modem->clearToSend = value;
-    if (modem->onClearToSend) modem->onClearToSend(modem->hdlcDevice, value);
+    if (modem->onClearToSend)
+    {
+        modem->onClearToSend(modem->hdlcDevice, value);
+    }
 }
 
 // ============================================================================
 // Callback setup
 // ============================================================================
 
-void Modem_SetReceivedDataCallback(ModemState *modem, ModemDataCallback callback)     { if (modem) modem->onReceivedData = callback; }
-void Modem_SetRingIndicatorCallback(ModemState *modem, ModemSignalCallback callback)  { if (modem) modem->onRingIndicator = callback; }
-void Modem_SetDataSetReadyCallback(ModemState *modem, ModemSignalCallback callback)   { if (modem) modem->onDataSetReady = callback; }
-void Modem_SetSignalDetectorCallback(ModemState *modem, ModemSignalCallback callback) { if (modem) modem->onSignalDetector = callback; }
-void Modem_SetClearToSendCallback(ModemState *modem, ModemSignalCallback callback)    { if (modem) modem->onClearToSend = callback; }
-void Modem_SetRequestToSendCallback(ModemState *modem, ModemSignalCallback callback)  { if (modem) modem->onRequestToSend = callback; }
-void Modem_SetDataTerminalReadyCallback(ModemState *modem, ModemSignalCallback callback) { if (modem) modem->onDataTerminalReady = callback; }
+void Modem_SetReceivedDataCallback(ModemState *modem, ModemDataCallback callback)
+{
+    if (modem)
+    {
+        modem->onReceivedData = callback;
+    }
+}
+void Modem_SetRingIndicatorCallback(ModemState *modem, ModemSignalCallback callback)
+{
+    if (modem)
+    {
+        modem->onRingIndicator = callback;
+    }
+}
+void Modem_SetDataSetReadyCallback(ModemState *modem, ModemSignalCallback callback)
+{
+    if (modem)
+    {
+        modem->onDataSetReady = callback;
+    }
+}
+void Modem_SetSignalDetectorCallback(ModemState *modem, ModemSignalCallback callback)
+{
+    if (modem)
+    {
+        modem->onSignalDetector = callback;
+    }
+}
+void Modem_SetClearToSendCallback(ModemState *modem, ModemSignalCallback callback)
+{
+    if (modem)
+    {
+        modem->onClearToSend = callback;
+    }
+}
+void Modem_SetRequestToSendCallback(ModemState *modem, ModemSignalCallback callback)
+{
+    if (modem)
+    {
+        modem->onRequestToSend = callback;
+    }
+}
+void Modem_SetDataTerminalReadyCallback(ModemState *modem, ModemSignalCallback callback)
+{
+    if (modem)
+    {
+        modem->onDataTerminalReady = callback;
+    }
+}
 
 #if defined(__EMSCRIPTEN__)
 void Modem_SetWasmBridgeChannel(ModemState *modem, int channel)
 {
-    if (!modem) return;
+    if (!modem)
+    {
+        return;
+    }
     modem->wasmBridgeChannel = channel;
 }
 
 void Modem_StartWasmBridge(ModemState *modem)
 {
-    if (!modem) return;
+    if (!modem)
+    {
+        return;
+    }
     atomic_store(&modem->networkStarted, true);
     atomic_store(&modem->connected, false);
     modem->dataSetReady = false;
@@ -669,11 +875,20 @@ void Modem_StartWasmBridge(ModemState *modem)
 
 void Modem_SetCarrierPresent(ModemState *modem, bool present)
 {
-    if (!modem) return;
+    if (!modem)
+    {
+        return;
+    }
     atomic_store(&modem->connected, present);
     modem->dataSetReady = present;
     modem->signalDetector = present;
-    if (modem->onDataSetReady) modem->onDataSetReady(modem->hdlcDevice, present);
-    if (modem->onSignalDetector) modem->onSignalDetector(modem->hdlcDevice, present);
+    if (modem->onDataSetReady)
+    {
+        modem->onDataSetReady(modem->hdlcDevice, present);
+    }
+    if (modem->onSignalDetector)
+    {
+        modem->onSignalDetector(modem->hdlcDevice, present);
+    }
 }
 #endif

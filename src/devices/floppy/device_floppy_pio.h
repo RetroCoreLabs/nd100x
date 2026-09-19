@@ -32,6 +32,7 @@
 
 
 // Floppy PIO registers
+// clang-format off
 typedef enum {
     FLOPPY_READ_DATA_BUFFER = 0,      // IOX +0: Read one 16-bit word from the interface buffer
     FLOPPY_WRITE_DATA_BUFFER = 1,     // IOX +1: Write one 16-bit word to the interface buffer
@@ -42,9 +43,11 @@ typedef enum {
     FLOPPY_READ_TEST_DATA = 6,         // IOX +6: Read test
     FLOPPY_WRITE_SECTOR = 7            // IOX +7: Write Sector / Write Test Byte
 } FloppyPIORegisters;
+// clang-format on
 
 // Drive commands
-typedef enum {
+typedef enum
+{
     FLOPPY_CMD_FORMAT_TRACK = 0,
     FLOPPY_CMD_WRITE_DATA,
     FLOPPY_CMD_WRITE_DELETED_DATA,
@@ -57,6 +60,7 @@ typedef enum {
 } FloppyPIOCommand;
 
 // Status Register 1 bits
+// clang-format off
 typedef union {
     uint16_t raw;
     struct {
@@ -78,8 +82,10 @@ typedef union {
         uint16_t notUsed15 : 1;              // Bit 15
     } bits;
 } FloppyPIOStatus1;
+// clang-format on
 
 // Control Word bits
+// clang-format off
 typedef union {
     uint16_t raw;
     struct {
@@ -101,8 +107,10 @@ typedef union {
         uint16_t controlReset : 1;                // Bit 15
     } bits;
 } FloppyPIOControl;
+// clang-format on
 
 // Status Register 2 bits
+// clang-format off
 typedef union {
     uint16_t raw;
     struct {
@@ -124,8 +132,10 @@ typedef union {
         uint16_t notUsed15 : 1;     // Bit 15
     } bits;
 } FloppyPIOStatus2;
+// clang-format on
 
 // Drive Address bits
+// clang-format off
 typedef union {
     uint16_t raw;
     struct {
@@ -144,8 +154,10 @@ typedef union {
         uint16_t formatSelect : 2;   // Bits 14-15
     } bits;
 } FloppyPIODriveAddress;
+// clang-format on
 
 // Sector Control bits
+// clang-format off
 typedef union {
     uint16_t raw;
     struct {
@@ -161,9 +173,11 @@ typedef union {
         uint16_t autoIncrement : 1; // Bit 15
     } bits;
 } FloppyPIOSector;
+// clang-format on
 
 // Floppy PIO device data
-typedef struct {
+typedef struct
+{
     FILE *floppyFile;
     const char *floppyName;
     uint16_t dataBuffer[1024];
@@ -178,7 +192,7 @@ typedef struct {
     bool sectorAutoIncrement;
     int testmodeByte;
     bool deletedRecord;
-    bool deletedSector[100][100];  // Array to track deleted sectors
+    bool deletedSector[100][100]; // Array to track deleted sectors
     FloppyPIOStatus1 status1;
     FloppyPIOControl control;
     FloppyPIOStatus2 status2;
@@ -188,7 +202,7 @@ typedef struct {
 } FloppyPIOData;
 
 // Function declarations
-Device* CreateFloppyPIODevice(uint8_t thumbwheel);
+Device *CreateFloppyPIODevice(uint8_t thumbwheel);
 void FloppyPIO_ExecuteGo(Device *self, FloppyPIOCommand command);
 
 #endif /* DEVICE_FLOPPY_PIO_H */

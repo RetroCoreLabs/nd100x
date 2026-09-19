@@ -39,7 +39,10 @@
 static void LinePrinter_Reset(Device *self)
 {
     LinePrinterData *data = (LinePrinterData *)self->deviceData;
-    if (!data) return;
+    if (!data)
+    {
+        return;
+    }
 
     data->characterBuffer = 0;
     data->statusRegister.raw = 0;
@@ -51,29 +54,36 @@ static void LinePrinter_Reset(Device *self)
 
 static uint16_t LinePrinter_Tick(Device *self)
 {
-    if (!self) return 0;
+    if (!self)
+    {
+        return 0;
+    }
     return self->interruptBits;
 }
 
 static uint16_t LinePrinter_Read(Device *self, uint32_t address)
 {
-    if (!self) return 0;
+    if (!self)
+    {
+        return 0;
+    }
 
     LinePrinterData *data = (LinePrinterData *)self->deviceData;
     uint16_t value = 0;
     uint32_t reg = Device_RegisterAddress(self, address);
 
-    switch (reg) {
-        case LP_READ_DATA_REGISTER:
-            // Returns 0 (nop) - matches C# reference
-            break;
+    switch (reg)
+    {
+    case LP_READ_DATA_REGISTER:
+        // Returns 0 (nop) - matches C# reference
+        break;
 
-        case LP_READ_STATUS_REGISTER:
-            value = data->statusRegister.raw;
-            break;
+    case LP_READ_STATUS_REGISTER:
+        value = data->statusRegister.raw;
+        break;
 
-        default:
-            break;
+    default:
+        break;
     }
 
     return value;
@@ -81,70 +91,85 @@ static uint16_t LinePrinter_Read(Device *self, uint32_t address)
 
 static void LinePrinter_Write(Device *self, uint32_t address, uint16_t value)
 {
-    if (!self) return;
+    if (!self)
+    {
+        return;
+    }
 
     LinePrinterData *data = (LinePrinterData *)self->deviceData;
     uint32_t reg = Device_RegisterAddress(self, address);
 
-    switch (reg) {
-        case LP_WRITE_DATA_BUFFER:
+    switch (reg)
+    {
+    case LP_WRITE_DATA_BUFFER:
+    {
+        // Store character in buffer (7-bit ASCII) and output it
+        // Matches C# reference: no status changes, printer is always instantly ready
+        char c = (char)(value & 0x7F);
+        data->characterBuffer = c;
+        Device_OutputCharacter(self, c);
+        break;
+    }
+
+    case LP_WRITE_CONTROL_WORD:
+    {
+        data->controlWord.raw = value;
+
+        // Process bits in same order as C# reference:
+        // 1. IE bit, 2. Activate bit, 3. ReadyForTransfer, 4. Interrupt, 5. DeviceClear
+
+        // Bit 0: InterruptEnable
+        if (data->controlWord.bits.interruptEnable)
         {
-            // Store character in buffer (7-bit ASCII) and output it
-            // Matches C# reference: no status changes, printer is always instantly ready
-            char c = (char)(value & 0x7F);
-            data->characterBuffer = c;
-            Device_OutputCharacter(self, c);
-            break;
+            data->statusRegister.bits.interruptEnabled = 1;
+        }
+        else
+        {
+            data->statusRegister.bits.interruptEnabled = 0;
+            Device_SetInterruptStatus(self, false, self->interruptLevel);
         }
 
-        case LP_WRITE_CONTROL_WORD:
+        // Bit 2: Activate
+        if (data->controlWord.bits.activate)
         {
-            data->controlWord.raw = value;
-
-            // Process bits in same order as C# reference:
-            // 1. IE bit, 2. Activate bit, 3. ReadyForTransfer, 4. Interrupt, 5. DeviceClear
-
-            // Bit 0: InterruptEnable
-            if (data->controlWord.bits.interruptEnable) {
-                data->statusRegister.bits.interruptEnabled = 1;
-            } else {
-                data->statusRegister.bits.interruptEnabled = 0;
-                Device_SetInterruptStatus(self, false, self->interruptLevel);
-            }
-
-            // Bit 2: Activate
-            if (data->controlWord.bits.activate) {
-                data->statusRegister.bits.active = 1;
-            } else {
-                data->statusRegister.bits.active = 0;
-            }
-
-            // Always set ReadyForTransfer after control write
-            data->statusRegister.bits.readyForTransfer = 1;
-
-            // If IE is set AND ready, raise interrupt
-            Device_SetInterruptStatus(self,
-                data->statusRegister.bits.interruptEnabled &&
-                data->statusRegister.bits.readyForTransfer,
-                self->interruptLevel);
-
-            // Bit 4: DeviceClear (no-op in C# reference)
-            if (data->controlWord.bits.deviceClear) {
-                // Currently a no-op, matching C# reference
-            }
-            break;
+            data->statusRegister.bits.active = 1;
+        }
+        else
+        {
+            data->statusRegister.bits.active = 0;
         }
 
-        default:
-            break;
+        // Always set ReadyForTransfer after control write
+        data->statusRegister.bits.readyForTransfer = 1;
+
+        // If IE is set AND ready, raise interrupt
+        Device_SetInterruptStatus(self,
+                                  data->statusRegister.bits.interruptEnabled &&
+                                      data->statusRegister.bits.readyForTransfer,
+                                  self->interruptLevel);
+
+        // Bit 4: DeviceClear (no-op in C# reference)
+        if (data->controlWord.bits.deviceClear)
+        {
+            // Currently a no-op, matching C# reference
+        }
+        break;
+    }
+
+    default:
+        break;
     }
 }
 
 static uint16_t LinePrinter_Ident(Device *self, uint16_t level)
 {
-    if (!self) return 0;
+    if (!self)
+    {
+        return 0;
+    }
 
-    if ((self->interruptBits & (1 << level)) != 0) {
+    if ((self->interruptBits & (1 << level)) != 0)
+    {
         LinePrinterData *data = (LinePrinterData *)self->deviceData;
         data->statusRegister.bits.interruptEnabled = 0;
         Device_SetInterruptStatus(self, false, level);
@@ -153,13 +178,17 @@ static uint16_t LinePrinter_Ident(Device *self, uint16_t level)
     return 0;
 }
 
-Device* CreateLinePrinterDevice(uint8_t thumbwheel)
+Device *CreateLinePrinterDevice(uint8_t thumbwheel)
 {
     Device *dev = malloc(sizeof(Device));
-    if (!dev) return NULL;
+    if (!dev)
+    {
+        return NULL;
+    }
 
     LinePrinterData *data = malloc(sizeof(LinePrinterData));
-    if (!data) {
+    if (!data)
+    {
         free(dev);
         return NULL;
     }
@@ -173,27 +202,28 @@ Device* CreateLinePrinterDevice(uint8_t thumbwheel)
     data->controlWord.raw = 0;
 
     // Set up address and interrupt settings based on thumbwheel
-    switch (thumbwheel) {
-        case 0:
-            snprintf(dev->memoryName, sizeof(dev->memoryName), "LINE PRINTER 1");
-            dev->interruptLevel = 10;
-            dev->identCode = 03;    // octal 03
-            dev->logicalDevice = 05; // SINTRAN logical device 5
-            dev->startAddress = 0430;
-            dev->endAddress = 0433;
-            break;
-        case 1:
-            snprintf(dev->memoryName, sizeof(dev->memoryName), "LINE PRINTER 2");
-            dev->interruptLevel = 10;
-            dev->identCode = 023;   // octal 23
-            dev->logicalDevice = 015; // SINTRAN logical device 15
-            dev->startAddress = 0434;
-            dev->endAddress = 0437;
-            break;
-        default:
-            free(data);
-            free(dev);
-            return NULL;
+    switch (thumbwheel)
+    {
+    case 0:
+        snprintf(dev->memoryName, sizeof(dev->memoryName), "LINE PRINTER 1");
+        dev->interruptLevel = 10;
+        dev->identCode = 03;     // octal 03
+        dev->logicalDevice = 05; // SINTRAN logical device 5
+        dev->startAddress = 0430;
+        dev->endAddress = 0433;
+        break;
+    case 1:
+        snprintf(dev->memoryName, sizeof(dev->memoryName), "LINE PRINTER 2");
+        dev->interruptLevel = 10;
+        dev->identCode = 023;     // octal 23
+        dev->logicalDevice = 015; // SINTRAN logical device 15
+        dev->startAddress = 0434;
+        dev->endAddress = 0437;
+        break;
+    default:
+        free(data);
+        free(dev);
+        return NULL;
     }
 
     // Set up device function pointers
@@ -205,6 +235,6 @@ Device* CreateLinePrinterDevice(uint8_t thumbwheel)
     dev->deviceData = data;
 
     LOG(LOG_CAT_PRINTER, LOG_INFO, "Line Printer device created: %s CODE[%o] ADDRESS[%o-%o]\n",
-           dev->memoryName, dev->identCode, dev->startAddress, dev->endAddress);
+        dev->memoryName, dev->identCode, dev->startAddress, dev->endAddress);
     return dev;
 }

@@ -23,7 +23,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
-typedef enum {
+typedef enum
+{
     SCSI_DISK_UNKNOWN = 0,
     /* Norsk Data ND-100/ND-110 variant: 1024-byte sectors, 18 sectors/track.
      * This is the drive the ND-3201 boots from. */
@@ -35,6 +36,7 @@ typedef enum {
 } SCSIDiskType;
 
 /* hdinfo from SCSIHDD.cs. */
+// clang-format off
 typedef struct {
     SCSIDiskType diskType;
     uint16_t cylinders;
@@ -50,6 +52,7 @@ typedef struct {
     /* Vendor command 0x0C INIT DRIVE PARAMS payload. */
     uint8_t drive_params[8];
 } SCSIDiskInfo;
+// clang-format on
 
 /*
  * Last addressable LBA = cylinders*heads*sectors - 1.

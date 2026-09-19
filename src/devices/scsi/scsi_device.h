@@ -32,14 +32,17 @@
 #include "scsi_bus.h"
 
 /* Data buffer ids (SCSIEnums.cs SBUF) */
+// clang-format off
 typedef enum {
     SBUF_MAIN  = 0,   /* scsi_cmdbuf - CDB and data staging */
     SBUF_SENSE = 1,   /* scsi_sense_buffer */
     SBUF_DATA  = 2
 } SBUF;
+// clang-format on
 
 /* Queued phase actions (SCSIFullDevice.cs BC) */
-typedef enum {
+typedef enum
+{
     BC_MSG_OR_COMMAND = 0,
     BC_STATUS,
     BC_MESSAGE_1,
@@ -61,9 +64,10 @@ typedef enum {
 #define SS_QUEUE_FULL        0x28
 
 /* SCSI messages (SCSIEnums.cs SCSIMessages) */
-#define SM_COMMAND_COMPLETE  0x00
+#define SM_COMMAND_COMPLETE 0x00
 
 /* Sense keys (SCSIEnums.cs SCSI_SK) */
+// clang-format off
 #define SK_NO_SENSE          0x00
 #define SK_RECOVERED_ERROR   0x01
 #define SK_NOT_READY         0x02
@@ -77,6 +81,7 @@ typedef enum {
 #define SK_COPY_ABORTED      0x0a
 #define SK_ABORTED_COMMAND   0x0b
 #define SK_EQUAL             0x0c
+// clang-format on
 
 /* Additional sense codes, encoded (ASC << 8) | ASCQ */
 #define SKC_LOGICAL_UNIT_NOT_SUPPORTED     0x2500
@@ -92,6 +97,7 @@ typedef enum {
 #define SCSI_SUB_MASK   0xff00
 #define SCSI_SUB_SHIFT  8
 
+// clang-format off
 typedef enum {
     TS_IDLE                          = 0,
     TS_TARGET_SELECT_WAIT_BUS_SETTLE = 1,
@@ -107,29 +113,33 @@ typedef enum {
     TS_SEND_BYTE_T_WAIT_ACK_0        = 3 << SCSI_SUB_SHIFT,
     TS_SEND_BYTE_T_WAIT_ACK_1        = 4 << SCSI_SUB_SHIFT
 } SCSITargetState;
+// clang-format on
 
-#define SCSI_CMDBUF_SIZE      4096
+#define SCSI_CMDBUF_SIZE       4096
 #define SCSI_SENSE_BUFFER_SIZE 18
-#define SCSI_BUF_CONTROL_SIZE 32
+#define SCSI_BUF_CONTROL_SIZE  32
 
-typedef struct {
+typedef struct
+{
     SCSIBufControlAction action;
     int param1;
     int param2;
 } SCSIBufControl;
 
 /* Optional fields for set_sense_data (SCSISupport.cs sense_data). */
-typedef struct {
+typedef struct
+{
     bool invalid;
     bool deferred;
     bool filemark;
     bool eom;
     bool bad_len;
-    int  info;
+    int info;
 } SCSISenseData;
 
 struct SCSITarget;
 
+// clang-format off
 typedef struct SCSITarget {
     SCSIDevice dev;
     SCSIBus   *bus;
@@ -164,6 +174,7 @@ typedef struct SCSITarget {
 
     void *impl;   /* concrete target state (SCSIHDDData) */
 } SCSITarget;
+// clang-format on
 
 /* Wire a target onto the bus at the given SCSI id. */
 void SCSITarget_Init(SCSITarget *t, SCSIBus *bus, uint8_t scsi_id, const char *name);
@@ -184,7 +195,7 @@ void SCSITarget_ReportBadLun(SCSITarget *t, uint8_t cmd, uint8_t lun);
 /* Default buffer accessors - concrete targets call these for the ids they do
  * not handle themselves. */
 uint8_t SCSITarget_DefaultGetData(SCSITarget *t, SBUF id, int pos);
-void    SCSITarget_DefaultPutData(SCSITarget *t, SBUF id, int pos, uint8_t data);
+void SCSITarget_DefaultPutData(SCSITarget *t, SBUF id, int pos, uint8_t data);
 
 /*
  * Big-endian accessors (SCSISupport.cs Buffer).
@@ -193,9 +204,9 @@ void    SCSITarget_DefaultPutData(SCSITarget *t, SBUF id, int pos, uint8_t data)
  * first) - READ CAPACITY, INQUIRY lengths, LBAs, sense ASC/ASCQ. These are the
  * only correct way to touch them; do not hand-roll shifts at the call sites.
  */
-void     scsi_put_u16be(uint8_t *buf, uint16_t value);
-void     scsi_put_u24be(uint8_t *buf, uint32_t value);
-void     scsi_put_u32be(uint8_t *buf, uint32_t value);
+void scsi_put_u16be(uint8_t *buf, uint16_t value);
+void scsi_put_u24be(uint8_t *buf, uint32_t value);
+void scsi_put_u32be(uint8_t *buf, uint32_t value);
 uint16_t scsi_get_u16be(const uint8_t *buf);
 uint32_t scsi_get_u24be(const uint8_t *buf);
 uint32_t scsi_get_u32be(const uint8_t *buf);

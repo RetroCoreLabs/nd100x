@@ -56,54 +56,93 @@ static void FinishOperation(Device *self);
 static bool UnitAttached(Device *self, DiskInfo *disk);
 static bool LoadIsIllegal(Device *self, SMDData *data);
 
-static const char *SMD_OpName(DeviceOperation op) {
-    switch (op) {
-    case DEVICE_OP_READ_TRANSFER:         return "DEVICE_OP_READ_TRANSFER";
-    case DEVICE_OP_WRITE_TRANSFER:        return "DEVICE_OP_WRITE_TRANSFER";
-    case DEVICE_OP_READ_PARITY_TRANSFER:  return "DEVICE_OP_READ_PARITY_TRANSFER";
-    case DEVICE_OP_COMPARE_TRANSFER:      return "DEVICE_OP_COMPARE_TRANSFER";
-    case DEVICE_OP_INITIATE_SEEK:         return "DEVICE_OP_INITIATE_SEEK";
-    case DEVICE_OP_WRITE_FORMAT:          return "DEVICE_OP_WRITE_FORMAT";
-    case DEVICE_OP_SEEK_COMPLETE_SEARCH:  return "DEVICE_OP_SEEK_COMPLETE_SEARCH";
-    case DEVICE_OP_RETURN_TO_ZERO_SEEK:   return "DEVICE_OP_RETURN_TO_ZERO_SEEK";
-    case DEVICE_OP_RUN_ECC_OPERATION:     return "DEVICE_OP_RUN_ECC_OPERATION";
-    case DEVICE_OP_SELECT_RELEASE:        return "DEVICE_OP_SELECT_RELEASE";
-    default:                              return "Unknown";
+static const char *SMD_OpName(DeviceOperation op)
+{
+    switch (op)
+    {
+    case DEVICE_OP_READ_TRANSFER:
+        return "DEVICE_OP_READ_TRANSFER";
+    case DEVICE_OP_WRITE_TRANSFER:
+        return "DEVICE_OP_WRITE_TRANSFER";
+    case DEVICE_OP_READ_PARITY_TRANSFER:
+        return "DEVICE_OP_READ_PARITY_TRANSFER";
+    case DEVICE_OP_COMPARE_TRANSFER:
+        return "DEVICE_OP_COMPARE_TRANSFER";
+    case DEVICE_OP_INITIATE_SEEK:
+        return "DEVICE_OP_INITIATE_SEEK";
+    case DEVICE_OP_WRITE_FORMAT:
+        return "DEVICE_OP_WRITE_FORMAT";
+    case DEVICE_OP_SEEK_COMPLETE_SEARCH:
+        return "DEVICE_OP_SEEK_COMPLETE_SEARCH";
+    case DEVICE_OP_RETURN_TO_ZERO_SEEK:
+        return "DEVICE_OP_RETURN_TO_ZERO_SEEK";
+    case DEVICE_OP_RUN_ECC_OPERATION:
+        return "DEVICE_OP_RUN_ECC_OPERATION";
+    case DEVICE_OP_SELECT_RELEASE:
+        return "DEVICE_OP_SELECT_RELEASE";
+    default:
+        return "Unknown";
     }
 }
 
-static const char *SMD_RegReadName(uint32_t reg, int cwrBit) {
-    switch (reg) {
-    case SMD_READ_MEMORY_ADDRESS:  return cwrBit ? "ReadWordCounter" : "ReadCoreAddr";
-    case SMD_READ_SEEK_CONDITION:  return cwrBit ? "ReadECCCount" : "ReadSeekCondition";
-    case SMD_READ_STATUS_REGISTER: return cwrBit ? "ReadECCPattern" : "ReadStatus";
-    case SMD_READ_BLOCK_ADDRESS:   return cwrBit ? "ReadBlockAddrII" : "ReadBlockAddrI";
-    default:                       return "ReadUnknown";
+static const char *SMD_RegReadName(uint32_t reg, int cwrBit)
+{
+    switch (reg)
+    {
+    case SMD_READ_MEMORY_ADDRESS:
+        return cwrBit ? "ReadWordCounter" : "ReadCoreAddr";
+    case SMD_READ_SEEK_CONDITION:
+        return cwrBit ? "ReadECCCount" : "ReadSeekCondition";
+    case SMD_READ_STATUS_REGISTER:
+        return cwrBit ? "ReadECCPattern" : "ReadStatus";
+    case SMD_READ_BLOCK_ADDRESS:
+        return cwrBit ? "ReadBlockAddrII" : "ReadBlockAddrI";
+    default:
+        return "ReadUnknown";
     }
 }
 
-static const char *SMD_RegWriteName(uint32_t reg, int cwrBit) {
-    switch (reg) {
-    case SMD_LOAD_MEMORY_ADDRESS:  return cwrBit ? "CountMemAddr" : "LoadCoreAddr";
-    case SMD_LOAD_BLOCK_ADDRESS:   return cwrBit ? "LoadBlockAddrII" : "LoadBlockAddrI";
-    case SMD_LOAD_CONTROL_WORD:    return "LoadControlWord";
-    case SMD_LOAD_WORD_COUNTER:    return cwrBit ? "LoadECCControl" : "LoadWordCounter";
-    default:                       return "WriteUnknown";
+static const char *SMD_RegWriteName(uint32_t reg, int cwrBit)
+{
+    switch (reg)
+    {
+    case SMD_LOAD_MEMORY_ADDRESS:
+        return cwrBit ? "CountMemAddr" : "LoadCoreAddr";
+    case SMD_LOAD_BLOCK_ADDRESS:
+        return cwrBit ? "LoadBlockAddrII" : "LoadBlockAddrI";
+    case SMD_LOAD_CONTROL_WORD:
+        return "LoadControlWord";
+    case SMD_LOAD_WORD_COUNTER:
+        return cwrBit ? "LoadECCControl" : "LoadWordCounter";
+    default:
+        return "WriteUnknown";
     }
 }
 
-static const char *SMD_ErrorName(DiskError error) {
-    switch (error) {
-    case DISK_ERR_NO_DISK_ATTACHED:     return "NoDiskAttached";
-    case DISK_ERR_ADDRESS_MISMATCH:     return "AddressMismatch";
-    case DISK_ERR_SEEK_ERROR:           return "SeekError";
-    case DISK_ERR_READ_ERROR:           return "ReadError";
-    case DISK_ERR_WRITE_ERROR:          return "WriteError";
-    case DISK_ERR_COMPARER_ERROR:       return "ComparerError";
-    case DISK_ERR_DRIVE_NOT_SELECTED:   return "DriveNotSelected";
-    case DISK_ERR_ILLEGAL_WHILE_ACTIVE: return "IllegalWhileActive";
-    case DISK_ERR_WRITE_PROTECT_ERROR:  return "WriteProtectError";
-    default:                            return "Unknown";
+static const char *SMD_ErrorName(DiskError error)
+{
+    switch (error)
+    {
+    case DISK_ERR_NO_DISK_ATTACHED:
+        return "NoDiskAttached";
+    case DISK_ERR_ADDRESS_MISMATCH:
+        return "AddressMismatch";
+    case DISK_ERR_SEEK_ERROR:
+        return "SeekError";
+    case DISK_ERR_READ_ERROR:
+        return "ReadError";
+    case DISK_ERR_WRITE_ERROR:
+        return "WriteError";
+    case DISK_ERR_COMPARER_ERROR:
+        return "ComparerError";
+    case DISK_ERR_DRIVE_NOT_SELECTED:
+        return "DriveNotSelected";
+    case DISK_ERR_ILLEGAL_WHILE_ACTIVE:
+        return "IllegalWhileActive";
+    case DISK_ERR_WRITE_PROTECT_ERROR:
+        return "WriteProtectError";
+    default:
+        return "Unknown";
     }
 }
 
@@ -111,7 +150,9 @@ static void SMD_Reset(Device *self)
 {
     SMDData *data = (SMDData *)self->deviceData;
     if (!data)
+    {
         return;
+    }
 
     data->statusRegister.raw = 0;
     data->controlRegister.raw = 0;
@@ -131,7 +172,9 @@ static uint16_t SMD_Read(Device *self, uint32_t address)
 
     SMDData *data = (SMDData *)self->deviceData;
     if (!data)
+    {
         return 0;
+    }
     // NOTE: do NOT bail out when no disk is selected. The status register, ECC
     // pattern, seek condition, memory address and word counter are CONTROLLER
     // registers (cards 3043/3044) - they exist whether or not a drive is
@@ -144,10 +187,12 @@ static uint16_t SMD_Read(Device *self, uint32_t address)
     uint32_t reg = Device_RegisterAddress(self, address);
     uint16_t value = 0;
 
-    if (Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG)) {
+    if (Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG))
+    {
         SMDData *dbgData = (SMDData *)self->deviceData;
         int cwrBit = dbgData ? dbgData->controlRegister.bits.registerMultiplexBit : 0;
-        Log_Write(LOG_CAT_SMD, LOG_DEBUG, "IOX READ  addr=%o reg=%o (%s)\n", address, reg, SMD_RegReadName(reg, cwrBit));
+        Log_Write(LOG_CAT_SMD, LOG_DEBUG, "IOX READ  addr=%o reg=%o (%s)\n", address, reg,
+                  SMD_RegReadName(reg, cwrBit));
     }
 
     switch (reg)
@@ -238,7 +283,8 @@ static uint16_t SMD_Read(Device *self, uint32_t address)
                 This bit indicates that the last field read from the disk was the address field within a sector (used for ECC processing after a data check only).
 */
 
-            if ((data->controllerType == CONTR_SMD_15MHZ) || (data->controllerType == CONTR_SMD_10MHZ))
+            if ((data->controllerType == CONTR_SMD_15MHZ) ||
+                (data->controllerType == CONTR_SMD_10MHZ))
             {
                 // Bit 12 = Always 1 for 15Mhz SMD. This bit was always 0 on the NORD-10 controller.
                 // If this is 1 then SINTRAN M will not r/w/boot from DISC-75-1 ??
@@ -259,10 +305,13 @@ static uint16_t SMD_Read(Device *self, uint32_t address)
                 value |= (1 << 11); // Bit 11
 
             */
-            if ((data->controllerType == CONTR_SMD_15MHZ) || (data->controllerType == CONTR_SMD_10MHZ))
+            if ((data->controllerType == CONTR_SMD_15MHZ) ||
+                (data->controllerType == CONTR_SMD_10MHZ))
             {
-                value |= (1 << 12); // 12 = Always 1 for 15Mhz SMD. This bit was always 0 on the NORD-10 controller.
-                                    // If this is 1 then SINTRAN M will not r/w/boot from DISC-75-1
+                value |=
+                    (1
+                     << 12); // 12 = Always 1 for 15Mhz SMD. This bit was always 0 on the NORD-10 controller.
+                             // If this is 1 then SINTRAN M will not r/w/boot from DISC-75-1
             }
 
             // 13: ECC Correctable
@@ -300,14 +349,16 @@ static uint16_t SMD_Read(Device *self, uint32_t address)
             // Bits 14, Always 0
 
             // Bits 14 - Always 0 in the new - To distinguish from the old HD-100 SMD controller
-            if ((data->controllerType == CONTR_BIG_DISC) || (data->controllerType == CONTR_ECC_DISC))
+            if ((data->controllerType == CONTR_BIG_DISC) ||
+                (data->controllerType == CONTR_ECC_DISC))
+            {
                 data->regs.eccPatternRegister |= (1 << 14);
+            }
 
             // Bits 15, Always 1
             data->regs.eccPatternRegister |= (1 << 15);
 
             value = data->regs.eccPatternRegister;
-
         }
         else
         {
@@ -316,12 +367,9 @@ static uint16_t SMD_Read(Device *self, uint32_t address)
             // raises b7, and it has to propagate into the OR. Matches nd_smd's
             // smd_inclusive_or (which includes hw_error2). See DISC-TEMA item 7.
             data->statusRegister.bits.hardwareError =
-                data->statusRegister.bits.illegalLoad |
-                data->statusRegister.bits.timeOut |
-                data->statusRegister.bits.hardwareError2 |
-                data->statusRegister.bits.comparerError |
-                data->statusRegister.bits.addressMismatch |
-                data->seekCondition.bits.seekError;
+                data->statusRegister.bits.illegalLoad | data->statusRegister.bits.timeOut |
+                data->statusRegister.bits.hardwareError2 | data->statusRegister.bits.comparerError |
+                data->statusRegister.bits.addressMismatch | data->seekCondition.bits.seekError;
 
             if (data->regs.selectedDisk)
             {
@@ -336,7 +384,8 @@ static uint16_t SMD_Read(Device *self, uint32_t address)
             else
             {
                 data->statusRegister.bits.onCylinder = 0;
-                data->statusRegister.bits.diskUnitNotReady = 1; // Bit 13 = Always 1 if no disk is selected (disk unit not ready)
+                data->statusRegister.bits.diskUnitNotReady =
+                    1; // Bit 13 = Always 1 if no disk is selected (disk unit not ready)
             }
 
             value = data->statusRegister.raw;
@@ -359,7 +408,10 @@ static uint16_t SMD_Read(Device *self, uint32_t address)
     }
 
     if (Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG))
-        Log_Write(LOG_CAT_SMD, LOG_DEBUG, "IOX READ  addr=%o reg=%o -> value=%o (0x%04X)\n", address, reg, value, value);
+    {
+        Log_Write(LOG_CAT_SMD, LOG_DEBUG, "IOX READ  addr=%o reg=%o -> value=%o (0x%04X)\n",
+                  address, reg, value, value);
+    }
 
     return value;
 }
@@ -368,11 +420,12 @@ static void SMD_Write(Device *self, uint32_t address, uint16_t value)
 {
     uint32_t reg = Device_RegisterAddress(self, address);
 
-    if (Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG)) {
+    if (Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG))
+    {
         SMDData *dbgData = (SMDData *)self->deviceData;
         int cwrBit = dbgData ? dbgData->controlRegister.bits.registerMultiplexBit : 0;
         Log_Write(LOG_CAT_SMD, LOG_DEBUG, "IOX WRITE addr=%o reg=%o (%s) value=%o (0x%04X)\n",
-                address, reg, SMD_RegWriteName(reg, cwrBit), value, value);
+                  address, reg, SMD_RegWriteName(reg, cwrBit), value, value);
     }
 
     SMDData *data = (SMDData *)self->deviceData;
@@ -388,7 +441,8 @@ static void SMD_Write(Device *self, uint32_t address, uint16_t value)
             // * increment the memory address by one
             // * decrement the word count by one. (Refer to section 3.1, the DMA transfer.)
 
-            if (data->controlRegister.bits.testMode && data->controlRegister.bits.marginalRecoveryCycle)
+            if (data->controlRegister.bits.testMode &&
+                data->controlRegister.bits.marginalRecoveryCycle)
             {
                 data->regs.coreAddress++;
                 data->regs.wordCounter--;
@@ -421,9 +475,13 @@ static void SMD_Write(Device *self, uint32_t address, uint16_t value)
                 // loadLowFirst question - see device_smd.h.
                 bool firstAccess = !data->regs.mawFlipFlop;
                 if (firstAccess == data->regs.loadLowFirst)
-                    data->regs.coreAddress = value;                  // low 16
+                {
+                    data->regs.coreAddress = value; // low 16
+                }
                 else
-                    data->regs.coreAddressHiBits = value & 0xFF;     // high 8
+                {
+                    data->regs.coreAddressHiBits = value & 0xFF; // high 8
+                }
                 data->regs.mawFlipFlop = !data->regs.mawFlipFlop;
             }
         }
@@ -488,23 +546,26 @@ static void SMD_Write(Device *self, uint32_t address, uint16_t value)
         */
 
         if (Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG))
-            Log_Write(LOG_CAT_SMD, LOG_DEBUG, "CONTROL WORD=%o (0x%04X) Unit=%d Op=%s IntEn=%d ErrIntEn=%d Active=%d CWR15=%d\n",
-                    value, value,
-                    (value >> 7) & 0x07,
-                    SMD_OpName((DeviceOperation)((value >> 11) & 0x0F)),
-                    value & 1,
-                    (value >> 1) & 1,
-                    (value >> 2) & 1,
-                    (value >> 15) & 1);
+        {
+            Log_Write(
+                LOG_CAT_SMD, LOG_DEBUG,
+                "CONTROL WORD=%o (0x%04X) Unit=%d Op=%s IntEn=%d ErrIntEn=%d Active=%d CWR15=%d\n",
+                value, value, (value >> 7) & 0x07,
+                SMD_OpName((DeviceOperation)((value >> 11) & 0x0F)), value & 1, (value >> 1) & 1,
+                (value >> 2) & 1, (value >> 15) & 1);
+        }
 
         data->controlRegister.raw = value;
 
         data->statusRegister.bits.active = data->controlRegister.bits.active;
-        data->statusRegister.bits.registerMultiplexBit = data->controlRegister.bits.registerMultiplexBit;
+        data->statusRegister.bits.registerMultiplexBit =
+            data->controlRegister.bits.registerMultiplexBit;
         data->statusRegister.bits.readyForTransfer = true;
 
-        data->statusRegister.bits.interruptEnabled = data->controlRegister.bits.enableInterruptNotActive;
-        data->statusRegister.bits.errorInterruptEnabled = data->controlRegister.bits.enableInterruptOnErrors;
+        data->statusRegister.bits.interruptEnabled =
+            data->controlRegister.bits.enableInterruptNotActive;
+        data->statusRegister.bits.errorInterruptEnabled =
+            data->controlRegister.bits.enableInterruptOnErrors;
         // Clear interrupt if not enabled
         if (!data->statusRegister.bits.interruptEnabled)
         {
@@ -591,11 +652,15 @@ static void SMD_Write(Device *self, uint32_t address, uint16_t value)
         {
             if (data->controlRegister.bits.testMode)
             {
-                Device_SetInterruptStatus(self, data->statusRegister.bits.interruptEnabled, self->interruptLevel);
+                Device_SetInterruptStatus(self, data->statusRegister.bits.interruptEnabled,
+                                          self->interruptLevel);
             }
             else
             {
-                Device_SetInterruptStatus(self, data->statusRegister.bits.interruptEnabled & data->statusRegister.bits.readyForTransfer, self->interruptLevel);
+                Device_SetInterruptStatus(self,
+                                          data->statusRegister.bits.interruptEnabled &
+                                              data->statusRegister.bits.readyForTransfer,
+                                          self->interruptLevel);
             }
         }
         break;
@@ -647,7 +712,9 @@ static void SMD_Write(Device *self, uint32_t address, uint16_t value)
 
                 // Bit 0 - Reset ECC
                 if (data->regs.eccControl & 1)
+                {
                     data->regs.eccCount = 0;
+                }
 
                 // Bit 1 - Force Parity Error
                 if (data->regs.eccControl & (1 << 1))
@@ -656,7 +723,8 @@ static void SMD_Write(Device *self, uint32_t address, uint16_t value)
                     // This bit will force ECC parity error to be set.
 
                     // TODO: WHat does this mean in practice - what now ?
-                    data->statusRegister.bits.hardwareError2 = 1; // Set Bit 7 for the Status Register => Disk fault, missing read clocks, missing servoclocks, ECC parity error.
+                    data->statusRegister.bits.hardwareError2 =
+                        1; // Set Bit 7 for the Status Register => Disk fault, missing read clocks, missing servoclocks, ECC parity error.
                 }
 
                 // Bit 2 - Long
@@ -705,9 +773,13 @@ static void SMD_Write(Device *self, uint32_t address, uint16_t value)
             {
                 bool firstAccess = !data->regs.wcwFlipFlop;
                 if (firstAccess == data->regs.loadLowFirst)
-                    data->regs.wordCounter = value;                  // low 16
+                {
+                    data->regs.wordCounter = value; // low 16
+                }
                 else
-                    data->regs.wordCounterHI = value & 0xFF;         // high 8
+                {
+                    data->regs.wordCounterHI = value & 0xFF; // high 8
+                }
                 data->regs.wcwFlipFlop = !data->regs.wcwFlipFlop;
             }
         }
@@ -718,7 +790,9 @@ static void SMD_Write(Device *self, uint32_t address, uint16_t value)
 static uint16_t SMD_Tick(Device *self)
 {
     if (!self)
+    {
         return 0;
+    }
 
     Device_TickIODelay(self);
 
@@ -728,10 +802,14 @@ static uint16_t SMD_Tick(Device *self)
 static uint16_t SMD_Ident(Device *self, uint16_t level)
 {
     if (!self)
+    {
         return 0;
+    }
 
     if (Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG))
+    {
         Log_Write(LOG_CAT_SMD, LOG_DEBUG, "IDENT level=%d identCode=%o\n", level, self->identCode);
+    }
 
     if ((self->interruptBits & (1 << level)) != 0)
     {
@@ -748,11 +826,15 @@ static int SMD_Boot(Device *self, int unit)
     SMDData *data = (SMDData *)self->deviceData;
     ControllerRegs *regs = &data->regs;
 
-    if ((!self->blockCallbacks.readFunc) || (!self->blockCallbacks.writeFunc)) return -1; // Need callbacks hooked up
+    if ((!self->blockCallbacks.readFunc) || (!self->blockCallbacks.writeFunc))
+    {
+        return -1; // Need callbacks hooked up
+    }
 
     if (unit < 0 || unit >= regs->maxUnits)
     {
-        LOG(LOG_CAT_SMD, LOG_ERROR, "Error: SMD boot unit %d out of range (0-%d)\n", unit, regs->maxUnits - 1);
+        LOG(LOG_CAT_SMD, LOG_ERROR, "Error: SMD boot unit %d out of range (0-%d)\n", unit,
+            regs->maxUnits - 1);
         return -1;
     }
 
@@ -766,29 +848,39 @@ static int SMD_Boot(Device *self, int unit)
         {
             bool isWriteProtected = false;
             size_t imageSize = 0;
-            self->blockCallbacks.diskInfoFunc(self, &imageSize, &isWriteProtected, regs->selectedUnit);
+            self->blockCallbacks.diskInfoFunc(self, &imageSize, &isWriteProtected,
+                                              regs->selectedUnit);
             regs->selectedDisk->diskFileSize = imageSize;
             regs->selectedDisk->diskIsWriteProtected = isWriteProtected;
         }
         DiskType dt = DISK_75_MB; // Default
-        if (regs->selectedDisk->diskFileSize > 0x1000000 && regs->selectedDisk->diskFileSize <= 0x2000000)
+        if (regs->selectedDisk->diskFileSize > 0x1000000 &&
+            regs->selectedDisk->diskFileSize <= 0x2000000)
+        {
             dt = DISK_150_MB;
+        }
         DiskSMD_SetDiskType(regs->selectedDisk, dt);
     }
     self->blockSizeBytes = regs->selectedDisk->bytesPrSector;
 
-    uint32_t blockCounter = 4;   // 4 blocks of 1024 bytes each (total 4096 bytes or 2048 KWords)
-    uint8_t *buffer= (uint8_t *)malloc(blockCounter * self->blockSizeBytes);
+    uint32_t blockCounter = 4; // 4 blocks of 1024 bytes each (total 4096 bytes or 2048 KWords)
+    uint8_t *buffer = (uint8_t *)malloc(blockCounter * self->blockSizeBytes);
 
-    if (!buffer) return -1;
+    if (!buffer)
+    {
+        return -1;
+    }
 
-    int wordCounter = 2048; // Load 2 KW of data from the disk (4096 bytes) to memory starting at address 0
+    int wordCounter =
+        2048; // Load 2 KW of data from the disk (4096 bytes) to memory starting at address 0
 
     // Read all blocks from SMD disk file into buffer
-    int blocksRead = self->blockCallbacks.readFunc(self, buffer, blockCounter, 0, regs->selectedUnit);
+    int blocksRead =
+        self->blockCallbacks.readFunc(self, buffer, blockCounter, 0, regs->selectedUnit);
     if ((blocksRead < 0) || (blocksRead != (int)blockCounter))
     {
-        LOG(LOG_CAT_SMD, LOG_ERROR, "[SMD Boot] Block read failed: got %d blocks, expected %d\n", blocksRead, blockCounter);
+        LOG(LOG_CAT_SMD, LOG_ERROR, "[SMD Boot] Block read failed: got %d blocks, expected %d\n",
+            blocksRead, blockCounter);
         free(buffer);
         return -1;
     }
@@ -796,14 +888,18 @@ static int SMD_Boot(Device *self, int unit)
     // Check if boot sector is all zeros (blank/unformatted disk)
     {
         int allZero = 1;
-        for (uint32_t i = 0; i < blockCounter * self->blockSizeBytes; i++) {
-            if (buffer[i] != 0) {
+        for (uint32_t i = 0; i < blockCounter * self->blockSizeBytes; i++)
+        {
+            if (buffer[i] != 0)
+            {
                 allZero = 0;
                 break;
             }
         }
-        if (allZero) {
-            LOG(LOG_CAT_SMD, LOG_ERROR, "Error: SMD boot sector is all zeros (blank or unformatted disk)\n");
+        if (allZero)
+        {
+            LOG(LOG_CAT_SMD, LOG_ERROR,
+                "Error: SMD boot sector is all zeros (blank or unformatted disk)\n");
             free(buffer);
             return -1;
         }
@@ -832,17 +928,26 @@ static void ExecuteGO(Device *self)
 {
 
     if (Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG))
+    {
         Log_Write(LOG_CAT_SMD, LOG_DEBUG, "ExecuteGO called\n");
+    }
 
     if (!self)
+    {
         return;
+    }
 
-    if ((!self->blockCallbacks.readFunc) || (!self->blockCallbacks.writeFunc)) return; // Need callbacks hooked up
+    if ((!self->blockCallbacks.readFunc) || (!self->blockCallbacks.writeFunc))
+    {
+        return; // Need callbacks hooked up
+    }
 
 
     SMDData *data = (SMDData *)self->deviceData;
     if (!data->regs.selectedDisk)
+    {
         return;
+    }
     ControllerRegs *regs = &data->regs;
 
     // illegal-load (b5) is PER-OPERATION: clear it at the start of each GO so a
@@ -861,7 +966,8 @@ static void ExecuteGO(Device *self)
         bool isWriteProtected = false;
         size_t imageSize = 0;
 
-        self->blockCallbacks.diskInfoFunc(self, &imageSize, &isWriteProtected, data->regs.selectedUnit);
+        self->blockCallbacks.diskInfoFunc(self, &imageSize, &isWriteProtected,
+                                          data->regs.selectedUnit);
         data->regs.selectedDisk->diskFileSize = imageSize;
         data->regs.selectedDisk->diskIsWriteProtected = isWriteProtected;
     }
@@ -877,25 +983,25 @@ static void ExecuteGO(Device *self)
 
         DiskType dt = DISK_75_MB; // Default to 75MB
 
-        if (data->regs.selectedDisk->diskFileSize > 0x1000000 && data->regs.selectedDisk->diskFileSize <= 0x2000000)
+        if (data->regs.selectedDisk->diskFileSize > 0x1000000 &&
+            data->regs.selectedDisk->diskFileSize <= 0x2000000)
         {
             // Assume 150 MB disk
             dt = DISK_150_MB;
-
         }
-        else if (data->regs.selectedDisk->diskFileSize >= 0x9600000 && data->regs.selectedDisk->diskFileSize <= 0x9601000)
+        else if (data->regs.selectedDisk->diskFileSize >= 0x9600000 &&
+                 data->regs.selectedDisk->diskFileSize <= 0x9601000)
         {
             // Assume 150 MB disk
             dt = DISK_150_MB;
-
         }
-        else if (data->regs.selectedDisk->diskFileSize >= 0x12000000 && data->regs.selectedDisk->diskFileSize <= 0x12001000)
+        else if (data->regs.selectedDisk->diskFileSize >= 0x12000000 &&
+                 data->regs.selectedDisk->diskFileSize <= 0x12001000)
         {
             // Assume 288 MB disk
             dt = DISK_288_MB;
-
         }
-        else if (data->regs.selectedDisk->diskFileSize >= 0x33900000 )
+        else if (data->regs.selectedDisk->diskFileSize >= 0x33900000)
         {
             // Assume 825 MB disk
             dt = DISK_825_MB;
@@ -924,17 +1030,16 @@ static void ExecuteGO(Device *self)
     data->seekCondition.bits.seekComplete &= ~(1 << data->regs.selectedUnit);
 
     // Check for address mismatch
-    int64_t maxPosition = (int64_t)ConvertCHStoLBA(&data->regs,
-                                       data->regs.selectedDisk->maxCylinders,
-                                       data->regs.selectedDisk->headsPrCylinder,
-                                       data->regs.selectedDisk->sectorsPrTrack) *
-                       data->regs.selectedDisk->bytesPrSector;
+    int64_t maxPosition =
+        (int64_t)ConvertCHStoLBA(&data->regs, data->regs.selectedDisk->maxCylinders,
+                                 data->regs.selectedDisk->headsPrCylinder,
+                                 data->regs.selectedDisk->sectorsPrTrack) *
+        data->regs.selectedDisk->bytesPrSector;
 
     // Each CHS component is range-checked on its own (the old code compared
     // HEAD against maxCylinders - a typo that let out-of-range heads through
     // and never checked the cylinder at all).
-    if ((position > maxPosition ||
-         cylinder >= data->regs.selectedDisk->maxCylinders ||
+    if ((position > maxPosition || cylinder >= data->regs.selectedDisk->maxCylinders ||
          head >= data->regs.selectedDisk->headsPrCylinder ||
          sector >= data->regs.selectedDisk->sectorsPrTrack) &&
         !data->controlRegister.bits.testMode)
@@ -967,7 +1072,9 @@ static void ExecuteGO(Device *self)
     // seek-condition register), and a subsequent M6 with no NEW seek must time
     // out (DISC-TEMA section 6).
     if (data->controlRegister.bits.deviceOperation <= DEVICE_OP_COMPARE_TRANSFER)
+    {
         data->regs.seekIssuedMask &= (uint8_t)~(1 << data->regs.selectedUnit);
+    }
 
     // Number of blocks to transfer where each block is blockSizeBytes bytes  (typically 1024)
     uint32_t blockCounter = (wordCounter * 2) / self->blockSizeBytes;
@@ -982,25 +1089,29 @@ static void ExecuteGO(Device *self)
     case DEVICE_OP_READ_TRANSFER:
 
         if (Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG))
-            Log_Write(LOG_CAT_SMD, LOG_DEBUG, "GO Op=%s Unit=%d C/H/S=%d/%d/%d LBA=%" PRId64 " WC=%d CoreAddr=%o\n",
-                    SMD_OpName(DEVICE_OP_READ_TRANSFER), data->regs.selectedUnit,
-                    cylinder, head, sector, lba, wordCounter, coreAddress);
+        {
+            Log_Write(LOG_CAT_SMD, LOG_DEBUG,
+                      "GO Op=%s Unit=%d C/H/S=%d/%d/%d LBA=%" PRId64 " WC=%d CoreAddr=%o\n",
+                      SMD_OpName(DEVICE_OP_READ_TRANSFER), data->regs.selectedUnit, cylinder, head,
+                      sector, lba, wordCounter, coreAddress);
+        }
 
         buffer = (uint8_t *)malloc(blockCounter * self->blockSizeBytes);
         if (!buffer)
         {
             HandleError(self, DISK_ERR_READ_ERROR); // READ_ERROR
-            FinishOperation(self);  // ends the operation, as RetroCore's HandleError clears Active
+            FinishOperation(self); // ends the operation, as RetroCore's HandleError clears Active
             return;
         }
 
         // Read all blocks from SMD disk file into buffer
-        blocksRead = self->blockCallbacks.readFunc(self, buffer, blockCounter, lba, data->regs.selectedDisk->unit);
+        blocksRead = self->blockCallbacks.readFunc(self, buffer, blockCounter, lba,
+                                                   data->regs.selectedDisk->unit);
         if ((blocksRead < 0) || ((uint32_t)blocksRead != blockCounter))
         {
             HandleError(self, DISK_ERR_READ_ERROR); // READ_ERROR
             free(buffer);
-            FinishOperation(self);  // ends the operation, as RetroCore's HandleError clears Active
+            FinishOperation(self); // ends the operation, as RetroCore's HandleError clears Active
             return;
         }
 
@@ -1018,20 +1129,24 @@ static void ExecuteGO(Device *self)
         }
 
         free(buffer);
-        Device_QueueIODelay(self, IODELAY_HDD_SMD, (IODelayedCallback)SMDReadEnd, data->regs.selectedDisk->unit, self->interruptLevel);
+        Device_QueueIODelay(self, IODELAY_HDD_SMD, (IODelayedCallback)SMDReadEnd,
+                            data->regs.selectedDisk->unit, self->interruptLevel);
         break;
 
     case DEVICE_OP_WRITE_TRANSFER:
 
         if (Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG))
-            Log_Write(LOG_CAT_SMD, LOG_DEBUG, "GO Op=%s Unit=%d C/H/S=%d/%d/%d LBA=%" PRId64 " WC=%d CoreAddr=%o\n",
-                    SMD_OpName(DEVICE_OP_WRITE_TRANSFER), data->regs.selectedUnit,
-                    cylinder, head, sector, lba, wordCounter, coreAddress);
+        {
+            Log_Write(LOG_CAT_SMD, LOG_DEBUG,
+                      "GO Op=%s Unit=%d C/H/S=%d/%d/%d LBA=%" PRId64 " WC=%d CoreAddr=%o\n",
+                      SMD_OpName(DEVICE_OP_WRITE_TRANSFER), data->regs.selectedUnit, cylinder, head,
+                      sector, lba, wordCounter, coreAddress);
+        }
         buffer = (uint8_t *)malloc(blockCounter * self->blockSizeBytes);
         if (!buffer)
         {
             HandleError(self, DISK_ERR_READ_ERROR); // READ_ERROR
-            FinishOperation(self);  // ends the operation, as RetroCore's HandleError clears Active
+            FinishOperation(self); // ends the operation, as RetroCore's HandleError clears Active
             return;
         }
 
@@ -1045,7 +1160,8 @@ static void ExecuteGO(Device *self)
             {
                 HandleError(self, DISK_ERR_READ_ERROR); // DMA READ ERROR??
                 free(buffer);
-                FinishOperation(self);  // ends the operation, as RetroCore's HandleError clears Active
+                FinishOperation(
+                    self); // ends the operation, as RetroCore's HandleError clears Active
                 return;
             }
             // Write word to disk buffer
@@ -1053,7 +1169,8 @@ static void ExecuteGO(Device *self)
             {
                 HandleError(self, DISK_ERR_READ_ERROR); // WRITE_ERROR
                 free(buffer);
-                FinishOperation(self);  // ends the operation, as RetroCore's HandleError clears Active
+                FinishOperation(
+                    self); // ends the operation, as RetroCore's HandleError clears Active
                 return;
             }
 
@@ -1062,41 +1179,47 @@ static void ExecuteGO(Device *self)
         }
 
         // Write all blocks to SMD disk file from buffer
-        int blocksWrite = self->blockCallbacks.writeFunc(self, buffer, blockCounter, lba, data->regs.selectedDisk->unit);
+        int blocksWrite = self->blockCallbacks.writeFunc(self, buffer, blockCounter, lba,
+                                                         data->regs.selectedDisk->unit);
         if ((blocksWrite < 0) || ((uint32_t)blocksWrite != blockCounter))
         {
             HandleError(self, DISK_ERR_WRITE_ERROR); // READ_ERROR
             free(buffer);
-            FinishOperation(self);  // ends the operation, as RetroCore's HandleError clears Active
+            FinishOperation(self); // ends the operation, as RetroCore's HandleError clears Active
             return;
         }
 
         free(buffer);
 
-        Device_QueueIODelay(self, IODELAY_HDD_SMD, (IODelayedCallback)SMDReadEnd, data->regs.selectedDisk->unit, self->interruptLevel);
+        Device_QueueIODelay(self, IODELAY_HDD_SMD, (IODelayedCallback)SMDReadEnd,
+                            data->regs.selectedDisk->unit, self->interruptLevel);
         break;
 
     case DEVICE_OP_READ_PARITY_TRANSFER:
 
         if (Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG))
-            Log_Write(LOG_CAT_SMD, LOG_DEBUG, "GO Op=%s Unit=%d C/H/S=%d/%d/%d LBA=%" PRId64 " WC=%d CoreAddr=%o\n",
-                    SMD_OpName(DEVICE_OP_READ_PARITY_TRANSFER), data->regs.selectedUnit,
-                    cylinder, head, sector, lba, wordCounter, coreAddress);
+        {
+            Log_Write(LOG_CAT_SMD, LOG_DEBUG,
+                      "GO Op=%s Unit=%d C/H/S=%d/%d/%d LBA=%" PRId64 " WC=%d CoreAddr=%o\n",
+                      SMD_OpName(DEVICE_OP_READ_PARITY_TRANSFER), data->regs.selectedUnit, cylinder,
+                      head, sector, lba, wordCounter, coreAddress);
+        }
         buffer = (uint8_t *)malloc(blockCounter * self->blockSizeBytes);
         if (!buffer)
         {
             HandleError(self, DISK_ERR_READ_ERROR); // READ_ERROR
-            FinishOperation(self);  // ends the operation, as RetroCore's HandleError clears Active
+            FinishOperation(self); // ends the operation, as RetroCore's HandleError clears Active
             return;
         }
 
         // Read all blocks from SMD disk file into buffer
-        blocksRead = self->blockCallbacks.readFunc(self, buffer, blockCounter, lba, data->regs.selectedDisk->unit);
+        blocksRead = self->blockCallbacks.readFunc(self, buffer, blockCounter, lba,
+                                                   data->regs.selectedDisk->unit);
         if ((blocksRead < 0) || ((uint32_t)blocksRead != blockCounter))
         {
             HandleError(self, DISK_ERR_READ_ERROR); // READ_ERROR
             free(buffer);
-            FinishOperation(self);  // ends the operation, as RetroCore's HandleError clears Active
+            FinishOperation(self); // ends the operation, as RetroCore's HandleError clears Active
             return;
         }
 
@@ -1114,31 +1237,36 @@ static void ExecuteGO(Device *self)
 
         free(buffer);
 
-        Device_QueueIODelay(self, IODELAY_HDD_SMD, (IODelayedCallback)SMDReadEnd, data->regs.selectedDisk->unit, self->interruptLevel);
+        Device_QueueIODelay(self, IODELAY_HDD_SMD, (IODelayedCallback)SMDReadEnd,
+                            data->regs.selectedDisk->unit, self->interruptLevel);
         break;
 
     case DEVICE_OP_COMPARE_TRANSFER:
 
         if (Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG))
-            Log_Write(LOG_CAT_SMD, LOG_DEBUG, "GO Op=%s Unit=%d C/H/S=%d/%d/%d LBA=%" PRId64 " WC=%d CoreAddr=%o\n",
-                    SMD_OpName(DEVICE_OP_COMPARE_TRANSFER), data->regs.selectedUnit,
-                    cylinder, head, sector, lba, wordCounter, coreAddress);
+        {
+            Log_Write(LOG_CAT_SMD, LOG_DEBUG,
+                      "GO Op=%s Unit=%d C/H/S=%d/%d/%d LBA=%" PRId64 " WC=%d CoreAddr=%o\n",
+                      SMD_OpName(DEVICE_OP_COMPARE_TRANSFER), data->regs.selectedUnit, cylinder,
+                      head, sector, lba, wordCounter, coreAddress);
+        }
 
         buffer = (uint8_t *)malloc(blockCounter * self->blockSizeBytes);
         if (!buffer)
         {
             HandleError(self, DISK_ERR_READ_ERROR); // READ_ERROR
-            FinishOperation(self);  // ends the operation, as RetroCore's HandleError clears Active
+            FinishOperation(self); // ends the operation, as RetroCore's HandleError clears Active
             return;
         }
 
         // Read all blocks from SMD disk file into buffer
-        blocksRead = self->blockCallbacks.readFunc(self, buffer, blockCounter, lba, data->regs.selectedDisk->unit);
+        blocksRead = self->blockCallbacks.readFunc(self, buffer, blockCounter, lba,
+                                                   data->regs.selectedDisk->unit);
         if ((blocksRead < 0) || ((uint32_t)blocksRead != blockCounter))
         {
             HandleError(self, DISK_ERR_READ_ERROR); // READ_ERROR
             free(buffer);
-            FinishOperation(self);  // ends the operation, as RetroCore's HandleError clears Active
+            FinishOperation(self); // ends the operation, as RetroCore's HandleError clears Active
             return;
         }
 
@@ -1156,7 +1284,8 @@ static void ExecuteGO(Device *self)
             {
                 HandleError(self, DISK_ERR_COMPARER_ERROR); // COMPARER_ERROR
                 free(buffer);
-                FinishOperation(self);  // ends the operation, as RetroCore's HandleError clears Active
+                FinishOperation(
+                    self); // ends the operation, as RetroCore's HandleError clears Active
                 return;
             }
 
@@ -1165,14 +1294,17 @@ static void ExecuteGO(Device *self)
         }
         free(buffer);
 
-        Device_QueueIODelay(self, IODELAY_HDD_SMD, (IODelayedCallback)SMDReadEnd, data->regs.selectedDisk->unit, self->interruptLevel);
+        Device_QueueIODelay(self, IODELAY_HDD_SMD, (IODelayedCallback)SMDReadEnd,
+                            data->regs.selectedDisk->unit, self->interruptLevel);
         break;
 
     case DEVICE_OP_INITIATE_SEEK:
         if (Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG))
+        {
             Log_Write(LOG_CAT_SMD, LOG_DEBUG, "GO Op=%s Unit=%d C/H/S=%d/%d/%d pos=%" PRId64 "\n",
-                    SMD_OpName(DEVICE_OP_INITIATE_SEEK), data->regs.selectedUnit,
-                    cylinder, head, sector, position);
+                      SMD_OpName(DEVICE_OP_INITIATE_SEEK), data->regs.selectedUnit, cylinder, head,
+                      sector, position);
+        }
         // SEEK TIMING MODEL (M4/M6/M7): we deliberately do NOT model physical drive
         // timing (CDC 976x / Fujitsu Eagle: 3600 RPM = 16.67 ms/rev, ~30 ms avg
         // seek, 500 ms seek-timeout). A fast emulated seek (the IODELAY_HDD_SMD
@@ -1197,7 +1329,7 @@ static void ExecuteGO(Device *self)
         }
 
         data->seekCondition.bits.seekError = 0;
-        data->regs.selectedDisk->onCylinder = 0;               // heads moving
+        data->regs.selectedDisk->onCylinder = 0; // heads moving
         data->regs.seekIssuedMask |= (uint8_t)(1 << data->regs.selectedUnit);
 
         // IODELAY_HDD_SMD, as RetroCore's NDBusDiscControllerSMD.cs does for
@@ -1206,7 +1338,8 @@ static void ExecuteGO(Device *self)
         // that control word was refused as an illegal load and SINTRAN
         // reported "Parallel seek disabled". Known cost: DISC-TEMA's check that
         // on-cylinder (status b14) is 0 right after Initiate Seek likely fails.
-        Device_QueueIODelay(self, IODELAY_HDD_SMD, (IODelayedCallback)SMDReadEnd, data->regs.selectedDisk->unit, self->interruptLevel);
+        Device_QueueIODelay(self, IODELAY_HDD_SMD, (IODelayedCallback)SMDReadEnd,
+                            data->regs.selectedDisk->unit, self->interruptLevel);
         break;
 
     case DEVICE_OP_WRITE_FORMAT:
@@ -1227,9 +1360,12 @@ static void ExecuteGO(Device *self)
             if (fmtWordsPrTrack == 0 || wordCounter == 0 || (wordCounter % fmtWordsPrTrack) != 0)
             {
                 if (Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG))
-                    Log_Write(LOG_CAT_SMD, LOG_DEBUG, "GO Op=%s Unit=%d WC=%u not k x %u format words -> TIMEOUT\n",
-                            SMD_OpName(DEVICE_OP_WRITE_FORMAT), data->regs.selectedUnit,
-                            wordCounter, fmtWordsPrTrack);
+                {
+                    Log_Write(LOG_CAT_SMD, LOG_DEBUG,
+                              "GO Op=%s Unit=%d WC=%u not k x %u format words -> TIMEOUT\n",
+                              SMD_OpName(DEVICE_OP_WRITE_FORMAT), data->regs.selectedUnit,
+                              wordCounter, fmtWordsPrTrack);
+                }
                 HandleError(self, DISK_ERR_TIMEOUT);
                 FinishOperation(self);
                 return;
@@ -1237,16 +1373,21 @@ static void ExecuteGO(Device *self)
         }
 
         if (Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG))
+        {
             Log_Write(LOG_CAT_SMD, LOG_DEBUG, "GO Op=%s Unit=%d (media format not modelled)\n",
-                    SMD_OpName(DEVICE_OP_WRITE_FORMAT), data->regs.selectedUnit);
-        Device_QueueIODelay(self, IODELAY_HDD_SMD, (IODelayedCallback)SMDReadEnd, data->regs.selectedDisk->unit, self->interruptLevel);
+                      SMD_OpName(DEVICE_OP_WRITE_FORMAT), data->regs.selectedUnit);
+        }
+        Device_QueueIODelay(self, IODELAY_HDD_SMD, (IODelayedCallback)SMDReadEnd,
+                            data->regs.selectedDisk->unit, self->interruptLevel);
         break;
 
     case DEVICE_OP_SEEK_COMPLETE_SEARCH:
         if (Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG))
+        {
             Log_Write(LOG_CAT_SMD, LOG_DEBUG, "GO Op=%s Unit=%d seekIssued=%d\n",
-                    SMD_OpName(DEVICE_OP_SEEK_COMPLETE_SEARCH), data->regs.selectedUnit,
-                    (data->regs.seekIssuedMask >> data->regs.selectedUnit) & 1);
+                      SMD_OpName(DEVICE_OP_SEEK_COMPLETE_SEARCH), data->regs.selectedUnit,
+                      (data->regs.seekIssuedMask >> data->regs.selectedUnit) & 1);
+        }
         // M6 searches for the seek-complete pulse of a PREVIOUSLY initiated
         // seek. With no seek outstanding on this unit there is no pulse to
         // find, and the controller runs into its timeout (status b6) -
@@ -1257,20 +1398,24 @@ static void ExecuteGO(Device *self)
         // immediately !!".
         if (!(data->regs.seekIssuedMask & (1 << data->regs.selectedUnit)))
         {
-            Device_QueueIODelay(self, SMD_TIMEOUT_TICKS, (IODelayedCallback)SMDTimeoutEnd, data->regs.selectedDisk->unit, self->interruptLevel);
+            Device_QueueIODelay(self, SMD_TIMEOUT_TICKS, (IODelayedCallback)SMDTimeoutEnd,
+                                data->regs.selectedDisk->unit, self->interruptLevel);
             break;
         }
         regs->selectedDisk->onCylinder = true;
         data->seekCondition.bits.seekError = 0;
         data->seekCondition.bits.seekComplete |= (uint16_t)(1 << regs->selectedUnit);
 
-        Device_QueueIODelay(self, IODELAY_HDD_SMD, (IODelayedCallback)SMDReadEnd, data->regs.selectedDisk->unit, self->interruptLevel);
+        Device_QueueIODelay(self, IODELAY_HDD_SMD, (IODelayedCallback)SMDReadEnd,
+                            data->regs.selectedDisk->unit, self->interruptLevel);
         break;
 
     case DEVICE_OP_RETURN_TO_ZERO_SEEK:
         if (Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG))
+        {
             Log_Write(LOG_CAT_SMD, LOG_DEBUG, "GO Op=%s Unit=%d\n",
-                    SMD_OpName(DEVICE_OP_RETURN_TO_ZERO_SEEK), data->regs.selectedUnit);
+                      SMD_OpName(DEVICE_OP_RETURN_TO_ZERO_SEEK), data->regs.selectedUnit);
+        }
         // RTZ is a seek to cylinder 0: heads move, so on-cylinder DROPS now and
         // the completion callback restores it (DISC-TEMA: "Error after
         // Return-To-Zero Seek, Bit 16b (on cylinder) remained 1 !"). The
@@ -1280,13 +1425,16 @@ static void ExecuteGO(Device *self)
         data->regs.seekIssuedMask |= (uint8_t)(1 << data->regs.selectedUnit);
 
         // IODELAY_HDD_SMD as in RetroCore; see the Initiate Seek case.
-        Device_QueueIODelay(self, IODELAY_HDD_SMD, (IODelayedCallback)SMDReadEnd, data->regs.selectedDisk->unit, self->interruptLevel);
+        Device_QueueIODelay(self, IODELAY_HDD_SMD, (IODelayedCallback)SMDReadEnd,
+                            data->regs.selectedDisk->unit, self->interruptLevel);
         break;
 
     case DEVICE_OP_RUN_ECC_OPERATION:
         if (Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG))
+        {
             Log_Write(LOG_CAT_SMD, LOG_DEBUG, "GO Op=%s (NOT IMPLEMENTED)\n",
-                    SMD_OpName(DEVICE_OP_RUN_ECC_OPERATION));
+                      SMD_OpName(DEVICE_OP_RUN_ECC_OPERATION));
+        }
         // Run ECC operation
         // TODO: Implement ECC operation
         // Unimplemented, but it WAS activated (control-word bit 2), so it still
@@ -1296,8 +1444,10 @@ static void ExecuteGO(Device *self)
 
     case DEVICE_OP_SELECT_RELEASE:
         if (Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG))
+        {
             Log_Write(LOG_CAT_SMD, LOG_DEBUG, "GO Op=%s Unit=%d\n",
-                    SMD_OpName(DEVICE_OP_SELECT_RELEASE), data->regs.selectedUnit);
+                      SMD_OpName(DEVICE_OP_SELECT_RELEASE), data->regs.selectedUnit);
+        }
         // Release disk selection
         regs->selectedDisk = NULL;
         FinishOperation(self);
@@ -1308,15 +1458,21 @@ static void ExecuteGO(Device *self)
 static bool SMDReadEnd(Device *self, int drive)
 {
     if (!self)
+    {
         return false;
+    }
     SMDData *data = (SMDData *)self->deviceData;
     if (!data)
+    {
         return false;
+    }
 
     if (Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG))
-        Log_Write(LOG_CAT_SMD, LOG_DEBUG, "IO Complete drive=%d intEnabled=%d -> %s\n",
-                drive, data->statusRegister.bits.interruptEnabled,
-                data->statusRegister.bits.interruptEnabled ? "INTERRUPT" : "no interrupt");
+    {
+        Log_Write(LOG_CAT_SMD, LOG_DEBUG, "IO Complete drive=%d intEnabled=%d -> %s\n", drive,
+                  data->statusRegister.bits.interruptEnabled,
+                  data->statusRegister.bits.interruptEnabled ? "INTERRUPT" : "no interrupt");
+    }
 
     data->statusRegister.bits.active = 0;
     data->statusRegister.bits.readyForTransfer = 1;
@@ -1336,7 +1492,9 @@ static bool SMDReadEnd(Device *self, int drive)
     case DEVICE_OP_SEEK_COMPLETE_SEARCH:
         data->seekCondition.bits.seekComplete |= (uint16_t)(1 << drive);
         if (drive >= 0 && drive < data->regs.maxUnits)
+        {
             data->regs.disks[drive].onCylinder = 1;
+        }
         break;
     case DEVICE_OP_RETURN_TO_ZERO_SEEK:
         // RTZ puts the heads back on cylinder 0 but does NOT raise the
@@ -1346,14 +1504,18 @@ static bool SMDReadEnd(Device *self, int drive)
         // bits 0-7 zero. (Inferred from that check; the manuals don't state
         // the RTZ case explicitly.)
         if (drive >= 0 && drive < data->regs.maxUnits)
+        {
             data->regs.disks[drive].onCylinder = 1;
+        }
         break;
     default:
         break;
     }
 
     if (data->statusRegister.bits.interruptEnabled)
+    {
         return true; // returning true triggers GenerateInterrupt()
+    }
     return false;
 }
 
@@ -1365,13 +1527,20 @@ static bool SMDTimeoutEnd(Device *self, int drive)
 {
     (void)drive;
     if (!self)
+    {
         return false;
+    }
     SMDData *data = (SMDData *)self->deviceData;
     if (!data)
+    {
         return false;
+    }
 
     if (Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG))
-        Log_Write(LOG_CAT_SMD, LOG_DEBUG, "TIMEOUT drive=%d (seek-complete search found no seek)\n", drive);
+    {
+        Log_Write(LOG_CAT_SMD, LOG_DEBUG, "TIMEOUT drive=%d (seek-complete search found no seek)\n",
+                  drive);
+    }
 
     HandleError(self, DISK_ERR_TIMEOUT);
 
@@ -1380,7 +1549,9 @@ static bool SMDTimeoutEnd(Device *self, int drive)
     ClearFlipFlops(&data->regs);
 
     if (data->statusRegister.bits.interruptEnabled)
+    {
         return true;
+    }
     return false;
 }
 
@@ -1403,11 +1574,14 @@ static bool SMDTimeoutEnd(Device *self, int drive)
 static bool LoadIsIllegal(Device *self, SMDData *data)
 {
     if (data->statusRegister.bits.active)
+    {
         return true;
-    if (data->regs.selectedDisk &&
-        UnitAttached(self, data->regs.selectedDisk) &&
+    }
+    if (data->regs.selectedDisk && UnitAttached(self, data->regs.selectedDisk) &&
         !data->regs.selectedDisk->onCylinder)
+    {
         return true;
+    }
     return false;
 }
 
@@ -1425,13 +1599,17 @@ static bool LoadIsIllegal(Device *self, SMDData *data)
 static bool UnitAttached(Device *self, DiskInfo *disk)
 {
     if (!self || !disk)
+    {
         return false;
+    }
     if (!disk->unitAttachChecked)
     {
         size_t imageSize = 0;
         bool isWriteProtected = false;
         if (self->blockCallbacks.diskInfoFunc)
+        {
             self->blockCallbacks.diskInfoFunc(self, &imageSize, &isWriteProtected, disk->unit);
+        }
         disk->unitAttached = (imageSize > 0);
         disk->unitAttachChecked = true;
     }
@@ -1455,10 +1633,14 @@ static bool UnitAttached(Device *self, DiskInfo *disk)
 static void FinishOperation(Device *self)
 {
     if (!self)
+    {
         return;
+    }
     SMDData *data = (SMDData *)self->deviceData;
     if (!data)
+    {
         return;
+    }
 
     data->statusRegister.bits.active = 0;
     data->statusRegister.bits.readyForTransfer = 1;
@@ -1468,7 +1650,9 @@ static void FinishOperation(Device *self)
     // Control-word bit 0 is "enable interrupt on device not active", and the
     // controller has just gone not-active.
     if (data->statusRegister.bits.interruptEnabled)
+    {
         Device_SetInterruptStatus(self, true, self->interruptLevel);
+    }
 }
 
 static void ClearFlipFlops(ControllerRegs *regs)
@@ -1483,21 +1667,29 @@ static void ClearFlipFlops(ControllerRegs *regs)
 static int64_t ConvertCHStoLBA(ControllerRegs *regs, int cylinder, int head, int sector)
 {
     if (!regs || !regs->selectedDisk)
+    {
         return -1;
+    }
 
     // LBA = (C x HPC + H) x SPT + (S - 1)
     if ((cylinder == 0) && (head == 0) && (sector == 0))
+    {
         return 0; // invalid, but used by SeekToZero
+    }
 
     // 64-bit math - see the caller: a huge (illegal) cylinder must produce a
     // huge positive LBA, not a 32-bit wrap-around.
-    return ((int64_t)cylinder * regs->selectedDisk->headsPrCylinder + head) * regs->selectedDisk->sectorsPrTrack + (sector); // was (sector-1), but for this BigDisk driver sector 0 is the start sector (not 1)
+    return ((int64_t)cylinder * regs->selectedDisk->headsPrCylinder + head) *
+               regs->selectedDisk->sectorsPrTrack +
+           (sector); // was (sector-1), but for this BigDisk driver sector 0 is the start sector (not 1)
 }
 
 static void ClearErrors(Device *self)
 {
     if (!self)
+    {
         return;
+    }
     SMDData *data = (SMDData *)self->deviceData;
 
     data->statusRegister.bits.hardwareError = 0;
@@ -1512,7 +1704,9 @@ static void ClearErrors(Device *self)
 static void SetSelectedUnit(ControllerRegs *regs, uint8_t unit)
 {
     if (!regs)
+    {
         return;
+    }
     // Control-word bits 7-9 = a 3-bit unit field (0-7), but every ND SMD/ECC
     // controller (ND 558/559/632) handles only up to 4 drives - unit-select line
     // "8" is "not used" (ECC manual), "up to four drives per controller" (ND-11.020
@@ -1521,19 +1715,27 @@ static void SetSelectedUnit(ControllerRegs *regs, uint8_t unit)
     // NOT wrap unit&3 -> the hardware-error/not-ready checks must be observable).
     regs->selectedUnit = unit & 0x07;
     if (regs->selectedUnit < regs->maxUnits)
+    {
         regs->selectedDisk = &regs->disks[regs->selectedUnit];
+    }
     else
+    {
         regs->selectedDisk = NULL;
+    }
 }
 
 static void HandleError(Device *self, DiskError error)
 {
     if (!self)
+    {
         return;
+    }
     SMDData *data = (SMDData *)self->deviceData;
 
     if (Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG))
+    {
         Log_Write(LOG_CAT_SMD, LOG_DEBUG, "ERROR %s (%d)\n", SMD_ErrorName(error), error);
+    }
 
     // Every error termination is an ABNORMAL COMPLETION (status b12,
     // ND-11.020.01 sec 2.5). DISC-TEMA checks it in combination rather than on
@@ -1588,7 +1790,9 @@ static void HandleError(Device *self, DiskError error)
 static uint32_t IncrementCoreAddress(ControllerRegs *regs)
 {
     if (!regs)
+    {
         return 0;
+    }
     uint32_t address = (regs->coreAddressHiBits << 16) | regs->coreAddress;
     address++;
     regs->coreAddress = address & 0xFFFF;
@@ -1599,7 +1803,9 @@ static uint32_t IncrementCoreAddress(ControllerRegs *regs)
 static uint32_t DecrementWordCounter(ControllerRegs *regs)
 {
     if (!regs)
+    {
         return 0;
+    }
     uint32_t counter = (regs->wordCounterHI << 16) | regs->wordCounter;
     counter--;
     regs->wordCounter = counter & 0xFFFF;
@@ -1611,7 +1817,9 @@ Device *CreateSMDDevice(uint8_t thumbwheel)
 {
     Device *dev = (Device *)malloc(sizeof(Device));
     if (!dev)
+    {
         return NULL;
+    }
 
     SMDData *data = (SMDData *)malloc(sizeof(SMDData));
     if (!data)
@@ -1641,13 +1849,21 @@ Device *CreateSMDDevice(uint8_t thumbwheel)
         if (t != NULL)
         {
             if (strcmp(t, "ecc") == 0)
+            {
                 data->controllerType = CONTR_ECC_DISC;
+            }
             else if (strcmp(t, "bigdisc") == 0)
+            {
                 data->controllerType = CONTR_BIG_DISC;
+            }
             else if (strcmp(t, "smd10") == 0)
+            {
                 data->controllerType = CONTR_SMD_10MHZ;
+            }
             else if (strcmp(t, "smd15") != 0)
+            {
                 LOG(LOG_CAT_SMD, LOG_WARN, "unknown ND100X_SMD_TYPE '%s', using smd15\n", t);
+            }
         }
     }
     if (data->controllerType == CONTR_SMD_10MHZ || data->controllerType == CONTR_SMD_15MHZ)
@@ -1666,7 +1882,9 @@ Device *CreateSMDDevice(uint8_t thumbwheel)
     {
         const char *w = getenv("ND100X_SMD_WC_FF");
         if (w != NULL)
+        {
             data->regs.hasWordCountFlipFlop = (w[0] != '0');
+        }
     }
 
     // Two-access load order: HI first (as the memory-address text states) or
@@ -1676,7 +1894,9 @@ Device *CreateSMDDevice(uint8_t thumbwheel)
     {
         const char *o = getenv("ND100X_SMD_LOAD_ORDER");
         if (o != NULL && strcmp(o, "lo") == 0)
+        {
             data->regs.loadLowFirst = true;
+        }
     }
 
     // Initialize device properties
@@ -1760,8 +1980,9 @@ Device *CreateSMDDevice(uint8_t thumbwheel)
     // Ident code (octal), Level (decimal). Values come from THIS instance's real
     // configured fields (set per thumbwheel above), not literals - so the 1540/1550/
     // 540/550 slots each print their own address range / ident / level.
-    LOG(LOG_CAT_SMD, LOG_INFO, "SMD [%s] Device object created. Address[%o-%o] Ident code: [%o] Level: [%d]\n",
-           dev->memoryName, dev->startAddress, dev->endAddress, dev->identCode, dev->interruptLevel);
+    LOG(LOG_CAT_SMD, LOG_INFO,
+        "SMD [%s] Device object created. Address[%o-%o] Ident code: [%o] Level: [%d]\n",
+        dev->memoryName, dev->startAddress, dev->endAddress, dev->identCode, dev->interruptLevel);
 
     return dev;
 }
@@ -1771,7 +1992,9 @@ Device *CreateSMDDevice(uint8_t thumbwheel)
 void SMD_Destroy(Device *dev)
 {
     if (!dev)
+    {
         return;
+    }
 
     SMDData *data = (SMDData *)dev->deviceData;
     if (data)

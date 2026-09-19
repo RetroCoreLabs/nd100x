@@ -24,21 +24,25 @@
 #define HDLC_CONSTANTS_H
 
 // HDLC Protocol Constants
+// clang-format off
 #define HDLC_FRAME_DELIMITER 0x7E        // 01111110 - Frame delimiter
 #define HDLC_FRAME_ABORT 0xFF            // 11111111 - Frame abort (7+ contiguous 1's)
 #define HDLC_GO_AHEAD 0xFE               // 11111110 - Go ahead (LSB is 0, then 7x 1's)
 #define HDLC_ADDRESS_ALL 0xFF            // 11111111 - Address all devices
+// clang-format on
 
 // HDLC Asynchronous framing constants
+// clang-format off
 #define HDLC_ASYNC_ESCAPE_OCTET 0x7D     // 01111101 - Escape octet for data that might be interpreted as control
 #define HDLC_ASYNC_INVERT_OCTET 0x20     // 00100000 - Value to invert bit 5 of escaped data octet
+// clang-format on
 
 // CRC constants
-#define HDLC_CCITT_VALID_CRC 0xF0B8      // Valid CCITT CRC value
+#define HDLC_CCITT_VALID_CRC 0xF0B8 // Valid CCITT CRC value
 
 // Queue and buffer limits
 #define HDLC_MAX_RECEIVE_QUEUE_SIZE 1000
-#define HDLC_MAX_NO_DATA 100
+#define HDLC_MAX_NO_DATA            100
 
 // Default network port
 #define HDLC_DEFAULT_PORT 1362

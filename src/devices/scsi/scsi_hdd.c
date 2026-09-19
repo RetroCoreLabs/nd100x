@@ -21,12 +21,15 @@
 #include "../devices_protos.h"
 
 
-static void SCSIHDD_Log(SCSIHDDDevice *hdd, const char *fmt, ...) __attribute__((format(printf, 2, 3)));
+static void SCSIHDD_Log(SCSIHDDDevice *hdd, const char *fmt, ...)
+    __attribute__((format(printf, 2, 3)));
 
 static void SCSIHDD_Log(SCSIHDDDevice *hdd, const char *fmt, ...)
 {
     if (!Log_IsEnabled(LOG_CAT_SCSI, LOG_DEBUG))
+    {
         return;
+    }
 
     char msg[512];
     va_list args;
@@ -42,12 +45,14 @@ static void SCSIHDD_Log(SCSIHDDDevice *hdd, const char *fmt, ...)
 static bool SCSIHDD_HasMedia(SCSIHDDDevice *hdd)
 {
     if (!hdd->owner || !hdd->owner->blockCallbacks.diskInfoFunc)
+    {
         return false;
+    }
 
     size_t imageSize = 0;
     bool isWriteProtected = false;
-    int rc = hdd->owner->blockCallbacks.diskInfoFunc(hdd->owner, &imageSize,
-                                                     &isWriteProtected, hdd->unit);
+    int rc = hdd->owner->blockCallbacks.diskInfoFunc(hdd->owner, &imageSize, &isWriteProtected,
+                                                     hdd->unit);
     return (rc >= 0) && (imageSize > 0);
 }
 
@@ -59,7 +64,9 @@ static bool SCSIHDD_HasMedia(SCSIHDDDevice *hdd)
 static int SCSIHDD_GetLun(SCSIHDDDevice *hdd, int def)
 {
     if (hdd->target.scsi_identify & 0x80)
+    {
         return hdd->target.scsi_identify & 0x07;
+    }
     return def;
 }
 
@@ -74,17 +81,19 @@ static int SCSIHDD_GetLun(SCSIHDDDevice *hdd, int def)
 static bool SCSIHDD_ReadBlock(SCSIHDDDevice *hdd, int read_lba)
 {
     if (!hdd->owner || !hdd->owner->blockCallbacks.readFunc)
-        return false;
-
-    if (read_lba < 0 || (uint32_t)read_lba > DiskSCSI_LastLBA(&hdd->hdinfo))
     {
-        SCSIHDD_Log(hdd, "HD READ ERROR! LBA=%d out of range (last=%u)",
-                    read_lba, DiskSCSI_LastLBA(&hdd->hdinfo));
         return false;
     }
 
-    int blocksRead = hdd->owner->blockCallbacks.readFunc(hdd->owner, hdd->sectorData,
-                                                         1, (uint32_t)read_lba, hdd->unit);
+    if (read_lba < 0 || (uint32_t)read_lba > DiskSCSI_LastLBA(&hdd->hdinfo))
+    {
+        SCSIHDD_Log(hdd, "HD READ ERROR! LBA=%d out of range (last=%u)", read_lba,
+                    DiskSCSI_LastLBA(&hdd->hdinfo));
+        return false;
+    }
+
+    int blocksRead = hdd->owner->blockCallbacks.readFunc(hdd->owner, hdd->sectorData, 1,
+                                                         (uint32_t)read_lba, hdd->unit);
     if (blocksRead != 1)
     {
         SCSIHDD_Log(hdd, "HD READ ERROR! LBA=%d rc=%d", read_lba, blocksRead);
@@ -98,7 +107,9 @@ static bool SCSIHDD_ReadBlock(SCSIHDDDevice *hdd, int read_lba)
 static bool SCSIHDD_WriteBlock(SCSIHDDDevice *hdd, int write_lba)
 {
     if (!hdd->owner || !hdd->owner->blockCallbacks.writeFunc)
+    {
         return false;
+    }
 
     if (write_lba < 0 || (uint32_t)write_lba > DiskSCSI_LastLBA(&hdd->hdinfo))
     {
@@ -106,8 +117,8 @@ static bool SCSIHDD_WriteBlock(SCSIHDDDevice *hdd, int write_lba)
         return false;
     }
 
-    int blocksWritten = hdd->owner->blockCallbacks.writeFunc(hdd->owner, hdd->sectorData,
-                                                             1, (uint32_t)write_lba, hdd->unit);
+    int blocksWritten = hdd->owner->blockCallbacks.writeFunc(hdd->owner, hdd->sectorData, 1,
+                                                             (uint32_t)write_lba, hdd->unit);
     return blocksWritten == 1;
 }
 
@@ -126,15 +137,21 @@ static uint8_t SCSIHDD_GetData(SCSITarget *t, SBUF id, int pos)
     if (t->scsi_cmdbuf[0] == SC_READ_SECTOR_BUFFER)
     {
         if (pos < 0 || pos >= SCSI_HDD_MAX_SECTOR_BYTES)
+        {
             return 0;
+        }
         return hdd->sectorData[pos];
     }
 
     if (!SCSIHDD_HasMedia(hdd))
+    {
         return 0x00;
+    }
 
     if (id != SBUF_DATA)
+    {
         return SCSITarget_DefaultGetData(t, id, pos);
+    }
 
     int clba = hdd->lba + pos / hdd->hdinfo.sectorbytes;
     if (clba != hdd->cur_lba)
@@ -142,11 +159,15 @@ static uint8_t SCSIHDD_GetData(SCSITarget *t, SBUF id, int pos)
         hdd->cur_lba = clba;
         hdd->sectorDataValid = SCSIHDD_ReadBlock(hdd, clba);
         if (!hdd->sectorDataValid)
+        {
             memset(hdd->sectorData, 0, sizeof(hdd->sectorData));
+        }
     }
 
     if (!hdd->sectorDataValid)
+    {
         return 0x00;
+    }
 
     return hdd->sectorData[pos % hdd->hdinfo.sectorbytes];
 }
@@ -163,15 +184,19 @@ static void SCSIHDD_PutData(SCSITarget *t, SBUF id, int pos, uint8_t data)
 
     switch (cmd)
     {
-    case SC_INIT_DRIVE_PARAMS:   /* 0x0C */
+    case SC_INIT_DRIVE_PARAMS: /* 0x0C */
         if (pos >= 0 && pos < 8)
+        {
             hdd->hdinfo.drive_params[pos] = data;
+        }
         return;
-    case SC_FORMAT_ALT_TRACK:    /* 0x0E - accepted and discarded */
+    case SC_FORMAT_ALT_TRACK: /* 0x0E - accepted and discarded */
         return;
     case SC_WRITE_SECTOR_BUFFER: /* 0x0F */
         if (pos >= 0 && pos < SCSI_HDD_MAX_SECTOR_BYTES)
+        {
             hdd->sectorData[pos] = data;
+        }
         return;
     default:
         break;
@@ -184,7 +209,9 @@ static void SCSIHDD_PutData(SCSITarget *t, SBUF id, int pos, uint8_t data)
     }
 
     if (!SCSIHDD_HasMedia(hdd))
+    {
         return;
+    }
 
     int offset = pos % hdd->hdinfo.sectorbytes;
     int clba = hdd->lba + pos / hdd->hdinfo.sectorbytes;
@@ -257,11 +284,11 @@ static void SCSIHDD_CommandInquiry(SCSIHDDDevice *hdd)
         memset(&t->scsi_cmdbuf[0], 0, 148);
         memset(&t->scsi_cmdbuf[8], 0x20, 28);
 
-        t->scsi_cmdbuf[0] = 0x00;   /* device type = direct-access disk */
-        t->scsi_cmdbuf[1] = 0x00;   /* media is not removable */
-        t->scsi_cmdbuf[2] = 0x05;   /* complies with SPC-3 */
-        t->scsi_cmdbuf[3] = 0x01;   /* response data format = CCS */
-        t->scsi_cmdbuf[4] = 52;     /* additional length */
+        t->scsi_cmdbuf[0] = 0x00; /* device type = direct-access disk */
+        t->scsi_cmdbuf[1] = 0x00; /* media is not removable */
+        t->scsi_cmdbuf[2] = 0x05; /* complies with SPC-3 */
+        t->scsi_cmdbuf[3] = 0x01; /* response data format = CCS */
+        t->scsi_cmdbuf[4] = 52;   /* additional length */
 
         /* Identity for the ND drive: NDMICROP / 1375 / B0C. The generic
          * SEAGATE ST225N default in SCSIHDD.cs is only used when no drive
@@ -271,15 +298,21 @@ static void SCSIHDD_CommandInquiry(SCSIHDDDevice *hdd)
         memcpy(&t->scsi_cmdbuf[32], hdd->hdinfo.revision, 4);
 
         if (size > SCSI_HDD_INQUIRY_SIZE)
+        {
             size = SCSI_HDD_INQUIRY_SIZE;
+        }
 
         SCSITarget_DataIn(t, SBUF_MAIN, size);
     }
 
     if (SCSIHDD_HasMedia(hdd))
+    {
         SCSITarget_StatusComplete(t, SS_GOOD);
+    }
     else
+    {
         SCSITarget_StatusComplete(t, SS_CHECK_CONDITION);
+    }
 }
 
 
@@ -288,11 +321,14 @@ static void SCSIHDD_CommandTestUnitReady(SCSIHDDDevice *hdd)
     SCSIHDD_Log(hdd, "command TEST UNIT READY");
 
     if (SCSIHDD_HasMedia(hdd))
+    {
         SCSITarget_StatusComplete(&hdd->target, SS_GOOD);
+    }
     else
+    {
         SCSITarget_StatusComplete(&hdd->target, SS_CHECK_CONDITION);
+    }
 }
-
 
 
 /*
@@ -318,8 +354,8 @@ static void SCSIHDD_CommandModeSense(SCSIHDDDevice *hdd)
     int pmax, pmin, p;
     bool fail = false;
 
-    SCSIHDD_Log(hdd, "command MODE SENSE(6) page=0x%02X alloc=0x%02X link=0x%02X",
-                page, size, t->scsi_cmdbuf[5]);
+    SCSIHDD_Log(hdd, "command MODE SENSE(6) page=0x%02X alloc=0x%02X link=0x%02X", page, size,
+                t->scsi_cmdbuf[5]);
 
     t->scsi_cmdbuf[pos++] = 0x00; /* medium type */
     t->scsi_cmdbuf[pos++] = 0x00; /* WP, cache */
@@ -344,14 +380,14 @@ static void SCSIHDD_CommandModeSense(SCSIHDDDevice *hdd)
     {
         switch (p)
         {
-        case 0x00: /* Unit attention parameters page (weird) */
+        case 0x00:                        /* Unit attention parameters page (weird) */
             t->scsi_cmdbuf[pos++] = 0x80; /* PS, page id */
             t->scsi_cmdbuf[pos++] = 0x02; /* Page length */
             t->scsi_cmdbuf[pos++] = 0x00; /* Meh */
             t->scsi_cmdbuf[pos++] = 0x00; /* Double meh */
             break;
 
-        case 0x01: /* read-write error recovery page */
+        case 0x01:                        /* read-write error recovery page */
             t->scsi_cmdbuf[pos++] = 0x01; /* !PS, page id */
             t->scsi_cmdbuf[pos++] = 0x0a; /* page length */
             t->scsi_cmdbuf[pos++] = 0;    /* various bits */
@@ -366,7 +402,7 @@ static void SCSIHDD_CommandModeSense(SCSIHDDDevice *hdd)
             t->scsi_cmdbuf[pos++] = 0;    /* recovery time limit (lsb) */
             break;
 
-        case 0x02: /* disconnect-reconnect page */
+        case 0x02:                        /* disconnect-reconnect page */
             t->scsi_cmdbuf[pos++] = 0x02; /* !PS, page id */
             t->scsi_cmdbuf[pos++] = 0x0e; /* page length */
             t->scsi_cmdbuf[pos++] = 0;    /* buffer full ratio */
@@ -385,18 +421,18 @@ static void SCSIHDD_CommandModeSense(SCSIHDDDevice *hdd)
             t->scsi_cmdbuf[pos++] = 0;    /* reserved */
             break;
 
-        case 0x03: /* Format parameters page */
+        case 0x03:                        /* Format parameters page */
             t->scsi_cmdbuf[pos++] = 0x83; /* PS, page id */
             t->scsi_cmdbuf[pos++] = 0x16; /* Page length */
             scsi_put_u16be(&t->scsi_cmdbuf[pos],
                            (uint16_t)(hdd->hdinfo.cylinders * hdd->hdinfo.heads)); /* Track/zone */
             pos += 2;
-            t->scsi_cmdbuf[pos++] = 0x00; /* Alt sect/zone */
-            t->scsi_cmdbuf[pos++] = 0x00; /* Alt sect/zone */
-            t->scsi_cmdbuf[pos++] = 0x00; /* Alt track/zone */
-            t->scsi_cmdbuf[pos++] = 0x00; /* Alt track/zone */
-            t->scsi_cmdbuf[pos++] = 0x00; /* Alt track/volume */
-            t->scsi_cmdbuf[pos++] = 0x00; /* Alt track/volume */
+            t->scsi_cmdbuf[pos++] = 0x00;                              /* Alt sect/zone */
+            t->scsi_cmdbuf[pos++] = 0x00;                              /* Alt sect/zone */
+            t->scsi_cmdbuf[pos++] = 0x00;                              /* Alt track/zone */
+            t->scsi_cmdbuf[pos++] = 0x00;                              /* Alt track/zone */
+            t->scsi_cmdbuf[pos++] = 0x00;                              /* Alt track/volume */
+            t->scsi_cmdbuf[pos++] = 0x00;                              /* Alt track/volume */
             scsi_put_u16be(&t->scsi_cmdbuf[pos], hdd->hdinfo.sectors); /* Sectors/track */
             pos += 2;
             scsi_put_u16be(&t->scsi_cmdbuf[pos], hdd->hdinfo.sectorbytes); /* Bytes/sector */
@@ -413,15 +449,15 @@ static void SCSIHDD_CommandModeSense(SCSIHDDDevice *hdd)
             t->scsi_cmdbuf[pos++] = 0x00; /* Reserved */
             break;
 
-        case 0x04: /* Rigid drive geometry page */
+        case 0x04:                        /* Rigid drive geometry page */
             t->scsi_cmdbuf[pos++] = 0x84; /* PS, page id */
             t->scsi_cmdbuf[pos++] = 0x16; /* Page length */
             scsi_put_u24be(&t->scsi_cmdbuf[pos], hdd->hdinfo.cylinders); /* Cylinders */
             pos += 3;
             t->scsi_cmdbuf[pos++] = hdd->hdinfo.heads; /* Heads */
-            t->scsi_cmdbuf[pos++] = 0x00; /* Starting cylinder - write precomp */
-            t->scsi_cmdbuf[pos++] = 0x00; /* Starting cylinder - write precomp */
-            t->scsi_cmdbuf[pos++] = 0x00; /* Starting cylinder - write precomp */
+            t->scsi_cmdbuf[pos++] = 0x00;              /* Starting cylinder - write precomp */
+            t->scsi_cmdbuf[pos++] = 0x00;              /* Starting cylinder - write precomp */
+            t->scsi_cmdbuf[pos++] = 0x00;              /* Starting cylinder - write precomp */
             t->scsi_cmdbuf[pos++] = 0x00; /* Starting cylinder - reduced write current */
             t->scsi_cmdbuf[pos++] = 0x00; /* Starting cylinder - reduced write current */
             t->scsi_cmdbuf[pos++] = 0x00; /* Starting cylinder - reduced write current */
@@ -439,7 +475,7 @@ static void SCSIHDD_CommandModeSense(SCSIHDDDevice *hdd)
             t->scsi_cmdbuf[pos++] = 0x00; /* Reserved */
             break;
 
-        case 0x08: /* caching page */
+        case 0x08:                        /* caching page */
             t->scsi_cmdbuf[pos++] = 0x08; /* !PS, page id */
             t->scsi_cmdbuf[pos++] = 0x0a; /* page length */
             t->scsi_cmdbuf[pos++] = 0;
@@ -454,7 +490,7 @@ static void SCSIHDD_CommandModeSense(SCSIHDDDevice *hdd)
             t->scsi_cmdbuf[pos++] = 0;
             break;
 
-        case 0x30: /* Apple firmware ID page (kept for C# parity) */
+        case 0x30:                        /* Apple firmware ID page (kept for C# parity) */
             t->scsi_cmdbuf[pos++] = 0xb0; /* cPS, page id */
             t->scsi_cmdbuf[pos++] = 0x16; /* Page length */
             memcpy(&t->scsi_cmdbuf[pos], "APPLE COMPUTER, INC   ", 22);
@@ -475,7 +511,9 @@ static void SCSIHDD_CommandModeSense(SCSIHDDDevice *hdd)
     {
         t->scsi_cmdbuf[0] = (uint8_t)pos; /* mode data length */
         if (pos > size)
+        {
             pos = size;
+        }
 
         SCSITarget_DataIn(t, SBUF_MAIN, pos);
         SCSITarget_StatusComplete(t, SS_GOOD);
@@ -498,9 +536,11 @@ static void SCSIHDD_Command(SCSITarget *t)
     int lun = SCSIHDD_GetLun(hdd, t->scsi_cmdbuf[1] >> 5);
 
     if (Log_IsEnabled(LOG_CAT_SCSI, LOG_DEBUG))
-        SCSIHDD_Log(hdd, "CDB op=0x%02X cdb=%02X,%02X,%02X,%02X,%02X lun=%d",
-                    cmd, t->scsi_cmdbuf[1], t->scsi_cmdbuf[2], t->scsi_cmdbuf[3],
-                    t->scsi_cmdbuf[4], t->scsi_cmdbuf[5], lun);
+    {
+        SCSIHDD_Log(hdd, "CDB op=0x%02X cdb=%02X,%02X,%02X,%02X,%02X lun=%d", cmd,
+                    t->scsi_cmdbuf[1], t->scsi_cmdbuf[2], t->scsi_cmdbuf[3], t->scsi_cmdbuf[4],
+                    t->scsi_cmdbuf[5], lun);
+    }
 
     /* LUNs other than 0 are rejected, except for the three commands that must
      * always answer (SCSIHDDMicropolis.scsi_command). */
@@ -542,12 +582,16 @@ static void SCSIHDD_Command(SCSITarget *t)
         hdd->lba = (int)(scsi_get_u24be(&t->scsi_cmdbuf[1]) & 0x1fffff);
         hdd->blocks = t->scsi_cmdbuf[4];
         if (hdd->blocks == 0)
+        {
             hdd->blocks = 256;
+        }
 
         SCSIHDD_Log(hdd, "command READ(6) lba=%d blocks=%d", hdd->lba, hdd->blocks);
 
         if ((uint32_t)hdd->lba > DiskSCSI_LastLBA(&hdd->hdinfo))
+        {
             hdd->sectorDataValid = false;
+        }
         else
         {
             hdd->sectorDataValid = SCSIHDD_ReadBlock(hdd, hdd->lba);
@@ -570,7 +614,9 @@ static void SCSIHDD_Command(SCSITarget *t)
         hdd->lba = (int)(scsi_get_u24be(&t->scsi_cmdbuf[1]) & 0x1fffff);
         hdd->blocks = t->scsi_cmdbuf[4];
         if (hdd->blocks == 0)
+        {
             hdd->blocks = 256;
+        }
 
         SCSIHDD_Log(hdd, "command WRITE(6) lba=%d blocks=%d", hdd->lba, hdd->blocks);
 
@@ -622,14 +668,16 @@ static void SCSIHDD_Command(SCSITarget *t)
             t->scsi_sense_buffer[0] = SK_HARDWARE_ERROR;
         }
         else
+        {
             SCSITarget_StatusComplete(t, SS_GOOD);
+        }
         break;
 
     case SC_RESERVE_6:
         SCSITarget_StatusComplete(t, SS_GOOD);
         break;
 
-    case SC_INIT_DRIVE_PARAMS:  /* Micropolis vendor 0x0C */
+    case SC_INIT_DRIVE_PARAMS: /* Micropolis vendor 0x0C */
         SCSITarget_DataOut(t, SBUF_DATA, 8);
         SCSITarget_StatusComplete(t, SS_GOOD);
         break;
@@ -637,11 +685,14 @@ static void SCSIHDD_Command(SCSITarget *t)
     case SC_MODE_SELECT_6:
         /* Parameters are accepted and IGNORED - the sector size is fixed at
          * 1024 and never changes, whatever the block descriptor asks for. */
-        SCSIHDD_Log(hdd, "command MODE SELECT(6) paramLen=%d (block descriptor IGNORED, "
-                         "sector size fixed at %u)",
+        SCSIHDD_Log(hdd,
+                    "command MODE SELECT(6) paramLen=%d (block descriptor IGNORED, "
+                    "sector size fixed at %u)",
                     t->scsi_cmdbuf[4], hdd->hdinfo.sectorbytes);
         if (t->scsi_cmdbuf[4] != 0)
+        {
             SCSITarget_DataOut(t, SBUF_DATA, t->scsi_cmdbuf[4]);
+        }
         SCSITarget_StatusComplete(t, SS_GOOD);
         break;
 
@@ -658,9 +709,13 @@ static void SCSIHDD_Command(SCSITarget *t)
 
     case SC_VERIFY_10:
         if ((t->scsi_cmdbuf[1] & 0x02) == 0)
+        {
             SCSITarget_StatusComplete(t, SS_GOOD);
+        }
         else
+        {
             SCSITarget_ReportBadCmd(t, cmd);
+        }
         break;
 
     case SC_FORMAT_UNIT:
@@ -695,16 +750,20 @@ static void SCSIHDD_Command(SCSITarget *t)
 
         t->scsi_cmdbuf[pos++] = 0;
         t->scsi_cmdbuf[pos++] = 6;
-        t->scsi_cmdbuf[pos++] = 0;  /* ROM is OK */
-        t->scsi_cmdbuf[pos++] = 0;  /* RAM is OK */
-        t->scsi_cmdbuf[pos++] = 0;  /* Data buffer is OK */
-        t->scsi_cmdbuf[pos++] = 0;  /* Interface is OK */
+        t->scsi_cmdbuf[pos++] = 0; /* ROM is OK */
+        t->scsi_cmdbuf[pos++] = 0; /* RAM is OK */
+        t->scsi_cmdbuf[pos++] = 0; /* Data buffer is OK */
+        t->scsi_cmdbuf[pos++] = 0; /* Interface is OK */
         t->scsi_cmdbuf[pos++] = 0;
         if (cmd == SC_SEND_DIAGNOSTIC)
+        {
             t->scsi_cmdbuf[pos++] = 0;
+        }
 
         if (size > pos)
+        {
             size = pos;
+        }
         SCSITarget_DataIn(t, SBUF_MAIN, size);
         SCSITarget_StatusComplete(t, SS_GOOD);
         break;
@@ -725,7 +784,9 @@ static void SCSIHDD_Command(SCSITarget *t)
 void SCSIHDD_DeviceReset(SCSIHDDDevice *hdd)
 {
     if (!hdd)
+    {
         return;
+    }
 
     SCSITarget_DeviceReset(&hdd->target);
 
@@ -738,8 +799,8 @@ void SCSIHDD_DeviceReset(SCSIHDDDevice *hdd)
 }
 
 
-void SCSIHDD_Init(SCSIHDDDevice *hdd, SCSIBus *bus, uint8_t scsi_id,
-                  struct Device *owner, int unit, SCSIDiskType diskType)
+void SCSIHDD_Init(SCSIHDDDevice *hdd, SCSIBus *bus, uint8_t scsi_id, struct Device *owner, int unit,
+                  SCSIDiskType diskType)
 {
     memset(hdd, 0, sizeof(SCSIHDDDevice));
 

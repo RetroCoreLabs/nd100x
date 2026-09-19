@@ -32,15 +32,18 @@
 #include "disk_smd.h"
 
 // Controller types
+// clang-format off
 typedef enum {
     CONTR_BIG_DISC,      // BIG DISK CONTROLLER (For 33 and 66 MB disks)
     CONTR_ECC_DISC,      // ECC DISK CONTROLLER (30/60/90, 38,75,288,150 MBYTE DISK DRIVES)
     CONTR_SMD_10MHZ,     // 10 MHz SMD Interface (Legacy, should use 15MHz)
     CONTR_SMD_15MHZ      // 15 MHz SMD Interface (ND632)
 } ControllerType;
+// clang-format on
 
 // Disk error codes
-typedef enum {
+typedef enum
+{
     DISK_ERR_NO_DISK_ATTACHED,
     DISK_ERR_ADDRESS_MISMATCH,
     DISK_ERR_SEEK_ERROR,
@@ -55,6 +58,7 @@ typedef enum {
 
 
 // Device operation codes
+// clang-format off
 typedef enum {
     DEVICE_OP_READ_TRANSFER = 0,          // Read Transfer
     DEVICE_OP_WRITE_TRANSFER = 1,         // Write Transfer
@@ -67,19 +71,24 @@ typedef enum {
     DEVICE_OP_RUN_ECC_OPERATION = 8,      // Run ECC Operation
     DEVICE_OP_SELECT_RELEASE = 9          // Select Release
 } DeviceOperation;
+// clang-format on
 
 
 // SMD device registers
 typedef enum
 {
-    SMD_READ_MEMORY_ADDRESS = 0,  // IOX 1540: Read Core Address
-    SMD_LOAD_MEMORY_ADDRESS = 1,  // IOX 1541: Load Core Address
-    SMD_READ_SEEK_CONDITION = 2,  // IOX 1542: Read Seek Condition (CWRBit=0) / Read ECCCount (CWRBit=1)
-    SMD_LOAD_BLOCK_ADDRESS = 3,   // IOX 1543: Load Block Address I (CWRBit=0) / Load Block Address II (CWRBit=1)
-    SMD_READ_STATUS_REGISTER = 4, // IOX 1544: Read Status Register (CWRBit=0) / Read ECC pattern (CWRBit=1)
-    SMD_LOAD_CONTROL_WORD = 5,    // IOX 1545: Load Control Word
-    SMD_READ_BLOCK_ADDRESS = 6,   // IOX 1546: Read Block Address I (CWRBit=0) / Read Block Address II (CWRBit=1)
-    SMD_LOAD_WORD_COUNTER = 7     // IOX 1547: Load Word Count (CWRBit=0) / Load ECC Control (CWRBit=1)
+    SMD_READ_MEMORY_ADDRESS = 0, // IOX 1540: Read Core Address
+    SMD_LOAD_MEMORY_ADDRESS = 1, // IOX 1541: Load Core Address
+    SMD_READ_SEEK_CONDITION =
+        2, // IOX 1542: Read Seek Condition (CWRBit=0) / Read ECCCount (CWRBit=1)
+    SMD_LOAD_BLOCK_ADDRESS =
+        3, // IOX 1543: Load Block Address I (CWRBit=0) / Load Block Address II (CWRBit=1)
+    SMD_READ_STATUS_REGISTER =
+        4, // IOX 1544: Read Status Register (CWRBit=0) / Read ECC pattern (CWRBit=1)
+    SMD_LOAD_CONTROL_WORD = 5, // IOX 1545: Load Control Word
+    SMD_READ_BLOCK_ADDRESS =
+        6, // IOX 1546: Read Block Address I (CWRBit=0) / Read Block Address II (CWRBit=1)
+    SMD_LOAD_WORD_COUNTER = 7 // IOX 1547: Load Word Count (CWRBit=0) / Load ECC Control (CWRBit=1)
 } SMDRegisters;
 
 // Status Register bits
@@ -104,7 +113,7 @@ typedef union
         uint16_t abnormalCompletion : 1;    // Bit 12 (Abnormal completion)
         uint16_t diskUnitNotReady : 1;      // Bit 13 (Disk unit not ready)
         uint16_t onCylinder : 1;            // Bit 14 (OnCylinder)
-        uint16_t registerMultiplexBit : 1;                // Bit 15 (Register Multiplex bit from CWR bit 15)
+        uint16_t registerMultiplexBit : 1;  // Bit 15 (Register Multiplex bit from CWR bit 15)
     } bits;
 } SMDStatusRegister;
 
@@ -124,17 +133,19 @@ typedef union
         uint16_t enableInterruptOnErrors : 1;  // Bit 1: Enable interrupt on errors
         uint16_t active : 1;                   // Bit 2: Active (triggers cylinder seek)
         uint16_t testMode : 1;                 // Bit 3: Test mode
-        uint16_t deviceClear : 1;              // Bit 4: Device clear (clear active flip-flop and controller error)
-        uint16_t addressBit16 : 1;             // Bit 5: Address bit 16 - Extension of core address register
-        uint16_t addressBit17 : 1;             // Bit 6: Address bit 17 - Extension of core address register
-        uint16_t unitSelect : 3;               // Bits 7-9: Unit select (maximum 4 units)
-        uint16_t marginalRecoveryCycle : 1;    // Bit 10: Marginal recovery cycle
+        uint16_t deviceClear
+            : 1; // Bit 4: Device clear (clear active flip-flop and controller error)
+        uint16_t addressBit16 : 1; // Bit 5: Address bit 16 - Extension of core address register
+        uint16_t addressBit17 : 1; // Bit 6: Address bit 17 - Extension of core address register
+        uint16_t unitSelect : 3;   // Bits 7-9: Unit select (maximum 4 units)
+        uint16_t marginalRecoveryCycle : 1; // Bit 10: Marginal recovery cycle
         // Must be uint16_t (not enum DeviceOperation) - see the PANS/PANC
         // note in panel.h: mixed-type bit-fields break on Windows/MinGW
         // where -mms-bitfields splits different-typed fields into separate
         // storage units, destroying the `raw` uint16_t overlay.
-        uint16_t deviceOperation : 4;          // Bits 11-14: Device operation code (see DeviceOperation enum)
-        uint16_t registerMultiplexBit : 1;     // Bit 15: Register multiplex bit
+        uint16_t deviceOperation
+            : 4; // Bits 11-14: Device operation code (see DeviceOperation enum)
+        uint16_t registerMultiplexBit : 1; // Bit 15: Register multiplex bit
     } bits;
 } SMDControlRegister;
 
@@ -186,6 +197,7 @@ typedef union
 } SMDDriveAddress;
 
 // Seek Condition Register bits
+// clang-format off
 typedef union {
     uint16_t raw;
     struct {
@@ -198,12 +210,14 @@ typedef union {
         uint16_t addressField : 1;    // Bit 15: Last field read was address field
     } bits;
 } SMDSeekCondition;
+// clang-format on
 
 
 // Controller registers
-typedef struct {
+typedef struct
+{
 
-/*
+    /*
     bool hardwareError;
     bool hardwareError2;
     bool illegalLoad;
@@ -265,8 +279,8 @@ typedef struct {
 
     // Disk info
     int maxUnits;
-    DiskInfo* disks;
-    DiskInfo* selectedDisk;
+    DiskInfo *disks;
+    DiskInfo *selectedDisk;
 
     // Per-unit "a seek (M4/M7) has been initiated and not yet consumed" mask.
     // M6 (Seek Complete Search) waits for the seek-complete pulse of a

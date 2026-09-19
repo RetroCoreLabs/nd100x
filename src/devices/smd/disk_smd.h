@@ -21,7 +21,6 @@
  */
 
 
-
 #ifndef DISK_SMD_H
 #define DISK_SMD_H
 
@@ -30,7 +29,8 @@
 #include <stdint.h>
 
 // Disk types
-typedef enum {
+typedef enum
+{
     DISK_TYPE_UNKNOWN = 0,
     // ***************
     // 10MHZ drives
@@ -91,6 +91,7 @@ typedef enum {
 } DiskType;
 
 // Disk structure
+// clang-format off
 typedef struct {
     // Is a disk pack actually mounted on this unit, i.e. was an image attached?
     // DISC-TEMA requires that every unit NOT specified for test is powered off
@@ -117,9 +118,10 @@ typedef struct {
     bool readOnly;          // Read-only flag
 
 } DiskInfo;
+// clang-format on
 
 
-void DiskSMD_SetDiskType(DiskInfo *disk,DiskType dt);
+void DiskSMD_SetDiskType(DiskInfo *disk, DiskType dt);
 
 
 #endif /* DISK_SMD_H */

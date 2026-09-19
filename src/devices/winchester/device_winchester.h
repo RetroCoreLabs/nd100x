@@ -76,21 +76,26 @@
 #include "disk_winchester.h"
 
 /* Which card. Status bit 13 distinguishes them on a status read. */
+// clang-format off
 typedef enum {
     WD_CONTR_3041,   /* 5 1/4 inch ST506; status b13 always 1 */
     WD_CONTR_3038    /* 8 inch;         status b13 = read/write gate active */
 } WDControllerType;
+// clang-format on
 
 /* ND-11.015.01 sec 3.1: "Each disk system may consist of 2 disk units", and
  * the control word carries the unit in a SINGLE bit (bit 9), so two is the
  * hardware maximum rather than a configuration choice. */
 #define WD_MAX_UNITS 2
 
+// clang-format off
 #define WD_IDENT_SYSTEM1 001   /* octal, disk system 1 */
 #define WD_IDENT_SYSTEM2 005   /* octal, disk system 2 */
 #define WD_INT_LEVEL     11
+// clang-format on
 
 /* Device operation codes, control word bits 11-13 (sec 3.4). */
+// clang-format off
 typedef enum {
     WD_OP_READ_TRANSFER   = 0,  /* M0 */
     WD_OP_WRITE_TRANSFER  = 1,  /* M1 */
@@ -101,15 +106,18 @@ typedef enum {
     WD_OP_LOAD_CTRL_BITS  = 6,  /* M6 - 3038 only, NOT activated */
     WD_OP_RETURN_TO_ZERO  = 7   /* M7 */
 } WDDeviceOperation;
+// clang-format on
 
 /* Seek direction, control word bit 14 (sec 3.4.5): bit 14 zero means the
  * heads move TOWARDS cylinder 0. */
-typedef enum {
-    WD_SEEK_IN = 0,   /* towards cylinder 0 */
+typedef enum
+{
+    WD_SEEK_IN = 0, /* towards cylinder 0 */
     WD_SEEK_OUT = 1
 } WDSeekDirection;
 
 /* Status register, sec 3.5. */
+// clang-format off
 typedef union {
     uint16_t raw;
     struct {
@@ -131,8 +139,10 @@ typedef union {
         uint16_t notUsed15 : 1;             /* b15 always 0, distinguishes from the 10 Mb controller */
     } bits;
 } WDStatusRegister;
+// clang-format on
 
 /* Control word, sec 3.4. */
+// clang-format off
 typedef union {
     uint16_t raw;
     struct {
@@ -153,8 +163,10 @@ typedef union {
         uint16_t badTrack : 1;                 /* b15   bad track */
     } bits;
 } WDControlRegister;
+// clang-format on
 
 /* Controller register file. */
+// clang-format off
 typedef struct {
     uint16_t memoryAddress;      /* low 16 bits */
     uint8_t  memoryAddressHiBits;/* high 8 bits -> 24-bit address */
@@ -181,8 +193,10 @@ typedef struct {
     WDDiskInfo *disks;
     WDDiskInfo *selectedDisk;
 } WDControllerRegs;
+// clang-format on
 
-typedef struct {
+typedef struct
+{
     WDControllerRegs regs;
     WDStatusRegister statusRegister;
     WDControlRegister controlRegister;

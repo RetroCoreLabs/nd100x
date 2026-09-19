@@ -37,7 +37,9 @@
 uint32_t DiskSCSI_LastLBA(const SCSIDiskInfo *disk)
 {
     if (!disk)
+    {
         return 0;
+    }
 
     /* cylinders * heads * sectors - 1 (see the note in disk_scsi.h: this is the
      * LAST LBA, despite RetroCore naming it DiskSizeInBlocks). */
@@ -54,7 +56,9 @@ static void DiskSCSI_SetField(char *field, size_t width, const char *src)
 
     size_t len = strlen(src);
     if (len > width)
+    {
         len = width;
+    }
     memcpy(field, src, len);
 }
 
@@ -62,7 +66,9 @@ static void DiskSCSI_SetField(char *field, size_t width, const char *src)
 void DiskSCSI_SetDiskType(SCSIDiskInfo *disk, SCSIDiskType dt)
 {
     if (!disk)
+    {
         return;
+    }
 
     memset(disk, 0, sizeof(SCSIDiskInfo));
     disk->diskType = dt;
@@ -72,25 +78,25 @@ void DiskSCSI_SetDiskType(SCSIDiskInfo *disk, SCSIDiskType dt)
     case SCSI_DISK_MICROPOLIS_1375_ND:
         /* Norsk Data ND-100/ND-110 variant.
          * 898 * 8 * 18 * 1024 = 132,415,488 bytes, last LBA 129,311. */
-        disk->cylinders   = 898;
-        disk->heads       = 8;
-        disk->sectors     = 18;
+        disk->cylinders = 898;
+        disk->heads = 8;
+        disk->sectors = 18;
         disk->sectorbytes = 1024;
         DiskSCSI_SetField(disk->vendor, 8, "NDMICROP");
         DiskSCSI_SetField(disk->product, 16, "1375");
         DiskSCSI_SetField(disk->revision, 4, "B0C");
         {
             /* Drive params: {0, 153, 4, 0, 128, 0, 64, 11} */
-            static const uint8_t nd_params[8] = { 0, 153, 4, 0, 128, 0, 64, 11 };
+            static const uint8_t nd_params[8] = {0, 153, 4, 0, 128, 0, 64, 11};
             memcpy(disk->drive_params, nd_params, sizeof(nd_params));
         }
         break;
 
     case SCSI_DISK_MICROPOLIS_1375:
         /* Standard variant - not used by the ND path. */
-        disk->cylinders   = 898;
-        disk->heads       = 8;
-        disk->sectors     = 36;
+        disk->cylinders = 898;
+        disk->heads = 8;
+        disk->sectors = 36;
         disk->sectorbytes = 512;
         DiskSCSI_SetField(disk->vendor, 8, "MICROPOL");
         DiskSCSI_SetField(disk->product, 16, "1375");
@@ -100,9 +106,9 @@ void DiskSCSI_SetDiskType(SCSIDiskInfo *disk, SCSIDiskType dt)
     case SCSI_DISK_MICROPOLIS_1355:
         /* Sun-2 variant. Spec says 1024 cyl / 36 sectors, but the Sun-2 disk
          * uses 1018 / 34. Not used by the ND path. */
-        disk->cylinders   = 1018;
-        disk->heads       = 8;
-        disk->sectors     = 34;
+        disk->cylinders = 1018;
+        disk->heads = 8;
+        disk->sectors = 34;
         disk->sectorbytes = 512;
         DiskSCSI_SetField(disk->vendor, 8, "MICROPOL");
         DiskSCSI_SetField(disk->product, 16, "1355");
@@ -113,9 +119,9 @@ void DiskSCSI_SetDiskType(SCSIDiskInfo *disk, SCSIDiskType dt)
     default:
         /* Defaults from hdinfo's constructor - "set some default values to
          * avoid crash". Same as the ND drive. */
-        disk->cylinders   = 898;
-        disk->heads       = 8;
-        disk->sectors     = 18;
+        disk->cylinders = 898;
+        disk->heads = 8;
+        disk->sectors = 18;
         disk->sectorbytes = 1024;
         DiskSCSI_SetField(disk->vendor, 8, "NDMICROP");
         DiskSCSI_SetField(disk->product, 16, "1375");

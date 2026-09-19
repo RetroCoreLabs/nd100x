@@ -30,6 +30,7 @@
 
 /* SCSI command opcodes (SCSIEnums.cs SCSICommands) - only those the disk
  * target decodes. */
+// clang-format off
 #define SC_TEST_UNIT_READY             0x00
 #define SC_REQUEST_SENSE               0x03
 #define SC_FORMAT_UNIT                 0x04
@@ -48,16 +49,20 @@
 #define SC_WRITE_10                    0x2A
 #define SC_VERIFY_10                   0x2F
 #define SC_READ_BUFFER                 0x3C
+// clang-format on
 
 /* Micropolis vendor-specific commands. */
+// clang-format off
 #define SC_INIT_DRIVE_PARAMS           0x0C
 #define SC_FORMAT_ALT_TRACK            0x0E
 #define SC_WRITE_SECTOR_BUFFER         0x0F
 #define SC_READ_SECTOR_BUFFER          0x10
+// clang-format on
 
 #define SCSI_HDD_MAX_SECTOR_BYTES 1024
 #define SCSI_HDD_INQUIRY_SIZE     56
 
+// clang-format off
 typedef struct {
     SCSITarget target;      /* must be first - SCSITarget.impl points back here */
 
@@ -77,11 +82,12 @@ typedef struct {
 
     uint8_t inquiry_data[SCSI_HDD_INQUIRY_SIZE];
 } SCSIHDDDevice;
+// clang-format on
 
 /* Attach a hard disk target to the bus at scsi_id, backed by owner's block
  * callbacks on the given unit. */
-void SCSIHDD_Init(SCSIHDDDevice *hdd, SCSIBus *bus, uint8_t scsi_id,
-                  struct Device *owner, int unit, SCSIDiskType diskType);
+void SCSIHDD_Init(SCSIHDDDevice *hdd, SCSIBus *bus, uint8_t scsi_id, struct Device *owner, int unit,
+                  SCSIDiskType diskType);
 
 void SCSIHDD_DeviceReset(SCSIHDDDevice *hdd);
 

@@ -38,14 +38,17 @@
  */
 
 // Line printer registers
+// clang-format off
 typedef enum {
     LP_READ_DATA_REGISTER = 0,     // +0: Read data (test mode only)
     LP_WRITE_DATA_BUFFER = 1,      // +1: Write data (7-bit ASCII)
     LP_READ_STATUS_REGISTER = 2,   // +2: Read status
     LP_WRITE_CONTROL_WORD = 3      // +3: Write control
 } LinePrinterRegisters;
+// clang-format on
 
 // Status register bits (IOX +2, Read)
+// clang-format off
 typedef union {
     uint16_t raw;
     struct {
@@ -67,8 +70,10 @@ typedef union {
         uint16_t notUsed15 : 1;            // Bit 15: Not used
     } bits;
 } LinePrinterStatus;
+// clang-format on
 
 // Control word bits (IOX +3, Write)
+// clang-format off
 typedef union {
     uint16_t raw;
     struct {
@@ -80,15 +85,17 @@ typedef union {
         uint16_t notUsed5 : 11;            // Bits 5-15: Not used
     } bits;
 } LinePrinterControl;
+// clang-format on
 
 // Line printer device data
-typedef struct {
+typedef struct
+{
     uint8_t characterBuffer;
     LinePrinterStatus statusRegister;
     LinePrinterControl controlWord;
 } LinePrinterData;
 
 // Function declarations
-Device* CreateLinePrinterDevice(uint8_t thumbwheel);
+Device *CreateLinePrinterDevice(uint8_t thumbwheel);
 
 #endif /* DEVICE_LINEPRINTER_H */

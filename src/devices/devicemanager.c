@@ -145,14 +145,16 @@ bool DeviceManager_AddSCSIDevice_WithConfig(int thumbwheel, const SCSIUnitType *
 
     if (success && unitTypes)
     {
-        static const uint16_t scsiBaseAddr[] = { 0144300, 0144400, 0144500, 0144600 };
+        static const uint16_t scsiBaseAddr[] = {0144300, 0144400, 0144500, 0144600};
         Device *dev = DeviceManager_GetDeviceByAddress(scsiBaseAddr[thumbwheel & 0x03]);
         if (dev)
         {
             for (int unit = 0; unit < SCSI_MAX_UNITS; unit++)
             {
                 if (unitTypes[unit] != SCSI_UNIT_NONE)
+                {
                     SCSI_SetUnitType(dev, unit, unitTypes[unit]);
+                }
             }
         }
     }
@@ -160,19 +162,24 @@ bool DeviceManager_AddSCSIDevice_WithConfig(int thumbwheel, const SCSIUnitType *
     return success;
 }
 
-bool DeviceManager_AddHDLCDevice_WithConfig(int thumbwheel, bool isServer, const char *address, int port)
+bool DeviceManager_AddHDLCDevice_WithConfig(int thumbwheel, bool isServer, const char *address,
+                                            int port)
 {
     bool success = DeviceManager_AddDevice(DEVICE_TYPE_HDLC, (uint8_t)thumbwheel);
 
-    if (success) {
+    if (success)
+    {
         // Find the just-added device and start its modem with TCP config
         // HDLC base addresses: thumbwheel 1=01640, 2=01660, 3=01700, 4=01720
-        static const uint16_t hdlcBaseAddr[] = { 0, 01640, 01660, 01700, 01720 };
-        if (thumbwheel >= 1 && thumbwheel <= 4) {
+        static const uint16_t hdlcBaseAddr[] = {0, 01640, 01660, 01700, 01720};
+        if (thumbwheel >= 1 && thumbwheel <= 4)
+        {
             Device *dev = DeviceManager_GetDeviceByAddress(hdlcBaseAddr[thumbwheel]);
-            if (dev && dev->deviceData) {
+            if (dev && dev->deviceData)
+            {
                 HDLCData *data = (HDLCData *)dev->deviceData;
-                if (data->modem) {
+                if (data->modem)
+                {
                     Modem_StartModem(data->modem, isServer, address, port);
                 }
             }
@@ -326,7 +333,8 @@ bool DeviceManager_AddDevice(DeviceType type, uint8_t thumbwheel)
     // Check if we have capacity
     if (deviceManager.deviceCount >= deviceManager.deviceCapacity)
     {
-        LOG(LOG_CAT_DEVICE, LOG_ERROR, "Failed to add device: device array is full (capacity: %d, count: %d)\n",
+        LOG(LOG_CAT_DEVICE, LOG_ERROR,
+            "Failed to add device: device array is full (capacity: %d, count: %d)\n",
             deviceManager.deviceCapacity, deviceManager.deviceCount);
         return false;
     }
@@ -345,15 +353,16 @@ bool DeviceManager_AddDevice(DeviceType type, uint8_t thumbwheel)
         {
             Device *other = deviceManager.devices[i].device;
             if (!other)
+            {
                 continue;
-            if (dev->startAddress <= other->endAddress &&
-                other->startAddress <= dev->endAddress)
+            }
+            if (dev->startAddress <= other->endAddress && other->startAddress <= dev->endAddress)
             {
                 LOG(LOG_CAT_DEVICE, LOG_ERROR,
                     "Refusing to add '%s' (IOX %o-%o): that address block is already "
                     "answered by '%s' (IOX %o-%o). These cards cannot both be fitted.\n",
-                    dev->memoryName, dev->startAddress, dev->endAddress,
-                    other->memoryName, other->startAddress, other->endAddress);
+                    dev->memoryName, dev->startAddress, dev->endAddress, other->memoryName,
+                    other->startAddress, other->endAddress);
                 Device_Destroy(dev);
                 free(dev);
                 return false;
@@ -362,7 +371,8 @@ bool DeviceManager_AddDevice(DeviceType type, uint8_t thumbwheel)
 
         deviceManager.devices[deviceManager.deviceCount].device = dev;
         // If this is a block device, hook up machine-level block IO callbacks
-        if (dev->deviceClass == DEVICE_CLASS_BLOCK) {
+        if (dev->deviceClass == DEVICE_CLASS_BLOCK)
+        {
             Device_SetBlockRead(dev, machine_block_read, NULL);
             Device_SetBlockWrite(dev, machine_block_write, NULL);
             Device_SetBlockDiskInfo(dev, machine_block_disk_info, NULL);
@@ -444,7 +454,7 @@ int DeviceManager_Ident(uint16_t level)
     }
 
     // interrupt(14,1<<7); /* IOX error lvl14 */
-     LOG(LOG_CAT_DEVICE, LOG_DEBUG, "No device found for IDENT level: %d\n", level);
+    LOG(LOG_CAT_DEVICE, LOG_DEBUG, "No device found for IDENT level: %d\n", level);
 
     return 0;
 }
@@ -484,7 +494,10 @@ int DeviceManager_GetDeviceCount(void)
 
 Device *DeviceManager_GetDeviceByIndex(int index)
 {
-    if (index < 0 || index >= deviceManager.deviceCount) return NULL;
+    if (index < 0 || index >= deviceManager.deviceCount)
+    {
+        return NULL;
+    }
     return deviceManager.devices[index].device;
 }
 
@@ -506,11 +519,15 @@ bool DeviceManager_IotOp(uint8_t devno, uint8_t func, uint16_t *regA, bool *skip
     {
         Device *dev = deviceManager.devices[i].device;
         if (!dev || !dev->IotOp || dev->nord1Device == 0)
+        {
             continue;
+        }
         uint16_t first = dev->nord1Device;
         uint16_t count = dev->nord1DeviceCount ? dev->nord1DeviceCount : 1;
         if (devno >= first && devno < first + count)
+        {
             return dev->IotOp(dev, devno, func, regA, skip);
+        }
     }
     return false;
 }

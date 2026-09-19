@@ -28,29 +28,21 @@
 #include <inttypes.h>
 
 #include "devices_types.h"
-#include "../cpu/cpu_types.h"   /* gDMAAccess */
+#include "../cpu/cpu_types.h" /* gDMAAccess */
 #include "devices_protos.h"
 
 #define INITIAL_IO_DELAY_CAPACITY 16
 
 // Odd parity lookup table
 const uint8_t g_odd_parity_table[PARITY_TABLE_SIZE] = {
-    0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0,
-    1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1,
-    1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1,
-    0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0,
-    1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1,
-    0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0,
-    0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0,
-    1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1,
-    1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1,
-    0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0,
-    0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0,
-    1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1,
-    0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0,
-    1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1,
-    1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1,
-    0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0};
+    0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1,
+    1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0,
+    1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0,
+    0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1,
+    1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0,
+    0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1,
+    0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1,
+    1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0};
 
 // Helper function to get odd parity for a value
 uint8_t Device_GetOddParity(uint8_t value)
@@ -63,7 +55,9 @@ void Device_Init(Device *dev, uint8_t thumbwheel, DeviceClass deviceClass, size_
 {
     (void)thumbwheel;
     if (!dev)
+    {
         return;
+    }
 
     // Clear all fields
     memset(dev, 0, sizeof(Device));
@@ -85,30 +79,33 @@ void Device_Init(Device *dev, uint8_t thumbwheel, DeviceClass deviceClass, size_
     }
 
     // Initialize based on device class
-    switch (deviceClass) {
-        case DEVICE_CLASS_CHARACTER:
-            // Initialize character device callbacks
-            memset(&dev->charCallbacks, 0, sizeof(CharacterDeviceCallbacks));
-            break;
+    switch (deviceClass)
+    {
+    case DEVICE_CLASS_CHARACTER:
+        // Initialize character device callbacks
+        memset(&dev->charCallbacks, 0, sizeof(CharacterDeviceCallbacks));
+        break;
 
-        case DEVICE_CLASS_BLOCK:
-            // Initialize block device callbacks
-            memset(&dev->blockCallbacks, 0, sizeof(BlockDeviceCallbacks));
-            dev->blockSizeBytes = (blockSize > 0 && blockSize <= MAX_BLOCK_SIZE) ? blockSize : 1024;
-            break;
+    case DEVICE_CLASS_BLOCK:
+        // Initialize block device callbacks
+        memset(&dev->blockCallbacks, 0, sizeof(BlockDeviceCallbacks));
+        dev->blockSizeBytes = (blockSize > 0 && blockSize <= MAX_BLOCK_SIZE) ? blockSize : 1024;
+        break;
 
-        case DEVICE_CLASS_RTC:
-        case DEVICE_CLASS_STANDARD:
-        default:
-            // No special initialization needed
-            break;
+    case DEVICE_CLASS_RTC:
+    case DEVICE_CLASS_STANDARD:
+    default:
+        // No special initialization needed
+        break;
     }
 }
 
 void Device_Destroy(Device *dev)
 {
     if (!dev)
+    {
         return;
+    }
 
     // Call device-specific cleanup if it exists
     if (dev->Destroy)
@@ -132,14 +129,18 @@ void Device_Destroy(Device *dev)
 void Device_Reset(Device *dev)
 {
     if (!dev || !dev->Reset)
+    {
         return;
+    }
     dev->Reset(dev);
 }
 
 uint16_t Device_Tick(Device *dev)
 {
     if (!dev || !dev->Tick)
+    {
         return 0;
+    }
     return dev->Tick(dev);
 }
 
@@ -148,9 +149,13 @@ uint16_t Device_Tick(Device *dev)
 int32_t Device_Boot(Device *dev, int unit)
 {
     if (!dev)
+    {
         return -1;
+    }
     if (dev->Boot == NULL)
+    {
         return -1; // No boot function defined
+    }
 
     return dev->Boot(dev, unit);
 }
@@ -158,42 +163,55 @@ int32_t Device_Boot(Device *dev, int unit)
 bool Device_IsInAddress(Device *dev, uint32_t address)
 {
     if (!dev)
+    {
         return false;
+    }
     return (address >= dev->startAddress && address <= dev->endAddress);
 }
 
 uint32_t Device_RegisterAddress(Device *dev, uint32_t address)
 {
     if (!dev)
+    {
         return 0;
+    }
     return address - dev->startAddress;
 }
 
 uint16_t Device_Read(Device *dev, uint32_t address)
 {
     if (!dev || !dev->Read)
+    {
         return 0;
+    }
     return dev->Read(dev, address);
 }
 
 void Device_Write(Device *dev, uint32_t address, uint16_t value)
 {
     if (!dev || !dev->Write)
+    {
         return;
+    }
     dev->Write(dev, address, value);
 }
 
 uint16_t Device_Ident(Device *dev, uint16_t level)
 {
     if (!dev || !dev->Ident)
+    {
         return 0;
+    }
     return dev->Ident(dev, level);
 }
 
-void Device_QueueIODelay(Device *dev, uint16_t ticks, IODelayedCallback cb, int param, uint8_t irqlevel)
+void Device_QueueIODelay(Device *dev, uint16_t ticks, IODelayedCallback cb, int param,
+                         uint8_t irqlevel)
 {
     if (!dev || !dev->ioDelays)
+    {
         return;
+    }
 
     // Resize array if needed
     if (dev->ioDelayCount >= dev->ioDelayCapacity)
@@ -201,7 +219,9 @@ void Device_QueueIODelay(Device *dev, uint16_t ticks, IODelayedCallback cb, int 
         int newCapacity = dev->ioDelayCapacity * 2;
         DelayedIoInfo *newDelays = realloc(dev->ioDelays, sizeof(DelayedIoInfo) * newCapacity);
         if (!newDelays)
+        {
             return;
+        }
 
         dev->ioDelays = newDelays;
         dev->ioDelayCapacity = newCapacity;
@@ -219,7 +239,9 @@ void Device_QueueIODelay(Device *dev, uint16_t ticks, IODelayedCallback cb, int 
 void Device_TickIODelay(Device *dev)
 {
     if (!dev || !dev->ioDelays)
+    {
         return;
+    }
 
     for (int i = 0; i < dev->ioDelayCount; i++)
     {
@@ -234,7 +256,8 @@ void Device_TickIODelay(Device *dev)
                 Device_GenerateInterrupt(dev, delay->level);
             }
             // Remove this delay by shifting remaining ones
-            memmove(&dev->ioDelays[i], &dev->ioDelays[i + 1], (dev->ioDelayCount - i - 1) * sizeof(DelayedIoInfo));
+            memmove(&dev->ioDelays[i], &dev->ioDelays[i + 1],
+                    (dev->ioDelayCount - i - 1) * sizeof(DelayedIoInfo));
             dev->ioDelayCount--;
             i--; // Recheck this position
         }
@@ -244,7 +267,9 @@ void Device_TickIODelay(Device *dev)
 void Device_ClearInterrupt(Device *dev, uint16_t level)
 {
     if (!dev)
+    {
         return;
+    }
 
     if ((level >= 10) && (level <= 13))
     {
@@ -258,7 +283,9 @@ void Device_ClearInterrupt(Device *dev, uint16_t level)
 void Device_GenerateInterrupt(Device *dev, uint16_t level)
 {
     if (!dev)
+    {
         return;
+    }
 
     if ((level >= 10) && (level <= 13))
     {
@@ -272,7 +299,9 @@ void Device_GenerateInterrupt(Device *dev, uint16_t level)
 void Device_SetInterruptStatus(Device *dev, bool active, uint16_t level)
 {
     if (!dev)
+    {
         return;
+    }
 
     if (active)
     {
@@ -284,10 +313,13 @@ void Device_SetInterruptStatus(Device *dev, bool active, uint16_t level)
     }
 }
 
-int32_t Device_IO_Seek(Device *dev, FILE *f, long  offset)
+int32_t Device_IO_Seek(Device *dev, FILE *f, long offset)
 {
     (void)dev;
-    if (!f) return -1;
+    if (!f)
+    {
+        return -1;
+    }
     return fseek(f, offset, SEEK_SET);
 }
 
@@ -296,16 +328,22 @@ int32_t Device_IO_ReadWord(Device *dev, FILE *f)
 {
     (void)dev;
     if (!f)
+    {
         return -1;
+    }
 
     int16_t hi = getc(f);
     if (hi < 0)
+    {
         return -1;
+    }
     hi = hi & 0xFF;
 
     int16_t lo = getc(f);
     if (lo < 0)
+    {
         return -1;
+    }
     lo = lo & 0xFF;
 
     return (hi << 8) | lo;
@@ -315,36 +353,45 @@ int32_t Device_IO_BufferReadWord(Device *dev, uint8_t *buf, int32_t word_offset)
 {
     (void)dev;
     if (!buf)
+    {
         return -1;
+    }
 
     int32_t offset = word_offset * 2;
 
     int16_t hi = buf[offset];
     if (hi < 0)
+    {
         return -1;
+    }
     hi = hi & 0xFF;
 
     int16_t lo = buf[offset + 1];
     if (lo < 0)
+    {
         return -1;
+    }
     lo = lo & 0xFF;
 
     return (hi << 8) | lo;
 }
 
 
-
 int32_t Device_IO_WriteWord(Device *dev, FILE *f, uint16_t data)
 {
     (void)dev;
     if (!f)
+    {
         return -1;
+    }
 
     uint8_t hi = (data >> 8) & 0xFF;
     uint8_t lo = data & 0xFF;
 
-    if (putc(hi, f) == EOF || putc(lo, f) == EOF) {
-        if (ferror(f)) {
+    if (putc(hi, f) == EOF || putc(lo, f) == EOF)
+    {
+        if (ferror(f))
+        {
             LOG(LOG_CAT_DEVICE, LOG_ERROR, "Write failed: %s", strerror(errno));
         }
         return -1;
@@ -353,11 +400,13 @@ int32_t Device_IO_WriteWord(Device *dev, FILE *f, uint16_t data)
     return 0;
 }
 
-int32_t Device_IO_BufferWriteWord(Device *dev,uint8_t *buf, int32_t word_offset, uint16_t data)
+int32_t Device_IO_BufferWriteWord(Device *dev, uint8_t *buf, int32_t word_offset, uint16_t data)
 {
     (void)dev;
     if (!buf)
+    {
         return -1;
+    }
 
     uint8_t hi = (data >> 8) & 0xFF;
     uint8_t lo = data & 0xFF;
@@ -373,7 +422,8 @@ int32_t Device_IO_BufferWriteWord(Device *dev,uint8_t *buf, int32_t word_offset,
 // DMA bypasses shadow memory (page tables) - it's a physical bus transfer.
 // Set g_dma_access so IsAddressShadowMemory skips the shadow check.
 
-void Device_DMAWrite(uint32_t coreAddress, uint16_t data) {
+void Device_DMAWrite(uint32_t coreAddress, uint16_t data)
+{
     g_dma_access = true;
     WritePhysicalMemory(coreAddress & 0xFFFFFF, data, false);
     g_dma_access = false;
@@ -393,7 +443,9 @@ int32_t Device_DMARead(uint32_t coreAddress)
 void Device_SetCharacterOutput(Device *dev, CharacterDeviceOutputFunc outputFunc)
 {
     if (!dev || dev->deviceClass != DEVICE_CLASS_CHARACTER)
+    {
         return;
+    }
 
     dev->charCallbacks.outputFunc = outputFunc;
 }
@@ -402,7 +454,9 @@ void Device_SetCharacterOutput(Device *dev, CharacterDeviceOutputFunc outputFunc
 void Device_SetCharacterInput(Device *dev, CharacterDeviceInputFunc inputFunc)
 {
     if (!dev || dev->deviceClass != DEVICE_CLASS_CHARACTER)
+    {
         return;
+    }
 
     dev->charCallbacks.inputFunc = inputFunc;
 }
@@ -411,7 +465,9 @@ void Device_SetCharacterInput(Device *dev, CharacterDeviceInputFunc inputFunc)
 void Device_OutputCharacter(Device *dev, char c)
 {
     if (!dev || dev->deviceClass != DEVICE_CLASS_CHARACTER || !dev->charCallbacks.outputFunc)
+    {
         return;
+    }
 
     dev->charCallbacks.outputFunc(dev, c);
 }
@@ -420,7 +476,9 @@ void Device_OutputCharacter(Device *dev, char c)
 void Device_InputCharacter(Device *dev, char c)
 {
     if (!dev || dev->deviceClass != DEVICE_CLASS_CHARACTER || !dev->charCallbacks.inputFunc)
+    {
         return;
+    }
 
     dev->charCallbacks.inputFunc(dev, c);
 }
@@ -431,7 +489,9 @@ void Device_InputCharacter(Device *dev, char c)
 void Device_SetBlockRead(Device *dev, BlockDeviceReadFunc readFunc, void *userData)
 {
     if (!dev || dev->deviceClass != DEVICE_CLASS_BLOCK)
+    {
         return;
+    }
 
     dev->blockCallbacks.readFunc = readFunc;
     dev->blockCallbacks.userData = userData;
@@ -441,10 +501,13 @@ void Device_SetBlockRead(Device *dev, BlockDeviceReadFunc readFunc, void *userDa
 void Device_SetBlockWrite(Device *dev, BlockDeviceWriteFunc writeFunc, void *userData)
 {
     if (!dev || dev->deviceClass != DEVICE_CLASS_BLOCK)
+    {
         return;
+    }
 
     dev->blockCallbacks.writeFunc = writeFunc;
-    if (userData != NULL) {
+    if (userData != NULL)
+    {
         dev->blockCallbacks.userData = userData;
     }
 }
@@ -453,9 +516,12 @@ void Device_SetBlockWrite(Device *dev, BlockDeviceWriteFunc writeFunc, void *use
 void Device_SetBlockDiskInfo(Device *dev, BlockDeviceDiskInfoFunc infoFunc, void *userData)
 {
     if (!dev || dev->deviceClass != DEVICE_CLASS_BLOCK)
+    {
         return;
+    }
     dev->blockCallbacks.diskInfoFunc = infoFunc;
-    if (userData != NULL) {
+    if (userData != NULL)
+    {
         dev->blockCallbacks.userData = userData;
     }
 }
@@ -464,17 +530,22 @@ void Device_SetBlockDiskInfo(Device *dev, BlockDeviceDiskInfoFunc infoFunc, void
 int Device_ReadBlock(Device *dev, uint8_t *buffer, size_t size, uint32_t blockAddress, int unit)
 {
     if (!dev || dev->deviceClass != DEVICE_CLASS_BLOCK || !dev->blockCallbacks.readFunc || !buffer)
+    {
         return -1;
+    }
 
     // The controller must pass the correct size for the current transfer
     return dev->blockCallbacks.readFunc(dev, buffer, size, blockAddress, unit);
 }
 
 // Write blocks to the device; returns number of blocks written, or -1 on error
-int Device_WriteBlock(Device *dev, const uint8_t *buffer, size_t size, uint32_t blockAddress, int unit)
+int Device_WriteBlock(Device *dev, const uint8_t *buffer, size_t size, uint32_t blockAddress,
+                      int unit)
 {
     if (!dev || dev->deviceClass != DEVICE_CLASS_BLOCK || !dev->blockCallbacks.writeFunc || !buffer)
+    {
         return -1;
+    }
 
     // The controller must pass the correct size for the current transfer
     return dev->blockCallbacks.writeFunc(dev, buffer, size, blockAddress, unit);

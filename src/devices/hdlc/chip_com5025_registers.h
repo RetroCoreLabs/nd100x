@@ -28,14 +28,16 @@
 #include "hdlc_constants.h"
 
 // Timer flags
-typedef enum {
+typedef enum
+{
     COM5025_TIMER_TX = 1 << 0,
     COM5025_TIMER_RX = 1 << 1,
     COM5025_TIMER_BOTH = (COM5025_TIMER_TX | COM5025_TIMER_RX)
 } COM5025TimerFlags;
 
 // CRC Mode
-typedef enum {
+typedef enum
+{
     COM5025_CRC_MODE_CCITT_INIT_TO_1 = 0,
     COM5025_CRC_MODE_CCITT_INIT_TO_0 = 1,
     COM5025_CRC_MODE_NOT_USED_1 = 2,
@@ -47,7 +49,8 @@ typedef enum {
 } COM5025CrcMode;
 
 // Transmitter State
-typedef enum {
+typedef enum
+{
     COM5025_TX_STATE_IDLE,
     COM5025_TX_STATE_SENDING_FLAGS,
     COM5025_TX_STATE_SENDING_DATA,
@@ -57,7 +60,8 @@ typedef enum {
 } COM5025TXState;
 
 // Receiver State
-typedef enum {
+typedef enum
+{
     COM5025_RX_STATE_IDLE,
     COM5025_RX_STATE_HUNT_SYNC,
     COM5025_RX_STATE_RECEIVING_DATA,
@@ -67,7 +71,8 @@ typedef enum {
 } COM5025RXState;
 
 // IO Timer structure
-typedef struct {
+typedef struct
+{
     int ticks;
     int param;
     bool active;
@@ -77,20 +82,23 @@ typedef struct {
 } COM5025IOTimer;
 
 // Receive queue node
-typedef struct COM5025ReceiveQueueNode {
+typedef struct COM5025ReceiveQueueNode
+{
     uint16_t data;
     struct COM5025ReceiveQueueNode *next;
 } COM5025ReceiveQueueNode;
 
 // Receive queue
-typedef struct {
+typedef struct
+{
     COM5025ReceiveQueueNode *head;
     COM5025ReceiveQueueNode *tail;
     int count;
 } COM5025ReceiveQueue;
 
 // Register structure
-typedef struct {
+typedef struct
+{
     // Status and control registers
     uint16_t receiverStatus;
     uint16_t txStatusAndControl;
@@ -153,7 +161,8 @@ bool COM5025Registers_IsProtocolModeCCP(COM5025Registers *regs);
 // Timer functions
 void COM5025Registers_SetClockSpeed(COM5025Registers *regs, int speed);
 void COM5025Registers_Clock(COM5025Registers *regs);
-void COM5025Registers_AdjustTimer(COM5025Registers *regs, int ticks, int param, COM5025TimerFlags timer);
+void COM5025Registers_AdjustTimer(COM5025Registers *regs, int ticks, int param,
+                                  COM5025TimerFlags timer);
 
 // Receive queue functions
 bool COM5025Registers_QueueReceivedData(COM5025Registers *regs, uint16_t data);
@@ -177,7 +186,8 @@ uint16_t COM5025Registers_CalcCRC(COM5025Registers *regs, uint16_t crc, uint8_t 
 // Timer callback setup
 void COM5025IOTimer_Init(COM5025IOTimer *timer);
 void COM5025IOTimer_Clear(COM5025IOTimer *timer);
-void COM5025IOTimer_SetCallback(COM5025IOTimer *timer, void (*callback)(void *context, int param), void *context);
+void COM5025IOTimer_SetCallback(COM5025IOTimer *timer, void (*callback)(void *context, int param),
+                                void *context);
 void COM5025IOTimer_SetClockSpeed(COM5025IOTimer *timer, int speed);
 void COM5025IOTimer_AdjustTimer(COM5025IOTimer *timer, int ticks, int param, bool enable);
 void COM5025IOTimer_Clock(COM5025IOTimer *timer);

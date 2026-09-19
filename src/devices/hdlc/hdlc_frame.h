@@ -26,19 +26,21 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define HDLC_FLAG 0x7E
-#define HDLC_ESCAPE 0x7D
-#define HDLC_ESCAPE_MASK 0x20
+#define HDLC_FLAG           0x7E
+#define HDLC_ESCAPE         0x7D
+#define HDLC_ESCAPE_MASK    0x20
 #define HDLC_MAX_FRAME_SIZE 1024
 
-typedef enum {
+typedef enum
+{
     HDLC_STATE_IDLE,
     HDLC_STATE_RECEIVING,
     HDLC_STATE_ESCAPE,
     HDLC_STATE_ERROR
 } HDLCReceiveState;
 
-typedef struct HDLCFrame {
+typedef struct HDLCFrame
+{
     HDLCReceiveState state;
     uint8_t frameBuffer[HDLC_MAX_FRAME_SIZE];
     uint8_t prevByte; // For detecting consecutive flags
@@ -60,11 +62,12 @@ bool HDLCFrame_AddByte(HDLCFrame *frame, uint8_t data);
 bool HDLCFrame_IsFrameComplete(HDLCFrame *frame);
 bool HDLCFrame_IsCRCValid(HDLCFrame *frame);
 int HDLCFrame_GetFrameLength(HDLCFrame *frame);
-const uint8_t* HDLCFrame_GetFrameData(HDLCFrame *frame);
+const uint8_t *HDLCFrame_GetFrameData(HDLCFrame *frame);
 void HDLCFrame_AddBytes(HDLCFrame *frame, const uint8_t *data, int length); // for unit testing
 
 // Frame building
-int HDLCFrame_BuildFrame(const uint8_t *data, int dataLength, uint8_t *outputBuffer, int bufferSize);
+int HDLCFrame_BuildFrame(const uint8_t *data, int dataLength, uint8_t *outputBuffer,
+                         int bufferSize);
 int HDLCFrame_StuffByte(uint8_t data, uint8_t *outputBuffer, int bufferSize, int *outputIndex);
 uint8_t HDLCFrame_DestuffByte(uint8_t data);
 

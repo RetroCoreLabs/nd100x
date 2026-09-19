@@ -30,18 +30,26 @@
 #include "hdlc_crc.h"
 
 // Standard HDLC FCS: init=0xFFFF, good residue=0xF0B8
+// clang-format off
 #define HDLC_FCS_INIT  0xFFFF
 #define HDLC_FCS_GOOD  0xF0B8
+// clang-format on
 
 void HDLCFrame_Init(HDLCFrame *frame)
 {
-    if (!frame) return;
+    if (!frame)
+    {
+        return;
+    }
     HDLCFrame_Reset(frame);
 }
 
 void HDLCFrame_Reset(HDLCFrame *frame)
 {
-    if (!frame) return;
+    if (!frame)
+    {
+        return;
+    }
 
     frame->state = HDLC_STATE_IDLE;
     frame->frameLength = 0;
@@ -59,8 +67,12 @@ uint16_t HDLCFrame_UpdateCRC(uint16_t crc, uint8_t data)
 uint16_t HDLCFrame_CalculateCRC(const uint8_t *data, int length)
 {
     uint16_t crc = HDLC_FCS_INIT;
-    if (!data) return crc;
-    for (int i = 0; i < length; i++) {
+    if (!data)
+    {
+        return crc;
+    }
+    for (int i = 0; i < length; i++)
+    {
         crc = HDLC_CRC_CalcCCITT(crc, data[i]);
     }
     return crc;
@@ -84,70 +96,93 @@ void HDLCFrame_AddBytes(HDLCFrame *frame, const uint8_t *data, int length)
 // -----------------------------------------------------------------------
 bool HDLCFrame_AddByte(HDLCFrame *frame, uint8_t data)
 {
-    if (!frame) return false;
+    if (!frame)
+    {
+        return false;
+    }
 
-    switch (frame->state) {
-        case HDLC_STATE_IDLE:
-            if (data == HDLC_FLAG) {
+    switch (frame->state)
+    {
+    case HDLC_STATE_IDLE:
+        if (data == HDLC_FLAG)
+        {
+            HDLCFrame_Reset(frame);
+            frame->state = HDLC_STATE_RECEIVING;
+        }
+        break;
+
+    case HDLC_STATE_RECEIVING:
+        if (data == HDLC_FLAG)
+        {
+            if (frame->prevByte == HDLC_FLAG)
+            {
+                return false; // Ignore consecutive flags - still waiting for frame data
+            }
+
+            if (frame->frameLength >= 2)
+            {
+                // Frame complete - check CRC residue
+                // CRC was calculated over all bytes including FCS
+                frame->crcValid = (frame->crc == HDLC_FCS_GOOD);
+                frame->frameComplete = true;
+                frame->state = HDLC_STATE_IDLE;
+                return true;
+            }
+            else
+            {
+                // Too short or back-to-back flags, start new frame
                 HDLCFrame_Reset(frame);
                 frame->state = HDLC_STATE_RECEIVING;
             }
-            break;
-
-        case HDLC_STATE_RECEIVING:
-            if (data == HDLC_FLAG) {
-                if (frame->prevByte == HDLC_FLAG)
-                {
-                    return false; // Ignore consecutive flags - still waiting for frame data
-                }
-
-                if (frame->frameLength >= 2) {
-                    // Frame complete - check CRC residue
-                    // CRC was calculated over all bytes including FCS
-                    frame->crcValid = (frame->crc == HDLC_FCS_GOOD);
-                    frame->frameComplete = true;
-                    frame->state = HDLC_STATE_IDLE;
-                    return true;
-                } else {
-                    // Too short or back-to-back flags, start new frame
-                    HDLCFrame_Reset(frame);
-                    frame->state = HDLC_STATE_RECEIVING;
-                }
-            } else if (data == HDLC_ESCAPE) {
-                frame->state = HDLC_STATE_ESCAPE;
-            } else {
-                if (frame->frameLength < HDLC_MAX_FRAME_SIZE) {
-                    frame->frameBuffer[frame->frameLength++] = data;
-                    frame->crc = HDLC_CRC_CalcCCITT(frame->crc, data);
-                } else {
-                    frame->state = HDLC_STATE_ERROR;
-                }
+        }
+        else if (data == HDLC_ESCAPE)
+        {
+            frame->state = HDLC_STATE_ESCAPE;
+        }
+        else
+        {
+            if (frame->frameLength < HDLC_MAX_FRAME_SIZE)
+            {
+                frame->frameBuffer[frame->frameLength++] = data;
+                frame->crc = HDLC_CRC_CalcCCITT(frame->crc, data);
             }
-            break;
-
-        case HDLC_STATE_ESCAPE:
-            if (data == HDLC_FLAG) {
-                // Abort current frame and start new one
-                HDLCFrame_Reset(frame);
-                frame->state = HDLC_STATE_RECEIVING;
-            } else {
-                uint8_t destuffed = data ^ HDLC_ESCAPE_MASK;
-                if (frame->frameLength < HDLC_MAX_FRAME_SIZE) {
-                    frame->frameBuffer[frame->frameLength++] = destuffed;
-                    frame->crc = HDLC_CRC_CalcCCITT(frame->crc, destuffed);
-                    frame->state = HDLC_STATE_RECEIVING;
-                } else {
-                    frame->state = HDLC_STATE_ERROR;
-                }
+            else
+            {
+                frame->state = HDLC_STATE_ERROR;
             }
-            break;
+        }
+        break;
 
-        case HDLC_STATE_ERROR:
-            if (data == HDLC_FLAG) {
-                HDLCFrame_Reset(frame);
+    case HDLC_STATE_ESCAPE:
+        if (data == HDLC_FLAG)
+        {
+            // Abort current frame and start new one
+            HDLCFrame_Reset(frame);
+            frame->state = HDLC_STATE_RECEIVING;
+        }
+        else
+        {
+            uint8_t destuffed = data ^ HDLC_ESCAPE_MASK;
+            if (frame->frameLength < HDLC_MAX_FRAME_SIZE)
+            {
+                frame->frameBuffer[frame->frameLength++] = destuffed;
+                frame->crc = HDLC_CRC_CalcCCITT(frame->crc, destuffed);
                 frame->state = HDLC_STATE_RECEIVING;
             }
-            break;
+            else
+            {
+                frame->state = HDLC_STATE_ERROR;
+            }
+        }
+        break;
+
+    case HDLC_STATE_ERROR:
+        if (data == HDLC_FLAG)
+        {
+            HDLCFrame_Reset(frame);
+            frame->state = HDLC_STATE_RECEIVING;
+        }
+        break;
     }
 
     frame->prevByte = data;
@@ -170,25 +205,30 @@ int HDLCFrame_GetFrameLength(HDLCFrame *frame)
     return frame ? frame->frameLength : 0;
 }
 
-const uint8_t* HDLCFrame_GetFrameData(HDLCFrame *frame)
+const uint8_t *HDLCFrame_GetFrameData(HDLCFrame *frame)
 {
     return frame ? frame->frameBuffer : NULL;
 }
 
 int HDLCFrame_StuffByte(uint8_t data, uint8_t *outputBuffer, int bufferSize, int *outputIndex)
 {
-    if (!outputBuffer || !outputIndex || *outputIndex >= bufferSize) {
+    if (!outputBuffer || !outputIndex || *outputIndex >= bufferSize)
+    {
         return -1;
     }
 
-    if (data == HDLC_FLAG || data == HDLC_ESCAPE) {
-        if (*outputIndex + 1 >= bufferSize) {
+    if (data == HDLC_FLAG || data == HDLC_ESCAPE)
+    {
+        if (*outputIndex + 1 >= bufferSize)
+        {
             return -1;
         }
         outputBuffer[(*outputIndex)++] = HDLC_ESCAPE;
         outputBuffer[(*outputIndex)++] = data ^ HDLC_ESCAPE_MASK;
         return 2;
-    } else {
+    }
+    else
+    {
         outputBuffer[(*outputIndex)++] = data;
         return 1;
     }
@@ -202,38 +242,56 @@ uint8_t HDLCFrame_DestuffByte(uint8_t data)
 // Build a byte-stuffed HDLC frame: FLAG + stuffed(data + FCS) + FLAG
 int HDLCFrame_BuildFrame(const uint8_t *data, int dataLength, uint8_t *outputBuffer, int bufferSize)
 {
-    if (!data || !outputBuffer || dataLength <= 0 || bufferSize < 4) {
+    if (!data || !outputBuffer || dataLength <= 0 || bufferSize < 4)
+    {
         return -1;
     }
 
     int outputIndex = 0;
 
     // Start flag
-    if (outputIndex >= bufferSize) return -1;
+    if (outputIndex >= bufferSize)
+    {
+        return -1;
+    }
     outputBuffer[outputIndex++] = HDLC_FLAG;
 
     // Calculate FCS over data (matching C# CreateFrame: init 0xFFFF, then XOR 0xFFFF)
     uint16_t fcs = HDLC_FCS_INIT;
-    for (int i = 0; i < dataLength; i++) {
+    for (int i = 0; i < dataLength; i++)
+    {
         fcs = HDLC_CRC_CalcCCITT(fcs, data[i]);
     }
     fcs ^= HDLC_FCS_INIT; // Complement (same as C#: crc16 ^ 0xFFFF)
 
     // Stuff data bytes
-    for (int i = 0; i < dataLength; i++) {
+    for (int i = 0; i < dataLength; i++)
+    {
         int stuffed = HDLCFrame_StuffByte(data[i], outputBuffer, bufferSize, &outputIndex);
-        if (stuffed < 0) return -1;
+        if (stuffed < 0)
+        {
+            return -1;
+        }
     }
 
     // Stuff FCS bytes (low byte first, matching C#)
     int stuffed = HDLCFrame_StuffByte(fcs & 0xFF, outputBuffer, bufferSize, &outputIndex);
-    if (stuffed < 0) return -1;
+    if (stuffed < 0)
+    {
+        return -1;
+    }
 
     stuffed = HDLCFrame_StuffByte((fcs >> 8) & 0xFF, outputBuffer, bufferSize, &outputIndex);
-    if (stuffed < 0) return -1;
+    if (stuffed < 0)
+    {
+        return -1;
+    }
 
     // End flag
-    if (outputIndex >= bufferSize) return -1;
+    if (outputIndex >= bufferSize)
+    {
+        return -1;
+    }
     outputBuffer[outputIndex++] = HDLC_FLAG;
 
     return outputIndex;

@@ -28,7 +28,8 @@
 /**
  * @brief DMA Commands to the ND HDLC interface
  */
-typedef enum {
+typedef enum
+{
     // Initialization
     DMA_CMD_DEVICE_CLEAR = 0,
     DMA_CMD_INITIALIZE = 1,
@@ -47,7 +48,8 @@ typedef enum {
 /**
  * @brief TH1 - baud rate selection thumbwheel
  */
-typedef enum {
+typedef enum
+{
     /// TW0 = 307.2 kbps
     TH1_TW0_307200 = 0,
 
@@ -97,7 +99,8 @@ typedef enum {
 /**
  * @brief DMA receive operation status results
  */
-typedef enum {
+typedef enum
+{
     DMA_RX_STATUS_OK = 0,
     DMA_RX_STATUS_FAILED = 1,
     DMA_RX_STATUS_BUFFER_FULL = 2,
@@ -107,7 +110,8 @@ typedef enum {
 /**
  * @brief DMA sender state machine states
  */
-typedef enum {
+typedef enum
+{
     /// DMA transmission is stopped
     DMA_SENDER_STOPPED = 0,
 
@@ -124,7 +128,8 @@ typedef enum {
 /**
  * @brief DMA block sending states
  */
-typedef enum {
+typedef enum
+{
     /// Not sending data
     DMA_BLOCK_IDLE = 0,
 
@@ -144,7 +149,8 @@ typedef enum {
  * The low byte is the receiver transfer status from the data modules.
  * The high byte is the transfer status from the DMA module, and is not used unless the DMA module is installed.
  */
-typedef enum {
+typedef enum
+{
     // DATA MODULE (bits 0-7)
 
     /// Data Available (bit 0) - CRITICAL for packet processing
@@ -217,7 +223,8 @@ typedef enum {
     RTS_RECEIVER_OVERRUN = 1 << 15,
 
     /// Used for clearing DMA info after read
-    RTS_DMA_CLEAR_BITS = RTS_BLOCK_END | RTS_FRAME_END | RTS_LIST_END | RTS_LIST_EMPTY | RTS_UNDEFINED12
+    RTS_DMA_CLEAR_BITS = RTS_BLOCK_END | RTS_FRAME_END | RTS_LIST_END | RTS_LIST_EMPTY |
+        RTS_UNDEFINED12
 } RTSBits;
 
 /**
@@ -227,7 +234,8 @@ typedef enum {
  * Data Communication Equipment control signals.
  * The high byte is for DMA module control signal.
  */
-typedef enum {
+typedef enum
+{
     /// Data Available Interrupt Enable (Bit 0)
     RTC_DATA_AVAILABLE_IE = 1 << 0,
 
@@ -267,10 +275,12 @@ typedef enum {
     RTC_BIT15 = 1 << 15,
 
     /// Mask for clearing interrupt enable bits on IDENT
-    RTC_MASK_CLEAR_IDENT = ~(RTC_DATA_AVAILABLE_IE | RTC_STATUS_AVAILABLE_IE | RTC_DMA_MODULE_IE | RTC_MODEM_STATUS_CHANGE_IE),
+    RTC_MASK_CLEAR_IDENT = ~(RTC_DATA_AVAILABLE_IE | RTC_STATUS_AVAILABLE_IE | RTC_DMA_MODULE_IE |
+                             RTC_MODEM_STATUS_CHANGE_IE),
 
     /// Mask for clearing interrupt enable bits on DEVICE CLEAR
-    RTC_MASK_CLEAR_DEVICE_CLEAR = ~(RTC_DATA_AVAILABLE_IE | RTC_STATUS_AVAILABLE_IE | RTC_DMA_MODULE_IE | RTC_MODEM_STATUS_CHANGE_IE)
+    RTC_MASK_CLEAR_DEVICE_CLEAR = ~(RTC_DATA_AVAILABLE_IE | RTC_STATUS_AVAILABLE_IE |
+                                    RTC_DMA_MODULE_IE | RTC_MODEM_STATUS_CHANGE_IE)
 } RTCBits;
 
 /**
@@ -279,7 +289,8 @@ typedef enum {
  * The low byte is the transmitter transfer status from the data module.
  * The high byte is the transfer status from the DMA module if installed.
  */
-typedef enum {
+typedef enum
+{
     /// TXBE - Transmit Buffer Empty (Bit 0)
     TTS_TRANSMIT_BUFFER_EMPTY = 1 << 0,
 
@@ -326,7 +337,8 @@ typedef enum {
     TTS_MASK_CLEAR_DEVICE_CLEAR = ~(TTS_TRANSMITTER_UNDERRUN),
 
     /// Used for clearing DMA info after read
-    TTS_DMA_CLEAR_BITS = TTS_BLOCK_END | TTS_FRAME_END | TTS_LIST_END | TTS_TRANSMISSION_FINISHED | TTS_UNDEFINED12 | TTS_UNDEFINED13 | TTS_UNDEFINED14
+    TTS_DMA_CLEAR_BITS = TTS_BLOCK_END | TTS_FRAME_END | TTS_LIST_END | TTS_TRANSMISSION_FINISHED |
+        TTS_UNDEFINED12 | TTS_UNDEFINED13 | TTS_UNDEFINED14
 } TTSBits;
 
 /**
@@ -336,7 +348,8 @@ typedef enum {
  * concerning the connection to the Data Communication Equipment.
  * The high byte is for the DMA module.
  */
-typedef enum {
+typedef enum
+{
     // DATA MODULE (bits 0-7)
 
     /// Transmit Buffer Empty Interrupt Enable (Bit 0)
@@ -378,16 +391,20 @@ typedef enum {
     TTC_BIT15 = 1 << 15,
 
     /// Mask for clearing interrupt enable bits on IDENT
-    TTC_MASK_CLEAR_IDENT = ~(TTC_TRANSMIT_BUFFER_EMPTY_IE | TTC_TRANSMITTER_UNDERRUN_IE | TTC_DMA_MODULE_IE | TTC_MODEM_STATUS_CHANGE_IE),
+    TTC_MASK_CLEAR_IDENT = ~(TTC_TRANSMIT_BUFFER_EMPTY_IE | TTC_TRANSMITTER_UNDERRUN_IE |
+                             TTC_DMA_MODULE_IE | TTC_MODEM_STATUS_CHANGE_IE),
 
     /// Mask for clearing interrupt enable bits on DEVICE CLEAR
-    TTC_MASK_CLEAR_DEVICE_CLEAR = ~(TTC_TRANSMIT_BUFFER_EMPTY_IE | TTC_TRANSMITTER_UNDERRUN_IE | TTC_TRANSMITTER_ENABLED | TTC_DMA_MODULE_IE | TTC_HALF_DUPLEX | TTC_REQUEST_TO_SEND | TTC_MODEM_STATUS_CHANGE_IE)
+    TTC_MASK_CLEAR_DEVICE_CLEAR =
+        ~(TTC_TRANSMIT_BUFFER_EMPTY_IE | TTC_TRANSMITTER_UNDERRUN_IE | TTC_TRANSMITTER_ENABLED |
+          TTC_DMA_MODULE_IE | TTC_HALF_DUPLEX | TTC_REQUEST_TO_SEND | TTC_MODEM_STATUS_CHANGE_IE)
 } TTCBits;
 
 
 /**
  * @brief Key Flags for the DMA Data Buffer
  */
+// clang-format off
 typedef enum {
     // RCOST flags (identical to Receiver Status Register in the MPCC)
     KEYFLAG_RCOST_RSOM = 1 << 0,        // Receiver Start of Message
@@ -428,5 +445,6 @@ typedef enum {
     KEYFLAG_MASK_KEY = 0b111 << 8,            // Key mask (bits 8-10)
     KEYFLAG_MASK_DATAFLOW_COST = 0xFF       // Dataflow COST mask (bits 0-7)
 } KeyFlags;
+// clang-format on
 
 #endif // DMA_ENUM_H
