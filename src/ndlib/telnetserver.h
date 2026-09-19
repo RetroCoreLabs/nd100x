@@ -77,7 +77,7 @@ bool TelnetServer_GetTerminalStatus(TelnetServer *server, int index, const char 
                                     char *clientAddr, int addrLen);
 bool TelnetServer_GetTerminalStats(TelnetServer *server, int index, uint64_t *bytesRx,
                                    uint64_t *bytesTx);
-bool TelnetServer_DisconnectTerminal(TelnetServer *server, int index);
+
 bool TelnetServer_DisconnectDevice(TelnetServer *server, struct Device *device);
 
 /**

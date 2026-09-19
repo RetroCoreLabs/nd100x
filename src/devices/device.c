@@ -35,6 +35,7 @@
 #include "../cpu/cpu_types.h" /* gDMAAccess */
 #include "devices_protos.h"
 
+
 #define INITIAL_IO_DELAY_CAPACITY 16
 
 // Odd parity lookup table
@@ -268,7 +269,7 @@ void Device_TickIODelay(Device *dev)
     }
 }
 
-void Device_ClearInterrupt(Device *dev, uint16_t level)
+static void device_clear_interrupt(Device *dev, uint16_t level)
 {
     if (!dev)
     {
@@ -313,7 +314,7 @@ void Device_SetInterruptStatus(Device *dev, bool active, uint16_t level)
     }
     else
     {
-        Device_ClearInterrupt(dev, level);
+        device_clear_interrupt(dev, level);
     }
 }
 

@@ -33,6 +33,7 @@
 #include "../devices_types.h"
 #include "../devices_protos.h"
 
+
 /* Read by the NCR 5386 port (ncr5386.c, vendored, not edited). The frontend
  * sets it from the scsi log category after --log / --scsi-debug. */
 int scsi_debug_enabled = 0;
@@ -882,7 +883,7 @@ static int SCSI_Boot(Device *self, int unit)
 }
 
 
-void SCSI_Destroy(Device *dev)
+static void scsi_destroy(Device *dev)
 {
     if (!dev)
     {
@@ -924,7 +925,7 @@ Device *CreateSCSIDevice(uint8_t thumbwheel)
     dev->Reset = SCSI_Reset;
     dev->Ident = SCSI_Ident;
     dev->Boot = SCSI_Boot;
-    dev->Destroy = SCSI_Destroy;
+    dev->Destroy = scsi_destroy;
 
     /*
      * Thumbwheel TW2 selects IOX base / IDENT / logical device.

@@ -176,24 +176,22 @@ void COM5025Registers_MarkDataAsReceived(COM5025Registers *regs);
 
 // CRC functions
 void COM5025Registers_CalcRXCrc(COM5025Registers *regs, uint8_t data);
-void COM5025Registers_ClearRXCRC(COM5025Registers *regs);
+
 bool COM5025Registers_IsRxCrcEqual(COM5025Registers *regs, uint16_t crc);
 
 void COM5025Registers_AggregateTXCrc(COM5025Registers *regs, uint8_t data);
-void COM5025Registers_ClearTXCRC(COM5025Registers *regs);
+
 uint16_t COM5025Registers_CalcFinalTxCrc(COM5025Registers *regs);
 bool COM5025Registers_IsTxCrcEqual(COM5025Registers *regs, uint16_t crc);
 
 // Internal helper functions
-uint16_t COM5025Registers_CalcCRC(COM5025Registers *regs, uint16_t crc, uint8_t data);
+
 
 // Timer callback setup
-void COM5025IOTimer_Init(COM5025IOTimer *timer);
-void COM5025IOTimer_Clear(COM5025IOTimer *timer);
+
+
 void COM5025IOTimer_SetCallback(COM5025IOTimer *timer, void (*callback)(void *context, int param),
                                 void *context);
-void COM5025IOTimer_SetClockSpeed(COM5025IOTimer *timer, int speed);
-void COM5025IOTimer_AdjustTimer(COM5025IOTimer *timer, int ticks, int param, bool enable);
-void COM5025IOTimer_Clock(COM5025IOTimer *timer);
+
 
 #endif // CHIP_COM5025_REGISTERS_H

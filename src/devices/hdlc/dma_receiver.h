@@ -84,17 +84,14 @@ void DMAReceiver_SetReceiverState(DMAReceiver *receiver);
 
 // Data processing - TCP ring buffer path (burst mode, always active)
 void DMAReceiver_ReceiveDataFromModem(DMAReceiver *receiver, const uint8_t *data, int length);
-int DMAReceiver_ProcessBufferedData(DMAReceiver *receiver);
-bool DMAReceiver_ProcessCompleteFrame(DMAReceiver *receiver);
-void DMAReceiver_ClearReceiveFrameState(DMAReceiver *receiver);
+
 
 // Buffer management
-bool DMAReceiver_FindNextReceiveBuffer(DMAReceiver *receiver);
-DMAReceiveStatus DMAReceiver_ReceiveDataBufferByte(DMAReceiver *receiver, uint8_t data);
+
 
 // Flag and interrupt management
-void DMAReceiver_SetRXDMAFlag(DMAReceiver *receiver, uint16_t flag);
-void DMAReceiver_EnableHDLCReceiver(DMAReceiver *receiver, bool enable);
+
+
 void DMAReceiver_SetInterruptCallback(DMAReceiver *receiver,
                                       DMAReceiverSetInterruptCallback callback);
 

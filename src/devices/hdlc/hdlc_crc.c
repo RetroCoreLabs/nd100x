@@ -26,6 +26,9 @@
 
 #include "hdlc_crc.h"
 
+static uint8_t hdlc_crc_calculate_parity_bit(uint8_t, HDLCParityMode);
+
+
 // Precalculated FCS lookup table for CCITT CRC
 // Uses the polynomial x^16 + x^12 + x^5 + 1 (0x1021)
 static const uint16_t fcstab[256] = {
@@ -71,8 +74,8 @@ static void initializeParityTables(void)
 
     for (int i = 0; i < 256; i++)
     {
-        oddParityTable[i] = HDLC_CRC_CalculateParityBit((uint8_t)i, HDLC_PARITY_ODD);
-        evenParityTable[i] = HDLC_CRC_CalculateParityBit((uint8_t)i, HDLC_PARITY_EVEN);
+        oddParityTable[i] = hdlc_crc_calculate_parity_bit((uint8_t)i, HDLC_PARITY_ODD);
+        evenParityTable[i] = hdlc_crc_calculate_parity_bit((uint8_t)i, HDLC_PARITY_EVEN);
     }
     parityTablesInitialized = true;
 }
@@ -107,7 +110,7 @@ uint16_t HDLC_CRC_CalcCCITT(uint16_t fcs, uint8_t byte)
     return fcs;
 }
 
-uint8_t HDLC_CRC_CalculateParityBit(uint8_t data, HDLCParityMode mode)
+static uint8_t hdlc_crc_calculate_parity_bit(uint8_t data, HDLCParityMode mode)
 {
     int count = 0;
 

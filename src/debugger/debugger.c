@@ -211,7 +211,7 @@ char *base64_encode(const uint8_t *data, size_t len)
     8 // Locals, Registers, Levels, Internal read, Internal write, status flags, memory PT, memory APT
 
 // DAP server instance
-DAPServer *g_dap_server;
+static DAPServer *g_dap_server;
 
 // Global symbol table
 
@@ -334,6 +334,8 @@ static atomic_bool debugger_thread_should_exit = false;
 
 #include "debugger_protos.h"
 #include "debugger.h"
+static int set_default_dap_capabilities(DAPServer *);
+
 
 #ifndef __EMSCRIPTEN__
 // Signal handler for the debugger thread
@@ -345,7 +347,7 @@ static void debugger_signal_handler(int sig)
     }
 }
 
-void *debugger_thread(void *arg)
+static void *debugger_thread(void *arg)
 {
     (void)arg;
 #ifdef _WIN32
@@ -453,7 +455,7 @@ void stop_debugger_thread(void)
 
 #endif /* __EMSCRIPTEN__ */
 
-const char *cpuStopReasonToString(CpuStopReason r)
+static const char *cpu_stop_reason_to_string(CpuStopReason r)
 {
     switch (r)
     {
@@ -536,7 +538,7 @@ static int cmd_check_cpu_events(DAPServer *server)
     CpuStopReason reason = get_cpu_stop_reason();
     if (reason != STOP_REASON_NONE)
     {
-        const char *dap_reason_str = cpuStopReasonToString(reason);
+        const char *dap_reason_str = cpu_stop_reason_to_string(reason);
 
         // Get current source location for detailed context
         int line = 0;
@@ -2089,7 +2091,7 @@ static void add_status_flag_variables(DAPServer *server, char *info_message,
 /// @brief Get informaiton about a page table entry
 /// @param PTe
 /// @return
-char *GetPageTableEntryInfo(uint32_t PTe)
+static char *get_page_table_entry_info(uint32_t PTe)
 {
 
     static char debugInfo[256];
@@ -2280,9 +2282,9 @@ static void add_page_table_entries(DAPServer *server, char *info_message, size_t
         snprintf(vpn_str, sizeof(vpn_str), "%d", vpn);
 
         add_variable_to_array(server,
-                              vpn_str,                               // name
-                              GetPageTableEntryInfo(pageTableEntry), // value
-                              "memory",                              // type
+                              vpn_str,                                   // name
+                              get_page_table_entry_info(pageTableEntry), // value
+                              "memory",                                  // type
                               -1,                         // memoryReference (-1 = not present)
                               0,                          // variablesReference
                               DAP_VARIABLE_KIND_PROPERTY, // kind
@@ -3421,7 +3423,7 @@ static int cmd_set_data_breakpoints(DAPServer *server)
     return 0;
 }
 
-void free_symbol_table(void)
+static void free_symbol_table(void)
 {
     if (s_symbol_tables.symbol_table_map)
     {
@@ -3460,7 +3462,7 @@ void free_symbol_table(void)
  * @return int 0 on success, non-zero on failure
  */
 
-int init_symbol_support(const char *filename, SymbolType symbol_type)
+static int init_symbol_support(const char *filename, SymbolType symbol_type)
 {
     if (!filename)
     {
@@ -5529,7 +5531,7 @@ const char *get_source_location(uint16_t address, int *line)
  * @param server The DAP server instance
  * @return int The number of capabilities set
  */
-int set_default_dap_capabilities(DAPServer *server)
+static int set_default_dap_capabilities(DAPServer *server)
 {
     if (!server)
     {

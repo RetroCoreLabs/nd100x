@@ -115,6 +115,7 @@ int CurrentCPURunMode;
 #include "../machine/machine_types.h"
 #include "../machine/machine_protos.h"
 
+
 // forward declaration for debugger.c function
 void debugger_build_stack_trace(uint16_t pc, uint16_t operand);
 void debugger_update_jpl_entrypoint(uint16_t ea);
@@ -382,7 +383,7 @@ uint16_t calcIIC(void)
  * Recalculate internal interrupt bits
  * Updates gIID, gPID and gPK
  */
-void recalcInternalInterruptBits(void)
+static void recalc_internal_interrupt_bits(void)
 {
     // Check for Z (error) flag
     if (getbit(_STS, _Z))
@@ -401,7 +402,7 @@ void recalcInternalInterruptBits(void)
 }
 
 // Calculate PK based on PID and PIE
-void calcPK(void)
+static void calc_pk(void)
 {
     // Recalculate PK based on PID and PIE
     int lvl;
@@ -463,7 +464,7 @@ void interrupt(uint16_t lvl, uint16_t sub)
         gPID |= (1 << lvl);
     }
 
-    recalcInternalInterruptBits();
+    recalc_internal_interrupt_bits();
 
     // Check for MPV (bit 2), PF (bit 3), or illegal instruction (bit 4)
     if (lvl == 14 && (sub & ((1 << 2) | (1 << 3) | (1 << 4))))
@@ -591,28 +592,28 @@ uint16_t MemoryRead(uint16_t addr, bool UseAPT)
     return ReadVirtualMemory(addr, UseAPT); // in cpu_mms.c
 }
 
-uint16_t MemoryFetch(uint16_t addr, bool UseAPT)
+static uint16_t memory_fetch(uint16_t addr, bool UseAPT)
 {
     return FetchVirtualMemory(addr, UseAPT); // in cpu_mms.c
 }
 
 /// @brief Check if we need to switch runlevel
 /// @return Returns true if a switch was made, false otherwise
-bool checkAndSwitch(void)
+static bool check_and_switch(void)
 {
     if (gCHKIT)
     {
         gCHKIT = false; // reset flag
 
         // recalc internal interrupt bits
-        recalcInternalInterruptBits();
+        recalc_internal_interrupt_bits();
 
         if (!STS_IONI)
         {
             return false;
         }
 
-        calcPK();
+        calc_pk();
 
         if (gPK != gPIL)
         {
@@ -643,7 +644,7 @@ static uint16_t s_lvlcnt = 0;
 static bool s_activate_sleep = false;
 
 // allocate once
-uint16_t g_operand;
+static uint16_t g_operand;
 
 /// @brief CPU tick function - DO NOT CALL THIS DIRECT AS IT NEES setjmp() setup correctly
 /// @details This function is called every CPU tick. It fetches the next instruction, executes it, and handles interrupts.
@@ -677,13 +678,13 @@ static void trace_before_exec(void)
     }
 }
 
-void private_cpu_tick(void)
+static void private_cpu_tick(void)
 {
     // Check for level shift (typically after an interrupt or WAIT instruction)
-    checkAndSwitch();
+    check_and_switch();
 
     // Fetch next instruction
-    g_reg->myreg_PFB = MemoryFetch(gPC, false); //TODO: Remove this  step?
+    g_reg->myreg_PFB = memory_fetch(gPC, false); //TODO: Remove this  step?
     g_reg->myreg_IR = g_reg->myreg_PFB;
 
     g_operand = g_reg->myreg_IR;
@@ -766,7 +767,7 @@ void private_cpu_tick(void)
 /// @return true if the next instruction is a jump, jaf, or similar, false otherwise
 bool cpu_instruction_is_jump(void)
 {
-    uint16_t operand = MemoryFetch(gPC, false);
+    uint16_t operand = memory_fetch(gPC, false);
 
     // JMP
     if ((operand & 0xF800) == 0124000)

@@ -29,6 +29,7 @@
 #include "cpu_protos.h"
 #include "../ndlib/log.h"
 #include "expr_eval.h"
+static CpuStopReason stop_reason_from_breakpoint(BreakpointType);
 
 
 BreakpointManager *g_breakpoint_mgr;
@@ -254,7 +255,7 @@ void breakpoint_manager_clear_type(BreakpointType type)
 /// @param matches Array to store matching breakpoints
 /// @param matchCount Number of matching breakpoints
 /// @return Number of matching entries
-int breakpoint_manager_check(uint16_t address, BreakpointEntry **matches[], int *matchCount)
+static int breakpoint_manager_check(uint16_t address, BreakpointEntry **matches[], int *matchCount)
 {
     int h = hash_address(address);
     BreakpointEntry *curr = g_breakpoint_mgr->buckets[h];
@@ -390,7 +391,7 @@ int check_for_breakpoint(void)
                     btType = bp->type;
                     CpuStopReason sr = (bp->type == BP_TYPE_TEMPORARY)
                                            ? STOP_REASON_STEP
-                                           : stopReasonFromBreakpoint(bp->type);
+                                           : stop_reason_from_breakpoint(bp->type);
                     set_cpu_stop_reason(sr);
                     set_cpu_run_mode(CPU_BREAKPOINT);
                     // Record hit address for DAP hitBreakpointIds
@@ -414,7 +415,7 @@ int check_for_breakpoint(void)
 /// @brief Convert breakpoint type to stop reason
 /// @param t Breakpoint type
 /// @return Stop reason
-CpuStopReason stopReasonFromBreakpoint(BreakpointType t)
+static CpuStopReason stop_reason_from_breakpoint(BreakpointType t)
 {
     switch (t)
     {

@@ -105,7 +105,7 @@ void Log_SetLevel(LogCategory cat, LogLevel lvl);
 /**
  * @brief Set the minimum level of every category.
  */
-void Log_SetAllLevels(LogLevel lvl);
+
 
 /**
  * @brief Apply a level specification such as "smd:debug,hdlc:trace,*:warn".
@@ -132,7 +132,7 @@ const char *Log_CategoryName(LogCategory cat);
 /**
  * @brief Name of a level ("DEBUG").
  */
-const char *Log_LevelName(LogLevel lvl);
+
 
 /// @brief Write a message if its category is enabled at that level. The
 ///        arguments are not evaluated when it is not.

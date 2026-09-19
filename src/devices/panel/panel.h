@@ -178,7 +178,7 @@ struct display_panel
 
 void ProcessTerminalPanc(void);
 void ProcessTerminalLamp(void);
-void UpdateMachineTime(void);
+
 void setup_pap(void);
 
 #endif // PANEL_H

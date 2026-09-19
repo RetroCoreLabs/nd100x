@@ -47,6 +47,12 @@ void cpu_set_ring_at_clpt(long n)
 #include <stdlib.h>
 #include <string.h> /* strlen()/strcmp() - VERSN identity parsing, see ndfunc_versn() */
 #include <stdio.h>
+static void do_ident(uint16_t);
+static void do_lrb(uint16_t);
+static void do_srb(uint16_t);
+static bool is_skip(uint16_t);
+static uint32_t shift_double_reg(uint32_t, uint16_t);
+static uint16_t shift_reg(uint16_t, uint16_t);
 
 
 // Initialize the instruction function array
@@ -63,7 +69,7 @@ InstrFunc g_instr_funcs[65536];
 /// Privileged intructions are only available to programs running in system mode (rings 2 and 3) or when memory protection is disabled;
 /// </summary>
 /// <returns>TRUE if allowed to execute</returns>
-bool CheckPriv(void)
+static bool check_priv(void)
 {
     if (!STS_PONI)
     {
@@ -100,7 +106,7 @@ short signExtend(uint16_t x)
 }
 
 
-uint16_t do_add(uint16_t a, uint16_t b, uint16_t k)
+static uint16_t do_add(uint16_t a, uint16_t b, uint16_t k)
 {
     int tmp;
     bool is_diff;
@@ -131,7 +137,7 @@ uint16_t do_add(uint16_t a, uint16_t b, uint16_t k)
 
 
 // Calculate effective address for LDnTX
-unsigned int calcEL(uint8_t displacement)
+static unsigned int calc_el(uint8_t displacement)
 {
 
     unsigned int EL = (gX + displacement) & 0xFFFF;
@@ -142,13 +148,13 @@ unsigned int calcEL(uint8_t displacement)
 }
 
 // read el value from memory
-unsigned int ReadEL(unsigned el)
+static unsigned int read_el(unsigned el)
 {
     return ReadPhysicalMemory(el, true);
 }
 
 // write el to memory
-void WriteEL(uint32_t el, uint16_t value)
+static void write_el(uint32_t el, uint16_t value)
 {
     WritePhysicalMemory(el, value, true);
 }
@@ -168,7 +174,7 @@ void illegal_instr(uint16_t operand)
     interrupt(14, 1 << 4); /* Illegal Instruction <= WILL TRAP! */
 }
 
-void unimplemented_instr(uint16_t operand)
+static void unimplemented_instr(uint16_t operand)
 {
     printf("\r\n");
     printf("--------------------------------\r\n");
@@ -185,7 +191,7 @@ void unimplemented_instr(uint16_t operand)
 
 /* AAA
  */
-void ndfunc_aaa(uint16_t operand)
+static void ndfunc_aaa(uint16_t operand)
 {
     short temp;
 
@@ -195,7 +201,7 @@ void ndfunc_aaa(uint16_t operand)
 
 /* AAB
  */
-void ndfunc_aab(uint16_t operand)
+static void ndfunc_aab(uint16_t operand)
 {
     uint16_t temp;
 
@@ -205,7 +211,7 @@ void ndfunc_aab(uint16_t operand)
 
 /* AAT
  */
-void ndfunc_aat(uint16_t operand)
+static void ndfunc_aat(uint16_t operand)
 {
     uint16_t temp;
 
@@ -215,7 +221,7 @@ void ndfunc_aat(uint16_t operand)
 
 /* AAX
  */
-void ndfunc_aax(uint16_t operand)
+static void ndfunc_aax(uint16_t operand)
 {
     uint16_t temp;
 
@@ -226,7 +232,7 @@ void ndfunc_aax(uint16_t operand)
 
 /* MON
  */
-void ndfunc_mon(uint16_t operand)
+static void ndfunc_mon(uint16_t operand)
 {
     uint16_t monitor_number = (operand & 0x1ff);
 
@@ -253,51 +259,51 @@ void ndfunc_mon(uint16_t operand)
 
 /* SAA
  */
-void ndfunc_saa(uint16_t operand)
+static void ndfunc_saa(uint16_t operand)
 {
     setreg(_A, signExtend(operand & 0xFF));
 }
 
 /* SAB
  */
-void ndfunc_sab(uint16_t operand)
+static void ndfunc_sab(uint16_t operand)
 {
     setreg(_B, signExtend(operand & 0xFF));
 }
 
 /* SAT
  */
-void ndfunc_sat(uint16_t operand)
+static void ndfunc_sat(uint16_t operand)
 {
     setreg(_T, signExtend(operand & 0xFF));
 }
 
 /* SAX
  */
-void ndfunc_sax(uint16_t operand)
+static void ndfunc_sax(uint16_t operand)
 {
     setreg(_X, signExtend(operand & 0xFF));
 }
 
 /* SHT, SHD, SHA, SAD
  */
-void ndfunc_shifts(uint16_t operand)
+static void ndfunc_shifts(uint16_t operand)
 {
     uint32_t double_reg;
 
     switch ((operand >> 7) & 0x03)
     {
     case 0: /* SHT */
-        gT = ShiftReg(gT, operand);
+        gT = shift_reg(gT, operand);
         break;
     case 1: /* SHD */
-        gD = ShiftReg(gD, operand);
+        gD = shift_reg(gD, operand);
         break;
     case 2: /* SHA */
-        gA = ShiftReg(gA, operand);
+        gA = shift_reg(gA, operand);
         break;
     case 3: /* SAD */
-        double_reg = ShiftDoubleReg(((uint32_t)gA << 16) | gD, operand);
+        double_reg = shift_double_reg(((uint32_t)gA << 16) | gD, operand);
         gA = double_reg >> 16;
         gD = double_reg & 0xFFFF;
         break;
@@ -308,7 +314,7 @@ void ndfunc_shifts(uint16_t operand)
 
 /* NLZ
  */
-void ndfunc_nlz(uint16_t operand)
+static void ndfunc_nlz(uint16_t operand)
 {
     if (g_current_fpp_type == FPP48)
     {
@@ -322,7 +328,7 @@ void ndfunc_nlz(uint16_t operand)
 
 /* DNZ
  */
-void ndfunc_dnz(uint16_t operand)
+static void ndfunc_dnz(uint16_t operand)
 {
     if (g_current_fpp_type == FPP48)
     {
@@ -336,32 +342,32 @@ void ndfunc_dnz(uint16_t operand)
 
 /* SRB (Privileged)
  */
-void ndfunc_srb(uint16_t operand)
+static void ndfunc_srb(uint16_t operand)
 {
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
 
     /* SRB */ /* NOTE: These two seems to have bit req on 0-2 as well */
-    DoSRB(operand);
+    do_srb(operand);
 }
 
 /* LRB (Privileged)
  */
-void ndfunc_lrb(uint16_t operand)
+static void ndfunc_lrb(uint16_t operand)
 {
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
 
     /* SRB */ /* NOTE: These two seems to have bit req on 0-2 as well */
-    DoLRB(operand);
+    do_lrb(operand);
 }
 
 /// <summary>
-/// CJP - Conditional jump
+/// cjp - Conditional jump
 /// Instruction bits 8-10 are used to specify one of 8 jump conditions.
 ///
 /// If the specified condition becomes true, the displacement is added to the program counter and a jump relative to current location takes place.
@@ -370,9 +376,9 @@ void ndfunc_lrb(uint16_t operand)
 /// Execution time depends on conditions, but is the same for all instructions.
 ///
 /// A conditional jump instruction must be specified by means of the 8 mnemonics listed below.
-/// It is illegal to specify CJP or any combinations of, B, | and , X.
+/// It is illegal to specify cjp or any combinations of, B, | and , X.
 /// </summary>
-void CJP(bool jmp_flag, uint16_t operand)
+static void cjp(bool jmp_flag, uint16_t operand)
 {
     if (jmp_flag)
     {
@@ -381,7 +387,7 @@ void CJP(bool jmp_flag, uint16_t operand)
         uint16_t temp = signExtend(operand & 0xff);
 
         /* MICROCODE-VALIDATED 2026-07-20: the address arithmetic must NOT touch STS.
-         * do_add() writes STS C (and O/Q) as a side effect, but the whole CJP family
+         * do_add() writes STS C (and O/Q) as a side effect, but the whole cjp family
          * (RASK CS 007300-007337, ND-110-RASK.LISTING.TXT:12249-12287) carries NO "STS,xx"
          * token - so no status bit is written by a conditional jump, taken or not. Each
          * entry is "A,<reg> ALUF,PASSA ALUD,NONE IDBS,LA COMM,CJMP,<cond> T,JMP T,HOLD":
@@ -409,10 +415,10 @@ void CJP(bool jmp_flag, uint16_t operand)
 ///
 /// Affected: (P)
 /// </summary>
-void ndfunc_jap(uint16_t operand)
+static void ndfunc_jap(uint16_t operand)
 {
     bool flag = ((1 << 15) & gA) == 0;
-    CJP(flag, operand);
+    cjp(flag, operand);
 }
 
 /// <summary>
@@ -422,10 +428,10 @@ void ndfunc_jap(uint16_t operand)
 ///
 /// Affected: (P)
 /// </summary>
-void ndfunc_jan(uint16_t operand)
+static void ndfunc_jan(uint16_t operand)
 {
     bool flag = ((1 << 15) & gA) != 0;
-    CJP(flag, operand);
+    cjp(flag, operand);
 }
 
 /// <summary>
@@ -435,20 +441,20 @@ void ndfunc_jan(uint16_t operand)
 ///
 /// Affected: (P)
 /// </summary>
-void ndfunc_jaz(uint16_t operand)
+static void ndfunc_jaz(uint16_t operand)
 {
     /* MICROCODE-VALIDATED 2026-07-20: JAZ does NOT touch STS.
      * RASK CS 007310-007313 (ND-110-RASK.LISTING.TXT:12259-12262) is
      *   "A,A ALUF,PASSA ALUD,NONE IDBS,LA COMM,CJMP,F=0 T,JMP T,HOLD CJP1"
      * - there is NO "STS,xx" token in the micro-word, and STS bits 0-7 are written only by
      * the STS,EA / STS,ES / STS,LO tokens. ALUD,NONE means the PASSA result is not even
-     * latched. The same holds for every other CJP entry (JAP 007300, JAN 007304,
+     * latched. The same holds for every other cjp entry (JAP 007300, JAN 007304,
      * JAF 007314, JPC 007320, JNC 007324, JXZ 007330, JXN 007334).
      * The live RASK oracle confirms it: with A=0 and C seeded 0 the taken jump leaves C=0,
      * with C seeded 1 it leaves C=1 - C is simply PRESERVED.
      * The removed line ("setbit(_STS, _C, gA == 0)") was a fabricated carry side effect.
      */
-    CJP(gA == 0, operand);
+    cjp(gA == 0, operand);
 }
 
 /// <summary>
@@ -458,9 +464,9 @@ void ndfunc_jaz(uint16_t operand)
 ///
 /// Affected: (P)
 /// </summary>
-void ndfunc_jaf(uint16_t operand)
+static void ndfunc_jaf(uint16_t operand)
 {
-    CJP(gA != 0, operand);
+    cjp(gA != 0, operand);
 }
 
 /// <summary>
@@ -471,11 +477,11 @@ void ndfunc_jaf(uint16_t operand)
 /// X is incremented by one, and if the X bit 15 equals zero after the incrementation, the jump takes place.
 /// Affected: (P) and (X)
 /// </summary>
-void ndfunc_jpc(uint16_t operand)
+static void ndfunc_jpc(uint16_t operand)
 {
     gX++;
 
-    CJP(((1 << 15) & gX) == 0, operand);
+    cjp(((1 << 15) & gX) == 0, operand);
 }
 
 /// <summary>
@@ -486,10 +492,10 @@ void ndfunc_jpc(uint16_t operand)
 ///
 /// Affected: (P) and(X)
 /// </summary>
-void ndfunc_jnc(uint16_t operand)
+static void ndfunc_jnc(uint16_t operand)
 {
     gX++;
-    CJP((gX & (1 << 15)) != 0, operand);
+    cjp((gX & (1 << 15)) != 0, operand);
 }
 
 /// <summary>
@@ -499,9 +505,9 @@ void ndfunc_jnc(uint16_t operand)
 ///
 /// Affected: (P)
 /// </summary>
-void ndfunc_jxn(uint16_t operand)
+static void ndfunc_jxn(uint16_t operand)
 {
-    CJP((gX & (1 << 15)) != 0, operand);
+    cjp((gX & (1 << 15)) != 0, operand);
 }
 
 /// <summary>
@@ -511,14 +517,14 @@ void ndfunc_jxn(uint16_t operand)
 ///
 /// Affected: (P)
 /// </summary>
-void ndfunc_jxz(uint16_t operand)
+static void ndfunc_jxz(uint16_t operand)
 {
-    CJP(gX == 0, operand);
+    cjp(gX == 0, operand);
 }
 
 /* JPL
  */
-void ndfunc_jpl(uint16_t operand)
+static void ndfunc_jpl(uint16_t operand)
 {
     uint16_t old_gPC = gPC - 1;
 
@@ -557,9 +563,9 @@ void ndfunc_jpl(uint16_t operand)
 /* SKP
  * Skip instructions, this one interleaves with other instructions so might need some extra checkings.
  */
-void ndfunc_skp(uint16_t operand)
+static void ndfunc_skp(uint16_t operand)
 {
-    if (IsSkip(operand))
+    if (is_skip(operand))
     {
         gPC++;
     }
@@ -608,7 +614,7 @@ void ndfunc_bfill_new(uint16_t operand)
     gPC++; // Skip return
 }
 
-void ndfunc_bfill(uint16_t operand)
+static void ndfunc_bfill(uint16_t operand)
 {
     (void)operand;
     uint16_t d1, len, addr, i;
@@ -634,7 +640,7 @@ void ndfunc_bfill(uint16_t operand)
 
 /* STZ
  */
-void ndfunc_stz(uint16_t operand)
+static void ndfunc_stz(uint16_t operand)
 {
     gEA = New_GetEffectiveAddr(operand, &gUseAPT);
     MemoryWrite(0, gEA, gUseAPT, 2);
@@ -642,7 +648,7 @@ void ndfunc_stz(uint16_t operand)
 
 /* STA
  */
-void ndfunc_sta(uint16_t operand)
+static void ndfunc_sta(uint16_t operand)
 {
     gEA = New_GetEffectiveAddr(operand, &gUseAPT);
 
@@ -651,7 +657,7 @@ void ndfunc_sta(uint16_t operand)
 
 /* STT
  */
-void ndfunc_stt(uint16_t operand)
+static void ndfunc_stt(uint16_t operand)
 {
     gEA = New_GetEffectiveAddr(operand, &gUseAPT);
     MemoryWrite(gT, gEA, gUseAPT, 2);
@@ -659,7 +665,7 @@ void ndfunc_stt(uint16_t operand)
 
 /* STX
  */
-void ndfunc_stx(uint16_t operand)
+static void ndfunc_stx(uint16_t operand)
 {
     gEA = New_GetEffectiveAddr(operand, &gUseAPT);
     MemoryWrite(gX, gEA, gUseAPT, 2);
@@ -667,7 +673,7 @@ void ndfunc_stx(uint16_t operand)
 
 /* STD
  */
-void ndfunc_std(uint16_t operand)
+static void ndfunc_std(uint16_t operand)
 {
     gEA = New_GetEffectiveAddr(operand, &gUseAPT);
     MemoryWrite(gA, gEA + 0, gUseAPT, 2);
@@ -686,7 +692,7 @@ void ndfunc_std(uint16_t operand)
  * operand at ea/ea+1). STF on a 32-bit float writes stale T at ea and lands
  * the value one word off - misaligned exactly as on the real CPU.
  */
-void ndfunc_stf(uint16_t operand)
+static void ndfunc_stf(uint16_t operand)
 {
     gEA = New_GetEffectiveAddr(operand, &gUseAPT);
     MemoryWrite(gT, gEA + 0, gUseAPT, 2);
@@ -696,7 +702,7 @@ void ndfunc_stf(uint16_t operand)
 
 /* LDA
  */
-void ndfunc_lda(uint16_t operand)
+static void ndfunc_lda(uint16_t operand)
 {
     gEA = New_GetEffectiveAddr(operand, &gUseAPT);
     gA = MemoryRead(gEA, gUseAPT);
@@ -704,7 +710,7 @@ void ndfunc_lda(uint16_t operand)
 
 /* LDT
  */
-void ndfunc_ldt(uint16_t operand)
+static void ndfunc_ldt(uint16_t operand)
 {
     gEA = New_GetEffectiveAddr(operand, &gUseAPT);
     gT = MemoryRead(gEA, gUseAPT);
@@ -712,7 +718,7 @@ void ndfunc_ldt(uint16_t operand)
 
 /* LDX
  */
-void ndfunc_ldx(uint16_t operand)
+static void ndfunc_ldx(uint16_t operand)
 {
     gEA = New_GetEffectiveAddr(operand, &gUseAPT);
     gX = MemoryRead(gEA, gUseAPT);
@@ -720,7 +726,7 @@ void ndfunc_ldx(uint16_t operand)
 
 /* LDD
  */
-void ndfunc_ldd(uint16_t operand)
+static void ndfunc_ldd(uint16_t operand)
 {
     gEA = New_GetEffectiveAddr(operand, &gUseAPT);
 
@@ -739,7 +745,7 @@ void ndfunc_ldd(uint16_t operand)
  * --fpp=32: LDF overwrites T (which the 32-bit FPP never touches) and reads
  * the A,D value one word off - use LDD instead for 32-bit floats.
  */
-void ndfunc_ldf(uint16_t operand)
+static void ndfunc_ldf(uint16_t operand)
 {
     gEA = New_GetEffectiveAddr(operand, &gUseAPT);
 
@@ -751,45 +757,45 @@ void ndfunc_ldf(uint16_t operand)
 
 /* STZTX
  */
-void ndfunc_stztx(uint16_t operand)
+static void ndfunc_stztx(uint16_t operand)
 {
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
 
     uint8_t displacement = (operand >> 3) & 0x07;
-    uint32_t EL = calcEL(displacement);
-    WriteEL(EL, 0);
+    uint32_t EL = calc_el(displacement);
+    write_el(EL, 0);
 }
 
 /* STATX
  */
-void ndfunc_statx(uint16_t operand)
+static void ndfunc_statx(uint16_t operand)
 {
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
 
     uint8_t displacement = (operand >> 3) & 0x07;
-    uint32_t EL = calcEL(displacement);
-    WriteEL(EL, gA);
+    uint32_t EL = calc_el(displacement);
+    write_el(EL, gA);
 }
 
 /* STDTX
  */
-void ndfunc_stdtx(uint16_t operand)
+static void ndfunc_stdtx(uint16_t operand)
 {
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
 
     uint8_t displacement = (operand >> 3) & 0x07;
-    uint32_t EL = calcEL(displacement);
-    WriteEL(EL, gA);
-    WriteEL(EL + 1, gD);
+    uint32_t EL = calc_el(displacement);
+    write_el(EL, gA);
+    write_el(EL + 1, gD);
 }
 
 /// <summary>
@@ -804,17 +810,17 @@ void ndfunc_stdtx(uint16_t operand)
 ///
 /// Affected: (A)
 /// </summary>
-void ndfunc_ldatx(uint16_t operand)
+static void ndfunc_ldatx(uint16_t operand)
 {
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
 
     uint8_t displacement = (operand >> 3) & 0x07;
 
-    unsigned int EL = calcEL(displacement);
-    gA = ReadEL(EL);
+    unsigned int EL = calc_el(displacement);
+    gA = read_el(EL);
 }
 
 /// <summary>
@@ -828,17 +834,17 @@ void ndfunc_ldatx(uint16_t operand)
 ///
 /// Affected: (X)
 /// </summary>
-void ndfunc_ldxtx(uint16_t operand)
+static void ndfunc_ldxtx(uint16_t operand)
 {
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
 
     uint8_t displacement = (operand >> 3) & 0x07;
-    unsigned int EL = calcEL(displacement);
+    unsigned int EL = calc_el(displacement);
 
-    gX = ReadEL(EL);
+    gX = read_el(EL);
 }
 
 /// <summary>
@@ -852,20 +858,20 @@ void ndfunc_ldxtx(uint16_t operand)
 ///
 /// Affected: (A,D)
 /// </summary>
-void ndfunc_lddtx(uint16_t operand)
+static void ndfunc_lddtx(uint16_t operand)
 {
 
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
 
     uint8_t displacement = (operand >> 3) & 0x07;
-    unsigned int EL = calcEL(displacement);
+    unsigned int EL = calc_el(displacement);
 
-    gA = ReadEL(EL);
+    gA = read_el(EL);
     EL++;
-    gD = ReadEL(EL);
+    gD = read_el(EL);
 }
 
 /// <summary>
@@ -880,20 +886,20 @@ void ndfunc_lddtx(uint16_t operand)
 ///
 /// Affected: (B)
 /// </summary>
-void ndfunc_ldbtx(uint16_t operand)
+static void ndfunc_ldbtx(uint16_t operand)
 {
     uint16_t temp;
     unsigned int result;
 
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
 
     uint8_t displacement = (operand >> 3) & 0x07;
-    unsigned int EL = calcEL(displacement);
+    unsigned int EL = calc_el(displacement);
 
-    temp = ReadEL(EL);
+    temp = read_el(EL);
     result = (temp + temp) & 0xFFFF;
     gB = result | 0xFE00; // 0177000
 }
@@ -908,7 +914,7 @@ void ndfunc_ldbtx(uint16_t operand)
 ///
 /// Affected: (EL), (P)
 /// </summary>
-void ndfunc_min(uint16_t operand)
+static void ndfunc_min(uint16_t operand)
 {
     gEA = New_GetEffectiveAddr(operand, &gUseAPT);
 
@@ -924,7 +930,7 @@ void ndfunc_min(uint16_t operand)
 
 /* ADD
  */
-void ndfunc_add(uint16_t operand)
+static void ndfunc_add(uint16_t operand)
 {
     gEA = New_GetEffectiveAddr(operand, &gUseAPT);
 
@@ -934,7 +940,7 @@ void ndfunc_add(uint16_t operand)
 
 /* SUB
  */
-void ndfunc_sub(uint16_t operand)
+static void ndfunc_sub(uint16_t operand)
 {
     gEA = New_GetEffectiveAddr(operand, &gUseAPT);
     uint16_t eff_word = MemoryRead(gEA, gUseAPT);
@@ -943,7 +949,7 @@ void ndfunc_sub(uint16_t operand)
 
 /* AND
  */
-void ndfunc_and(uint16_t operand)
+static void ndfunc_and(uint16_t operand)
 {
     gEA = New_GetEffectiveAddr(operand, &gUseAPT);
     gA = gA & MemoryRead(gEA, gUseAPT);
@@ -951,7 +957,7 @@ void ndfunc_and(uint16_t operand)
 
 /* ORA
  */
-void ndfunc_ora(uint16_t operand)
+static void ndfunc_ora(uint16_t operand)
 {
     gEA = New_GetEffectiveAddr(operand, &gUseAPT);
     gA = gA | MemoryRead(gEA, gUseAPT);
@@ -965,7 +971,7 @@ void ndfunc_ora(uint16_t operand)
  * 3-word T/A/D movers in the real microcode (see ndfunc_stf/ndfunc_ldf) and
  * would place the value one word off. Store/load 32-bit floats with STD/LDD.
  */
-void ndfunc_fad(uint16_t operand)
+static void ndfunc_fad(uint16_t operand)
 {
     gEA = New_GetEffectiveAddr(operand, &gUseAPT);
 
@@ -1000,7 +1006,7 @@ void ndfunc_fad(uint16_t operand)
 
 /* FSB
  */
-void ndfunc_fsb(uint16_t operand)
+static void ndfunc_fsb(uint16_t operand)
 {
     gEA = New_GetEffectiveAddr(operand, &gUseAPT);
 
@@ -1035,7 +1041,7 @@ void ndfunc_fsb(uint16_t operand)
 
 /* FMU
  */
-void ndfunc_fmu(uint16_t operand)
+static void ndfunc_fmu(uint16_t operand)
 {
     gEA = New_GetEffectiveAddr(operand, &gUseAPT);
 
@@ -1070,7 +1076,7 @@ void ndfunc_fmu(uint16_t operand)
 
 /* FDV
  */
-void ndfunc_fdv(uint16_t operand)
+static void ndfunc_fdv(uint16_t operand)
 {
     gEA = New_GetEffectiveAddr(operand, &gUseAPT);
 
@@ -1113,7 +1119,7 @@ void ndfunc_fdv(uint16_t operand)
 
 /* JMP
  */
-void ndfunc_jmp(uint16_t operand)
+static void ndfunc_jmp(uint16_t operand)
 {
     uint16_t old_gPC = gPC - 1;
 
@@ -1128,7 +1134,7 @@ void ndfunc_jmp(uint16_t operand)
 
 /* GECO
  */
-void ndfunc_geco(uint16_t operand)
+static void ndfunc_geco(uint16_t operand)
 {
     (void)operand;
     /*
@@ -1762,7 +1768,7 @@ void ndfunc_versn(uint16_t operand)
 /// An example is the Error Correction Control Register (ECCR), physically located on the memory modules.
 /// </summary>
 /// <returns>true if the IO address was handled, false otherwise</returns>
-bool UpdateMemoryIO(void)
+static bool update_memory_io(void)
 {
     if ((gT < 0x8000) || (gT > 0x81FF))
     {
@@ -1797,12 +1803,12 @@ bool UpdateMemoryIO(void)
  * the CPU does not have to pull in the whole device-model header. */
 bool DeviceManager_IotOp(uint8_t devno, uint8_t func, uint16_t *regA, bool *skip);
 
-void ndfunc_iot(uint16_t operand)
+static void ndfunc_iot(uint16_t operand)
 {
     // ND110 Microcode:
     // IOT - INSTRUCTION IS PRIVILEGED WHEN RING = 0 OR 1
     //                  AND ILLEGAL    WHEN RING = 2 OR 3
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
@@ -1816,7 +1822,7 @@ void ndfunc_iot(uint16_t operand)
     // LEV14 handler counts and ignores (TSS1.SYMB:4294). Treating IOT as an
     // illegal instruction instead (the old stub) trapped IIC 4 -> ILLS -> TRAP
     // and spun TSS in an infinite trap loop, blocking LOGON.
-    if (UpdateMemoryIO())
+    if (update_memory_io())
     {
         return;
     }
@@ -1852,14 +1858,14 @@ void ndfunc_iot(uint16_t operand)
 
 /* IOX (Privileged)
  */
-void ndfunc_iox(uint16_t operand)
+static void ndfunc_iox(uint16_t operand)
 {
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
 
-    if (!UpdateMemoryIO())
+    if (!update_memory_io())
     {
         gA = io_op(operand & 0x07ff, gA);
     }
@@ -1867,16 +1873,16 @@ void ndfunc_iox(uint16_t operand)
 
 /* IOXT (Privileged)
  */
-void ndfunc_ioxt(uint16_t operand)
+static void ndfunc_ioxt(uint16_t operand)
 {
     (void)operand;
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
 
 
-    if (!UpdateMemoryIO())
+    if (!update_memory_io())
     {
         gA = io_op(gT, gA);
     }
@@ -1887,9 +1893,9 @@ void ndfunc_ioxt(uint16_t operand)
  *
  * NOTE: Privileged instruction
  */
-void ndfunc_ident(uint16_t operand)
+static void ndfunc_ident(uint16_t operand)
 {
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
@@ -1897,16 +1903,16 @@ void ndfunc_ident(uint16_t operand)
     switch ((operand & 0x003f))
     {
     case 004:
-        DoIDENT(10);
+        do_ident(10);
         break;
     case 011:
-        DoIDENT(11);
+        do_ident(11);
         break;
     case 022:
-        DoIDENT(12);
+        do_ident(12);
         break;
     case 043:
-        DoIDENT(13);
+        do_ident(13);
         break;
     default:
         illegal_instr(operand); /* Assume this is how we should hanle it.. TODO: Check!!! */
@@ -1918,10 +1924,10 @@ void ndfunc_ident(uint16_t operand)
 
 /* OPCOM (Privileged)
  */
-void ndfunc_opcom(uint16_t operand)
+static void ndfunc_opcom(uint16_t operand)
 {
     (void)operand;
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
@@ -1934,9 +1940,9 @@ void ndfunc_opcom(uint16_t operand)
 ///
 /// Note: This instruction results in a no-operation if the A register of the current program level is used
 /// </summary>
-void ndfunc_irw(uint16_t operand)
+static void ndfunc_irw(uint16_t operand)
 {
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
@@ -1973,9 +1979,9 @@ void ndfunc_irw(uint16_t operand)
 /// If bits 0-2 are zero, the status registers on the specified program level will be read into the A register bits 0-7, with bits 8-15 cleared.
 /// The IRR instruction is privileged.
 /// </summary>
-void ndfunc_irr(uint16_t operand)
+static void ndfunc_irr(uint16_t operand)
 {
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
@@ -1995,10 +2001,10 @@ void ndfunc_irr(uint16_t operand)
 
 /* EXAM (Privileged)
  */
-void ndfunc_exam(uint16_t operand)
+static void ndfunc_exam(uint16_t operand)
 {
     (void)operand;
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
@@ -2011,10 +2017,10 @@ void ndfunc_exam(uint16_t operand)
 /* DEPO (Privileged)
  */
 
-void ndfunc_depo(uint16_t operand)
+static void ndfunc_depo(uint16_t operand)
 {
     (void)operand;
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
@@ -2025,11 +2031,11 @@ void ndfunc_depo(uint16_t operand)
 
 /* POF (Privileged)
  */
-void ndfunc_pof(uint16_t operand)
+static void ndfunc_pof(uint16_t operand)
 {
     (void)operand;
 
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
@@ -2038,11 +2044,11 @@ void ndfunc_pof(uint16_t operand)
 
 /* PIOF (Privileged)
  */
-void ndfunc_piof(uint16_t operand)
+static void ndfunc_piof(uint16_t operand)
 {
     (void)operand;
 
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
@@ -2053,7 +2059,7 @@ void ndfunc_piof(uint16_t operand)
 
 /* PON
  */
-void ndfunc_pon(uint16_t operand)
+static void ndfunc_pon(uint16_t operand)
 {
     (void)operand;
     setbit_STS_MSB(_PONI, 1);
@@ -2061,7 +2067,7 @@ void ndfunc_pon(uint16_t operand)
 
 /* PION
  */
-void ndfunc_pion(uint16_t operand)
+static void ndfunc_pion(uint16_t operand)
 {
     (void)operand;
     setbit_STS_MSB(_IONI, 1);
@@ -2072,10 +2078,10 @@ void ndfunc_pion(uint16_t operand)
 /// <summary>
 /// IOF - Turn off interrupt system
 /// </summary>
-void ndfunc_iof(uint16_t operand)
+static void ndfunc_iof(uint16_t operand)
 {
     (void)operand;
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
@@ -2088,7 +2094,7 @@ void ndfunc_iof(uint16_t operand)
 ///
 /// Turn on interrupt system
 /// </summary>
-void ndfunc_ion(uint16_t operand)
+static void ndfunc_ion(uint16_t operand)
 {
     (void)operand;
     setbit_STS_MSB(_IONI, 1);
@@ -2098,10 +2104,10 @@ void ndfunc_ion(uint16_t operand)
 
 /* REX (Privileged)
  */
-void ndfunc_rex(uint16_t operand)
+static void ndfunc_rex(uint16_t operand)
 {
     (void)operand;
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
@@ -2111,10 +2117,10 @@ void ndfunc_rex(uint16_t operand)
 
 /* SEX (Privileged)
  */
-void ndfunc_sex(uint16_t operand)
+static void ndfunc_sex(uint16_t operand)
 {
     (void)operand;
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
@@ -2149,7 +2155,7 @@ void ndfunc_sex(uint16_t operand)
  * Computes a physical word address from a segment (physical 64K bank) and an offset.
  * address = (seg & 0xFF) << 16 | (offset & 0xFFFF).
  */
-uint32_t nd110_seg_phys(uint16_t seg, uint16_t offset)
+static uint32_t nd110_seg_phys(uint16_t seg, uint16_t offset)
 {
     return ((uint32_t)(seg & 0xFF) << 16) | (uint32_t)(offset & 0xFFFF);
 }
@@ -2164,7 +2170,7 @@ uint32_t nd110_seg_phys(uint16_t seg, uint16_t offset)
  * physical page number) - verified against the RASK microcode oracle (see the
  * BankGroupPhysAddr remarks in RetroCore Instructions.ND110Specific.cs).
  */
-uint32_t nd110_bankgroup_phys(uint16_t bank, uint16_t index, uint16_t operand)
+static uint32_t nd110_bankgroup_phys(uint16_t bank, uint16_t index, uint16_t operand)
 {
     uint16_t delta = (uint16_t)((operand >> 3) & 0x07);
     uint32_t ea = (uint32_t)((index + delta) & 0xFFFF);
@@ -2178,10 +2184,10 @@ uint32_t nd110_bankgroup_phys(uint16_t bank, uint16_t index, uint16_t operand)
  * NOTE: Privileged instruction
  */
 
-void ndfunc_setpt(uint16_t operand)
+static void ndfunc_setpt(uint16_t operand)
 {
     (void)operand;
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
@@ -2208,17 +2214,17 @@ void ndfunc_setpt(uint16_t operand)
         uint32_t EffectiveAddress = 0;
 
         //  LDDTX 20 <=  A: = (EL), D: = (EL + 1)
-        EL = calcEL(2); // Calculates using X, T and mriDisplacement // oct 020 >>3
-        gA = (uint16_t)ReadEL(EL);
-        gD = (uint16_t)ReadEL(EL + 1);
+        EL = calc_el(2); // Calculates using X, T and mriDisplacement // oct 020 >>3
+        gA = (uint16_t)read_el(EL);
+        gD = (uint16_t)read_el(EL + 1);
 
         // BSET ZRO 130 DA % PGU - BIT *
 
         gA = gA & ~(1 << 0x0b); // 0x0b = 13 octalt. Clear bit 013 in register A
 
         // LDBTX 10
-        EL = calcEL(1); // oct 10 >> 3
-        uint32_t elval = ReadEL(EL);
+        EL = calc_el(1); // oct 10 >> 3
+        uint32_t elval = read_el(EL);
         gB = (uint16_t)(((elval + elval) & 0xFFFF) | 0xFE00); // 177000
 
         // 177777                   % OLD BUG IN LDBTX
@@ -2229,7 +2235,7 @@ void ndfunc_setpt(uint16_t operand)
         WriteVirtualMemory(EffectiveAddress + 1, gD, true, WRITEMODE_WORD);
 
         //  LDXTX 00 <=  X:= (EL)
-        gX = (uint16_t)ReadEL(calcEL(0)); // Calculates using X, T and mriDisplacement
+        gX = (uint16_t)read_el(calc_el(0)); // Calculates using X, T and mriDisplacement
 
         // Increase counter
         cnt++;
@@ -2254,10 +2260,10 @@ void ndfunc_setpt(uint16_t operand)
 ///
 /// Affected: (?)
 /// </summary>
-void ndfunc_clept(uint16_t operand)
+static void ndfunc_clept(uint16_t operand)
 {
     (void)operand;
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
@@ -2334,7 +2340,7 @@ void ndfunc_clept(uint16_t operand)
         uint32_t elval;
 
         /* 004121-004122 (PATA2): read the next-node pointer at [X] (physical, bank T). */
-        nextX = (uint16_t)ReadEL(calcEL(0));
+        nextX = (uint16_t)read_el(calc_el(0));
 
         /* 004123: X == 0 ends the walk - but X is still loaded from [X] on this final pass. */
         if (gX == 0)
@@ -2344,7 +2350,7 @@ void ndfunc_clept(uint16_t operand)
         }
 
         /* 004124-004130 (LDBTX 10): page index at [X+1] -> entry address B = 0177000 | (2*index). */
-        elval = ReadEL(calcEL(1));
+        elval = read_el(calc_el(1));
         gB = (uint16_t)(((elval + elval) & 0xFFFF) | 0xFE00); /* 177000 */
 
         /* 004074 / PATA4 (LDA ,B): read the page-table entry via the ALTERNATIVE page table. */
@@ -2354,7 +2360,7 @@ void ndfunc_clept(uint16_t operand)
         if (gA != 0)
         {
             /* 004077 (STATX 20): save the entry to [X+2] (physical, bank T). */
-            WriteEL(calcEL(2), (uint16_t)gA);
+            write_el(calc_el(2), (uint16_t)gA);
 
             /* 004116 (STZ ,B): clear the page-table entry via the ALTERNATIVE page table. */
             WriteVirtualMemory(gB, 0, true, WRITEMODE_WORD);
@@ -2378,7 +2384,7 @@ void ndfunc_clept(uint16_t operand)
 ///
 /// Affected: (?)
 /// </summary>
-void ndfunc_clnreent(uint16_t operand)
+static void ndfunc_clnreent(uint16_t operand)
 {
     (void)operand;
     uint16_t a_reg;
@@ -2388,7 +2394,7 @@ void ndfunc_clnreent(uint16_t operand)
     uint16_t r2; /* bitmap read cursor */
     uint16_t r3; /* bitmap end (exclusive) */
 
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
@@ -2492,7 +2498,7 @@ void ndfunc_clnreent(uint16_t operand)
 ///
 /// Affected: (?)
 /// </summary>
-void ndfunc_chreent_pages(uint16_t operand)
+static void ndfunc_chreent_pages(uint16_t operand)
 {
     (void)operand;
     uint16_t prog_d;
@@ -2503,7 +2509,7 @@ void ndfunc_chreent_pages(uint16_t operand)
     uint16_t seg;
     uint16_t off;
 
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
@@ -2610,10 +2616,10 @@ static void clepu_mark_working_set(uint32_t idx)
     WritePhysicalMemory((int)table_addr, tw, true); /* 004114 DERQ */
 }
 
-void ndfunc_clepu(uint16_t operand)
+static void ndfunc_clepu(uint16_t operand)
 {
     (void)operand;
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
@@ -2667,7 +2673,7 @@ void ndfunc_clepu(uint16_t operand)
         uint32_t idx;
 
         /* 004122 (PATA2): next-node pointer at [X], read first (physical, bank T). */
-        next_x = (uint16_t)ReadEL(calcEL(0));
+        next_x = (uint16_t)read_el(calc_el(0));
 
         /* 004123: X == 0 terminates; load X from [X] on the final pass. */
         if (gX == 0)
@@ -2677,7 +2683,7 @@ void ndfunc_clepu(uint16_t operand)
         }
 
         /* 004124-004130: page index at [X+1] -> entry address B = 0177000 | (2*index). */
-        idx = ReadEL(calcEL(1));
+        idx = read_el(calc_el(1));
         gB = (uint16_t)(((idx + idx) & 0xFFFF) | 0xFE00); /* 177000 */
 
         /* 004074 / PATA4: read the page-table entry via the alternative page table. */
@@ -2687,7 +2693,7 @@ void ndfunc_clepu(uint16_t operand)
         if (gA != 0)
         {
             /* 004077 (STATX 20): save the entry to [X+2] (physical, bank T). */
-            WriteEL(calcEL(2), gA);
+            write_el(calc_el(2), gA);
 
             /*
              * 004100-004114 (PGU block): if the entry's PGU bit is set, mark the page in
@@ -2738,10 +2744,10 @@ void ndfunc_clepu(uint16_t operand)
  *
  * Ref ND-06.026.1 EN, page 196. Port of RetroCore WGLOB().
  */
-void ndfunc_wglob(uint16_t operand)
+static void ndfunc_wglob(uint16_t operand)
 {
     (void)operand;
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
@@ -2758,10 +2764,10 @@ void ndfunc_wglob(uint16_t operand)
  *
  * Ref ND-06.026.1 EN, page 196. Port of RetroCore RGLOB().
  */
-void ndfunc_rglob(uint16_t operand)
+static void ndfunc_rglob(uint16_t operand)
 {
     (void)operand;
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
@@ -2782,7 +2788,7 @@ void ndfunc_rglob(uint16_t operand)
  * Faithful to RASK microcode INSP1 (ND-110-RASK.LISTING.TXT 10386-10501).
  * Port of RetroCore INSPL().
  */
-void ndfunc_inspl(uint16_t operand)
+static void ndfunc_inspl(uint16_t operand)
 {
     (void)operand;
     uint32_t stbnk;
@@ -2793,7 +2799,7 @@ void ndfunc_inspl(uint16_t operand)
     uint16_t old_head;
     uint16_t marker;
 
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
@@ -2846,7 +2852,7 @@ void ndfunc_inspl(uint16_t operand)
  * Faithful to RASK microcode REMP1 (ND-110-RASK.LISTING.TXT 10463-10527).
  * Port of RetroCore REMPL().
  */
-void ndfunc_rempl(uint16_t operand)
+static void ndfunc_rempl(uint16_t operand)
 {
     (void)operand;
     uint32_t stbnk;
@@ -2857,7 +2863,7 @@ void ndfunc_rempl(uint16_t operand)
     bool tail;
     bool skip_inherit;
 
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
@@ -2916,7 +2922,7 @@ void ndfunc_rempl(uint16_t operand)
  *
  * Port of RetroCore CNREK().
  */
-void ndfunc_cnrek(uint16_t operand)
+static void ndfunc_cnrek(uint16_t operand)
 {
     (void)operand;
     uint16_t a_reg;
@@ -2928,7 +2934,7 @@ void ndfunc_cnrek(uint16_t operand)
     uint16_t r2;
     uint16_t r3;
 
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
@@ -2996,13 +3002,13 @@ void ndfunc_cnrek(uint16_t operand)
  * Faithful to RASK microcode CLPK1/CLPK4/CLPK3 (ND-110-RASK.LISTING.TXT 10585-10704).
  * Port of RetroCore CLPT().
  */
-void ndfunc_clpt(uint16_t operand)
+static void ndfunc_clpt(uint16_t operand)
 {
     (void)operand;
     uint32_t cmbnk;
     bool clear_mode;
 
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
@@ -3110,7 +3116,7 @@ void ndfunc_clpt(uint16_t operand)
  *
  * Port of RetroCore EnterPageTable().
  */
-void nd110_enter_page_table(uint16_t r4_mask)
+static void nd110_enter_page_table(uint16_t r4_mask)
 {
     uint32_t cmbnk = (uint32_t)(gCMBUK & 0xFF)
                      << 16; /* segment = core-map bank (LDSEG from CMBNK) */
@@ -3159,10 +3165,10 @@ void nd110_enter_page_table(uint16_t r4_mask)
  * Enter a segment's pages into the page tables.  Faithful to RASK ENPK1/REPK2
  * (ND-110-RASK.LISTING.TXT 10634-10704).  Port of RetroCore ENPT().
  */
-void ndfunc_enpt(uint16_t operand)
+static void ndfunc_enpt(uint16_t operand)
 {
     (void)operand;
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
@@ -3177,10 +3183,10 @@ void ndfunc_enpt(uint16_t operand)
  * reentrant.  Faithful to RASK REPK1/REPK2 (ND-110-RASK.LISTING.TXT 10640-10704).
  * Port of RetroCore REPT().
  */
-void ndfunc_rept(uint16_t operand)
+static void ndfunc_rept(uint16_t operand)
 {
     (void)operand;
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
@@ -3197,7 +3203,7 @@ void ndfunc_rept(uint16_t operand)
  *
  * Port of RetroCore LBIT().
  */
-void ndfunc_lbit(uint16_t operand)
+static void ndfunc_lbit(uint16_t operand)
 {
     (void)operand;
     uint32_t bit_index;
@@ -3205,7 +3211,7 @@ void ndfunc_lbit(uint16_t operand)
     int bit_in_word;
     uint16_t word;
 
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
@@ -3225,7 +3231,7 @@ void ndfunc_lbit(uint16_t operand)
  *
  * Port of RetroCore LBITP().
  */
-void ndfunc_lbitp(uint16_t operand)
+static void ndfunc_lbitp(uint16_t operand)
 {
     (void)operand;
     uint32_t bit_index;
@@ -3235,7 +3241,7 @@ void ndfunc_lbitp(uint16_t operand)
     int bit_in_word;
     uint16_t word;
 
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
@@ -3257,7 +3263,7 @@ void ndfunc_lbitp(uint16_t operand)
  *
  * Port of RetroCore SBIT().
  */
-void ndfunc_sbit(uint16_t operand)
+static void ndfunc_sbit(uint16_t operand)
 {
     (void)operand;
     uint32_t bit_index;
@@ -3265,7 +3271,7 @@ void ndfunc_sbit(uint16_t operand)
     int bit_in_word;
     uint16_t word;
 
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
@@ -3292,7 +3298,7 @@ void ndfunc_sbit(uint16_t operand)
  *
  * Port of RetroCore SBITP().
  */
-void ndfunc_sbitp(uint16_t operand)
+static void ndfunc_sbitp(uint16_t operand)
 {
     (void)operand;
     uint32_t bit_index;
@@ -3302,7 +3308,7 @@ void ndfunc_sbitp(uint16_t operand)
     int bit_in_word;
     uint16_t word;
 
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
@@ -3332,7 +3338,7 @@ void ndfunc_sbitp(uint16_t operand)
  *
  * Port of RetroCore LBYTP().
  */
-void ndfunc_lbytp(uint16_t operand)
+static void ndfunc_lbytp(uint16_t operand)
 {
     (void)operand;
     uint32_t bank;
@@ -3340,7 +3346,7 @@ void ndfunc_lbytp(uint16_t operand)
     uint32_t phys_addr;
     uint16_t memval;
 
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
@@ -3367,7 +3373,7 @@ void ndfunc_lbytp(uint16_t operand)
  *
  * Port of RetroCore SBYTP().
  */
-void ndfunc_sbytp(uint16_t operand)
+static void ndfunc_sbytp(uint16_t operand)
 {
     (void)operand;
     uint32_t bank;
@@ -3376,7 +3382,7 @@ void ndfunc_sbytp(uint16_t operand)
     uint16_t memval;
     unsigned char b;
 
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
@@ -3407,14 +3413,14 @@ void ndfunc_sbytp(uint16_t operand)
  *
  * Port of RetroCore TSETP().
  */
-void ndfunc_tsetp(uint16_t operand)
+static void ndfunc_tsetp(uint16_t operand)
 {
     (void)operand;
     uint32_t bank;
     uint32_t offset;
     uint32_t phys_addr;
 
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
@@ -3433,13 +3439,13 @@ void ndfunc_tsetp(uint16_t operand)
  *
  * Port of RetroCore RDUSP().
  */
-void ndfunc_rdusp(uint16_t operand)
+static void ndfunc_rdusp(uint16_t operand)
 {
     (void)operand;
     uint32_t bank;
     uint32_t offset;
 
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
@@ -3459,9 +3465,9 @@ void ndfunc_rdusp(uint16_t operand)
  */
 
 /* LASB - 140700 + (delta << 3) (privileged): A := STBNK[B + delta]. */
-void ndfunc_lasb(uint16_t operand)
+static void ndfunc_lasb(uint16_t operand)
 {
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
@@ -3470,9 +3476,9 @@ void ndfunc_lasb(uint16_t operand)
 }
 
 /* SASB - 140701 + (delta << 3) (privileged): STBNK[B + delta] := A. */
-void ndfunc_sasb(uint16_t operand)
+static void ndfunc_sasb(uint16_t operand)
 {
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
@@ -3481,9 +3487,9 @@ void ndfunc_sasb(uint16_t operand)
 }
 
 /* LACB - 140702 + (delta << 3) (privileged): A := CMBUK[X + delta]. */
-void ndfunc_lacb(uint16_t operand)
+static void ndfunc_lacb(uint16_t operand)
 {
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
@@ -3492,9 +3498,9 @@ void ndfunc_lacb(uint16_t operand)
 }
 
 /* SACB - 140703 + (delta << 3) (privileged): CMBUK[X + delta] := A. */
-void ndfunc_sacb(uint16_t operand)
+static void ndfunc_sacb(uint16_t operand)
 {
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
@@ -3503,9 +3509,9 @@ void ndfunc_sacb(uint16_t operand)
 }
 
 /* LXSB - 140704 + (delta << 3) (privileged): X := STBNK[B + delta]. */
-void ndfunc_lxsb(uint16_t operand)
+static void ndfunc_lxsb(uint16_t operand)
 {
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
@@ -3514,9 +3520,9 @@ void ndfunc_lxsb(uint16_t operand)
 }
 
 /* LXCB - 140705 + (delta << 3) (privileged): X := CMBUK[X + delta]. */
-void ndfunc_lxcb(uint16_t operand)
+static void ndfunc_lxcb(uint16_t operand)
 {
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
@@ -3525,9 +3531,9 @@ void ndfunc_lxcb(uint16_t operand)
 }
 
 /* SZSB - 140706 + (delta << 3) (privileged): STBNK[B + delta] := 0. */
-void ndfunc_szsb(uint16_t operand)
+static void ndfunc_szsb(uint16_t operand)
 {
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
@@ -3536,9 +3542,9 @@ void ndfunc_szsb(uint16_t operand)
 }
 
 /* SZCB - 140707 + (delta << 3) (privileged): CMBUK[X + delta] := 0. */
-void ndfunc_szcb(uint16_t operand)
+static void ndfunc_szcb(uint16_t operand)
 {
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
@@ -3590,7 +3596,7 @@ void ndfunc_szcb(uint16_t operand)
  * Reading the frame with UseAPT=0 while PTM=1 (split I/D space) fetches a word
  * from the CODE page where SMAX should be, producing a bogus stack overflow.
  */
-void ndfunc_init(uint16_t operand)
+static void ndfunc_init(uint16_t operand)
 {
     (void)operand;
     uint16_t demand, start, maxsize, flag;
@@ -3627,7 +3633,7 @@ void ndfunc_init(uint16_t operand)
  * ADDR+3: Normal return
  *
  */
-void ndfunc_entr(uint16_t operand)
+static void ndfunc_entr(uint16_t operand)
 {
     (void)operand;
     uint16_t oldB, demand, smax, stp;
@@ -3650,7 +3656,7 @@ void ndfunc_entr(uint16_t operand)
 
 /* LEAVE
  */
-void ndfunc_leave(uint16_t operand)
+static void ndfunc_leave(uint16_t operand)
 {
     (void)operand;
     gPC = MemoryRead(gB - 128, 1);
@@ -3659,7 +3665,7 @@ void ndfunc_leave(uint16_t operand)
 
 /* ELEAV
  */
-void ndfunc_eleav(uint16_t operand)
+static void ndfunc_eleav(uint16_t operand)
 {
     (void)operand;
     uint16_t tmp;
@@ -3683,7 +3689,7 @@ void ndfunc_eleav(uint16_t operand)
 ///
 /// Affected: (A)
 /// </summary>
-void ndfunc_lbyt(uint16_t operand)
+static void ndfunc_lbyt(uint16_t operand)
 {
     (void)operand;
 
@@ -3711,7 +3717,7 @@ void ndfunc_lbyt(uint16_t operand)
 ///
 /// Affected: (EL)
 /// </summary>
-void ndfunc_sbyt(uint16_t operand)
+static void ndfunc_sbyt(uint16_t operand)
 {
     (void)operand;
 
@@ -3744,7 +3750,7 @@ void ndfunc_sbyt(uint16_t operand)
 ///
 /// Affected: (X)
 /// </summary>
-void ndfunc_mix3(uint16_t operand)
+static void ndfunc_mix3(uint16_t operand)
 {
     (void)operand;
     gX = (uint16_t)((gA - 1) * 3);
@@ -3845,7 +3851,7 @@ static inline void regop_arith(uint16_t operand, uint16_t dr, uint16_t source, u
     }
 }
 
-void regop(uint16_t operand)
+static void regop(uint16_t operand)
 { /* SWAP RAND REXO RORA RADD RCLR EXIT RDCR RING RSUB */
     int RAD, CLD;
     uint16_t sr, dr, source, destination;
@@ -3890,7 +3896,7 @@ void regop(uint16_t operand)
 
 
 /*
- * DoMCL - Masked Clear
+ * do_mcl - Masked Clear
  *  Affected: Internal register specified
  *  (Only STS, PID & PIE possible)
  *  <IR> = <IR> & (~A)
@@ -3898,9 +3904,9 @@ void regop(uint16_t operand)
  * NOTE:: STS need to be checked.
  * NOTE:: Privileged instructions
  */
-void DoMCL(uint16_t instr)
+static void do_mcl(uint16_t instr)
 {
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
@@ -3929,7 +3935,7 @@ void DoMCL(uint16_t instr)
 }
 
 /*
- * DoMST - Masked SET
+ * do_mst - Masked SET
  *  Affected: Internal register specified
  *  (Only STS, PID & PIE possible)
  *  <IR> = <IR> | (A)
@@ -3937,9 +3943,9 @@ void DoMCL(uint16_t instr)
  * NOTE:: STS need to be checked.
  * NOTE:: Privileged instructions
  */
-void DoMST(uint16_t instr)
+static void do_mst(uint16_t instr)
 {
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
@@ -3969,15 +3975,15 @@ void DoMST(uint16_t instr)
 
 
 /*
- * DoTRA - Transfer to register
+ * do_tra - Transfer to register
  *  Affected: Accumulator
  *  A = <IR>;
  *
  * NOTE: Privileged instructions
  */
-void DoTRA(uint16_t instr)
+static void do_tra(uint16_t instr)
 {
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
@@ -4079,9 +4085,9 @@ void DoTRA(uint16_t instr)
 }
 
 /*
- * DoEXR - Run instruction in source register
+ * do_exr - Run instruction in source register
  */
-void DoEXR(uint16_t instr)
+static void do_exr(uint16_t instr)
 {
     uint16_t sr, exr_instr;
     sr = (instr >> 3) & 0x07;
@@ -4109,15 +4115,15 @@ void DoEXR(uint16_t instr)
 }
 
 /*
- * DoWAIT - Give up prio instruction
+ * do_wait - Give up prio instruction
  * NOTE:: Only basic parts fixed yet, this is a fairly complex one
  *
  * NOTE:: Privileged instructions
  */
-void DoWAIT(uint16_t instr)
+static void do_wait(uint16_t instr)
 {
     (void)instr;
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
@@ -4155,7 +4161,7 @@ void DoWAIT(uint16_t instr)
  * Unconditionally stops the emulator.
  * A register = process exit code.
  */
-void ndfunc_halt(uint16_t operand)
+static void ndfunc_halt(uint16_t operand)
 {
     (void)operand;
     printf("\r\nHALT opcode at PIL[%d] PC[%6o] A[%6o]\r\n", gPIL, gPC, gA);
@@ -4165,14 +4171,14 @@ void ndfunc_halt(uint16_t operand)
 
 /* LWCS (Privileged)
  */
-void ndfunc_lwcs(uint16_t instr)
+static void ndfunc_lwcs(uint16_t instr)
 {
     (void)instr;
     // LWCS is a no-operation on the ND-110
     // The ND-110 is software compatible but nor microcode compatible and writing to the writable control store has no meaning in the ND-110.
     // A no-operation is executed so that programs written for the ND-100 and NORD-10 can continue
 
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
@@ -4184,7 +4190,7 @@ void ndfunc_lwcs(uint16_t instr)
 //TODO: Make these into callbacks
 
 /*
- * DoTRR - Transfer to register
+ * do_trr - Transfer to register
  *  Affected: Internal register specified
  *  <IR> = A;
  *
@@ -4192,9 +4198,9 @@ void ndfunc_lwcs(uint16_t instr)
  *
  * NOTE: Privileged instructions
  */
-void DoTRR(uint16_t instr)
+static void do_trr(uint16_t instr)
 {
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
@@ -4270,16 +4276,16 @@ void DoTRR(uint16_t instr)
 
 
 /*
- * DoSRB - Store register block.
+ * do_srb - Store register block.
  *  Affected:(EL),+ 1 +2 + 3 + 4 + 5 + 6 + 7
  *            P    X  T   A   D   L  STS  B
  *
  *  Uses the alternative pagetable!
  */
-void DoSRB(uint16_t operand)
+static void do_srb(uint16_t operand)
 {
 
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
@@ -4304,7 +4310,7 @@ void DoSRB(uint16_t operand)
 }
 
 /*
- * DoLRB - Load register block.
+ * do_lrb - Load register block.
  *           (EL),+ 1 +2 + 3 + 4 + 5 + 6 + 7
  *  Affected:  P    X  T   A   D   L  STS  B
  *
@@ -4326,10 +4332,10 @@ void DoSRB(uint16_t operand)
 ///
 /// The LBR instruction is privileged
 /// </summary>
-void DoLRB(uint16_t operand)
+static void do_lrb(uint16_t operand)
 {
 
-    if (!CheckPriv())
+    if (!check_priv())
     {
         return;
     }
@@ -4354,7 +4360,7 @@ void DoLRB(uint16_t operand)
     g_reg->reg[lvl][_B] = MemoryRead(addr + 7, true);
 }
 
-bool IsSkip(uint16_t instr)
+static bool is_skip(uint16_t instr)
 {
     uint16_t sr, dr, source, desti;
     signed short ss, sd, sgr, ovf;
@@ -4433,7 +4439,7 @@ bool IsSkip(uint16_t instr)
     return false;
 }
 
-void do_bops(uint16_t operand)
+static void do_bops(uint16_t operand)
 {
     uint16_t bn, dr, desti;
     bn = ((operand & 0x0078) >> 3);
@@ -4510,7 +4516,7 @@ void do_bops(uint16_t operand)
     }
 }
 
-uint16_t ShiftReg(uint16_t reg, uint16_t instr)
+static uint16_t shift_reg(uint16_t reg, uint16_t instr)
 {
     bool isneg = ((instr & 0x0020) >> 5) ? 1 : 0;
     /* Right-shift count is the two's complement of the 6-bit field, but the hardware shift counter is
@@ -4553,11 +4559,11 @@ uint16_t ShiftReg(uint16_t reg, uint16_t instr)
 /* The A:D register pair is exactly 32 bits; do the arithmetic in uint32_t.
  * (It used ulong, 64-bit native and 32-bit on wasm, and shifted an int
  * into bit 31, which is undefined behaviour.) */
-uint32_t ShiftDoubleReg(uint32_t reg, uint16_t instr)
+static uint32_t shift_double_reg(uint32_t reg, uint16_t instr)
 {
     bool isneg = ((instr & 0x0020) >> 5) ? 1 : 0;
     /* 5-bit shift-counter wrap: field 040 octal (=32) -> 0 = NO shift (SAD register pair unchanged, M
-     * preserved). Oracle-validated (RetroCore 135a2ff28). See ShiftReg for the full note. */
+     * preserved). Oracle-validated (RetroCore 135a2ff28). See shift_reg for the full note. */
     uint16_t offset =
         (isneg) ? (uint16_t)((~((instr & 0x003F) | 0xFFC0) + 1) & 0x1F) : (instr & 0x003F);
     uint16_t shifttype = ((instr >> 9) & 0x03);
@@ -4593,10 +4599,10 @@ uint32_t ShiftDoubleReg(uint32_t reg, uint16_t instr)
 }
 
 /*
- * DoIDENT
+ * do_ident
  * Handles IDENT PLxx instructions
  */
-void DoIDENT(uint16_t priolevel)
+static void do_ident(uint16_t priolevel)
 {
 
     int id = IO_Ident(priolevel);
@@ -4641,7 +4647,7 @@ void DoIDENT(uint16_t priolevel)
 ///  However, the translation will use the alternative page table when PTM is on (Page Table Modus) (status register bit 0 is 1) and the paging system is on, PON.
 /// </summary>
 
-void DoRDUS(uint16_t instr)
+static void do_rdus(uint16_t instr)
 {
     (void)instr;
     gA = MemoryRead(gT, true);
@@ -4662,7 +4668,7 @@ void DoRDUS(uint16_t instr)
 ///
 /// The old content of the memory address is always read from the memory, and never from the cache, Data is written both to memory and cache.
 /// </summary>
-void DoTSET(uint16_t instr)
+static void do_tset(uint16_t instr)
 {
     (void)instr;
     // cpu.WriteVirtualMemory(regs.currentRegisters.T, 0xFFFF, PageTable.AlternativePageTable); // Write -1
@@ -4694,7 +4700,7 @@ void DoTSET(uint16_t instr)
 ///
 /// Format: MOVEW
 /// </summary>
-void DoMOVEW(uint16_t instr)
+static void do_movew(uint16_t instr)
 {
     unsigned int sourceAddress = gD;
     unsigned int destinationAddress = gT;
@@ -4733,7 +4739,7 @@ void DoMOVEW(uint16_t instr)
     // Check for priveleged instruction
     if (isSourcePhysical || isDestinationPhysical)
     {
-        if (!CheckPriv())
+        if (!check_priv())
         {
             return;
         }
@@ -4813,11 +4819,11 @@ void DoMOVEW(uint16_t instr)
 }
 
 #define _removed_MOVB_AND_MOVBF_ 1
-#if _removed_MOVB_AND_MOVBF_ // replaced with doMoveBytes
+#if _removed_MOVB_AND_MOVBF_ // replaced with do_move_bytes
 /*
  * MOVB instruction. TODO:: Fix edge case and document params here...
  */
-void DoMOVB(uint16_t instr)
+static void do_movb(uint16_t instr)
 {
     (void)instr;
     uint16_t source, dest, lens, lend, len, s_lr, d_lr, s_apt, d_apt;
@@ -4919,7 +4925,7 @@ void DoMOVB(uint16_t instr)
 /*
  * MOVBF instruction. TODO:: ALL
  */
-void DoMOVBF(uint16_t instr)
+static void do_movbf(uint16_t instr)
 {
     (void)instr;
     uint16_t source, dest, lens, lend, len, s_lr, d_lr, s_apt, d_apt;
@@ -5051,7 +5057,7 @@ void add_A_mem(uint16_t eff_addr, bool UseAPT)
  * It seems SINTRAN doesnt use this function for booting and operating
  * checkOverlapping: MOVBF sets this to true, MOVB sets this to false
  */
-void doMoveBytes(bool checkOverlapping)
+static void do_move_bytes(bool checkOverlapping)
 {
     const int LEN_MASK = 0xFFF;
     int readValue;
@@ -5193,7 +5199,7 @@ void doMoveBytes(bool checkOverlapping)
 void ndfunc_movb(uint16_t instr)
 {
     (void)instr;
-    doMoveBytes(false);
+    do_move_bytes(false);
 }
 
 /*
@@ -5202,7 +5208,7 @@ void ndfunc_movb(uint16_t instr)
 void ndfunc_movbf(uint16_t instr)
 {
     (void)instr;
-    doMoveBytes(true);
+    do_move_bytes(true);
 }
 
 void sub_A_mem(uint16_t eff_addr, bool UseAPT)
@@ -5288,7 +5294,7 @@ void rdiv_org(uint16_t instr)
 
 /// Affected: (A), (D), Z,C, O, Q
 /// </summary>
-void rdiv(uint16_t instr)
+static void rdiv(uint16_t instr)
 {
     /* FAITHFUL to RASK RDIV6 (CS 000430-000463); oracle-validated (RetroCore 4c29170d1). The success
      * "loop path" results are UNCHANGED (what SINTRAN depends on); only the ERROR paths and the
@@ -5394,7 +5400,7 @@ void rmpy_org(uint16_t instr)
 ///
 /// Affected: (A),(D), C,O,Q
 /// </summary>
-void rmpy(uint16_t instr)
+static void rmpy(uint16_t instr)
 {
     int minusCnt = 0;
     short source_value =
@@ -5446,7 +5452,7 @@ void rmpy(uint16_t instr)
 /*
  * MPY
  */
-void mpy(uint16_t operand)
+static void mpy(uint16_t operand)
 {
     int a, b, result;
     a = (int16_t)gA;
@@ -5491,7 +5497,7 @@ void StoreBCD(uint16_t address)
 
 /*************************** INITIALIZATION ***************************/
 
-void Instruction_Add(int opcode, void *funcpointer)
+static void instruction_add(int opcode, void *funcpointer)
 {
     if (g_instr_funcs[opcode] != NULL)
     {
@@ -5501,7 +5507,7 @@ void Instruction_Add(int opcode, void *funcpointer)
     g_instr_funcs[opcode] = funcpointer;
 }
 
-void Instruction_Add_Range(int start, int stop, void *funcpointer)
+static void instruction_add_range(int start, int stop, void *funcpointer)
 {
     int i;
     for (i = start; i <= stop; i++)
@@ -5516,7 +5522,7 @@ void Instruction_Add_Range(int start, int stop, void *funcpointer)
     return;
 }
 
-void Instruction_Add_Mask(int opcode, int mask, void *funcpointer)
+static void instruction_add_mask(int opcode, int mask, void *funcpointer)
 {
     int i;
     int signature = opcode & mask;
@@ -5541,126 +5547,126 @@ void Instruction_Add_Mask(int opcode, int mask, void *funcpointer)
  * Add IO handler addresses in this function
  * This also thus actually acts as the new instruction parser also.
  */
-/* size exemption: opcode table (house rule 7.1) - one Instruction_Add per opcode group */
+/* size exemption: opcode table (house rule 7.1) - one instruction_add per opcode group */
 void Setup_Instructions(void) // NOLINT(readability-function-size)
 {
-    //Instruction_Add_Range(0000000, 0177777, &illegal_instr); /* First make all instructions by default point to illegal_instr  */
+    //instruction_add_range(0000000, 0177777, &illegal_instr); /* First make all instructions by default point to illegal_instr  */
 
-    // Instruction_Add_Range(0000000, 0003777, &ndfunc_stz); /* STZ  */
-    Instruction_Add_Mask(0000000, 0xF800, &ndfunc_stz);
+    // instruction_add_range(0000000, 0003777, &ndfunc_stz); /* STZ  */
+    instruction_add_mask(0000000, 0xF800, &ndfunc_stz);
 
-    // Instruction_Add_Range(0004000, 0007777, &ndfunc_sta); /* STA  */
-    Instruction_Add_Mask(0004000, 0xF800, &ndfunc_sta);
+    // instruction_add_range(0004000, 0007777, &ndfunc_sta); /* STA  */
+    instruction_add_mask(0004000, 0xF800, &ndfunc_sta);
 
-    // Instruction_Add_Range(0010000, 0013777, &ndfunc_stt); /* STT  */
-    Instruction_Add_Mask(0010000, 0xF800, &ndfunc_stt);
+    // instruction_add_range(0010000, 0013777, &ndfunc_stt); /* STT  */
+    instruction_add_mask(0010000, 0xF800, &ndfunc_stt);
 
-    // Instruction_Add_Range(0014000, 0017777, &ndfunc_stx); /* STX  */
-    Instruction_Add_Mask(0014000, 0xF800, &ndfunc_stx);
+    // instruction_add_range(0014000, 0017777, &ndfunc_stx); /* STX  */
+    instruction_add_mask(0014000, 0xF800, &ndfunc_stx);
 
-    // Instruction_Add_Range(0020000, 0023777, &ndfunc_std); /* STD  */
-    Instruction_Add_Mask(0020000, 0xF800, &ndfunc_std);
+    // instruction_add_range(0020000, 0023777, &ndfunc_std); /* STD  */
+    instruction_add_mask(0020000, 0xF800, &ndfunc_std);
 
-    // Instruction_Add_Range(0024000, 0027777, &ndfunc_ldd); /* LDD  */
-    Instruction_Add_Mask(0024000, 0xF800, &ndfunc_ldd);
+    // instruction_add_range(0024000, 0027777, &ndfunc_ldd); /* LDD  */
+    instruction_add_mask(0024000, 0xF800, &ndfunc_ldd);
 
-    // Instruction_Add_Range(0030000, 0033777, &ndfunc_stf); /* STF  */
-    Instruction_Add_Mask(0030000, 0xF800, &ndfunc_stf);
+    // instruction_add_range(0030000, 0033777, &ndfunc_stf); /* STF  */
+    instruction_add_mask(0030000, 0xF800, &ndfunc_stf);
 
-    // Instruction_Add_Range(0034000, 0037777, &ndfunc_ldf); /* LDF  */
-    Instruction_Add_Mask(0034000, 0xF800, &ndfunc_ldf);
+    // instruction_add_range(0034000, 0037777, &ndfunc_ldf); /* LDF  */
+    instruction_add_mask(0034000, 0xF800, &ndfunc_ldf);
 
-    // Instruction_Add_Range(0040000, 0043777, &ndfunc_min); /* MIN  */
-    Instruction_Add_Mask(0040000, 0xF800, &ndfunc_min);
+    // instruction_add_range(0040000, 0043777, &ndfunc_min); /* MIN  */
+    instruction_add_mask(0040000, 0xF800, &ndfunc_min);
 
-    // Instruction_Add_Range(0044000, 0047777, &ndfunc_lda); /* LDA  */
-    Instruction_Add_Mask(0044000, 0xF800, &ndfunc_lda);
+    // instruction_add_range(0044000, 0047777, &ndfunc_lda); /* LDA  */
+    instruction_add_mask(0044000, 0xF800, &ndfunc_lda);
 
-    // Instruction_Add_Range(0050000, 0053777, &ndfunc_ldt); /* LDT  */
-    Instruction_Add_Mask(0050000, 0xF800, &ndfunc_ldt);
+    // instruction_add_range(0050000, 0053777, &ndfunc_ldt); /* LDT  */
+    instruction_add_mask(0050000, 0xF800, &ndfunc_ldt);
 
-    // Instruction_Add_Range(0054000, 0057777, &ndfunc_ldx); /* LDX  */
-    Instruction_Add_Mask(0054000, 0xF800, &ndfunc_ldx);
+    // instruction_add_range(0054000, 0057777, &ndfunc_ldx); /* LDX  */
+    instruction_add_mask(0054000, 0xF800, &ndfunc_ldx);
 
-    // Instruction_Add_Range(0060000, 0063777, &ndfunc_add); /* ADD  */
-    Instruction_Add_Mask(0060000, 0xF800, &ndfunc_add);
+    // instruction_add_range(0060000, 0063777, &ndfunc_add); /* ADD  */
+    instruction_add_mask(0060000, 0xF800, &ndfunc_add);
 
-    // Instruction_Add_Range(0064000, 0067777, &ndfunc_sub); /* SUB  */
-    Instruction_Add_Mask(0064000, 0xF800, &ndfunc_sub);
+    // instruction_add_range(0064000, 0067777, &ndfunc_sub); /* SUB  */
+    instruction_add_mask(0064000, 0xF800, &ndfunc_sub);
 
-    // Instruction_Add(0070000, 0073777, &ndfunc_and); /* AND  */
-    Instruction_Add_Mask(0070000, 0xF800, &ndfunc_and);
+    // instruction_add(0070000, 0073777, &ndfunc_and); /* AND  */
+    instruction_add_mask(0070000, 0xF800, &ndfunc_and);
 
-    // Instruction_Add_Range(0074000, 0077777, &ndfunc_ora); /* ORA  */
-    Instruction_Add_Mask(0074000, 0xF800, &ndfunc_ora);
+    // instruction_add_range(0074000, 0077777, &ndfunc_ora); /* ORA  */
+    instruction_add_mask(0074000, 0xF800, &ndfunc_ora);
 
-    // Instruction_Add_Range(0100000, 0103777, &ndfunc_fad); /* FAD  */
-    Instruction_Add_Mask(0100000, 0xF800, &ndfunc_fad);
+    // instruction_add_range(0100000, 0103777, &ndfunc_fad); /* FAD  */
+    instruction_add_mask(0100000, 0xF800, &ndfunc_fad);
 
-    // Instruction_Add_Range(0104000, 0107777, &ndfunc_fsb); /* FSB  */
-    Instruction_Add_Mask(0104000, 0xF800, &ndfunc_fsb);
+    // instruction_add_range(0104000, 0107777, &ndfunc_fsb); /* FSB  */
+    instruction_add_mask(0104000, 0xF800, &ndfunc_fsb);
 
-    // Instruction_Add_Range(0110000, 0113777, &ndfunc_fmu); /* FMU  */
-    Instruction_Add_Mask(0110000, 0xF800, &ndfunc_fmu);
+    // instruction_add_range(0110000, 0113777, &ndfunc_fmu); /* FMU  */
+    instruction_add_mask(0110000, 0xF800, &ndfunc_fmu);
 
-    // Instruction_Add_Range(0114000, 0117777, &ndfunc_fdv); /* FDV  */
-    Instruction_Add_Mask(0114000, 0xF800, &ndfunc_fdv);
+    // instruction_add_range(0114000, 0117777, &ndfunc_fdv); /* FDV  */
+    instruction_add_mask(0114000, 0xF800, &ndfunc_fdv);
 
-    // Instruction_Add_Range(0120000, 0123777, &mpy);       /* MPY  */
-    Instruction_Add_Mask(0120000, 0xF800, &mpy);
+    // instruction_add_range(0120000, 0123777, &mpy);       /* MPY  */
+    instruction_add_mask(0120000, 0xF800, &mpy);
 
-    // Instruction_Add_Range(0124000, 0127777, &ndfunc_jmp); /* JMP  */
-    Instruction_Add_Mask(0124000, 0xF800, &ndfunc_jmp);
+    // instruction_add_range(0124000, 0127777, &ndfunc_jmp); /* JMP  */
+    instruction_add_mask(0124000, 0xF800, &ndfunc_jmp);
 
-    // Instruction_Add_Range(0134000, 0137777, &ndfunc_jpl); /* JPL  */
-    Instruction_Add_Mask(0134000, 0xF800, &ndfunc_jpl);
+    // instruction_add_range(0134000, 0137777, &ndfunc_jpl); /* JPL  */
+    instruction_add_mask(0134000, 0xF800, &ndfunc_jpl);
 
     // CJPs - Conditional jumps
-    // Instruction_Add_Range(0130000, 0130377, &ndfunc_jap); /* JAP */
-    Instruction_Add_Mask(0130000, 0xFF00, &ndfunc_jap);
+    // instruction_add_range(0130000, 0130377, &ndfunc_jap); /* JAP */
+    instruction_add_mask(0130000, 0xFF00, &ndfunc_jap);
 
-    // Instruction_Add_Range(0130400, 0130777, &ndfunc_jan); /* JAN */
-    Instruction_Add_Mask(0130400, 0xFF00, &ndfunc_jan);
+    // instruction_add_range(0130400, 0130777, &ndfunc_jan); /* JAN */
+    instruction_add_mask(0130400, 0xFF00, &ndfunc_jan);
 
-    // Instruction_Add_Range(0131000, 0131377, &ndfunc_jaz); /* JAZ */
-    Instruction_Add_Mask(0131000, 0xFF00, &ndfunc_jaz);
+    // instruction_add_range(0131000, 0131377, &ndfunc_jaz); /* JAZ */
+    instruction_add_mask(0131000, 0xFF00, &ndfunc_jaz);
 
-    // Instruction_Add_Range(0131400, 0131777, &ndfunc_jaf); /* JAF */
-    Instruction_Add_Mask(0131400, 0xFF00, &ndfunc_jaf);
+    // instruction_add_range(0131400, 0131777, &ndfunc_jaf); /* JAF */
+    instruction_add_mask(0131400, 0xFF00, &ndfunc_jaf);
 
-    // Instruction_Add_Range(0132000, 0132377, &ndfunc_jpc); /* JPC */
-    Instruction_Add_Mask(0132000, 0xFF00, &ndfunc_jpc);
+    // instruction_add_range(0132000, 0132377, &ndfunc_jpc); /* JPC */
+    instruction_add_mask(0132000, 0xFF00, &ndfunc_jpc);
 
-    // Instruction_Add_Range(0132400, 0132777, &ndfunc_jnc); /* JNC */
-    Instruction_Add_Mask(0132400, 0xFF00, &ndfunc_jnc);
+    // instruction_add_range(0132400, 0132777, &ndfunc_jnc); /* JNC */
+    instruction_add_mask(0132400, 0xFF00, &ndfunc_jnc);
 
-    // Instruction_Add_Range(0133000, 0133377, &ndfunc_jxz); /* JXZ */
-    Instruction_Add_Mask(0133000, 0xFF00, &ndfunc_jxz);
+    // instruction_add_range(0133000, 0133377, &ndfunc_jxz); /* JXZ */
+    instruction_add_mask(0133000, 0xFF00, &ndfunc_jxz);
 
-    // Instruction_Add_Range(0133400, 0133777, &ndfunc_jxn); /* JXN */
-    Instruction_Add_Mask(0133400, 0xFF00, &ndfunc_jxn);
+    // instruction_add_range(0133400, 0133777, &ndfunc_jxn); /* JXN */
+    instruction_add_mask(0133400, 0xFF00, &ndfunc_jxn);
 
-    Instruction_Add_Mask(0140000, 0xF8C0, &ndfunc_skp);
+    instruction_add_mask(0140000, 0xF8C0, &ndfunc_skp);
 
     // BCD (CX)
-    Instruction_Add(0140120, &ndfunc_addd);   /* ADDD  */
-    Instruction_Add(0140121, &ndfunc_subd);   /* SUBD  */
-    Instruction_Add(0140122, &ndfunc_comd);   /* COMD  */
-    Instruction_Add(0140124, &ndfunc_pack);   /* PACK  */
-    Instruction_Add(0140125, &ndfunc_unpack); /* UPACK */
-    Instruction_Add(0140126, &ndfunc_shde);   /* SHDE  */
+    instruction_add(0140120, &ndfunc_addd);   /* ADDD  */
+    instruction_add(0140121, &ndfunc_subd);   /* SUBD  */
+    instruction_add(0140122, &ndfunc_comd);   /* COMD  */
+    instruction_add(0140124, &ndfunc_pack);   /* PACK  */
+    instruction_add(0140125, &ndfunc_unpack); /* UPACK */
+    instruction_add(0140126, &ndfunc_shde);   /* SHDE  */
 
-    Instruction_Add(0140123, &DoTSET); /* TSET  */
-    Instruction_Add(0140127, &DoRDUS); /* RDUS  */
+    instruction_add(0140123, &do_tset); /* TSET  */
+    instruction_add(0140127, &do_rdus); /* RDUS  */
 
     { // CE; CX
 
-        Instruction_Add(0140130, &ndfunc_bfill); /* BFILL */
-        Instruction_Add(0140131, &DoMOVB);       /* MOVB  */
-        Instruction_Add(0140132, &DoMOVBF);      /* MOVBF */
+        instruction_add(0140130, &ndfunc_bfill); /* BFILL */
+        instruction_add(0140131, &do_movb);      /* MOVB  */
+        instruction_add(0140132, &do_movbf);     /* MOVBF */
 
-        // Instruction_Add(0140131, &ndfunc_movb);  /* MOVB  */
-        // Instruction_Add(0140132, &ndfunc_movbf); /* MOVBF */
+        // instruction_add(0140131, &ndfunc_movb);  /* MOVB  */
+        // instruction_add(0140132, &ndfunc_movbf); /* MOVBF */
     }
 
     switch (g_current_cpu_type)
@@ -5672,7 +5678,7 @@ void Setup_Instructions(void) // NOLINT(readability-function-size)
     case ND120CX: /* ND-120 is instruction-set-identical to the ND-110/CX (VERSN + the 140133 / */
                   /* 140500-140517 / 14070x ND-110 groups). Without VERSN here it traps illegal, */
         /* and TPE cannot read the ND-120/CX identity. Reapplied from session-windows-work. */
-        Instruction_Add(0140133, &ndfunc_versn); /* VERSN - ND110+ */
+        instruction_add(0140133, &ndfunc_versn); /* VERSN - ND110+ */
         break;
     default:
         break;
@@ -5680,13 +5686,13 @@ void Setup_Instructions(void) // NOLINT(readability-function-size)
 
     { // CE; CX
 
-        Instruction_Add(0140134, &ndfunc_init);  /* INIT  */
-        Instruction_Add(0140135, &ndfunc_entr);  /* ENTR  */
-        Instruction_Add(0140136, &ndfunc_leave); /* LEAVE */
-        Instruction_Add(0140137, &ndfunc_eleav); /* ELEAV */
+        instruction_add(0140134, &ndfunc_init);  /* INIT  */
+        instruction_add(0140135, &ndfunc_entr);  /* ENTR  */
+        instruction_add(0140136, &ndfunc_leave); /* LEAVE */
+        instruction_add(0140137, &ndfunc_eleav); /* ELEAV */
     }
-    // Instruction_Add(0140200, 0140277, &illegal_instr); /* USER1 (microcode defined by user or illegal instruction otherwise) */
-    Instruction_Add(0140200, &ndfunc_halt); /* HALT - emulator exit, A=exit code */
+    // instruction_add(0140200, 0140277, &illegal_instr); /* USER1 (microcode defined by user or illegal instruction otherwise) */
+    instruction_add(0140200, &ndfunc_halt); /* HALT - emulator exit, A=exit code */
 
     switch (g_current_cpu_type)
     {
@@ -5696,35 +5702,35 @@ void Setup_Instructions(void) // NOLINT(readability-function-size)
     case ND110PCX:
     case ND120CX: /* ND-120 is instruction-set-identical to the ND-110/CX - same ND-110 opcode group. */
         // ALL are priveleged!
-        Instruction_Add(0140500, &ndfunc_wglob); /* WGLOB - ND110 Specific */
-        Instruction_Add(0140501, &ndfunc_rglob); /* RGLOB - ND110 Specific */
-        Instruction_Add(0140502, &ndfunc_inspl); /* INSPL - ND110 Specific */
-        Instruction_Add(0140503, &ndfunc_rempl); /* REMPL - ND110 Specific */
-        Instruction_Add(0140504, &ndfunc_cnrek); /* CNREK - ND110 Specific */
-        Instruction_Add(0140505, &ndfunc_clpt);  /* CLPT  - ND110 Specific */
-        Instruction_Add(0140506, &ndfunc_enpt);  /* ENPT  - ND110 Specific */
-        Instruction_Add(0140507, &ndfunc_rept);  /* REPT  - ND110 Specific */
-        Instruction_Add(0140510, &ndfunc_lbit);  /* LBIT  - ND110 Specific */
+        instruction_add(0140500, &ndfunc_wglob); /* WGLOB - ND110 Specific */
+        instruction_add(0140501, &ndfunc_rglob); /* RGLOB - ND110 Specific */
+        instruction_add(0140502, &ndfunc_inspl); /* INSPL - ND110 Specific */
+        instruction_add(0140503, &ndfunc_rempl); /* REMPL - ND110 Specific */
+        instruction_add(0140504, &ndfunc_cnrek); /* CNREK - ND110 Specific */
+        instruction_add(0140505, &ndfunc_clpt);  /* CLPT  - ND110 Specific */
+        instruction_add(0140506, &ndfunc_enpt);  /* ENPT  - ND110 Specific */
+        instruction_add(0140507, &ndfunc_rept);  /* REPT  - ND110 Specific */
+        instruction_add(0140510, &ndfunc_lbit);  /* LBIT  - ND110 Specific */
         /*
          * 140511 LBITP and 140512 SBIT were MISSING from this table entirely (not even
          * registered as unimplemented) - see ND-06.029.1 EN and RetroCore
          * Instructions.cs (hasND110Group), which registers the full 140510-140517 run.
          */
-        Instruction_Add(0140511, &ndfunc_lbitp); /* LBITP - ND110 Specific */
-        Instruction_Add(0140512, &ndfunc_sbit);  /* SBIT  - ND110 Specific */
-        Instruction_Add(0140513, &ndfunc_sbitp); /* SBITP - ND110 Specific */
-        Instruction_Add(0140514, &ndfunc_lbytp); /* LBYTP - ND110 Specific */
-        Instruction_Add(0140515, &ndfunc_sbytp); /* SBYTP - ND110 Specific */
-        Instruction_Add(0140516, &ndfunc_tsetp); /* TSETP - ND110 Specific */
-        Instruction_Add(0140517, &ndfunc_rdusp); /* RDUSP - ND110 Specific */
+        instruction_add(0140511, &ndfunc_lbitp); /* LBITP - ND110 Specific */
+        instruction_add(0140512, &ndfunc_sbit);  /* SBIT  - ND110 Specific */
+        instruction_add(0140513, &ndfunc_sbitp); /* SBITP - ND110 Specific */
+        instruction_add(0140514, &ndfunc_lbytp); /* LBYTP - ND110 Specific */
+        instruction_add(0140515, &ndfunc_sbytp); /* SBYTP - ND110 Specific */
+        instruction_add(0140516, &ndfunc_tsetp); /* TSETP - ND110 Specific */
+        instruction_add(0140517, &ndfunc_rdusp); /* RDUSP - ND110 Specific */
 
         break;
     default:
-        // Instruction_Add_Range(0140500, 0140577, &illegal_instr); /* USER2 (microcode defined by user or illegal instruction otherwise) */
+        // instruction_add_range(0140500, 0140577, &illegal_instr); /* USER2 (microcode defined by user or illegal instruction otherwise) */
         break;
     }
 
-    Instruction_Add_Mask(0140600, 0xFFC0, &DoEXR); /* EXR */
+    instruction_add_mask(0140600, 0xFFC0, &do_exr); /* EXR */
     switch (g_current_cpu_type)
     {
     case ND110:
@@ -5740,14 +5746,14 @@ void Setup_Instructions(void) // NOLINT(readability-function-size)
          * only the bare 14070x word left the 56 displaced encodings undecoded.
          * Note also that 0140703 was mislabelled "SASB" here; it is SACB.
          */
-        Instruction_Add_Mask(0140700, 0xFFC7, &ndfunc_lasb); /* LASB - ND110 Specific */
-        Instruction_Add_Mask(0140701, 0xFFC7, &ndfunc_sasb); /* SASB - ND110 Specific */
-        Instruction_Add_Mask(0140702, 0xFFC7, &ndfunc_lacb); /* LACB - ND110 Specific */
-        Instruction_Add_Mask(0140703, 0xFFC7, &ndfunc_sacb); /* SACB - ND110 Specific */
-        Instruction_Add_Mask(0140704, 0xFFC7, &ndfunc_lxsb); /* LXSB - ND110 Specific */
-        Instruction_Add_Mask(0140705, 0xFFC7, &ndfunc_lxcb); /* LXCB - ND110 Specific */
-        Instruction_Add_Mask(0140706, 0xFFC7, &ndfunc_szsb); /* SZSB - ND110 Specific */
-        Instruction_Add_Mask(0140707, 0xFFC7, &ndfunc_szcb); /* SZCB - ND110 Specific */
+        instruction_add_mask(0140700, 0xFFC7, &ndfunc_lasb); /* LASB - ND110 Specific */
+        instruction_add_mask(0140701, 0xFFC7, &ndfunc_sasb); /* SASB - ND110 Specific */
+        instruction_add_mask(0140702, 0xFFC7, &ndfunc_lacb); /* LACB - ND110 Specific */
+        instruction_add_mask(0140703, 0xFFC7, &ndfunc_sacb); /* SACB - ND110 Specific */
+        instruction_add_mask(0140704, 0xFFC7, &ndfunc_lxsb); /* LXSB - ND110 Specific */
+        instruction_add_mask(0140705, 0xFFC7, &ndfunc_lxcb); /* LXCB - ND110 Specific */
+        instruction_add_mask(0140706, 0xFFC7, &ndfunc_szsb); /* SZSB - ND110 Specific */
+        instruction_add_mask(0140707, 0xFFC7, &ndfunc_szcb); /* SZCB - ND110 Specific */
         break;
     default:
         break;
@@ -5757,95 +5763,95 @@ void Setup_Instructions(void) // NOLINT(readability-function-size)
     {
         // ND100-CX and ND110-CX only
 
-        Instruction_Add(0140300, &ndfunc_setpt);         /* SETPT */
-        Instruction_Add(0140301, &ndfunc_clept);         /* CLEPT */
-        Instruction_Add(0140302, &ndfunc_clnreent);      /* CLNREENT */
-        Instruction_Add(0140303, &ndfunc_chreent_pages); /* CHREENT-PAGES */
-        Instruction_Add(0140304, &ndfunc_clepu);         /* CLEPU */
+        instruction_add(0140300, &ndfunc_setpt);         /* SETPT */
+        instruction_add(0140301, &ndfunc_clept);         /* CLEPT */
+        instruction_add(0140302, &ndfunc_clnreent);      /* CLNREENT */
+        instruction_add(0140303, &ndfunc_chreent_pages); /* CHREENT-PAGES */
+        instruction_add(0140304, &ndfunc_clepu);         /* CLEPU */
     }
-    Instruction_Add_Mask(0141200, 0xFFC0, &rmpy);        /* RMPY */
-    Instruction_Add_Mask(0141600, 0xFFC0, &rdiv);        /* RDIV */
-    Instruction_Add_Mask(0142200, 0xFFC0, &ndfunc_lbyt); /* LBYT */
-    Instruction_Add_Mask(0142600, 0xFFC0, &ndfunc_sbyt); /* SBYT */
+    instruction_add_mask(0141200, 0xFFC0, &rmpy);        /* RMPY */
+    instruction_add_mask(0141600, 0xFFC0, &rdiv);        /* RDIV */
+    instruction_add_mask(0142200, 0xFFC0, &ndfunc_lbyt); /* LBYT */
+    instruction_add_mask(0142600, 0xFFC0, &ndfunc_sbyt); /* SBYT */
 
     // CX instructions
-    Instruction_Add(0142700, &ndfunc_geco);              /* GECO - Undocumented instruction */
-    Instruction_Add_Mask(0143100, 0xFFC0, &DoMOVEW);     /* MOVEW */
-    Instruction_Add_Mask(0143200, 0xFFC0, &ndfunc_mix3); /* MIX3 */
+    instruction_add(0142700, &ndfunc_geco);              /* GECO - Undocumented instruction */
+    instruction_add_mask(0143100, 0xFFC0, &do_movew);    /* MOVEW */
+    instruction_add_mask(0143200, 0xFFC0, &ndfunc_mix3); /* MIX3 */
 
-    Instruction_Add_Mask(0143300, 0xFFC7, &ndfunc_ldatx); /* LDATX */
-    Instruction_Add_Mask(0143301, 0xFFC7, &ndfunc_ldxtx); /* LDXTX */
-    Instruction_Add_Mask(0143302, 0xFFC7, &ndfunc_lddtx); /* LDDTX */
-    Instruction_Add_Mask(0143303, 0xFFC7, &ndfunc_ldbtx); /* LDBTX */
-    Instruction_Add_Mask(0143304, 0xFFC7, &ndfunc_statx); /* STATX */
-    Instruction_Add_Mask(0143305, 0xFFC7, &ndfunc_stztx); /* STZTX */
-    Instruction_Add_Mask(0143306, 0xFFC7, &ndfunc_stdtx); /* STDTX */
+    instruction_add_mask(0143300, 0xFFC7, &ndfunc_ldatx); /* LDATX */
+    instruction_add_mask(0143301, 0xFFC7, &ndfunc_ldxtx); /* LDXTX */
+    instruction_add_mask(0143302, 0xFFC7, &ndfunc_lddtx); /* LDDTX */
+    instruction_add_mask(0143303, 0xFFC7, &ndfunc_ldbtx); /* LDBTX */
+    instruction_add_mask(0143304, 0xFFC7, &ndfunc_statx); /* STATX */
+    instruction_add_mask(0143305, 0xFFC7, &ndfunc_stztx); /* STZTX */
+    instruction_add_mask(0143306, 0xFFC7, &ndfunc_stdtx); /* STDTX */
 
-    Instruction_Add(0143500, &ndfunc_lwcs); /* LWCS */
+    instruction_add(0143500, &ndfunc_lwcs); /* LWCS */
 
-    Instruction_Add(0143604, &ndfunc_ident); /* IDENT PL10 */
-    Instruction_Add(0143611, &ndfunc_ident); /* IDENT PL11 */
-    Instruction_Add(0143622, &ndfunc_ident); /* IDENT PL12 */
-    Instruction_Add(0143643, &ndfunc_ident); /* IDENT PL13 */
+    instruction_add(0143604, &ndfunc_ident); /* IDENT PL10 */
+    instruction_add(0143611, &ndfunc_ident); /* IDENT PL11 */
+    instruction_add(0143622, &ndfunc_ident); /* IDENT PL12 */
+    instruction_add(0143643, &ndfunc_ident); /* IDENT PL13 */
 
-    Instruction_Add_Range(0144000, 0147777, &regop); /* --ROPS-- */
-    Instruction_Add_Mask(0150000, 0xFFF0, &DoTRA);   /* TRA */
-    Instruction_Add_Mask(0150100, 0xFFF0, &DoTRR);   /* TRR */
-    Instruction_Add_Mask(0150200, 0xFFF0, &DoMCL);   /* MCL */
-    Instruction_Add_Mask(0150300, 0xFFF0, &DoMST);   /* MST */
-    Instruction_Add(0150400, &ndfunc_opcom);         /* OPCOM */
-    Instruction_Add(0150401, &ndfunc_iof);           /* IOF */
-    Instruction_Add(0150402, &ndfunc_ion);           /* ION */
+    instruction_add_range(0144000, 0147777, &regop); /* --ROPS-- */
+    instruction_add_mask(0150000, 0xFFF0, &do_tra);  /* TRA */
+    instruction_add_mask(0150100, 0xFFF0, &do_trr);  /* TRR */
+    instruction_add_mask(0150200, 0xFFF0, &do_mcl);  /* MCL */
+    instruction_add_mask(0150300, 0xFFF0, &do_mst);  /* MST */
+    instruction_add(0150400, &ndfunc_opcom);         /* OPCOM */
+    instruction_add(0150401, &ndfunc_iof);           /* IOF */
+    instruction_add(0150402, &ndfunc_ion);           /* ION */
     switch (g_current_cpu_type)
     {
     case ND110PCX:
         /* ND110 Butterfly only instruction */
-        Instruction_Add(0150403, &unimplemented_instr); /* RTNSIM (SECRE) */
+        instruction_add(0150403, &unimplemented_instr); /* RTNSIM (SECRE) */
         break;
     default:
         break;
     }
-    Instruction_Add(0150404, &ndfunc_pof);  /* POF */
-    Instruction_Add(0150405, &ndfunc_piof); /* PIOF */
-    Instruction_Add(0150406, &ndfunc_sex);  /* SEX */
-    Instruction_Add(0150407, &ndfunc_rex);  /* REX */
-    Instruction_Add(0150410, &ndfunc_pon);  /* PON */
-    Instruction_Add(0150412, &ndfunc_pion); /* PION */
+    instruction_add(0150404, &ndfunc_pof);  /* POF */
+    instruction_add(0150405, &ndfunc_piof); /* PIOF */
+    instruction_add(0150406, &ndfunc_sex);  /* SEX */
+    instruction_add(0150407, &ndfunc_rex);  /* REX */
+    instruction_add(0150410, &ndfunc_pon);  /* PON */
+    instruction_add(0150412, &ndfunc_pion); /* PION */
 
-    Instruction_Add(0150415, &ndfunc_ioxt); /* IOXT */
-    Instruction_Add(0150416, &ndfunc_exam); /* EXAM */
-    Instruction_Add(0150417, &ndfunc_depo); /* DEPO */
+    instruction_add(0150415, &ndfunc_ioxt); /* IOXT */
+    instruction_add(0150416, &ndfunc_exam); /* EXAM */
+    instruction_add(0150417, &ndfunc_depo); /* DEPO */
 
-    Instruction_Add_Mask(0151000, 0xFF00, &DoWAIT);     /* WAIT - Range 151000 - 151377 */
-    Instruction_Add_Mask(0151400, 0xFF00, &ndfunc_nlz); /* NLZ */
-    Instruction_Add_Mask(0152000, 0xFF00, &ndfunc_dnz); /* DNZ */
-    Instruction_Add_Mask(0152402, 0xFF07, &ndfunc_srb); /* SRB */
-    Instruction_Add_Mask(0152600, 0xFF07, &ndfunc_lrb); /* LRB */
-    Instruction_Add_Mask(0153000, 0xFF00, &ndfunc_mon); /* MON  - Range 153000-153377  */
-    Instruction_Add_Mask(0153400, 0xFF80, &ndfunc_irw); /* IRW */
-    Instruction_Add_Mask(0153600, 0xFF80, &ndfunc_irr); /* IRR */
+    instruction_add_mask(0151000, 0xFF00, &do_wait);    /* WAIT - Range 151000 - 151377 */
+    instruction_add_mask(0151400, 0xFF00, &ndfunc_nlz); /* NLZ */
+    instruction_add_mask(0152000, 0xFF00, &ndfunc_dnz); /* DNZ */
+    instruction_add_mask(0152402, 0xFF07, &ndfunc_srb); /* SRB */
+    instruction_add_mask(0152600, 0xFF07, &ndfunc_lrb); /* LRB */
+    instruction_add_mask(0153000, 0xFF00, &ndfunc_mon); /* MON  - Range 153000-153377  */
+    instruction_add_mask(0153400, 0xFF80, &ndfunc_irw); /* IRW */
+    instruction_add_mask(0153600, 0xFF80, &ndfunc_irr); /* IRR */
 
-    // Instruction_Add_Range(0154000, 0157777, &ndfunc_shifts); /* SHT, SHD, SHA, SAD */  /* NOTE: this is actually a ND1 instruction, so need to check which NDs implement it later */
-    Instruction_Add_Mask(0154000, 0x7980, &ndfunc_shifts); // SHT
-    Instruction_Add_Mask(0154200, 0x7980, &ndfunc_shifts); // SHD
-    Instruction_Add_Mask(0154400, 0x7980, &ndfunc_shifts); // SHA
-    Instruction_Add_Mask(0154600, 0x7980, &ndfunc_shifts); // SAD
+    // instruction_add_range(0154000, 0157777, &ndfunc_shifts); /* SHT, SHD, SHA, SAD */  /* NOTE: this is actually a ND1 instruction, so need to check which NDs implement it later */
+    instruction_add_mask(0154000, 0x7980, &ndfunc_shifts); // SHT
+    instruction_add_mask(0154200, 0x7980, &ndfunc_shifts); // SHD
+    instruction_add_mask(0154400, 0x7980, &ndfunc_shifts); // SHA
+    instruction_add_mask(0154600, 0x7980, &ndfunc_shifts); // SAD
 
     // IOT Range 0160000 - 0163777
-    Instruction_Add_Mask(0160000, 0xF800,
+    instruction_add_mask(0160000, 0xF800,
                          &ndfunc_iot); /* IOT  - ND1 specific, but exists on all CPU's*/
 
-    Instruction_Add_Mask(0164000, 0xF800, &ndfunc_iox); /* IOX */
+    instruction_add_mask(0164000, 0xF800, &ndfunc_iox); /* IOX */
 
-    Instruction_Add_Mask(0170000, 0xFF00, &ndfunc_sab); /* SAB */
-    Instruction_Add_Mask(0170400, 0xFF00, &ndfunc_saa); /* SAA */
-    Instruction_Add_Mask(0171000, 0xFF00, &ndfunc_sat); /* SAT */
-    Instruction_Add_Mask(0171400, 0xFF00, &ndfunc_sax); /* SAX */
-    Instruction_Add_Mask(0172000, 0xFF00, &ndfunc_aab); /* AAB */
-    Instruction_Add_Mask(0172400, 0xFF00, &ndfunc_aaa); /* AAA */
-    Instruction_Add_Mask(0173000, 0xFF00, &ndfunc_aat); /* AAT */
-    Instruction_Add_Mask(0173400, 0xFF00, &ndfunc_aax); /* AAX */
+    instruction_add_mask(0170000, 0xFF00, &ndfunc_sab); /* SAB */
+    instruction_add_mask(0170400, 0xFF00, &ndfunc_saa); /* SAA */
+    instruction_add_mask(0171000, 0xFF00, &ndfunc_sat); /* SAT */
+    instruction_add_mask(0171400, 0xFF00, &ndfunc_sax); /* SAX */
+    instruction_add_mask(0172000, 0xFF00, &ndfunc_aab); /* AAB */
+    instruction_add_mask(0172400, 0xFF00, &ndfunc_aaa); /* AAA */
+    instruction_add_mask(0173000, 0xFF00, &ndfunc_aat); /* AAT */
+    instruction_add_mask(0173400, 0xFF00, &ndfunc_aax); /* AAX */
 
-    Instruction_Add_Range(0174000, 0177777, &do_bops); /* Bit Operation Instructions */
+    instruction_add_range(0174000, 0177777, &do_bops); /* Bit Operation Instructions */
     /* Bit operations, 16 of them, 4 BSET,4 BSKP and 8 others */
 }

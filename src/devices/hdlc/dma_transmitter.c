@@ -39,6 +39,8 @@
 #include "device_hdlc.h"
 #include "hdlc_frame.h"
 #include "../devices_types.h"
+static bool dma_transmitter_send_all_buffers(DMATransmitter *);
+static void dma_transmitter_set_engine_sender_state(DMATransmitter *, int);
 
 
 void DMATransmitter_Init(DMATransmitter *transmitter, void *com5025, DMAControlBlocks *dmaCB,
@@ -116,7 +118,7 @@ void DMATransmitter_Tick(DMATransmitter *transmitter)
 
             if (dmaCB->dmaWaitTicks == 0)
             {
-                if (DMATransmitter_SendAllBuffers(transmitter))
+                if (dma_transmitter_send_all_buffers(transmitter))
                 {
                     dmaCB->dmaWaitTicks = -1; // disable
                 }
@@ -140,7 +142,7 @@ void DMATransmitter_Tick(DMATransmitter *transmitter)
 // ---------------------------------------------------------------------------
 // SetTXDMAFlag: set DMA flags and raise interrupt on level 12
 // ---------------------------------------------------------------------------
-void DMATransmitter_SetTXDMAFlag(DMATransmitter *transmitter, uint16_t flag)
+static void dma_transmitter_set_txdma_flag(DMATransmitter *transmitter, uint16_t flag)
 {
     if (!transmitter || !transmitter->hdlcDevice)
     {
@@ -230,7 +232,7 @@ static void send_outbound_frame(DMATransmitter *transmitter, DMAControlBlocks *d
 // SendAllBuffers: read TX DCBs, accumulate frames, send complete HDLC frames.
 // Returns true when all buffers have been sent.
 // ---------------------------------------------------------------------------
-bool DMATransmitter_SendAllBuffers(DMATransmitter *transmitter)
+static bool dma_transmitter_send_all_buffers(DMATransmitter *transmitter)
 {
     if (!transmitter || !transmitter->dmaCB)
     {
@@ -310,21 +312,21 @@ bool DMATransmitter_SendAllBuffers(DMATransmitter *transmitter)
             if (!DMAControlBlocks_LoadNextTXBuffer(dmaCB))
             {
                 tmpTSB |= TTS_TRANSMISSION_FINISHED | TTS_LIST_END;
-                DMATransmitter_SetTXDMAFlag(transmitter, tmpTSB);
-                DMATransmitter_SetEngineSenderState(transmitter, DMA_SENDER_STOPPED);
+                dma_transmitter_set_txdma_flag(transmitter, tmpTSB);
+                dma_transmitter_set_engine_sender_state(transmitter, DMA_SENDER_STOPPED);
                 return true;
             }
             else
             {
-                DMATransmitter_SetTXDMAFlag(transmitter, tmpTSB);
+                dma_transmitter_set_txdma_flag(transmitter, tmpTSB);
                 tmpTSB = 0;
             }
         }
         else
         {
             // End of list
-            DMATransmitter_SetTXDMAFlag(transmitter, TTS_TRANSMISSION_FINISHED | TTS_LIST_END);
-            DMATransmitter_SetEngineSenderState(transmitter, DMA_SENDER_STOPPED);
+            dma_transmitter_set_txdma_flag(transmitter, TTS_TRANSMISSION_FINISHED | TTS_LIST_END);
+            dma_transmitter_set_engine_sender_state(transmitter, DMA_SENDER_STOPPED);
             return true;
         }
     }
@@ -333,7 +335,7 @@ bool DMATransmitter_SendAllBuffers(DMATransmitter *transmitter)
 // ---------------------------------------------------------------------------
 // State management
 // ---------------------------------------------------------------------------
-void DMATransmitter_SetEngineSenderState(DMATransmitter *transmitter, int state)
+static void dma_transmitter_set_engine_sender_state(DMATransmitter *transmitter, int state)
 {
     if (!transmitter || !transmitter->dmaCB)
     {
@@ -368,7 +370,7 @@ void DMATransmitter_SetSenderState(DMATransmitter *transmitter, int senderState)
     {
         return;
     }
-    DMATransmitter_SetEngineSenderState(transmitter, senderState);
+    dma_transmitter_set_engine_sender_state(transmitter, senderState);
 
     transmitter->active = (senderState == DMA_SENDER_BLOCK_READY_TO_SEND);
 }

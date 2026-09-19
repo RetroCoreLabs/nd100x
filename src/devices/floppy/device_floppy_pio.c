@@ -33,6 +33,7 @@
 
 #include "../devices_types.h"
 #include "../devices_protos.h"
+static void floppy_pio_execute_go(Device *, FloppyPIOCommand);
 
 
 // Floppy boot sector data
@@ -251,7 +252,7 @@ static void FloppyPIO_Write(Device *self, uint32_t address, uint16_t value)
                     data->command = (FloppyPIOCommand)i;
                 }
             }
-            FloppyPIO_ExecuteGo(self, data->command);
+            floppy_pio_execute_go(self, data->command);
         }
 
         Device_SetInterruptStatus(
@@ -437,7 +438,7 @@ static bool SectorIsDeleted(FloppyPIOData *data, int sector, int track)
     return false;
 }
 
-void FloppyPIO_ExecuteGo(Device *self, FloppyPIOCommand command)
+static void floppy_pio_execute_go(Device *self, FloppyPIOCommand command)
 {
     FloppyPIOData *data = (FloppyPIOData *)self->deviceData;
     if (!data)

@@ -36,6 +36,7 @@
 #include "ndlib_types.h"
 #include "ndlib_protos.h"
 
+
 #define TELNET_MAX_TERMINALS   16
 #define TELNET_MAX_PENDING     8
 #define TELNET_OUTPUT_BUF_SIZE 4096
@@ -504,7 +505,7 @@ bool TelnetServer_GetTerminalStatus(TelnetServer *server, int index, const char 
     return true;
 }
 
-bool TelnetServer_DisconnectTerminal(TelnetServer *server, int index)
+static bool telnet_server_disconnect_terminal(TelnetServer *server, int index)
 {
     if (!server || index < 0 || index >= server->terminalCount)
     {
@@ -549,7 +550,7 @@ bool TelnetServer_DisconnectDevice(TelnetServer *server, struct Device *device)
     {
         if (server->terminals[i].info.device == device)
         {
-            return TelnetServer_DisconnectTerminal(server, i);
+            return telnet_server_disconnect_terminal(server, i);
         }
     }
     return false;

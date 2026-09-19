@@ -43,6 +43,12 @@
 #include "dma_enum.h"
 #include "hdlc_constants.h"
 #include "../devices_types.h"
+static void dma_engine_clear_dma_command(DMAEngine *);
+static int dma_engine_dma_read(DMAEngine *, uint32_t);
+static void dma_engine_dma_write(DMAEngine *, uint32_t, uint16_t);
+static void dma_engine_log(DMAEngine *, const char *, ...) __attribute__((format(printf, 2, 3)));
+static void dma_engine_on_set_interrupt_bit(DMAEngine *, uint8_t);
+
 
 // Debug flags (convert from C# #define)
 
@@ -50,19 +56,19 @@
 // Forwarding wrappers: bridge DMAControlBlocks/TX/RX callbacks to DMAEngine
 // ---------------------------------------------------------------------------
 
-// DMAControlBlocks read callback: context is DMAEngine*, forward to DMAEngine_DMARead
+// DMAControlBlocks read callback: context is DMAEngine*, forward to dma_engine_dma_read
 static uint16_t DMAEngine_CBReadDMA(void *context, uint32_t address)
 {
     DMAEngine *dma = (DMAEngine *)context;
-    int result = DMAEngine_DMARead(dma, address);
+    int result = dma_engine_dma_read(dma, address);
     return (result >= 0) ? (uint16_t)result : 0;
 }
 
-// DMAControlBlocks write callback: context is DMAEngine*, forward to DMAEngine_DMAWrite
+// DMAControlBlocks write callback: context is DMAEngine*, forward to dma_engine_dma_write
 static void DMAEngine_CBWriteDMA(void *context, uint32_t address, uint16_t data)
 {
     DMAEngine *dma = (DMAEngine *)context;
-    DMAEngine_DMAWrite(dma, address, data);
+    dma_engine_dma_write(dma, address, data);
 }
 
 // DMATransmitter send frame callback: context is DMAEngine*, forward to onSendHDLCFrame
@@ -79,14 +85,14 @@ static void DMAEngine_TXSendFrame(void *context, HDLCFrame *frame)
 static void DMAEngine_TXInterrupt(void *context, uint8_t bit)
 {
     DMAEngine *dma = (DMAEngine *)context;
-    DMAEngine_OnSetInterruptBit(dma, bit);
+    dma_engine_on_set_interrupt_bit(dma, bit);
 }
 
 // DMAReceiver interrupt callback: context is DMAEngine*, forward to onSetInterruptBit
 static void DMAEngine_RXInterrupt(void *context, uint8_t bit)
 {
     DMAEngine *dma = (DMAEngine *)context;
-    DMAEngine_OnSetInterruptBit(dma, bit);
+    dma_engine_on_set_interrupt_bit(dma, bit);
 }
 
 void DMAEngine_Init(DMAEngine *dma, bool burstMode, struct Device *hdlcDevice, void *modem,
@@ -187,7 +193,7 @@ void DMAEngine_Destroy(DMAEngine *dma)
     }
 }
 
-void DMAEngine_Clear(DMAEngine *dma)
+static void dma_engine_clear(DMAEngine *dma)
 {
     if (!dma)
     {
@@ -233,7 +239,7 @@ void DMAEngine_Tick(DMAEngine *dma)
 
 // Memory access functions - forward to callbacks
 
-int DMAEngine_DMARead(DMAEngine *dma, uint32_t address)
+static int dma_engine_dma_read(DMAEngine *dma, uint32_t address)
 {
     if (!dma || !dma->onReadDMA)
     {
@@ -245,7 +251,7 @@ int DMAEngine_DMARead(DMAEngine *dma, uint32_t address)
     return data;
 }
 
-void DMAEngine_DMAWrite(DMAEngine *dma, uint32_t address, uint16_t data)
+static void dma_engine_dma_write(DMAEngine *dma, uint32_t address, uint16_t data)
 {
     if (!dma || !dma->onWriteDMA)
     {
@@ -257,7 +263,7 @@ void DMAEngine_DMAWrite(DMAEngine *dma, uint32_t address, uint16_t data)
 
 // Event handling functions
 
-void DMAEngine_OnSetInterruptBit(DMAEngine *dma, uint8_t bit)
+static void dma_engine_on_set_interrupt_bit(DMAEngine *dma, uint8_t bit)
 {
     if (!dma || !dma->onSetInterruptBit)
     {
@@ -309,7 +315,8 @@ void DMAEngine_ExecuteCommand(DMAEngine *dma)
 
     if (Log_IsEnabled(LOG_CAT_HDLC, LOG_TRACE))
     {
-        DMAEngine_Log(dma, "DMAEngine_ExecuteCommand called (not implemented - see device_hdlc.c)");
+        dma_engine_log(dma,
+                       "DMAEngine_ExecuteCommand called (not implemented - see device_hdlc.c)");
     }
 
     // This function is intentionally not implemented as command execution
@@ -328,11 +335,11 @@ void DMAEngine_CommandDeviceClear(DMAEngine *dma)
 
     if (Log_IsEnabled(LOG_CAT_HDLC, LOG_DEBUG))
     {
-        DMAEngine_Log(dma, "DMA Device Clear command");
+        dma_engine_log(dma, "DMA Device Clear command");
     }
 
     // Clear all components
-    DMAEngine_Clear(dma);
+    dma_engine_clear(dma);
     dma->enabled = false; // allow COM5025 clocking for maintenance test
 
     if (dma->com5025)
@@ -340,7 +347,7 @@ void DMAEngine_CommandDeviceClear(DMAEngine *dma)
         COM5025_Reset(dma->com5025);
     }
 
-    DMAEngine_ClearDMACommand(dma);
+    dma_engine_clear_dma_command(dma);
 }
 
 void DMAEngine_CommandInitialize(DMAEngine *dma)
@@ -352,7 +359,7 @@ void DMAEngine_CommandInitialize(DMAEngine *dma)
 
     if (Log_IsEnabled(LOG_CAT_HDLC, LOG_DEBUG))
     {
-        DMAEngine_Log(dma, "DMA Initialize command");
+        dma_engine_log(dma, "DMA Initialize command");
     }
 
     /*
@@ -371,18 +378,18 @@ void DMAEngine_CommandInitialize(DMAEngine *dma)
 
     if (dma_address == 0)
     {
-        DMAEngine_ClearDMACommand(dma);
+        dma_engine_clear_dma_command(dma);
         return;
     }
 
     // Read parameter buffer from memory
-    int parameterControlRegister = DMAEngine_DMARead(dma, dma_address++);
-    int syncAddressRegister = DMAEngine_DMARead(dma, dma_address++);
-    int characterLength = DMAEngine_DMARead(dma, dma_address++);
-    int displacement1 = DMAEngine_DMARead(dma, dma_address++);
-    int displacement2 = DMAEngine_DMARead(dma, dma_address++);
-    int maxReceiverBlockLength = DMAEngine_DMARead(dma, dma_address++);
-    int checksum = DMAEngine_DMARead(dma, dma_address);
+    int parameterControlRegister = dma_engine_dma_read(dma, dma_address++);
+    int syncAddressRegister = dma_engine_dma_read(dma, dma_address++);
+    int characterLength = dma_engine_dma_read(dma, dma_address++);
+    int displacement1 = dma_engine_dma_read(dma, dma_address++);
+    int displacement2 = dma_engine_dma_read(dma, dma_address++);
+    int maxReceiverBlockLength = dma_engine_dma_read(dma, dma_address++);
+    int checksum = dma_engine_dma_read(dma, dma_address);
 
     // Store parameters in parameter buffer
     ParameterBuffer_SetParameterControlRegister(&dma->parameterBuffer, parameterControlRegister);
@@ -410,30 +417,30 @@ void DMAEngine_CommandInitialize(DMAEngine *dma)
 
     if (Log_IsEnabled(LOG_CAT_HDLC, LOG_DEBUG))
     {
-        DMAEngine_Log(dma,
-                      "--------------------------------------------------------------------------");
-        DMAEngine_Log(dma, "DMA CommandInitialize    : 0x%06X", dma->currentDMAAddress);
-        DMAEngine_Log(dma, "ParameterControlRegister : 0x%04X", parameterControlRegister);
-        DMAEngine_Log(dma, "Sync_AddressRegister     : 0x%04X", syncAddressRegister);
-        DMAEngine_Log(dma, "CharacterLength          : 0x%04X", characterLength);
-        DMAEngine_Log(dma, "Displacement1            : 0x%04X", displacement1);
-        DMAEngine_Log(dma, "Displacement2            : 0x%04X", displacement2);
-        DMAEngine_Log(dma, "MaxReceiverBlockLength   : 0x%04X", maxReceiverBlockLength);
-        DMAEngine_Log(dma,
-                      "--------------------------------------------------------------------------");
+        dma_engine_log(
+            dma, "--------------------------------------------------------------------------");
+        dma_engine_log(dma, "DMA CommandInitialize    : 0x%06X", dma->currentDMAAddress);
+        dma_engine_log(dma, "ParameterControlRegister : 0x%04X", parameterControlRegister);
+        dma_engine_log(dma, "Sync_AddressRegister     : 0x%04X", syncAddressRegister);
+        dma_engine_log(dma, "CharacterLength          : 0x%04X", characterLength);
+        dma_engine_log(dma, "Displacement1            : 0x%04X", displacement1);
+        dma_engine_log(dma, "Displacement2            : 0x%04X", displacement2);
+        dma_engine_log(dma, "MaxReceiverBlockLength   : 0x%04X", maxReceiverBlockLength);
+        dma_engine_log(
+            dma, "--------------------------------------------------------------------------");
     }
 
     // Write back checksum if current checksum is 0
     if (checksum == 0)
     {
-        DMAEngine_DMAWrite(dma, dma_address, 0x8474); // 0102164 octal = 0x8474 hex
+        dma_engine_dma_write(dma, dma_address, 0x8474); // 0102164 octal = 0x8474 hex
     }
 
     // DMA is now initialized - COM5025 clocking can be stopped
     // (burst mode handles all framing via DMA engine + HDLCFrame)
     dma->enabled = true;
 
-    DMAEngine_ClearDMACommand(dma);
+    dma_engine_clear_dma_command(dma);
 }
 
 void DMAEngine_CommandReceiverStart(DMAEngine *dma)
@@ -445,7 +452,7 @@ void DMAEngine_CommandReceiverStart(DMAEngine *dma)
 
     if (Log_IsEnabled(LOG_CAT_HDLC, LOG_DEBUG))
     {
-        DMAEngine_Log(dma, "DMA Receiver Start command");
+        dma_engine_log(dma, "DMA Receiver Start command");
     }
 
     // Set RX pointer to current DMA address
@@ -459,7 +466,7 @@ void DMAEngine_CommandReceiverStart(DMAEngine *dma)
         DMAReceiver_SetReceiverState(dma->receiver);
     }
 
-    DMAEngine_ClearDMACommand(dma);
+    dma_engine_clear_dma_command(dma);
 }
 
 void DMAEngine_CommandReceiverContinue(DMAEngine *dma)
@@ -471,7 +478,7 @@ void DMAEngine_CommandReceiverContinue(DMAEngine *dma)
 
     if (Log_IsEnabled(LOG_CAT_HDLC, LOG_DEBUG))
     {
-        DMAEngine_Log(dma, "DMA Receiver Continue command");
+        dma_engine_log(dma, "DMA Receiver Continue command");
     }
 
     // Set RX pointer to current DMA address
@@ -485,7 +492,7 @@ void DMAEngine_CommandReceiverContinue(DMAEngine *dma)
         DMAReceiver_SetReceiverState(dma->receiver);
     }
 
-    DMAEngine_ClearDMACommand(dma);
+    dma_engine_clear_dma_command(dma);
 }
 
 void DMAEngine_CommandTransmitterStart(DMAEngine *dma)
@@ -497,7 +504,7 @@ void DMAEngine_CommandTransmitterStart(DMAEngine *dma)
 
     if (Log_IsEnabled(LOG_CAT_HDLC, LOG_DEBUG))
     {
-        DMAEngine_Log(dma, "DMA Transmitter Start command");
+        dma_engine_log(dma, "DMA Transmitter Start command");
     }
 
     // Set TX pointer to current DMA address
@@ -512,7 +519,7 @@ void DMAEngine_CommandTransmitterStart(DMAEngine *dma)
         DMATransmitter_SetSenderState(dma->transmitter, DMA_SENDER_BLOCK_READY_TO_SEND);
     }
 
-    DMAEngine_ClearDMACommand(dma);
+    dma_engine_clear_dma_command(dma);
 }
 
 void DMAEngine_CommandDumpDataModule(DMAEngine *dma)
@@ -524,7 +531,7 @@ void DMAEngine_CommandDumpDataModule(DMAEngine *dma)
 
     if (Log_IsEnabled(LOG_CAT_HDLC, LOG_DEBUG))
     {
-        DMAEngine_Log(dma, "DMA Dump Data Module command");
+        dma_engine_log(dma, "DMA Dump Data Module command");
     }
 
     /*
@@ -541,7 +548,7 @@ void DMAEngine_CommandDumpDataModule(DMAEngine *dma)
 
     if (dma_address == 0)
     {
-        DMAEngine_ClearDMACommand(dma);
+        dma_engine_clear_dma_command(dma);
         return;
     }
 
@@ -551,19 +558,19 @@ void DMAEngine_CommandDumpDataModule(DMAEngine *dma)
 
         // 1. Parameter Control Register
         data = COM5025_ReadByte(dma->com5025, COM5025_REG_BYTE_MODE_CONTROL);
-        DMAEngine_DMAWrite(dma, dma_address++, (uint16_t)data);
+        dma_engine_dma_write(dma, dma_address++, (uint16_t)data);
 
         // 2. Sync/Address Register
         data = COM5025_ReadByte(dma->com5025, COM5025_REG_BYTE_SYNC_ADDRESS);
-        DMAEngine_DMAWrite(dma, dma_address++, (uint16_t)data);
+        dma_engine_dma_write(dma, dma_address++, (uint16_t)data);
 
         // 3. Character Length
         data = COM5025_ReadByte(dma->com5025, COM5025_REG_BYTE_DATA_LENGTH_SELECT);
-        DMAEngine_DMAWrite(dma, dma_address++, (uint16_t)data);
+        dma_engine_dma_write(dma, dma_address++, (uint16_t)data);
 
         // 4. Receiver Status Register
         data = COM5025_ReadByte(dma->com5025, COM5025_REG_BYTE_RECEIVER_STATUS);
-        DMAEngine_DMAWrite(dma, dma_address++, (uint16_t)data);
+        dma_engine_dma_write(dma, dma_address++, (uint16_t)data);
 
         // OR the Receiver Status Register into the Receiver Dataflow Status Register to prevent loss of information
         if (dma->onUpdateReceiverStatus)
@@ -573,10 +580,10 @@ void DMAEngine_CommandDumpDataModule(DMAEngine *dma)
 
         // 5. Transmitter Status Register
         data = COM5025_ReadByte(dma->com5025, COM5025_REG_BYTE_TRANSMITTER_STATUS_CONTROL);
-        DMAEngine_DMAWrite(dma, dma_address++, (uint16_t)data);
+        dma_engine_dma_write(dma, dma_address++, (uint16_t)data);
     }
 
-    DMAEngine_ClearDMACommand(dma);
+    dma_engine_clear_dma_command(dma);
 }
 
 void DMAEngine_CommandDumpRegisters(DMAEngine *dma)
@@ -588,7 +595,7 @@ void DMAEngine_CommandDumpRegisters(DMAEngine *dma)
 
     if (Log_IsEnabled(LOG_CAT_HDLC, LOG_DEBUG))
     {
-        DMAEngine_Log(dma, "DMA Dump Registers command");
+        dma_engine_log(dma, "DMA Dump Registers command");
     }
 
     /*
@@ -606,12 +613,12 @@ void DMAEngine_CommandDumpRegisters(DMAEngine *dma)
 
     if (dma_address == 0)
     {
-        DMAEngine_ClearDMACommand(dma);
+        dma_engine_clear_dma_command(dma);
         return;
     }
 
-    uint16_t firstReg = (uint16_t)(DMAEngine_DMARead(dma, dma_address++) & 0x00FF);
-    uint16_t numreg = (uint16_t)(DMAEngine_DMARead(dma, dma_address++) & 0x00FF);
+    uint16_t firstReg = (uint16_t)(dma_engine_dma_read(dma, dma_address++) & 0x00FF);
+    uint16_t numreg = (uint16_t)(dma_engine_dma_read(dma, dma_address++) & 0x00FF);
 
     if ((firstReg == 0) && (numreg == 0))
     {
@@ -619,10 +626,10 @@ void DMAEngine_CommandDumpRegisters(DMAEngine *dma)
         for (uint8_t i = 0; i < 16; i++)
         {
             uint16_t data = i; // Basic register index for bit slice
-            DMAEngine_DMAWrite(dma, dma_address++, data);
+            dma_engine_dma_write(dma, dma_address++, data);
             if (Log_IsEnabled(LOG_CAT_HDLC, LOG_DEBUG))
             {
-                DMAEngine_Log(dma, "DUMP BIT SLICE REGISTER %d = 0x%04X", i, data);
+                dma_engine_log(dma, "DUMP BIT SLICE REGISTER %d = 0x%04X", i, data);
             }
         }
     }
@@ -634,16 +641,16 @@ void DMAEngine_CommandDumpRegisters(DMAEngine *dma)
             if (offset < 256)
             {
                 uint16_t data = dma->dmaRegisters[offset];
-                DMAEngine_DMAWrite(dma, dma_address++, data);
+                dma_engine_dma_write(dma, dma_address++, data);
                 if (Log_IsEnabled(LOG_CAT_HDLC, LOG_DEBUG))
                 {
-                    DMAEngine_Log(dma, "DUMP REGISTER %d = 0x%04X", offset, data);
+                    dma_engine_log(dma, "DUMP REGISTER %d = 0x%04X", offset, data);
                 }
             }
         }
     }
 
-    DMAEngine_ClearDMACommand(dma);
+    dma_engine_clear_dma_command(dma);
 }
 
 void DMAEngine_CommandLoadRegisters(DMAEngine *dma)
@@ -655,7 +662,7 @@ void DMAEngine_CommandLoadRegisters(DMAEngine *dma)
 
     if (Log_IsEnabled(LOG_CAT_HDLC, LOG_DEBUG))
     {
-        DMAEngine_Log(dma, "DMA Load Registers command");
+        dma_engine_log(dma, "DMA Load Registers command");
     }
 
     /*
@@ -674,31 +681,31 @@ void DMAEngine_CommandLoadRegisters(DMAEngine *dma)
 
     if (dma_address == 0)
     {
-        DMAEngine_ClearDMACommand(dma);
+        dma_engine_clear_dma_command(dma);
         return;
     }
 
-    uint16_t firstReg = (uint16_t)(DMAEngine_DMARead(dma, dma_address++) & 0x00FF);
-    uint16_t numreg = (uint16_t)(DMAEngine_DMARead(dma, dma_address++) & 0x00FF);
+    uint16_t firstReg = (uint16_t)(dma_engine_dma_read(dma, dma_address++) & 0x00FF);
+    uint16_t numreg = (uint16_t)(dma_engine_dma_read(dma, dma_address++) & 0x00FF);
 
     for (uint16_t i = 0; i < numreg; i++)
     {
         int offset = firstReg + i;
         if (offset < 256)
         {
-            int readVal = DMAEngine_DMARead(dma, dma_address++); // returns -1 if it fails
+            int readVal = dma_engine_dma_read(dma, dma_address++); // returns -1 if it fails
             if (readVal >= 0)
             {
                 dma->dmaRegisters[offset] = (uint16_t)readVal;
                 if (Log_IsEnabled(LOG_CAT_HDLC, LOG_DEBUG))
                 {
-                    DMAEngine_Log(dma, "LOAD REGISTER %d = 0x%04X", offset, readVal);
+                    dma_engine_log(dma, "LOAD REGISTER %d = 0x%04X", offset, readVal);
                 }
             }
         }
     }
 
-    DMAEngine_ClearDMACommand(dma);
+    dma_engine_clear_dma_command(dma);
 }
 
 // Utility functions
@@ -712,7 +719,7 @@ void DMAEngine_SetDMAAddress(DMAEngine *dma, uint32_t address)
     dma->currentDMAAddress = address;
 }
 
-void DMAEngine_ClearDMACommand(DMAEngine *dma)
+static void dma_engine_clear_dma_command(DMAEngine *dma)
 {
     if (!dma)
     {
@@ -734,7 +741,7 @@ uint16_t DMAEngine_GetBufferKeyVault(DMAEngine *dma, uint32_t listPointer, uint1
     }
 
     uint32_t currentListPointer = listPointer + (uint32_t)(offset * 4);
-    uint16_t keyValue = (uint16_t)DMAEngine_DMARead(dma, currentListPointer);
+    uint16_t keyValue = (uint16_t)dma_engine_dma_read(dma, currentListPointer);
     return keyValue;
 }
 
@@ -749,7 +756,7 @@ uint32_t DMAEngine_ScanNextTXBuffer(DMAEngine *dma, uint32_t start)
 
     while (true)
     {
-        int memkey = DMAEngine_DMARead(dma, nextMem);
+        int memkey = dma_engine_dma_read(dma, nextMem);
         if (memkey == 0)
         {
             return 0; // end of pointers
@@ -831,7 +838,7 @@ void DMAEngine_SetClearCommandCallback(DMAEngine *dma, DMAClearCommandCallback c
 
 // Debug functions
 
-void DMAEngine_Log(DMAEngine *dma, const char *format, ...)
+static void dma_engine_log(DMAEngine *dma, const char *format, ...)
 {
     if (!dma || !format)
     {

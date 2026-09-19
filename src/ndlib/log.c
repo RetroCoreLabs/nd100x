@@ -33,6 +33,7 @@
 
 #ifndef __EMSCRIPTEN__
 #include <pthread.h>
+
 #endif
 
 /* Indexed by LogCategory; these are the names a level specification uses. */
@@ -76,7 +77,7 @@ void Log_SetLevel(LogCategory cat, LogLevel lvl)
     }
 }
 
-void Log_SetAllLevels(LogLevel lvl)
+static void log_set_all_levels(LogLevel lvl)
 {
     for (int i = 0; i < LOG_CAT_COUNT; i++)
     {
@@ -105,7 +106,7 @@ const char *Log_CategoryName(LogCategory cat)
     return s_category_names[cat];
 }
 
-const char *Log_LevelName(LogLevel lvl)
+static const char *log_level_name(LogLevel lvl)
 {
     if ((int)lvl < 0 || (int)lvl >= LOG_LEVEL_COUNT)
     {
@@ -117,7 +118,8 @@ const char *Log_LevelName(LogLevel lvl)
 void Log_Write(LogCategory cat, LogLevel lvl, const char *fmt, ...)
 {
     char line[1024];
-    int head = snprintf(line, sizeof(line), "[%s] %s: ", Log_LevelName(lvl), Log_CategoryName(cat));
+    int head =
+        snprintf(line, sizeof(line), "[%s] %s: ", log_level_name(lvl), Log_CategoryName(cat));
     if (head < 0)
     {
         return;
@@ -220,7 +222,7 @@ int Log_ParseSpec(const char *spec)
 
         if (name_matches("*", p, cat_len) || name_matches("all", p, cat_len))
         {
-            Log_SetAllLevels((LogLevel)lvl);
+            log_set_all_levels((LogLevel)lvl);
         }
         else
         {

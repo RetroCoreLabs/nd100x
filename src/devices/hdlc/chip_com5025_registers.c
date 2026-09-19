@@ -31,6 +31,14 @@
 
 #include "chip_com5025.h"
 #include "hdlc_crc.h"
+static void com5025_io_timer_adjust_timer(COM5025IOTimer *, int, int, bool);
+static void com5025_io_timer_clear(COM5025IOTimer *);
+static void com5025_io_timer_clock(COM5025IOTimer *);
+static void com5025_io_timer_init(COM5025IOTimer *);
+static void com5025_io_timer_set_clock_speed(COM5025IOTimer *, int);
+static void com5025_registers_clear_rxcrc(COM5025Registers *);
+static void com5025_registers_clear_txcrc(COM5025Registers *);
+
 
 void COM5025Registers_Init(COM5025Registers *regs)
 {
@@ -42,8 +50,8 @@ void COM5025Registers_Init(COM5025Registers *regs)
     memset(regs, 0, sizeof(COM5025Registers));
     COM5025Registers_Clear(regs);
 
-    COM5025IOTimer_Init(&regs->txTimer);
-    COM5025IOTimer_Init(&regs->rxTimer);
+    com5025_io_timer_init(&regs->txTimer);
+    com5025_io_timer_init(&regs->rxTimer);
 }
 
 void COM5025Registers_Clear(COM5025Registers *regs)
@@ -84,11 +92,11 @@ void COM5025Registers_Clear(COM5025Registers *regs)
     regs->transmitterState = COM5025_TX_STATE_IDLE;
     regs->receiverState = COM5025_RX_STATE_IDLE;
 
-    COM5025Registers_ClearTXCRC(regs);
-    COM5025Registers_ClearRXCRC(regs);
+    com5025_registers_clear_txcrc(regs);
+    com5025_registers_clear_rxcrc(regs);
 
-    COM5025IOTimer_Clear(&regs->txTimer);
-    COM5025IOTimer_Clear(&regs->rxTimer);
+    com5025_io_timer_clear(&regs->txTimer);
+    com5025_io_timer_clear(&regs->rxTimer);
 
     regs->byteStuffingDetected = false;
 }
@@ -173,8 +181,8 @@ void COM5025Registers_SetClockSpeed(COM5025Registers *regs, int speed)
     {
         return;
     }
-    COM5025IOTimer_SetClockSpeed(&regs->txTimer, speed);
-    COM5025IOTimer_SetClockSpeed(&regs->rxTimer, speed);
+    com5025_io_timer_set_clock_speed(&regs->txTimer, speed);
+    com5025_io_timer_set_clock_speed(&regs->rxTimer, speed);
 }
 
 void COM5025Registers_Clock(COM5025Registers *regs)
@@ -183,8 +191,8 @@ void COM5025Registers_Clock(COM5025Registers *regs)
     {
         return;
     }
-    COM5025IOTimer_Clock(&regs->txTimer);
-    COM5025IOTimer_Clock(&regs->rxTimer);
+    com5025_io_timer_clock(&regs->txTimer);
+    com5025_io_timer_clock(&regs->rxTimer);
 }
 
 void COM5025Registers_AdjustTimer(COM5025Registers *regs, int ticks, int param,
@@ -197,12 +205,12 @@ void COM5025Registers_AdjustTimer(COM5025Registers *regs, int ticks, int param,
 
     if (timer & COM5025_TIMER_TX)
     {
-        COM5025IOTimer_AdjustTimer(&regs->txTimer, ticks, param, false);
+        com5025_io_timer_adjust_timer(&regs->txTimer, ticks, param, false);
     }
 
     if (timer & COM5025_TIMER_RX)
     {
-        COM5025IOTimer_AdjustTimer(&regs->rxTimer, ticks, param, false);
+        com5025_io_timer_adjust_timer(&regs->rxTimer, ticks, param, false);
     }
 }
 
@@ -334,7 +342,7 @@ void COM5025Registers_MarkDataAsReceived(COM5025Registers *regs)
     free(node);
 }
 
-uint16_t COM5025Registers_CalcCRC(COM5025Registers *regs, uint16_t crc, uint8_t data)
+static uint16_t com5025_registers_calc_crc(COM5025Registers *regs, uint16_t crc, uint8_t data)
 {
     if (!regs)
     {
@@ -376,10 +384,10 @@ void COM5025Registers_CalcRXCrc(COM5025Registers *regs, uint8_t data)
     {
         return;
     }
-    regs->rxCrc = COM5025Registers_CalcCRC(regs, regs->rxCrc, data);
+    regs->rxCrc = com5025_registers_calc_crc(regs, regs->rxCrc, data);
 }
 
-void COM5025Registers_ClearRXCRC(COM5025Registers *regs)
+static void com5025_registers_clear_rxcrc(COM5025Registers *regs)
 {
     if (!regs)
     {
@@ -411,10 +419,10 @@ void COM5025Registers_AggregateTXCrc(COM5025Registers *regs, uint8_t data)
     {
         return;
     }
-    regs->txCrc = COM5025Registers_CalcCRC(regs, regs->txCrc, data);
+    regs->txCrc = com5025_registers_calc_crc(regs, regs->txCrc, data);
 }
 
-void COM5025Registers_ClearTXCRC(COM5025Registers *regs)
+static void com5025_registers_clear_txcrc(COM5025Registers *regs)
 {
     if (!regs)
     {
@@ -451,7 +459,7 @@ bool COM5025Registers_IsTxCrcEqual(COM5025Registers *regs, uint16_t crc)
 }
 
 // Timer functions
-void COM5025IOTimer_Init(COM5025IOTimer *timer)
+static void com5025_io_timer_init(COM5025IOTimer *timer)
 {
     if (!timer)
     {
@@ -460,7 +468,7 @@ void COM5025IOTimer_Init(COM5025IOTimer *timer)
     memset(timer, 0, sizeof(COM5025IOTimer));
 }
 
-void COM5025IOTimer_Clear(COM5025IOTimer *timer)
+static void com5025_io_timer_clear(COM5025IOTimer *timer)
 {
     if (!timer)
     {
@@ -482,7 +490,7 @@ void COM5025IOTimer_SetCallback(COM5025IOTimer *timer, void (*callback)(void *co
     timer->context = context;
 }
 
-void COM5025IOTimer_SetClockSpeed(COM5025IOTimer *timer, int speed)
+static void com5025_io_timer_set_clock_speed(COM5025IOTimer *timer, int speed)
 {
     if (!timer)
     {
@@ -491,7 +499,7 @@ void COM5025IOTimer_SetClockSpeed(COM5025IOTimer *timer, int speed)
     timer->clockSpeed = speed;
 }
 
-void COM5025IOTimer_AdjustTimer(COM5025IOTimer *timer, int ticks, int param, bool enable)
+static void com5025_io_timer_adjust_timer(COM5025IOTimer *timer, int ticks, int param, bool enable)
 {
     if (!timer)
     {
@@ -502,7 +510,7 @@ void COM5025IOTimer_AdjustTimer(COM5025IOTimer *timer, int ticks, int param, boo
     timer->active = enable;
 }
 
-void COM5025IOTimer_Clock(COM5025IOTimer *timer)
+static void com5025_io_timer_clock(COM5025IOTimer *timer)
 {
     if (!timer || !timer->active)
     {

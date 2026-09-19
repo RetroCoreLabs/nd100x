@@ -36,6 +36,13 @@
 #include "chip_com5025.h"
 #include "device_hdlc.h"
 #include "../devices_types.h"
+static void dma_receiver_clear_receive_frame_state(DMAReceiver *);
+static void dma_receiver_enable_hdlc_receiver(DMAReceiver *, bool);
+static bool dma_receiver_find_next_receive_buffer(DMAReceiver *);
+static int dma_receiver_process_buffered_data(DMAReceiver *);
+static bool dma_receiver_process_complete_frame(DMAReceiver *);
+static DMAReceiveStatus dma_receiver_receive_data_buffer_byte(DMAReceiver *, uint8_t);
+static void dma_receiver_set_rxdma_flag(DMAReceiver *, uint16_t);
 
 
 void DMAReceiver_Init(DMAReceiver *receiver, void *com5025, DMAControlBlocks *dmaCB,
@@ -111,7 +118,7 @@ void DMAReceiver_Tick(DMAReceiver *receiver)
     int available = TcpReceiveBuffer_Available(&receiver->tcpReceiveBuffer);
     if (available > 0)
     {
-        DMAReceiver_ProcessBufferedData(receiver);
+        dma_receiver_process_buffered_data(receiver);
 
         // Adaptive delay: process faster when queue has significant backlog
         int avail = TcpReceiveBuffer_Available(&receiver->tcpReceiveBuffer);
@@ -168,7 +175,7 @@ void DMAReceiver_SetReceiverState(DMAReceiver *receiver)
     hdlcData->rxTransferControl.bits.enableReceiverDMA = 1;
 
     // Enable the HDLC receiver hardware
-    DMAReceiver_EnableHDLCReceiver(receiver, true);
+    dma_receiver_enable_hdlc_receiver(receiver, true);
 
     // Clear any previous receiver overrun or error states
     hdlcData->rxTransferStatus.bits.receiverOverrun = 0;
@@ -184,7 +191,7 @@ void DMAReceiver_SetReceiverState(DMAReceiver *receiver)
     }
 
     // Ensure we have a valid empty buffer to start receiving into
-    DMAReceiver_FindNextReceiveBuffer(receiver);
+    dma_receiver_find_next_receive_buffer(receiver);
 }
 
 // ---------------------------------------------------------------------------
@@ -225,7 +232,7 @@ void DMAReceiver_ReceiveDataFromModem(DMAReceiver *receiver, const uint8_t *data
 // frame is found, then process it and return.
 // Returns bytes processed (0 = incomplete frame, waiting for more data).
 // ---------------------------------------------------------------------------
-int DMAReceiver_ProcessBufferedData(DMAReceiver *receiver)
+static int dma_receiver_process_buffered_data(DMAReceiver *receiver)
 {
     if (!receiver || !receiver->hdlcDevice)
     {
@@ -268,7 +275,7 @@ int DMAReceiver_ProcessBufferedData(DMAReceiver *receiver)
             DCB_GetKey(receiver->dmaCB->rxDCB) != KEYFLAG_EMPTY_RECEIVER_BLOCK)
         {
             // Buffer exhausted - fire LIST_EMPTY, data remains in TCP buffer
-            DMAReceiver_SetRXDMAFlag(receiver, RTS_RECEIVER_OVERRUN | RTS_LIST_EMPTY);
+            dma_receiver_set_rxdma_flag(receiver, RTS_RECEIVER_OVERRUN | RTS_LIST_EMPTY);
             return bytesProcessed;
         }
 
@@ -288,12 +295,12 @@ int DMAReceiver_ProcessBufferedData(DMAReceiver *receiver)
         {
 
             // Process the complete frame
-            DMAReceiver_ProcessCompleteFrame(receiver);
+            dma_receiver_process_complete_frame(receiver);
 
             // Load next RX buffer for next HDLC frame
             if (!DMAControlBlocks_LoadNextRXBuffer(receiver->dmaCB))
             {
-                DMAReceiver_SetRXDMAFlag(receiver, RTS_LIST_EMPTY);
+                dma_receiver_set_rxdma_flag(receiver, RTS_LIST_EMPTY);
             }
 
             // Exit - next call will start fresh with new frame
@@ -308,7 +315,7 @@ int DMAReceiver_ProcessBufferedData(DMAReceiver *receiver)
 // ---------------------------------------------------------------------------
 // ProcessCompleteFrame: validate FCS, write frame into DMA buffers, set flags.
 // ---------------------------------------------------------------------------
-bool DMAReceiver_ProcessCompleteFrame(DMAReceiver *receiver)
+static bool dma_receiver_process_complete_frame(DMAReceiver *receiver)
 {
     if (!receiver || !receiver->dmaCB || !receiver->dmaCB->hdlcReceiveFrame)
     {
@@ -329,7 +336,7 @@ bool DMAReceiver_ProcessCompleteFrame(DMAReceiver *receiver)
             hdlcData->framesRxErrors++;
         }
 
-        DMAReceiver_ClearReceiveFrameState(receiver);
+        dma_receiver_clear_receive_frame_state(receiver);
         return true; // Continue processing next frame
     }
 
@@ -338,7 +345,7 @@ bool DMAReceiver_ProcessCompleteFrame(DMAReceiver *receiver)
     bool writeSuccess = true;
     for (int j = 0; j < dataLength; j++)
     {
-        DMAReceiveStatus rstat = DMAReceiver_ReceiveDataBufferByte(receiver, frameData[j]);
+        DMAReceiveStatus rstat = dma_receiver_receive_data_buffer_byte(receiver, frameData[j]);
 
         switch (rstat)
         {
@@ -353,10 +360,10 @@ bool DMAReceiver_ProcessCompleteFrame(DMAReceiver *receiver)
         case DMA_RECEIVE_BUFFER_FULL:
             // Buffer was full BEFORE write - byte was NOT written
             // Find next buffer and retry this byte
-            if (!DMAReceiver_FindNextReceiveBuffer(receiver))
+            if (!dma_receiver_find_next_receive_buffer(receiver))
             {
                 // Unable to find new empty buffer for receive
-                DMAReceiver_SetRXDMAFlag(receiver, RTS_LIST_EMPTY | RTS_RECEIVER_OVERRUN);
+                dma_receiver_set_rxdma_flag(receiver, RTS_LIST_EMPTY | RTS_RECEIVER_OVERRUN);
                 writeSuccess = false;
             }
             j--; // Retry this byte in new buffer
@@ -386,8 +393,8 @@ bool DMAReceiver_ProcessCompleteFrame(DMAReceiver *receiver)
         // IOX+10 read, and causes permanent IRQ 13 flood via CheckTriggerInterrupt.
         // COM5025 is not clocked in DMA mode so nothing clears it.
         // SINTRAN uses DMAModuleRequest (bit 4) for DMA frame notification.
-        DMAReceiver_SetRXDMAFlag(receiver, RTS_FRAME_END | RTS_BLOCK_END | RTS_DATA_AVAILABLE |
-                                               RTS_RECEIVER_ACTIVE | RTS_SYNC_FLAG_RECEIVED);
+        dma_receiver_set_rxdma_flag(receiver, RTS_FRAME_END | RTS_BLOCK_END | RTS_DATA_AVAILABLE |
+                                                  RTS_RECEIVER_ACTIVE | RTS_SYNC_FLAG_RECEIVED);
 
         // Track frame statistics
         if (receiver->hdlcDevice && receiver->hdlcDevice->deviceData)
@@ -397,11 +404,11 @@ bool DMAReceiver_ProcessCompleteFrame(DMAReceiver *receiver)
         }
     }
 
-    DMAReceiver_ClearReceiveFrameState(receiver);
+    dma_receiver_clear_receive_frame_state(receiver);
     return writeSuccess;
 }
 
-void DMAReceiver_ClearReceiveFrameState(DMAReceiver *receiver)
+static void dma_receiver_clear_receive_frame_state(DMAReceiver *receiver)
 {
     if (!receiver || !receiver->dmaCB || !receiver->dmaCB->hdlcReceiveFrame)
     {
@@ -424,7 +431,7 @@ void DMAReceiver_SetInterruptCallback(DMAReceiver *receiver,
 // ---------------------------------------------------------------------------
 // Buffer management
 // ---------------------------------------------------------------------------
-bool DMAReceiver_FindNextReceiveBuffer(DMAReceiver *receiver)
+static bool dma_receiver_find_next_receive_buffer(DMAReceiver *receiver)
 {
     if (!receiver || !receiver->dmaCB)
     {
@@ -441,7 +448,7 @@ bool DMAReceiver_FindNextReceiveBuffer(DMAReceiver *receiver)
     // Load the next RX buffer from the list
     if (!DMAControlBlocks_LoadNextRXBuffer(receiver->dmaCB))
     {
-        DMAReceiver_SetRXDMAFlag(receiver, RTS_LIST_EMPTY);
+        dma_receiver_set_rxdma_flag(receiver, RTS_LIST_EMPTY);
 
         // No more buffers available
         return false; // we are done here, received data will be lost
@@ -455,7 +462,7 @@ bool DMAReceiver_FindNextReceiveBuffer(DMAReceiver *receiver)
 //
 // returns: OK if written, BUFFER_FULL if no space (byte NOT written), NO_BUFFER if no DCB
 // ---------------------------------------------------------------------------
-DMAReceiveStatus DMAReceiver_ReceiveDataBufferByte(DMAReceiver *receiver, uint8_t data)
+static DMAReceiveStatus dma_receiver_receive_data_buffer_byte(DMAReceiver *receiver, uint8_t data)
 {
     if (!receiver || !receiver->dmaCB)
     {
@@ -476,8 +483,8 @@ DMAReceiveStatus DMAReceiver_ReceiveDataBufferByte(DMAReceiver *receiver, uint8_
         DMAControlBlocks_MarkBufferReceived(dmaCB, 0x01);
 
         // Tell ND that Block has ended (but FRAME is not yet ended)
-        DMAReceiver_SetRXDMAFlag(receiver, RTS_BLOCK_END | RTS_RECEIVER_ACTIVE |
-                                               RTS_SYNC_FLAG_RECEIVED | RTS_DATA_AVAILABLE);
+        dma_receiver_set_rxdma_flag(receiver, RTS_BLOCK_END | RTS_RECEIVER_ACTIVE |
+                                                  RTS_SYNC_FLAG_RECEIVED | RTS_DATA_AVAILABLE);
         dmaCB->rxDCB = NULL;
         return DMA_RECEIVE_BUFFER_FULL; // Caller must find new buffer and retry this byte
     }
@@ -496,7 +503,7 @@ DMAReceiveStatus DMAReceiver_ReceiveDataBufferByte(DMAReceiver *receiver, uint8_
 // ---------------------------------------------------------------------------
 // SetRXDMAFlag: set flags and raise interrupt on level 13
 // ---------------------------------------------------------------------------
-void DMAReceiver_SetRXDMAFlag(DMAReceiver *receiver, uint16_t flag)
+static void dma_receiver_set_rxdma_flag(DMAReceiver *receiver, uint16_t flag)
 {
     if (!receiver || !receiver->hdlcDevice)
     {
@@ -560,7 +567,7 @@ void DMAReceiver_SetRXDMAFlag(DMAReceiver *receiver, uint16_t flag)
 // ---------------------------------------------------------------------------
 // Enable or disable the HDLC receiver hardware (RXENA pin)
 // ---------------------------------------------------------------------------
-void DMAReceiver_EnableHDLCReceiver(DMAReceiver *receiver, bool enable)
+static void dma_receiver_enable_hdlc_receiver(DMAReceiver *receiver, bool enable)
 {
     if (!receiver || !receiver->hdlcDevice || !receiver->com5025)
     {

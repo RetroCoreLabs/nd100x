@@ -35,6 +35,7 @@
 #include "../devices/devices_types.h"
 #include "../devices/devices_protos.h"
 
+
 // Returns 0, or -1 if the device manager could not be set up.
 int IO_Init(void)
 {
@@ -51,12 +52,12 @@ void IO_Destroy(void)
     DeviceManager_Destroy();
 }
 
-uint16_t IO_Read(uint32_t address)
+static uint16_t io_read(uint32_t address)
 {
     return DeviceManager_Read(address);
 }
 
-void IO_Write(uint32_t address, uint16_t value)
+static void io_write(uint32_t address, uint16_t value)
 {
     DeviceManager_Write(address, value);
 }
@@ -86,13 +87,13 @@ uint16_t io_op(uint16_t ioadd, uint16_t regA)
         // Odd address - write operation
 
         // HACK!! needed for RISC-V version (if not the emulator just ignores output and input)
-        IO_Write(ioadd, regA);
+        io_write(ioadd, regA);
         return regA;
     }
     else
     {
         // Even address - read operation
-        uint16_t val = IO_Read(ioadd);
+        uint16_t val = io_read(ioadd);
         return val;
     }
 }

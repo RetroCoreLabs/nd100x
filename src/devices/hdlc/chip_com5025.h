@@ -288,7 +288,7 @@ typedef struct COM5025State
 // Function declarations
 void COM5025_Init(COM5025State *chip);
 void COM5025_Reset(COM5025State *chip);
-void COM5025_MasterReset(COM5025State *chip);
+
 
 uint8_t COM5025_ReadByte(COM5025State *chip, COM5025RegistersByte reg);
 void COM5025_WriteByte(COM5025State *chip, COM5025RegistersByte reg, uint8_t value);
@@ -303,7 +303,7 @@ bool COM5025_GetOutputPin(COM5025State *chip, COM5025SignalPinOut pin);
 
 void COM5025_ClockReceiver(COM5025State *chip);
 void COM5025_ClockTransmitter(COM5025State *chip);
-void COM5025_ProcessBit(COM5025State *chip, bool bit);
+
 
 void COM5025_ReceiveData(COM5025State *chip, const uint8_t *data, int length);
 void COM5025_TransmitData(COM5025State *chip, uint8_t data);

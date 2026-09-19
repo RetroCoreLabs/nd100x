@@ -31,6 +31,8 @@
 
 #include "chip_com5025_registers.h"
 #include "hdlc_crc.h"
+static void com5025_process_bit(COM5025State *, bool);
+
 
 // Static function declarations
 static void COM5025_SetOutputPin(COM5025State *chip, COM5025SignalPinOut pin, bool value);
@@ -91,7 +93,7 @@ void COM5025_Reset(COM5025State *chip)
     COM5025_SetOutputPin(chip, COM5025_PIN_OUT_TSO, true);
 }
 
-void COM5025_MasterReset(COM5025State *chip)
+static void com5025_master_reset(COM5025State *chip)
 {
     if (!chip)
     {
@@ -320,7 +322,7 @@ void COM5025_SetInputPin(COM5025State *chip, COM5025SignalPinIn pin, bool value)
     case COM5025_PIN_IN_MR:
         if (value && !oldValue)
         {
-            COM5025_MasterReset(chip);
+            com5025_master_reset(chip);
         }
         break;
 
@@ -387,7 +389,7 @@ void COM5025_ClockReceiver(COM5025State *chip)
     }
 
     bool bit = chip->inputPins[COM5025_PIN_IN_RSI];
-    COM5025_ProcessBit(chip, bit);
+    com5025_process_bit(chip, bit);
 }
 
 void COM5025_ClockTransmitter(COM5025State *chip)
@@ -471,7 +473,7 @@ void COM5025_ClockTransmitter(COM5025State *chip)
     chip->clockCounter++;
 }
 
-void COM5025_ProcessBit(COM5025State *chip, bool bit)
+static void com5025_process_bit(COM5025State *chip, bool bit)
 {
     if (!chip)
     {

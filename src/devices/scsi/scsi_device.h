@@ -190,8 +190,7 @@ void SCSITarget_StatusComplete(SCSITarget *t, uint8_t status);
 
 /* Sense handling. */
 void SCSITarget_Sense(SCSITarget *t, bool deferred, uint8_t key, int asc, int ascq);
-void SCSITarget_ReportCondition(SCSITarget *t, uint8_t sense_key, uint16_t sense_key_code,
-                                const SCSISenseData *data);
+
 void SCSITarget_ReportBadCmd(SCSITarget *t, uint8_t cmd);
 void SCSITarget_ReportBadLun(SCSITarget *t, uint8_t cmd, uint8_t lun);
 

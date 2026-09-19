@@ -187,8 +187,8 @@ typedef struct
 } ControllerDescriptor;
 
 const ControllerDescriptor *MC_DescriptorForType(CtrlType type);
-const ControllerDescriptor *MC_DescriptorForName(const char *name);
-CtrlType MC_CtrlTypeFromName(const char *name);
+
+
 const char *MC_CtrlTypeName(CtrlType type);
 
 /* Baseline machine with NO disc/network controllers: cpu 100, terminals 5-11,

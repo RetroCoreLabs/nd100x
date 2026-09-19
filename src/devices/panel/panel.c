@@ -37,6 +37,8 @@
 #include "../devices_protos.h"
 #include "../../cpu/cpu_types.h"
 #include "../../cpu/cpu_protos.h"
+static void update_machine_time(void);
+
 
 static struct display_panel *s_pap;
 
@@ -53,10 +55,10 @@ void setup_pap(void)
     memset(&s_pap_storage, 0, sizeof(s_pap_storage));
     s_pap = &s_pap_storage;
 
-    UpdateMachineTime();
+    update_machine_time();
 }
 
-void ProcessMessageControl(PANC_Register panc)
+static void process_message_control(PANC_Register panc)
 {
     MessageControl mc = (panc.bits.wpan & 0b111);
 
@@ -106,7 +108,7 @@ void ProcessTerminalPanc(void)
     // Update time from the Host realtime clock when reading
     if (panc.bits.read_request)
     {
-        UpdateMachineTime();
+        update_machine_time();
     }
 
     // Is this a system request?
@@ -162,7 +164,7 @@ void ProcessTerminalPanc(void)
             }
             else
             {
-                ProcessMessageControl(panc);
+                process_message_control(panc);
             }
             break;
         case STATUS_UPDATE_LOW_SECONDS:
@@ -246,7 +248,7 @@ void ProcessTerminalLamp(void)
 /// HW Clock contains an offset since 00:00:00 1.January 1979 (TBASE)
 /// The clock counts seconds and half-days (12 hours) from this time.
 /// </summary>
-void UpdateMachineTime(void)
+static void update_machine_time(void)
 {
     time_t tbase = 0;
     time_t now = time(NULL);

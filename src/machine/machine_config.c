@@ -25,6 +25,7 @@
 #include "../cpu/cpu_types.h" /* CpuType (ND100, ND110, ...) */
 #include "../cpu/cpu_model.h" /* CpuModel_FromName / _Name    */
 
+
 /* ------------------------------------------------------------------ */
 /* Controller registry                                                 */
 /* ------------------------------------------------------------------ */
@@ -72,7 +73,7 @@ const ControllerDescriptor *MC_DescriptorForType(CtrlType type)
     return NULL;
 }
 
-const ControllerDescriptor *MC_DescriptorForName(const char *name)
+static const ControllerDescriptor *mc_descriptor_for_name(const char *name)
 {
     if (!name)
     {
@@ -88,9 +89,9 @@ const ControllerDescriptor *MC_DescriptorForName(const char *name)
     return NULL;
 }
 
-CtrlType MC_CtrlTypeFromName(const char *name)
+static CtrlType mc_ctrl_type_from_name(const char *name)
 {
-    const ControllerDescriptor *d = MC_DescriptorForName(name);
+    const ControllerDescriptor *d = mc_descriptor_for_name(name);
     return d ? d->type : CTRL_NONE;
 }
 
@@ -387,7 +388,7 @@ static bool mc_parse_controller_header(const char *rest, CtrlType *type, int *wh
     const char *typeName = buf;
     const char *wheelStr = dot + 1;
 
-    const ControllerDescriptor *d = MC_DescriptorForName(typeName);
+    const ControllerDescriptor *d = mc_descriptor_for_name(typeName);
     if (!d)
     {
         return mc_err(err, errlen, path, line,
@@ -891,7 +892,7 @@ bool MachineConfig_LoadFile(MachineConfig *cfg, const char *path, char *err, siz
                     }
                     *d1 = '\0';
                     *d2 = '\0';
-                    CtrlType bt = MC_CtrlTypeFromName(b);
+                    CtrlType bt = mc_ctrl_type_from_name(b);
                     if (bt == CTRL_NONE)
                     {
                         fclose(f);

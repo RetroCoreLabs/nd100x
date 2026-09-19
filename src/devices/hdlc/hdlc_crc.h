@@ -43,7 +43,7 @@ uint16_t HDLC_CRC_CalcCrc16(uint16_t crc, uint8_t byte);
 uint16_t HDLC_CRC_CalcCCITT(uint16_t fcs, uint8_t byte);
 
 // Parity functions
-uint8_t HDLC_CRC_CalculateParityBit(uint8_t data, HDLCParityMode mode);
+
 uint8_t HDLC_CRC_AddParityBit(uint8_t data, HDLCParityMode mode);
 bool HDLC_CRC_CheckParity(uint8_t data, HDLCParityMode mode);
 

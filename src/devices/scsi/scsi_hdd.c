@@ -786,7 +786,7 @@ static void SCSIHDD_Command(SCSITarget *t)
 }
 
 
-void SCSIHDD_DeviceReset(SCSIHDDDevice *hdd)
+static void scsihdd_device_reset(SCSIHDDDevice *hdd)
 {
     if (!hdd)
     {
@@ -824,5 +824,5 @@ void SCSIHDD_Init(SCSIHDDDevice *hdd, SCSIBus *bus, uint8_t scsi_id, struct Devi
 
     SCSITarget_Init(&hdd->target, bus, scsi_id, "SCSI-HDD");
 
-    SCSIHDD_DeviceReset(hdd);
+    scsihdd_device_reset(hdd);
 }

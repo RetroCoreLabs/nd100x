@@ -32,6 +32,8 @@
 #include "ndlib_types.h"
 #include "ndlib_protos.h"
 
+static bool load_bpun_stream(FILE *, BPUN_Header *);
+
 
 /* Most-recently parsed BPUN header, captured on every successful LoadBPUN().
  * LoadBPUN()'s return value is only the (obsolete) bootstrap-loader "boot"
@@ -64,7 +66,7 @@ int LoadBPUN(const char *filename, bool verbose)
         return false;
     }
 
-    bool loadOK = LoadBPUNStream(bpunStream, &bpun);
+    bool loadOK = load_bpun_stream(bpunStream, &bpun);
     fclose(bpunStream);
     bpunStream = NULL;
 
@@ -114,7 +116,7 @@ int LoadBPUN(const char *filename, bool verbose)
 /// @param bpunStream The file stream to read from
 /// @param header The BPUN_Header structure to populate
 /// @return true if successful, false if there was an error
-bool LoadBPUNStream(FILE *bpunStream, BPUN_Header *header)
+static bool load_bpun_stream(FILE *bpunStream, BPUN_Header *header)
 {
     // Initialize header
     header->calculatedChecksum = 0;

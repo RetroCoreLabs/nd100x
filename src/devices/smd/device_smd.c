@@ -37,6 +37,8 @@
 
 #include "../devices_types.h"
 #include "../devices_protos.h"
+static void smd_destroy(Device *);
+
 
 // Emulated controller-timeout window in ticks (the real card gives up after
 // 500 ms). Used by M6 with no outstanding seek: the controller must stay
@@ -1923,7 +1925,7 @@ Device *CreateSMDDevice(uint8_t thumbwheel)
     dev->Reset = SMD_Reset;
     dev->Ident = SMD_Ident;
     dev->Boot = SMD_Boot;
-    dev->Destroy = SMD_Destroy;
+    dev->Destroy = smd_destroy;
     // Initialize device state
     SMD_Reset(dev);
 
@@ -2002,7 +2004,7 @@ Device *CreateSMDDevice(uint8_t thumbwheel)
 
 /// @brief Device specific destroy function
 /// @param dev
-void SMD_Destroy(Device *dev)
+static void smd_destroy(Device *dev)
 {
     if (!dev)
     {

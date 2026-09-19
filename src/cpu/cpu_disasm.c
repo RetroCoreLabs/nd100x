@@ -32,6 +32,9 @@
 
 #include "cpu_types.h"
 #include "cpu_protos.h"
+static uint16_t decode_140k(uint16_t);
+static uint16_t decode_150k(uint16_t);
+
 
 #define BUFSTRSIZE       24
 #define BUFSTRSIZE_SMALL 16
@@ -761,7 +764,7 @@ DisasmArray *g_dis = &g_disasm_arr;
 
 static int s_disasm_ctr = 0;
 
-void disasm_allocate(uint16_t addr)
+static void disasm_allocate(uint16_t addr)
 {
     if ((*g_dis)[addr])
     {
@@ -992,7 +995,7 @@ uint16_t extract_opcode(uint16_t instr)
     return instr; //:NOTE: This should not be reached. Added only to satisfy complaining compiler.
 }
 
-uint16_t decode_140k(uint16_t instr)
+static uint16_t decode_140k(uint16_t instr)
 {
     switch (instr & (0xFFFF))
     {
@@ -1131,7 +1134,7 @@ uint16_t decode_140k(uint16_t instr)
     /* TODO: Check if we should return NOOP, or create our own internal illegal instruction code and trap that later. */
 }
 
-uint16_t decode_150k(uint16_t instr)
+static uint16_t decode_150k(uint16_t instr)
 {
     switch (instr & (0xFFFF))
     {

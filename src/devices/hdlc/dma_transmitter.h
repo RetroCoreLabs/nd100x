@@ -67,11 +67,10 @@ void DMATransmitter_Tick(DMATransmitter *transmitter);
 
 // State management
 void DMATransmitter_SetSenderState(DMATransmitter *transmitter, int senderState);
-void DMATransmitter_SetEngineSenderState(DMATransmitter *transmitter, int state);
+
 
 // Data transmission (burst mode)
-bool DMATransmitter_SendAllBuffers(DMATransmitter *transmitter);
-void DMATransmitter_SetTXDMAFlag(DMATransmitter *transmitter, uint16_t flag);
+
 
 // Callback setup
 void DMATransmitter_SetSendFrameCallback(DMATransmitter *transmitter,

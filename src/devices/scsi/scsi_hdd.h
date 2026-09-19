@@ -92,6 +92,5 @@ typedef struct {
 void SCSIHDD_Init(SCSIHDDDevice *hdd, SCSIBus *bus, uint8_t scsi_id, struct Device *owner, int unit,
                   SCSIDiskType diskType);
 
-void SCSIHDD_DeviceReset(SCSIHDDDevice *hdd);
 
 #endif // SCSI_HDD_H

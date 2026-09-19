@@ -23,6 +23,9 @@
 #include "../devices_types.h"
 #include "../devices_protos.h"
 
+static void scsi_target_report_condition(SCSITarget *t, uint8_t sense_key, uint16_t sense_key_code,
+                                         const SCSISenseData *data);
+
 static void SCSITarget_Step(SCSITarget *t, bool timeout);
 
 
@@ -298,8 +301,8 @@ void SCSITarget_Sense(SCSITarget *t, bool deferred, uint8_t key, int asc, int as
 }
 
 
-void SCSITarget_ReportCondition(SCSITarget *t, uint8_t sense_key, uint16_t sense_key_code,
-                                const SCSISenseData *data)
+static void scsi_target_report_condition(SCSITarget *t, uint8_t sense_key, uint16_t sense_key_code,
+                                         const SCSISenseData *data)
 {
     SCSITarget_SetSenseData(t, sense_key, sense_key_code, data);
     SCSITarget_StatusComplete(t, SS_CHECK_CONDITION);
@@ -309,14 +312,14 @@ void SCSITarget_ReportCondition(SCSITarget *t, uint8_t sense_key, uint16_t sense
 void SCSITarget_ReportBadCmd(SCSITarget *t, uint8_t cmd)
 {
     SCSITarget_Log(t, "cmd 0x%02X    *** BAD COMMAND", cmd);
-    SCSITarget_ReportCondition(t, SK_ILLEGAL_REQUEST, SKC_INVALID_COMMAND_OPERATION_CODE, NULL);
+    scsi_target_report_condition(t, SK_ILLEGAL_REQUEST, SKC_INVALID_COMMAND_OPERATION_CODE, NULL);
 }
 
 
 void SCSITarget_ReportBadLun(SCSITarget *t, uint8_t cmd, uint8_t lun)
 {
     SCSITarget_Log(t, "cmd 0x%02X lun=%d    *** BAD LUN", cmd, lun);
-    SCSITarget_ReportCondition(t, SK_ILLEGAL_REQUEST, SKC_LOGICAL_UNIT_NOT_SUPPORTED, NULL);
+    scsi_target_report_condition(t, SK_ILLEGAL_REQUEST, SKC_LOGICAL_UNIT_NOT_SUPPORTED, NULL);
 }
 
 

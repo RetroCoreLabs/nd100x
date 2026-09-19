@@ -85,6 +85,7 @@ void stop_debugger_thread(void);
 
 #if !defined(__EMSCRIPTEN__)
 #include "../../ndlib/telnetserver.h"
+
 #endif
 
 // dont include debugger.h here, it will cause other problems, but we define the function here
@@ -94,9 +95,9 @@ void debugger_kbd_input(char c);
 struct rusage *used;
 #endif
 
-double usertime;
-double systemtime;
-double totaltime;
+static double usertime;
+static double systemtime;
+static double totaltime;
 Config_t config;
 
 // Resolved machine configuration, populated when --config is given.
@@ -258,7 +259,7 @@ static bool pipe_control_feed(char ch)
 }
 #endif
 
-void handle_sigint(int sig)
+static void handle_sigint(int sig)
 {
     printf("\nCaught signal %d (Ctrl-C). Cleaning up...\n", sig);
 
@@ -287,7 +288,7 @@ void handle_sigint(int sig)
 }
 
 
-void register_signals(void)
+static void register_signals(void)
 {
 #ifdef _WIN32
     // Windows signal handling
@@ -319,7 +320,7 @@ void register_signals(void)
 #endif
 }
 
-void dump_stats(void)
+static void dump_stats(void)
 {
 #ifdef _WIN32
     FILETIME creation, exit, kernel, user;

@@ -93,7 +93,7 @@ typedef struct DMAEngine
 void DMAEngine_Init(DMAEngine *dma, bool burstMode, struct Device *hdlcDevice, void *modem,
                     void *com5025);
 void DMAEngine_Destroy(DMAEngine *dma);
-void DMAEngine_Clear(DMAEngine *dma);
+
 void DMAEngine_Tick(DMAEngine *dma);
 
 // DMA Command execution
@@ -110,17 +110,16 @@ void DMAEngine_CommandDumpRegisters(DMAEngine *dma);
 void DMAEngine_CommandLoadRegisters(DMAEngine *dma);
 
 // Memory access functions
-int DMAEngine_DMARead(DMAEngine *dma, uint32_t address);
-void DMAEngine_DMAWrite(DMAEngine *dma, uint32_t address, uint16_t data);
+
 
 // Utility functions
-void DMAEngine_ClearDMACommand(DMAEngine *dma);
+
 void DMAEngine_SetDMAAddress(DMAEngine *dma, uint32_t address);
 uint16_t DMAEngine_GetBufferKeyVault(DMAEngine *dma, uint32_t listPointer, uint16_t offset);
 uint32_t DMAEngine_ScanNextTXBuffer(DMAEngine *dma, uint32_t start);
 
 // Event handling functions
-void DMAEngine_OnSetInterruptBit(DMAEngine *dma, uint8_t bit);
+
 void DMAEngine_OnWriteDMA(DMAEngine *dma, uint32_t address, uint16_t data);
 void DMAEngine_OnReadDMA(DMAEngine *dma, uint32_t address, int *data);
 
@@ -134,6 +133,6 @@ void DMAEngine_SetUpdateReceiverStatusCallback(DMAEngine *dma,
 void DMAEngine_SetClearCommandCallback(DMAEngine *dma, DMAClearCommandCallback callback);
 
 // Debug functions
-void DMAEngine_Log(DMAEngine *dma, const char *format, ...) __attribute__((format(printf, 2, 3)));
+
 
 #endif // DMA_ENGINE_H
