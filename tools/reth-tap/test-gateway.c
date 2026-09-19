@@ -26,50 +26,90 @@
 
 static int g_fail;
 
-static void check(int cond, const char* what) {
+static void check(int cond, const char *what)
+{
     printf("%-58s %s\n", what, cond ? "ok" : "FAIL");
-    if (!cond) g_fail = 1;
+    if (!cond)
+    {
+        g_fail = 1;
+    }
 }
 
 /* A plain RETH member, written the way any other client would be - so that
  * what it proves is about the protocol and not about shared code. */
-static int join_plain(const char* host, int port) {
+static int join_plain(const char *host, int port)
+{
     struct sockaddr_in a;
     unsigned char hello[RETH_HANDSHAKE_LEN], peer[RETH_HANDSHAKE_LEN];
     int fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (fd < 0) return -1;
+    if (fd < 0)
+    {
+        return -1;
+    }
 
     memset(&a, 0, sizeof a);
     a.sin_family = AF_INET;
-    a.sin_port   = htons((unsigned short)port);
+    a.sin_port = htons((unsigned short)port);
     a.sin_addr.s_addr = inet_addr(host);
-    if (connect(fd, (struct sockaddr*)&a, sizeof a) != 0) { close(fd); return -1; }
+    if (connect(fd, (struct sockaddr *)&a, sizeof a) != 0)
+    {
+        close(fd);
+        return -1;
+    }
 
     memcpy(hello, "RETH", 4);
     hello[4] = RETH_VERSION_MEMBER;
-    if (write_all(fd, hello, sizeof hello) != 0) { close(fd); return -1; }
-    if (read_exact(fd, peer, sizeof peer) != 0)   { close(fd); return -1; }
-    if (memcmp(peer, "RETH", 4) != 0)             { close(fd); return -1; }
+    if (write_all(fd, hello, sizeof hello) != 0)
+    {
+        close(fd);
+        return -1;
+    }
+    if (read_exact(fd, peer, sizeof peer) != 0)
+    {
+        close(fd);
+        return -1;
+    }
+    if (memcmp(peer, "RETH", 4) != 0)
+    {
+        close(fd);
+        return -1;
+    }
     return fd;
 }
 
 /* Read one length-prefixed frame, giving up after `ms`. */
-static int recv_frame(int fd, unsigned char* out, int cap, int ms) {
+static int recv_frame(int fd, unsigned char *out, int cap, int ms)
+{
     unsigned char hdr[2];
     struct pollfd p;
     unsigned len;
 
-    p.fd = fd; p.events = POLLIN; p.revents = 0;
-    if (poll(&p, 1, ms) <= 0) return -1;
-    if (read_exact(fd, hdr, 2) != 0) return -1;
+    p.fd = fd;
+    p.events = POLLIN;
+    p.revents = 0;
+    if (poll(&p, 1, ms) <= 0)
+    {
+        return -1;
+    }
+    if (read_exact(fd, hdr, 2) != 0)
+    {
+        return -1;
+    }
     len = ((unsigned)hdr[0] << 8) | hdr[1];
-    if (len == 0 || (int)len > cap) return -1;
-    if (read_exact(fd, out, len) != 0) return -1;
+    if (len == 0 || (int)len > cap)
+    {
+        return -1;
+    }
+    if (read_exact(fd, out, len) != 0)
+    {
+        return -1;
+    }
     return (int)len;
 }
 
-int main(int argc, char** argv) {
-    const char* host = "127.0.0.1";
+int main(int argc, char **argv)
+{
+    const char *host = "127.0.0.1";
     int port = (argc > 1) ? atoi(argv[1]) : 39400;
     int bridge, other, tap[2];
     unsigned char frame[64], got[RETH_MAX_FRAME];
@@ -78,16 +118,27 @@ int main(int argc, char** argv) {
     int n, i;
 
     signal(SIGPIPE, SIG_IGN);
-    for (i = 0; i < (int)sizeof frame; i++) frame[i] = (unsigned char)(0x40 + i);
+    for (i = 0; i < (int)sizeof frame; i++)
+    {
+        frame[i] = (unsigned char)(0x40 + i);
+    }
 
     /* The bridge's OWN connect path, not a copy of it. */
     bridge = reth_connect(host, port);
     check(bridge >= 0, "reth_connect: the bridge joins a live gateway segment");
-    if (bridge < 0) { printf("\nFAILURES\n"); return 1; }
+    if (bridge < 0)
+    {
+        printf("\nFAILURES\n");
+        return 1;
+    }
 
     other = join_plain(host, port);
     check(other >= 0, "a second plain RETH member joins the same segment");
-    if (other < 0) { printf("\nFAILURES\n"); return 1; }
+    if (other < 0)
+    {
+        printf("\nFAILURES\n");
+        return 1;
+    }
 
     assert(socketpair(AF_UNIX, SOCK_DGRAM, 0, tap) == 0);
 
@@ -103,9 +154,13 @@ int main(int argc, char** argv) {
     {
         int attempt;
         n = -1;
-        for (attempt = 0; attempt < 20 && n < 0; attempt++) {
+        for (attempt = 0; attempt < 20 && n < 0; attempt++)
+        {
             assert(write(tap[1], frame, sizeof frame) == (ssize_t)sizeof frame);
-            if (pump_tap_to_wire(tap[0], bridge) != 0) break;
+            if (pump_tap_to_wire(tap[0], bridge) != 0)
+            {
+                break;
+            }
             n = recv_frame(other, got, sizeof got, 100);
         }
         check(attempt < 20, "host->segment: the bridge sends the frame on");
@@ -122,14 +177,20 @@ int main(int argc, char** argv) {
     /* segment -> host: in at the other member, out at the TAP end. */
     {
         unsigned char msg[2 + 40];
-        msg[0] = 0; msg[1] = 40;
-        for (i = 0; i < 40; i++) msg[2 + i] = (unsigned char)(0x90 + i);
+        msg[0] = 0;
+        msg[1] = 40;
+        for (i = 0; i < 40; i++)
+        {
+            msg[2 + i] = (unsigned char)(0x90 + i);
+        }
         assert(write_all(other, msg, sizeof msg) == 0);
 
         /* Wait for the gateway to repeat it before pumping. */
         {
             struct pollfd p;
-            p.fd = bridge; p.events = POLLIN; p.revents = 0;
+            p.fd = bridge;
+            p.events = POLLIN;
+            p.revents = 0;
             check(poll(&p, 1, 2000) > 0, "segment->host: the gateway repeats it to the bridge");
         }
         check(pump_wire_to_tap(bridge, tap[0], rx, &rxlen, sizeof rx) == 0,
@@ -140,7 +201,10 @@ int main(int argc, char** argv) {
               "segment->host: byte for byte");
     }
 
-    close(tap[0]); close(tap[1]); close(bridge); close(other);
+    close(tap[0]);
+    close(tap[1]);
+    close(bridge);
+    close(other);
     printf("\n%s\n", g_fail ? "FAILURES" : "all checks passed");
     return g_fail;
 }

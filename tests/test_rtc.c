@@ -42,17 +42,26 @@ uint32_t Device_RegisterAddress(Device *dev, uint32_t address);
 void Device_Init(Device *dev, uint8_t thumbwheel, DeviceClass deviceClass, size_t blockSize)
 {
     memset(dev, 0, sizeof(*dev));
-    (void)thumbwheel; (void)deviceClass; (void)blockSize;
+    (void)thumbwheel;
+    (void)deviceClass;
+    (void)blockSize;
 }
 
-void Device_TickIODelay(Device *dev) { (void)dev; }
+void Device_TickIODelay(Device *dev)
+{
+    (void)dev;
+}
 
 void Device_SetInterruptStatus(Device *dev, bool active, uint16_t level)
 {
     if (active)
+    {
         dev->interruptBits |= (uint16_t)(1u << level);
+    }
     else
+    {
         dev->interruptBits &= (uint16_t)~(1u << level);
+    }
 }
 
 uint32_t Device_RegisterAddress(Device *dev, uint32_t address)
@@ -67,7 +76,8 @@ static int rtc_failed;
 static void rtc_check(const char *name, long exp, long got)
 {
     rtc_total++;
-    if (exp != got) {
+    if (exp != got)
+    {
         printf("  FAIL  %-44s expected %ld, got %ld\n", name, exp, got);
         rtc_failed++;
     }
@@ -76,7 +86,8 @@ static void rtc_check(const char *name, long exp, long got)
 static void rtc_check_range(const char *name, long lo, long hi, long got)
 {
     rtc_total++;
-    if (got < lo || got > hi) {
+    if (got < lo || got > hi)
+    {
         printf("  FAIL  %-44s expected %ld..%ld, got %ld\n", name, lo, hi, got);
         rtc_failed++;
     }
@@ -89,16 +100,18 @@ static uint64_t now_ns(void)
     return (uint64_t)ts.tv_sec * 1000000000ULL + (uint64_t)ts.tv_nsec;
 }
 
-#define TICKS_20MS 10550   /* must match device_rtc.c */
+#define TICKS_20MS 10550 /* must match device_rtc.c */
 
 /* Count pulses (rising edges of readyForTransfer) over n RTC_Tick calls,
  * clearing the flag after each detected pulse. */
 static long pulses_over_ticks(Device *rtc, RTCData *data, long n)
 {
     long pulses = 0;
-    for (long i = 0; i < n; i++) {
+    for (long i = 0; i < n; i++)
+    {
         rtc->Tick(rtc);
-        if (data->statusRegister.bits.readyForTransfer) {
+        if (data->statusRegister.bits.readyForTransfer)
+        {
             pulses++;
             data->statusRegister.bits.readyForTransfer = false;
         }
@@ -165,7 +178,8 @@ static int64_t wall_pulses_slow_handler(Device *rtc, RTCData *data)
 int main(void)
 {
     Device *rtc = CreateRTCDevice(0);
-    if (!rtc) {
+    if (!rtc)
+    {
         printf("CreateRTCDevice failed\n");
         return 1;
     }
@@ -175,12 +189,10 @@ int main(void)
     /* ---- ticks mode (default): one pulse per 10550 calls, deterministic ----
      * After Reset the counter is 0, so the first call pulses immediately and
      * reloads the counter; from then on it is exactly one pulse per 10550. */
-    rtc_check("ticks: immediate pulse on first call", 1,
-              pulses_over_ticks(rtc, data, 1));
+    rtc_check("ticks: immediate pulse on first call", 1, pulses_over_ticks(rtc, data, 1));
     rtc_check("ticks: no pulse for next 10549 calls", 0,
               pulses_over_ticks(rtc, data, TICKS_20MS - 1));
-    rtc_check("ticks: pulse on the 10550th call after", 1,
-              pulses_over_ticks(rtc, data, 1));
+    rtc_check("ticks: pulse on the 10550th call after", 1, pulses_over_ticks(rtc, data, 1));
     rtc_check("ticks: exactly 10 pulses in 105500 calls", 10,
               pulses_over_ticks(rtc, data, 10L * TICKS_20MS));
 
@@ -215,7 +227,10 @@ int main(void)
     rtc_check("ticks again: 5 pulses in 52750 calls", 5,
               pulses_over_ticks(rtc, data, 5L * TICKS_20MS));
 
-    if (rtc->Destroy) rtc->Destroy(rtc);
+    if (rtc->Destroy)
+    {
+        rtc->Destroy(rtc);
+    }
     free(rtc->deviceData);
     free(rtc);
 

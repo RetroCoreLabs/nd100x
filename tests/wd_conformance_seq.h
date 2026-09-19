@@ -28,24 +28,25 @@
  * own core, then prints one trace line per step. */
 typedef enum
 {
-    WDS_RESET = 0,  /* master clear                                        */
-    WDS_WRITE,      /* IOX write:  arg = register offset, val = value      */
-    WDS_READ,       /* IOX read:   arg = register offset; prints the value */
-    WDS_IDENT,      /* IDENT:      arg = level;           prints the code  */
-    WDS_INTBITS,    /* print the pending interrupt bit for level 11        */
-    WDS_SETTLE      /* run the core to completion (a no-op when the model
+    WDS_RESET = 0, /* master clear                                        */
+    WDS_WRITE,     /* IOX write:  arg = register offset, val = value      */
+    WDS_READ,      /* IOX read:   arg = register offset; prints the value */
+    WDS_IDENT,     /* IDENT:      arg = level;           prints the code  */
+    WDS_INTBITS,   /* print the pending interrupt bit for level 11        */
+    WDS_SETTLE     /* run the core to completion (a no-op when the model
                      * is synchronous); prints nothing                     */
 } wds_op;
 
 typedef struct
 {
-    wds_op   op;
-    unsigned arg;   /* register offset, or IDENT level */
-    unsigned val;   /* value for WDS_WRITE             */
+    wds_op op;
+    unsigned arg; /* register offset, or IDENT level */
+    unsigned val; /* value for WDS_WRITE             */
     const char *what;
 } wds_step;
 
 /* Register offsets. */
+// clang-format off
 #define WDS_R_READ_MA     0
 #define WDS_R_LOAD_MA     1
 #define WDS_R_READ_SECT   2
@@ -54,14 +55,18 @@ typedef struct
 #define WDS_R_CONTROL     5
 #define WDS_R_READ_BLOCK  6
 #define WDS_R_LOAD_WC     7
+// clang-format on
 
 /* Control-word bits. */
+// clang-format off
 #define WDS_CW_INT_EN   0001
 #define WDS_CW_ERR_INT  0002
 #define WDS_CW_ACTIVE   0004
 #define WDS_CW_TEST     0010
 #define WDS_CW_DEVCLR   0020
+// clang-format on
 
+// clang-format off
 static const wds_step WD_CONFORMANCE_SEQ[] = {
 
     /* ---- 1. power-on state ------------------------------------------- */
@@ -183,8 +188,8 @@ static const wds_step WD_CONFORMANCE_SEQ[] = {
     { WDS_READ, WDS_R_CONTROL,    0, "+5 is write-only" },
     { WDS_READ, WDS_R_LOAD_WC,    0, "+7 is write-only" }
 };
+// clang-format on
 
-#define WD_CONFORMANCE_SEQ_LEN \
-    (sizeof(WD_CONFORMANCE_SEQ) / sizeof(WD_CONFORMANCE_SEQ[0]))
+#define WD_CONFORMANCE_SEQ_LEN (sizeof(WD_CONFORMANCE_SEQ) / sizeof(WD_CONFORMANCE_SEQ[0]))
 
 #endif /* WD_CONFORMANCE_SEQ_H */

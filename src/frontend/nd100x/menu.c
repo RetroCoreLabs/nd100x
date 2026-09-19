@@ -41,20 +41,20 @@
 
 // URL constants
 #define FLOPPIES_JSON_URL "https://ndlib.hackercorp.no/floppies.json"
-#define IMAGES_BASE_URL "https://ndlib.hackercorp.no/images/"
+#define IMAGES_BASE_URL   "https://ndlib.hackercorp.no/images/"
 
 // Cache constants
 #define CACHE_DIR_SUFFIX "/.cache/nd100x"
 
 // Longest line the menu windows format into a stack buffer. Wider than any
 // real terminal; text beyond it is cut rather than overflowing the buffer.
-#define MENU_TEXT_MAX 1024
+#define MENU_TEXT_MAX   1024
 #define CACHE_FILE_NAME "floppies.json"
 // Time conversion constants
 #define SECONDS_PER_DAY  86400
 #define SECONDS_PER_HOUR 3600
 
-#define CACHE_MAX_AGE_SECONDS (7 * SECONDS_PER_DAY)  // 7 days
+#define CACHE_MAX_AGE_SECONDS (7 * SECONDS_PER_DAY) // 7 days
 
 /*
  * Window layout constants.
@@ -66,22 +66,31 @@
  *
  * Content area height = max_y - SEARCH_WIN_HEIGHT - TOOLBAR_WIN_HEIGHT
  */
+// clang-format off
 #define SEARCH_WIN_HEIGHT        3
 #define TOOLBAR_WIN_HEIGHT       4
 #define TOOLBAR_TEXT_LEFT_MARGIN  2
 #define TOOLBAR_TEXT_RIGHT_MARGIN 2
+// clang-format on
 
 // URL builder function for downloading image files
-static char* build_image_url(const char* md5_hash) {
-    if (!md5_hash) return NULL;
+static char *build_image_url(const char *md5_hash)
+{
+    if (!md5_hash)
+    {
+        return NULL;
+    }
 
     // Calculate required buffer size: base URL + md5 + ".img" + null terminator
     size_t base_len = strlen(IMAGES_BASE_URL);
     size_t md5_len = strlen(md5_hash);
     size_t total_len = base_len + md5_len + 4 + 1; // +4 for ".img", +1 for null terminator
 
-    char* url = malloc(total_len);
-    if (!url) return NULL;
+    char *url = malloc(total_len);
+    if (!url)
+    {
+        return NULL;
+    }
 
     // Build the complete URL: base + md5 + .img
     snprintf(url, total_len, "%s%s.img", IMAGES_BASE_URL, md5_hash);
@@ -100,6 +109,7 @@ static void draw_unmount_popup(void);
 static void handle_unmount_popup_input(int ch);
 
 // Floppy disk structure
+// clang-format off
 typedef struct {
     int id;
     char name[256];
@@ -110,24 +120,30 @@ typedef struct {
     char product[256];
     DRIVE_TYPE drive_type;  // FLOPPY or SMD based on filesystem image size
 } FloppyDisk_t;
+// clang-format on
 
 // Menu state structure
 // Page structure for directory content
+// clang-format off
 typedef struct {
     int start_line;     // First line number (0-based)
     int end_line;       // Last line number (0-based)
     int scroll_y;       // Scroll position for this page
     int lines_count;    // Number of lines on this page
 } DirectoryPage_t;
+// clang-format on
 
 // Mount popup window structure
+// clang-format off
 typedef struct {
     WINDOW *popup_win;
     int selected_unit;  // 0-1 for floppy, 0-3 for SMD
     bool visible;
     FloppyDisk_t *floppy;  // Pointer to the floppy to mount
 } MountPopup_t;
+// clang-format on
 
+// clang-format off
 typedef struct {
     FloppyDisk_t *floppies;
     int floppy_count;
@@ -151,34 +167,50 @@ typedef struct {
     MountPopup_t mount_popup;  // Mount popup window
     MountPopup_t unmount_popup;  // Unmount popup window
 } MenuState_t;
+// clang-format on
 
 static MenuState_t menu_state;
 
 // Helper function to detect drive type based on filesystem image size
-static DRIVE_TYPE detect_drive_type(const char *directory_content) {
-    if (!directory_content) return DRIVE_FLOPPY;  // Default to floppy
+static DRIVE_TYPE detect_drive_type(const char *directory_content)
+{
+    if (!directory_content)
+    {
+        return DRIVE_FLOPPY; // Default to floppy
+    }
 
     char *content_copy = strdup(directory_content);
-    if (!content_copy) return DRIVE_FLOPPY;
+    if (!content_copy)
+    {
+        return DRIVE_FLOPPY;
+    }
 
     char *line = strtok(content_copy, "\r\n");
-    while (line) {
+    while (line)
+    {
         // Look for "Filesystem image size" line
-        if (strstr(line, "Filesystem image size")) {
+        if (strstr(line, "Filesystem image size"))
+        {
             // Extract the octal number
             char *colon = strchr(line, ':');
-            if (colon) {
+            if (colon)
+            {
                 colon++; // Skip the colon
                 // Skip whitespace
-                while (*colon == ' ' || *colon == '\t') colon++;
+                while (*colon == ' ' || *colon == '\t')
+                {
+                    colon++;
+                }
 
                 // Find "pages"
                 char *pages = strstr(colon, "pages");
-                if (pages) {
+                if (pages)
+                {
                     // Extract the number
                     char number_str[32];
                     int len = pages - colon;
-                    if (len > 0 && (size_t)len < sizeof(number_str)) {
+                    if (len > 0 && (size_t)len < sizeof(number_str))
+                    {
                         snprintf(number_str, sizeof(number_str), "%.*s", len, colon);
 
                         // Convert octal string to integer
@@ -194,30 +226,40 @@ static DRIVE_TYPE detect_drive_type(const char *directory_content) {
     }
 
     free(content_copy);
-    return DRIVE_FLOPPY;  // Default to floppy if not found
+    return DRIVE_FLOPPY; // Default to floppy if not found
 }
 
 // Helper function to count total lines in directory content
-static int count_directory_lines(const char *content) {
-    if (!content) return 0;
+static int count_directory_lines(const char *content)
+{
+    if (!content)
+    {
+        return 0;
+    }
 
     int line_count = 0;
-    char *content_copy = strdup(content);  // Dynamic allocation
-    if (!content_copy) return 0;
+    char *content_copy = strdup(content); // Dynamic allocation
+    if (!content_copy)
+    {
+        return 0;
+    }
 
     char *line = strtok(content_copy, "\r\n");
-    while (line) {
+    while (line)
+    {
         line_count++;
         line = strtok(NULL, "\r\n");
     }
 
-    free(content_copy);  // Free the dynamically allocated copy
+    free(content_copy); // Free the dynamically allocated copy
     return line_count;
 }
 
 // Free directory pages array
-static void free_directory_pages(void) {
-    if (menu_state.directory_pages) {
+static void free_directory_pages(void)
+{
+    if (menu_state.directory_pages)
+    {
         free(menu_state.directory_pages);
         menu_state.directory_pages = NULL;
         menu_state.directory_page_count = 0;
@@ -226,17 +268,24 @@ static void free_directory_pages(void) {
 }
 
 // Build directory pages array for current floppy
-static void build_directory_pages(FloppyDisk_t *floppy) {
+static void build_directory_pages(FloppyDisk_t *floppy)
+{
     // Free existing pages
     free_directory_pages();
 
-    if (!floppy) return;
+    if (!floppy)
+    {
+        return;
+    }
 
     // Count total lines
     int total_lines = count_directory_lines(floppy->directory_content);
     menu_state.detail_total_lines = total_lines;
 
-    if (total_lines == 0) return;
+    if (total_lines == 0)
+    {
+        return;
+    }
 
     // Get window dimensions to calculate page size
     int win_height;
@@ -248,9 +297,11 @@ static void build_directory_pages(FloppyDisk_t *floppy) {
     int max_display_lines = win_height - reserved_lines;
 
     // Ensure we have at least some space for content
-    if (max_display_lines <= 0) {
+    if (max_display_lines <= 0)
+    {
         max_display_lines = win_height - 1; // Just reserve 1 line for page info
-        if (max_display_lines <= 0) {
+        if (max_display_lines <= 0)
+        {
             max_display_lines = 1; // Absolute minimum
         }
     }
@@ -260,17 +311,22 @@ static void build_directory_pages(FloppyDisk_t *floppy) {
 
     // Allocate pages array
     menu_state.directory_pages = malloc(page_count * sizeof(DirectoryPage_t));
-    if (!menu_state.directory_pages) return;
+    if (!menu_state.directory_pages)
+    {
+        return;
+    }
 
     menu_state.directory_page_count = page_count;
     menu_state.current_page = 0;
 
     // Build each page
-    for (int i = 0; i < page_count; i++) {
+    for (int i = 0; i < page_count; i++)
+    {
         DirectoryPage_t *page = &menu_state.directory_pages[i];
         page->start_line = i * max_display_lines;
         page->end_line = (i + 1) * max_display_lines - 1;
-        if (page->end_line >= total_lines) {
+        if (page->end_line >= total_lines)
+        {
             page->end_line = total_lines - 1;
         }
         page->scroll_y = page->start_line;
@@ -283,51 +339,71 @@ static void build_directory_pages(FloppyDisk_t *floppy) {
 }
 
 
-
-
-
 // Build the cache file path: $HOME/.cache/nd100x/floppies.json
 // Returns a malloc'd string or NULL on failure.
-static char *build_cache_path(void) {
+static char *build_cache_path(void)
+{
     const char *home = getenv("HOME");
-    if (!home) return NULL;
+    if (!home)
+    {
+        return NULL;
+    }
 
     size_t len = strlen(home) + strlen(CACHE_DIR_SUFFIX) + 1 + strlen(CACHE_FILE_NAME) + 1;
     char *path = malloc(len);
-    if (!path) return NULL;
+    if (!path)
+    {
+        return NULL;
+    }
     snprintf(path, len, "%s%s/%s", home, CACHE_DIR_SUFFIX, CACHE_FILE_NAME);
     return path;
 }
 
 // Ensure the cache directory exists (mkdir -p equivalent for one level).
-static bool ensure_cache_dir(void) {
+static bool ensure_cache_dir(void)
+{
     const char *home = getenv("HOME");
-    if (!home) return false;
+    if (!home)
+    {
+        return false;
+    }
 
     // Create $HOME/.cache if needed
     char dir1[512];
     snprintf(dir1, sizeof(dir1), "%s/.cache", home);
-    mkdir(dir1, 0755);  // ignore EEXIST
+    mkdir(dir1, 0755); // ignore EEXIST
 
     // Create $HOME/.cache/nd100x
     char dir2[512];
     snprintf(dir2, sizeof(dir2), "%s%s", home, CACHE_DIR_SUFFIX);
-    if (mkdir(dir2, 0755) != 0 && errno != EEXIST) {
+    if (mkdir(dir2, 0755) != 0 && errno != EEXIST)
+    {
         return false;
     }
     return true;
 }
 
 // Write JSON data to the cache file.
-static void save_to_cache(const char *json_data) {
-    if (!json_data) return;
-    if (!ensure_cache_dir()) return;
+static void save_to_cache(const char *json_data)
+{
+    if (!json_data)
+    {
+        return;
+    }
+    if (!ensure_cache_dir())
+    {
+        return;
+    }
 
     char *path = build_cache_path();
-    if (!path) return;
+    if (!path)
+    {
+        return;
+    }
 
     FILE *f = fopen(path, "w");
-    if (f) {
+    if (f)
+    {
         fputs(json_data, f);
         fclose(f);
     }
@@ -335,21 +411,36 @@ static void save_to_cache(const char *json_data) {
 }
 
 // Read the cache file contents into a malloc'd string. Returns NULL if missing.
-static char *load_from_cache(void) {
+static char *load_from_cache(void)
+{
     char *path = build_cache_path();
-    if (!path) return NULL;
+    if (!path)
+    {
+        return NULL;
+    }
 
     FILE *f = fopen(path, "r");
     free(path);
-    if (!f) return NULL;
+    if (!f)
+    {
+        return NULL;
+    }
 
     fseek(f, 0, SEEK_END);
     long size = ftell(f);
-    if (size <= 0) { fclose(f); return NULL; }
+    if (size <= 0)
+    {
+        fclose(f);
+        return NULL;
+    }
     fseek(f, 0, SEEK_SET);
 
     char *data = malloc(size + 1);
-    if (!data) { fclose(f); return NULL; }
+    if (!data)
+    {
+        fclose(f);
+        return NULL;
+    }
 
     size_t read_bytes = fread(data, 1, size, f);
     fclose(f);
@@ -358,14 +449,21 @@ static char *load_from_cache(void) {
 }
 
 // Return the age of the cache file in seconds, or -1 if it doesn't exist.
-static long cache_age_seconds(void) {
+static long cache_age_seconds(void)
+{
     char *path = build_cache_path();
-    if (!path) return -1;
+    if (!path)
+    {
+        return -1;
+    }
 
     struct stat st;
     int rc = stat(path, &st);
     free(path);
-    if (rc != 0) return -1;
+    if (rc != 0)
+    {
+        return -1;
+    }
 
     return (long)(time(NULL) - st.st_mtime);
 }
@@ -373,15 +471,25 @@ static long cache_age_seconds(void) {
 // Get the floppy catalog JSON, using cache when available.
 // If force_download is true, the cache is bypassed.
 // Sets *from_cache to true if data came from cache, false if downloaded.
-static char *get_cached_or_download_json(bool force_download, bool *from_cache) {
-    if (from_cache) *from_cache = false;
+static char *get_cached_or_download_json(bool force_download, bool *from_cache)
+{
+    if (from_cache)
+    {
+        *from_cache = false;
+    }
 
-    if (!force_download) {
+    if (!force_download)
+    {
         long age = cache_age_seconds();
-        if (age >= 0 && age < CACHE_MAX_AGE_SECONDS) {
+        if (age >= 0 && age < CACHE_MAX_AGE_SECONDS)
+        {
             char *cached = load_from_cache();
-            if (cached) {
-                if (from_cache) *from_cache = true;
+            if (cached)
+            {
+                if (from_cache)
+                {
+                    *from_cache = true;
+                }
                 return cached;
             }
         }
@@ -389,15 +497,20 @@ static char *get_cached_or_download_json(bool force_download, bool *from_cache) 
 
     // Download from network
     char *json_data = download_file(FLOPPIES_JSON_URL);
-    if (json_data) {
+    if (json_data)
+    {
         save_to_cache(json_data);
         return json_data;
     }
 
     // Download failed - fall back to stale cache if one exists
     char *stale = load_from_cache();
-    if (stale) {
-        if (from_cache) *from_cache = true;
+    if (stale)
+    {
+        if (from_cache)
+        {
+            *from_cache = true;
+        }
         return stale;
     }
 
@@ -485,35 +598,44 @@ static int parse_one_floppy(cJSON *item, FloppyDisk_t *floppy)
     return 1;
 }
 
-static bool parse_floppies_json(const char* json_data) {
+static bool parse_floppies_json(const char *json_data)
+{
     cJSON *json = cJSON_Parse(json_data);
-    if (!json) {
+    if (!json)
+    {
         return false;
     }
 
-    if (!cJSON_IsArray(json)) {
+    if (!cJSON_IsArray(json))
+    {
         cJSON_Delete(json);
         return false;
     }
 
     int array_size = cJSON_GetArraySize(json);
     menu_state.floppies = malloc(array_size * sizeof(FloppyDisk_t));
-    if (!menu_state.floppies) {
+    if (!menu_state.floppies)
+    {
         cJSON_Delete(json);
         return false;
     }
 
     // Initialize all directory_content pointers to NULL
-    for (int i = 0; i < array_size; i++) {
+    for (int i = 0; i < array_size; i++)
+    {
         menu_state.floppies[i].directory_content = NULL;
     }
 
     menu_state.floppy_count = 0;
     int skipped_count = 0;
 
-    for (int i = 0; i < array_size; i++) {
+    for (int i = 0; i < array_size; i++)
+    {
         cJSON *item = cJSON_GetArrayItem(json, i);
-        if (!cJSON_IsObject(item)) continue;
+        if (!cJSON_IsObject(item))
+        {
+            continue;
+        }
 
         FloppyDisk_t *floppy = &menu_state.floppies[menu_state.floppy_count];
 
@@ -549,7 +671,8 @@ static bool parse_floppies_json(const char* json_data) {
  *   detail_win  - Scrollable detail/directory view (right 2/3)
  *   toolbar_win - Key bindings and cache status at bottom
  */
-static void init_curses(void) {
+static void init_curses(void)
+{
     initscr();
     cbreak();
     noecho();
@@ -563,15 +686,18 @@ static void init_curses(void) {
     // Create windows
     menu_state.search_win = newwin(SEARCH_WIN_HEIGHT, menu_state.max_x, 0, 0);
     menu_state.list_win = newwin(content_height, menu_state.max_x / 3, SEARCH_WIN_HEIGHT, 0);
-    menu_state.detail_win = newwin(content_height, (menu_state.max_x * 2) / 3, SEARCH_WIN_HEIGHT, menu_state.max_x / 3);
-    menu_state.toolbar_win = newwin(TOOLBAR_WIN_HEIGHT, menu_state.max_x, menu_state.max_y - TOOLBAR_WIN_HEIGHT, 0);
+    menu_state.detail_win =
+        newwin(content_height, (menu_state.max_x * 2) / 3, SEARCH_WIN_HEIGHT, menu_state.max_x / 3);
+    menu_state.toolbar_win =
+        newwin(TOOLBAR_WIN_HEIGHT, menu_state.max_x, menu_state.max_y - TOOLBAR_WIN_HEIGHT, 0);
 
     // Enable scrolling for list and detail windows
     scrollok(menu_state.list_win, TRUE);
     scrollok(menu_state.detail_win, TRUE);
 
     // Set up colors if available
-    if (has_colors()) {
+    if (has_colors())
+    {
         start_color();
         init_pair(1, COLOR_WHITE, COLOR_BLUE);   // Selected item
         init_pair(2, COLOR_YELLOW, COLOR_BLACK); // Highlight
@@ -585,7 +711,8 @@ static void init_curses(void) {
 }
 
 // Clean up curses
-static void cleanup_curses(void) {
+static void cleanup_curses(void)
+{
     delwin(menu_state.toolbar_win);
     delwin(menu_state.detail_win);
     delwin(menu_state.list_win);
@@ -594,7 +721,8 @@ static void cleanup_curses(void) {
 }
 
 // Draw the search box
-static void draw_search_box(void) {
+static void draw_search_box(void)
+{
     werase(menu_state.search_win);
     box(menu_state.search_win, 0, 0);
     mvwprintw(menu_state.search_win, 0, 2, " Search for name, reference or directory content ");
@@ -606,15 +734,19 @@ static void draw_search_box(void) {
 }
 
 // Draw the floppy list
-static void draw_floppy_list(void) {
+static void draw_floppy_list(void)
+{
     werase(menu_state.list_win);
     box(menu_state.list_win, 0, 0);
 
     // Show filter status in title
-    if (menu_state.filtered_count > 0) {
+    if (menu_state.filtered_count > 0)
+    {
         mvwprintw(menu_state.list_win, 0, 2, " Floppy Disks (Filtered: %d/%d) ",
                   menu_state.filtered_count, menu_state.floppy_count);
-    } else {
+    }
+    else
+    {
         mvwprintw(menu_state.list_win, 0, 2, " Floppy Disks (%d total) ", menu_state.floppy_count);
     }
 
@@ -624,31 +756,39 @@ static void draw_floppy_list(void) {
     int start_item = 0;
 
     // Determine which list to show (filtered or all)
-    int total_items = (menu_state.filtered_count > 0) ? menu_state.filtered_count : menu_state.floppy_count;
+    int total_items =
+        (menu_state.filtered_count > 0) ? menu_state.filtered_count : menu_state.floppy_count;
 
-    if (menu_state.selected_index >= max_items) {
+    if (menu_state.selected_index >= max_items)
+    {
         start_item = menu_state.selected_index - max_items + 1;
     }
 
-    for (int i = 0; i < max_items && (i + start_item) < total_items; i++) {
+    for (int i = 0; i < max_items && (i + start_item) < total_items; i++)
+    {
         int item_idx = i + start_item;
 
         // Get the actual floppy index (filtered or direct)
-        int floppy_idx = (menu_state.filtered_count > 0) ?
-                        menu_state.filtered_indices[item_idx] : item_idx;
+        int floppy_idx =
+            (menu_state.filtered_count > 0) ? menu_state.filtered_indices[item_idx] : item_idx;
 
         FloppyDisk_t *floppy = &menu_state.floppies[floppy_idx];
 
-        if (item_idx == menu_state.selected_index) {
+        if (item_idx == menu_state.selected_index)
+        {
             wattron(menu_state.list_win, A_REVERSE);
         }
 
         // Truncate name if too long
         int name_width = menu_state.max_x / 3 - 5;
-        if (name_width < 0) name_width = 0;
+        if (name_width < 0)
+        {
+            name_width = 0;
+        }
         mvwprintw(menu_state.list_win, start_y + i, 1, "%.*s", name_width, floppy->name);
 
-        if (item_idx == menu_state.selected_index) {
+        if (item_idx == menu_state.selected_index)
+        {
             wattroff(menu_state.list_win, A_REVERSE);
         }
     }
@@ -657,8 +797,10 @@ static void draw_floppy_list(void) {
 }
 
 // Print text cut to width columns, the last three replaced by "..."
-static void print_truncated(WINDOW *win, int y, int x, const char *text, int width) {
-    if (width <= 3) {
+static void print_truncated(WINDOW *win, int y, int x, const char *text, int width)
+{
+    if (width <= 3)
+    {
         mvwprintw(win, y, x, "%.*s", width > 0 ? width : 0, "...");
         return;
     }
@@ -666,8 +808,12 @@ static void print_truncated(WINDOW *win, int y, int x, const char *text, int wid
 }
 
 // Helper function to safely print text within window bounds
-static void safe_print_line(WINDOW *win, int y, int x, const char *text, int max_width) {
-    if (!text || !win) return;
+static void safe_print_line(WINDOW *win, int y, int x, const char *text, int max_width)
+{
+    if (!text || !win)
+    {
+        return;
+    }
 
     int text_len = strlen(text);
     int available_width = max_width - x;
@@ -677,37 +823,51 @@ static void safe_print_line(WINDOW *win, int y, int x, const char *text, int max
     const char *display_text = text;
 
     // If we have horizontal scroll, start from the scroll offset
-    if (scroll_offset > 0) {
-        if (scroll_offset < text_len) {
+    if (scroll_offset > 0)
+    {
+        if (scroll_offset < text_len)
+        {
             display_text = text + scroll_offset;
             text_len = strlen(display_text);
-        } else {
+        }
+        else
+        {
             // Scroll offset is beyond text length, show empty or minimal content
             display_text = "";
             text_len = 0;
         }
     }
 
-    if (text_len <= available_width) {
+    if (text_len <= available_width)
+    {
         // Text fits, print it directly
         mvwprintw(win, y, x, "%s", display_text);
-    } else {
+    }
+    else
+    {
         // Text is too long, truncate and add ellipsis
         print_truncated(win, y, x, display_text, available_width);
     }
 }
 
 // Helper function to safely print text within window bounds (no horizontal scroll)
-static void safe_print_line_no_scroll(WINDOW *win, int y, int x, const char *text, int max_width) {
-    if (!text || !win) return;
+static void safe_print_line_no_scroll(WINDOW *win, int y, int x, const char *text, int max_width)
+{
+    if (!text || !win)
+    {
+        return;
+    }
 
     int text_len = strlen(text);
     int available_width = max_width - x;
 
-    if (text_len <= available_width) {
+    if (text_len <= available_width)
+    {
         // Text fits, print it directly
         mvwprintw(win, y, x, "%s", text);
-    } else {
+    }
+    else
+    {
         // Text is too long, truncate and add ellipsis
         print_truncated(win, y, x, text, available_width);
     }
@@ -762,7 +922,8 @@ static int print_directory_page(FloppyDisk_t *floppy, int y, int win_height, int
     return y;
 }
 
-static void draw_floppy_details(void) {
+static void draw_floppy_details(void)
+{
     werase(menu_state.detail_win);
     box(menu_state.detail_win, 0, 0);
     mvwprintw(menu_state.detail_win, 0, 2, " Details ");
@@ -773,11 +934,14 @@ static void draw_floppy_details(void) {
     int max_width = win_width - 4; // Leave 2 chars margin on each side
 
     // Get the actual floppy index (filtered or direct)
-    int total_items = (menu_state.filtered_count > 0) ? menu_state.filtered_count : menu_state.floppy_count;
+    int total_items =
+        (menu_state.filtered_count > 0) ? menu_state.filtered_count : menu_state.floppy_count;
 
-    if (menu_state.selected_index >= 0 && menu_state.selected_index < total_items) {
-        int floppy_idx = (menu_state.filtered_count > 0) ?
-                        menu_state.filtered_indices[menu_state.selected_index] : menu_state.selected_index;
+    if (menu_state.selected_index >= 0 && menu_state.selected_index < total_items)
+    {
+        int floppy_idx = (menu_state.filtered_count > 0)
+                             ? menu_state.filtered_indices[menu_state.selected_index]
+                             : menu_state.selected_index;
         FloppyDisk_t *floppy = &menu_state.floppies[floppy_idx];
 
         int y = 1;
@@ -798,16 +962,18 @@ static void draw_floppy_details(void) {
         char md5_line[512];
         snprintf(md5_line, sizeof(md5_line), "MD5: %s", floppy->md5);
         safe_print_line_no_scroll(menu_state.detail_win, y++, 2, md5_line, max_width);
-/*
+        /*
         char product_line[512];
         snprintf(product_line, sizeof(product_line), "Product: %s", floppy->product);
         safe_print_line(menu_state.detail_win, y++, 2, product_line, max_width);
 */
         y++;
-        mvwprintw(menu_state.detail_win, y++, 2, "__________________ Directory Content __________________");
+        mvwprintw(menu_state.detail_win, y++, 2,
+                  "__________________ Directory Content __________________");
 
         // Handle directory content with vertical scrolling using page array
-        if (!menu_state.directory_pages) {
+        if (!menu_state.directory_pages)
+        {
             build_directory_pages(floppy);
         }
 
@@ -819,13 +985,14 @@ static void draw_floppy_details(void) {
 
 
         // Show page information
-        if (menu_state.directory_pages && menu_state.current_page < menu_state.directory_page_count) {
+        if (menu_state.directory_pages && menu_state.current_page < menu_state.directory_page_count)
+        {
             DirectoryPage_t *current_page = &menu_state.directory_pages[menu_state.current_page];
             char page_info[128];
             snprintf(page_info, sizeof(page_info), "Page %d/%d (Lines %d-%d of %d)",
-                    menu_state.current_page + 1, menu_state.directory_page_count,
-                    current_page->start_line + 1, current_page->end_line + 1,
-                    menu_state.detail_total_lines);
+                     menu_state.current_page + 1, menu_state.directory_page_count,
+                     current_page->start_line + 1, current_page->end_line + 1,
+                     menu_state.detail_total_lines);
             mvwprintw(menu_state.detail_win, win_height - 1, 2, "%s", page_info);
         }
     }
@@ -839,47 +1006,62 @@ static void draw_floppy_details(void) {
  * The toolbar window has TOOLBAR_WIN_HEIGHT rows (including border).
  * Row 1: Navigation keys.  Row 2: Action keys + right-aligned cache age.
  */
-static void draw_toolbar(void) {
+static void draw_toolbar(void)
+{
     werase(menu_state.toolbar_win);
     box(menu_state.toolbar_win, 0, 0);
 
     // Show cache age indicator
     long age = cache_age_seconds();
     char cache_info[64] = "";
-    if (age >= 0) {
+    if (age >= 0)
+    {
         int days = age / SECONDS_PER_DAY;
         int hours = (age % SECONDS_PER_DAY) / SECONDS_PER_HOUR;
         if (days > 0)
+        {
             snprintf(cache_info, sizeof(cache_info), "[cached %dd %dh ago]", days, hours);
+        }
         else if (hours > 0)
+        {
             snprintf(cache_info, sizeof(cache_info), "[cached %dh ago]", hours);
+        }
         else
+        {
             snprintf(cache_info, sizeof(cache_info), "[cached <1h ago]");
+        }
     }
 
-    static const char nav_keys[] = "ESC=Exit  ENTER=Search  UP/DN=Navigate  PgUp/PgDn=Scroll  LEFT/RIGHT=Scroll";
+    static const char nav_keys[] =
+        "ESC=Exit  ENTER=Search  UP/DN=Navigate  PgUp/PgDn=Scroll  LEFT/RIGHT=Scroll";
     static const char action_keys[] = "F5=Mount  F6=Unmount  F7=Refresh";
 
     mvwprintw(menu_state.toolbar_win, 1, TOOLBAR_TEXT_LEFT_MARGIN, "%s", nav_keys);
     mvwprintw(menu_state.toolbar_win, 2, TOOLBAR_TEXT_LEFT_MARGIN, "%s", action_keys);
-    if (cache_info[0]) {
+    if (cache_info[0])
+    {
         int len = strlen(cache_info);
         int x = menu_state.max_x - len - TOOLBAR_TEXT_RIGHT_MARGIN;
         if (x > (int)sizeof(action_keys) + TOOLBAR_TEXT_LEFT_MARGIN)
+        {
             mvwprintw(menu_state.toolbar_win, 2, x, "%s", cache_info);
+        }
     }
     wnoutrefresh(menu_state.toolbar_win);
 }
 
 // Filter floppies based on search text
-static void filter_floppies(void) {
+static void filter_floppies(void)
+{
     // Free existing filtered indices
-    if (menu_state.filtered_indices) {
+    if (menu_state.filtered_indices)
+    {
         free(menu_state.filtered_indices);
         menu_state.filtered_indices = NULL;
     }
 
-    if (strlen(menu_state.search_text) == 0) {
+    if (strlen(menu_state.search_text) == 0)
+    {
         // No filter - show all floppies
         menu_state.filtered_count = 0;
         menu_state.selected_index = 0;
@@ -888,7 +1070,8 @@ static void filter_floppies(void) {
 
     // Allocate space for filtered indices (worst case: all floppies match)
     menu_state.filtered_indices = malloc(menu_state.floppy_count * sizeof(int));
-    if (!menu_state.filtered_indices) {
+    if (!menu_state.filtered_indices)
+    {
         menu_state.filtered_count = 0;
         return;
     }
@@ -896,7 +1079,8 @@ static void filter_floppies(void) {
     menu_state.filtered_count = 0;
 
     // Search through all floppies
-    for (int i = 0; i < menu_state.floppy_count; i++) {
+    for (int i = 0; i < menu_state.floppy_count; i++)
+    {
         FloppyDisk_t *floppy = &menu_state.floppies[i];
 
         // Search in all text fields (case-insensitive)
@@ -905,108 +1089,125 @@ static void filter_floppies(void) {
         snprintf(search_lower, sizeof(search_lower), "%s", menu_state.search_text);
 
         // Convert search text to lowercase
-        for (int j = 0; search_lower[j]; j++) {
+        for (int j = 0; search_lower[j]; j++)
+        {
             search_lower[j] = tolower(search_lower[j]);
         }
 
         // Check name
-        if (strstr(floppy->name, search_lower) ||
-            strcasestr(floppy->name, menu_state.search_text)) {
+        if (strstr(floppy->name, search_lower) || strcasestr(floppy->name, menu_state.search_text))
+        {
             found = true;
         }
 
         // Check description
         if (!found && (strstr(floppy->description, search_lower) ||
-            strcasestr(floppy->description, menu_state.search_text))) {
+                       strcasestr(floppy->description, menu_state.search_text)))
+        {
             found = true;
         }
 
         // Check reference
         if (!found && (strstr(floppy->reference, search_lower) ||
-            strcasestr(floppy->reference, menu_state.search_text))) {
+                       strcasestr(floppy->reference, menu_state.search_text)))
+        {
             found = true;
         }
 
         // Check directory content
         if (!found && (strstr(floppy->directory_content, search_lower) ||
-            strcasestr(floppy->directory_content, menu_state.search_text))) {
+                       strcasestr(floppy->directory_content, menu_state.search_text)))
+        {
             found = true;
         }
 
         // Check product
         if (!found && (strstr(floppy->product, search_lower) ||
-            strcasestr(floppy->product, menu_state.search_text))) {
+                       strcasestr(floppy->product, menu_state.search_text)))
+        {
             found = true;
         }
 
-        if (found) {
+        if (found)
+        {
             menu_state.filtered_indices[menu_state.filtered_count] = i;
             menu_state.filtered_count++;
         }
     }
 
     // Reset selection to first item if current selection is out of bounds
-    if (menu_state.selected_index >= menu_state.filtered_count) {
+    if (menu_state.selected_index >= menu_state.filtered_count)
+    {
         menu_state.selected_index = 0;
     }
 }
 
 // Handle search input
-static void handle_search_input(int ch) {
-    switch (ch) {
-        case KEY_LEFT:
-            if (menu_state.search_cursor > 0) {
-                menu_state.search_cursor--;
-            }
-            break;
-        case KEY_RIGHT:
-            if ((size_t)menu_state.search_cursor < strlen(menu_state.search_text)) {
-                menu_state.search_cursor++;
-            }
-            break;
-        case KEY_BACKSPACE:
-        case 127: // Backspace
-            if (menu_state.search_cursor > 0) {
-                memmove(&menu_state.search_text[menu_state.search_cursor - 1],
-                       &menu_state.search_text[menu_state.search_cursor],
-                       strlen(&menu_state.search_text[menu_state.search_cursor]) + 1);
-                menu_state.search_cursor--;
-            }
-            break;
-        case KEY_DC: // Delete
-            if ((size_t)menu_state.search_cursor < strlen(menu_state.search_text)) {
-                memmove(&menu_state.search_text[menu_state.search_cursor],
-                       &menu_state.search_text[menu_state.search_cursor + 1],
-                       strlen(&menu_state.search_text[menu_state.search_cursor + 1]) + 1);
-            }
-            break;
-        default:
-            if (isprint(ch) && strlen(menu_state.search_text) < sizeof(menu_state.search_text) - 1) {
-                memmove(&menu_state.search_text[menu_state.search_cursor + 1],
-                       &menu_state.search_text[menu_state.search_cursor],
-                       strlen(&menu_state.search_text[menu_state.search_cursor]) + 1);
-                menu_state.search_text[menu_state.search_cursor] = ch;
-                menu_state.search_cursor++;
-            }
-            break;
+static void handle_search_input(int ch)
+{
+    switch (ch)
+    {
+    case KEY_LEFT:
+        if (menu_state.search_cursor > 0)
+        {
+            menu_state.search_cursor--;
+        }
+        break;
+    case KEY_RIGHT:
+        if ((size_t)menu_state.search_cursor < strlen(menu_state.search_text))
+        {
+            menu_state.search_cursor++;
+        }
+        break;
+    case KEY_BACKSPACE:
+    case 127: // Backspace
+        if (menu_state.search_cursor > 0)
+        {
+            memmove(&menu_state.search_text[menu_state.search_cursor - 1],
+                    &menu_state.search_text[menu_state.search_cursor],
+                    strlen(&menu_state.search_text[menu_state.search_cursor]) + 1);
+            menu_state.search_cursor--;
+        }
+        break;
+    case KEY_DC: // Delete
+        if ((size_t)menu_state.search_cursor < strlen(menu_state.search_text))
+        {
+            memmove(&menu_state.search_text[menu_state.search_cursor],
+                    &menu_state.search_text[menu_state.search_cursor + 1],
+                    strlen(&menu_state.search_text[menu_state.search_cursor + 1]) + 1);
+        }
+        break;
+    default:
+        if (isprint(ch) && strlen(menu_state.search_text) < sizeof(menu_state.search_text) - 1)
+        {
+            memmove(&menu_state.search_text[menu_state.search_cursor + 1],
+                    &menu_state.search_text[menu_state.search_cursor],
+                    strlen(&menu_state.search_text[menu_state.search_cursor]) + 1);
+            menu_state.search_text[menu_state.search_cursor] = ch;
+            menu_state.search_cursor++;
+        }
+        break;
     }
 }
 
 // Show mount popup function
-static void show_mount_popup_for_floppy(int unit) {
+static void show_mount_popup_for_floppy(int unit)
+{
     (void)unit;
     // Show mount popup instead of direct mounting
     show_mount_popup();
 }
 
-static void unmount_floppy(int unit) {
+static void unmount_floppy(int unit)
+{
     (void)unit;
     // Show unmount popup instead of direct unmounting
     show_unmount_popup();
 }
 
 // Initialize mount popup window
-static void init_mount_popup(void) {
+static void init_mount_popup(void)
+{
     // Calculate popup window size and position
     int popup_height = 13;
     int popup_width = 60;
@@ -1020,12 +1221,16 @@ static void init_mount_popup(void) {
 }
 
 // Show mount popup for the selected floppy
-static void show_mount_popup(void) {
-    int total_items = (menu_state.filtered_count > 0) ? menu_state.filtered_count : menu_state.floppy_count;
+static void show_mount_popup(void)
+{
+    int total_items =
+        (menu_state.filtered_count > 0) ? menu_state.filtered_count : menu_state.floppy_count;
 
-    if (menu_state.selected_index >= 0 && menu_state.selected_index < total_items) {
-        int floppy_idx = (menu_state.filtered_count > 0) ?
-                        menu_state.filtered_indices[menu_state.selected_index] : menu_state.selected_index;
+    if (menu_state.selected_index >= 0 && menu_state.selected_index < total_items)
+    {
+        int floppy_idx = (menu_state.filtered_count > 0)
+                             ? menu_state.filtered_indices[menu_state.selected_index]
+                             : menu_state.selected_index;
         menu_state.mount_popup.floppy = &menu_state.floppies[floppy_idx];
         menu_state.mount_popup.selected_unit = 0;
         menu_state.mount_popup.visible = true;
@@ -1033,14 +1238,19 @@ static void show_mount_popup(void) {
 }
 
 // Hide mount popup
-static void hide_mount_popup(void) {
+static void hide_mount_popup(void)
+{
     menu_state.mount_popup.visible = false;
     menu_state.mount_popup.floppy = NULL;
 }
 
 // Draw mount popup window
-static void draw_mount_popup(void) {
-    if (!menu_state.mount_popup.visible || !menu_state.mount_popup.floppy) return;
+static void draw_mount_popup(void)
+{
+    if (!menu_state.mount_popup.visible || !menu_state.mount_popup.floppy)
+    {
+        return;
+    }
 
     WINDOW *popup = menu_state.mount_popup.popup_win;
     FloppyDisk_t *floppy = menu_state.mount_popup.floppy;
@@ -1058,8 +1268,9 @@ static void draw_mount_popup(void) {
     mvwprintw(popup, 4, 2, "MD5: %s", floppy->md5);
 
     // Get current mounted drives
-    MountedDriveInfo_t* current_drives = list_mount(floppy->drive_type);
-    if (!current_drives) {
+    MountedDriveInfo_t *current_drives = list_mount(floppy->drive_type);
+    if (!current_drives)
+    {
         mvwprintw(popup, 6, 2, "Error: Could not get mounted drives");
         wnoutrefresh(popup);
         return;
@@ -1068,34 +1279,43 @@ static void draw_mount_popup(void) {
     // Draw unit selection based on drive type
     mvwprintw(popup, 6, 2, "Select unit to mount:");
 
-    if (floppy->drive_type == DRIVE_SMD) {
+    if (floppy->drive_type == DRIVE_SMD)
+    {
         // SMD units 0-3
-        for (int i = 0; i < 4; i++) {
-            if (current_drives[i].is_mounted) {
+        for (int i = 0; i < 4; i++)
+        {
+            if (current_drives[i].is_mounted)
+            {
                 // Unit is mounted - show current disk
                 mvwprintw(popup, 7 + i, 4, "%s smd-disc-1 unit %d (mounted: %s)",
-                          menu_state.mount_popup.selected_unit == i ? ">" : " ",
-                          i, current_drives[i].name);
-            } else {
+                          menu_state.mount_popup.selected_unit == i ? ">" : " ", i,
+                          current_drives[i].name);
+            }
+            else
+            {
                 // Unit is available
                 mvwprintw(popup, 7 + i, 4, "%s smd-disc-1 unit %d",
-                          menu_state.mount_popup.selected_unit == i ? ">" : " ",
-                          i);
+                          menu_state.mount_popup.selected_unit == i ? ">" : " ", i);
             }
         }
-    } else {
+    }
+    else
+    {
         // Floppy units 0-2
-        for (int i = 0; i < 3; i++) {
-            if (current_drives[i].is_mounted) {
+        for (int i = 0; i < 3; i++)
+        {
+            if (current_drives[i].is_mounted)
+            {
                 // Unit is mounted - show current disk
                 mvwprintw(popup, 7 + i, 4, "%s floppy-disc-1 unit %d (mounted: %s)",
-                          menu_state.mount_popup.selected_unit == i ? ">" : " ",
-                          i, current_drives[i].name);
-            } else {
+                          menu_state.mount_popup.selected_unit == i ? ">" : " ", i,
+                          current_drives[i].name);
+            }
+            else
+            {
                 // Unit is available
                 mvwprintw(popup, 7 + i, 4, "%s floppy-disc-1 unit %d",
-                          menu_state.mount_popup.selected_unit == i ? ">" : " ",
-                          i);
+                          menu_state.mount_popup.selected_unit == i ? ">" : " ", i);
             }
         }
     }
@@ -1108,58 +1328,70 @@ static void draw_mount_popup(void) {
 }
 
 // Handle mount popup input
-static void handle_mount_popup_input(int ch) {
-    switch (ch) {
-        case KEY_UP:
-            if (menu_state.mount_popup.selected_unit > 0) {
-                menu_state.mount_popup.selected_unit--;
-            }
-            break;
-        case KEY_DOWN:
+static void handle_mount_popup_input(int ch)
+{
+    switch (ch)
+    {
+    case KEY_UP:
+        if (menu_state.mount_popup.selected_unit > 0)
+        {
+            menu_state.mount_popup.selected_unit--;
+        }
+        break;
+    case KEY_DOWN:
+    {
+        int max_unit = (menu_state.mount_popup.floppy &&
+                        menu_state.mount_popup.floppy->drive_type == DRIVE_SMD)
+                           ? 3
+                           : 2;
+        if (menu_state.mount_popup.selected_unit < max_unit)
+        {
+            menu_state.mount_popup.selected_unit++;
+        }
+    }
+    break;
+    case '\n':
+    case '\r': // ENTER
+        if (menu_state.mount_popup.floppy)
+        {
+            // Check if selected unit is already mounted
+            MountedDriveInfo_t *current_drives =
+                list_mount(menu_state.mount_popup.floppy->drive_type);
+            if (current_drives &&
+                current_drives[menu_state.mount_popup.selected_unit].name[0] != '\0')
             {
-                int max_unit = (menu_state.mount_popup.floppy && menu_state.mount_popup.floppy->drive_type == DRIVE_SMD) ? 3 : 2;
-                if (menu_state.mount_popup.selected_unit < max_unit) {
-                    menu_state.mount_popup.selected_unit++;
-                }
+                // Unit is already mounted - don't allow mount
+                // Could show a message here, but for now just ignore
+                break;
             }
-            break;
-        case '\n':
-        case '\r':  // ENTER
-            if (menu_state.mount_popup.floppy) {
-                // Check if selected unit is already mounted
-                MountedDriveInfo_t* current_drives = list_mount(menu_state.mount_popup.floppy->drive_type);
-                if (current_drives && current_drives[menu_state.mount_popup.selected_unit].name[0] != '\0') {
-                    // Unit is already mounted - don't allow mount
-                    // Could show a message here, but for now just ignore
-                    break;
-                }
 
-                // Build image URL for downloading
-                char* image_path = build_image_url(menu_state.mount_popup.floppy->md5);
-                if (!image_path) {
-                    // Could show error message here
-                    break;
-                }
-
-                // Call the external mount function with correct drive type and image path
-                mount_drive(menu_state.mount_popup.floppy->drive_type, menu_state.mount_popup.selected_unit,
-                           menu_state.mount_popup.floppy->md5,
-                           menu_state.mount_popup.floppy->name,
-                           menu_state.mount_popup.floppy->description,
-                           image_path);
-
-                free(image_path);  // Free the allocated URL
-                hide_mount_popup();
+            // Build image URL for downloading
+            char *image_path = build_image_url(menu_state.mount_popup.floppy->md5);
+            if (!image_path)
+            {
+                // Could show error message here
+                break;
             }
-            break;
-        case 27:  // ESC
+
+            // Call the external mount function with correct drive type and image path
+            mount_drive(menu_state.mount_popup.floppy->drive_type,
+                        menu_state.mount_popup.selected_unit, menu_state.mount_popup.floppy->md5,
+                        menu_state.mount_popup.floppy->name,
+                        menu_state.mount_popup.floppy->description, image_path);
+
+            free(image_path); // Free the allocated URL
             hide_mount_popup();
-            break;
+        }
+        break;
+    case 27: // ESC
+        hide_mount_popup();
+        break;
     }
 }
 
 // Initialize unmount popup window
-static void init_unmount_popup(void) {
+static void init_unmount_popup(void)
+{
     // Calculate popup window size and position
     int popup_height = 15;
     int popup_width = 70;
@@ -1173,37 +1405,49 @@ static void init_unmount_popup(void) {
 }
 
 // Show unmount popup
-static void show_unmount_popup(void) {
+static void show_unmount_popup(void)
+{
     menu_state.unmount_popup.selected_unit = 0;
     menu_state.unmount_popup.visible = true;
-    menu_state.unmount_popup.floppy = NULL;  // Not used for unmount
+    menu_state.unmount_popup.floppy = NULL; // Not used for unmount
 }
 
 // Hide unmount popup
-static void hide_unmount_popup(void) {
+static void hide_unmount_popup(void)
+{
     menu_state.unmount_popup.visible = false;
     menu_state.unmount_popup.floppy = NULL;
 }
 
 // Helper function to format file size in KB or MB
-static void format_file_size(size_t bytes, char* buffer, size_t buffer_size) {
-    if (bytes >= 1024 * 1024) {
+static void format_file_size(size_t bytes, char *buffer, size_t buffer_size)
+{
+    if (bytes >= 1024 * 1024)
+    {
         // Convert to MB
         double mb = (double)bytes / (1024.0 * 1024.0);
         snprintf(buffer, buffer_size, "%.1f MB", mb);
-    } else if (bytes >= 1024) {
+    }
+    else if (bytes >= 1024)
+    {
         // Convert to KB
         double kb = (double)bytes / 1024.0;
         snprintf(buffer, buffer_size, "%.0f KB", kb);
-    } else {
+    }
+    else
+    {
         // Show in bytes
         snprintf(buffer, buffer_size, "%zu B", bytes);
     }
 }
 
 // Draw unmount popup window
-static void draw_unmount_popup(void) {
-    if (!menu_state.unmount_popup.visible) return;
+static void draw_unmount_popup(void)
+{
+    if (!menu_state.unmount_popup.visible)
+    {
+        return;
+    }
 
     WINDOW *popup = menu_state.unmount_popup.popup_win;
 
@@ -1215,10 +1459,11 @@ static void draw_unmount_popup(void) {
     mvwprintw(popup, 0, 2, " Unmount ");
 
     // Get mounted drives
-    MountedDriveInfo_t* g_floppy_drives = list_mount(DRIVE_FLOPPY);
-    MountedDriveInfo_t* g_smd_drives = list_mount(DRIVE_SMD);
+    MountedDriveInfo_t *g_floppy_drives = list_mount(DRIVE_FLOPPY);
+    MountedDriveInfo_t *g_smd_drives = list_mount(DRIVE_SMD);
 
-    if (!g_floppy_drives || !g_smd_drives) {
+    if (!g_floppy_drives || !g_smd_drives)
+    {
         mvwprintw(popup, 2, 2, "Error: Could not get mounted drives");
         wnoutrefresh(popup);
         return;
@@ -1228,20 +1473,24 @@ static void draw_unmount_popup(void) {
 
     // Draw floppy drives section
     mvwprintw(popup, y_pos++, 2, "Floppy Drives (Units 0-2):");
-    for (int i = 0; i < 3; i++) {
-        if (g_floppy_drives[i].is_mounted) {
+    for (int i = 0; i < 3; i++)
+    {
+        if (g_floppy_drives[i].is_mounted)
+        {
             // Drive is mounted - show name, description, source type, and file size
-            const char* source_type = g_floppy_drives[i].is_remote ? "REMOTE" : "LOCAL";
+            const char *source_type = g_floppy_drives[i].is_remote ? "REMOTE" : "LOCAL";
             char size_str[32];
             format_file_size(g_floppy_drives[i].data_size, size_str, sizeof(size_str));
             mvwprintw(popup, y_pos++, 4, "%s Unit %d: %s (%s, %s) [%s]",
-                      menu_state.unmount_popup.selected_unit == i ? ">" : " ",
-                      i, g_floppy_drives[i].name, g_floppy_drives[i].description, size_str, source_type);
-        } else {
+                      menu_state.unmount_popup.selected_unit == i ? ">" : " ", i,
+                      g_floppy_drives[i].name, g_floppy_drives[i].description, size_str,
+                      source_type);
+        }
+        else
+        {
             // Drive is not mounted
             mvwprintw(popup, y_pos++, 4, "%s Unit %d: (not mounted)",
-                      menu_state.unmount_popup.selected_unit == i ? ">" : " ",
-                      i);
+                      menu_state.unmount_popup.selected_unit == i ? ">" : " ", i);
         }
     }
 
@@ -1249,20 +1498,23 @@ static void draw_unmount_popup(void) {
 
     // Draw SMD drives section
     mvwprintw(popup, y_pos++, 2, "SMD Drives (Units 0-3):");
-    for (int i = 0; i < 4; i++) {
-        if (g_smd_drives[i].is_mounted) {
+    for (int i = 0; i < 4; i++)
+    {
+        if (g_smd_drives[i].is_mounted)
+        {
             // Drive is mounted - show name, description, source type, and file size
-            const char* source_type = g_smd_drives[i].is_remote ? "REMOTE" : "LOCAL";
+            const char *source_type = g_smd_drives[i].is_remote ? "REMOTE" : "LOCAL";
             char size_str[32];
             format_file_size(g_smd_drives[i].data_size, size_str, sizeof(size_str));
             mvwprintw(popup, y_pos++, 4, "%s Unit %d: %s (%s, %s) [%s]",
-                      menu_state.unmount_popup.selected_unit == (i + 3) ? ">" : " ",
-                      i, g_smd_drives[i].name, g_smd_drives[i].description, size_str, source_type);
-        } else {
+                      menu_state.unmount_popup.selected_unit == (i + 3) ? ">" : " ", i,
+                      g_smd_drives[i].name, g_smd_drives[i].description, size_str, source_type);
+        }
+        else
+        {
             // Drive is not mounted
             mvwprintw(popup, y_pos++, 4, "%s Unit %d: (not mounted)",
-                      menu_state.unmount_popup.selected_unit == (i + 3) ? ">" : " ",
-                      i);
+                      menu_state.unmount_popup.selected_unit == (i + 3) ? ">" : " ", i);
         }
     }
 
@@ -1275,64 +1527,75 @@ static void draw_unmount_popup(void) {
 }
 
 // Handle unmount popup input
-static void handle_unmount_popup_input(int ch) {
-    switch (ch) {
-        case KEY_UP:
-            if (menu_state.unmount_popup.selected_unit > 0) {
-                menu_state.unmount_popup.selected_unit--;
-            }
-            break;
-        case KEY_DOWN:
-            if (menu_state.unmount_popup.selected_unit < 6) {  // 0-2 for floppy, 3-6 for SMD
-                menu_state.unmount_popup.selected_unit++;
-            }
-            break;
-        case '\n':
-        case '\r':  // ENTER
-            {
-                // Determine drive type and unit
-                DRIVE_TYPE drive_type;
-                int unit;
+static void handle_unmount_popup_input(int ch)
+{
+    switch (ch)
+    {
+    case KEY_UP:
+        if (menu_state.unmount_popup.selected_unit > 0)
+        {
+            menu_state.unmount_popup.selected_unit--;
+        }
+        break;
+    case KEY_DOWN:
+        if (menu_state.unmount_popup.selected_unit < 6)
+        { // 0-2 for floppy, 3-6 for SMD
+            menu_state.unmount_popup.selected_unit++;
+        }
+        break;
+    case '\n':
+    case '\r': // ENTER
+    {
+        // Determine drive type and unit
+        DRIVE_TYPE drive_type;
+        int unit;
 
-                if (menu_state.unmount_popup.selected_unit < 3) {
-                    // Floppy drive
-                    drive_type = DRIVE_FLOPPY;
-                    unit = menu_state.unmount_popup.selected_unit;
-                } else {
-                    // SMD drive
-                    drive_type = DRIVE_SMD;
-                    unit = menu_state.unmount_popup.selected_unit - 3;
-                }
+        if (menu_state.unmount_popup.selected_unit < 3)
+        {
+            // Floppy drive
+            drive_type = DRIVE_FLOPPY;
+            unit = menu_state.unmount_popup.selected_unit;
+        }
+        else
+        {
+            // SMD drive
+            drive_type = DRIVE_SMD;
+            unit = menu_state.unmount_popup.selected_unit - 3;
+        }
 
-                // Call unmount function
-                unmount_drive(drive_type, unit);
-                hide_unmount_popup();
-            }
-            break;
-        case 27:  // ESC
-            hide_unmount_popup();
-            break;
+        // Call unmount function
+        unmount_drive(drive_type, unit);
+        hide_unmount_popup();
+    }
+    break;
+    case 27: // ESC
+        hide_unmount_popup();
+        break;
     }
 }
 
 // Main menu loop
-static void menu_loop(void) {
+static void menu_loop(void)
+{
     int ch;
     bool running = true;
 
-    while (running) {
+    while (running)
+    {
         draw_search_box();
         draw_floppy_list();
         draw_floppy_details();
         draw_toolbar();
 
         // Draw mount popup if visible
-        if (menu_state.mount_popup.visible) {
+        if (menu_state.mount_popup.visible)
+        {
             draw_mount_popup();
         }
 
         // Draw unmount popup if visible
-        if (menu_state.unmount_popup.visible) {
+        if (menu_state.unmount_popup.visible)
+        {
             draw_unmount_popup();
         }
 
@@ -1344,125 +1607,151 @@ static void menu_loop(void) {
 
         ch = getch();
 
-        if (menu_state.mount_popup.visible) {
+        if (menu_state.mount_popup.visible)
+        {
             // Handle mount popup input
             handle_mount_popup_input(ch);
-        } else if (menu_state.unmount_popup.visible) {
+        }
+        else if (menu_state.unmount_popup.visible)
+        {
             // Handle unmount popup input
             handle_unmount_popup_input(ch);
-        } else {
+        }
+        else
+        {
             // Handle main menu input
-            switch (ch) {
-                case 27: // ESC
-                    running = false;
-                    break;
-                case '\n':
-                case '\r': // ENTER - apply search filter
-                    filter_floppies();
-                    break;
-                case KEY_UP:
-                    if (menu_state.selected_index > 0) {
-                        menu_state.selected_index--;
-                        free_directory_pages();  // Reset pages when changing floppy
-                    }
-                    break;
-                case KEY_DOWN:
+            switch (ch)
+            {
+            case 27: // ESC
+                running = false;
+                break;
+            case '\n':
+            case '\r': // ENTER - apply search filter
+                filter_floppies();
+                break;
+            case KEY_UP:
+                if (menu_state.selected_index > 0)
+                {
+                    menu_state.selected_index--;
+                    free_directory_pages(); // Reset pages when changing floppy
+                }
+                break;
+            case KEY_DOWN:
+            {
+                int total_items = (menu_state.filtered_count > 0) ? menu_state.filtered_count
+                                                                  : menu_state.floppy_count;
+                if (menu_state.selected_index < total_items - 1)
+                {
+                    menu_state.selected_index++;
+                    free_directory_pages(); // Reset pages when changing floppy
+                }
+            }
+            break;
+            case KEY_LEFT:
+                // Horizontal scroll for details window
+                if (menu_state.detail_scroll_x > 0)
+                {
+                    menu_state.detail_scroll_x -= 10;
+                    if (menu_state.detail_scroll_x < 0)
                     {
-                        int total_items = (menu_state.filtered_count > 0) ? menu_state.filtered_count : menu_state.floppy_count;
-                        if (menu_state.selected_index < total_items - 1) {
-                            menu_state.selected_index++;
-                            free_directory_pages();  // Reset pages when changing floppy
-                        }
-                    }
-                    break;
-                case KEY_LEFT:
-                    // Horizontal scroll for details window
-                    if (menu_state.detail_scroll_x > 0) {
-                        menu_state.detail_scroll_x -= 10;
-                        if (menu_state.detail_scroll_x < 0) menu_state.detail_scroll_x = 0;
-                    }
-                    break;
-                case KEY_RIGHT:
-                    // Horizontal scroll for details window
-                    menu_state.detail_scroll_x += 10;
-                    if (menu_state.detail_scroll_x > 50) menu_state.detail_scroll_x = 50;
-                    break;
-                case KEY_PPAGE:  // Page Up
-                    // Navigate to previous page using page array
-                    if (menu_state.directory_pages && menu_state.current_page > 0) {
-                        menu_state.current_page--;
-                    }
-                    break;
-                case KEY_NPAGE:  // Page Down
-                    // Navigate to next page using page array
-                    if (menu_state.directory_pages && menu_state.current_page < menu_state.directory_page_count - 1) {
-                        menu_state.current_page++;
-                    }
-                    break;
-                case KEY_F(5):   // F5 - mount floppy
-                case KEY_IC:     // Insert key - mount floppy (fallback)
-                    show_mount_popup_for_floppy(0);
-                    break;
-                case KEY_F(6):   // F6 - unmount floppy
-                case KEY_DC:     // Delete key - unmount floppy (fallback)
-                    unmount_floppy(0);
-                    break;
-                case KEY_F(7):   // F7 - force refresh catalog
-                case 18:         // Ctrl-R (fallback)
-                    {
-                        // Exit curses to show download progress
-                        cleanup_curses();
-
-                        // Free current floppy data
-                        free_directory_pages();
-                        if (menu_state.filtered_indices) {
-                            free(menu_state.filtered_indices);
-                            menu_state.filtered_indices = NULL;
-                            menu_state.filtered_count = 0;
-                        }
-                        if (menu_state.floppies) {
-                            for (int i = 0; i < menu_state.floppy_count; i++) {
-                                if (menu_state.floppies[i].directory_content) {
-                                    free(menu_state.floppies[i].directory_content);
-                                }
-                            }
-                            free(menu_state.floppies);
-                            menu_state.floppies = NULL;
-                            menu_state.floppy_count = 0;
-                        }
-
-                        printf("\033[2J\033[H");
-                        printf("=== Floppy Database Browser ===\n\n");
-                        printf("  Refreshing catalog from ndlib.hackercorp.no ...\n");
-                        fflush(stdout);
-
-                        bool from_cache_refresh = false;
-                        char *refreshed_json = get_cached_or_download_json(true, &from_cache_refresh);
-                        if (refreshed_json) {
-                            parse_floppies_json(refreshed_json);
-                            free(refreshed_json);
-                        } else {
-                            printf("  Refresh failed. Returning to menu.\n");
-                            fflush(stdout);
-                        }
-
-                        // Reset menu state
-                        menu_state.selected_index = 0;
-                        menu_state.search_text[0] = '\0';
-                        menu_state.search_cursor = 0;
                         menu_state.detail_scroll_x = 0;
-                        menu_state.detail_scroll_y = 0;
-
-                        // Re-enter curses
-                        init_curses();
-                        init_mount_popup();
-                        init_unmount_popup();
                     }
-                    break;
-                default:
-                    // Handle search input (always active)
-                    handle_search_input(ch);
-                    break;
+                }
+                break;
+            case KEY_RIGHT:
+                // Horizontal scroll for details window
+                menu_state.detail_scroll_x += 10;
+                if (menu_state.detail_scroll_x > 50)
+                {
+                    menu_state.detail_scroll_x = 50;
+                }
+                break;
+            case KEY_PPAGE: // Page Up
+                // Navigate to previous page using page array
+                if (menu_state.directory_pages && menu_state.current_page > 0)
+                {
+                    menu_state.current_page--;
+                }
+                break;
+            case KEY_NPAGE: // Page Down
+                // Navigate to next page using page array
+                if (menu_state.directory_pages &&
+                    menu_state.current_page < menu_state.directory_page_count - 1)
+                {
+                    menu_state.current_page++;
+                }
+                break;
+            case KEY_F(5): // F5 - mount floppy
+            case KEY_IC:   // Insert key - mount floppy (fallback)
+                show_mount_popup_for_floppy(0);
+                break;
+            case KEY_F(6): // F6 - unmount floppy
+            case KEY_DC:   // Delete key - unmount floppy (fallback)
+                unmount_floppy(0);
+                break;
+            case KEY_F(7): // F7 - force refresh catalog
+            case 18:       // Ctrl-R (fallback)
+            {
+                // Exit curses to show download progress
+                cleanup_curses();
+
+                // Free current floppy data
+                free_directory_pages();
+                if (menu_state.filtered_indices)
+                {
+                    free(menu_state.filtered_indices);
+                    menu_state.filtered_indices = NULL;
+                    menu_state.filtered_count = 0;
+                }
+                if (menu_state.floppies)
+                {
+                    for (int i = 0; i < menu_state.floppy_count; i++)
+                    {
+                        if (menu_state.floppies[i].directory_content)
+                        {
+                            free(menu_state.floppies[i].directory_content);
+                        }
+                    }
+                    free(menu_state.floppies);
+                    menu_state.floppies = NULL;
+                    menu_state.floppy_count = 0;
+                }
+
+                printf("\033[2J\033[H");
+                printf("=== Floppy Database Browser ===\n\n");
+                printf("  Refreshing catalog from ndlib.hackercorp.no ...\n");
+                fflush(stdout);
+
+                bool from_cache_refresh = false;
+                char *refreshed_json = get_cached_or_download_json(true, &from_cache_refresh);
+                if (refreshed_json)
+                {
+                    parse_floppies_json(refreshed_json);
+                    free(refreshed_json);
+                }
+                else
+                {
+                    printf("  Refresh failed. Returning to menu.\n");
+                    fflush(stdout);
+                }
+
+                // Reset menu state
+                menu_state.selected_index = 0;
+                menu_state.search_text[0] = '\0';
+                menu_state.search_cursor = 0;
+                menu_state.detail_scroll_x = 0;
+                menu_state.detail_scroll_y = 0;
+
+                // Re-enter curses
+                init_curses();
+                init_mount_popup();
+                init_unmount_popup();
+            }
+            break;
+            default:
+                // Handle search input (always active)
+                handle_search_input(ch);
+                break;
             }
         }
     }
@@ -1479,9 +1768,12 @@ static int load_catalog(void)
 
     printf("\033[2J\033[H");
     printf("=== Floppy Database Browser ===\n\n");
-    if (have_valid_cache) {
+    if (have_valid_cache)
+    {
         printf("  Loading floppy catalog (cached)...\n");
-    } else {
+    }
+    else
+    {
         printf("  Downloading floppy catalog from ndlib.hackercorp.no ...\n");
     }
     fflush(stdout);
@@ -1489,7 +1781,8 @@ static int load_catalog(void)
     // Get JSON data (from cache or network)
     bool from_cache = false;
     char *json_data = get_cached_or_download_json(false, &from_cache);
-    if (!json_data) {
+    if (!json_data)
+    {
         printf("\n  Download failed. Check your network connection.\n");
         printf("  Press any key to return.\n");
         fflush(stdout);
@@ -1498,7 +1791,8 @@ static int load_catalog(void)
     }
 
     // Parse JSON
-    if (!parse_floppies_json(json_data)) {
+    if (!parse_floppies_json(json_data))
+    {
         free(json_data);
         return -1;
     }
@@ -1526,7 +1820,8 @@ int show_floppy_menu(void)
         return -1;
     }
 
-    if (menu_state.floppy_count == 0) {
+    if (menu_state.floppy_count == 0)
+    {
         return -1;
     }
 
@@ -1544,25 +1839,31 @@ int show_floppy_menu(void)
 
     // Cleanup
     cleanup_curses();
-    free_directory_pages();  // Free directory pages
+    free_directory_pages(); // Free directory pages
 
     // Clean up mount popup window
-    if (menu_state.mount_popup.popup_win) {
+    if (menu_state.mount_popup.popup_win)
+    {
         delwin(menu_state.mount_popup.popup_win);
     }
 
     // Clean up unmount popup window
-    if (menu_state.unmount_popup.popup_win) {
+    if (menu_state.unmount_popup.popup_win)
+    {
         delwin(menu_state.unmount_popup.popup_win);
     }
-    if (menu_state.filtered_indices) {
+    if (menu_state.filtered_indices)
+    {
         free(menu_state.filtered_indices);
     }
 
     // Free dynamically allocated directory content
-    if (menu_state.floppies) {
-        for (int i = 0; i < menu_state.floppy_count; i++) {
-            if (menu_state.floppies[i].directory_content) {
+    if (menu_state.floppies)
+    {
+        for (int i = 0; i < menu_state.floppy_count; i++)
+        {
+            if (menu_state.floppies[i].directory_content)
+            {
                 free(menu_state.floppies[i].directory_content);
             }
         }

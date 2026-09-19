@@ -29,6 +29,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+// clang-format off
 typedef enum {
     CHARSET_OFF = 0,    /* ASCII passthrough (default) - { | } [ \ ] stay literal */
     CHARSET_NORWEGIAN,  /* NS 4551    (Norwegian / Danish) */
@@ -36,14 +37,15 @@ typedef enum {
     CHARSET_GERMAN,     /* DIN 66003  (German)             */
     CHARSET_COUNT
 } CharsetVariant;
+// clang-format on
 
 /* Active variant (local console only). */
-void           charset_set(CharsetVariant v);
+void charset_set(CharsetVariant v);
 CharsetVariant charset_get(void);
 
 /* Human and CLI names. */
-const char *charset_name(CharsetVariant v);   /* "Norwegian" / "Off" */
-const char *charset_short(CharsetVariant v);  /* "no" / "off"        */
+const char *charset_name(CharsetVariant v);  /* "Norwegian" / "Off" */
+const char *charset_short(CharsetVariant v); /* "no" / "off"        */
 
 /* Parse a CLI/menu name. Accepts short codes and full names
  * (off, none, no, norwegian, dk, danish, se, swedish, fi, finnish,
@@ -62,8 +64,8 @@ int charset_translate_input(const char *seq, int len, char *out, int outmax);
 /* For the F12 detail view: enumerate the mappings of a variant.
  * On success fills *byte (the 7-bit code), *glyph (ASCII glyph, e.g. "{")
  * and *utf8 (the national letter). Returns false when i is out of range. */
-int  charset_mapping_count(CharsetVariant v);
-bool charset_mapping_at(CharsetVariant v, int i,
-                        uint8_t *byte, const char **glyph, const char **utf8);
+int charset_mapping_count(CharsetVariant v);
+bool charset_mapping_at(CharsetVariant v, int i, uint8_t *byte, const char **glyph,
+                        const char **utf8);
 
 #endif /* ND100X_CHARSET_H */

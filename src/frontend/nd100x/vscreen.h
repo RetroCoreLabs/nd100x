@@ -15,10 +15,11 @@
 #include <stdbool.h>
 #include "../../devices/devices_types.h"
 
-#define VSCREEN_MAX 12
+#define VSCREEN_MAX       12
 #define VSCREEN_BUF_LINES 200
-#define VSCREEN_BUF_COLS 132   // Line printer is 132 columns
+#define VSCREEN_BUF_COLS  132 // Line printer is 132 columns
 
+// clang-format off
 typedef struct {
     char name[32];              // Display name ("Console", "Line Printer", etc.)
     Device *device;             // Associated device
@@ -30,6 +31,7 @@ typedef struct {
     bool isInputCapable;        // Can receive keyboard input
     bool localActive;           // Terminal is claimed for local console use
 } VScreen;
+// clang-format on
 
 void VScreen_Init(VScreen *vs, const char *name, Device *dev, int cols, bool inputCapable);
 void VScreen_Write(VScreen *vs, char c);

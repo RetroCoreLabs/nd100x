@@ -20,12 +20,15 @@ int ReadPhysicalMemory(int physicalAddress, bool privileged);
 void WritePhysicalMemory(int physicalAddress, uint16_t value, bool privileged);
 int ReadPhysicalMemory(int physicalAddress, bool privileged)
 {
-    (void)physicalAddress; (void)privileged;
+    (void)physicalAddress;
+    (void)privileged;
     return 0;
 }
 void WritePhysicalMemory(int physicalAddress, uint16_t value, bool privileged)
 {
-    (void)physicalAddress; (void)value; (void)privileged;
+    (void)physicalAddress;
+    (void)value;
+    (void)privileged;
 }
 
 /* Suite runners (defined in each test file) */
@@ -36,14 +39,17 @@ static void cleanup_tmpdir(const char *path)
     char cmd[600];
     snprintf(cmd, sizeof(cmd), "rm -rf '%s'", path);
     if (system(cmd) != 0)
+    {
         fprintf(stderr, "warning: could not remove %s\n", path);
+    }
 }
 
 int main(void)
 {
     /* Create temp directory */
     char tmpdir[] = "/tmp/test_printer_XXXXXX";
-    if (mkdtemp(tmpdir) == NULL) {
+    if (mkdtemp(tmpdir) == NULL)
+    {
         perror("mkdtemp");
         return 1;
     }
@@ -67,9 +73,12 @@ int main(void)
     /* Cleanup */
     cleanup_tmpdir(tmpdir);
 
-    if (total_failures == 0) {
+    if (total_failures == 0)
+    {
         printf("All tests PASSED.\n");
-    } else {
+    }
+    else
+    {
         printf("%d test(s) FAILED.\n", total_failures);
     }
 

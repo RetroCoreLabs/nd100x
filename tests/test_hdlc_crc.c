@@ -13,19 +13,26 @@
 
 static int failures = 0;
 
-#define ASSERT_EQ(a, b, msg) do { \
-    if ((a) != (b)) { \
-        printf("  FAIL: %s: expected 0x%04X, got 0x%04X (line %d)\n", msg, (unsigned)(b), (unsigned)(a), __LINE__); \
-        failures++; \
-    } \
-} while(0)
+#define ASSERT_EQ(a, b, msg)                                                                       \
+    do                                                                                             \
+    {                                                                                              \
+        if ((a) != (b))                                                                            \
+        {                                                                                          \
+            printf("  FAIL: %s: expected 0x%04X, got 0x%04X (line %d)\n", msg, (unsigned)(b),      \
+                   (unsigned)(a), __LINE__);                                                       \
+            failures++;                                                                            \
+        }                                                                                          \
+    } while (0)
 
-#define ASSERT(cond, msg) do { \
-    if (!(cond)) { \
-        printf("  FAIL: %s (line %d)\n", msg, __LINE__); \
-        failures++; \
-    } \
-} while(0)
+#define ASSERT(cond, msg)                                                                          \
+    do                                                                                             \
+    {                                                                                              \
+        if (!(cond))                                                                               \
+        {                                                                                          \
+            printf("  FAIL: %s (line %d)\n", msg, __LINE__);                                       \
+            failures++;                                                                            \
+        }                                                                                          \
+    } while (0)
 
 static void test_fcs_good_residue(void)
 {
@@ -33,14 +40,16 @@ static void test_fcs_good_residue(void)
     // Standard HDLC FCS check: CRC over data+FCS should give 0xF0B8
     uint8_t data[] = {0x01, 0x02, 0x03};
     uint16_t fcs = 0xFFFF;
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 3; i++)
+    {
         fcs = HDLC_CRC_CalcCCITT(fcs, data[i]);
     }
     uint16_t complement = fcs ^ 0xFFFF;
 
     // Now feed data + FCS bytes back through CRC
     uint16_t check = 0xFFFF;
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 3; i++)
+    {
         check = HDLC_CRC_CalcCCITT(check, data[i]);
     }
     check = HDLC_CRC_CalcCCITT(check, complement & 0xFF);
@@ -67,7 +76,8 @@ static void test_fcs_incremental_matches_batch(void)
     uint16_t batch = HDLCFrame_CalculateCRC(data, 4);
 
     uint16_t incr = 0xFFFF;
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 4; i++)
+    {
         incr = HDLCFrame_UpdateCRC(incr, data[i]);
     }
     ASSERT_EQ(incr, batch, "incremental matches batch");
@@ -90,7 +100,8 @@ static void test_real_frame_crc(void)
     // Feeding all 6 bytes through CRC should give 0xF0B8
     uint8_t content[] = {0x01, 0x73, 0x00, 0x67, 0x60, 0x98};
     uint16_t crc = 0xFFFF;
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < 6; i++)
+    {
         crc = HDLC_CRC_CalcCCITT(crc, content[i]);
     }
     ASSERT_EQ(crc, 0xF0B8, "real frame CRC residue");
@@ -106,9 +117,13 @@ static void test_real_frame_via_process_byte(void)
     HDLCFrame_Init(&frame);
 
     bool complete = false;
-    for (int i = 0; i < 8; i++) {
+    for (int i = 0; i < 8; i++)
+    {
         complete = HDLCFrame_AddByte(&frame, wire[i]);
-        if (complete) break;
+        if (complete)
+        {
+            break;
+        }
     }
 
     ASSERT(complete, "frame complete");
@@ -135,7 +150,8 @@ int run_hdlc_crc_tests(void)
     test_real_frame_crc();
     test_real_frame_via_process_byte();
 
-    if (failures == 0) {
+    if (failures == 0)
+    {
         printf("  All hdlc_crc tests passed.\n");
     }
     return failures;

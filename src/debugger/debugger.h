@@ -10,13 +10,14 @@
 /* Native thread entry uses pthreads on both POSIX and Windows (via
  * winpthreads from MinGW-w64). The THREAD_* macros are kept for the
  * debugger_thread return-statement so the file reads uniformly. */
-#define THREAD_FUNC void *
+#define THREAD_FUNC        void *
 #define THREAD_RETURN(val) return (void *)(uintptr_t)(val)
 
 
 /// @brief Variable in the current stack frame
 /// TODO: Not yet implemented and supported by the DAP
-typedef struct {
+typedef struct
+{
     /// @brief Name of the variable
     char *name;
     /// @brief Value of the variable
@@ -25,7 +26,8 @@ typedef struct {
     char *type;
 } Variable;
 
-typedef struct {
+typedef struct
+{
     /// @brief Number of local variables in the current stack frame
     int number_of_variables;
     /// @brief Array of local variables
@@ -35,8 +37,9 @@ typedef struct {
 // Define the maximum number of stack frames we'll track
 #define MAX_STACK_FRAMES 20
 
-    // Static variables to maintain stack frame state
-typedef struct {
+// Static variables to maintain stack frame state
+typedef struct
+{
     /// @brief Program counter of the stack frame
     uint16_t pc;
     /// @brief Operand that made the call
@@ -53,11 +56,9 @@ typedef struct {
 } StackFrame;
 
 
-
-
-
 #ifdef WITH_DEBUGGER
-typedef struct {
+typedef struct
+{
     StackFrame frames[MAX_STACK_FRAMES];
     int current_frame;
     int frame_count;
@@ -65,17 +66,19 @@ typedef struct {
 } StackTrace;
 
 
-typedef struct {
+typedef struct
+{
     symbol_table_t *symbol_table_map;
     symbol_table_t *symbol_table_aout;
     symbol_table_t *symbol_table_stabs;
-    symbol_debug_info_t *debug_info;   /* C-level debug info from .srcmap */
+    symbol_debug_info_t *debug_info; /* C-level debug info from .srcmap */
 } SymbolTables;
 #endif
 
 
 /// @brief Step types for the debugger. Maps to DAP
-typedef enum  {
+typedef enum
+{
 
     /// @brief DAP "next" command
     STEP_OVER,
@@ -88,7 +91,8 @@ typedef enum  {
 } StepType;
 
 
-typedef enum {
+typedef enum
+{
     SYMBOL_TYPE_MAP,
     SYMBOL_TYPE_AOUT,
     SYMBOL_TYPE_STABS,

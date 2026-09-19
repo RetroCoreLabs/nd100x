@@ -24,12 +24,21 @@ static int file_exists(const char *path)
 static char *read_file(const char *path, size_t *size)
 {
     FILE *f = fopen(path, "rb");
-    if (!f) { *size = 0; return NULL; }
+    if (!f)
+    {
+        *size = 0;
+        return NULL;
+    }
     fseek(f, 0, SEEK_END);
     long sz = ftell(f);
     fseek(f, 0, SEEK_SET);
     char *buf = malloc(sz + 1);
-    if (!buf) { fclose(f); *size = 0; return NULL; }
+    if (!buf)
+    {
+        fclose(f);
+        *size = 0;
+        return NULL;
+    }
     *size = fread(buf, 1, sz, f);
     buf[*size] = '\0';
     fclose(f);
@@ -39,7 +48,9 @@ static char *read_file(const char *path, size_t *size)
 static void feed_string(PrintJob *pj, const char *s)
 {
     for (const char *p = s; *p; p++)
+    {
         PrintJob_PutChar(pj, *p);
+    }
 }
 
 /* Tests */
@@ -298,6 +309,7 @@ typedef int (*pj_test_fn)(const char *);
 int run_printjob_tests(const char *tmpdir)
 {
     int passed = 0, failed = 0;
+    // clang-format off
     struct { const char *name; pj_test_fn fn; } tests[] = {
         { "pj_text_txt",          test_pj_text_txt },
         { "pj_text_pdf",          test_pj_text_pdf },
@@ -308,12 +320,22 @@ int run_printjob_tests(const char *tmpdir)
         { "pj_check_timeout",     test_pj_check_timeout },
         { "pj_destroy_flushes",   test_pj_destroy_flushes },
     };
+    // clang-format on
 
     int n = sizeof(tests) / sizeof(tests[0]);
-    for (int i = 0; i < n; i++) {
+    for (int i = 0; i < n; i++)
+    {
         printf("  %-50s", tests[i].name);
-        if (tests[i].fn(tmpdir) == 0) { printf("PASS\n"); passed++; }
-        else { printf("FAIL\n"); failed++; }
+        if (tests[i].fn(tmpdir) == 0)
+        {
+            printf("PASS\n");
+            passed++;
+        }
+        else
+        {
+            printf("FAIL\n");
+            failed++;
+        }
     }
 
     printf("  printjob: %d passed, %d failed\n", passed, failed);

@@ -18,7 +18,9 @@
 static void feed_string(EscpContext *ctx, const char *s)
 {
     for (const char *p = s; *p; p++)
+    {
         Escp_PutChar(ctx, (uint8_t)*p);
+    }
 }
 
 /* Tests */
@@ -182,8 +184,8 @@ static int test_escp_condensed(void)
     Escp_Reset(ctx);
 
     /* DC2 (0x12) = condensed off after condensed on */
-    Escp_PutChar(ctx, 0x0F);  /* condensed on */
-    Escp_PutChar(ctx, 0x12);  /* condensed off */
+    Escp_PutChar(ctx, 0x0F); /* condensed on */
+    Escp_PutChar(ctx, 0x12); /* condensed off */
     feed_string(ctx, "Normal");
 
     spans = Escp_GetSpans(ctx, &count);
@@ -282,9 +284,12 @@ static int test_escp_reset(void)
     EscpContext *ctx = Escp_Create();
 
     /* Set various attributes */
-    Escp_PutChar(ctx, 0x1B); Escp_PutChar(ctx, 'E');  /* bold on */
-    Escp_PutChar(ctx, 0x1B); Escp_PutChar(ctx, '4');  /* italic on */
-    Escp_PutChar(ctx, 0x1B); Escp_PutChar(ctx, 'M');  /* 12 cpi */
+    Escp_PutChar(ctx, 0x1B);
+    Escp_PutChar(ctx, 'E'); /* bold on */
+    Escp_PutChar(ctx, 0x1B);
+    Escp_PutChar(ctx, '4'); /* italic on */
+    Escp_PutChar(ctx, 0x1B);
+    Escp_PutChar(ctx, 'M'); /* 12 cpi */
     feed_string(ctx, "Styled");
 
     /* ESC @ = reset */
@@ -398,6 +403,7 @@ typedef int (*escp_test_fn)(void);
 int run_escp_tests(void)
 {
     int passed = 0, failed = 0;
+    // clang-format off
     struct { const char *name; escp_test_fn fn; } tests[] = {
         { "escp_plain_text",     test_escp_plain_text },
         { "escp_cr_lf_ff",      test_escp_cr_lf_ff },
@@ -413,12 +419,22 @@ int run_escp_tests(void)
         { "escp_page_count",    test_escp_page_count },
         { "escp_backspace",     test_escp_backspace },
     };
+    // clang-format on
 
     int n = sizeof(tests) / sizeof(tests[0]);
-    for (int i = 0; i < n; i++) {
+    for (int i = 0; i < n; i++)
+    {
         printf("  %-50s", tests[i].name);
-        if (tests[i].fn() == 0) { printf("PASS\n"); passed++; }
-        else { printf("FAIL\n"); failed++; }
+        if (tests[i].fn() == 0)
+        {
+            printf("PASS\n");
+            passed++;
+        }
+        else
+        {
+            printf("FAIL\n");
+            failed++;
+        }
     }
 
     printf("  escp: %d passed, %d failed\n", passed, failed);

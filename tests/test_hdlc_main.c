@@ -16,16 +16,20 @@ void WritePhysicalMemory(int physicalAddress, uint16_t value, bool privileged);
 void interrupt(uint16_t lvl, uint16_t sub);
 int ReadPhysicalMemory(int physicalAddress, bool privileged)
 {
-    (void)physicalAddress; (void)privileged;
+    (void)physicalAddress;
+    (void)privileged;
     return 0;
 }
 void WritePhysicalMemory(int physicalAddress, uint16_t value, bool privileged)
 {
-    (void)physicalAddress; (void)value; (void)privileged;
+    (void)physicalAddress;
+    (void)value;
+    (void)privileged;
 }
 void interrupt(uint16_t lvl, uint16_t sub)
 {
-    (void)lvl; (void)sub;
+    (void)lvl;
+    (void)sub;
 }
 
 /* Suite runners */
@@ -47,9 +51,12 @@ int main(void)
     total_failures += run_hdlc_frame_tests();
     printf("\n");
 
-    if (total_failures == 0) {
+    if (total_failures == 0)
+    {
         printf("All HDLC tests PASSED.\n");
-    } else {
+    }
+    else
+    {
         printf("%d HDLC test(s) FAILED.\n", total_failures);
     }
 

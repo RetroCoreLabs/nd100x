@@ -67,18 +67,18 @@
 #include "cpu/nd500_host.h"
 #include "cpu/nd500_fecall.h"
 #include "cpu/cpu_protos.h"
-#include "cpu/nd500_mmu.h"   /* nd500_mmu_peek - trap-free translate */
-#include "cpu/nd500_xmsg.h"  /* the uplink seam: set_uplink / frame_in        */
+#include "cpu/nd500_mmu.h"  /* nd500_mmu_peek - trap-free translate */
+#include "cpu/nd500_xmsg.h" /* the uplink seam: set_uplink / frame_in        */
 
 /* ------------------------------------------------------------------ state */
 
 /* One ND-500 per module, matching nd500x's own "one ND-500 per process" rule
  * (see the note in nd500_host.h about why the host ops are module-level). Even
  * in the eventual ND-100 + ND-500 pairing there is one ND-500 per front end. */
-static Nd500Machine  g_m;
-static Nd500Cpu      g_cpu;
-static int           g_created = 0;
-static int           g_booted  = 0;
+static Nd500Machine g_m;
+static Nd500Cpu g_cpu;
+static int g_created = 0;
+static int g_booted = 0;
 
 /* ------------------------------------------------------- disks (host ops)
  *
@@ -96,57 +96,92 @@ static int           g_booted  = 0;
  * The Nd500HostOps interface is already the right shape for it (byte offsets,
  * per unit), so that is a change behind this seam, not to it.
  */
-typedef struct {
-    uint8_t* data;
+typedef struct
+{
+    uint8_t *data;
     uint64_t size;
-    int      writable;
+    int writable;
 } Nd500WasmDisk;
 
 static Nd500WasmDisk g_disks[ND500_HOST_MAX_DISKS];
 
-static int64_t wasm_disk_size(void* ctx, int unit) {
+static int64_t wasm_disk_size(void *ctx, int unit)
+{
     (void)ctx;
-    if (unit < 0 || unit >= ND500_HOST_MAX_DISKS) return -1;
-    if (!g_disks[unit].data) return -1;          /* -1 IS "not mounted" */
+    if (unit < 0 || unit >= ND500_HOST_MAX_DISKS)
+    {
+        return -1;
+    }
+    if (!g_disks[unit].data)
+    {
+        return -1; /* -1 IS "not mounted" */
+    }
     return (int64_t)g_disks[unit].size;
 }
 
-static int64_t wasm_disk_read(void* ctx, int unit, uint64_t off,
-                              void* dst, uint32_t len) {
+static int64_t wasm_disk_read(void *ctx, int unit, uint64_t off, void *dst, uint32_t len)
+{
     (void)ctx;
-    if (unit < 0 || unit >= ND500_HOST_MAX_DISKS) return -1;
-    Nd500WasmDisk* d = &g_disks[unit];
-    if (!d->data) return -1;
-    if (off >= d->size) return 0;                /* past the end: 0 bytes, not an error */
+    if (unit < 0 || unit >= ND500_HOST_MAX_DISKS)
+    {
+        return -1;
+    }
+    Nd500WasmDisk *d = &g_disks[unit];
+    if (!d->data)
+    {
+        return -1;
+    }
+    if (off >= d->size)
+    {
+        return 0; /* past the end: 0 bytes, not an error */
+    }
     /* A short count is a real short count - the interface says so, and the
      * fecall layer copes with it. Clamping here is how a read that straddles
      * the end of the image behaves like a real disc rather than failing. */
-    if (off + len > d->size) len = (uint32_t)(d->size - off);
+    if (off + len > d->size)
+    {
+        len = (uint32_t)(d->size - off);
+    }
     memcpy(dst, d->data + off, len);
     return (int64_t)len;
 }
 
-static int64_t wasm_disk_write(void* ctx, int unit, uint64_t off,
-                               const void* src, uint32_t len) {
+static int64_t wasm_disk_write(void *ctx, int unit, uint64_t off, const void *src, uint32_t len)
+{
     (void)ctx;
-    if (unit < 0 || unit >= ND500_HOST_MAX_DISKS) return -1;
-    Nd500WasmDisk* d = &g_disks[unit];
-    if (!d->data || !d->writable) return -1;
-    if (off >= d->size) return 0;
-    if (off + len > d->size) len = (uint32_t)(d->size - off);
+    if (unit < 0 || unit >= ND500_HOST_MAX_DISKS)
+    {
+        return -1;
+    }
+    Nd500WasmDisk *d = &g_disks[unit];
+    if (!d->data || !d->writable)
+    {
+        return -1;
+    }
+    if (off >= d->size)
+    {
+        return 0;
+    }
+    if (off + len > d->size)
+    {
+        len = (uint32_t)(d->size - off);
+    }
     memcpy(d->data + off, src, len);
     return (int64_t)len;
 }
 
-static int wasm_disk_writable(void* ctx, int unit) {
+static int wasm_disk_writable(void *ctx, int unit)
+{
     (void)ctx;
-    if (unit < 0 || unit >= ND500_HOST_MAX_DISKS) return 0;
+    if (unit < 0 || unit >= ND500_HOST_MAX_DISKS)
+    {
+        return 0;
+    }
     return g_disks[unit].data ? g_disks[unit].writable : 0;
 }
 
-static const Nd500HostOps g_host_ops = {
-    wasm_disk_size, wasm_disk_read, wasm_disk_write, wasm_disk_writable
-};
+static const Nd500HostOps g_host_ops = {wasm_disk_size, wasm_disk_read, wasm_disk_write,
+                                        wasm_disk_writable};
 
 /* ------------------------------------------------------------- console ---
  *
@@ -157,22 +192,31 @@ static const Nd500HostOps g_host_ops = {
  * getty banner interleave.
  */
 #define ND500_CON_BUF 8192
-static struct {
+static struct
+{
     uint16_t entries[ND500_CON_BUF];
     volatile int writePos;
     volatile int readPos;
-} g_con = { {0}, 0, 0 };
+} g_con = {{0}, 0, 0};
 
-static void con_push(int unit, uint8_t c) {
+static void con_push(int unit, uint8_t c)
+{
     int next = (g_con.writePos + 1) % ND500_CON_BUF;
-    if (next == g_con.readPos) return;           /* full: drop, like a real line */
+    if (next == g_con.readPos)
+    {
+        return; /* full: drop, like a real line */
+    }
     g_con.entries[g_con.writePos] = (uint16_t)(((unit & 0xFF) << 8) | c);
     g_con.writePos = next;
 }
 
-static void nd500_tty_sink(int unit, const unsigned char* buf, int len, void* ctx) {
+static void nd500_tty_sink(int unit, const unsigned char *buf, int len, void *ctx)
+{
     (void)ctx;
-    for (int i = 0; i < len; i++) con_push(unit, buf[i]);
+    for (int i = 0; i < len; i++)
+    {
+        con_push(unit, buf[i]);
+    }
 }
 
 /* ------------------------------------------------------- boot-log capture
@@ -184,10 +228,17 @@ static void nd500_tty_sink(int unit, const unsigned char* buf, int len, void* ct
  * step it died in - losing that in the browser would make every failure look
  * identical.
  */
-static void nd500_log_line(void* ctx, const char* line) {
+static void nd500_log_line(void *ctx, const char *line)
+{
     (void)ctx;
-    if (!line) return;
-    for (const char* p = line; *p; p++) con_push(0xFF, (uint8_t)*p);
+    if (!line)
+    {
+        return;
+    }
+    for (const char *p = line; *p; p++)
+    {
+        con_push(0xFF, (uint8_t)*p);
+    }
     con_push(0xFF, '\n');
 }
 
@@ -209,7 +260,7 @@ static void nd500_log_line(void* ctx, const char* line) {
  * in both. */
 #define ND500_IMAGE_KERNEL "/vmunix"
 
-static int stage_file(const char* path, const uint8_t* data, int len);
+static int stage_file(const char *path, const uint8_t *data, int len);
 
 /* Pull the kernel out of the mounted root disc.
  *
@@ -227,30 +278,37 @@ static int stage_file(const char* path, const uint8_t* data, int len);
  * native build runs.
  *
  * Returns 0 when /vmunix is staged in MEMFS and ready for the boot. */
-static int extract_kernel_from_disc(int unit) {
-    const char* why = "";
+static int extract_kernel_from_disc(int unit)
+{
+    const char *why = "";
     long n = 0;
-    uint8_t* data;
-    FILE* img;
+    uint8_t *data;
+    FILE *img;
     int rc;
 
-    if (unit < 0 || unit >= ND500_HOST_MAX_DISKS) return -1;
-    if (!g_disks[unit].data || g_disks[unit].size == 0) {
+    if (unit < 0 || unit >= ND500_HOST_MAX_DISKS)
+    {
+        return -1;
+    }
+    if (!g_disks[unit].data || g_disks[unit].size == 0)
+    {
         fprintf(stderr, "| [WASM] no disc mounted on unit %d to take a kernel from\n", unit);
         return -1;
     }
 
     img = fmemopen(g_disks[unit].data, (size_t)g_disks[unit].size, "rb");
-    if (!img) {
+    if (!img)
+    {
         fprintf(stderr, "| [WASM] cannot open the mounted disc as a stream\n");
         return -1;
     }
     data = ndix_ffs_read_file_fp(img, ND500_IMAGE_KERNEL, &n, &why);
     fclose(img);
 
-    if (!data || n <= 0) {
-        fprintf(stderr, "| [WASM] no %s inside the root disc: %s\n",
-                ND500_IMAGE_KERNEL, why && why[0] ? why : "not found");
+    if (!data || n <= 0)
+    {
+        fprintf(stderr, "| [WASM] no %s inside the root disc: %s\n", ND500_IMAGE_KERNEL,
+                why && why[0] ? why : "not found");
         free(data);
         return -1;
     }
@@ -262,9 +320,13 @@ static int extract_kernel_from_disc(int unit) {
     return rc;
 }
 
-static int stage_file(const char* path, const uint8_t* data, int len) {
-    FILE* f = fopen(path, "wb");
-    if (!f) return -1;
+static int stage_file(const char *path, const uint8_t *data, int len)
+{
+    FILE *f = fopen(path, "wb");
+    if (!f)
+    {
+        return -1;
+    }
     size_t n = fwrite(data, 1, (size_t)len, f);
     fclose(f);
     return (n == (size_t)len) ? 0 : -1;
@@ -272,7 +334,10 @@ static int stage_file(const char* path, const uint8_t* data, int len) {
 
 /* ================================================================ exports */
 
-EMSCRIPTEN_EXPORT int Nd500_Available(void) { return 1; }
+EMSCRIPTEN_EXPORT int Nd500_Available(void)
+{
+    return 1;
+}
 
 /* Set one of nd500x's ND500X_* switches.
  *
@@ -285,16 +350,27 @@ EMSCRIPTEN_EXPORT int Nd500_Available(void) { return 1; }
  *
  * MUST be called before Nd500_Create: after the settings have been read once,
  * changing the environment does nothing. */
-EMSCRIPTEN_EXPORT int Nd500_SetEnv(const char* name, const char* value) {
-    if (!name || !name[0]) return -1;
+EMSCRIPTEN_EXPORT int Nd500_SetEnv(const char *name, const char *value)
+{
+    if (!name || !name[0])
+    {
+        return -1;
+    }
     return setenv(name, value ? value : "1", 1);
 }
 
 /* Create the machine. <mem_bytes> 0 takes the 16 MB nd500x uses natively.
  * Returns 0 on success. */
-EMSCRIPTEN_EXPORT int Nd500_Create(int mem_bytes) {
-    if (g_created) return 0;                     /* idempotent, like the ND-100 Init */
-    if (mem_bytes <= 0) mem_bytes = 16 * 1024 * 1024;
+EMSCRIPTEN_EXPORT int Nd500_Create(int mem_bytes)
+{
+    if (g_created)
+    {
+        return 0; /* idempotent, like the ND-100 Init */
+    }
+    if (mem_bytes <= 0)
+    {
+        mem_bytes = 16 * 1024 * 1024;
+    }
 
     /* The NDIX boot defaults, before anything reads the settings.
      *
@@ -336,19 +412,31 @@ EMSCRIPTEN_EXPORT int Nd500_Create(int mem_bytes) {
      * a unit nobody is attached to is dropped - correct natively, wrong here,
      * where the page IS every terminal. */
     for (int u = 0; u < ND500_TTY_MAX_UNITS; u++)
+    {
         nd500_fecall_set_tty_output(u, nd500_tty_sink, NULL);
+    }
 
     g_created = 1;
     g_booted = 0;
     return 0;
 }
 
-EMSCRIPTEN_EXPORT int Nd500_IsCreated(void) { return g_created; }
-EMSCRIPTEN_EXPORT int Nd500_IsBooted(void)  { return g_booted; }
+EMSCRIPTEN_EXPORT int Nd500_IsCreated(void)
+{
+    return g_created;
+}
+EMSCRIPTEN_EXPORT int Nd500_IsBooted(void)
+{
+    return g_booted;
+}
 
 /* Stage the kernel a.out. Call before Nd500_Boot. */
-EMSCRIPTEN_EXPORT int Nd500_LoadKernel(uint8_t* data, int len) {
-    if (!data || len <= 0) return -1;
+EMSCRIPTEN_EXPORT int Nd500_LoadKernel(uint8_t *data, int len)
+{
+    if (!data || len <= 0)
+    {
+        return -1;
+    }
     return stage_file(ND500_KERNEL_PATH, data, len);
 }
 
@@ -356,27 +444,44 @@ EMSCRIPTEN_EXPORT int Nd500_LoadKernel(uint8_t* data, int len) {
  * library treats a half-present pair as absent and derives the sizes from the
  * a.out header instead, which is the path a kernel extracted from a disk image
  * takes - there are no segment files inside an image. */
-EMSCRIPTEN_EXPORT int Nd500_LoadSegments(uint8_t* pseg, int pseg_len,
-                                         uint8_t* dseg, int dseg_len) {
-    if (!pseg || !dseg || pseg_len <= 0 || dseg_len <= 0) return -1;
-    if (stage_file(ND500_PSEG_PATH, pseg, pseg_len) != 0) return -1;
+EMSCRIPTEN_EXPORT int Nd500_LoadSegments(uint8_t *pseg, int pseg_len, uint8_t *dseg, int dseg_len)
+{
+    if (!pseg || !dseg || pseg_len <= 0 || dseg_len <= 0)
+    {
+        return -1;
+    }
+    if (stage_file(ND500_PSEG_PATH, pseg, pseg_len) != 0)
+    {
+        return -1;
+    }
     return stage_file(ND500_DSEG_PATH, dseg, dseg_len);
 }
 
 /* Mount a disk image already in the wasm heap. The buffer is NOT copied and
  * NOT freed here: JS owns it, and that is what lets JS read written blocks
  * back out afterwards. */
-EMSCRIPTEN_EXPORT int Nd500_MountDisk(int unit, uint8_t* data, int len, int writable) {
-    if (unit < 0 || unit >= ND500_HOST_MAX_DISKS) return -1;
-    if (!data || len <= 0) return -1;
-    g_disks[unit].data     = data;
-    g_disks[unit].size     = (uint64_t)len;
+EMSCRIPTEN_EXPORT int Nd500_MountDisk(int unit, uint8_t *data, int len, int writable)
+{
+    if (unit < 0 || unit >= ND500_HOST_MAX_DISKS)
+    {
+        return -1;
+    }
+    if (!data || len <= 0)
+    {
+        return -1;
+    }
+    g_disks[unit].data = data;
+    g_disks[unit].size = (uint64_t)len;
     g_disks[unit].writable = writable ? 1 : 0;
     return 0;
 }
 
-EMSCRIPTEN_EXPORT int Nd500_UnmountDisk(int unit) {
-    if (unit < 0 || unit >= ND500_HOST_MAX_DISKS) return -1;
+EMSCRIPTEN_EXPORT int Nd500_UnmountDisk(int unit)
+{
+    if (unit < 0 || unit >= ND500_HOST_MAX_DISKS)
+    {
+        return -1;
+    }
     g_disks[unit].data = NULL;
     g_disks[unit].size = 0;
     g_disks[unit].writable = 0;
@@ -384,20 +489,32 @@ EMSCRIPTEN_EXPORT int Nd500_UnmountDisk(int unit) {
 }
 
 /* Where a unit's bytes live, so JS can read back what the guest wrote. */
-EMSCRIPTEN_EXPORT uint8_t* Nd500_GetDiskBuffer(int unit) {
-    if (unit < 0 || unit >= ND500_HOST_MAX_DISKS) return NULL;
+EMSCRIPTEN_EXPORT uint8_t *Nd500_GetDiskBuffer(int unit)
+{
+    if (unit < 0 || unit >= ND500_HOST_MAX_DISKS)
+    {
+        return NULL;
+    }
     return g_disks[unit].data;
 }
-EMSCRIPTEN_EXPORT int Nd500_GetDiskSize(int unit) {
-    if (unit < 0 || unit >= ND500_HOST_MAX_DISKS) return 0;
+EMSCRIPTEN_EXPORT int Nd500_GetDiskSize(int unit)
+{
+    if (unit < 0 || unit >= ND500_HOST_MAX_DISKS)
+    {
+        return 0;
+    }
     return (int)g_disks[unit].size;
 }
 
 /* Run the whole NDIX boot sequence. Everything it does belongs to SINTRAN and
  * the ND-100 on real hardware; nd500x stands in for them until the 3022 bus
  * interface is real (M5). */
-EMSCRIPTEN_EXPORT int Nd500_Boot(void) {
-    if (!g_created) return -1;
+EMSCRIPTEN_EXPORT int Nd500_Boot(void)
+{
+    if (!g_created)
+    {
+        return -1;
+    }
     Nd500NdixBoot cfg;
     memset(&cfg, 0, sizeof cfg);
     cfg.kernel_path = ND500_KERNEL_PATH;
@@ -407,14 +524,18 @@ EMSCRIPTEN_EXPORT int Nd500_Boot(void) {
      * own /vmunix comes FIRST and a separate file is only the fallback. When a
      * kernel WAS staged, it stays: an explicitly uploaded kernel is a choice,
      * and it wins over whatever the disc happens to carry. */
-    FILE* fk = fopen(ND500_KERNEL_PATH, "rb");
-    if (fk) {
+    FILE *fk = fopen(ND500_KERNEL_PATH, "rb");
+    if (fk)
+    {
         fclose(fk);
         fprintf(stderr, "| [WASM] using the uploaded kernel at %s\n", ND500_KERNEL_PATH);
-    } else {
+    }
+    else
+    {
         fprintf(stderr, "| [WASM] no kernel staged - taking %s out of the root disc\n",
                 ND500_IMAGE_KERNEL);
-        if (extract_kernel_from_disc(0) != 0) {
+        if (extract_kernel_from_disc(0) != 0)
+        {
             fprintf(stderr, "| [WASM] boot aborted: no kernel to run\n");
             return -1;
         }
@@ -424,11 +545,22 @@ EMSCRIPTEN_EXPORT int Nd500_Boot(void) {
 
     /* Offer the segment files only when both were staged. fopen is the test:
      * MEMFS has no stat cost worth avoiding and this needs no extra header. */
-    FILE* fp = fopen(ND500_PSEG_PATH, "rb");
-    FILE* fd = fopen(ND500_DSEG_PATH, "rb");
-    if (fp && fd) { cfg.pseg_path = ND500_PSEG_PATH; cfg.dseg_path = ND500_DSEG_PATH; fprintf(stderr, "| [WASM] Segment files found\n"); }
-    if (fp) fclose(fp);
-    if (fd) fclose(fd);
+    FILE *fp = fopen(ND500_PSEG_PATH, "rb");
+    FILE *fd = fopen(ND500_DSEG_PATH, "rb");
+    if (fp && fd)
+    {
+        cfg.pseg_path = ND500_PSEG_PATH;
+        cfg.dseg_path = ND500_DSEG_PATH;
+        fprintf(stderr, "| [WASM] Segment files found\n");
+    }
+    if (fp)
+    {
+        fclose(fp);
+    }
+    if (fd)
+    {
+        fclose(fd);
+    }
 
     /* The u-area step IS done here. Natively it is the frontend's job because
      * two different boot routes need it; here there is only one route. */
@@ -437,7 +569,10 @@ EMSCRIPTEN_EXPORT int Nd500_Boot(void) {
     fprintf(stderr, "| [WASM] Calling nd500_ndix_boot()...\n");
     int rc = nd500_ndix_boot(&g_m, &cfg);
     fprintf(stderr, "| [WASM] nd500_ndix_boot returned: %d\n", rc);
-    if (rc != 0) return rc;
+    if (rc != 0)
+    {
+        return rc;
+    }
 
     /* ARM the machine. The wasm build of nd500_dbg_run() (nd500x
      * debug_api.c, inside #ifdef __EMSCRIPTEN__) does NOT start a thread the
@@ -454,14 +589,22 @@ EMSCRIPTEN_EXPORT int Nd500_Boot(void) {
 /* Advance the ND-500 by <count> instructions. Stepping rather than running:
  * a browser has one thread for the page, and nd500_dbg_run() does not come
  * back until the guest stops. The caller decides the slice. */
-EMSCRIPTEN_EXPORT int Nd500_Step(int count) {
-    if (!g_created || !g_booted) return -1;
-    if (count <= 0) count = 1;
+EMSCRIPTEN_EXPORT int Nd500_Step(int count)
+{
+    if (!g_created || !g_booted)
+    {
+        return -1;
+    }
+    if (count <= 0)
+    {
+        count = 1;
+    }
     nd500_dbg_step(&g_m, (uint32_t)count);
     return (int)g_m.stop_reason;
 }
 
-EMSCRIPTEN_EXPORT int Nd500_GetStopReason(void) {
+EMSCRIPTEN_EXPORT int Nd500_GetStopReason(void)
+{
     return g_created ? (int)g_m.stop_reason : 0;
 }
 
@@ -472,18 +615,24 @@ EMSCRIPTEN_EXPORT int Nd500_GetStopReason(void) {
  * treats a stop as real when run_flag has gone too (nd500x debug_api.c:439) -
  * and NDIX takes page faults constantly by design, because that is what demand
  * paging is. A caller driving the CPU in slices needs the flag. */
-EMSCRIPTEN_EXPORT int Nd500_IsRunning(void) {
+EMSCRIPTEN_EXPORT int Nd500_IsRunning(void)
+{
     return (g_created && g_booted) ? nd500_dbg_is_running(&g_m) : 0;
 }
 
 /* Why it stopped, in words. nd500x already has the table; there is no reason
  * for JS to carry a second copy of the enum. */
-EMSCRIPTEN_EXPORT const char* Nd500_GetStopReasonText(void) {
-    if (!g_created) return "no machine";
+EMSCRIPTEN_EXPORT const char *Nd500_GetStopReasonText(void)
+{
+    if (!g_created)
+    {
+        return "no machine";
+    }
     return nd500_stop_reason_str(g_m.stop_reason);
 }
 
-EMSCRIPTEN_EXPORT uint32_t Nd500_GetPC(void) {
+EMSCRIPTEN_EXPORT uint32_t Nd500_GetPC(void)
+{
     return g_created ? g_cpu.PC : 0u;
 }
 
@@ -497,21 +646,37 @@ EMSCRIPTEN_EXPORT uint32_t Nd500_GetPC(void) {
  * Returns the number of bytes moved, which is 0 for an address past the end of
  * memory rather than an error: a host reading a window is entitled to ask about
  * an address that turns out not to exist. */
-EMSCRIPTEN_EXPORT int Nd500_ReadPhys(uint32_t addr, uint8_t* dst, int len) {
-    if (!g_created || !dst || len <= 0) return 0;
+EMSCRIPTEN_EXPORT int Nd500_ReadPhys(uint32_t addr, uint8_t *dst, int len)
+{
+    if (!g_created || !dst || len <= 0)
+    {
+        return 0;
+    }
     int n = 0;
-    for (; n < len; n++) {
-        if (addr + (uint32_t)n >= g_m.memory_size) break;
+    for (; n < len; n++)
+    {
+        if (addr + (uint32_t)n >= g_m.memory_size)
+        {
+            break;
+        }
         dst[n] = nd500_bus_read8(&g_m, addr + (uint32_t)n);
     }
     return n;
 }
 
-EMSCRIPTEN_EXPORT int Nd500_WritePhys(uint32_t addr, const uint8_t* src, int len) {
-    if (!g_created || !src || len <= 0) return 0;
+EMSCRIPTEN_EXPORT int Nd500_WritePhys(uint32_t addr, const uint8_t *src, int len)
+{
+    if (!g_created || !src || len <= 0)
+    {
+        return 0;
+    }
     int n = 0;
-    for (; n < len; n++) {
-        if (addr + (uint32_t)n >= g_m.memory_size) break;
+    for (; n < len; n++)
+    {
+        if (addr + (uint32_t)n >= g_m.memory_size)
+        {
+            break;
+        }
         nd500_bus_write8(&g_m, addr + (uint32_t)n, src[n]);
     }
     return n;
@@ -519,7 +684,8 @@ EMSCRIPTEN_EXPORT int Nd500_WritePhys(uint32_t addr, const uint8_t* src, int len
 
 /* How much physical memory the machine has, so a caller can size a window
  * instead of guessing. */
-EMSCRIPTEN_EXPORT uint32_t Nd500_MemorySize(void) {
+EMSCRIPTEN_EXPORT uint32_t Nd500_MemorySize(void)
+{
     return g_created ? g_m.memory_size : 0u;
 }
 
@@ -534,23 +700,35 @@ EMSCRIPTEN_EXPORT uint32_t Nd500_MemorySize(void) {
  * are not. Reading them at a physical address inferred from a boot-log line
  * produces plausible-looking rubbish, which is precisely the failure mode the
  * XMSG work has to avoid. Ask the MMU instead. */
-EMSCRIPTEN_EXPORT uint32_t Nd500_TranslateVirt(uint32_t vaddr) {
-    if (!g_created) return 0xFFFFFFFFu;
+EMSCRIPTEN_EXPORT uint32_t Nd500_TranslateVirt(uint32_t vaddr)
+{
+    if (!g_created)
+    {
+        return 0xFFFFFFFFu;
+    }
     return nd500_mmu_peek(&g_cpu, vaddr);
 }
 
 /* Drain one console byte: (unit << 8) | byte, or -1 when empty.
  * Unit 0xFF is this file's own boot log, not guest output. */
-EMSCRIPTEN_EXPORT int Nd500_PollConsole(void) {
-    if (g_con.readPos == g_con.writePos) return -1;
+EMSCRIPTEN_EXPORT int Nd500_PollConsole(void)
+{
+    if (g_con.readPos == g_con.writePos)
+    {
+        return -1;
+    }
     uint16_t e = g_con.entries[g_con.readPos];
     g_con.readPos = (g_con.readPos + 1) % ND500_CON_BUF;
     return (int)e;
 }
 
 /* Type at a guest terminal. */
-EMSCRIPTEN_EXPORT void Nd500_SendInput(int unit, const char* text, int len) {
-    if (!g_created || !text || len <= 0) return;
+EMSCRIPTEN_EXPORT void Nd500_SendInput(int unit, const char *text, int len)
+{
+    if (!g_created || !text || len <= 0)
+    {
+        return;
+    }
     nd500_fecall_tty_input(unit, text, len);
 }
 
@@ -576,30 +754,38 @@ EMSCRIPTEN_EXPORT void Nd500_SendInput(int unit, const char* text, int len) {
  * queue whichever way round it is written.
  */
 
+// clang-format off
 #define ND500_ETH_TX_RING  16
 #define ND500_ETH_MAX_FRAME 2048     /* RETH's limit, gateway.js RETH_MAX_FRAME */
+// clang-format on
 
-static struct {
-    int     segment;
-    int     length;
+static struct
+{
+    int segment;
+    int length;
     uint8_t data[ND500_ETH_MAX_FRAME];
 } g_eth_tx_ring[ND500_ETH_TX_RING];
 
 static int g_eth_tx_head = 0, g_eth_tx_tail = 0;
 static int g_eth_last_seg = 0, g_eth_last_len = 0;
-static uint8_t* g_eth_last_buf = 0;
-static int g_eth_segment = 0;        /* which segment this machine is on   */
+static uint8_t *g_eth_last_buf = 0;
+static int g_eth_segment = 0; /* which segment this machine is on   */
 static unsigned long g_eth_tx_dropped = 0;
 
 /* NDIX transmitted a frame. Called from nd500x's XMSG server through the
  * one-slot uplink seam. Must not block and must not call into JS. */
-static void eth_frame_out(void* ctx, const uint8_t* frame, uint32_t len) {
+static void eth_frame_out(void *ctx, const uint8_t *frame, uint32_t len)
+{
     int next;
     (void)ctx;
-    if (!frame || len == 0 || len > ND500_ETH_MAX_FRAME) return;
+    if (!frame || len == 0 || len > ND500_ETH_MAX_FRAME)
+    {
+        return;
+    }
 
     next = (g_eth_tx_head + 1) % ND500_ETH_TX_RING;
-    if (next == g_eth_tx_tail) {
+    if (next == g_eth_tx_tail)
+    {
         /* Ring full: the page is not draining. Drop and count rather than
          * block - ethernet is allowed to lose frames, and stalling the guest's
          * CPU inside a transmit would be far worse than a lost packet. */
@@ -607,15 +793,19 @@ static void eth_frame_out(void* ctx, const uint8_t* frame, uint32_t len) {
         return;
     }
     g_eth_tx_ring[g_eth_tx_head].segment = g_eth_segment;
-    g_eth_tx_ring[g_eth_tx_head].length  = (int)len;
+    g_eth_tx_ring[g_eth_tx_head].length = (int)len;
     memcpy(g_eth_tx_ring[g_eth_tx_head].data, frame, len);
     g_eth_tx_head = next;
 }
 
 /* Put this machine on a segment and start carrying frames. Safe to call twice;
  * the uplink slot holds one function pointer and re-registering is harmless. */
-EMSCRIPTEN_EXPORT int Nd500_Eth_Attach(int segment) {
-    if (!g_created) return -1;
+EMSCRIPTEN_EXPORT int Nd500_Eth_Attach(int segment)
+{
+    if (!g_created)
+    {
+        return -1;
+    }
     g_eth_segment = segment;
     g_eth_tx_head = g_eth_tx_tail = 0;
     g_eth_tx_dropped = 0;
@@ -628,17 +818,27 @@ EMSCRIPTEN_EXPORT int Nd500_Eth_Attach(int segment) {
 
 /* Stop carrying frames. The guest keeps running with an ethernet that has
  * nothing on the other end, which is what it had before this was called. */
-EMSCRIPTEN_EXPORT void Nd500_Eth_Detach(void) {
+EMSCRIPTEN_EXPORT void Nd500_Eth_Detach(void)
+{
     nd500_xmsg_set_uplink(NULL, NULL);
     g_eth_tx_head = g_eth_tx_tail = 0;
 }
 
 /* A frame arrived from the segment (gateway type 0x30). */
-EMSCRIPTEN_EXPORT int Nd500_Eth_InjectRxFrame(int segment, const uint8_t* data,
-                                              int length) {
-    if (!g_created || !g_booted || !data) return -1;
-    if (length <= 0 || length > ND500_ETH_MAX_FRAME) return -1;
-    if (segment != g_eth_segment) return -1;   /* not this machine's wire */
+EMSCRIPTEN_EXPORT int Nd500_Eth_InjectRxFrame(int segment, const uint8_t *data, int length)
+{
+    if (!g_created || !g_booted || !data)
+    {
+        return -1;
+    }
+    if (length <= 0 || length > ND500_ETH_MAX_FRAME)
+    {
+        return -1;
+    }
+    if (segment != g_eth_segment)
+    {
+        return -1; /* not this machine's wire */
+    }
     /* frame_in raises the receive interrupt as well as queueing, which is what
      * makes NDIX come and collect it. Its return says whether the guest had
      * room; a full guest queue is counted inside nd500x, not here. */
@@ -647,8 +847,12 @@ EMSCRIPTEN_EXPORT int Nd500_Eth_InjectRxFrame(int segment, const uint8_t* data,
 
 /* Poll for one frame NDIX transmitted. 1 = a frame is ready, 0 = nothing.
  * Same three-getter idiom as HDLC_PollTxFrame so the worker code matches. */
-EMSCRIPTEN_EXPORT int Nd500_Eth_PollTxFrame(void) {
-    if (g_eth_tx_head == g_eth_tx_tail) return 0;
+EMSCRIPTEN_EXPORT int Nd500_Eth_PollTxFrame(void)
+{
+    if (g_eth_tx_head == g_eth_tx_tail)
+    {
+        return 0;
+    }
     g_eth_last_seg = g_eth_tx_ring[g_eth_tx_tail].segment;
     g_eth_last_len = g_eth_tx_ring[g_eth_tx_tail].length;
     g_eth_last_buf = g_eth_tx_ring[g_eth_tx_tail].data;
@@ -656,23 +860,37 @@ EMSCRIPTEN_EXPORT int Nd500_Eth_PollTxFrame(void) {
     return 1;
 }
 
-EMSCRIPTEN_EXPORT int      Nd500_Eth_GetLastTxSegment(void) { return g_eth_last_seg; }
-EMSCRIPTEN_EXPORT int      Nd500_Eth_GetLastTxLength(void)  { return g_eth_last_len; }
-EMSCRIPTEN_EXPORT uint8_t* Nd500_Eth_GetLastTxBuffer(void)  { return g_eth_last_buf; }
+EMSCRIPTEN_EXPORT int Nd500_Eth_GetLastTxSegment(void)
+{
+    return g_eth_last_seg;
+}
+EMSCRIPTEN_EXPORT int Nd500_Eth_GetLastTxLength(void)
+{
+    return g_eth_last_len;
+}
+EMSCRIPTEN_EXPORT uint8_t *Nd500_Eth_GetLastTxBuffer(void)
+{
+    return g_eth_last_buf;
+}
 
 /* How many outbound frames were dropped because the page stopped draining.
  * Exported rather than only logged: "the network is slow" and "the browser tab
  * is not polling" look identical from inside the guest. */
-EMSCRIPTEN_EXPORT unsigned long Nd500_Eth_GetTxDropped(void) { return g_eth_tx_dropped; }
+EMSCRIPTEN_EXPORT unsigned long Nd500_Eth_GetTxDropped(void)
+{
+    return g_eth_tx_dropped;
+}
 
 /* Gateway type 0x32. Informational for now - NDIX has no carrier-sense concept
  * and et0 stays up either way - but the page can show it, and a future uplink
  * could use it to stop queueing into a segment with nobody on it. */
-EMSCRIPTEN_EXPORT void Nd500_Eth_SetLink(int segment, int present) {
-    (void)segment; (void)present;
+EMSCRIPTEN_EXPORT void Nd500_Eth_SetLink(int segment, int present)
+{
+    (void)segment;
+    (void)present;
 }
 
-#else  /* ---------------------------------------------- no nd500x checkout */
+#else /* ---------------------------------------------- no nd500x checkout */
 
 /*
  * The same names, doing nothing. EXPORTED_FUNCTIONS lists them unconditionally
@@ -680,49 +898,163 @@ EMSCRIPTEN_EXPORT void Nd500_Eth_SetLink(int segment, int present) {
  * ND-500 has to be something the page ASKS about (Nd500_Available returns 0)
  * rather than a module that will not load.
  */
-EMSCRIPTEN_EXPORT int  Nd500_Available(void) { return 0; }
-EMSCRIPTEN_EXPORT int  Nd500_SetEnv(const char* n, const char* v) { (void)n; (void)v; return -1; }
-EMSCRIPTEN_EXPORT int  Nd500_Create(int mem_bytes) { (void)mem_bytes; return -1; }
-EMSCRIPTEN_EXPORT int  Nd500_IsCreated(void) { return 0; }
-EMSCRIPTEN_EXPORT int  Nd500_IsBooted(void) { return 0; }
-EMSCRIPTEN_EXPORT int  Nd500_LoadKernel(uint8_t* d, int n) { (void)d; (void)n; return -1; }
-EMSCRIPTEN_EXPORT int  Nd500_LoadSegments(uint8_t* p, int pn, uint8_t* d, int dn) {
-    (void)p; (void)pn; (void)d; (void)dn; return -1;
+EMSCRIPTEN_EXPORT int Nd500_Available(void)
+{
+    return 0;
 }
-EMSCRIPTEN_EXPORT int  Nd500_MountDisk(int u, uint8_t* d, int n, int w) {
-    (void)u; (void)d; (void)n; (void)w; return -1;
+EMSCRIPTEN_EXPORT int Nd500_SetEnv(const char *n, const char *v)
+{
+    (void)n;
+    (void)v;
+    return -1;
 }
-EMSCRIPTEN_EXPORT int  Nd500_UnmountDisk(int u) { (void)u; return -1; }
-EMSCRIPTEN_EXPORT uint8_t* Nd500_GetDiskBuffer(int u) { (void)u; return 0; }
-EMSCRIPTEN_EXPORT int  Nd500_GetDiskSize(int u) { (void)u; return 0; }
-EMSCRIPTEN_EXPORT int  Nd500_Boot(void) { return -1; }
-EMSCRIPTEN_EXPORT int  Nd500_Step(int count) { (void)count; return -1; }
-EMSCRIPTEN_EXPORT int  Nd500_GetStopReason(void) { return 0; }
-EMSCRIPTEN_EXPORT int  Nd500_IsRunning(void) { return 0; }
-EMSCRIPTEN_EXPORT const char* Nd500_GetStopReasonText(void) { return "no ND-500 in this build"; }
-EMSCRIPTEN_EXPORT uint32_t Nd500_GetPC(void) { return 0u; }
-EMSCRIPTEN_EXPORT int Nd500_ReadPhys(uint32_t a, uint8_t* d, int n) {
-    (void)a; (void)d; (void)n; return 0;
+EMSCRIPTEN_EXPORT int Nd500_Create(int mem_bytes)
+{
+    (void)mem_bytes;
+    return -1;
 }
-EMSCRIPTEN_EXPORT int Nd500_WritePhys(uint32_t a, const uint8_t* s, int n) {
-    (void)a; (void)s; (void)n; return 0;
+EMSCRIPTEN_EXPORT int Nd500_IsCreated(void)
+{
+    return 0;
 }
-EMSCRIPTEN_EXPORT uint32_t Nd500_MemorySize(void) { return 0u; }
-EMSCRIPTEN_EXPORT uint32_t Nd500_TranslateVirt(uint32_t v) { (void)v; return 0xFFFFFFFFu; }
-EMSCRIPTEN_EXPORT int  Nd500_PollConsole(void) { return -1; }
-EMSCRIPTEN_EXPORT void Nd500_SendInput(int u, const char* t, int n) {
-    (void)u; (void)t; (void)n;
+EMSCRIPTEN_EXPORT int Nd500_IsBooted(void)
+{
+    return 0;
 }
-EMSCRIPTEN_EXPORT int  Nd500_Eth_Attach(int s) { (void)s; return -1; }
-EMSCRIPTEN_EXPORT void Nd500_Eth_Detach(void) { }
-EMSCRIPTEN_EXPORT int  Nd500_Eth_InjectRxFrame(int s, const uint8_t* d, int n) {
-    (void)s; (void)d; (void)n; return -1;
+EMSCRIPTEN_EXPORT int Nd500_LoadKernel(uint8_t *d, int n)
+{
+    (void)d;
+    (void)n;
+    return -1;
 }
-EMSCRIPTEN_EXPORT int  Nd500_Eth_PollTxFrame(void) { return 0; }
-EMSCRIPTEN_EXPORT int  Nd500_Eth_GetLastTxSegment(void) { return 0; }
-EMSCRIPTEN_EXPORT int  Nd500_Eth_GetLastTxLength(void) { return 0; }
-EMSCRIPTEN_EXPORT uint8_t* Nd500_Eth_GetLastTxBuffer(void) { return 0; }
-EMSCRIPTEN_EXPORT unsigned long Nd500_Eth_GetTxDropped(void) { return 0; }
-EMSCRIPTEN_EXPORT void Nd500_Eth_SetLink(int s, int p) { (void)s; (void)p; }
+EMSCRIPTEN_EXPORT int Nd500_LoadSegments(uint8_t *p, int pn, uint8_t *d, int dn)
+{
+    (void)p;
+    (void)pn;
+    (void)d;
+    (void)dn;
+    return -1;
+}
+EMSCRIPTEN_EXPORT int Nd500_MountDisk(int u, uint8_t *d, int n, int w)
+{
+    (void)u;
+    (void)d;
+    (void)n;
+    (void)w;
+    return -1;
+}
+EMSCRIPTEN_EXPORT int Nd500_UnmountDisk(int u)
+{
+    (void)u;
+    return -1;
+}
+EMSCRIPTEN_EXPORT uint8_t *Nd500_GetDiskBuffer(int u)
+{
+    (void)u;
+    return 0;
+}
+EMSCRIPTEN_EXPORT int Nd500_GetDiskSize(int u)
+{
+    (void)u;
+    return 0;
+}
+EMSCRIPTEN_EXPORT int Nd500_Boot(void)
+{
+    return -1;
+}
+EMSCRIPTEN_EXPORT int Nd500_Step(int count)
+{
+    (void)count;
+    return -1;
+}
+EMSCRIPTEN_EXPORT int Nd500_GetStopReason(void)
+{
+    return 0;
+}
+EMSCRIPTEN_EXPORT int Nd500_IsRunning(void)
+{
+    return 0;
+}
+EMSCRIPTEN_EXPORT const char *Nd500_GetStopReasonText(void)
+{
+    return "no ND-500 in this build";
+}
+EMSCRIPTEN_EXPORT uint32_t Nd500_GetPC(void)
+{
+    return 0u;
+}
+EMSCRIPTEN_EXPORT int Nd500_ReadPhys(uint32_t a, uint8_t *d, int n)
+{
+    (void)a;
+    (void)d;
+    (void)n;
+    return 0;
+}
+EMSCRIPTEN_EXPORT int Nd500_WritePhys(uint32_t a, const uint8_t *s, int n)
+{
+    (void)a;
+    (void)s;
+    (void)n;
+    return 0;
+}
+EMSCRIPTEN_EXPORT uint32_t Nd500_MemorySize(void)
+{
+    return 0u;
+}
+EMSCRIPTEN_EXPORT uint32_t Nd500_TranslateVirt(uint32_t v)
+{
+    (void)v;
+    return 0xFFFFFFFFu;
+}
+EMSCRIPTEN_EXPORT int Nd500_PollConsole(void)
+{
+    return -1;
+}
+EMSCRIPTEN_EXPORT void Nd500_SendInput(int u, const char *t, int n)
+{
+    (void)u;
+    (void)t;
+    (void)n;
+}
+EMSCRIPTEN_EXPORT int Nd500_Eth_Attach(int s)
+{
+    (void)s;
+    return -1;
+}
+EMSCRIPTEN_EXPORT void Nd500_Eth_Detach(void)
+{
+}
+EMSCRIPTEN_EXPORT int Nd500_Eth_InjectRxFrame(int s, const uint8_t *d, int n)
+{
+    (void)s;
+    (void)d;
+    (void)n;
+    return -1;
+}
+EMSCRIPTEN_EXPORT int Nd500_Eth_PollTxFrame(void)
+{
+    return 0;
+}
+EMSCRIPTEN_EXPORT int Nd500_Eth_GetLastTxSegment(void)
+{
+    return 0;
+}
+EMSCRIPTEN_EXPORT int Nd500_Eth_GetLastTxLength(void)
+{
+    return 0;
+}
+EMSCRIPTEN_EXPORT uint8_t *Nd500_Eth_GetLastTxBuffer(void)
+{
+    return 0;
+}
+EMSCRIPTEN_EXPORT unsigned long Nd500_Eth_GetTxDropped(void)
+{
+    return 0;
+}
+EMSCRIPTEN_EXPORT void Nd500_Eth_SetLink(int s, int p)
+{
+    (void)s;
+    (void)p;
+}
 
 #endif /* ND100X_WITH_ND500 */

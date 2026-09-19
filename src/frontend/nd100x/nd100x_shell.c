@@ -40,10 +40,11 @@
 #endif
 
 #define SHELL_PROMPT "@"
-#define MAX_CMD_LEN 256
-#define MAX_TOKENS 10
+#define MAX_CMD_LEN  256
+#define MAX_TOKENS   10
 
-typedef struct {
+typedef struct
+{
     const char *name;
     const char *abbrev;
     const char *help;
@@ -57,6 +58,7 @@ static int cmd_list_files(const char *nd100Root, int argc, char **argv);
 static int cmd_run_program(const char *nd100Root, int argc, char **argv);
 static int cmd_show_regs(const char *nd100Root, int argc, char **argv);
 
+// clang-format off
 static ShellCommand commands[] = {
     {"HELP",          "HE",   "Show this help message", cmd_help},
     {"LIST-FILES",    "LI-FI", "List BPUN/PROG files", cmd_list_files},
@@ -65,6 +67,7 @@ static ShellCommand commands[] = {
     {"EXIT",          "EX",   "Exit the shell", cmd_exit},
     {NULL, NULL, NULL, NULL}
 };
+// clang-format on
 
 /**
  * Check if a command name matches a command (supports abbreviation)
@@ -73,24 +76,36 @@ static ShellCommand commands[] = {
  * - Abbreviated match: each part separated by '-' must match the prefix
  *   e.g., "LI-FI" matches "LIST-FILES", "LI" matches "LIST-FILES"
  */
-static bool cmd_matches(const char *input, const char *full_name, const char *abbrev) {
-    if (!input || !full_name) return false;
+static bool cmd_matches(const char *input, const char *full_name, const char *abbrev)
+{
+    if (!input || !full_name)
+    {
+        return false;
+    }
 
     /* Uppercase input for case-insensitive comparison */
     char upper_input[MAX_CMD_LEN];
     int i = 0;
-    for (; input[i] && i < MAX_CMD_LEN - 1; i++) {
+    for (; input[i] && i < MAX_CMD_LEN - 1; i++)
+    {
         upper_input[i] = (char)toupper((unsigned char)input[i]);
     }
-    upper_input[i] = '\0';   /* input longer than the buffer is cut, not overrun */
+    upper_input[i] = '\0'; /* input longer than the buffer is cut, not overrun */
 
     /* Exact match on full name or abbreviation */
-    if (strcmp(upper_input, full_name) == 0) return true;
-    if (abbrev && strcmp(upper_input, abbrev) == 0) return true;
+    if (strcmp(upper_input, full_name) == 0)
+    {
+        return true;
+    }
+    if (abbrev && strcmp(upper_input, abbrev) == 0)
+    {
+        return true;
+    }
 
     /* Prefix match: "LIST" matches "LIST-FILES" */
     size_t len = strlen(upper_input);
-    if (strncmp(upper_input, full_name, len) == 0) {
+    if (strncmp(upper_input, full_name, len) == 0)
+    {
         char next = full_name[len];
         return (next == '\0' || next == '-');
     }
@@ -102,17 +117,31 @@ static bool cmd_matches(const char *input, const char *full_name, const char *ab
  * Parse a command line into tokens
  * Returns token count, sets tokens array
  */
-static int parse_tokens(char *line, char **tokens, int max_tokens) {
+static int parse_tokens(char *line, char **tokens, int max_tokens)
+{
     int count = 0;
     char *ptr = line;
 
-    while (count < max_tokens && *ptr) {
-        while (isspace((unsigned char)*ptr)) ptr++;
-        if (!*ptr) break;
+    while (count < max_tokens && *ptr)
+    {
+        while (isspace((unsigned char)*ptr))
+        {
+            ptr++;
+        }
+        if (!*ptr)
+        {
+            break;
+        }
 
         tokens[count++] = ptr;
-        while (*ptr && !isspace((unsigned char)*ptr)) ptr++;
-        if (*ptr) *ptr++ = '\0';
+        while (*ptr && !isspace((unsigned char)*ptr))
+        {
+            ptr++;
+        }
+        if (*ptr)
+        {
+            *ptr++ = '\0';
+        }
     }
 
     return count;
@@ -122,11 +151,15 @@ static int parse_tokens(char *line, char **tokens, int max_tokens) {
  * Join a directory and a name into out, collapsing a trailing '/' on dir so we
  * never emit a doubled slash (e.g. "images/BPUN//mac.bpun").
  */
-static void join_path(char *out, size_t out_sz, const char *dir, const char *name) {
+static void join_path(char *out, size_t out_sz, const char *dir, const char *name)
+{
     size_t dlen = strlen(dir);
-    if (dlen > 0 && dir[dlen - 1] == '/') {
+    if (dlen > 0 && dir[dlen - 1] == '/')
+    {
         snprintf(out, out_sz, "%s%s", dir, name);
-    } else {
+    }
+    else
+    {
         snprintf(out, out_sz, "%s/%s", dir, name);
     }
 }
@@ -135,13 +168,15 @@ static void join_path(char *out, size_t out_sz, const char *dir, const char *nam
  * List BPUN/PROG files in the nd100Root directory
  * Supports pattern filtering: *.bpun, *.prog, etc.
  */
-static int cmd_list_files(const char *nd100Root, int argc, char **argv) {
+static int cmd_list_files(const char *nd100Root, int argc, char **argv)
+{
 
     const char *pattern = (argc > 1) ? argv[1] : "*";
     const char *search_dir = nd100Root ? nd100Root : ".";
 
     DIR *dir = opendir(search_dir);
-    if (!dir) {
+    if (!dir)
+    {
         fprintf(stderr, "Cannot open directory: %s\n", search_dir);
         return -1;
     }
@@ -150,31 +185,43 @@ static int cmd_list_files(const char *nd100Root, int argc, char **argv) {
 
     struct dirent *entry;
     int count = 0;
-    while ((entry = readdir(dir)) != NULL) {
+    while ((entry = readdir(dir)) != NULL)
+    {
         /* Match pattern */
         bool match = false;
-        if (strcmp(pattern, "*") == 0) {
+        if (strcmp(pattern, "*") == 0)
+        {
             match = true;
-        } else if (strstr(pattern, "*")) {
+        }
+        else if (strstr(pattern, "*"))
+        {
             /* Simple glob: check extensions */
             const char *ext = strrchr(pattern, '.');
-            if (ext) {
+            if (ext)
+            {
                 const char *file_ext = strrchr(entry->d_name, '.');
-                if (file_ext) {
+                if (file_ext)
+                {
                     match = (strcasecmp(file_ext, ext) == 0);
                 }
             }
-        } else {
+        }
+        else
+        {
             match = (strcasecmp(entry->d_name, pattern) == 0);
         }
 
-        if (match) {
+        if (match)
+        {
             /* dirent d_type is not portable (MinGW lacks it) - stat instead
              * to keep only regular files. */
             char full[512];
             struct stat st;
             join_path(full, sizeof(full), search_dir, entry->d_name);
-            if (stat(full, &st) != 0 || !S_ISREG(st.st_mode)) continue;
+            if (stat(full, &st) != 0 || !S_ISREG(st.st_mode))
+            {
+                continue;
+            }
 
             printf("  %s\n", entry->d_name);
             count++;
@@ -182,7 +229,8 @@ static int cmd_list_files(const char *nd100Root, int argc, char **argv) {
     }
     closedir(dir);
 
-    if (count == 0) {
+    if (count == 0)
+    {
         printf("  (no files found)\n");
     }
     return 0;
@@ -200,13 +248,14 @@ static int cmd_list_files(const char *nd100Root, int argc, char **argv) {
  *
  * Returns true and fills out[] with the full path on success; false otherwise.
  */
-static bool resolve_program_file(const char *dir, const char *name,
-                                 char *out, size_t out_sz) {
+static bool resolve_program_file(const char *dir, const char *name, char *out, size_t out_sz)
+{
     /* 1. Exact path as typed - covers absolute names and case-insensitive FS. */
     char cand[512];
     join_path(cand, sizeof(cand), dir, name);
     struct stat st;
-    if (stat(cand, &st) == 0 && S_ISREG(st.st_mode)) {
+    if (stat(cand, &st) == 0 && S_ISREG(st.st_mode))
+    {
         snprintf(out, out_sz, "%s", cand);
         return true;
     }
@@ -214,39 +263,60 @@ static bool resolve_program_file(const char *dir, const char *name,
     /* 2. Scan the directory for a case-insensitive match, optionally supplying
      *    a .bpun / .prog extension the user omitted. */
     DIR *d = opendir(dir);
-    if (!d) return false;
+    if (!d)
+    {
+        return false;
+    }
 
     char best[256] = "";
     int best_rank = 99;
     struct dirent *e;
-    while ((e = readdir(d)) != NULL) {
+    while ((e = readdir(d)) != NULL)
+    {
         /* No d_type filter here - it is not portable (MinGW lacks it); the
          * final stat() below rejects non-files. */
         int rank = 99;
-        if (strcasecmp(e->d_name, name) == 0) {
+        if (strcasecmp(e->d_name, name) == 0)
+        {
             rank = 0;
-        } else {
+        }
+        else
+        {
             const char *dot = strrchr(e->d_name, '.');
-            if (dot) {
+            if (dot)
+            {
                 size_t base_len = (size_t)(dot - e->d_name);
-                if (base_len == strlen(name) &&
-                    strncasecmp(e->d_name, name, base_len) == 0) {
-                    if (strcasecmp(dot, ".bpun") == 0) rank = 1;
-                    else if (strcasecmp(dot, ".prog") == 0) rank = 2;
+                if (base_len == strlen(name) && strncasecmp(e->d_name, name, base_len) == 0)
+                {
+                    if (strcasecmp(dot, ".bpun") == 0)
+                    {
+                        rank = 1;
+                    }
+                    else if (strcasecmp(dot, ".prog") == 0)
+                    {
+                        rank = 2;
+                    }
                 }
             }
         }
-        if (rank < best_rank) {
+        if (rank < best_rank)
+        {
             best_rank = rank;
             snprintf(best, sizeof(best), "%s", e->d_name);
         }
     }
     closedir(d);
 
-    if (best_rank == 99) return false;
+    if (best_rank == 99)
+    {
+        return false;
+    }
 
     join_path(cand, sizeof(cand), dir, best);
-    if (stat(cand, &st) != 0 || !S_ISREG(st.st_mode)) return false;
+    if (stat(cand, &st) != 0 || !S_ISREG(st.st_mode))
+    {
+        return false;
+    }
     snprintf(out, out_sz, "%s", cand);
     return true;
 }
@@ -254,9 +324,11 @@ static bool resolve_program_file(const char *dir, const char *name,
 /**
  * Load and run a BPUN program file
  */
-static int cmd_run_program(const char *nd100Root, int argc, char **argv) {
+static int cmd_run_program(const char *nd100Root, int argc, char **argv)
+{
 
-    if (argc < 2) {
+    if (argc < 2)
+    {
         fprintf(stderr, "Usage: RUN-PROGRAM <filename>\n");
         return -1;
     }
@@ -266,10 +338,11 @@ static int cmd_run_program(const char *nd100Root, int argc, char **argv) {
 
     /* Resolve the typed name to a real file. "run mac" -> "MAC.BPUN". */
     char filepath[512];
-    if (!resolve_program_file(search_dir, filename, filepath, sizeof(filepath))) {
+    if (!resolve_program_file(search_dir, filename, filepath, sizeof(filepath)))
+    {
         fprintf(stderr, "No such program: '%s' in %s\n", filename, search_dir);
         fprintf(stderr, "Use LIST-FILES to see available programs.\n");
-        return -1;   /* CPU is NOT armed - shell stays at the prompt */
+        return -1; /* CPU is NOT armed - shell stays at the prompt */
     }
 
     /* Hard pre-check: program_load()/LoadBPUN() print an error but return 0 on
@@ -277,7 +350,8 @@ static int cmd_run_program(const char *nd100Root, int argc, char **argv) {
      * trusted to gate execution. Verify the file is actually readable here so
      * we never arm the CPU on a file we could not open. */
     FILE *probe = fopen(filepath, "rb");
-    if (!probe) {
+    if (!probe)
+    {
         fprintf(stderr, "Cannot open '%s': %s\n", filepath, strerror(errno));
         return -1;
     }
@@ -289,22 +363,26 @@ static int cmd_run_program(const char *nd100Root, int argc, char **argv) {
     const char *ext = strrchr(filepath, '.');
     bool is_prog = (ext && strcasecmp(ext, ".prog") == 0);
 
-    if (is_prog) {
+    if (is_prog)
+    {
         /* SINTRAN :PROG loadable image. program_load() writes the Bank 1 image
          * and sets STARTADDR to the real entry; the entry also comes from the
          * header via GetLastPROGHeader(). :PROG has no BPUN-style action field -
          * it always autostarts at its start address. */
-        if (program_load(BOOT_PROG, 0, filepath, true, 0, false) < 0) {
+        if (program_load(BOOT_PROG, 0, filepath, true, 0, false) < 0)
+        {
             fprintf(stderr, "Could not load :PROG '%s' - not running.\n", filepath);
             return -1;
         }
 
         PROG_Header phdr;
-        if (!GetLastPROGHeader(&phdr)) {
+        if (!GetLastPROGHeader(&phdr))
+        {
             fprintf(stderr, "Could not read :PROG header - not running.\n");
             return -1;
         }
-        if (phdr.twoBank) {
+        if (phdr.twoBank)
+        {
             /* Bank 2 needs the alternative page table, not yet mapped. */
             fprintf(stderr, "This is a 2-bank :PROG - only Bank 1 is loaded; "
                             "Bank 2 (alt page table) is not yet supported.\n");
@@ -312,8 +390,7 @@ static int cmd_run_program(const char *nd100Root, int argc, char **argv) {
 
         gPC = phdr.startAddress;
         set_cpu_run_mode(CPU_RUNNING);
-        printf("Starting at 0o%o - handing control to the ND-100...\n\n",
-               phdr.startAddress);
+        printf("Starting at 0o%o - handing control to the ND-100...\n\n", phdr.startAddress);
         return SHELL_RESULT_RUN;
     }
 
@@ -322,7 +399,8 @@ static int cmd_run_program(const char *nd100Root, int argc, char **argv) {
      * (e.g. MAC.BPUN has boot=0 but its real entry is start=0164316). The
      * fopen pre-check above guards the file-not-found case; a genuinely corrupt
      * image makes program_load() fail, and the shell stays at its prompt. */
-    if (program_load(BOOT_BPUN, 0, filepath, true, 0, false) < 0) {
+    if (program_load(BOOT_BPUN, 0, filepath, true, 0, false) < 0)
+    {
         fprintf(stderr, "Could not load BPUN '%s' - not running.\n", filepath);
         return -1;
     }
@@ -332,19 +410,21 @@ static int cmd_run_program(const char *nd100Root, int argc, char **argv) {
      * start, otherwise the CPU stays in OPCOM (halted) with P = start. Read the
      * real header (program_load left STARTADDR = boot, which is wrong here). */
     BPUN_Header hdr;
-    if (!GetLastBPUNHeader(&hdr)) {
+    if (!GetLastBPUNHeader(&hdr))
+    {
         fprintf(stderr, "Could not read BPUN header - not running.\n");
         return -1;
     }
 
-    gPC = hdr.start;   /* the real program entry (P register) */
+    gPC = hdr.start; /* the real program entry (P register) */
 
-    if (hdr.action != 0) {
+    if (hdr.action != 0)
+    {
         /* Non-autostart image: leave the CPU halted with P = start, like a
          * real ND-100 would sit in OPCOM. Stay at the shell prompt. */
         set_cpu_run_mode(CPU_STOPPED);
-        printf("Loaded. Action=0o%o (non-autostart): P set to 0o%o, CPU held.\n",
-               hdr.action, hdr.start);
+        printf("Loaded. Action=0o%o (non-autostart): P set to 0o%o, CPU held.\n", hdr.action,
+               hdr.start);
         printf("Use the debugger to run it, or load an autostart image.\n");
         return 0;
     }
@@ -361,7 +441,8 @@ static int cmd_run_program(const char *nd100Root, int argc, char **argv) {
 /**
  * Display CPU registers
  */
-static int cmd_show_regs(const char *nd100Root, int argc, char **argv) {
+static int cmd_show_regs(const char *nd100Root, int argc, char **argv)
+{
     (void)nd100Root;
     (void)argc;
     (void)argv;
@@ -369,7 +450,8 @@ static int cmd_show_regs(const char *nd100Root, int argc, char **argv) {
 
     printf("CPU Registers:\n");
 
-    if (g_reg) {
+    if (g_reg)
+    {
         printf("  A:     0o%06o\n", g_reg->reg[gPIL][_A]);
         printf("  B:     0o%06o\n", g_reg->reg[gPIL][_B]);
         printf("  D:     0o%06o\n", g_reg->reg[gPIL][_D]);
@@ -386,13 +468,15 @@ static int cmd_show_regs(const char *nd100Root, int argc, char **argv) {
 /**
  * Show help message
  */
-static int cmd_help(const char *nd100Root, int argc, char **argv) {
+static int cmd_help(const char *nd100Root, int argc, char **argv)
+{
     (void)nd100Root;
     (void)argc;
     (void)argv;
 
     printf("ND-100 Interactive Shell - Available Commands:\n\n");
-    for (int i = 0; commands[i].name; i++) {
+    for (int i = 0; commands[i].name; i++)
+    {
         printf("  %-15s  %s\n", commands[i].name, commands[i].help);
         printf("      (abbrev: %s)\n", commands[i].abbrev);
     }
@@ -405,30 +489,40 @@ static int cmd_help(const char *nd100Root, int argc, char **argv) {
 /**
  * Exit the shell
  */
-static int cmd_exit(const char *nd100Root, int argc, char **argv) {
+static int cmd_exit(const char *nd100Root, int argc, char **argv)
+{
     (void)nd100Root;
     (void)argc;
     (void)argv;
 
     printf("Exiting shell.\n");
-    return 1;  /* Signal to exit the shell loop */
+    return 1; /* Signal to exit the shell loop */
 }
 
 /**
  * Execute a single command
  * Returns: 0 = continue, 1 = exit shell, -1 = error
  */
-static int execute_command(const char *nd100Root, char *line) {
-    if (!line || *line == '\0') return 0;
+static int execute_command(const char *nd100Root, char *line)
+{
+    if (!line || *line == '\0')
+    {
+        return 0;
+    }
 
     char *tokens[MAX_TOKENS];
     int argc = parse_tokens(line, tokens, MAX_TOKENS);
 
-    if (argc == 0) return 0;
+    if (argc == 0)
+    {
+        return 0;
+    }
 
     /* Find matching command */
-    for (int i = 0; commands[i].name; i++) {
-        if (cmd_matches(tokens[0], commands[i].name, commands[i].abbrev)) {
+    for (int i = 0; commands[i].name; i++)
+    {
+        if (cmd_matches(tokens[0], commands[i].name, commands[i].abbrev))
+        {
             int result = commands[i].handler(nd100Root, argc, tokens);
             return result;
         }
@@ -442,16 +536,19 @@ static int execute_command(const char *nd100Root, char *line) {
 /**
  * Read a line from input (with or without readline)
  */
-static char *read_line(void) {
+static char *read_line(void)
+{
 #ifdef HAVE_READLINE
     return readline(SHELL_PROMPT " ");
 #else
     static char buffer[MAX_CMD_LEN];
     printf("%s ", SHELL_PROMPT);
     fflush(stdout);
-    if (fgets(buffer, sizeof(buffer), stdin)) {
+    if (fgets(buffer, sizeof(buffer), stdin))
+    {
         size_t len = strlen(buffer);
-        if (len > 0 && buffer[len - 1] == '\n') {
+        if (len > 0 && buffer[len - 1] == '\n')
+        {
             buffer[len - 1] = '\0';
         }
         return buffer;
@@ -463,35 +560,47 @@ static char *read_line(void) {
 /**
  * Execute commands from a script file
  */
-static int execute_script(const char *nd100Root, const char *script_path) {
+static int execute_script(const char *nd100Root, const char *script_path)
+{
     FILE *f = fopen(script_path, "r");
-    if (!f) {
+    if (!f)
+    {
         fprintf(stderr, "Cannot open script file: %s\n", script_path);
         return -1;
     }
 
     char line[MAX_CMD_LEN];
     int line_num = 0;
-    while (fgets(line, sizeof(line), f)) {
+    while (fgets(line, sizeof(line), f))
+    {
         line_num++;
 
         /* Remove trailing newline */
         size_t len = strlen(line);
-        if (len > 0 && line[len - 1] == '\n') {
+        if (len > 0 && line[len - 1] == '\n')
+        {
             line[len - 1] = '\0';
         }
 
         /* Skip empty lines and comments */
-        if (!*line || *line == '#') continue;
+        if (!*line || *line == '#')
+        {
+            continue;
+        }
 
         printf("%s %s\n", SHELL_PROMPT, line);
         int result = execute_command(nd100Root, line);
-        if (result == 1) break;  /* EXIT command */
-        if (result == SHELL_RESULT_RUN) {  /* RUN-PROGRAM armed the CPU */
+        if (result == 1)
+        {
+            break; /* EXIT command */
+        }
+        if (result == SHELL_RESULT_RUN)
+        { /* RUN-PROGRAM armed the CPU */
             fclose(f);
             return SHELL_RESULT_RUN;
         }
-        if (result < 0) {
+        if (result < 0)
+        {
             fprintf(stderr, "Script error at line %d\n", line_num);
             fclose(f);
             return -1;
@@ -505,7 +614,8 @@ static int execute_script(const char *nd100Root, const char *script_path) {
 /**
  * Main shell loop
  */
-int nd100x_shell_run(const char *nd100Root, const char *scriptPath) {
+int nd100x_shell_run(const char *nd100Root, const char *scriptPath)
+{
     printf("\n");
     printf("ND-100 Interactive Shell\n");
     printf("Type 'HELP' for available commands\n");
@@ -516,42 +626,52 @@ int nd100x_shell_run(const char *nd100Root, const char *scriptPath) {
 #endif
 
     /* Execute script if provided */
-    if (scriptPath) {
+    if (scriptPath)
+    {
         printf("Loading script: %s\n\n", scriptPath);
         int result = execute_script(nd100Root, scriptPath);
-        if (result == SHELL_RESULT_RUN) {
-            return SHELL_RESULT_RUN;  /* script launched a program */
+        if (result == SHELL_RESULT_RUN)
+        {
+            return SHELL_RESULT_RUN; /* script launched a program */
         }
-        if (result < 0) {
+        if (result < 0)
+        {
             fprintf(stderr, "Script execution failed\n");
             return -1;
         }
     }
 
     /* Main REPL loop */
-    while (1) {
+    while (1)
+    {
         char *line = read_line();
-        if (!line) {
+        if (!line)
+        {
             printf("\n");
-            break;  /* EOF */
+            break; /* EOF */
         }
 
 #ifdef HAVE_READLINE
-        if (*line) add_history(line);
+        if (*line)
+        {
+            add_history(line);
+        }
 #endif
 
         int result = execute_command(nd100Root, line);
-        if (result == 1) {
+        if (result == 1)
+        {
 #ifdef HAVE_READLINE
             free(line);
 #endif
-            break;  /* EXIT command */
+            break; /* EXIT command */
         }
-        if (result == SHELL_RESULT_RUN) {
+        if (result == SHELL_RESULT_RUN)
+        {
 #ifdef HAVE_READLINE
             free(line);
 #endif
-            return SHELL_RESULT_RUN;  /* hand control to the machine run loop */
+            return SHELL_RESULT_RUN; /* hand control to the machine run loop */
         }
 
 #ifdef HAVE_READLINE

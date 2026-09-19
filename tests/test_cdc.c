@@ -38,32 +38,38 @@ static uint16_t g_fakeMem[FAKE_MEM_WORDS];
 
 /* One pending delayed callback (the disc only ever queues one at a time). */
 static IODelayedCallback g_pendingCb;
-static void            *g_pendingCtx;
-static int              g_pendingParam;
-static uint8_t          g_pendingLevel;
-static int              g_pendingSet;
+static void *g_pendingCtx;
+static int g_pendingParam;
+static uint8_t g_pendingLevel;
+static int g_pendingSet;
 
 void Device_Init(Device *dev, uint8_t thumbwheel, DeviceClass deviceClass, size_t blockSize)
 {
-    (void)thumbwheel; (void)blockSize;
-    memset(dev, 0, sizeof(Device));       /* real Device_Init zeroes the struct */
+    (void)thumbwheel;
+    (void)blockSize;
+    memset(dev, 0, sizeof(Device)); /* real Device_Init zeroes the struct */
     dev->deviceClass = deviceClass;
 }
 
 void Device_DMAWrite(uint32_t coreAddress, uint16_t data)
 {
     if (coreAddress < FAKE_MEM_WORDS)
+    {
         g_fakeMem[coreAddress] = data;
+    }
 }
 
 int32_t Device_DMARead(uint32_t coreAddress)
 {
     if (coreAddress < FAKE_MEM_WORDS)
+    {
         return g_fakeMem[coreAddress];
+    }
     return 0;
 }
 
-void Device_QueueIODelay(Device *dev, uint16_t ticks, IODelayedCallback cb, int param, uint8_t irqlevel)
+void Device_QueueIODelay(Device *dev, uint16_t ticks, IODelayedCallback cb, int param,
+                         uint8_t irqlevel)
 {
     (void)ticks;
     g_pendingCb = cb;
@@ -78,27 +84,37 @@ void Device_QueueIODelay(Device *dev, uint16_t ticks, IODelayedCallback cb, int 
 void Device_TickIODelay(Device *dev)
 {
     if (!g_pendingSet)
+    {
         return;
+    }
     g_pendingSet = 0;
     if (g_pendingCb && g_pendingCb(g_pendingCtx, g_pendingParam))
+    {
         dev->interruptBits |= (uint16_t)(1u << g_pendingLevel);
+    }
 }
 
 void Device_SetInterruptStatus(Device *dev, bool active, uint16_t level)
 {
     if (active)
+    {
         dev->interruptBits |= (uint16_t)(1u << level);
+    }
     else
+    {
         dev->interruptBits &= (uint16_t)~(1u << level);
+    }
 }
 
 /* ---------------- tiny assert harness ----------------------------------- */
 
 static int g_pass, g_fail;
+// clang-format off
 #define CHECK(cond, msg) do {                                            \
         if (cond) { g_pass++; }                                          \
         else { g_fail++; printf("  FAIL: %s  (%s:%d)\n", msg, __FILE__, __LINE__); } \
     } while (0)
+// clang-format on
 
 /* ---------------- helpers ----------------------------------------------- */
 
@@ -119,7 +135,7 @@ static void program(Device *dev, uint16_t core, uint16_t sector, uint16_t wc, ui
     dev->Write(dev, base + CDC_REG_LCA, core);
     dev->Write(dev, base + CDC_REG_LBA, sector);
     dev->Write(dev, base + CDC_REG_LWC, wc);
-    dev->Write(dev, base + CDC_REG_LCW, control);   /* triggers the transfer */
+    dev->Write(dev, base + CDC_REG_LCW, control); /* triggers the transfer */
 }
 static uint16_t status(Device *dev)
 {
@@ -132,7 +148,9 @@ static void seed_sector(CdcData *d, uint32_t sector, uint16_t base)
 {
     uint32_t off = sector * CDC_WORDS_PER_SECTOR;
     for (uint16_t i = 0; i < CDC_WORDS_PER_SECTOR; i++)
+    {
         d->surface[off + i] = (uint16_t)(base + i);
+    }
 }
 
 int main(void)
@@ -142,7 +160,10 @@ int main(void)
     /* --- 0. factory + identity ------------------------------------------ */
     Device *dev = CreateCdcDevice(0);
     CHECK(dev != NULL, "device created");
-    if (!dev) return 1;
+    if (!dev)
+    {
+        return 1;
+    }
     CHECK(dev->startAddress == 0500 && dev->endAddress == 0507, "address block 500-507");
     CHECK(dev->identCode == CDC_IDENT_CODE && dev->identCode == 001, "ident code 01");
     CHECK(dev->interruptLevel == CDC_INT_LEVEL && dev->interruptLevel == 11, "interrupt level 11");
@@ -169,18 +190,19 @@ int main(void)
     /* --- 1. reset / idle status ----------------------------------------- */
     CHECK((status(dev) & CDC_STATUS_READY) != 0, "idle status has READY set (bit 14)");
     CHECK((status(dev) & CDC_STATUS_BUSY) == 0, "idle status has BUSY clear");
-    CHECK((status(dev) & CDC_STATUS_ERR)  == 0, "idle status has ERR clear");
-    CHECK(d->status.bits.onCylinder == 1 && d->status.bits.active == 0 && d->status.bits.errorOr == 0,
+    CHECK((status(dev) & CDC_STATUS_ERR) == 0, "idle status has ERR clear");
+    CHECK(d->status.bits.onCylinder == 1 && d->status.bits.active == 0 &&
+              d->status.bits.errorOr == 0,
           "idle status union: onCylinder set, active/errorOr clear");
 
     /* --- 2. each register write latches the right state ----------------- */
     dev->Write(dev, dev->startAddress + CDC_REG_LCA, 0x1234);
     CHECK(d->coreAddrLow == 0x1234, "LCA (501) loads the core address low 16 bits");
-    dev->Write(dev, dev->startAddress + CDC_REG_LBA, 0254);   /* octal */
+    dev->Write(dev, dev->startAddress + CDC_REG_LBA, 0254); /* octal */
     CHECK(d->blockAddress == 0254, "LBA (503) loads the block/sector address");
-    dev->Write(dev, dev->startAddress + CDC_REG_LWC, 0400);   /* 256 dec */
+    dev->Write(dev, dev->startAddress + CDC_REG_LWC, 0400); /* 256 dec */
     CHECK(d->wordCount == 0400, "LWC (507) loads the word count");
-    dev->Write(dev, dev->startAddress + CDC_REG_LCW, 0);      /* no activate: just latch */
+    dev->Write(dev, dev->startAddress + CDC_REG_LCW, 0); /* no activate: just latch */
     CHECK(d->control.raw == 0, "LCW (505) non-activate write latches control without a transfer");
 
     /* --- 3. register reads (RCA / RSECT / SEEK) ------------------------- */
@@ -191,9 +213,9 @@ int main(void)
 
     /* --- 4. READ transfer, sector A = OVLAY*2 + OVDK -------------------- *
      * OVDK = 0160 octal, OV19 (XSTAR) = 036 octal -> sector 0254 octal.    */
-    const uint32_t OVDK  = 0160;
+    const uint32_t OVDK = 0160;
     const uint32_t OVLAY = 036;
-    uint32_t sectorA = OVLAY * 2 + OVDK;                 /* = 0254 octal = 172 dec */
+    uint32_t sectorA = OVLAY * 2 + OVDK; /* = 0254 octal = 172 dec */
     CHECK(sectorA == 0254u, "overlay sector math OVLAY*2+OVDK == 0254 octal");
 
     /* addressing math asserted directly: sector -> byte offset S*256*2 */
@@ -202,7 +224,7 @@ int main(void)
 
     seed_sector(d, sectorA, 0x7000);
     memset(g_fakeMem, 0, sizeof(g_fakeMem));
-    program(dev, /*core*/0x0300, (uint16_t)sectorA, CDC_WORDS_PER_SECTOR, modus_go(CDC_OP_READ));
+    program(dev, /*core*/ 0x0300, (uint16_t)sectorA, CDC_WORDS_PER_SECTOR, modus_go(CDC_OP_READ));
     CHECK((status(dev) & CDC_STATUS_BUSY) != 0, "BUSY set after GO (before completion)");
     CHECK((status(dev) & CDC_STATUS_ERR) == 0, "no ERR on a good read");
     CHECK(d->status.bits.active == 1 && d->status.bits.transferOn == 1,
@@ -210,7 +232,12 @@ int main(void)
 
     int okA = 1;
     for (uint16_t i = 0; i < CDC_WORDS_PER_SECTOR; i++)
-        if (g_fakeMem[0x0300 + i] != (uint16_t)(0x7000 + i)) okA = 0;
+    {
+        if (g_fakeMem[0x0300 + i] != (uint16_t)(0x7000 + i))
+        {
+            okA = 0;
+        }
+    }
     CHECK(okA, "READ DMA'd the whole 256-word sector A to the right core addresses");
     /* the mapping used was exactly surface[sectorA*256 + i] */
     CHECK(g_fakeMem[0x0300] == d->surface[sectorA * CDC_WORDS_PER_SECTOR],
@@ -228,27 +255,40 @@ int main(void)
           "RSECT (502) reports the last sector touched");
 
     /* --- 5. READ a SECOND, different sector (partial word count) -------- */
-    uint32_t sectorB = sectorA + 1;                    /* 0255 octal, ROV4 sector */
+    uint32_t sectorB = sectorA + 1; /* 0255 octal, ROV4 sector */
     seed_sector(d, sectorB, 0x9000);
     memset(g_fakeMem, 0, sizeof(g_fakeMem));
     program(dev, 0x0500, (uint16_t)sectorB, 8, modus_go(CDC_OP_READ)); /* only 8 words */
     dev->Tick(dev);
     int okB = 1;
     for (uint16_t i = 0; i < 8; i++)
-        if (g_fakeMem[0x0500 + i] != (uint16_t)(0x9000 + i)) okB = 0;
+    {
+        if (g_fakeMem[0x0500 + i] != (uint16_t)(0x9000 + i))
+        {
+            okB = 0;
+        }
+    }
     CHECK(okB, "READ of sector B copied the requested word count");
     CHECK(g_fakeMem[0x0500 + 8] == 0, "READ did not transfer beyond the word count");
 
     /* --- 6. WRITE transfer + round-trip READ back ----------------------- */
-    uint32_t sectorC = 0100;                            /* an empty sector */
+    uint32_t sectorC = 0100; /* an empty sector */
     memset(g_fakeMem, 0, sizeof(g_fakeMem));
-    for (uint16_t i = 0; i < 16; i++) g_fakeMem[0x0700 + i] = (uint16_t)(0xB000 + i);
+    for (uint16_t i = 0; i < 16; i++)
+    {
+        g_fakeMem[0x0700 + i] = (uint16_t)(0xB000 + i);
+    }
     program(dev, 0x0700, (uint16_t)sectorC, 16, modus_go(CDC_OP_WRITE));
     dev->Tick(dev);
     int okW = 1;
     uint32_t offC = sectorC * CDC_WORDS_PER_SECTOR;
     for (uint16_t i = 0; i < 16; i++)
-        if (d->surface[offC + i] != (uint16_t)(0xB000 + i)) okW = 0;
+    {
+        if (d->surface[offC + i] != (uint16_t)(0xB000 + i))
+        {
+            okW = 0;
+        }
+    }
     CHECK(okW, "WRITE copied memory to the correct disc sector offset");
 
     memset(g_fakeMem, 0, sizeof(g_fakeMem));
@@ -256,7 +296,12 @@ int main(void)
     dev->Tick(dev);
     int okRT = 1;
     for (uint16_t i = 0; i < 16; i++)
-        if (g_fakeMem[0x0800 + i] != (uint16_t)(0xB000 + i)) okRT = 0;
+    {
+        if (g_fakeMem[0x0800 + i] != (uint16_t)(0xB000 + i))
+        {
+            okRT = 0;
+        }
+    }
     CHECK(okRT, "round-trip: READ returns exactly what WRITE stored");
 
     /* --- 7. control-word device clear (bit 4) clears BUSY/ERR ----------- */
@@ -267,7 +312,7 @@ int main(void)
 
     /* --- 8. bounds / error handling ------------------------------------- */
     /* a sector beyond the surface is out of range -> ERR, not left busy */
-    uint32_t badSector = d->surfaceSectors + 5;         /* past the end */
+    uint32_t badSector = d->surfaceSectors + 5; /* past the end */
     program(dev, 0x0100, (uint16_t)badSector, 8, modus_go(CDC_OP_READ));
     CHECK((status(dev) & CDC_STATUS_ERR) != 0, "out-of-range sector sets ERR");
     dev->Tick(dev);
@@ -288,14 +333,22 @@ int main(void)
      * word is 000004 (verify modus_go builds exactly that), and each op round-trips
      * through deviceOperation == op. */
     CHECK(modus_go(CDC_OP_READ) == 0000004u, "modus_go(READ) = TSS DKTR read word 000004");
-    dev->Write(dev, dev->startAddress + CDC_REG_LCW, (uint16_t)(modus_go(CDC_OP_READ) & ~CDC_CTRL_ACTIVATE));
-    CHECK(d->control.bits.deviceOperation == CDC_OP_READ, "control decode: read -> op field = 0 (000004)");
-    dev->Write(dev, dev->startAddress + CDC_REG_LCW, (uint16_t)(modus_go(CDC_OP_WRITE) & ~CDC_CTRL_ACTIVATE));
-    CHECK(d->control.bits.deviceOperation == CDC_OP_WRITE, "control decode: write -> op field = 1 (002004)");
-    dev->Write(dev, dev->startAddress + CDC_REG_LCW, (uint16_t)(modus_go(CDC_OP_READ_PARITY) & ~CDC_CTRL_ACTIVATE));
-    CHECK(d->control.bits.deviceOperation == CDC_OP_READ_PARITY, "control decode: read-parity -> op field = 2 (004004)");
-    dev->Write(dev, dev->startAddress + CDC_REG_LCW, (uint16_t)(modus_go(CDC_OP_COMPARE) & ~CDC_CTRL_ACTIVATE));
-    CHECK(d->control.bits.deviceOperation == CDC_OP_COMPARE, "control decode: compare -> op field = 3 (006004)");
+    dev->Write(dev, dev->startAddress + CDC_REG_LCW,
+               (uint16_t)(modus_go(CDC_OP_READ) & ~CDC_CTRL_ACTIVATE));
+    CHECK(d->control.bits.deviceOperation == CDC_OP_READ,
+          "control decode: read -> op field = 0 (000004)");
+    dev->Write(dev, dev->startAddress + CDC_REG_LCW,
+               (uint16_t)(modus_go(CDC_OP_WRITE) & ~CDC_CTRL_ACTIVATE));
+    CHECK(d->control.bits.deviceOperation == CDC_OP_WRITE,
+          "control decode: write -> op field = 1 (002004)");
+    dev->Write(dev, dev->startAddress + CDC_REG_LCW,
+               (uint16_t)(modus_go(CDC_OP_READ_PARITY) & ~CDC_CTRL_ACTIVATE));
+    CHECK(d->control.bits.deviceOperation == CDC_OP_READ_PARITY,
+          "control decode: read-parity -> op field = 2 (004004)");
+    dev->Write(dev, dev->startAddress + CDC_REG_LCW,
+               (uint16_t)(modus_go(CDC_OP_COMPARE) & ~CDC_CTRL_ACTIVATE));
+    CHECK(d->control.bits.deviceOperation == CDC_OP_COMPARE,
+          "control decode: compare -> op field = 3 (006004)");
     /* unit select bits 9-10 */
     dev->Write(dev, dev->startAddress + CDC_REG_LCW, (uint16_t)(3u << CDC_CTRL_UNIT_SHIFT));
     CHECK(d->control.bits.unitSelect == 3, "control decode: unit select bits 9-10 = 3");
@@ -310,13 +363,14 @@ int main(void)
      * Verified through the two-read RCA form: low 16 then high 8, where the
      * high 8 carries control bits 5-6 as address bits 16-17.                */
     dev->Write(dev, dev->startAddress + CDC_REG_LCA, 0xBEEF);
-    dev->Write(dev, dev->startAddress + CDC_REG_LCW, CDC_CTRL_ADDR16 | CDC_CTRL_ADDR17); /* no activate */
+    dev->Write(dev, dev->startAddress + CDC_REG_LCW,
+               CDC_CTRL_ADDR16 | CDC_CTRL_ADDR17); /* no activate */
     CHECK(d->control.bits.addressBit16 == 1 && d->control.bits.addressBit17 == 1,
           "control decode: core-address bits 5-6 (addr 16-17)");
-    uint16_t rcaLow  = dev->Read(dev, dev->startAddress + CDC_REG_RCA);
+    uint16_t rcaLow = dev->Read(dev, dev->startAddress + CDC_REG_RCA);
     uint16_t rcaHigh = dev->Read(dev, dev->startAddress + CDC_REG_RCA);
     CHECK(rcaLow == 0xBEEF, "RCA two-read: first read is the low 16 bits");
-    CHECK(rcaHigh == 0x03,  "RCA two-read: second read is the high 8 (control bits 5-6 => 3)");
+    CHECK(rcaHigh == 0x03, "RCA two-read: second read is the high 8 (control bits 5-6 => 3)");
     /* a read status re-initialises the RCA read sequence (MANUAL-N100 p.188) */
     (void)status(dev);
     CHECK(dev->Read(dev, dev->startAddress + CDC_REG_RCA) == 0xBEEF,
@@ -330,14 +384,15 @@ int main(void)
     program(dev, 0x0B00, (uint16_t)CDC_TESTMODE_BLOCK, 6,
             (uint16_t)(modus_go(CDC_OP_READ) | CDC_CTRL_TEST)); /* read + test mode */
     dev->Tick(dev);
-    CHECK((status(dev) & CDC_STATUS_ERR) == 0, "test-mode read with block 125252 succeeds (no ERR)");
+    CHECK((status(dev) & CDC_STATUS_ERR) == 0,
+          "test-mode read with block 125252 succeeds (no ERR)");
     CHECK(g_fakeMem[0x0B00 + 0] == (uint16_t)CDC_TESTMODE_EVEN &&
-          g_fakeMem[0x0B00 + 2] == (uint16_t)CDC_TESTMODE_EVEN &&
-          g_fakeMem[0x0B00 + 4] == (uint16_t)CDC_TESTMODE_EVEN,
+              g_fakeMem[0x0B00 + 2] == (uint16_t)CDC_TESTMODE_EVEN &&
+              g_fakeMem[0x0B00 + 4] == (uint16_t)CDC_TESTMODE_EVEN,
           "test-mode even words are 125252 (octal)");
     CHECK(g_fakeMem[0x0B00 + 1] == (uint16_t)CDC_TESTMODE_ODD &&
-          g_fakeMem[0x0B00 + 3] == (uint16_t)CDC_TESTMODE_ODD &&
-          g_fakeMem[0x0B00 + 5] == (uint16_t)CDC_TESTMODE_ODD,
+              g_fakeMem[0x0B00 + 3] == (uint16_t)CDC_TESTMODE_ODD &&
+              g_fakeMem[0x0B00 + 5] == (uint16_t)CDC_TESTMODE_ODD,
           "test-mode odd words are 052525 (octal)");
     CHECK((uint16_t)CDC_TESTMODE_EVEN == 0xAAAAu && (uint16_t)CDC_TESTMODE_ODD == 0x5555u,
           "test-mode words are the 0xAAAA / 0x5555 bit patterns");
@@ -355,7 +410,10 @@ int main(void)
     {
         uint32_t sectorD = 0120;
         memset(g_fakeMem, 0, sizeof(g_fakeMem));
-        for (uint16_t i = 0; i < 12; i++) g_fakeMem[0x0D00 + i] = (uint16_t)(0xD000 + i);
+        for (uint16_t i = 0; i < 12; i++)
+        {
+            g_fakeMem[0x0D00 + i] = (uint16_t)(0xD000 + i);
+        }
         /* First WRITE the pattern to the disc. */
         program(dev, 0x0D00, (uint16_t)sectorD, 12, modus_go(CDC_OP_WRITE));
         dev->Tick(dev);
@@ -377,7 +435,7 @@ int main(void)
     {
         uint32_t sectorE = 0121;
         seed_sector(d, sectorE, 0xE000);
-        memset(g_fakeMem, 0xFF, sizeof(g_fakeMem));      /* would-be-visible if it wrote */
+        memset(g_fakeMem, 0xFF, sizeof(g_fakeMem)); /* would-be-visible if it wrote */
         program(dev, 0x0E00, (uint16_t)sectorE, 8, modus_go(CDC_OP_READ_PARITY));
         dev->Tick(dev);
         CHECK((status(dev) & CDC_STATUS_ERR) == 0, "READ-PARITY succeeds (no injected CRC fault)");
@@ -385,9 +443,12 @@ int main(void)
               "READ-PARITY performs no memory transfer (core untouched)");
     }
 
-    if (dev->Destroy) dev->Destroy(dev);
+    if (dev->Destroy)
+    {
+        dev->Destroy(dev);
+    }
 
-    free(dev->deviceData);   /* Device_Destroy() does this in the emulator */
+    free(dev->deviceData); /* Device_Destroy() does this in the emulator */
 
     free(dev);
 
@@ -396,17 +457,24 @@ int main(void)
         const char *path = "test_cdc_backing.img";
         remove(path);
         CdcDevice_SetBackingFile(path);
-        Device *d1 = CreateCdcDevice(0);          /* creates a fresh zero-filled image */
+        Device *d1 = CreateCdcDevice(0); /* creates a fresh zero-filled image */
         CHECK(d1 != NULL, "device with new backing file created");
-        if (d1) {
+        if (d1)
+        {
             CdcData *cd1 = (CdcData *)d1->deviceData;
             CHECK(cd1->backingFile != NULL, "backing file opened/created");
             /* WRITE a sector, then Destroy -> persists big-endian to the file. */
-            for (uint16_t i = 0; i < 32; i++) g_fakeMem[0x0900 + i] = (uint16_t)(0xC100 + i);
+            for (uint16_t i = 0; i < 32; i++)
+            {
+                g_fakeMem[0x0900 + i] = (uint16_t)(0xC100 + i);
+            }
             program(d1, 0x0900, 0130, 32, modus_go(CDC_OP_WRITE));
             d1->Tick(d1);
-            if (d1->Destroy) d1->Destroy(d1);
-            free(d1->deviceData);   /* Device_Destroy() does this in the emulator */
+            if (d1->Destroy)
+            {
+                d1->Destroy(d1);
+            }
+            free(d1->deviceData); /* Device_Destroy() does this in the emulator */
             free(d1);
         }
 
@@ -414,19 +482,28 @@ int main(void)
         CdcDevice_SetBackingFile(path);
         Device *d2 = CreateCdcDevice(0);
         CHECK(d2 != NULL, "device re-created from existing backing file");
-        if (d2) {
+        if (d2)
+        {
             memset(g_fakeMem, 0, sizeof(g_fakeMem));
             program(d2, 0x0A00, 0130, 32, modus_go(CDC_OP_READ));
             d2->Tick(d2);
             int okP = 1;
             for (uint16_t i = 0; i < 32; i++)
-                if (g_fakeMem[0x0A00 + i] != (uint16_t)(0xC100 + i)) okP = 0;
+            {
+                if (g_fakeMem[0x0A00 + i] != (uint16_t)(0xC100 + i))
+                {
+                    okP = 0;
+                }
+            }
             CHECK(okP, "backing file persisted the WRITE across close/re-open (big-endian)");
-            if (d2->Destroy) d2->Destroy(d2);
-            free(d2->deviceData);   /* Device_Destroy() does this in the emulator */
+            if (d2->Destroy)
+            {
+                d2->Destroy(d2);
+            }
+            free(d2->deviceData); /* Device_Destroy() does this in the emulator */
             free(d2);
         }
-        CdcDevice_SetBackingFile(NULL);           /* leave the static clean */
+        CdcDevice_SetBackingFile(NULL); /* leave the static clean */
         remove(path);
     }
 

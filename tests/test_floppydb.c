@@ -29,41 +29,53 @@
  * (fdb_get_json). These tests drive floppydb_load_json() directly - no network - so
  * provide trivial stubs to satisfy the linker without pulling in download.c/libcurl. */
 #include "../src/ndlib/download.h"
-char  *download_file(const char *url) { (void)url; return NULL; }
-size_t get_downloaded_size(void)      { return 0; }
+char *download_file(const char *url)
+{
+    (void)url;
+    return NULL;
+}
+size_t get_downloaded_size(void)
+{
+    return 0;
+}
 
 static int g_failures = 0;
 
+// clang-format off
 #define CHECK(cond, msg) do {                                          \
     if (cond) { printf("  PASS: %s\n", (msg)); }                       \
     else      { printf("  FAIL: %s\n", (msg)); g_failures++; }         \
 } while (0)
+// clang-format on
 
 /* Two PACK-ONE entries (different md5 + size), one SMD image, one Status=1 that
  * must be excluded. Filesystem image size is octal, as in the real catalog. */
 static const char *FIXTURE =
-"[\n"
-"  {\n"
-"    \"Id\": 1, \"Name\": \"Pack One rev A\", \"Status\": 0,\n"
-"    \"Md5\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\n"
-"    \"DirectoryContent\": \"Directory name            : PACK-ONE\\r\\nFilesystem image size     : 000232 pages\\r\\n\"\n"
-"  },\n"
-"  {\n"
-"    \"Id\": 2, \"Name\": \"Pack One rev B\", \"Status\": 0,\n"
-"    \"Md5\": \"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\n"
-"    \"DirectoryContent\": \"Directory name            : PACK-ONE\\r\\nFilesystem image size     : 000464 pages\\r\\n\"\n"
-"  },\n"
-"  {\n"
-"    \"Id\": 3, \"Name\": \"Big SMD\", \"Status\": 0,\n"
-"    \"Md5\": \"cccccccccccccccccccccccccccccccc\",\n"
-"    \"DirectoryContent\": \"Directory name            : BIGVOL\\r\\nFilesystem image size     : 010000 pages\\r\\n\"\n"
-"  },\n"
-"  {\n"
-"    \"Id\": 4, \"Name\": \"Deleted entry\", \"Status\": 1,\n"
-"    \"Md5\": \"dddddddddddddddddddddddddddddddd\",\n"
-"    \"DirectoryContent\": \"Directory name            : GONE\\r\\n\"\n"
-"  }\n"
-"]\n";
+    "[\n"
+    "  {\n"
+    "    \"Id\": 1, \"Name\": \"Pack One rev A\", \"Status\": 0,\n"
+    "    \"Md5\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\n"
+    "    \"DirectoryContent\": \"Directory name            : PACK-ONE\\r\\nFilesystem image size   "
+    "  : 000232 pages\\r\\n\"\n"
+    "  },\n"
+    "  {\n"
+    "    \"Id\": 2, \"Name\": \"Pack One rev B\", \"Status\": 0,\n"
+    "    \"Md5\": \"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\n"
+    "    \"DirectoryContent\": \"Directory name            : PACK-ONE\\r\\nFilesystem image size   "
+    "  : 000464 pages\\r\\n\"\n"
+    "  },\n"
+    "  {\n"
+    "    \"Id\": 3, \"Name\": \"Big SMD\", \"Status\": 0,\n"
+    "    \"Md5\": \"cccccccccccccccccccccccccccccccc\",\n"
+    "    \"DirectoryContent\": \"Directory name            : BIGVOL\\r\\nFilesystem image size     "
+    ": 010000 pages\\r\\n\"\n"
+    "  },\n"
+    "  {\n"
+    "    \"Id\": 4, \"Name\": \"Deleted entry\", \"Status\": 1,\n"
+    "    \"Md5\": \"dddddddddddddddddddddddddddddddd\",\n"
+    "    \"DirectoryContent\": \"Directory name            : GONE\\r\\n\"\n"
+    "  }\n"
+    "]\n";
 
 int main(int argc, char **argv)
 {
@@ -83,10 +95,12 @@ int main(int argc, char **argv)
     CHECK(b && strcmp(b->name, "Pack One rev B") == 0, "find_md5(bbbb) -> rev B");
     CHECK(c != NULL, "find_md5(cccc) -> found");
     CHECK(gone == NULL, "find_md5 of excluded (Status=1) record -> NULL");
-    CHECK(floppydb_find_md5("ffffffffffffffffffffffffffffffff") == NULL, "find_md5 of unknown -> NULL");
+    CHECK(floppydb_find_md5("ffffffffffffffffffffffffffffffff") == NULL,
+          "find_md5 of unknown -> NULL");
 
     /* md5 lookup is case-insensitive (catalog md5 may be upper- or lower-case). */
-    CHECK(floppydb_find_md5("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA") == a, "find_md5 is case-insensitive");
+    CHECK(floppydb_find_md5("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA") == a,
+          "find_md5 is case-insensitive");
 
     /* "Directory name" REPEATS: PACK-ONE must return both rev A and rev B. */
     const FloppyDbEntry *matches[8];
@@ -96,11 +110,14 @@ int main(int argc, char **argv)
     CHECK(m == 2 && matches[0] != matches[1], "the two PACK-ONE matches are distinct entries");
 
     /* Log the disambiguation set exactly as the mount path would. */
-    if (m > 1) {
+    if (m > 1)
+    {
         printf("  [ambiguous] PACK-ONE resolves to %d images:\n", m);
         for (int i = 0; i < m; i++)
-            printf("    - dir='%s' size=%ld pages md5=%s\n",
-                   matches[i]->directory_name, matches[i]->filesystem_pages, matches[i]->md5);
+        {
+            printf("    - dir='%s' size=%ld pages md5=%s\n", matches[i]->directory_name,
+                   matches[i]->filesystem_pages, matches[i]->md5);
+        }
     }
 
     int bign = floppydb_find_directory("BIGVOL", matches, 8);
@@ -117,16 +134,22 @@ int main(int argc, char **argv)
     char url[256];
     const char *u = a ? floppydb_image_url(a, url, sizeof(url)) : NULL;
     printf("image_url(rev A) -> %s\n", u ? u : "(null)");
-    CHECK(u && strstr(u, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.img") != NULL, "image_url contains <md5>.img");
+    CHECK(u && strstr(u, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.img") != NULL,
+          "image_url contains <md5>.img");
 
     /* Optional smoke test against a real floppies.json if a path is provided. */
     const char *real = (argc > 1) ? argv[1] : getenv("FLOPPYDB_TEST_JSON");
-    if (real && real[0]) {
+    if (real && real[0])
+    {
         FILE *f = fopen(real, "rb");
-        if (f) {
-            fseek(f, 0, SEEK_END); long sz = ftell(f); fseek(f, 0, SEEK_SET);
+        if (f)
+        {
+            fseek(f, 0, SEEK_END);
+            long sz = ftell(f);
+            fseek(f, 0, SEEK_SET);
             char *buf = (char *)malloc((size_t)sz + 1);
-            if (buf) {
+            if (buf)
+            {
                 size_t rd = fread(buf, 1, (size_t)sz, f);
                 buf[rd] = '\0';
                 int rn = floppydb_load_json(buf);
@@ -135,14 +158,16 @@ int main(int argc, char **argv)
                 free(buf);
             }
             fclose(f);
-        } else {
+        }
+        else
+        {
             printf("  (skip real-catalog smoke test: cannot open %s)\n", real);
         }
     }
 
     floppydb_free();
 
-    printf("=== %s (%d failure%s) ===\n", g_failures == 0 ? "ALL PASS" : "FAILURES",
-           g_failures, g_failures == 1 ? "" : "s");
+    printf("=== %s (%d failure%s) ===\n", g_failures == 0 ? "ALL PASS" : "FAILURES", g_failures,
+           g_failures == 1 ? "" : "s");
     return g_failures == 0 ? 0 : 1;
 }

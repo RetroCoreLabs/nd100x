@@ -13,19 +13,26 @@
 
 static int failures = 0;
 
-#define ASSERT(cond, msg) do { \
-    if (!(cond)) { \
-        printf("  FAIL: %s (line %d)\n", msg, __LINE__); \
-        failures++; \
-    } \
-} while(0)
+#define ASSERT(cond, msg)                                                                          \
+    do                                                                                             \
+    {                                                                                              \
+        if (!(cond))                                                                               \
+        {                                                                                          \
+            printf("  FAIL: %s (line %d)\n", msg, __LINE__);                                       \
+            failures++;                                                                            \
+        }                                                                                          \
+    } while (0)
 
-#define ASSERT_EQ(a, b, msg) do { \
-    if ((a) != (b)) { \
-        printf("  FAIL: %s: expected %d, got %d (line %d)\n", msg, (int)(b), (int)(a), __LINE__); \
-        failures++; \
-    } \
-} while(0)
+#define ASSERT_EQ(a, b, msg)                                                                       \
+    do                                                                                             \
+    {                                                                                              \
+        if ((a) != (b))                                                                            \
+        {                                                                                          \
+            printf("  FAIL: %s: expected %d, got %d (line %d)\n", msg, (int)(b), (int)(a),         \
+                   __LINE__);                                                                      \
+            failures++;                                                                            \
+        }                                                                                          \
+    } while (0)
 
 static void test_init_and_destroy(void)
 {
@@ -49,7 +56,8 @@ static void test_enqueue_dequeue_simple(void)
     ASSERT_EQ(TcpReceiveBuffer_Available(&buf), 5, "5 available");
 
     uint8_t out;
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 5; i++)
+    {
         bool ok = TcpReceiveBuffer_DequeueByte(&buf, &out);
         ASSERT(ok, "dequeue succeeded");
         ASSERT_EQ(out, data[i], "correct byte");
@@ -77,7 +85,8 @@ static void test_wraparound(void)
 
     // Dequeue 4, freeing space at the start
     uint8_t out;
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 4; i++)
+    {
         TcpReceiveBuffer_DequeueByte(&buf, &out);
     }
     ASSERT_EQ(TcpReceiveBuffer_Available(&buf), 2, "2 remaining");
@@ -90,7 +99,8 @@ static void test_wraparound(void)
 
     // Dequeue all and verify order
     uint8_t expected[] = {0xEE, 0xFF, 0x11, 0x22, 0x33, 0x44, 0x55};
-    for (int i = 0; i < 7; i++) {
+    for (int i = 0; i < 7; i++)
+    {
         TcpReceiveBuffer_DequeueByte(&buf, &out);
         ASSERT_EQ(out, expected[i], "wrap order correct");
     }
@@ -162,9 +172,13 @@ static void test_large_capacity(void)
 
     // Fill with 32KB of data
     uint8_t block[1024];
-    for (int i = 0; i < 1024; i++) block[i] = (uint8_t)(i & 0xFF);
+    for (int i = 0; i < 1024; i++)
+    {
+        block[i] = (uint8_t)(i & 0xFF);
+    }
 
-    for (int i = 0; i < 32; i++) {
+    for (int i = 0; i < 32; i++)
+    {
         int enqueued = TcpReceiveBuffer_Enqueue(&buf, block, 1024);
         ASSERT_EQ(enqueued, 1024, "1K block enqueued");
     }
@@ -173,10 +187,12 @@ static void test_large_capacity(void)
 
     // Drain and verify first byte of each block
     uint8_t out;
-    for (int b = 0; b < 32; b++) {
+    for (int b = 0; b < 32; b++)
+    {
         TcpReceiveBuffer_DequeueByte(&buf, &out);
         ASSERT_EQ(out, 0x00, "block start byte");
-        for (int i = 1; i < 1024; i++) {
+        for (int i = 1; i < 1024; i++)
+        {
             TcpReceiveBuffer_DequeueByte(&buf, &out);
         }
     }
@@ -199,7 +215,8 @@ int run_tcp_receive_buffer_tests(void)
     test_clear();
     test_large_capacity();
 
-    if (failures == 0) {
+    if (failures == 0)
+    {
         printf("  All tcp_receive_buffer tests passed.\n");
     }
     return failures;

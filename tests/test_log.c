@@ -15,6 +15,7 @@
 static int g_pass;
 static int g_fail;
 
+// clang-format off
 #define CHECK(cond, what)                                   \
     do                                                      \
     {                                                       \
@@ -28,6 +29,7 @@ static int g_fail;
             printf("FAIL: %s (line %d)\n", what, __LINE__); \
         }                                                   \
     } while (0)
+// clang-format on
 
 /* Test sink: remembers the last line and counts calls. */
 static char g_last[1100];
@@ -81,7 +83,8 @@ int main(void)
     CHECK(Log_ParseSpec("smd:debug,hdlc:TRACE") == 0, "valid spec accepted");
     CHECK(Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG), "smd raised to debug");
     CHECK(!Log_IsEnabled(LOG_CAT_SMD, LOG_TRACE), "smd not raised to trace");
-    CHECK(Log_IsEnabled(LOG_CAT_HDLC, LOG_TRACE), "hdlc raised to trace, level name case-insensitive");
+    CHECK(Log_IsEnabled(LOG_CAT_HDLC, LOG_TRACE),
+          "hdlc raised to trace, level name case-insensitive");
     CHECK(!Log_IsEnabled(LOG_CAT_CPU, LOG_DEBUG), "other categories unchanged");
 
     CHECK(Log_ParseSpec("*:warn") == 0, "wildcard accepted");
@@ -108,7 +111,8 @@ int main(void)
     big[sizeof(big) - 1] = '\0';
     LOG(LOG_CAT_SMD, LOG_ERROR, "%s", big);
     size_t n = strlen(g_last);
-    CHECK(n > 0 && n < sizeof(g_last) && g_last[n - 1] == '\n', "long message cut and newline-terminated");
+    CHECK(n > 0 && n < sizeof(g_last) && g_last[n - 1] == '\n',
+          "long message cut and newline-terminated");
 
     Log_SetSink(NULL, NULL);
     printf("=== %d passed, %d failed ===\n", g_pass, g_fail);

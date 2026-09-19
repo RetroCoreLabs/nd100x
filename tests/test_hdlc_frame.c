@@ -13,19 +13,26 @@
 
 static int failures = 0;
 
-#define ASSERT(cond, msg) do { \
-    if (!(cond)) { \
-        printf("  FAIL: %s (line %d)\n", msg, __LINE__); \
-        failures++; \
-    } \
-} while(0)
+#define ASSERT(cond, msg)                                                                          \
+    do                                                                                             \
+    {                                                                                              \
+        if (!(cond))                                                                               \
+        {                                                                                          \
+            printf("  FAIL: %s (line %d)\n", msg, __LINE__);                                       \
+            failures++;                                                                            \
+        }                                                                                          \
+    } while (0)
 
-#define ASSERT_EQ(a, b, msg) do { \
-    if ((a) != (b)) { \
-        printf("  FAIL: %s: expected %d, got %d (line %d)\n", msg, (int)(b), (int)(a), __LINE__); \
-        failures++; \
-    } \
-} while(0)
+#define ASSERT_EQ(a, b, msg)                                                                       \
+    do                                                                                             \
+    {                                                                                              \
+        if ((a) != (b))                                                                            \
+        {                                                                                          \
+            printf("  FAIL: %s: expected %d, got %d (line %d)\n", msg, (int)(b), (int)(a),         \
+                   __LINE__);                                                                      \
+            failures++;                                                                            \
+        }                                                                                          \
+    } while (0)
 
 /* --- Byte stuffing tests --- */
 
@@ -155,9 +162,9 @@ static void test_process_escape_handling(void)
     HDLCFrame frame;
     HDLCFrame_Init(&frame);
 
-    HDLCFrame_AddByte(&frame, HDLC_FLAG); // Start
-    HDLCFrame_AddByte(&frame, 0x01);       // Normal byte
-    HDLCFrame_AddByte(&frame, HDLC_ESCAPE); // Escape prefix
+    HDLCFrame_AddByte(&frame, HDLC_FLAG);                    // Start
+    HDLCFrame_AddByte(&frame, 0x01);                         // Normal byte
+    HDLCFrame_AddByte(&frame, HDLC_ESCAPE);                  // Escape prefix
     HDLCFrame_AddByte(&frame, HDLC_FLAG ^ HDLC_ESCAPE_MASK); // Stuffed 0x7E
 
     // frame should have: [0x01, 0x7E]
@@ -175,7 +182,8 @@ static void test_process_error_recovery(void)
 
     // Fill frame to max to trigger error state
     HDLCFrame_AddByte(&frame, HDLC_FLAG);
-    for (int i = 0; i < HDLC_MAX_FRAME_SIZE; i++) {
+    for (int i = 0; i < HDLC_MAX_FRAME_SIZE; i++)
+    {
         HDLCFrame_AddByte(&frame, 0x42);
     }
     // Next byte overflows -> ERROR state
@@ -205,9 +213,13 @@ static void test_roundtrip(void)
     HDLCFrame rx;
     HDLCFrame_Init(&rx);
     bool complete = false;
-    for (int i = 0; i < wireLen; i++) {
+    for (int i = 0; i < wireLen; i++)
+    {
         complete = HDLCFrame_AddByte(&rx, wire[i]);
-        if (complete) break;
+        if (complete)
+        {
+            break;
+        }
     }
 
     ASSERT(complete, "frame complete");
@@ -218,7 +230,8 @@ static void test_roundtrip(void)
     ASSERT_EQ(rxLen, 7, "payload(5) + CRC(2)");
 
     const uint8_t *rxData = HDLCFrame_GetFrameData(&rx);
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 5; i++)
+    {
         ASSERT_EQ(rxData[i], payload[i], "payload match");
     }
     printf(" ok\n");
@@ -237,9 +250,13 @@ static void test_roundtrip_with_special_bytes(void)
     HDLCFrame rx;
     HDLCFrame_Init(&rx);
     bool complete = false;
-    for (int i = 0; i < wireLen; i++) {
+    for (int i = 0; i < wireLen; i++)
+    {
         complete = HDLCFrame_AddByte(&rx, wire[i]);
-        if (complete) break;
+        if (complete)
+        {
+            break;
+        }
     }
 
     ASSERT(complete, "frame complete");
@@ -273,16 +290,21 @@ static void test_roundtrip_multiple_frames(void)
     HDLCFrame_Init(&rx);
     int framesReceived = 0;
 
-    for (int i = 0; i < totalLen; i++) {
+    for (int i = 0; i < totalLen; i++)
+    {
         bool complete = HDLCFrame_AddByte(&rx, stream[i]);
-        if (complete) {
+        if (complete)
+        {
             framesReceived++;
             ASSERT(HDLCFrame_IsCRCValid(&rx), "frame CRC valid");
 
-            if (framesReceived == 1) {
+            if (framesReceived == 1)
+            {
                 ASSERT_EQ(HDLCFrame_GetFrameLength(&rx), 4, "frame1: 2+2 CRC");
                 ASSERT_EQ(HDLCFrame_GetFrameData(&rx)[0], 0xAA, "frame1 data");
-            } else if (framesReceived == 2) {
+            }
+            else if (framesReceived == 2)
+            {
                 ASSERT_EQ(HDLCFrame_GetFrameLength(&rx), 5, "frame2: 3+2 CRC");
                 ASSERT_EQ(HDLCFrame_GetFrameData(&rx)[0], 0xCC, "frame2 data");
             }
@@ -301,7 +323,10 @@ static void test_roundtrip_large_payload(void)
 
     // 256 byte payload
     uint8_t payload[256];
-    for (int i = 0; i < 256; i++) payload[i] = (uint8_t)i;
+    for (int i = 0; i < 256; i++)
+    {
+        payload[i] = (uint8_t)i;
+    }
 
     uint8_t wire[1024];
     int wireLen = HDLCFrame_BuildFrame(payload, 256, wire, sizeof(wire));
@@ -310,9 +335,13 @@ static void test_roundtrip_large_payload(void)
     HDLCFrame rx;
     HDLCFrame_Init(&rx);
     bool complete = false;
-    for (int i = 0; i < wireLen; i++) {
+    for (int i = 0; i < wireLen; i++)
+    {
         complete = HDLCFrame_AddByte(&rx, wire[i]);
-        if (complete) break;
+        if (complete)
+        {
+            break;
+        }
     }
 
     ASSERT(complete, "large frame complete");
@@ -322,7 +351,8 @@ static void test_roundtrip_large_payload(void)
     ASSERT_EQ(rxLen, 258, "256 payload + 2 CRC");
 
     const uint8_t *rxData = HDLCFrame_GetFrameData(&rx);
-    for (int i = 0; i < 256; i++) {
+    for (int i = 0; i < 256; i++)
+    {
         ASSERT_EQ(rxData[i], (uint8_t)i, "payload byte match");
     }
     printf(" ok\n");
@@ -351,7 +381,8 @@ int run_hdlc_frame_tests(void)
     test_roundtrip_multiple_frames();
     test_roundtrip_large_payload();
 
-    if (failures == 0) {
+    if (failures == 0)
+    {
         printf("  All hdlc_frame tests passed.\n");
     }
     return failures;

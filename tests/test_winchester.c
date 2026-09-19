@@ -41,16 +41,16 @@
 static uint16_t g_fakeMem[FAKE_MEM_WORDS];
 
 static IODelayedCallback g_pendingCb;
-static void            *g_pendingCtx;
-static int              g_pendingParam;
-static uint8_t          g_pendingLevel;
-static int              g_pendingSet;
+static void *g_pendingCtx;
+static int g_pendingParam;
+static uint8_t g_pendingLevel;
+static int g_pendingSet;
 
 /* A fake backing store: one buffer standing in for the mounted image. */
 #define FAKE_DISK_BLOCKS 64u
 #define FAKE_BLOCK_BYTES 1024u
 static uint8_t g_fakeDisk[FAKE_DISK_BLOCKS * FAKE_BLOCK_BYTES];
-static int     g_diskAttached = 1;
+static int g_diskAttached = 1;
 
 void Device_Init(Device *dev, uint8_t thumbwheel, DeviceClass deviceClass, size_t blockSize)
 {
@@ -63,17 +63,22 @@ void Device_Init(Device *dev, uint8_t thumbwheel, DeviceClass deviceClass, size_
 void Device_DMAWrite(uint32_t coreAddress, uint16_t data)
 {
     if (coreAddress < FAKE_MEM_WORDS)
+    {
         g_fakeMem[coreAddress] = data;
+    }
 }
 
 int32_t Device_DMARead(uint32_t coreAddress)
 {
     if (coreAddress < FAKE_MEM_WORDS)
+    {
         return g_fakeMem[coreAddress];
+    }
     return 0;
 }
 
-void Device_QueueIODelay(Device *dev, uint16_t ticks, IODelayedCallback cb, int param, uint8_t irqlevel)
+void Device_QueueIODelay(Device *dev, uint16_t ticks, IODelayedCallback cb, int param,
+                         uint8_t irqlevel)
 {
     (void)ticks;
     g_pendingCb = cb;
@@ -86,18 +91,26 @@ void Device_QueueIODelay(Device *dev, uint16_t ticks, IODelayedCallback cb, int 
 void Device_TickIODelay(Device *dev)
 {
     if (!g_pendingSet)
+    {
         return;
+    }
     g_pendingSet = 0;
     if (g_pendingCb && g_pendingCb(g_pendingCtx, g_pendingParam))
+    {
         dev->interruptBits |= (uint16_t)(1u << g_pendingLevel);
+    }
 }
 
 void Device_SetInterruptStatus(Device *dev, bool active, uint16_t level)
 {
     if (active)
+    {
         dev->interruptBits |= (uint16_t)(1u << level);
+    }
     else
+    {
         dev->interruptBits &= (uint16_t)~(1u << level);
+    }
 }
 
 uint32_t Device_RegisterAddress(Device *dev, uint32_t address)
@@ -125,41 +138,56 @@ int32_t Device_IO_BufferWriteWord(Device *dev, uint8_t *buf, int32_t word_offset
 
 static int fake_read(Device *self, uint8_t *buffer, size_t blockCount, uint32_t lba, int unit)
 {
-    (void)self; (void)unit;
+    (void)self;
+    (void)unit;
     if (lba + blockCount > FAKE_DISK_BLOCKS)
+    {
         return -1;
+    }
     memcpy(buffer, &g_fakeDisk[lba * FAKE_BLOCK_BYTES], blockCount * FAKE_BLOCK_BYTES);
     return (int)blockCount;
 }
 
-static int fake_write(Device *self, const uint8_t *buffer, size_t blockCount, uint32_t lba, int unit)
+static int fake_write(Device *self, const uint8_t *buffer, size_t blockCount, uint32_t lba,
+                      int unit)
 {
-    (void)self; (void)unit;
+    (void)self;
+    (void)unit;
     if (lba + blockCount > FAKE_DISK_BLOCKS)
+    {
         return -1;
+    }
     memcpy(&g_fakeDisk[lba * FAKE_BLOCK_BYTES], buffer, blockCount * FAKE_BLOCK_BYTES);
     return (int)blockCount;
 }
 
 static int fake_info(Device *self, size_t *size, bool *readOnly, int unit)
 {
-    (void)self; (void)unit;
+    (void)self;
+    (void)unit;
     if (size)
+    {
         *size = g_diskAttached ? sizeof(g_fakeDisk) : 0;
+    }
     if (readOnly)
+    {
         *readOnly = false;
+    }
     return 0;
 }
 
 /* ---------------- tiny assert harness ----------------------------------- */
 
 static int g_pass, g_fail;
+// clang-format off
 #define CHECK(cond, msg) do {                                            \
         if (cond) { g_pass++; }                                          \
         else { g_fail++; printf("  FAIL: %s  (%s:%d)\n", msg, __FILE__, __LINE__); } \
     } while (0)
+// clang-format on
 
 /* ---------------- register offsets (ND-11.015.01 sec 3.1) --------------- */
+// clang-format off
 #define R_READ_MA    0
 #define R_LOAD_MA    1
 #define R_READ_SECT  2
@@ -168,6 +196,7 @@ static int g_pass, g_fail;
 #define R_LOAD_CW    5
 #define R_READ_BA    6
 #define R_LOAD_WC    7
+// clang-format on
 
 /* Control-word bits (sec 3.4). */
 #define CW_INT_NOT_ACTIVE (1u << 0)
@@ -182,6 +211,7 @@ static int g_pass, g_fail;
 #define CW_BAD_TRACK      (1u << 15)
 
 /* Status bits (sec 3.5). */
+// clang-format off
 #define ST_ACTIVE       (1u << 2)
 #define ST_FINISHED     (1u << 3)
 #define ST_ERROR_OR     (1u << 4)
@@ -191,10 +221,20 @@ static int g_pass, g_fail;
 #define ST_CONTROLLER_ID (1u << 13)
 #define ST_ON_CYLINDER  (1u << 14)
 #define ST_BIT15        (1u << 15)
+// clang-format on
 
-static uint16_t rd(Device *dev, uint32_t reg) { return dev->Read(dev, dev->startAddress + reg); }
-static void     wr(Device *dev, uint32_t reg, uint16_t v) { dev->Write(dev, dev->startAddress + reg, v); }
-static uint16_t status(Device *dev) { return rd(dev, R_READ_ST); }
+static uint16_t rd(Device *dev, uint32_t reg)
+{
+    return dev->Read(dev, dev->startAddress + reg);
+}
+static void wr(Device *dev, uint32_t reg, uint16_t v)
+{
+    dev->Write(dev, dev->startAddress + reg, v);
+}
+static uint16_t status(Device *dev)
+{
+    return rd(dev, R_READ_ST);
+}
 
 int main(void)
 {
@@ -203,7 +243,9 @@ int main(void)
     Device *dev = CreateWinchesterDevice(0);
     CHECK(dev != NULL, "device created");
     if (!dev)
+    {
         return 1;
+    }
 
     dev->blockCallbacks.readFunc = fake_read;
     dev->blockCallbacks.writeFunc = fake_write;
@@ -228,8 +270,8 @@ int main(void)
     }
 
     /* --- 2. memory address: write HI-then-LO, read LO-then-HI (sec 3.2) -- */
-    wr(dev, R_LOAD_MA, 0x0012);   /* first write  -> upper 8 bits  */
-    wr(dev, R_LOAD_MA, 0x3456);   /* second write -> lower 16 bits */
+    wr(dev, R_LOAD_MA, 0x0012); /* first write  -> upper 8 bits  */
+    wr(dev, R_LOAD_MA, 0x3456); /* second write -> lower 16 bits */
     CHECK(data->regs.memoryAddressHiBits == 0x12, "first MA write loaded the HIGH byte");
     CHECK(data->regs.memoryAddress == 0x3456, "second MA write loaded the LOW 16 bits");
 
@@ -239,15 +281,15 @@ int main(void)
     CHECK(rd(dev, R_READ_MA) == 0x0012, "second MA read returns the HIGH 8 bits");
 
     /* --- 3. a status read resets the flip-flop (sec 3.2) ----------------- */
-    wr(dev, R_LOAD_MA, 0x0077);   /* leaves the write FF mid-sequence */
-    (void)status(dev);            /* one of the four reset conditions */
-    wr(dev, R_LOAD_MA, 0x0011);   /* must be taken as the HIGH byte again */
+    wr(dev, R_LOAD_MA, 0x0077); /* leaves the write FF mid-sequence */
+    (void)status(dev);          /* one of the four reset conditions */
+    wr(dev, R_LOAD_MA, 0x0011); /* must be taken as the HIGH byte again */
     wr(dev, R_LOAD_MA, 0x2222);
     CHECK(data->regs.memoryAddressHiBits == 0x11 && data->regs.memoryAddress == 0x2222,
           "status read re-synchronised the MA write flip-flop");
 
     /* --- 4. word count loads in a SINGLE access (sec 3.1) ---------------- */
-    wr(dev, R_LOAD_WC, 02000);    /* 1024 words, as the ND-120 microcode writes */
+    wr(dev, R_LOAD_WC, 02000); /* 1024 words, as the ND-120 microcode writes */
     CHECK(data->regs.wordCounter == 02000,
           "word count takes ONE write - not the SMD two-access protocol");
 
@@ -275,18 +317,18 @@ int main(void)
         /* Seed the fake image: LBA 0, one block, ascending words. */
         for (uint32_t i = 0; i < FAKE_BLOCK_BYTES / 2; i++)
         {
-            g_fakeDisk[i * 2]     = (uint8_t)((0x1000 + i) >> 8);
+            g_fakeDisk[i * 2] = (uint8_t)((0x1000 + i) >> 8);
             g_fakeDisk[i * 2 + 1] = (uint8_t)((0x1000 + i) & 0xFF);
         }
         memset(g_fakeMem, 0, sizeof(g_fakeMem));
 
         /* Unit 0, head 0, cylinder 0, sector 0 -> LBA 0. */
-        wr(dev, R_LOAD_CW, 0);                    /* select unit 0, clear test mode */
-        (void)status(dev);                        /* resync the MA flip-flop */
-        wr(dev, R_LOAD_MA, 0x0000);               /* HI */
-        wr(dev, R_LOAD_MA, 0x1000);               /* LO -> core address 0x1000 */
-        wr(dev, R_LOAD_BA, 0);                    /* cylinder 0, sector 0 */
-        wr(dev, R_LOAD_WC, 512);                  /* one 1024-byte sector */
+        wr(dev, R_LOAD_CW, 0);      /* select unit 0, clear test mode */
+        (void)status(dev);          /* resync the MA flip-flop */
+        wr(dev, R_LOAD_MA, 0x0000); /* HI */
+        wr(dev, R_LOAD_MA, 0x1000); /* LO -> core address 0x1000 */
+        wr(dev, R_LOAD_BA, 0);      /* cylinder 0, sector 0 */
+        wr(dev, R_LOAD_WC, 512);    /* one 1024-byte sector */
         wr(dev, R_LOAD_CW, CW_ACTIVATE | (WD_OP_READ_TRANSFER << CW_OP_SHIFT));
 
         CHECK(g_fakeMem[0x1000] == 0x1000, "M0 read: first word landed in memory");
@@ -304,7 +346,9 @@ int main(void)
     /* --- 9. M1 write transfer round-trips through the image -------------- */
     {
         for (uint32_t i = 0; i < 512; i++)
+        {
             g_fakeMem[0x2000 + i] = (uint16_t)(0xA000 + i);
+        }
         memset(g_fakeDisk, 0, sizeof(g_fakeDisk));
 
         wr(dev, R_LOAD_CW, 0);
@@ -324,11 +368,11 @@ int main(void)
 
     /* --- 10. M4 seek is RELATIVE, direction from bit 14 (sec 3.4.5) ------ */
     {
-        wr(dev, R_LOAD_CW, 0);                  /* unit 0 */
+        wr(dev, R_LOAD_CW, 0); /* unit 0 */
         data->regs.disks[0].cylinder = 100;
 
         /* bit 14 = 0 -> towards cylinder 0 */
-        wr(dev, R_LOAD_WC, 10);                 /* step count */
+        wr(dev, R_LOAD_WC, 10); /* step count */
         wr(dev, R_LOAD_CW, CW_ACTIVATE | (WD_OP_SEEK << CW_OP_SHIFT));
         Device_TickIODelay(dev);
         CHECK(data->regs.disks[0].cylinder == 90, "M4 with bit 14 = 0 steps TOWARDS cylinder 0");
@@ -472,8 +516,7 @@ int main(void)
         wr(dev, R_LOAD_MA, 0x4000);
         wr(dev, R_LOAD_BA, 0);
         wr(dev, R_LOAD_WC, 512);
-        wr(dev, R_LOAD_CW, CW_INT_NOT_ACTIVE | CW_ACTIVATE |
-                           (WD_OP_READ_TRANSFER << CW_OP_SHIFT));
+        wr(dev, R_LOAD_CW, CW_INT_NOT_ACTIVE | CW_ACTIVATE | (WD_OP_READ_TRANSFER << CW_OP_SHIFT));
         CHECK((dev->interruptBits & L11) == 0,
               "activation itself does not interrupt - completion does");
 
@@ -491,8 +534,12 @@ int main(void)
 
     printf("=== %d passed, %d failed ===\n", g_pass, g_fail);
     if (g_fail == 0)
+    {
         printf("TB_RESULT: PASS\n");
+    }
     else
+    {
         printf("TB_RESULT: FAIL (%d checks failed)\n", g_fail);
+    }
     return g_fail ? 1 : 0;
 }

@@ -33,19 +33,24 @@
 #include "charset.h"
 
 // Printer emulation type (--printer= option)
+// clang-format off
 typedef enum {
     PRINTER_TEXT,      // Simple line printer (plain ASCII)
     PRINTER_ESCP,      // Epson ESC/P interpreter
     PRINTER_LASER      // Color laser (future, not yet implemented)
 } PrinterType_t;
+// clang-format on
 
 // Printer output format (--printformat= option)
+// clang-format off
 typedef enum {
     PRINT_FORMAT_TXT,  // Plain text output (.txt)
     PRINT_FORMAT_PDF   // PDF output (.pdf)
 } PrintFormat_t;
+// clang-format on
 
 // Configuration structure
+// clang-format off
 typedef struct {
     BOOT_TYPE bootType;
     int bootUnit;        // Boot unit on the boot controller (--boot=smd1, --boot=scsi2; default 0)
@@ -152,5 +157,6 @@ typedef struct {
     long ringAtPf;           // --ring-at-pf=N: dump the instruction ring at the N'th page fault; -1 = not given
     long ringAtClpt;         // --ring-at-clpt=N: same at the N'th CLPT; -1 = not given
 } Config_t;
+// clang-format on
 
 #endif // CONFIG_H

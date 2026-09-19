@@ -18,7 +18,10 @@
 
 void VScreen_Init(VScreen *vs, const char *name, Device *dev, int cols, bool inputCapable)
 {
-    if (!vs) return;
+    if (!vs)
+    {
+        return;
+    }
 
     memset(vs, 0, sizeof(VScreen));
     snprintf(vs->name, sizeof(vs->name), "%s", name);
@@ -32,12 +35,16 @@ void VScreen_Init(VScreen *vs, const char *name, Device *dev, int cols, bool inp
 
     // Allocate line buffer
     vs->lines = calloc(VSCREEN_BUF_LINES, sizeof(char *));
-    if (vs->lines) {
-        for (int i = 0; i < VSCREEN_BUF_LINES; i++) {
+    if (vs->lines)
+    {
+        for (int i = 0; i < VSCREEN_BUF_LINES; i++)
+        {
             vs->lines[i] = calloc(vs->cols + 1, sizeof(char));
-            if (!vs->lines[i]) {
+            if (!vs->lines[i])
+            {
                 // Free previously allocated lines on failure
-                for (int j = 0; j < i; j++) {
+                for (int j = 0; j < i; j++)
+                {
                     free(vs->lines[j]);
                 }
                 free(vs->lines);
@@ -50,39 +57,53 @@ void VScreen_Init(VScreen *vs, const char *name, Device *dev, int cols, bool inp
 
 void VScreen_Write(VScreen *vs, char c)
 {
-    if (!vs || !vs->lines) return;
+    if (!vs || !vs->lines)
+    {
+        return;
+    }
 
-    switch (c) {
-        case '\n':  // Line feed - move to next line
-            vs->currentLine = (vs->currentLine + 1) % VSCREEN_BUF_LINES;
-            if (vs->lineCount < VSCREEN_BUF_LINES) vs->lineCount++;
-            memset(vs->lines[vs->currentLine], 0, vs->cols + 1);
-            vs->curCol = 0;
-            break;
+    switch (c)
+    {
+    case '\n': // Line feed - move to next line
+        vs->currentLine = (vs->currentLine + 1) % VSCREEN_BUF_LINES;
+        if (vs->lineCount < VSCREEN_BUF_LINES)
+        {
+            vs->lineCount++;
+        }
+        memset(vs->lines[vs->currentLine], 0, vs->cols + 1);
+        vs->curCol = 0;
+        break;
 
-        case '\r':  // Carriage return
-            vs->curCol = 0;
-            break;
+    case '\r': // Carriage return
+        vs->curCol = 0;
+        break;
 
-        case '\f':  // Form feed
-            vs->currentLine = (vs->currentLine + 1) % VSCREEN_BUF_LINES;
-            if (vs->lineCount < VSCREEN_BUF_LINES) vs->lineCount++;
-            memset(vs->lines[vs->currentLine], 0, vs->cols + 1);
-            vs->curCol = 0;
-            break;
+    case '\f': // Form feed
+        vs->currentLine = (vs->currentLine + 1) % VSCREEN_BUF_LINES;
+        if (vs->lineCount < VSCREEN_BUF_LINES)
+        {
+            vs->lineCount++;
+        }
+        memset(vs->lines[vs->currentLine], 0, vs->cols + 1);
+        vs->curCol = 0;
+        break;
 
-        default:
-            if (vs->curCol < vs->cols) {
-                vs->lines[vs->currentLine][vs->curCol] = c;
-                vs->curCol++;
-            }
-            break;
+    default:
+        if (vs->curCol < vs->cols)
+        {
+            vs->lines[vs->currentLine][vs->curCol] = c;
+            vs->curCol++;
+        }
+        break;
     }
 }
 
 void VScreen_Redraw(VScreen *vs)
 {
-    if (!vs || !vs->lines) return;
+    if (!vs || !vs->lines)
+    {
+        return;
+    }
 
     // Clear the physical terminal
     printf("\033[2J\033[H");
@@ -93,28 +114,37 @@ void VScreen_Redraw(VScreen *vs)
     // Determine the starting line (oldest line in the buffer)
     int numLines = (vs->lineCount < VSCREEN_BUF_LINES) ? vs->lineCount : VSCREEN_BUF_LINES;
     int startLine;
-    if (numLines == 0) {
+    if (numLines == 0)
+    {
         return;
     }
 
-    if (vs->lineCount < VSCREEN_BUF_LINES) {
+    if (vs->lineCount < VSCREEN_BUF_LINES)
+    {
         startLine = 0;
-    } else {
+    }
+    else
+    {
         startLine = (vs->currentLine + 1) % VSCREEN_BUF_LINES;
     }
 
     // Print all buffered lines. Terminal screens get national 7-bit charset
     // translation (per-char) so a redraw matches live output; non-terminal
     // screens (printer, tape, log) are emitted raw.
-    for (int i = 0; i < numLines; i++) {
+    for (int i = 0; i < numLines; i++)
+    {
         int lineIdx = (startLine + i) % VSCREEN_BUF_LINES;
         const char *line = vs->lines[lineIdx];
-        if (vs->isInputCapable && charset_get() != CHARSET_OFF) {
-            for (const char *p = line; *p; p++) {
+        if (vs->isInputCapable && charset_get() != CHARSET_OFF)
+        {
+            for (const char *p = line; *p; p++)
+            {
                 charset_emit_host(*p);
             }
             putchar('\n');
-        } else {
+        }
+        else
+        {
             printf("%s\n", line);
         }
     }
@@ -124,10 +154,15 @@ void VScreen_Redraw(VScreen *vs)
 
 void VScreen_Destroy(VScreen *vs)
 {
-    if (!vs || !vs->lines) return;
+    if (!vs || !vs->lines)
+    {
+        return;
+    }
 
-    for (int i = 0; i < VSCREEN_BUF_LINES; i++) {
-        if (vs->lines[i]) {
+    for (int i = 0; i < VSCREEN_BUF_LINES; i++)
+    {
+        if (vs->lines[i])
+        {
             free(vs->lines[i]);
         }
     }

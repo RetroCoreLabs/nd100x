@@ -21,12 +21,21 @@
 static char *read_file(const char *path, size_t *size)
 {
     FILE *f = fopen(path, "rb");
-    if (!f) { *size = 0; return NULL; }
+    if (!f)
+    {
+        *size = 0;
+        return NULL;
+    }
     fseek(f, 0, SEEK_END);
     long sz = ftell(f);
     fseek(f, 0, SEEK_SET);
     char *buf = malloc(sz + 1);
-    if (!buf) { fclose(f); *size = 0; return NULL; }
+    if (!buf)
+    {
+        fclose(f);
+        *size = 0;
+        return NULL;
+    }
     *size = fread(buf, 1, sz, f);
     buf[*size] = '\0';
     fclose(f);
@@ -39,7 +48,8 @@ static int count_occurrences(const char *haystack, const char *needle)
     int count = 0;
     size_t nlen = strlen(needle);
     const char *p = haystack;
-    while ((p = strstr(p, needle)) != NULL) {
+    while ((p = strstr(p, needle)) != NULL)
+    {
         count++;
         p += nlen;
     }
@@ -53,8 +63,8 @@ static int test_pdf_create(void)
     PdfDocument *doc = Pdf_Create();
     assert(doc != NULL);
     assert(doc->pageCount == 0);
-    assert(doc->pageWidth > 500);   /* A4 = 595.28 */
-    assert(doc->pageHeight > 800);  /* A4 = 841.89 */
+    assert(doc->pageWidth > 500);  /* A4 = 595.28 */
+    assert(doc->pageHeight > 800); /* A4 = 841.89 */
     Pdf_Destroy(doc);
     return 0;
 }
@@ -146,8 +156,8 @@ static int test_pdf_structure(const char *tmpdir)
 
     /* Pages object lists 2 kids, count = 2 */
     assert(strstr(raw, "/Count 2") != NULL);
-    assert(strstr(raw, "7 0 R") != NULL);  /* first page obj */
-    assert(strstr(raw, "8 0 R") != NULL);  /* second page obj */
+    assert(strstr(raw, "7 0 R") != NULL); /* first page obj */
+    assert(strstr(raw, "8 0 R") != NULL); /* second page obj */
 
     /* All 4 Courier font variants declared */
     assert(strstr(raw, "/BaseFont /Courier") != NULL);
@@ -189,16 +199,16 @@ static int test_pdf_font_selection(const char *tmpdir)
     assert(raw && sz > 0);
 
     /* Each font+text pair must appear in the content stream */
-    assert(strstr(raw, "/F1 10.0 Tf") != NULL);  /* Normal */
+    assert(strstr(raw, "/F1 10.0 Tf") != NULL); /* Normal */
     assert(strstr(raw, "(normal) Tj") != NULL);
 
-    assert(strstr(raw, "/F2 10.0 Tf") != NULL);  /* Bold */
+    assert(strstr(raw, "/F2 10.0 Tf") != NULL); /* Bold */
     assert(strstr(raw, "(bold) Tj") != NULL);
 
-    assert(strstr(raw, "/F3 10.0 Tf") != NULL);  /* Italic */
+    assert(strstr(raw, "/F3 10.0 Tf") != NULL); /* Italic */
     assert(strstr(raw, "(italic) Tj") != NULL);
 
-    assert(strstr(raw, "/F4 10.0 Tf") != NULL);  /* Bold+Italic */
+    assert(strstr(raw, "/F4 10.0 Tf") != NULL); /* Bold+Italic */
     assert(strstr(raw, "(bolditalic) Tj") != NULL);
 
     free(raw);
@@ -330,9 +340,9 @@ static int test_pdf_underline_rendering(const char *tmpdir)
     assert(strstr(raw, "(Underlined) Tj") != NULL);
 
     /* Underline stroke operators: line width, moveto, lineto, stroke */
-    assert(strstr(raw, "0.5 w") != NULL);       /* line width */
+    assert(strstr(raw, "0.5 w") != NULL);          /* line width */
     assert(strstr(raw, "50.00 698.00 m") != NULL); /* moveto at y-2 */
-    assert(strstr(raw, " l S") != NULL);         /* lineto + stroke */
+    assert(strstr(raw, " l S") != NULL);           /* lineto + stroke */
 
     /* Underline line length: 10 chars * 10pt * 0.6 = 60pt */
     /* End x = 50 + 60 = 110 */
@@ -489,6 +499,7 @@ int run_pdfwriter_tests(const char *tmpdir)
 {
     int passed = 0, failed = 0;
 
+    // clang-format off
     struct { const char *name; pdf_test_fn fn; } basic_tests[] = {
         { "pdf_create",             test_pdf_create },
         { "pdf_add_pages",          test_pdf_add_pages },
@@ -496,6 +507,8 @@ int run_pdfwriter_tests(const char *tmpdir)
         { "pdf_empty_document",     test_pdf_empty_document },
         { "pdf_destroy_null",       test_pdf_destroy_null },
     };
+    // clang-format on
+    // clang-format off
     struct { const char *name; pdf_test_fn_dir fn; } render_tests[] = {
         { "pdf_structure",              test_pdf_structure },
         { "pdf_font_selection",         test_pdf_font_selection },
@@ -508,19 +521,38 @@ int run_pdfwriter_tests(const char *tmpdir)
         { "pdf_font_size_in_stream",    test_pdf_font_size_in_stream },
         { "pdf_page_mediabox",          test_pdf_page_mediabox },
     };
+    // clang-format on
 
     int n = sizeof(basic_tests) / sizeof(basic_tests[0]);
-    for (int i = 0; i < n; i++) {
+    for (int i = 0; i < n; i++)
+    {
         printf("  %-50s", basic_tests[i].name);
-        if (basic_tests[i].fn() == 0) { printf("PASS\n"); passed++; }
-        else { printf("FAIL\n"); failed++; }
+        if (basic_tests[i].fn() == 0)
+        {
+            printf("PASS\n");
+            passed++;
+        }
+        else
+        {
+            printf("FAIL\n");
+            failed++;
+        }
     }
 
     n = sizeof(render_tests) / sizeof(render_tests[0]);
-    for (int i = 0; i < n; i++) {
+    for (int i = 0; i < n; i++)
+    {
         printf("  %-50s", render_tests[i].name);
-        if (render_tests[i].fn(tmpdir) == 0) { printf("PASS\n"); passed++; }
-        else { printf("FAIL\n"); failed++; }
+        if (render_tests[i].fn(tmpdir) == 0)
+        {
+            printf("PASS\n");
+            passed++;
+        }
+        else
+        {
+            printf("FAIL\n");
+            failed++;
+        }
     }
 
     printf("  pdfwriter: %d passed, %d failed\n", passed, failed);

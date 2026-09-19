@@ -35,11 +35,13 @@
  */
 
 /* Return codes from nd100x_shell_run() */
+// clang-format off
 #define SHELL_RESULT_EXIT   0   /* user quit the shell (EXIT / EOF) - stop the emulator */
 #define SHELL_RESULT_ERROR (-1) /* script execution failed */
 #define SHELL_RESULT_RUN    2   /* a program was loaded and armed (gPC=STARTADDR,        */
-                                /* CPU_RUNNING); the caller should hand control to the   */
-                                /* normal machine run loop to execute it                 */
+// clang-format on
+/* CPU_RUNNING); the caller should hand control to the   */
+/* normal machine run loop to execute it                 */
 
 /**
  * Run the interactive shell
