@@ -1,0 +1,45 @@
+# clang-tidy configuration for tools/house/audit.py: one check per rule of
+# the house C standard that clang-tidy can measure. The mapping from check
+# name to rule number is in audit.py (TIDY_RULES). Not used for CI; CI uses
+# the repo-root .clang-tidy on changed lines.
+Checks: >
+  -*,
+  readability-braces-around-statements,
+  readability-isolate-declaration,
+  readability-identifier-naming,
+  hicpp-signed-bitwise,
+  bugprone-signed-char-misuse,
+  bugprone-casting-through-void,
+  readability-non-const-parameter,
+  bugprone-assignment-in-if-condition,
+  readability-math-missing-parentheses,
+  misc-no-recursion,
+  bugprone-macro-parentheses,
+  bugprone-macro-repeated-side-effects,
+  readability-function-size,
+  bugprone-unused-return-value,
+  cert-err33-c,
+  readability-else-after-return,
+  bugprone-sizeof-expression,
+  misc-definitions-in-headers
+HeaderFilterRegex: '.*/src/.*\.h$'
+CheckOptions:
+  readability-function-size.LineThreshold: '100'
+  readability-function-size.ParameterThreshold: '6'
+  # Rule 3.4: locals, parameters, static variables snake_case.
+  readability-identifier-naming.LocalVariableCase: lower_case
+  readability-identifier-naming.ParameterCase: lower_case
+  readability-identifier-naming.StaticVariableCase: lower_case
+  # Rule 3.3: non-static globals g_snake_case.
+  readability-identifier-naming.GlobalVariableCase: lower_case
+  readability-identifier-naming.GlobalVariablePrefix: 'g_'
+  # Rule 3.6: macros and enum constants UPPER_SNAKE.
+  readability-identifier-naming.MacroDefinitionCase: UPPER_CASE
+  readability-identifier-naming.EnumConstantCase: UPPER_CASE
+  # Rule 3.7: types PascalCase.
+  readability-identifier-naming.TypedefCase: CamelCase
+  readability-identifier-naming.StructCase: CamelCase
+  readability-identifier-naming.EnumCase: CamelCase
+  readability-identifier-naming.UnionCase: CamelCase
+  # Struct members are locals-style (rule 3.4 by analogy): snake_case or
+  # camelBack is not settled in the standard - left unchecked here.

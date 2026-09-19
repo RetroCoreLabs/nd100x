@@ -137,9 +137,10 @@ function benign(text){
     });
     check(scsiTab.ok, 'SCSI tab shows SCSI panel (7 IDs) and hides SMD (' + scsiTab.why + ')');
 
-    // Winchester tab is disabled
+    // Winchester tab is enabled (82b838d gave every disc controller a way
+    // into the browser, Winchester included)
     const winDisabled = await page.$eval('#hdd-tabs .hdd-tab[data-hdd-tab="winchester"]', el => el.disabled);
-    check(winDisabled === true, 'Winchester tab is disabled');
+    check(winDisabled === false, 'Winchester tab is enabled');
 
     // SCSI library renderer runs and shows its empty-state (no scsi images stored)
     const scsiLib = await page.evaluate(() => {
