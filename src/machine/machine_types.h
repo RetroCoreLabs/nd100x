@@ -33,7 +33,8 @@
 #include "../devices/devices_types.h"
 
 
-typedef enum {
+typedef enum
+{
     BOOT_NONE = 0,
     BOOT_BPUN,
     BOOT_AOUT,
@@ -50,10 +51,10 @@ typedef enum {
 /* program_load() failures that used to end the process. The native frontend
  * still turns them into the same exit codes (1 and 10); the shell, the DAP
  * launch path and the WASM frontend handle them and carry on. */
-#define PROGRAM_LOAD_ERR_LOAD (-2)   /* the image could not be loaded (was exit(1))  */
-#define PROGRAM_LOAD_ERR_BOOT (-10)  /* the boot device failed (was exit(10))        */
+#define PROGRAM_LOAD_ERR_LOAD (-2)  /* the image could not be loaded (was exit(1))  */
+#define PROGRAM_LOAD_ERR_BOOT (-10) /* the boot device failed (was exit(10))        */
 
-extern const char* g_boot_type_str[];
+extern const char *g_boot_type_str[];
 
 
 // Drive types. The numeric values are part of the gateway wire protocol
@@ -61,7 +62,8 @@ extern const char* g_boot_type_str[];
 //   0=SMD, 1=FLOPPY, 2=SCSI, 3=WINCHESTER.
 // WINCHESTER (ST506/8 inch, cards 3041/3038) has 2 units - ND-11.015.01 sec 3.1,
 // and the control word carries the unit in a single bit (b9).
-typedef enum {
+typedef enum
+{
     DRIVE_SMD,
     DRIVE_FLOPPY,
     DRIVE_SCSI,
@@ -73,7 +75,8 @@ typedef enum {
 // devices_types.h, which includes device_scsi.h).
 
 // Mounted drive information structure
-typedef struct {
+typedef struct
+{
     char md5[33];
     char name[256];
     char description[1024];
@@ -84,12 +87,13 @@ typedef struct {
     bool is_opfs;           // true if using OPFS (block I/O via JS, no FILE*)
     bool is_gateway;        // true if using gateway WebSocket block I/O
 
-    union {
-        FILE* local_file;   // File handle for local files
-        char* remote_data;  // Downloaded data for remote files
+    union
+    {
+        FILE *local_file;  // File handle for local files
+        char *remote_data; // Downloaded data for remote files
     } data;
-    size_t data_size;       // Size of the data in bytes
-    int block_size;         // Block size for this drive (256, 512, 1024 bytes)
+    size_t data_size; // Size of the data in bytes
+    int block_size;   // Block size for this drive (256, 512, 1024 bytes)
 } MountedDriveInfo_t;
 
 #ifdef __EMSCRIPTEN__

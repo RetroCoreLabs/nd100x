@@ -27,18 +27,19 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-#include "machine_types.h"                 /* BOOT_TYPE */
-#include "../devices/scsi/device_scsi.h"    /* SCSIUnitType, SCSI_MAX_UNITS */
+#include "machine_types.h"               /* BOOT_TYPE */
+#include "../devices/scsi/device_scsi.h" /* SCSIUnitType, SCSI_MAX_UNITS */
 
 #define MC_MAX_CONTROLLERS 16
-#define MC_MAX_DISK_SLOTS  SCSI_MAX_UNITS  /* 7 - the largest slot count (SCSI) */
+#define MC_MAX_DISK_SLOTS  SCSI_MAX_UNITS /* 7 - the largest slot count (SCSI) */
 #define MC_MAX_TERMINALS   16
 #define MC_PATH_LEN        256
 #define MC_ERR_LEN         512
 
 /* Configurable controller types. Core devices (CPU, RTC, console) are always
  * present and are not represented here. */
-typedef enum {
+typedef enum
+{
     CTRL_NONE = 0,
     CTRL_FLOPPY,
     CTRL_SMD,
@@ -50,57 +51,61 @@ typedef enum {
 /* One disk image slot on a disc controller. media uses the SCSI unit-type
  * vocabulary (hdd/cdrom/tape/floppy); for SMD and floppy controllers media is
  * SCSI_UNIT_HDD by convention (single fixed media) and is not shown. */
-typedef struct {
-    bool         present;
+typedef struct
+{
+    bool present;
     SCSIUnitType media;
-    char         image[MC_PATH_LEN];
+    char image[MC_PATH_LEN];
 } MC_DiskSlot;
 
-typedef struct {
+typedef struct
+{
     CtrlType type;
-    int            wheel;
-    bool           enabled;
-    MC_DiskSlot    disks[MC_MAX_DISK_SLOTS];
+    int wheel;
+    bool enabled;
+    MC_DiskSlot disks[MC_MAX_DISK_SLOTS];
 
     /* HDLC-only settings (ignored for other types). */
-    bool           hdlc_is_server;   /* true = server (listen), false = client */
-    char           hdlc_host[MC_PATH_LEN];
-    int            hdlc_port;
+    bool hdlc_is_server; /* true = server (listen), false = client */
+    char hdlc_host[MC_PATH_LEN];
+    int hdlc_port;
 } MC_Controller;
 
 /* Boot device. For a disc boot, (type,wheel,unit) name the controller slot.
  * For a file boot (bpun/aout), file_boot_type + file are used instead. */
-typedef struct {
-    bool           is_disc;
+typedef struct
+{
+    bool is_disc;
     CtrlType type;
-    int            wheel;
-    int            unit;
-    BOOT_TYPE      file_boot_type;   /* BOOT_BPUN / BOOT_AOUT when !is_disc */
-    char           file[MC_PATH_LEN];
+    int wheel;
+    int unit;
+    BOOT_TYPE file_boot_type; /* BOOT_BPUN / BOOT_AOUT when !is_disc */
+    char file[MC_PATH_LEN];
 } MC_BootSpec;
 
 /* Non-hardware runtime options. A CLI flag overrides the INI value per run. */
-typedef struct {
-    int    telnet_port;     /* 0 = off */
-    double throttle_mhz;    /* 0 = off */
-    char   charset[16];     /* "off"|"norwegian"|"swedish"|"german" */
-    char   printdir[MC_PATH_LEN];
-    char   tapedir[MC_PATH_LEN];
-    int    debugger_port;   /* 0 = off */
-    bool   trace;
+typedef struct
+{
+    int telnet_port;     /* 0 = off */
+    double throttle_mhz; /* 0 = off */
+    char charset[16];    /* "off"|"norwegian"|"swedish"|"german" */
+    char printdir[MC_PATH_LEN];
+    char tapedir[MC_PATH_LEN];
+    int debugger_port; /* 0 = off */
+    bool trace;
     /* NORD TSS optional devices, OFF by default. A non-empty path installs the
      * device (same gate as the --drum / --cdc CLI options, which override these). */
-    char   drum[MC_PATH_LEN];   /* swapping-drum image  (@ IOX 540); "" = no drum */
-    char   cdc[MC_PATH_LEN];    /* CDC system-disc image (@ IOX 500); "" = no CDC */
-    int    memory_mb;           /* installed main memory in MB (1..16); 0 = unset (use default/CLI) */
+    char drum[MC_PATH_LEN]; /* swapping-drum image  (@ IOX 540); "" = no drum */
+    char cdc[MC_PATH_LEN];  /* CDC system-disc image (@ IOX 500); "" = no CDC */
+    int memory_mb;          /* installed main memory in MB (1..16); 0 = unset (use default/CLI) */
     /* Interactive shell options (CLI flag overrides INI value) */
-    bool   shell_enabled;       /* enable interactive shell mode */
-    char   nd100_root[MC_PATH_LEN];  /* directory for BPUN/PROG files; "" = current dir */
-    char   script[MC_PATH_LEN];      /* script file to load in shell; "" = none */
-    char   log_spec[128];            /* log levels, e.g. "smd:debug,*:warn"; "" = defaults */
-    char   trace_nd110[MC_PATH_LEN]; /* "" = off, "on" = stdout, else the output file */
-    long   ring_at_pf;               /* instruction ring dump at the N'th page fault; 0 = off */
-    long   ring_at_clpt;             /* same at the N'th CLPT; 0 = off */
+    bool shell_enabled;            /* enable interactive shell mode */
+    char nd100_root[MC_PATH_LEN];  /* directory for BPUN/PROG files; "" = current dir */
+    char script[MC_PATH_LEN];      /* script file to load in shell; "" = none */
+    char log_spec[128];            /* log levels, e.g. "smd:debug,*:warn"; "" = defaults */
+    char trace_nd110[MC_PATH_LEN]; /* "" = off, "on" = stdout, else the output file */
+    long ring_at_pf;               /* instruction ring dump at the N'th page fault; 0 = off */
+    long ring_at_clpt;             /* same at the N'th CLPT; 0 = off */
 } MC_Runtime;
 
 /* The ND-500 at the other end of the bus interface.
@@ -114,71 +119,74 @@ typedef struct {
  * In the browser they are catalog names rather than filesystem paths, and the
  * parser has no business knowing the difference.
  */
-#define MC_ND500_MAX_DISKS 16      /* NDIX's own MAXDISK (kernel machine/fevar.h) */
+#define MC_ND500_MAX_DISKS 16 /* NDIX's own MAXDISK (kernel machine/fevar.h) */
 
-typedef struct {
-    bool  enabled;                 /* no [nd500] section at all = false */
-    int   memory_mb;               /* 0 = the emulator's default (16 MB) */
-    char  kernel[MC_PATH_LEN];     /* NDIX a.out; "" = taken from the root disc */
+typedef struct
+{
+    bool enabled;             /* no [nd500] section at all = false */
+    int memory_mb;            /* 0 = the emulator's default (16 MB) */
+    char kernel[MC_PATH_LEN]; /* NDIX a.out; "" = taken from the root disc */
     /* Segment files beside the kernel. BOTH or NEITHER: with an incomplete
      * pair the sizes are derived from the a.out header instead, which is the
      * path a kernel extracted from a disc image has to take. */
-    char  pseg[MC_PATH_LEN];
-    char  dseg[MC_PATH_LEN];
+    char pseg[MC_PATH_LEN];
+    char dseg[MC_PATH_LEN];
     /* disk0 is the root. A slot is unused when its image is empty. */
-    char  disks[MC_ND500_MAX_DISKS][MC_PATH_LEN];
-    bool  disk_writable[MC_ND500_MAX_DISKS];
+    char disks[MC_ND500_MAX_DISKS][MC_PATH_LEN];
+    bool disk_writable[MC_ND500_MAX_DISKS];
 } MC_Nd500;
 
-typedef struct {
+typedef struct
+{
     /* The CPU family number, kept because that is what existing .ini files
      * say and what MachineConfig_WriteFile still writes for the three plain
      * cases: 100 | 110 | 120. */
-    int            cpu_type;
+    int cpu_type;
     /* The RESOLVED model, and what MachineConfig_Apply actually installs. A
      * config may now name any model the emulator implements (ND110CX,
      * ND100CE, ...) instead of only the family; cpu_model is where that lands.
      * A bare number still works and maps as it always did. See cpu_model.h. */
-    int            cpu_model;       /* a CpuType */
-    int            fpp_bits;        /* 32 | 48 - floating point unit width (default 48) */
-    bool           rtc_wall;        /* false = RTC counts instruction ticks (default);
+    int cpu_model; /* a CpuType */
+    int fpp_bits;  /* 32 | 48 - floating point unit width (default 48) */
+    bool rtc_wall; /* false = RTC counts instruction ticks (default);
                                        true = RTC pulses every 20 ms of host wall-clock time */
 
-    MC_Controller  controllers[MC_MAX_CONTROLLERS];
-    int            controllerCount;
+    MC_Controller controllers[MC_MAX_CONTROLLERS];
+    int controllerCount;
 
-    int            terminals[MC_MAX_TERMINALS];
-    int            terminalCount;
+    int terminals[MC_MAX_TERMINALS];
+    int terminalCount;
 
-    bool           ptreader_enabled;
-    bool           ptpunch_enabled;
-    bool           lineprinter_enabled;
+    bool ptreader_enabled;
+    bool ptpunch_enabled;
+    bool lineprinter_enabled;
 
-    MC_BootSpec    boot;
-    MC_Runtime     runtime;
-    MC_Nd500       nd500;
+    MC_BootSpec boot;
+    MC_Runtime runtime;
+    MC_Nd500 nd500;
 
-    bool           loaded_from_file;
-    char           source_path[MC_PATH_LEN];
+    bool loaded_from_file;
+    char source_path[MC_PATH_LEN];
 } MachineConfig;
 
 /* ---- Controller registry ---- */
-typedef struct {
-    CtrlType  type;
-    const char     *name;        /* INI section name: controller.<name>.<wheel> */
-    int             min_wheel;
-    int             max_wheel;
-    const uint16_t *iox_base;    /* iox_base[wheel], valid for min..max_wheel */
-    int             iox_span;    /* IOX addresses claimed (for overlap checks) */
-    int             disk_slots;  /* 0 = not a disc controller */
-    bool            is_disc;
-    bool            bootable;
+typedef struct
+{
+    CtrlType type;
+    const char *name; /* INI section name: controller.<name>.<wheel> */
+    int min_wheel;
+    int max_wheel;
+    const uint16_t *iox_base; /* iox_base[wheel], valid for min..max_wheel */
+    int iox_span;             /* IOX addresses claimed (for overlap checks) */
+    int disk_slots;           /* 0 = not a disc controller */
+    bool is_disc;
+    bool bootable;
 } ControllerDescriptor;
 
 const ControllerDescriptor *MC_DescriptorForType(CtrlType type);
 const ControllerDescriptor *MC_DescriptorForName(const char *name);
-CtrlType              MC_CtrlTypeFromName(const char *name);
-const char                 *MC_CtrlTypeName(CtrlType type);
+CtrlType MC_CtrlTypeFromName(const char *name);
+const char *MC_CtrlTypeName(CtrlType type);
 
 /* Baseline machine with NO disc/network controllers: cpu 100, terminals 5-11,
  * peripherals on, boot smd.0.0, default runtime. Use this before loading an INI
@@ -192,8 +200,7 @@ void MachineConfig_SetDefaults(MachineConfig *cfg);
 /* Parse an INI file into cfg (cfg should be default-initialized first). On a
  * syntax/semantic error returns false and writes a user-friendly, file:line
  * qualified message into err. */
-bool MachineConfig_LoadFile(MachineConfig *cfg, const char *path,
-                            char *err, size_t errlen);
+bool MachineConfig_LoadFile(MachineConfig *cfg, const char *path, char *err, size_t errlen);
 
 /* Validate a populated config (wheel ranges, duplicate controllers, IOX overlap,
  * boot device sanity). Returns false + friendly message on the first problem. */
@@ -206,8 +213,7 @@ void MachineConfig_Print(const MachineConfig *cfg, FILE *out);
 /* Serialize the machine to INI text (the native twin of the web Download-.ini).
  * Writes a commented, round-trippable file. Returns false on a write error with
  * a friendly message in err. */
-bool MachineConfig_WriteFile(const MachineConfig *cfg, const char *path,
-                             char *err, size_t errlen);
+bool MachineConfig_WriteFile(const MachineConfig *cfg, const char *path, char *err, size_t errlen);
 
 /* Map the INI cpu number (100/110) to the CPU emulator's CpuType. Returns true
  * and sets *outType on success; false if the number has no CpuType yet (e.g.

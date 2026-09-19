@@ -29,7 +29,12 @@
 /* Append to a bounded buffer, tracking overflow rather than truncating
  * silently: a half-written JSON object would fail to parse in the browser with
  * no clue why. */
-typedef struct { char *p; size_t left; int overflow; } Sink;
+typedef struct
+{
+    char *p;
+    size_t left;
+    int overflow;
+} Sink;
 
 static void put(Sink *s, const char *fmt, ...) __attribute__((format(printf, 2, 3)));
 
@@ -37,11 +42,18 @@ static void put(Sink *s, const char *fmt, ...)
 {
     va_list ap;
     int n;
-    if (s->overflow) return;
+    if (s->overflow)
+    {
+        return;
+    }
     va_start(ap, fmt);
     n = vsnprintf(s->p, s->left, fmt, ap);
     va_end(ap);
-    if (n < 0 || (size_t)n >= s->left) { s->overflow = 1; return; }
+    if (n < 0 || (size_t)n >= s->left)
+    {
+        s->overflow = 1;
+        return;
+    }
     s->p += n;
     s->left -= (size_t)n;
 }
@@ -50,17 +62,38 @@ static void put(Sink *s, const char *fmt, ...)
  * a Windows path full of backslashes is the realistic input here. */
 static void esc(Sink *s, const char *v)
 {
-    if (!v) return;
-    for (; *v; v++) {
-        switch (*v) {
-        case '"':  put(s, "\\\""); break;
-        case '\\': put(s, "\\\\"); break;
-        case '\n': put(s, "\\n");  break;
-        case '\r': put(s, "\\r");  break;
-        case '\t': put(s, "\\t");  break;
+    if (!v)
+    {
+        return;
+    }
+    for (; *v; v++)
+    {
+        switch (*v)
+        {
+        case '"':
+            put(s, "\\\"");
+            break;
+        case '\\':
+            put(s, "\\\\");
+            break;
+        case '\n':
+            put(s, "\\n");
+            break;
+        case '\r':
+            put(s, "\\r");
+            break;
+        case '\t':
+            put(s, "\\t");
+            break;
         default:
-            if ((unsigned char)*v < 0x20) put(s, "\\u%04x", (unsigned char)*v);
-            else                          put(s, "%c", *v);
+            if ((unsigned char)*v < 0x20)
+            {
+                put(s, "\\u%04x", (unsigned char)*v);
+            }
+            else
+            {
+                put(s, "%c", *v);
+            }
         }
     }
 }
@@ -75,12 +108,18 @@ static void kv_str(Sink *s, const char *key, const char *val, int comma)
 /* The SCSI media vocabulary, as the INI spells it. */
 static const char *media_name(SCSIUnitType m)
 {
-    switch (m) {
-    case SCSI_UNIT_HDD:    return "hdd";
-    case SCSI_UNIT_CDROM:  return "cdrom";
-    case SCSI_UNIT_TAPE:   return "tape";
-    case SCSI_UNIT_FLOPPY: return "floppy";
-    default:               return "hdd";
+    switch (m)
+    {
+    case SCSI_UNIT_HDD:
+        return "hdd";
+    case SCSI_UNIT_CDROM:
+        return "cdrom";
+    case SCSI_UNIT_TAPE:
+        return "tape";
+    case SCSI_UNIT_FLOPPY:
+        return "floppy";
+    default:
+        return "hdd";
     }
 }
 
@@ -89,8 +128,13 @@ bool MachineConfig_ToJson(const MachineConfig *cfg, char *out, size_t outlen)
     Sink s;
     int i, j;
 
-    if (!cfg || !out || outlen == 0) return false;
-    s.p = out; s.left = outlen; s.overflow = 0;
+    if (!cfg || !out || outlen == 0)
+    {
+        return false;
+    }
+    s.p = out;
+    s.left = outlen;
+    s.overflow = 0;
 
     put(&s, "{");
 
@@ -107,7 +151,9 @@ bool MachineConfig_ToJson(const MachineConfig *cfg, char *out, size_t outlen)
      * the list cannot go stale ---- */
     put(&s, "\"cpuModels\":[");
     for (i = 0; i < CpuModel_Count(); i++)
+    {
         put(&s, "%s\"%s\"", i ? "," : "", CpuModel_NameByIndex(i));
+    }
     put(&s, "],");
 
     /* ---- what a machine COULD have: the registry itself ----
@@ -118,13 +164,16 @@ bool MachineConfig_ToJson(const MachineConfig *cfg, char *out, size_t outlen)
      * via MC_DescriptorForType, so a type added there appears here for free. */
     put(&s, "\"controllerTypes\":[");
     {
-        static const CtrlType kinds[] = {
-            CTRL_FLOPPY, CTRL_SMD, CTRL_WINCHESTER, CTRL_SCSI, CTRL_HDLC
-        };
+        static const CtrlType kinds[] = {CTRL_FLOPPY, CTRL_SMD, CTRL_WINCHESTER, CTRL_SCSI,
+                                         CTRL_HDLC};
         int k, first = 1;
-        for (k = 0; k < (int)(sizeof(kinds) / sizeof(kinds[0])); k++) {
+        for (k = 0; k < (int)(sizeof(kinds) / sizeof(kinds[0])); k++)
+        {
             const ControllerDescriptor *d = MC_DescriptorForType(kinds[k]);
-            if (!d) continue;
+            if (!d)
+            {
+                continue;
+            }
             put(&s, "%s{", first ? "" : ",");
             first = 0;
             kv_str(&s, "type", d->name, 1);
@@ -140,7 +189,8 @@ bool MachineConfig_ToJson(const MachineConfig *cfg, char *out, size_t outlen)
 
     /* ---- controllers ---- */
     put(&s, "\"controllers\":[");
-    for (i = 0; i < cfg->controllerCount; i++) {
+    for (i = 0; i < cfg->controllerCount; i++)
+    {
         const MC_Controller *c = &cfg->controllers[i];
         const ControllerDescriptor *d = MC_DescriptorForType(c->type);
         put(&s, "%s{", i ? "," : "");
@@ -151,7 +201,8 @@ bool MachineConfig_ToJson(const MachineConfig *cfg, char *out, size_t outlen)
         put(&s, "\"bootable\":%s,", (d && d->bootable) ? "true" : "false");
         put(&s, "\"diskSlots\":%d,", d ? d->disk_slots : 0);
         put(&s, "\"disks\":[");
-        for (j = 0; j < MC_MAX_DISK_SLOTS; j++) {
+        for (j = 0; j < MC_MAX_DISK_SLOTS; j++)
+        {
             const MC_DiskSlot *k = &c->disks[j];
             put(&s, "%s{\"slot\":%d,\"present\":%s,", j ? "," : "", j,
                 k->present ? "true" : "false");
@@ -172,14 +223,16 @@ bool MachineConfig_ToJson(const MachineConfig *cfg, char *out, size_t outlen)
     /* ---- terminals ---- */
     put(&s, "\"terminals\":[");
     for (i = 0; i < cfg->terminalCount; i++)
+    {
         put(&s, "%s%d", i ? "," : "", cfg->terminals[i]);
+    }
     put(&s, "],");
 
     /* ---- peripherals ---- */
     put(&s, "\"peripherals\":{");
     put(&s, "\"papertapeReader\":%s,", cfg->ptreader_enabled ? "true" : "false");
-    put(&s, "\"papertapePunch\":%s,",  cfg->ptpunch_enabled  ? "true" : "false");
-    put(&s, "\"linePrinter\":%s",      cfg->lineprinter_enabled ? "true" : "false");
+    put(&s, "\"papertapePunch\":%s,", cfg->ptpunch_enabled ? "true" : "false");
+    put(&s, "\"linePrinter\":%s", cfg->lineprinter_enabled ? "true" : "false");
     put(&s, "},");
 
     /* ---- boot ---- */
@@ -204,8 +257,12 @@ bool MachineConfig_ToJson(const MachineConfig *cfg, char *out, size_t outlen)
     put(&s, "\"disks\":[");
     {
         int first = 1;
-        for (int slot = 0; slot < MC_ND500_MAX_DISKS; slot++) {
-            if (!cfg->nd500.disks[slot][0]) continue;
+        for (int slot = 0; slot < MC_ND500_MAX_DISKS; slot++)
+        {
+            if (!cfg->nd500.disks[slot][0])
+            {
+                continue;
+            }
             put(&s, "%s{\"slot\":%d,", first ? "" : ",", slot);
             kv_str(&s, "image", cfg->nd500.disks[slot], 1);
             put(&s, "\"writable\":%s}", cfg->nd500.disk_writable[slot] ? "true" : "false");
@@ -216,7 +273,8 @@ bool MachineConfig_ToJson(const MachineConfig *cfg, char *out, size_t outlen)
 
     put(&s, "}");
 
-    if (s.overflow) {
+    if (s.overflow)
+    {
         /* Say so in-band. The caller is JavaScript and an empty object is
          * something it can react to; a truncated one is not. */
         snprintf(out, outlen, "{\"error\":\"machine description did not fit\"}");

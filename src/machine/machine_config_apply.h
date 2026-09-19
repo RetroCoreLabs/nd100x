@@ -23,9 +23,10 @@
  * "the CLI wins over the .ini key", mirroring how --memory beats memory=.
  * A caller with no command line (the browser) passes zeroes and the config
  * decides everything. */
-typedef struct MachineConfigApplyOpts {
-    int fpp_already_set;   /* non-zero: leave CurrentFPPType alone */
-    int rtc_already_set;   /* non-zero: leave the RTC time base alone */
+typedef struct MachineConfigApplyOpts
+{
+    int fpp_already_set; /* non-zero: leave CurrentFPPType alone */
+    int rtc_already_set; /* non-zero: leave the RTC time base alone */
 } MachineConfigApplyOpts;
 
 /* TWO halves, and the order is not a style choice - they straddle machine_init().

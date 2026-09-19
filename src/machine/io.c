@@ -25,7 +25,6 @@
 #include <string.h>
 
 
-
 #include "machine_types.h"
 #include "machine_protos.h"
 
@@ -36,7 +35,9 @@
 int IO_Init(void)
 {
     if (DeviceManager_Init() != 0)
+    {
         return -1;
+    }
     DeviceManager_AddAllDevices();
     return 0;
 }
@@ -67,7 +68,9 @@ void IO_Tick(void)
     uint16_t interruptBits = DeviceManager_Tick();
 
     if (interruptBits)
+    {
         device_interrupt(interruptBits);
+    }
 }
 
 
