@@ -1133,8 +1133,10 @@ static const IoxRange g_core_ranges[] = {
 
 static bool ranges_overlap(uint16_t a, int aspan, uint16_t b, int bspan)
 {
-    uint32_t a0 = a, a1 = a + (uint32_t)aspan;
-    uint32_t b0 = b, b1 = b + (uint32_t)bspan;
+    uint32_t a0 = a;
+    uint32_t a1 = a + (uint32_t)aspan;
+    uint32_t b0 = b;
+    uint32_t b1 = b + (uint32_t)bspan;
     return a0 < b1 && b0 < a1;
 }
 

@@ -929,7 +929,8 @@ static void draw_floppy_details(void)
     mvwprintw(menu_state.detail_win, 0, 2, " Details ");
 
     // Get window dimensions
-    int win_height, win_width;
+    int win_height;
+    int win_width;
     getmaxyx(menu_state.detail_win, win_height, win_width);
     int max_width = win_width - 4; // Leave 2 chars margin on each side
 

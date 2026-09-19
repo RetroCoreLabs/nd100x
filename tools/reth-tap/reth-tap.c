@@ -90,7 +90,8 @@ static void on_signal(int sig)
 static int tap_open(const char *dev)
 {
     struct ifreq ifr;
-    int fd, flags;
+    int fd;
+    int flags;
 
     /* Refuse a name that is not already an interface.
      *
@@ -209,10 +210,15 @@ static int read_exact(int fd, unsigned char *p, size_t n)
  * same instant unable to deadlock on each other. */
 static int reth_connect(const char *host, int port)
 {
-    struct addrinfo hints, *res = NULL, *ai;
+    struct addrinfo hints;
+    struct addrinfo *res = NULL;
+    struct addrinfo *ai;
     char portstr[16];
-    unsigned char hello[RETH_HANDSHAKE_LEN], peer[RETH_HANDSHAKE_LEN];
-    int fd = -1, one = 1, rc;
+    uint8_t hello[RETH_HANDSHAKE_LEN];
+    uint8_t peer[RETH_HANDSHAKE_LEN];
+    int fd = -1;
+    int one = 1;
+    int rc;
 
     snprintf(portstr, sizeof portstr, "%d", port);
     memset(&hints, 0, sizeof hints);
@@ -498,7 +504,9 @@ int main(int argc, char **argv)
     const char *host = DEFAULT_HOST;
     int port = DEFAULT_PORT;
     int quiet = 0;
-    int tapfd, sock = -1, i;
+    int tapfd;
+    int sock = -1;
+    int i;
     unsigned char rx[2 * (2 + RETH_MAX_FRAME)];
     size_t rxlen = 0;
     unsigned long last_reported = ~0UL;

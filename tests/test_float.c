@@ -316,7 +316,9 @@ static void run_fp48_lock(void)
     for (i = 0; i < sizeof(fp48_pairs) / sizeof(fp48_pairs[0]); i++)
     {
         const fp48_pair_case *tc = &fp48_pairs[i];
-        uint16_t a[3], b[3], r[3];
+        uint16_t a[3];
+        uint16_t b[3];
+        uint16_t r[3];
         int rc;
 
         snprintf(name, sizeof(name), "pair[%u] a=%06o:%06o:%06o", i, tc->a[0], tc->a[1], tc->a[2]);
@@ -385,7 +387,8 @@ static void run_fp48_lock(void)
 /* Run one 32-bit op and return the result words. */
 static int op32(char op, uint16_t a0, uint16_t a1, uint16_t b0, uint16_t b1, uint16_t *r)
 {
-    uint16_t a[2] = {a0, a1}, b[2] = {b0, b1};
+    uint16_t a[2] = {a0, a1};
+    uint16_t b[2] = {b0, b1};
     switch (op)
     {
     case '+':
@@ -577,7 +580,8 @@ static void run_fp32(void)
     printf("32-bit FPP: FMU -> DNZ self-consistency\n");
     {
         /* float(2) * float(3) denormalizes back to the integer 6. */
-        uint16_t a[2] = {0040200, 0}, b[2] = {0040240, 0};
+        uint16_t a[2] = {0040200, 0};
+        uint16_t b[2] = {0040240, 0};
         NDFloat_Mul32(a, b, r);
         REG_T = 0125252;
         REG_A = r[0];

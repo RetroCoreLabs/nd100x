@@ -275,7 +275,8 @@ static void test_roundtrip_multiple_frames(void)
     // Build two frames back-to-back
     uint8_t p1[] = {0xAA, 0xBB};
     uint8_t p2[] = {0xCC, 0xDD, 0xEE};
-    uint8_t wire1[64], wire2[64];
+    uint8_t wire1[64];
+    uint8_t wire2[64];
     int len1 = HDLCFrame_BuildFrame(p1, 2, wire1, sizeof(wire1));
     int len2 = HDLCFrame_BuildFrame(p2, 3, wire2, sizeof(wire2));
 

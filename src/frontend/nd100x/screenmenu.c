@@ -374,7 +374,8 @@ static void draw_hdlc_status(void)
 
         bool connected = data->modem ? atomic_load(&data->modem->connected) : false;
 
-        char txBytesStr[16], rxBytesStr[16];
+        char txBytesStr[16];
+        char rxBytesStr[16];
         format_bytes(data->modem ? data->modem->bytesTx : 0, txBytesStr, sizeof(txBytesStr));
         format_bytes(data->modem ? data->modem->bytesRx : 0, rxBytesStr, sizeof(rxBytesStr));
 
@@ -387,8 +388,13 @@ static void draw_hdlc_status(void)
 
         // Fixed-width snprintf buffers so columns stay aligned regardless of value length
         {
-            char c_dma[8], c_bytes[16], c_frames[12], c_ena[16], c_errs[18], c_state[20],
-                c_queue[12];
+            char c_dma[8];
+            char c_bytes[16];
+            char c_frames[12];
+            char c_ena[16];
+            char c_errs[18];
+            char c_state[20];
+            char c_queue[12];
             char tmpBuf[24];
 
             // --- RX line ---
@@ -506,7 +512,8 @@ static void draw_hdlc_status(void)
             uint64_t txDrop = data->modem ? data->modem->txDropped : 0;
             if (rxDrop > 0 || txDrop > 0)
             {
-                char rxDropStr[16], txDropStr[16];
+                char rxDropStr[16];
+                char txDropStr[16];
                 format_bytes(rxDrop, rxDropStr, sizeof(rxDropStr));
                 format_bytes(txDrop, txDropStr, sizeof(txDropStr));
                 printf("    ** DROPPED: RX=%s  TX=%s\n", rxDropStr, txDropStr);
@@ -572,10 +579,12 @@ static const char *screen_status_text(MenuState *state, int i, void *telnet_serv
             const char *addr = TelnetServer_GetDeviceClientAddr(ts, state->screens[i].device);
 
             // Find terminal index in server for byte stats
-            uint64_t rx = 0, tx = 0;
+            uint64_t rx = 0;
+            uint64_t tx = 0;
             telnet_screen_stats(ts, state->screens[i].name, &rx, &tx);
 
-            char rxStr[16], txStr[16];
+            char rxStr[16];
+            char txStr[16];
             format_bytes(rx, rxStr, sizeof(rxStr));
             format_bytes(tx, txStr, sizeof(txStr));
 
@@ -700,10 +709,12 @@ static void draw_pending_list(void *telnetServer)
         {
             char addr[48];
             int age = 0;
-            uint64_t rx = 0, tx = 0;
+            uint64_t rx = 0;
+            uint64_t tx = 0;
             if (TelnetServer_GetPendingInfo(ts, i, addr, sizeof(addr), &age, &rx, &tx))
             {
-                char rxStr[16], txStr[16];
+                char rxStr[16];
+                char txStr[16];
                 format_bytes(rx, rxStr, sizeof(rxStr));
                 format_bytes(tx, txStr, sizeof(txStr));
                 printf("  %d) %-24s  %-10s  %-10s  %ds / 60s\n", i + 1, addr, rxStr, txStr, age);

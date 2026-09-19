@@ -402,7 +402,8 @@ typedef int (*escp_test_fn)(void);
 
 int run_escp_tests(void)
 {
-    int passed = 0, failed = 0;
+    int passed = 0;
+    int failed = 0;
     // clang-format off
     struct { const char *name; escp_test_fn fn; } tests[] = {
         { "escp_plain_text",     test_escp_plain_text },

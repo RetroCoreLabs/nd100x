@@ -351,7 +351,9 @@ static void SCSIHDD_CommandModeSense(SCSIHDDDevice *hdd)
     int size = t->scsi_cmdbuf[4];
     int pos = 1;
     uint32_t dsize;
-    int pmax, pmin, p;
+    int pmax;
+    int pmin;
+    int p;
     bool fail = false;
 
     SCSIHDD_Log(hdd, "command MODE SENSE(6) page=0x%02X alloc=0x%02X link=0x%02X", page, size,

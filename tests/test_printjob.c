@@ -308,7 +308,8 @@ typedef int (*pj_test_fn)(const char *);
 
 int run_printjob_tests(const char *tmpdir)
 {
-    int passed = 0, failed = 0;
+    int passed = 0;
+    int failed = 0;
     // clang-format off
     struct { const char *name; pj_test_fn fn; } tests[] = {
         { "pj_text_txt",          test_pj_text_txt },

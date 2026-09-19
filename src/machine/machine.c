@@ -768,8 +768,13 @@ static int tape_leader_load(const char *path, bool verbose)
         return -1;
     }
 
-    uint16_t acc = 0, loc = 0, lo = 0xFFFF, hi = 0;
-    int have = 0, start = -1, words = 0;
+    uint16_t acc = 0;
+    uint16_t loc = 0;
+    uint16_t lo = 0xFFFF;
+    uint16_t hi = 0;
+    int have = 0;
+    int start = -1;
+    int words = 0;
     int64_t i;
     for (i = 0; i < len; i++)
     {

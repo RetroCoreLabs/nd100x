@@ -126,7 +126,8 @@ static const char *media_name(SCSIUnitType m)
 bool MachineConfig_ToJson(const MachineConfig *cfg, char *out, size_t outlen)
 {
     Sink s;
-    int i, j;
+    int i;
+    int j;
 
     if (!cfg || !out || outlen == 0)
     {
@@ -166,7 +167,8 @@ bool MachineConfig_ToJson(const MachineConfig *cfg, char *out, size_t outlen)
     {
         static const CtrlType kinds[] = {CTRL_FLOPPY, CTRL_SMD, CTRL_WINCHESTER, CTRL_SCSI,
                                          CTRL_HDLC};
-        int k, first = 1;
+        int k;
+        int first = 1;
         for (k = 0; k < (int)(sizeof(kinds) / sizeof(kinds[0])); k++)
         {
             const ControllerDescriptor *d = MC_DescriptorForType(kinds[k]);

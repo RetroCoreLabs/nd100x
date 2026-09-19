@@ -320,7 +320,8 @@ int charset_translate_input(const char *seq, int len, char *out, int outmax)
         return n;
     }
 
-    int pos = 0, n = 0;
+    int pos = 0;
+    int n = 0;
 
     while (pos < len && n < outmax)
     {

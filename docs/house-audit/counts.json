@@ -154,28 +154,10 @@
   },
   "2.4": {
    "files": {
-    "src/cpu/cpu_disasm.c": 2,
     "src/cpu/cpu_instr.c": 32,
-    "src/cpu/cpu_regs.c": 1,
-    "src/cpu/float.c": 23,
-    "src/debugger/debugger.c": 4,
-    "src/devices/scsi/scsi_hdd.c": 1,
-    "src/frontend/nd100x/charset.c": 1,
-    "src/frontend/nd100x/menu.c": 1,
-    "src/frontend/nd100x/screenmenu.c": 7,
-    "src/machine/machine.c": 2,
-    "src/machine/machine_config.c": 2,
-    "src/machine/machine_config_json.c": 2,
-    "tests/test_escp.c": 1,
-    "tests/test_float.c": 3,
-    "tests/test_hdlc_frame.c": 1,
-    "tests/test_pdfwriter.c": 1,
-    "tests/test_printjob.c": 1,
-    "tools/reth-tap/reth-tap.c": 5,
-    "tools/reth-tap/test-framing.c": 2,
     "tools/reth-tap/test-gateway.c": 4
    },
-   "total": 96
+   "total": 36
   },
   "2.7": {
    "files": {
@@ -804,7 +786,7 @@
   "5.2": {
    "files": {
     "src/cpu/cpu.c": 19,
-    "src/cpu/cpu_disasm.c": 3,
+    "src/cpu/cpu_disasm.c": 2,
     "src/cpu/cpu_instr.c": 23,
     "src/cpu/cpu_mms.c": 5,
     "src/cpu/cpu_types.h": 2,
@@ -842,11 +824,11 @@
     "tests/test_pdfwriter.c": 1,
     "tests/test_printjob.c": 1,
     "tests/test_rtc.c": 12,
-    "tools/reth-tap/reth-tap.c": 8,
-    "tools/reth-tap/test-framing.c": 8,
+    "tools/reth-tap/reth-tap.c": 7,
+    "tools/reth-tap/test-framing.c": 7,
     "tools/reth-tap/test-gateway.c": 7
    },
-   "total": 190
+   "total": 187
   },
   "5.3": {
    "files": {

@@ -50,7 +50,8 @@ static void pair_sock(int fd[2])
 
 int main(void)
 {
-    int tap[2], sock[2];
+    int tap[2];
+    int sock[2];
     unsigned char buf[4096];
     unsigned char rx[2 * (2 + RETH_MAX_FRAME)];
     size_t rxlen;
@@ -114,7 +115,8 @@ int main(void)
     pair_sock(sock);
     rxlen = 0;
     {
-        unsigned char head[2 + 4], tail[6];
+        uint8_t head[2 + 4];
+        uint8_t tail[6];
         head[0] = 0;
         head[1] = 10;
         memset(head + 2, 0x11, 4);

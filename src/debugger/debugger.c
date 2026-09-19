@@ -1678,7 +1678,8 @@ static void add_level_variables(DAPServer *server, char *info_message, size_t in
     {
         uint16_t rP = g_reg->reg[i][_P];
         uint16_t rPCR = g_reg->reg_PCR[i];
-        uint16_t pt = 0, apt = 0;
+        uint16_t pt = 0;
+        uint16_t apt = 0;
 
         // decode PCR
         uint16_t ring = rPCR & 0x03;
@@ -2164,7 +2165,8 @@ static void add_page_mms_entries(DAPServer *server, char *info_message, size_t i
 
     // Get PCR for current runlevel
     uint16_t rPCR = g_reg->reg_PCR[gPIL];
-    uint16_t pt = 0, apt = 0;
+    uint16_t pt = 0;
+    uint16_t apt = 0;
 
     // decode PT and APT PCR
     if (rPCR & (1 << 2))
@@ -2237,7 +2239,8 @@ static void add_page_table_entries(DAPServer *server, char *info_message, size_t
 
     // Get PCR for current runlevel
     uint16_t rPCR = g_reg->reg_PCR[gPIL];
-    uint16_t pt = 0, apt = 0;
+    uint16_t pt = 0;
+    uint16_t apt = 0;
     PageTableMode ptm = Four; // Default to four page tables
 
     // decode PT and APT PCR
@@ -4301,7 +4304,9 @@ static int cmd_read_memory(DAPServer *server)
 static int debugger_base64_decode(const char *input, uint8_t *output, int max_output_len)
 {
     static const char b64[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    int input_len, output_len = 0, i = 0;
+    int input_len;
+    int output_len = 0;
+    int i = 0;
 
     if (!input || !output)
     {

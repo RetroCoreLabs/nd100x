@@ -100,7 +100,8 @@ void setreg(int r, int val)
 
 uint16_t getbit(uint16_t regnum, uint16_t stsbit)
 {
-    uint16_t result, tmp;
+    uint16_t result;
+    uint16_t tmp;
     if (regnum == _STS)
     {
         // Undoocumented, but all 16 STS bits are read

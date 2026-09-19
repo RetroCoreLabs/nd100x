@@ -69,7 +69,8 @@ void OpToStr(char *return_string, uint16_t max_len,
     char numstr[BUFSTRSIZE_SMALL];
     char deltastr[BUFSTRSIZE_SMALL];
     unsigned char nibble;
-    char offset, delta;
+    char offset;
+    char delta;
     unsigned char relmode;
     bool isneg;
     char opstr[BUFSTRSIZE];
@@ -870,7 +871,8 @@ void disasm_dump(void)
 {
     int i;
     int tmp;
-    unsigned char u, l;
+    uint8_t u;
+    uint8_t l;
     uint16_t w;
     char disasm_str[BUFSTRSIZE];
 

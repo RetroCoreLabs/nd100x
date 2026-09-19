@@ -497,7 +497,8 @@ typedef int (*pdf_test_fn_dir)(const char *);
 
 int run_pdfwriter_tests(const char *tmpdir)
 {
-    int passed = 0, failed = 0;
+    int passed = 0;
+    int failed = 0;
 
     // clang-format off
     struct { const char *name; pdf_test_fn fn; } basic_tests[] = {

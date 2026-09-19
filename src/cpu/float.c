@@ -86,7 +86,8 @@ static void mkfp48(struct fp *fp, uint16_t w1, uint16_t w2, uint16_t w3)
 static void add_core(struct fp *f1, struct fp *f2, int *s, int *e, uint64_t *m3)
 {
     struct fp *ft;
-    int scale, gbit;
+    int scale;
+    int gbit;
 
     /* Ensure f1 has the larger exponent */
     if (f2->e > f1->e)
@@ -125,7 +126,8 @@ static void add_core(struct fp *f1, struct fp *f2, int *s, int *e, uint64_t *m3)
 static void add48(struct fp *f1, struct fp *f2, uint16_t *r)
 {
     uint64_t m3;
-    int s, e;
+    int s;
+    int e;
 
     add_core(f1, f2, &s, &e, &m3);
 
@@ -150,7 +152,8 @@ static void add48(struct fp *f1, struct fp *f2, uint16_t *r)
 static void sub_core(struct fp *f1, struct fp *f2, int *s, int *e, uint64_t *m3, bool *isZero)
 {
     struct fp *ft;
-    int scale, gbit;
+    int scale;
+    int gbit;
 
     *isZero = false;
 
@@ -211,7 +214,8 @@ static void sub_core(struct fp *f1, struct fp *f2, int *s, int *e, uint64_t *m3,
 static void sub48(struct fp *f1, struct fp *f2, uint16_t *r)
 {
     uint64_t m3;
-    int s, e;
+    int s;
+    int e;
     bool isZero;
 
     sub_core(f1, f2, &s, &e, &m3, &isZero);
@@ -236,7 +240,8 @@ static void sub48(struct fp *f1, struct fp *f2, uint16_t *r)
  */
 int NDFloat_Add(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
 {
-    struct fp f1, f2;
+    struct fp f1;
+    struct fp f2;
 
     mkfp48(&f1, p_a[0], p_a[1], p_a[2]);
     mkfp48(&f2, p_b[0], p_b[1], p_b[2]);
@@ -261,7 +266,8 @@ int NDFloat_Add(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
  */
 int NDFloat_Sub(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
 {
-    struct fp f1, f2;
+    struct fp f1;
+    struct fp f2;
 
     mkfp48(&f1, p_a[0], p_a[1], p_a[2]);
     mkfp48(&f2, p_b[0], p_b[1], p_b[2]);
@@ -289,8 +295,10 @@ int NDFloat_Sub(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
  */
 int NDFloat_Mul(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
 {
-    struct fp f1, f2;
-    int s3, e3;
+    struct fp f1;
+    struct fp f2;
+    int s3;
+    int e3;
     uint64_t m3;
 
     mkfp48(&f1, p_a[0], p_a[1], p_a[2]);
@@ -328,8 +336,10 @@ int NDFloat_Mul(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
  */
 int NDFloat_Div(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
 {
-    struct fp f1, f2;
-    int s3, e3;
+    struct fp f1;
+    struct fp f2;
+    int s3;
+    int e3;
     uint64_t m3;
 
     /* f1 = divisor (from memory, p_b) */
@@ -386,7 +396,8 @@ int NDFloat_Div(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
  */
 void DoNLZ(char scaling)
 {
-    int sh, s;
+    int sh;
+    int s;
     int val;
 
     s = 0;
@@ -534,7 +545,8 @@ static void mkfp32(struct fp *fp, uint16_t a, uint16_t d)
  */
 static void pack32(int s, int e, uint64_t m, uint16_t *a, uint16_t *d)
 {
-    int eb, i;
+    int eb;
+    int i;
     uint32_t mant23;
 
     if (m == 0)
@@ -584,8 +596,10 @@ static void pack32(int s, int e, uint64_t m, uint16_t *a, uint16_t *d)
  */
 int NDFloat_Add32(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
 {
-    struct fp f1, f2;
-    int s, e;
+    struct fp f1;
+    struct fp f2;
+    int s;
+    int e;
     uint64_t m3;
     bool isZero;
 
@@ -628,8 +642,10 @@ int NDFloat_Add32(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
  */
 int NDFloat_Sub32(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
 {
-    struct fp f1, f2;
-    int s, e;
+    struct fp f1;
+    struct fp f2;
+    int s;
+    int e;
     uint64_t m3;
     bool isZero;
 
@@ -674,9 +690,12 @@ int NDFloat_Sub32(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
  */
 int NDFloat_Mul32(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
 {
-    struct fp f1, f2;
-    int s3, e3;
-    uint64_t m3, m32;
+    struct fp f1;
+    struct fp f2;
+    int s3;
+    int e3;
+    uint64_t m3;
+    uint64_t m32;
 
     mkfp32(&f1, p_a[0], p_a[1]);
     mkfp32(&f2, p_b[0], p_b[1]);
@@ -713,8 +732,10 @@ int NDFloat_Mul32(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
  */
 int NDFloat_Div32(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
 {
-    struct fp f1, f2;
-    int s3, e3;
+    struct fp f1;
+    struct fp f2;
+    int s3;
+    int e3;
     uint64_t m3;
 
     mkfp32(&f1, p_b[0], p_b[1]); /* divisor  (memory)    */
@@ -771,7 +792,10 @@ int NDFloat_Div32(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
  */
 void DoNLZ32(char scaling)
 {
-    int sh, s, val, e;
+    int sh;
+    int s;
+    int val;
+    int e;
     uint64_t m;
 
     gD = 0;
@@ -823,7 +847,9 @@ void DoNLZ32(char scaling)
  */
 void DoDNZ32(char scaling)
 {
-    int s, e, shift;
+    int s;
+    int e;
+    int shift;
     uint32_t mant23;
     int64_t val;
 
