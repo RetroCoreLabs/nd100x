@@ -74,20 +74,24 @@
  * `lr` (start-in-right-byte) skew and the odd-L byte-align pad so nibble/byte
  * indexing can never run off the end of the struct.  Only the first
  * bcd_mem_words() words are ever read from / written back to memory. */
-#define BCD_MAX_WORDS   10
+#define BCD_MAX_WORDS 10
 
 /* BCD sign nibble values written OUT.  (Input decoding is wider - see
  * bcd_decode_sign: A/C/E = +, B/D = -, F = unsigned.) */
+// clang-format off
 #define BCD_SIGN_POS 0x0C  /* 14 oct */
 #define BCD_SIGN_NEG 0x0D  /* 15 oct */
 #define BCD_SIGN_UNS 0x0F  /* 17 oct */
+// clang-format on
 
 /* Sign representation for ASCII operands, D2 bits 13-11. */
+// clang-format off
 #define BCD_ASCII_EMBEDDED_TRAILING 0  /* rightmost byte = LSD *and* sign (default) */
 #define BCD_ASCII_SEPARATE_TRAILING 1  /* rightmost byte = ASCII sign only */
 #define BCD_ASCII_EMBEDDED_LEADING  2  /* leftmost byte  = MSD *and* sign */
 #define BCD_ASCII_SEPARATE_LEADING  3  /* leftmost byte  = ASCII sign only */
 #define BCD_ASCII_UNSIGNED          4  /* bit 13 set: unsigned (BCD sign code 17 oct) */
+// clang-format on
 
 /* Error codes reported in the D register by PACK/UPACK. */
 #define BCD_ERR_ILLEGAL_CODE 2
@@ -101,17 +105,17 @@
  */
 typedef struct
 {
-    uint16_t  addr;                      /* D1: word address of the field       */
-    uint16_t  d2;                        /* D2: the raw descriptor              */
-    bool    starts_in_right_byte;      /* D2 bit 15 (lr)                      */
-    int     ascii_format;              /* D2 bits 13-11 (BCD_ASCII_*)         */
-    bool    rounding_on;               /* D2 bit 10                           */
-    int     decimal_point;             /* D2 bits 9-5                         */
-    int     field_length;              /* D2 bits 4-0: L, nibbles or bytes    */
-    bool    is_ascii;                  /* field length counts BYTES, not nibbles */
-    uint16_t  words[BCD_MAX_WORDS];      /* the field's memory words            */
-    bool    error;                     /* take the error return (no skip)     */
-    uint8_t error_code;                /* BCD_ERR_* (PACK/UPACK only)         */
+    uint16_t addr;                 /* D1: word address of the field       */
+    uint16_t d2;                   /* D2: the raw descriptor              */
+    bool starts_in_right_byte;     /* D2 bit 15 (lr)                      */
+    int ascii_format;              /* D2 bits 13-11 (BCD_ASCII_*)         */
+    bool rounding_on;              /* D2 bit 10                           */
+    int decimal_point;             /* D2 bits 9-5                         */
+    int field_length;              /* D2 bits 4-0: L, nibbles or bytes    */
+    bool is_ascii;                 /* field length counts BYTES, not nibbles */
+    uint16_t words[BCD_MAX_WORDS]; /* the field's memory words            */
+    bool error;                    /* take the error return (no skip)     */
+    uint8_t error_code;            /* BCD_ERR_* (PACK/UPACK only)         */
 } bcd_operand;
 
 /* ================================================================ */
@@ -143,26 +147,36 @@ static int bcd_mem_words(const bcd_operand *op)
     int len;
 
     if (op->field_length == 0)
+    {
         return 0;
+    }
 
     if (!op->is_ascii)
     {
         int m = bcd_byte_aligned_nibbles(op);
-        len = m >> 2;                 /* 4 nibbles per 16-bit word */
+        len = m >> 2; /* 4 nibbles per 16-bit word */
         if ((len << 2) != m)
-            len++;                    /* round up a partial word   */
+        {
+            len++; /* round up a partial word   */
+        }
     }
     else
     {
-        len = op->field_length >> 1;  /* 2 bytes per 16-bit word   */
+        len = op->field_length >> 1; /* 2 bytes per 16-bit word   */
         if ((len << 1) != op->field_length)
-            len++;                    /* round up an odd byte count */
+        {
+            len++; /* round up an odd byte count */
+        }
     }
 
     if (len == 0)
+    {
         len = 1;
+    }
     if (len > BCD_MAX_WORDS)
+    {
         len = BCD_MAX_WORDS;
+    }
     return len;
 }
 
@@ -210,9 +224,13 @@ static void bcd_set_byte(bcd_operand *op, int i, uint8_t val)
     uint16_t w = op->words[idx];
 
     if ((p & 1) == 0)
+    {
         w = (uint16_t)((w & 0x00FF) | ((uint16_t)val << 8));
+    }
     else
+    {
         w = (uint16_t)((w & 0xFF00) | val);
+    }
 
     op->words[idx] = w;
 }
@@ -255,7 +273,9 @@ static bool bcd_get_operand(bcd_operand *op, uint16_t d1, uint16_t d2, bool is_a
     }
 
     if (op->field_length == 0)
-        return true;                  /* empty operand => nothing to read, = 0 */
+    {
+        return true; /* empty operand => nothing to read, = 0 */
+    }
 
     /* LSD-FIRST (descending) read, matching the RASK microcode: decimal
      * operands are right adjusted, so the commercial-instruction microcode
@@ -265,7 +285,9 @@ static bool bcd_get_operand(bcd_operand *op, uint16_t d1, uint16_t d2, bool is_a
      * keeps our access trace an ordered subsequence of the oracle's. */
     mem_len = bcd_mem_words(op);
     for (i = mem_len - 1; i >= 0; i--)
+    {
         op->words[i] = MemoryRead((uint16_t)((op->addr + i) & 0xFFFF), true);
+    }
 
     return true;
 }
@@ -281,11 +303,15 @@ static void bcd_store_operand(bcd_operand *op)
     int i;
 
     if (op->field_length == 0)
-        return;                       /* empty field: nothing to store */
+    {
+        return; /* empty field: nothing to store */
+    }
 
     mem_len = bcd_mem_words(op);
     for (i = 0; i < mem_len; i++)
+    {
         MemoryWrite(op->words[i], (uint16_t)((op->addr + i) & 0xFFFF), true, 2);
+    }
 }
 
 /* ================================================================ */
@@ -313,20 +339,22 @@ static void bcd_decode_sign(const bcd_operand *op, int *sign, bool *is_unsigned)
     *is_unsigned = false;
 
     if (op->field_length == 0)
-        return;                       /* empty operand => +0 (FIROC, CS 010535) */
+    {
+        return; /* empty operand => +0 (FIROC, CS 010535) */
+    }
 
     sign_nib = bcd_get_nibble(op, bcd_byte_aligned_nibbles(op) - 1);
     switch (sign_nib)
     {
-        case 0x0B:
-        case 0x0D:
-            *sign = -1;               /* B / D = minus            */
-            break;
-        case 0x0F:
-            *is_unsigned = true;      /* F     = unsigned (plus)  */
-            break;
-        default:
-            break;                    /* A / C / E and anything else = plus */
+    case 0x0B:
+    case 0x0D:
+        *sign = -1; /* B / D = minus            */
+        break;
+    case 0x0F:
+        *is_unsigned = true; /* F     = unsigned (plus)  */
+        break;
+    default:
+        break; /* A / C / E and anything else = plus */
     }
 }
 
@@ -350,11 +378,15 @@ static void bcd_extract_magnitude(const bcd_operand *op, uint8_t *dst, int dst_l
 
     memset(dst, 0, (size_t)dst_len);
     if (digits > dst_len)
+    {
         digits = dst_len;
+    }
 
-    base = dst_len - digits;          /* right adjust */
+    base = dst_len - digits; /* right adjust */
     for (i = 0; i < digits; i++)
+    {
         dst[base + i] = (uint8_t)bcd_get_nibble(op, i);
+    }
 }
 
 /*
@@ -420,7 +452,9 @@ static int bcd_cmp_magnitude(const uint8_t *a, const uint8_t *b, int len)
     for (i = 0; i < len; i++)
     {
         if (a[i] != b[i])
+        {
             return (a[i] < b[i]) ? -1 : 1;
+        }
     }
     return 0;
 }
@@ -470,28 +504,34 @@ static void bcd_pack_magnitude_to_field(bcd_operand *op, const uint8_t *digits, 
     }
 
     m = bcd_byte_aligned_nibbles(op);
-    cap = op->field_length - 1;       /* significant capacity = descriptor L-1 */
+    cap = op->field_length - 1; /* significant capacity = descriptor L-1 */
     bcd_set_nibble(op, m - 1, out_sign_nibble);
 
     /* Fill the M-1 magnitude nibbles from the LSD (nibble M-2) upward: the low
      * `cap` nibbles take the result digits LSD..MSD, and any higher nibble (the
      * odd-L byte-align pad) is forced to zero. */
-    di = len - 1;                     /* digits is MSD-first, so its LSD is last */
+    di = len - 1; /* digits is MSD-first, so its LSD is last */
     for (pos = m - 2; pos >= 0; pos--)
     {
-        int slot_from_lsd = (m - 2) - pos;   /* 0 = the nibble just left of the sign */
+        int slot_from_lsd = (m - 2) - pos; /* 0 = the nibble just left of the sign */
 
         if (slot_from_lsd < cap)
+        {
             bcd_set_nibble(op, pos, (di >= 0) ? digits[di--] : 0);
+        }
         else
-            bcd_set_nibble(op, pos, 0);      /* forced leading-zero pad */
+        {
+            bcd_set_nibble(op, pos, 0); /* forced leading-zero pad */
+        }
     }
 
     /* Any digit MORE significant than the capacity => decimal overflow. */
     while (di >= 0)
     {
         if (digits[di] != 0)
+        {
             *overflow = true;
+        }
         di--;
     }
 }
@@ -511,7 +551,7 @@ static void bcd_pack_magnitude_to_field(bcd_operand *op, const uint8_t *digits, 
  */
 static bool bcd_add_sub(bcd_operand *op1, const bcd_operand *op2, int op2_sign_flip)
 {
-    uint8_t a[BCD_MAX_NIBBLES + 2];   /* result magnitude, MSD-first */
+    uint8_t a[BCD_MAX_NIBBLES + 2]; /* result magnitude, MSD-first */
     uint8_t b[BCD_MAX_NIBBLES + 2];
     int s1;
     int s2;
@@ -547,7 +587,7 @@ static bool bcd_add_sub(bcd_operand *op1, const bcd_operand *op2, int op2_sign_f
      * (17 oct) sign nibble regardless of the arithmetic sign. */
     op1_unsigned = ((op1->d2 >> 13) & 1) != 0;
 
-    eff_s2 = s2 * op2_sign_flip;      /* SUBD negates op2, then this is a plain add */
+    eff_s2 = s2 * op2_sign_flip; /* SUBD negates op2, then this is a plain add */
 
     /* Buffer size: the larger of the two magnitudes plus ONE guard digit that
      * absorbs the add carry-out (so the overflow test can see it). */
@@ -595,10 +635,11 @@ static bool bcd_add_sub(bcd_operand *op1, const bcd_operand *op2, int op2_sign_f
         }
     }
     if (is_zero)
+    {
         result_sign = s1;
+    }
 
-    out_sign = op1_unsigned ? BCD_SIGN_UNS
-                            : ((result_sign < 0) ? BCD_SIGN_NEG : BCD_SIGN_POS);
+    out_sign = op1_unsigned ? BCD_SIGN_UNS : ((result_sign < 0) ? BCD_SIGN_NEG : BCD_SIGN_POS);
 
     bcd_pack_magnitude_to_field(op1, a, cap, out_sign, &overflow);
     bcd_store_operand(op1);
@@ -625,14 +666,20 @@ void ndfunc_addd(uint16_t instr)
     (void)instr;
 
     if (!bcd_get_operand(&op1, gA, gD, false))
+    {
         return;
+    }
     if (!bcd_get_operand(&op2, gX, gT, false))
+    {
         return;
+    }
 
     if (!bcd_add_sub(&op1, &op2, +1))
-        return;                       /* overflow => error return (P+1) */
+    {
+        return; /* overflow => error return (P+1) */
+    }
 
-    gPC++;                            /* no error => SKIP return (P+2) */
+    gPC++; /* no error => SKIP return (P+2) */
 }
 
 /* ================================================================ */
@@ -651,14 +698,20 @@ void ndfunc_subd(uint16_t instr)
     (void)instr;
 
     if (!bcd_get_operand(&op1, gA, gD, false))
+    {
         return;
+    }
     if (!bcd_get_operand(&op2, gX, gT, false))
+    {
         return;
+    }
 
     if (!bcd_add_sub(&op1, &op2, -1))
-        return;                       /* overflow => error return (P+1) */
+    {
+        return; /* overflow => error return (P+1) */
+    }
 
-    gPC++;                            /* no error => SKIP return (P+2) */
+    gPC++; /* no error => SKIP return (P+2) */
 }
 
 /* ================================================================ */
@@ -695,40 +748,49 @@ static int bcd_compare(const bcd_operand *op1, const bcd_operand *op2)
     (void)u1;
     (void)u2;
 
-    max_dp = (op1->decimal_point > op2->decimal_point) ? op1->decimal_point
-                                                       : op2->decimal_point;
+    max_dp = (op1->decimal_point > op2->decimal_point) ? op1->decimal_point : op2->decimal_point;
     width = (int)sizeof(a);
 
     /* Extract right adjusted, then shift each magnitude LEFT by
      * (max_dp - own dp) digits so both share the same fractional scale. */
     bcd_extract_magnitude(op1, a, width - (max_dp - op1->decimal_point));
-    memset(a + width - (max_dp - op1->decimal_point), 0,
-           (size_t)(max_dp - op1->decimal_point));
+    memset(a + width - (max_dp - op1->decimal_point), 0, (size_t)(max_dp - op1->decimal_point));
     bcd_extract_magnitude(op2, b, width - (max_dp - op2->decimal_point));
-    memset(b + width - (max_dp - op2->decimal_point), 0,
-           (size_t)(max_dp - op2->decimal_point));
+    memset(b + width - (max_dp - op2->decimal_point), 0, (size_t)(max_dp - op2->decimal_point));
 
     for (i = 0; i < width; i++)
     {
         if (a[i] != 0)
+        {
             a_zero = false;
+        }
         if (b[i] != 0)
+        {
             b_zero = false;
+        }
     }
 
     /* Signed compare.  A zero magnitude is neither positive nor negative, so
      * -0 must compare EQUAL to +0. */
     if (a_zero)
+    {
         s1 = 0;
+    }
     if (b_zero)
+    {
         s2 = 0;
+    }
 
     if (s1 != s2)
+    {
         return (s1 < s2) ? -1 : 1;
+    }
 
     cmp = bcd_cmp_magnitude(a, b, width);
     if (s1 < 0)
-        cmp = -cmp;                   /* both negative: the larger magnitude is smaller */
+    {
+        cmp = -cmp; /* both negative: the larger magnitude is smaller */
+    }
     return cmp;
 }
 
@@ -752,19 +814,29 @@ void ndfunc_comd(uint16_t instr)
      * the access trace stays an ordered subsequence of the oracle's (and so
      * "first error wins" picks the same operand). */
     if (!bcd_get_operand(&op2, gX, gT, false))
+    {
         return;
+    }
     if (!bcd_get_operand(&op1, gA, gD, false))
+    {
         return;
+    }
 
     cmp = bcd_compare(&op1, &op2);
     if (cmp > 0)
+    {
         gA = 1;
+    }
     else if (cmp < 0)
+    {
         gA = 0xFFFF;
+    }
     else
+    {
         gA = 0;
+    }
 
-    gPC++;                            /* no error => SKIP return */
+    gPC++; /* no error => SKIP return */
 }
 
 /* ================================================================ */
@@ -825,30 +897,38 @@ static bool bcd_shde(bcd_operand *dst, const bcd_operand *src)
     /* An EMPTY op2 has nowhere to store the shifted result: error return
      * (P+1), op2 untouched. */
     if (dst->field_length == 0)
+    {
         return false;
+    }
 
     bcd_decode_sign(src, &src_sign, &src_unsigned);
 
     /* BYTE-ALIGNED LAYOUT, DESCRIPTOR CAPACITY (see bcd_pack_magnitude_to_field):
      * op1 has L-1 SIGNIFICANT magnitude nibbles sitting above an odd-L leading
      * zero pad, op2 has L-1 significant digit slots. */
-    src_pad = bcd_byte_aligned_nibbles(src) - src->field_length;  /* 0 or 1 */
+    src_pad = bcd_byte_aligned_nibbles(src) - src->field_length; /* 0 or 1 */
     src_digits = (src->field_length == 0) ? 0 : src->field_length - 1;
     dst_cap = dst->field_length - 1;
 
     if (src_digits > (int)sizeof(digits))
+    {
         src_digits = (int)sizeof(digits);
+    }
     for (i = 0; i < src_digits; i++)
+    {
         digits[i] = (uint8_t)bcd_get_nibble(src, src_pad + i);
+    }
 
-    count = src->decimal_point - dst->decimal_point;   /* rule (1) */
+    count = src->decimal_point - dst->decimal_point; /* rule (1) */
 
     if (count == 0)
     {
         /* No shift - copy op1's digits across (re-signed and right adjusted
          * into op2's field below). */
         for (i = 0; i < src_digits; i++)
+        {
             work[wlen++] = digits[i];
+        }
     }
     else if (count > 0)
     {
@@ -856,9 +936,13 @@ static bool bcd_shde(bcd_operand *dst, const bcd_operand *src)
         int keep = src_digits - count;
 
         if (keep < 0)
+        {
             keep = 0;
+        }
         for (i = 0; i < keep; i++)
+        {
             work[wlen++] = digits[i];
+        }
 
         /* rule (2): round ONCE, half up, on the most significant DISCARDED digit */
         if (dst->rounding_on && (count <= src_digits) && (digits[keep] >= 5))
@@ -876,7 +960,9 @@ static bool bcd_shde(bcd_operand *dst, const bcd_operand *src)
             {
                 /* Rounding grew the magnitude by a digit (999 -> 1000). */
                 for (i = wlen; i > 0; i--)
+                {
                     work[i] = work[i - 1];
+                }
                 work[0] = (uint8_t)carry;
                 wlen++;
             }
@@ -888,9 +974,13 @@ static bool bcd_shde(bcd_operand *dst, const bcd_operand *src)
         int k = -count;
 
         for (i = 0; i < src_digits; i++)
+        {
             work[wlen++] = digits[i];
+        }
         for (i = 0; (i < k) && (wlen < (int)sizeof(work)); i++)
+        {
             work[wlen++] = 0;
+        }
     }
 
     /* Right adjust `work` into op2's byte-aligned field.  rule (3): a NON-ZERO
@@ -902,22 +992,26 @@ static bool bcd_shde(bcd_operand *dst, const bcd_operand *src)
     for (i = 0; i < drop; i++)
     {
         if (work[i] != 0)
+        {
             overflow = true;
+        }
     }
 
     for (pos = mdst - 2; pos >= 0; pos--)
     {
-        int slot_from_lsd = (mdst - 2) - pos;   /* 0 = the slot left of the sign */
+        int slot_from_lsd = (mdst - 2) - pos; /* 0 = the slot left of the sign */
         int d = 0;
 
         if (slot_from_lsd < dst_cap)
         {
-            int wi = wlen - 1 - slot_from_lsd;  /* align work's LSD to nibble mdst-2 */
+            int wi = wlen - 1 - slot_from_lsd; /* align work's LSD to nibble mdst-2 */
 
             if ((wi >= 0) && (wi < wlen))
+            {
                 d = work[wi];
+            }
         }
-        bcd_set_nibble(dst, pos, d);            /* slots >= dst_cap: forced 0 pad */
+        bcd_set_nibble(dst, pos, d); /* slots >= dst_cap: forced 0 pad */
     }
 
     /* rule (4): output sign nibble. */
@@ -943,14 +1037,20 @@ void ndfunc_shde(uint16_t instr)
      * AND LAST WORD"), then the source is read last (RSHFT CS 011362 / LSHFB
      * CS 011177 read op1 just before the write). */
     if (!bcd_get_operand(&op2, gX, gT, false))
+    {
         return;
+    }
     if (!bcd_get_operand(&op1, gA, gD, false))
+    {
         return;
+    }
 
     if (!bcd_shde(&op2, &op1))
-        return;                       /* significant digits lost => error return */
+    {
+        return; /* significant digits lost => error return */
+    }
 
-    gPC++;                            /* no error => SKIP return */
+    gPC++; /* no error => SKIP return */
 }
 
 /* ================================================================ */
@@ -982,16 +1082,31 @@ static void bcd_ascii_layout(int format, int len, int *sign_byte, int *first, in
 {
     switch (format)
     {
-        case BCD_ASCII_EMBEDDED_TRAILING:
-            *sign_byte = len - 1; *first = 0; *last = len - 1; break;
-        case BCD_ASCII_SEPARATE_TRAILING:
-            *sign_byte = len - 1; *first = 0; *last = len - 2; break;
-        case BCD_ASCII_EMBEDDED_LEADING:
-            *sign_byte = 0;       *first = 0; *last = len - 1; break;
-        case BCD_ASCII_SEPARATE_LEADING:
-            *sign_byte = 0;       *first = 1; *last = len - 1; break;
-        default:                                        /* unsigned */
-            *sign_byte = -1;      *first = 0; *last = len - 1; break;
+    case BCD_ASCII_EMBEDDED_TRAILING:
+        *sign_byte = len - 1;
+        *first = 0;
+        *last = len - 1;
+        break;
+    case BCD_ASCII_SEPARATE_TRAILING:
+        *sign_byte = len - 1;
+        *first = 0;
+        *last = len - 2;
+        break;
+    case BCD_ASCII_EMBEDDED_LEADING:
+        *sign_byte = 0;
+        *first = 0;
+        *last = len - 1;
+        break;
+    case BCD_ASCII_SEPARATE_LEADING:
+        *sign_byte = 0;
+        *first = 1;
+        *last = len - 1;
+        break;
+    default: /* unsigned */
+        *sign_byte = -1;
+        *first = 0;
+        *last = len - 1;
+        break;
     }
 }
 
@@ -1002,7 +1117,7 @@ static void bcd_ascii_layout(int format, int len, int *sign_byte, int *first, in
  */
 static bool bcd_convert_to_packed(bcd_operand *dst, const bcd_operand *src)
 {
-    uint8_t digits[BCD_MAX_NIBBLES];  /* MSD..LSD */
+    uint8_t digits[BCD_MAX_NIBBLES]; /* MSD..LSD */
     int n_digits = 0;
     int sign = +1;
     int sign_byte;
@@ -1031,9 +1146,13 @@ static bool bcd_convert_to_packed(bcd_operand *dst, const bcd_operand *src)
         uint8_t sb = bcd_get_byte(src, sign_byte);
 
         if (sb == 0x2B)
+        {
             sign = +1;
+        }
         else if (sb == 0x2D)
+        {
             sign = -1;
+        }
         else
         {
             bcd_report_error(dst, BCD_ERR_ILLEGAL_CODE);
@@ -1044,19 +1163,39 @@ static bool bcd_convert_to_packed(bcd_operand *dst, const bcd_operand *src)
     for (i = first; (i <= last) && (n_digits < (int)sizeof(digits)); i++)
     {
         uint8_t b = bcd_get_byte(src, i);
-        bool embedded_sign = (i == sign_byte) &&
-                             ((src->ascii_format == BCD_ASCII_EMBEDDED_TRAILING) ||
-                              (src->ascii_format == BCD_ASCII_EMBEDDED_LEADING));
+        bool embedded_sign =
+            (i == sign_byte) && ((src->ascii_format == BCD_ASCII_EMBEDDED_TRAILING) ||
+                                 (src->ascii_format == BCD_ASCII_EMBEDDED_LEADING));
         int digit;
 
         if (embedded_sign)
         {
             /* Manual Table 5 overpunch, or a plain ASCII digit (= positive). */
-            if (b == 0x7B)                       { digit = 0; sign = +1; }
-            else if (b == 0x7D)                  { digit = 0; sign = -1; }
-            else if ((b >= 0x41) && (b <= 0x49)) { digit = b - 0x40; sign = +1; }
-            else if ((b >= 0x4A) && (b <= 0x52)) { digit = b - 0x49; sign = -1; }
-            else if ((b >= 0x30) && (b <= 0x39)) { digit = b & 0x0F; sign = +1; }
+            if (b == 0x7B)
+            {
+                digit = 0;
+                sign = +1;
+            }
+            else if (b == 0x7D)
+            {
+                digit = 0;
+                sign = -1;
+            }
+            else if ((b >= 0x41) && (b <= 0x49))
+            {
+                digit = b - 0x40;
+                sign = +1;
+            }
+            else if ((b >= 0x4A) && (b <= 0x52))
+            {
+                digit = b - 0x49;
+                sign = -1;
+            }
+            else if ((b >= 0x30) && (b <= 0x39))
+            {
+                digit = b & 0x0F;
+                sign = +1;
+            }
             else
             {
                 bcd_report_error(dst, BCD_ERR_ILLEGAL_CODE);
@@ -1076,8 +1215,8 @@ static bool bcd_convert_to_packed(bcd_operand *dst, const bcd_operand *src)
     }
 
     /* Output sign nibble: unsigned destination (D2 bit 13) => 0xF. */
-    out_sign = (((dst->d2 >> 13) & 1) != 0) ? BCD_SIGN_UNS
-                                            : ((sign < 0) ? BCD_SIGN_NEG : BCD_SIGN_POS);
+    out_sign =
+        (((dst->d2 >> 13) & 1) != 0) ? BCD_SIGN_UNS : ((sign < 0) ? BCD_SIGN_NEG : BCD_SIGN_POS);
 
     if (dst->field_length == 0)
     {
@@ -1085,7 +1224,9 @@ static bool bcd_convert_to_packed(bcd_operand *dst, const bcd_operand *src)
         for (i = 0; i < n_digits; i++)
         {
             if (digits[i] != 0)
+            {
                 overflow = true;
+            }
         }
         if (overflow)
         {
@@ -1107,18 +1248,24 @@ static bool bcd_convert_to_packed(bcd_operand *dst, const bcd_operand *src)
         int slot_from_lsd = (m - 2) - pos;
 
         if (slot_from_lsd < cap)
+        {
             bcd_set_nibble(dst, pos, (di >= 0) ? digits[di--] : 0);
+        }
         else
-            bcd_set_nibble(dst, pos, 0);       /* forced leading-zero pad */
+        {
+            bcd_set_nibble(dst, pos, 0); /* forced leading-zero pad */
+        }
     }
     while (di >= 0)
     {
         if (digits[di] != 0)
+        {
             overflow = true;
+        }
         di--;
     }
 
-    bcd_store_operand(dst);           /* field written even on overflow */
+    bcd_store_operand(dst); /* field written even on overflow */
 
     if (overflow)
     {
@@ -1130,8 +1277,8 @@ static bool bcd_convert_to_packed(bcd_operand *dst, const bcd_operand *src)
 
 void ndfunc_pack(uint16_t instr)
 {
-    bcd_operand op1;                  /* A/D: ASCII source      */
-    bcd_operand op2;                  /* X/T: packed BCD dest   */
+    bcd_operand op1; /* A/D: ASCII source      */
+    bcd_operand op2; /* X/T: packed BCD dest   */
 
     (void)instr;
 
@@ -1142,14 +1289,20 @@ void ndfunc_pack(uint16_t instr)
      * "TEST A,D-OPERAND EMPTY, AND READ IT".  The packed result is written back
      * to op2 last. */
     if (!bcd_get_operand(&op2, gX, gT, false))
+    {
         return;
+    }
     if (!bcd_get_operand(&op1, gA, gD, true))
+    {
         return;
+    }
 
     if (!bcd_convert_to_packed(&op2, &op1))
-        return;                       /* illegal code / overflow => error return */
+    {
+        return; /* illegal code / overflow => error return */
+    }
 
-    gPC++;                            /* no error => SKIP return */
+    gPC++; /* no error => SKIP return */
 }
 
 /* ================================================================ */
@@ -1196,7 +1349,7 @@ static uint8_t unpacked_digit_byte(const bcd_operand *dst, int pos, int sign_byt
 
 static bool bcd_convert_to_unpacked(bcd_operand *dst, const bcd_operand *src)
 {
-    uint8_t digits[BCD_MAX_NIBBLES];  /* MSD..LSD */
+    uint8_t digits[BCD_MAX_NIBBLES]; /* MSD..LSD */
     int n_digits = 0;
     int m_src;
     int pad;
@@ -1227,12 +1380,22 @@ static bool bcd_convert_to_unpacked(bcd_operand *dst, const bcd_operand *src)
         sign_nib = bcd_get_nibble(src, m_src - 1);
         switch (sign_nib)
         {
-            case 0x0A: case 0x0C: case 0x0E: sign = +1; break;
-            case 0x0B: case 0x0D:            sign = -1; break;
-            case 0x0F: sign = +1; unsigned_src = true;  break;
-            default:
-                bcd_report_error(dst, BCD_ERR_ILLEGAL_CODE);
-                return false;
+        case 0x0A:
+        case 0x0C:
+        case 0x0E:
+            sign = +1;
+            break;
+        case 0x0B:
+        case 0x0D:
+            sign = -1;
+            break;
+        case 0x0F:
+            sign = +1;
+            unsigned_src = true;
+            break;
+        default:
+            bcd_report_error(dst, BCD_ERR_ILLEGAL_CODE);
+            return false;
         }
 
         for (i = pad; (i < m_src - 1) && (n_digits < (int)sizeof(digits)); i++)
@@ -1264,15 +1427,14 @@ static bool bcd_convert_to_unpacked(bcd_operand *dst, const bcd_operand *src)
     }
 
     /* Separate sign byte: '+' = 0x2B, '-' = 0x2D; unsigned => plain '0'. */
-    if ((sign_byte >= 0) &&
-        ((dst->ascii_format == BCD_ASCII_SEPARATE_TRAILING) ||
-         (dst->ascii_format == BCD_ASCII_SEPARATE_LEADING)))
+    if ((sign_byte >= 0) && ((dst->ascii_format == BCD_ASCII_SEPARATE_TRAILING) ||
+                             (dst->ascii_format == BCD_ASCII_SEPARATE_LEADING)))
     {
         bcd_set_byte(dst, sign_byte,
                      unsigned_req ? (uint8_t)0x30 : (uint8_t)((sign < 0) ? 0x2D : 0x2B));
     }
 
-    bcd_store_operand(dst);           /* field written even on overflow */
+    bcd_store_operand(dst); /* field written even on overflow */
 
     if (overflow)
     {
@@ -1284,8 +1446,8 @@ static bool bcd_convert_to_unpacked(bcd_operand *dst, const bcd_operand *src)
 
 void ndfunc_unpack(uint16_t instr)
 {
-    bcd_operand op1;                  /* A/D: packed BCD source */
-    bcd_operand op2;                  /* X/T: ASCII destination */
+    bcd_operand op1; /* A/D: packed BCD source */
+    bcd_operand op2; /* X/T: ASCII destination */
 
     (void)instr;
 
@@ -1303,10 +1465,14 @@ void ndfunc_unpack(uint16_t instr)
     }
 
     if (op2.field_length == 0)
-        return;                       /* no destination => error return */
+    {
+        return; /* no destination => error return */
+    }
 
     if (!bcd_convert_to_unpacked(&op2, &op1))
-        return;                       /* illegal code / overflow => error return */
+    {
+        return; /* illegal code / overflow => error return */
+    }
 
-    gPC++;                            /* no error => SKIP return */
+    gPC++; /* no error => SKIP return */
 }

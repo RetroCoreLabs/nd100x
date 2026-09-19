@@ -42,10 +42,14 @@ static bool cpu_throttle_enabled = false;
 static double cpu_throttle_mhz = 0.5275;
 
 // High-resolution clock for throttle timing
-static uint64_t throttle_get_ns(void) {
+static uint64_t throttle_get_ns(void)
+{
 #if defined(_WIN32) || defined(_WIN64)
     static LARGE_INTEGER freq = {0};
-    if (freq.QuadPart == 0) QueryPerformanceFrequency(&freq);
+    if (freq.QuadPart == 0)
+    {
+        QueryPerformanceFrequency(&freq);
+    }
     LARGE_INTEGER now;
     QueryPerformanceCounter(&now);
     return (uint64_t)(now.QuadPart * 1000000000ULL / freq.QuadPart);
@@ -58,7 +62,7 @@ static uint64_t throttle_get_ns(void) {
 
 
 #include <string.h>
-#include <stdlib.h>	/* getenv() - ND100X_CPUTYPE override, see cpu_set_type_from_env() */
+#include <stdlib.h> /* getenv() - ND100X_CPUTYPE override, see cpu_set_type_from_env() */
 #include <setjmp.h>
 #ifndef __EMSCRIPTEN__
 #include <unistd.h>
@@ -74,30 +78,30 @@ static uint16_t last_device_irq_bits = 0;
 void ring_dump(void);
 
 
-
 #ifdef WITH_DEBUGGER
-	void stop_debugger_thread(void);
+void stop_debugger_thread(void);
 
 #ifdef __EMSCRIPTEN__
-	/* WASM: single-threaded, no atomics needed */
-	static int s_cpu_run_mode;
-	static int s_cpu_stop_reason;
-	static bool s_debugger_request_pause;
-	static bool s_debugger_control_granted;
+/* WASM: single-threaded, no atomics needed */
+static int s_cpu_run_mode;
+static int s_cpu_stop_reason;
+static bool s_debugger_request_pause;
+static bool s_debugger_control_granted;
 #elif defined(_WIN32)
-    #include <windows.h>
-	static volatile LONG s_cpu_run_mode;
-	static volatile LONG s_cpu_stop_reason;
-	static volatile LONG s_debugger_request_pause;
-	static volatile LONG s_debugger_control_granted;
+#include <windows.h>
+static volatile LONG s_cpu_run_mode;
+static volatile LONG s_cpu_stop_reason;
+static volatile LONG s_debugger_request_pause;
+static volatile LONG s_debugger_control_granted;
 #else
-    #include <stdatomic.h>
-	#include <pthread.h>
+#include <stdatomic.h>
+#include <pthread.h>
 
-	static atomic_int s_cpu_run_mode;           // CPURunMode
-	static atomic_int s_cpu_stop_reason;     // CpuStopReason
-	static atomic_bool s_debugger_request_pause; // set by DAP thread to request pause
-	static atomic_bool s_debugger_control_granted; // set by CPU thread when paused and debugger can access
+static atomic_int s_cpu_run_mode;            // CPURunMode
+static atomic_int s_cpu_stop_reason;         // CpuStopReason
+static atomic_bool s_debugger_request_pause; // set by DAP thread to request pause
+static atomic_bool
+    s_debugger_control_granted; // set by CPU thread when paused and debugger can access
 #endif
 
 #else
@@ -157,12 +161,12 @@ FppType g_current_fpp_type = FPP48;
 // overridden at start-up by --memory / the .ini memory= key (range 1..16 MB). The
 // backing VolatileMemory array is always the 16 MB maximum; this caps how much is
 // actually installed/visible (see the `addr >= ND_Memsize` guards in cpu_mms.c).
-uint32_t g_nd_memsize = 4u * ND_WORDS_PER_MB;   // 2097152 words
+uint32_t g_nd_memsize = 4u * ND_WORDS_PER_MB; // 2097152 words
 
 
 struct CpuRegs *g_reg = NULL;
 
-uint64_t  g_instr_counter = 0;
+uint64_t g_instr_counter = 0;
 uint16_t g_start_addr = 0;
 int g_disasm = 0;
 int g_cpu_exit_code = 0;
@@ -177,8 +181,10 @@ int g_cpu_trace = 0;
  * the deepest frame reached = the stack high-water.  used = KERN_STOP - min.
  */
 int g_bsd_debug = 0;
+// clang-format off
 #define BSD_KSTK_BASE  0162000		/* u-area base (0xE400) */
 #define BSD_KSTK_TOP   0170000		/* KERN_STOP (0xF000, USIZE=3/KERN_SSIZE=1) */
+// clang-format on
 static unsigned short s_bsd_kstk_min = BSD_KSTK_TOP;
 uint64_t g_cpu_max_instr = 0;
 int g_cpu_breakpoint_enabled = 0;
@@ -186,17 +192,11 @@ uint16_t g_cpu_breakpoint_addr = 0;
 int g_cpu_ring_dump_size = 0;
 
 
-
 /* Instruction handling array */
-
-
-
-
 
 
 // Used for TRAP handling to exit an instruction that fails
 static jmp_buf s_cpu_jmp_buf;
-
 
 
 /* ND-110 opcode trace: 0 = off, 1 = on. Set by cpu_trace_nd110_set(); see do_op(). */
@@ -218,58 +218,58 @@ FILE *g_nd110_trace_fp = NULL;
  */
 int cpu_trace_nd110_set(const char *path)
 {
-	FILE *fp = stdout;
-	if (path != NULL && path[0] != '\0')
-	{
-		fp = fopen(path, "w");
-		if (fp == NULL)
-			return -1;
-	}
-	g_nd110_trace_fp = fp;
-	nd110_trace_enabled = 1;
-	return 0;
+    FILE *fp = stdout;
+    if (path != NULL && path[0] != '\0')
+    {
+        fp = fopen(path, "w");
+        if (fp == NULL)
+        {
+            return -1;
+        }
+    }
+    g_nd110_trace_fp = fp;
+    nd110_trace_enabled = 1;
+    return 0;
 }
 
 void do_op(uint16_t operand, bool isEXR)
 {
 
-	if (!isEXR)
-		gPC++; // Move P before starting instruction. (but not if executed from register)
+    if (!isEXR)
+    {
+        gPC++; // Move P before starting instruction. (but not if executed from register)
+    }
 
-	if (g_instr_funcs[operand] == NULL)
-	{
-		illegal_instr(operand);
-		return;
-	}
+    if (g_instr_funcs[operand] == NULL)
+    {
+        illegal_instr(operand);
+        return;
+    }
 
-	/*
+    /*
 	 * ND-110 trace (--trace-nd110[=FILE]): log every execution of an ND-110-only opcode
 	 * (VERSN, the 1403xx S3SEG group, the 14050x/14051x group and the 14070x bank group).
 	 * Used to see which of them the guest actually reaches when the CPU presents as
 	 * ND-110/CX.
 	 */
-	if (nd110_trace_enabled)
-	{
-		if (operand == 0140133 ||
-		    (operand >= 0140300 && operand <= 0140304) ||
-		    (operand >= 0140500 && operand <= 0140517) ||
-		    (operand >= 0140700 && operand <= 0140777))
-		{
-			fprintf(g_nd110_trace_fp,
-				"ND110OP %06o at %06o A=%06o T=%06o X=%06o D=%06o B=%06o STBNK=%06o STSRT=%06o CMBUK=%06o\n",
-				operand, (uint16_t)(gPC - 1), gA, gT, gX, gD, gB, gSTBNK, gSTSRT, gCMBUK);
-			fflush(g_nd110_trace_fp);
-		}
-	}
+    if (nd110_trace_enabled)
+    {
+        if (operand == 0140133 || (operand >= 0140300 && operand <= 0140304) ||
+            (operand >= 0140500 && operand <= 0140517) ||
+            (operand >= 0140700 && operand <= 0140777))
+        {
+            fprintf(g_nd110_trace_fp,
+                    "ND110OP %06o at %06o A=%06o T=%06o X=%06o D=%06o B=%06o STBNK=%06o STSRT=%06o "
+                    "CMBUK=%06o\n",
+                    operand, (uint16_t)(gPC - 1), gA, gT, gX, gD, gB, gSTBNK, gSTSRT, gCMBUK);
+            fflush(g_nd110_trace_fp);
+        }
+    }
 
-	g_instr_funcs[operand](operand); /* call using a function pointer from the array
+    g_instr_funcs[operand](operand); /* call using a function pointer from the array
 				   this way we are as flexible as possible as we
 				   implement io calls. */
-
 }
-
-
-
 
 
 /* Calculates the effective address to use.
@@ -280,51 +280,51 @@ void do_op(uint16_t operand, bool isEXR)
  */
 uint16_t New_GetEffectiveAddr(uint16_t instr, bool *use_apt)
 {
-	int disp = signExtend(instr & 0xFF);
-	uint16_t eff_addr;
+    int disp = signExtend(instr & 0xFF);
+    uint16_t eff_addr;
 
-	uint16_t P = (gPC - 1) & 0xFFFF;
+    uint16_t P = (gPC - 1) & 0xFFFF;
 
-	switch ((instr >> 8) & 0x07)
-	{
-	case 0: /* (P) + disp */
-		eff_addr = P + disp;
-		*use_apt = false;
-		break;
-	case 1: /* (B) + disp */
-		eff_addr = gB + disp;
-		*use_apt = true;
-		break;
-	case 2: /* ((P) + disp) */
-		eff_addr = P + disp;
-		eff_addr = ReadIndirectVirtualMemory(eff_addr, false);
-		*use_apt = true;
-		break;
-	case 3: /* ((B) + disp) */
-		eff_addr = gB + disp;
-		eff_addr = ReadIndirectVirtualMemory(eff_addr, true);
-		*use_apt = true;
-		break;
-	case 4: /* (X) + disp */
-		eff_addr = gX + disp;
-		*use_apt = true;
-		break;
-	case 5: /* (B) + disp + (X) */
-		eff_addr = gB + gX + disp;
-		*use_apt = true;
-		break;
-	case 6: /* ((P) + disp) + (X) */
-		eff_addr = P + disp;
-		eff_addr = gX + ReadIndirectVirtualMemory(eff_addr, false);
-		*use_apt = true;
-		break;
-	case 7: /* ((B) + disp) + (X) */
-		eff_addr = (gB + disp) & 0xFFFF;
-		eff_addr = gX + ReadIndirectVirtualMemory(eff_addr, true);
-		*use_apt = true;
-		break;
-	}
-	return eff_addr;
+    switch ((instr >> 8) & 0x07)
+    {
+    case 0: /* (P) + disp */
+        eff_addr = P + disp;
+        *use_apt = false;
+        break;
+    case 1: /* (B) + disp */
+        eff_addr = gB + disp;
+        *use_apt = true;
+        break;
+    case 2: /* ((P) + disp) */
+        eff_addr = P + disp;
+        eff_addr = ReadIndirectVirtualMemory(eff_addr, false);
+        *use_apt = true;
+        break;
+    case 3: /* ((B) + disp) */
+        eff_addr = gB + disp;
+        eff_addr = ReadIndirectVirtualMemory(eff_addr, true);
+        *use_apt = true;
+        break;
+    case 4: /* (X) + disp */
+        eff_addr = gX + disp;
+        *use_apt = true;
+        break;
+    case 5: /* (B) + disp + (X) */
+        eff_addr = gB + gX + disp;
+        *use_apt = true;
+        break;
+    case 6: /* ((P) + disp) + (X) */
+        eff_addr = P + disp;
+        eff_addr = gX + ReadIndirectVirtualMemory(eff_addr, false);
+        *use_apt = true;
+        break;
+    case 7: /* ((B) + disp) + (X) */
+        eff_addr = (gB + disp) & 0xFFFF;
+        eff_addr = gX + ReadIndirectVirtualMemory(eff_addr, true);
+        *use_apt = true;
+        break;
+    }
+    return eff_addr;
 }
 
 
@@ -353,23 +353,22 @@ uint16_t New_GetEffectiveAddr(uint16_t instr, bool *use_apt)
 ///  ----+----------+----------+------------------------------------------------------------------------
 uint16_t calcIIC(void)
 {
-	uint16_t priorityCode = gIID & gIIE;
-	if (priorityCode == 0)
-		return 0;
+    uint16_t priorityCode = gIID & gIIE;
+    if (priorityCode == 0)
+    {
+        return 0;
+    }
 
 
-	for (int i = 10; i >= 0; i--)
-	{
-		if ((priorityCode & (1 << i)) != 0)
-		{
-			return (uint16_t)i;
-		}
-	}
-	return 0;
+    for (int i = 10; i >= 0; i--)
+    {
+        if ((priorityCode & (1 << i)) != 0)
+        {
+            return (uint16_t)i;
+        }
+    }
+    return 0;
 }
-
-
-
 
 
 /*
@@ -378,42 +377,43 @@ uint16_t calcIIC(void)
  */
 void recalcInternalInterruptBits(void)
 {
-	// Check for Z (error) flag
-	if (getbit(_STS, _Z))
-	{
-		gIID |= 1 << 5;
-	}
+    // Check for Z (error) flag
+    if (getbit(_STS, _Z))
+    {
+        gIID |= 1 << 5;
+    }
 
-	if ((gIID & gIIE) != 0)
-	{
-		// Set PID bit 14 to trigger LVL change to 14
-		gPID |= (1 << 14);
-		gIIC = calcIIC();
-		gCHKIT = true; // removing this makes sintran crash during boot  // System malfunction. Sintran halt in ERRFATAL. L-reg: 042713
-	}
+    if ((gIID & gIIE) != 0)
+    {
+        // Set PID bit 14 to trigger LVL change to 14
+        gPID |= (1 << 14);
+        gIIC = calcIIC();
+        gCHKIT =
+            true; // removing this makes sintran crash during boot  // System malfunction. Sintran halt in ERRFATAL. L-reg: 042713
+    }
 }
 
 // Calculate PK based on PID and PIE
 void calcPK(void)
 {
-	// Recalculate PK based on PID and PIE
-	int lvl;
-	uint16_t i;
-	gPK = 0;
-	i = gPIE & gPID;
+    // Recalculate PK based on PID and PIE
+    int lvl;
+    uint16_t i;
+    gPK = 0;
+    i = gPIE & gPID;
 
-	if (i)
-	{
-		// Check for detected and enabled bits. Highest bits has highest priority
-		for (lvl = 15; lvl >= 0; lvl--)
-		{
-			if (i & 1 << lvl)
-			{
-				gPK = lvl;
-				return;
-			}
-		}
-	}
+    if (i)
+    {
+        // Check for detected and enabled bits. Highest bits has highest priority
+        for (lvl = 15; lvl >= 0; lvl--)
+        {
+            if (i & 1 << lvl)
+            {
+                gPK = lvl;
+                return;
+            }
+        }
+    }
 }
 
 /*
@@ -424,72 +424,77 @@ void calcPK(void)
 void interrupt(uint16_t lvl, uint16_t sub)
 {
 
-	if (lvl == 14)
-	{
-		// Diagnostic: log internal interrupts that would cause TDTLEV ERRFATAL
-		// SINTRAN expects internal interrupts only from levels 6-11 (RT program levels)
-		// Levels 0-5 and 12-15 cause ERRFATAL
-		//
-		// static const char *iic_names[] = {
-		// 	"n/a", "MC", "MPV", "PF", "II", "Z", "PI", "IOX", "PTY", "MOR", "POW"
-		// };
-		// int iic_bit = -1;
-		// for (int b = 10; b >= 0; b--) {
-		// 	if (sub & (1 << b)) { iic_bit = b; break; }
-		// }
-		// const char *iic_name = (iic_bit >= 0 && iic_bit <= 10) ? iic_names[iic_bit] : "?";
-		//
-		// // Log internal interrupts on device levels (12-15) that cause TDTLEV ERRFATAL
-		// if (gPIL >= 12)
-		// {
-		// 		iic_name, sub, gPIL, gPC, gPVL);
-		// }
+    if (lvl == 14)
+    {
+        // Diagnostic: log internal interrupts that would cause TDTLEV ERRFATAL
+        // SINTRAN expects internal interrupts only from levels 6-11 (RT program levels)
+        // Levels 0-5 and 12-15 cause ERRFATAL
+        //
+        // static const char *iic_names[] = {
+        // 	"n/a", "MC", "MPV", "PF", "II", "Z", "PI", "IOX", "PTY", "MOR", "POW"
+        // };
+        // int iic_bit = -1;
+        // for (int b = 10; b >= 0; b--) {
+        // 	if (sub & (1 << b)) { iic_bit = b; break; }
+        // }
+        // const char *iic_name = (iic_bit >= 0 && iic_bit <= 10) ? iic_names[iic_bit] : "?";
+        //
+        // // Log internal interrupts on device levels (12-15) that cause TDTLEV ERRFATAL
+        // if (gPIL >= 12)
+        // {
+        // 		iic_name, sub, gPIL, gPC, gPVL);
+        // }
 
-		gIID |= sub;
-		if (gIID & gIIE)
-			gPID |= (1 << 14);
-	}
-	else
-	{
-		gPID |= (1 << lvl);
-	}
+        gIID |= sub;
+        if (gIID & gIIE)
+        {
+            gPID |= (1 << 14);
+        }
+    }
+    else
+    {
+        gPID |= (1 << lvl);
+    }
 
-	recalcInternalInterruptBits();
+    recalcInternalInterruptBits();
 
-	// Check for MPV (bit 2), PF (bit 3), or illegal instruction (bit 4)
-	if (lvl == 14 && (sub & ((1 << 2) | (1 << 3) | (1 << 4))))
-	{
-		if (g_cpu_trace)
-			fprintf(stderr, "*** TRAP lvl=14 sub=%d(0x%x) P=%06o PGS=%04x PEA=%06o PIL=%d MMU=%d %s%s%s\n",
-				sub, sub, gPC, gPGS, gPEA, gPIL, STS_PONI,
-				(sub & (1<<2)) ? "MPV " : "",
-				(sub & (1<<3)) ? "PF " : "",
-				(sub & (1<<4)) ? "ILL " : "");
-		if (ND100X_HOT_TRACE && Log_IsEnabled(LOG_CAT_TRAP, LOG_TRACE))
-			Log_Write(LOG_CAT_TRAP, LOG_TRACE, "TRAP at P:[%6o], sub=%d", gPC, sub);
-		longjmp(s_cpu_jmp_buf, 1); // Jump back to cpurun() in cpu_thread
-	}
+    // Check for MPV (bit 2), PF (bit 3), or illegal instruction (bit 4)
+    if (lvl == 14 && (sub & ((1 << 2) | (1 << 3) | (1 << 4))))
+    {
+        if (g_cpu_trace)
+        {
+            fprintf(stderr,
+                    "*** TRAP lvl=14 sub=%d(0x%x) P=%06o PGS=%04x PEA=%06o PIL=%d MMU=%d %s%s%s\n",
+                    sub, sub, gPC, gPGS, gPEA, gPIL, STS_PONI, (sub & (1 << 2)) ? "MPV " : "",
+                    (sub & (1 << 3)) ? "PF " : "", (sub & (1 << 4)) ? "ILL " : "");
+        }
+        if (ND100X_HOT_TRACE && Log_IsEnabled(LOG_CAT_TRAP, LOG_TRACE))
+        {
+            Log_Write(LOG_CAT_TRAP, LOG_TRACE, "TRAP at P:[%6o], sub=%d", gPC, sub);
+        }
+        longjmp(s_cpu_jmp_buf, 1); // Jump back to cpurun() in cpu_thread
+    }
 }
 
 void device_interrupt(uint16_t interruptBits)
 {
-	last_device_irq_bits = interruptBits;
+    last_device_irq_bits = interruptBits;
 
-	// Only process bits 10-13 and 15 for device interrupts
-	uint16_t validBits = interruptBits & 0xBC00; // Mask for bits 10-13,15 (0b1111010000000000)
+    // Only process bits 10-13 and 15 for device interrupts
+    uint16_t validBits = interruptBits & 0xBC00; // Mask for bits 10-13,15 (0b1111010000000000)
 
-	uint16_t tmp = gPID;
+    uint16_t tmp = gPID;
 
-	// clear gIID bits 10-13,15
-	gPID &= ~validBits;
+    // clear gIID bits 10-13,15
+    gPID &= ~validBits;
 
-	// set gIID bits from device(s)
-	gPID |= validBits;
+    // set gIID bits from device(s)
+    gPID |= validBits;
 
-	if (tmp != gPID)
-	{
-		gCHKIT = true; // Check if we need to update PK based on new interrupts
-	}
+    if (tmp != gPID)
+    {
+        gCHKIT = true; // Check if we need to update PK based on new interrupts
+    }
 }
 
 
@@ -498,10 +503,8 @@ void device_interrupt(uint16_t interruptBits)
  */
 void PhysMemWrite(uint16_t value, uint32_t addr)
 {
-	WritePhysicalMemory(addr, value, false); // in cpu_mms.c
-	return;
-
-
+    WritePhysicalMemory(addr, value, false); // in cpu_mms.c
+    return;
 }
 
 /*
@@ -509,8 +512,7 @@ void PhysMemWrite(uint16_t value, uint32_t addr)
  */
 uint16_t PhysMemRead(uint32_t addr)
 {
-	return ReadPhysicalMemory(addr, false); // in cpu_mms.c
-
+    return ReadPhysicalMemory(addr, false); // in cpu_mms.c
 }
 
 #ifdef WITH_DEBUGGER
@@ -521,25 +523,28 @@ uint16_t PhysMemRead(uint32_t addr)
  */
 void cpu_watchpoint_triggered(uint32_t addr, bool isWrite)
 {
-	set_cpu_stop_reason(STOP_REASON_DATA_BREAKPOINT);
-	set_cpu_run_mode(CPU_BREAKPOINT);
-	if (!gDebuggerEnabled) {
-		fprintf(stderr, "\n--- CPU stopped: watchpoint %s at %06o (PC=%06o) ---\n",
-			isWrite ? "write" : "read", addr, gPC);
-		/* Caller frame context: B, B[-1]=NNN (frame size), and a window
+    set_cpu_stop_reason(STOP_REASON_DATA_BREAKPOINT);
+    set_cpu_run_mode(CPU_BREAKPOINT);
+    if (!gDebuggerEnabled)
+    {
+        fprintf(stderr, "\n--- CPU stopped: watchpoint %s at %06o (PC=%06o) ---\n",
+                isWrite ? "write" : "read", addr, gPC);
+        /* Caller frame context: B, B[-1]=NNN (frame size), and a window
 		 * so the offending .word NNN and arg-store offset can be read
 		 * directly instead of reconstructed. D-space (UseAPT=true). */
-		{
-			int i;
-			fprintf(stderr, "B=%06o  frame[B-2..B+4]:", gB);
-			for (i = -2; i <= 4; i++)
-				fprintf(stderr, " %06o",
-					(unsigned short)ReadVirtualMemory((gB + i) & 0xFFFF, true));
-			fprintf(stderr, "  (B[-1]=NNN)\n");
-		}
-		ring_dump();
-		set_cpu_run_mode(CPU_SHUTDOWN);
-	}
+        {
+            int i;
+            fprintf(stderr, "B=%06o  frame[B-2..B+4]:", gB);
+            for (i = -2; i <= 4; i++)
+            {
+                fprintf(stderr, " %06o",
+                        (unsigned short)ReadVirtualMemory((gB + i) & 0xFFFF, true));
+            }
+            fprintf(stderr, "  (B[-1]=NNN)\n");
+        }
+        ring_dump();
+        set_cpu_run_mode(CPU_SHUTDOWN);
+    }
 }
 #endif
 
@@ -550,17 +555,17 @@ void cpu_watchpoint_triggered(uint32_t addr, bool isWrite)
 void MemoryWrite(uint16_t value, uint16_t addr, bool UseAPT, unsigned char byte_select)
 {
 #ifdef WITH_DEBUGGER
-	// Hot path: counter check -> bitmap check -> slow path
-	// Cost when no watchpoints: 1 int compare (branch predictor: always not-taken)
-	// Cost when watchpoints active but addr miss: + 1 byte load + 1 bit test
-	if (g_watchpoint_count > 0
-	    && (g_watchpoint_bitmap[addr >> 3] & (1 << (addr & 7)))
-	    && (g_watchpoint_min_value == 0 || value >= (uint16_t)g_watchpoint_min_value)
-	    && watchpoint_check_slow(addr, true, UseAPT)) {
-		cpu_watchpoint_triggered(addr, true);
-	}
+    // Hot path: counter check -> bitmap check -> slow path
+    // Cost when no watchpoints: 1 int compare (branch predictor: always not-taken)
+    // Cost when watchpoints active but addr miss: + 1 byte load + 1 bit test
+    if (g_watchpoint_count > 0 && (g_watchpoint_bitmap[addr >> 3] & (1 << (addr & 7))) &&
+        (g_watchpoint_min_value == 0 || value >= (uint16_t)g_watchpoint_min_value) &&
+        watchpoint_check_slow(addr, true, UseAPT))
+    {
+        cpu_watchpoint_triggered(addr, true);
+    }
 #endif
-	WriteVirtualMemory(addr, value, UseAPT, byte_select); // in cpu_mms.c
+    WriteVirtualMemory(addr, value, UseAPT, byte_select); // in cpu_mms.c
 }
 
 /*
@@ -570,63 +575,64 @@ void MemoryWrite(uint16_t value, uint16_t addr, bool UseAPT, unsigned char byte_
 uint16_t MemoryRead(uint16_t addr, bool UseAPT)
 {
 #ifdef WITH_DEBUGGER
-	if (g_watchpoint_count > 0
-	    && (g_watchpoint_bitmap[addr >> 3] & (1 << (addr & 7)))
-	    && watchpoint_check_slow(addr, false, UseAPT)) {
-		cpu_watchpoint_triggered(addr, false);
-	}
+    if (g_watchpoint_count > 0 && (g_watchpoint_bitmap[addr >> 3] & (1 << (addr & 7))) &&
+        watchpoint_check_slow(addr, false, UseAPT))
+    {
+        cpu_watchpoint_triggered(addr, false);
+    }
 #endif
-	return ReadVirtualMemory(addr, UseAPT); // in cpu_mms.c
+    return ReadVirtualMemory(addr, UseAPT); // in cpu_mms.c
 }
 
 uint16_t MemoryFetch(uint16_t addr, bool UseAPT)
 {
-	return FetchVirtualMemory(addr, UseAPT); // in cpu_mms.c
+    return FetchVirtualMemory(addr, UseAPT); // in cpu_mms.c
 }
 
 /// @brief Check if we need to switch runlevel
 /// @return Returns true if a switch was made, false otherwise
 bool checkAndSwitch(void)
 {
-	if (gCHKIT)
-	{
-		gCHKIT = false; // reset flag
+    if (gCHKIT)
+    {
+        gCHKIT = false; // reset flag
 
-		// recalc internal interrupt bits
-		recalcInternalInterruptBits();
+        // recalc internal interrupt bits
+        recalcInternalInterruptBits();
 
-		if (!STS_IONI)
-			return false;
+        if (!STS_IONI)
+        {
+            return false;
+        }
 
-		calcPK();
+        calcPK();
 
-		if (gPK != gPIL)
-		{
-			setPIL(gPK); /* Change to new runlevel */
+        if (gPK != gPIL)
+        {
+            setPIL(gPK); /* Change to new runlevel */
 
-			if (ND100X_HOT_TRACE && Log_IsEnabled(LOG_CAT_PKSWITCH, LOG_TRACE))
-			{
-				bool isRTC = ((gPVL == 13) || (gPIL == 13));
-				if (!isRTC)
-				{
-					Log_Write(LOG_CAT_PKSWITCH, LOG_TRACE, "Switched from %d P[%6o] to %d P[%6o]",
-					          gPVL, g_reg->reg[gPVL][_P], gPIL, g_reg->reg[gPIL][_P]);
-					Log_Write(LOG_CAT_PKSWITCH, LOG_TRACE, "New pc after switch %6o", gPC);
-				}
-			}
-			return true;
-		}
-	}
-	return false;
+            if (ND100X_HOT_TRACE && Log_IsEnabled(LOG_CAT_PKSWITCH, LOG_TRACE))
+            {
+                bool isRTC = ((gPVL == 13) || (gPIL == 13));
+                if (!isRTC)
+                {
+                    Log_Write(LOG_CAT_PKSWITCH, LOG_TRACE, "Switched from %d P[%6o] to %d P[%6o]",
+                              gPVL, g_reg->reg[gPVL][_P], gPIL, g_reg->reg[gPIL][_P]);
+                    Log_Write(LOG_CAT_PKSWITCH, LOG_TRACE, "New pc after switch %6o", gPC);
+                }
+            }
+            return true;
+        }
+    }
+    return false;
 }
-
 
 
 // To reduce host load, we enable sleeping when the ND CPU is idle
 // The ND CPU is idle when running in level 0 in SINTRAN.
 // We detect that the CPU is idle by checking the gPIL register is == 0
 // But we only activate sleep when the CPU is idle for a while, and after it has been in another PIL level to achieve a quick boot.
-static uint16_t s_lvlcnt=0;
+static uint16_t s_lvlcnt = 0;
 static bool s_activate_sleep = false;
 
 // allocate once
@@ -638,28 +644,30 @@ uint16_t g_operand;
 // unless asked for; kept out of private_cpu_tick() so the hot path stays short.
 static void trace_before_exec(void)
 {
-	// CPU execution trace to stderr
-	if (g_cpu_trace)
-	{
-		char disasm_str[128];
-		OpToStr(disasm_str, sizeof(disasm_str), g_operand);
-		fprintf(stderr, "%06o %06o %-24s PIL=%d prevPIL=%d A=%06o D=%06o T=%06o X=%06o B=%06o L=%06o P=%06o STS=%04x PIE=%04x PID=%04x IIE=%04x IID=%04x PGS=%04x MMU=%d INT=%d SEX=%d\n",
-			gPC, g_operand, disasm_str,
-			gPIL, (g_reg->reg_STS >> 8) & 0x0F,
-			gA, gD, gT, gX, gB, gL, gPC,
-			gSTSr, gPIE, gPID, gIIE, gIID, gPGS,
-			STS_PONI, STS_IONI, STS_SEXI);
-	}
+    // CPU execution trace to stderr
+    if (g_cpu_trace)
+    {
+        char disasm_str[128];
+        OpToStr(disasm_str, sizeof(disasm_str), g_operand);
+        fprintf(
+            stderr,
+            "%06o %06o %-24s PIL=%d prevPIL=%d A=%06o D=%06o T=%06o X=%06o B=%06o L=%06o P=%06o "
+            "STS=%04x PIE=%04x PID=%04x IIE=%04x IID=%04x PGS=%04x MMU=%d INT=%d SEX=%d\n",
+            gPC, g_operand, disasm_str, gPIL, (g_reg->reg_STS >> 8) & 0x0F, gA, gD, gT, gX, gB, gL,
+            gPC, gSTSr, gPIE, gPID, gIIE, gIID, gPGS, STS_PONI, STS_IONI, STS_SEXI);
+    }
 
-	// BSD kernel-stack high-water: track deepest kernel frame pointer (B).
-	if (g_bsd_debug && gPIL >= 2) {
-		unsigned short b = gB;
-		if (b >= BSD_KSTK_BASE && b < BSD_KSTK_TOP && b < s_bsd_kstk_min) {
-			s_bsd_kstk_min = b;
-			fprintf(stderr, "KSTKHW min=%06o used=%d\n",
-				s_bsd_kstk_min, BSD_KSTK_TOP - s_bsd_kstk_min);
-		}
-	}
+    // BSD kernel-stack high-water: track deepest kernel frame pointer (B).
+    if (g_bsd_debug && gPIL >= 2)
+    {
+        unsigned short b = gB;
+        if (b >= BSD_KSTK_BASE && b < BSD_KSTK_TOP && b < s_bsd_kstk_min)
+        {
+            s_bsd_kstk_min = b;
+            fprintf(stderr, "KSTKHW min=%06o used=%d\n", s_bsd_kstk_min,
+                    BSD_KSTK_TOP - s_bsd_kstk_min);
+        }
+    }
 }
 
 void private_cpu_tick(void)
@@ -683,65 +691,67 @@ void private_cpu_tick(void)
     trace_before_exec();
 
     // Check max instruction limit
-	if (g_cpu_max_instr > 0 && g_instr_counter >= g_cpu_max_instr)
-	{
-		fprintf(stderr, "\n--- CPU stopped: max instruction count reached (%llu) ---\n",
-			(unsigned long long)g_cpu_max_instr);
-		ring_dump();
-		set_cpu_run_mode(CPU_SHUTDOWN);
-		return;
-	}
+    if (g_cpu_max_instr > 0 && g_instr_counter >= g_cpu_max_instr)
+    {
+        fprintf(stderr, "\n--- CPU stopped: max instruction count reached (%llu) ---\n",
+                (unsigned long long)g_cpu_max_instr);
+        ring_dump();
+        set_cpu_run_mode(CPU_SHUTDOWN);
+        return;
+    }
 
-	// Check breakpoint
-	if (g_cpu_breakpoint_enabled && gPC == g_cpu_breakpoint_addr)
-	{
-		fprintf(stderr, "\n--- CPU stopped: breakpoint at %06o ---\n", g_cpu_breakpoint_addr);
-		ring_dump();
-		set_cpu_run_mode(CPU_SHUTDOWN);
-		return;
-	}
+    // Check breakpoint
+    if (g_cpu_breakpoint_enabled && gPC == g_cpu_breakpoint_addr)
+    {
+        fprintf(stderr, "\n--- CPU stopped: breakpoint at %06o ---\n", g_cpu_breakpoint_addr);
+        ring_dump();
+        set_cpu_run_mode(CPU_SHUTDOWN);
+        return;
+    }
 
-	if (gPIL>0)
-		s_activate_sleep = true;
+    if (gPIL > 0)
+    {
+        s_activate_sleep = true;
+    }
 
 
-	if (s_activate_sleep)
-	{
-		// Check if we need to sleep
-		s_lvlcnt = (gPIL == 0) ? (s_lvlcnt + 1) : 0;
+    if (s_activate_sleep)
+    {
+        // Check if we need to sleep
+        s_lvlcnt = (gPIL == 0) ? (s_lvlcnt + 1) : 0;
 
-		if (s_lvlcnt > 10000)
-		{
+        if (s_lvlcnt > 10000)
+        {
 #ifndef __EMSCRIPTEN__
-			sleep_ms(1); // Sleep 1 ms - skip on WASM to avoid blocking browser
+            sleep_ms(1); // Sleep 1 ms - skip on WASM to avoid blocking browser
 #endif
-			s_lvlcnt = 0;
-		}
-	}
+            s_lvlcnt = 0;
+        }
+    }
 
 #ifdef WITH_DEBUGGER
-	if (gDebuggerEnabled)
-	{
-		// Debugger need to build the stack-trace to be used for single stepping (step-out)
-		debugger_build_stack_trace(gPC, g_operand);
-	}
+    if (gDebuggerEnabled)
+    {
+        // Debugger need to build the stack-trace to be used for single stepping (step-out)
+        debugger_build_stack_trace(gPC, g_operand);
+    }
 #endif
 
-	// Execute instruction
-	g_instr_counter++;
-	do_op(g_operand, false);
+    // Execute instruction
+    g_instr_counter++;
+    do_op(g_operand, false);
 
 #ifdef WITH_DEBUGGER
-	// After JPL instruction, we need to update the entry point of the JPL instruction to be able to find the symbol for the stack frame
-	if (gDebuggerEnabled)
-	{
-		// JPL instruction?
-		if ((g_operand & 0xF800) == 0134000)
-		{
-			// We need to update the entry point of the JPL instruction to be able to find the symbol for the stack frame
-			debugger_update_jpl_entrypoint(gPC);
-		}
-	}
+    // After JPL instruction, we need to update the entry point of the JPL instruction to be able to find the symbol for the stack frame
+    if (gDebuggerEnabled)
+    {
+        // JPL instruction?
+        if ((g_operand & 0xF800) == 0134000)
+        {
+            // We need to update the entry point of the JPL instruction to be able to find the symbol for the stack frame
+            debugger_update_jpl_entrypoint(gPC);
+        }
+    }
 #endif
 }
 
@@ -749,66 +759,101 @@ void private_cpu_tick(void)
 /// @return true if the next instruction is a jump, jaf, or similar, false otherwise
 bool cpu_instruction_is_jump(void)
 {
-	uint16_t operand =  MemoryFetch(gPC, false);
+    uint16_t operand = MemoryFetch(gPC, false);
 
-	// JMP
-	if ((operand & 0xF800) == 0124000) return true;
+    // JMP
+    if ((operand & 0xF800) == 0124000)
+    {
+        return true;
+    }
 
-	// JPL
+    // JPL
 
-	// CJPs - Conditional jumps
+    // CJPs - Conditional jumps
 
-	// JAP
-	if ((operand & 0xFF00) == 0130000) return true;
+    // JAP
+    if ((operand & 0xFF00) == 0130000)
+    {
+        return true;
+    }
 
-	// JAN
-	if ((operand & 0xFF00) == 0130400) return true;
+    // JAN
+    if ((operand & 0xFF00) == 0130400)
+    {
+        return true;
+    }
 
-	// JAZ
-	if ((operand & 0xFF00) == 0131000) return true;
+    // JAZ
+    if ((operand & 0xFF00) == 0131000)
+    {
+        return true;
+    }
 
-	// JAF
-	if ((operand & 0xFF00) == 0131400) return true;
+    // JAF
+    if ((operand & 0xFF00) == 0131400)
+    {
+        return true;
+    }
 
-	// JPC
-	if ((operand & 0xFF00) == 0132000) return true;
+    // JPC
+    if ((operand & 0xFF00) == 0132000)
+    {
+        return true;
+    }
 
-	// JNC
-	if ((operand & 0xFF00) == 0132400) return true;
+    // JNC
+    if ((operand & 0xFF00) == 0132400)
+    {
+        return true;
+    }
 
-	// JXZ
-	if ((operand & 0xFF00) == 0133000) return true;
+    // JXZ
+    if ((operand & 0xFF00) == 0133000)
+    {
+        return true;
+    }
 
-	// JXN
-	if ((operand & 0xFF00) == 0133400) return true;
+    // JXN
+    if ((operand & 0xFF00) == 0133400)
+    {
+        return true;
+    }
 
-	// SKP
-	if ((operand & 0xF8C0) == 0140000) return true;
+    // SKP
+    if ((operand & 0xF8C0) == 0140000)
+    {
+        return true;
+    }
 
 
-	return false;
+    return false;
 }
 
 /// @brief run the CPU for a number of ticks.
 /// @details This function runs the CPU for a number of ticks. It handles interrupts and checks for level switches.
 /* Ring buffer for last N instructions before exit */
 #define RING_SIZE 65536
-static struct {
+static struct
+{
     unsigned short pc;
     unsigned short opcode;
-    unsigned char  pil;
+    unsigned char pil;
     unsigned short a_reg;
     unsigned short sts;
     unsigned short pid;
     unsigned short pie;
     unsigned short iid;
     unsigned short iie;
-    unsigned short devbits;  /* device interrupt bits from last IO_Tick */
+    unsigned short devbits; /* device interrupt bits from last IO_Tick */
 } ring_buf[RING_SIZE];
 static int ring_idx = 0;
 
-static void ring_record(unsigned short pc, unsigned char pil, unsigned short opcode) {
-    if (g_cpu_ring_dump_size <= 0) return;
+static void ring_record(unsigned short pc, unsigned char pil, unsigned short opcode)
+{
+    if (g_cpu_ring_dump_size <= 0)
+    {
+        return;
+    }
     ring_buf[ring_idx].pc = pc;
     ring_buf[ring_idx].pil = pil;
     ring_buf[ring_idx].opcode = opcode;
@@ -822,43 +867,54 @@ static void ring_record(unsigned short pc, unsigned char pil, unsigned short opc
     ring_idx = (ring_idx + 1) % RING_SIZE;
 }
 
-void ring_dump(void) {
+void ring_dump(void)
+{
     int i;
     char disasm_str[128];
 
-    if (g_cpu_ring_dump_size <= 0) return;
+    if (g_cpu_ring_dump_size <= 0)
+    {
+        return;
+    }
 
     int count = g_cpu_ring_dump_size;
-    if (count > RING_SIZE) count = RING_SIZE;
+    if (count > RING_SIZE)
+    {
+        count = RING_SIZE;
+    }
 
     fprintf(stderr, "\r\n--- CPU state at exit ---\r\n");
-    fprintf(stderr, "PIL=%d PC=%06o A=%06o D=%06o T=%06o X=%06o B=%06o L=%06o\r\n",
-           gPIL, gPC, gA, gD, gT, gX, gB, gL);
-    fprintf(stderr, "STS=%04x PID=%04x PIE=%04x IID=%04x IIE=%04x PVL=%d\r\n",
-           gSTSr, gPID, gPIE, gIID, gIIE, gPVL);
+    fprintf(stderr, "PIL=%d PC=%06o A=%06o D=%06o T=%06o X=%06o B=%06o L=%06o\r\n", gPIL, gPC, gA,
+            gD, gT, gX, gB, gL);
+    fprintf(stderr, "STS=%04x PID=%04x PIE=%04x IID=%04x IIE=%04x PVL=%d\r\n", gSTSr, gPID, gPIE,
+            gIID, gIIE, gPVL);
     fprintf(stderr, "STS per-level: ");
     for (i = 0; i < 16; i++)
+    {
         fprintf(stderr, "[%d]=%03o ", i, g_reg->reg[i][0] & 0xFF);
+    }
     fprintf(stderr, "\r\n");
     fprintf(stderr, "PC per-level:  ");
     for (i = 0; i < 16; i++)
+    {
         fprintf(stderr, "[%d]=%06o ", i, g_reg->reg[i][_P]);
+    }
     fprintf(stderr, "\r\n");
 
     fprintf(stderr, "\r\n--- Last %d instructions before exit ---\r\n", count);
-    fprintf(stderr, "  [  ] PIL    PC   OPCODE  DISASM                    A    STS   PID   PIE   IID   IIE  DEVBITS\r\n");
+    fprintf(stderr, "  [  ] PIL    PC   OPCODE  DISASM                    A    STS   PID   PIE   "
+                    "IID   IIE  DEVBITS\r\n");
     /* Walk the ring from (ring_idx - count) to (ring_idx - 1), oldest first */
-    for (i = 0; i < count; i++) {
+    for (i = 0; i < count; i++)
+    {
         int idx = (ring_idx - count + i + RING_SIZE) % RING_SIZE;
-        if (ring_buf[idx].pc || ring_buf[idx].pil) {
+        if (ring_buf[idx].pc || ring_buf[idx].pil)
+        {
             OpToStr(disasm_str, sizeof(disasm_str), ring_buf[idx].opcode);
-            fprintf(stderr, "  [%3d] %2d %06o %06o %-24s %06o %04x %04x %04x %04x %04x %04x\r\n",
-                   i, ring_buf[idx].pil, ring_buf[idx].pc, ring_buf[idx].opcode,
-                   disasm_str,
-                   ring_buf[idx].a_reg, ring_buf[idx].sts,
-                   ring_buf[idx].pid, ring_buf[idx].pie,
-                   ring_buf[idx].iid, ring_buf[idx].iie,
-                   ring_buf[idx].devbits);
+            fprintf(stderr, "  [%3d] %2d %06o %06o %-24s %06o %04x %04x %04x %04x %04x %04x\r\n", i,
+                    ring_buf[idx].pil, ring_buf[idx].pc, ring_buf[idx].opcode, disasm_str,
+                    ring_buf[idx].a_reg, ring_buf[idx].sts, ring_buf[idx].pid, ring_buf[idx].pie,
+                    ring_buf[idx].iid, ring_buf[idx].iie, ring_buf[idx].devbits);
         }
     }
 }
@@ -867,150 +923,163 @@ void ring_dump(void) {
 /// @return Returns the number of ticks left to run.
 int cpu_run(int ticks_arg)
 {
-	/* volatile: a fault longjmp()s back to the setjmp() below, and C11 7.13.2.1
+    /* volatile: a fault longjmp()s back to the setjmp() below, and C11 7.13.2.1
 	 * leaves a non-volatile local that changed since setjmp indeterminate. */
-	volatile int ticks = ticks_arg;
+    volatile int ticks = ticks_arg;
 #ifdef WITH_DEBUGGER
-	static uint32_t dbg_poll_ctr = 0;   // emulated-instruction counter for async pause poll
-	if (get_debugger_control_granted()) {
+    static uint32_t dbg_poll_ctr = 0; // emulated-instruction counter for async pause poll
+    if (get_debugger_control_granted())
+    {
 #ifndef __EMSCRIPTEN__
-		sleep_ms(100); // Portable (POSIX nanosleep / Windows Sleep)
+        sleep_ms(100); // Portable (POSIX nanosleep / Windows Sleep)
 #endif
-		return ticks; // Debugger has control, return immediately
-	}
+        return ticks; // Debugger has control, return immediately
+    }
 #endif
 
-	// Set up longjmp target once at startup
-	if (setjmp(s_cpu_jmp_buf) != 0)
-	{
-		// We had an interrupt (MPV, PF, or illegal instruction)
-		// PGS bit 15 indicates if fault was during fetch (1) or data cycle (0)
+    // Set up longjmp target once at startup
+    if (setjmp(s_cpu_jmp_buf) != 0)
+    {
+        // We had an interrupt (MPV, PF, or illegal instruction)
+        // PGS bit 15 indicates if fault was during fetch (1) or data cycle (0)
 
-		// PGS:
-		//
-		// if bit 15 is a one, the page fault or protection violation occurred during the fetch of an instruction.
-		// In this case, the P register has not been incremented and the instruction causing the violation(and the restart point)
-		//
-		// If bit 15 is zero, the page fault or protection violation occurred during the data cycles of an instruction.
-		// In this case, the P register points to the instruction after the instruction causing the internal hardware status interrupt.
-		// When the cause of the internal hardware status interrupt has been removed, the restart point will be found by subtracting one from the P register.
+        // PGS:
+        //
+        // if bit 15 is a one, the page fault or protection violation occurred during the fetch of an instruction.
+        // In this case, the P register has not been incremented and the instruction causing the violation(and the restart point)
+        //
+        // If bit 15 is zero, the page fault or protection violation occurred during the data cycles of an instruction.
+        // In this case, the P register points to the instruction after the instruction causing the internal hardware status interrupt.
+        // When the cause of the internal hardware status interrupt has been removed, the restart point will be found by subtracting one from the P register.
 
-		if (g_cpu_trace)
-			fprintf(stderr, "*** FAULT RETURN PC=%06o PGS=%04x PEA=%06o PIL=%d MMU=%d\n",
-				gPC, gPGS, gPEA, gPIL, STS_PONI);
-		if (ND100X_HOT_TRACE && Log_IsEnabled(LOG_CAT_TRAP, LOG_TRACE))
-			Log_Write(LOG_CAT_TRAP, LOG_TRACE, "CPU: Interrupt handler returned, PC=%06o, PGS=%04x", gPC, gPGS);
-	}
+        if (g_cpu_trace)
+        {
+            fprintf(stderr, "*** FAULT RETURN PC=%06o PGS=%04x PEA=%06o PIL=%d MMU=%d\n", gPC, gPGS,
+                    gPEA, gPIL, STS_PONI);
+        }
+        if (ND100X_HOT_TRACE && Log_IsEnabled(LOG_CAT_TRAP, LOG_TRACE))
+        {
+            Log_Write(LOG_CAT_TRAP, LOG_TRACE, "CPU: Interrupt handler returned, PC=%06o, PGS=%04x",
+                      gPC, gPGS);
+        }
+    }
 
 
-	while (ticks !=0 )
-	{
-		CPURunMode current_run_mode = get_cpu_run_mode();
+    while (ticks != 0)
+    {
+        CPURunMode current_run_mode = get_cpu_run_mode();
 
 #ifdef WITH_DEBUGGER
-		// Async pause is human-latency, so poll it on the emulated machine's own
-		// timebase rather than per instruction or host wall-clock. 10550 instr is
-		// one ~20ms RTC period (device_rtc.c TICKS_20MS); 10 periods ~= 200ms of
-		// emulated time. Running faster than real-time only shortens the wall-clock
-		// latency, never lengthens it, so this is robust to any throttle/"max" speed.
-		//
-		// This MUST live at the top of the loop, before private_cpu_tick(): a page
-		// fault / protection violation longjmp()s back to the setjmp() target above
-		// and re-enters the loop here, skipping the tail. A tight trap-14 page-fault
-		// loop faults on every tick, so a tail-of-loop poll would never be reached
-		// and pause would hang until it times out. Polling here is fault-loop-proof.
-		#define DBG_POLL_INSTR (10550 * 10)
-		if (gDebuggerEnabled && ++dbg_poll_ctr >= DBG_POLL_INSTR) {
-			dbg_poll_ctr = 0;
-			if (get_debugger_request_pause()) {
-				// return ASAP, let the caller handle the debugger request
-				return ticks;
-			}
-		}
+// Async pause is human-latency, so poll it on the emulated machine's own
+// timebase rather than per instruction or host wall-clock. 10550 instr is
+// one ~20ms RTC period (device_rtc.c TICKS_20MS); 10 periods ~= 200ms of
+// emulated time. Running faster than real-time only shortens the wall-clock
+// latency, never lengthens it, so this is robust to any throttle/"max" speed.
+//
+// This MUST live at the top of the loop, before private_cpu_tick(): a page
+// fault / protection violation longjmp()s back to the setjmp() target above
+// and re-enters the loop here, skipping the tail. A tight trap-14 page-fault
+// loop faults on every tick, so a tail-of-loop poll would never be reached
+// and pause would hang until it times out. Polling here is fault-loop-proof.
+#define DBG_POLL_INSTR (10550 * 10)
+        if (gDebuggerEnabled && ++dbg_poll_ctr >= DBG_POLL_INSTR)
+        {
+            dbg_poll_ctr = 0;
+            if (get_debugger_request_pause())
+            {
+                // return ASAP, let the caller handle the debugger request
+                return ticks;
+            }
+        }
 #endif
 
 
+        if (current_run_mode == CPU_RUNNING) // Including Normal and Paused (=debugger mode)
+        {
+            {
+                uint16_t pre_pc = gPC;
+                uint16_t pre_pil = gPIL;
+                private_cpu_tick();
+                ring_record(pre_pc, pre_pil, g_operand);
+            }
 
-		if (current_run_mode == CPU_RUNNING) // Including Normal and Paused (=debugger mode)
-		{
-			{
-				uint16_t pre_pc = gPC;
-				uint16_t pre_pil = gPIL;
-				private_cpu_tick();
-				ring_record(pre_pc, pre_pil, g_operand);
-			}
+            // Tick IO devices pr cpu tick
+            IO_Tick();
 
-			// Tick IO devices pr cpu tick
-			IO_Tick();
+            // CPU throttle: sleep if running ahead of target speed
+            if (cpu_throttle_enabled)
+            {
+                static uint64_t throttle_start_ns = 0;
+                static uint64_t throttle_instr_count = 0;
+#define THROTTLE_CHECK_INTERVAL 10550 // Check every RTC period
 
-			// CPU throttle: sleep if running ahead of target speed
-			if (cpu_throttle_enabled) {
-				static uint64_t throttle_start_ns = 0;
-				static uint64_t throttle_instr_count = 0;
-				#define THROTTLE_CHECK_INTERVAL 10550  // Check every RTC period
+                if (throttle_start_ns == 0)
+                {
+                    throttle_start_ns = throttle_get_ns();
+                }
+                throttle_instr_count++;
 
-				if (throttle_start_ns == 0) {
-					throttle_start_ns = throttle_get_ns();
-				}
-				throttle_instr_count++;
+                if (throttle_instr_count >= THROTTLE_CHECK_INTERVAL)
+                {
+                    uint64_t now_ns = throttle_get_ns();
+                    uint64_t elapsed_ns = now_ns - throttle_start_ns;
+                    // Target: THROTTLE_CHECK_INTERVAL instructions at cpu_throttle_mhz MHz
+                    uint64_t target_ns =
+                        (uint64_t)(THROTTLE_CHECK_INTERVAL * 1000.0 / cpu_throttle_mhz);
 
-				if (throttle_instr_count >= THROTTLE_CHECK_INTERVAL) {
-					uint64_t now_ns = throttle_get_ns();
-					uint64_t elapsed_ns = now_ns - throttle_start_ns;
-					// Target: THROTTLE_CHECK_INTERVAL instructions at cpu_throttle_mhz MHz
-					uint64_t target_ns = (uint64_t)(THROTTLE_CHECK_INTERVAL * 1000.0 / cpu_throttle_mhz);
+                    if (elapsed_ns < target_ns)
+                    {
+                        uint64_t sleep_ns = target_ns - elapsed_ns;
+                        if (sleep_ns > 1000000)
+                        { // > 1ms: use sleep
+                            sleep_ms((unsigned int)(sleep_ns / 1000000));
+                        }
+                        // Spin-wait remainder for precision
+                        while (throttle_get_ns() - throttle_start_ns < target_ns)
+                        {
+                            // spin
+                        }
+                    }
+                    throttle_start_ns = throttle_get_ns();
+                    throttle_instr_count = 0;
+                }
+            }
 
-					if (elapsed_ns < target_ns) {
-						uint64_t sleep_ns = target_ns - elapsed_ns;
-						if (sleep_ns > 1000000) {  // > 1ms: use sleep
-							sleep_ms((unsigned int)(sleep_ns / 1000000));
-						}
-						// Spin-wait remainder for precision
-						while (throttle_get_ns() - throttle_start_ns < target_ns) {
-							// spin
-						}
-					}
-					throttle_start_ns = throttle_get_ns();
-					throttle_instr_count = 0;
-				}
-			}
-
-			if (ticks > 0)
-			{
-				ticks--;
-			}
+            if (ticks > 0)
+            {
+                ticks--;
+            }
 
 #ifdef WITH_DEBUGGER
-			// PC-breakpoint check, gated like watchpoints: when nothing is armed
-			// this is one compare; the hash walk in check_for_breakpoint() only
-			// runs when gPC actually has a breakpoint (or a single-step is pending).
-			if (gDebuggerEnabled
-			    && (g_breakpoint_step_pending
-			        || (g_breakpoint_entry_count > 0
-			            && (g_breakpoint_bitmap[gPC >> 3] & (1 << (gPC & 7))))))
-			{
-				if (check_for_breakpoint() != STOP_REASON_NONE)
-				{
-					return ticks;
-				}
-			}
+            // PC-breakpoint check, gated like watchpoints: when nothing is armed
+            // this is one compare; the hash walk in check_for_breakpoint() only
+            // runs when gPC actually has a breakpoint (or a single-step is pending).
+            if (gDebuggerEnabled &&
+                (g_breakpoint_step_pending || (g_breakpoint_entry_count > 0 &&
+                                               (g_breakpoint_bitmap[gPC >> 3] & (1 << (gPC & 7))))))
+            {
+                if (check_for_breakpoint() != STOP_REASON_NONE)
+                {
+                    return ticks;
+                }
+            }
 #endif
-		}
+        }
 
         else if (current_run_mode == CPU_STOPPED)
         {
             printf("CPU: WAS STOPPED, SHUTTING DOWN\r\n");
-			ring_dump();
-			set_cpu_run_mode(CPU_SHUTDOWN);
-			break;
+            ring_dump();
+            set_cpu_run_mode(CPU_SHUTDOWN);
+            break;
         }
-		else
-		{
- 			break;  // Exit loop if we are in any other state.
-		}
-	}
+        else
+        {
+            break; // Exit loop if we are in any other state.
+        }
+    }
 
-	return ticks;
+    return ticks;
 }
 
 
@@ -1026,71 +1095,90 @@ int cpu_run(int ticks_arg)
  */
 void cpu_set_type_from_env(void)
 {
-	const char *name = getenv("ND100X_CPUTYPE");
+    const char *name = getenv("ND100X_CPUTYPE");
 
-	if (name == NULL)
-		return;
+    if (name == NULL)
+    {
+        return;
+    }
 
-	if (strcmp(name, "ND100") == 0)
-		g_current_cpu_type = ND100;
-	else if (strcmp(name, "ND100CE") == 0)
-		g_current_cpu_type = ND100CE;
-	else if (strcmp(name, "ND100CX") == 0)
-		g_current_cpu_type = ND100CX;
-	else if (strcmp(name, "ND110") == 0)
-		g_current_cpu_type = ND110;
-	else if (strcmp(name, "ND110CE") == 0)
-		g_current_cpu_type = ND110CE;
-	else if (strcmp(name, "ND110CX") == 0)
-		g_current_cpu_type = ND110CX;
-	else if (strcmp(name, "ND110PCX") == 0)
-		g_current_cpu_type = ND110PCX;
-	else
-		LOG(LOG_CAT_CPU, LOG_WARN, "Unknown ND100X_CPUTYPE '%s' - keeping the default", name);
+    if (strcmp(name, "ND100") == 0)
+    {
+        g_current_cpu_type = ND100;
+    }
+    else if (strcmp(name, "ND100CE") == 0)
+    {
+        g_current_cpu_type = ND100CE;
+    }
+    else if (strcmp(name, "ND100CX") == 0)
+    {
+        g_current_cpu_type = ND100CX;
+    }
+    else if (strcmp(name, "ND110") == 0)
+    {
+        g_current_cpu_type = ND110;
+    }
+    else if (strcmp(name, "ND110CE") == 0)
+    {
+        g_current_cpu_type = ND110CE;
+    }
+    else if (strcmp(name, "ND110CX") == 0)
+    {
+        g_current_cpu_type = ND110CX;
+    }
+    else if (strcmp(name, "ND110PCX") == 0)
+    {
+        g_current_cpu_type = ND110PCX;
+    }
+    else
+    {
+        LOG(LOG_CAT_CPU, LOG_WARN, "Unknown ND100X_CPUTYPE '%s' - keeping the default", name);
+    }
 }
 
 void cpu_init(bool debuggerEnabled, int debuggerPort)
 {
-	/* initialize an empty register set (static storage: never freed, cannot fail) */
-	static struct CpuRegs s_cpu_regs;
-	memset(&s_cpu_regs, 0, sizeof(s_cpu_regs));
-	g_reg = &s_cpu_regs;
+    /* initialize an empty register set (static storage: never freed, cannot fail) */
+    static struct CpuRegs s_cpu_regs;
+    memset(&s_cpu_regs, 0, sizeof(s_cpu_regs));
+    g_reg = &s_cpu_regs;
 
-	/* Initialize volatile memory to zero */
-	memset(&g_volatile_memory, 0, sizeof(g_volatile_memory));
+    /* Initialize volatile memory to zero */
+    memset(&g_volatile_memory, 0, sizeof(g_volatile_memory));
 
-	setbit_STS_MSB(_N100, 1);
-	gCSR = 1 << 2; /* this bit sets the cache as not available */
+    setbit_STS_MSB(_N100, 1);
+    gCSR = 1 << 2; /* this bit sets the cache as not available */
 
-	/* Set cpu as running for now. Probably should depend on settings */
-	set_cpu_run_mode(CPU_RUNNING);
-	g_instr_counter = 0;
+    /* Set cpu as running for now. Probably should depend on settings */
+    set_cpu_run_mode(CPU_RUNNING);
+    g_instr_counter = 0;
 
-	// Allocate ShadowMemory for pagetables
-	CreatePagingTables();
+    // Allocate ShadowMemory for pagetables
+    CreatePagingTables();
 
-	/* Pick the CPU model BEFORE the dispatch table is built - it gates whole groups. */
-	cpu_set_type_from_env();
+    /* Pick the CPU model BEFORE the dispatch table is built - it gates whole groups. */
+    cpu_set_type_from_env();
 
-	/*
+    /*
 	 * The VERSN identity (back-wiring PROM + microprogram/print version) depends on
 	 * the CPU model, so it is reset AFTER cpu_set_type_from_env() and then given the
 	 * chance to be overridden by the ND100X_* identity variables. See ndfunc_versn().
 	 */
-	cpu_versn_reset();
-	cpu_versn_set_identity_from_env();
+    cpu_versn_reset();
+    cpu_versn_set_identity_from_env();
 
-	/* OK lets set up the parsing for our current cpu before we start it. */
-	Setup_Instructions();
+    /* OK lets set up the parsing for our current cpu before we start it. */
+    Setup_Instructions();
 
-	gALD = 01560; // oct 1560 (ALD position 4, Binary load from 1560) // Floppy
+    gALD = 01560; // oct 1560 (ALD position 4, Binary load from 1560) // Floppy
 
-	gDebuggerEnabled = debuggerEnabled;
-	gDebuggerPort = debuggerPort;
+    gDebuggerEnabled = debuggerEnabled;
+    gDebuggerPort = debuggerPort;
 
-	if (g_disasm)
-		disasm_setlbl(gPC);
-
+    if (g_disasm)
+    {
+        disasm_setlbl(gPC);
+    }
 }
 
 /// @brief Initialize the CPU debugger
@@ -1099,9 +1187,12 @@ void cpu_init(bool debuggerEnabled, int debuggerPort)
 void init_cpu_debugger(void)
 {
 #ifdef WITH_DEBUGGER
-	if (!gDebuggerEnabled) return;
-	breakpoint_manager_init();
-	start_debugger();
+    if (!gDebuggerEnabled)
+    {
+        return;
+    }
+    breakpoint_manager_init();
+    start_debugger();
 #endif
 }
 
@@ -1110,48 +1201,46 @@ void init_cpu_debugger(void)
 void cpu_reset(void)
 {
 
-	/* Initialize volatile memory to zero */
-	memset(&g_volatile_memory, 0, sizeof(g_volatile_memory));
+    /* Initialize volatile memory to zero */
+    memset(&g_volatile_memory, 0, sizeof(g_volatile_memory));
 
-	// Reset registers (preserve debugger state across reset)
+    // Reset registers (preserve debugger state across reset)
 #ifdef WITH_DEBUGGER
-	bool saved_debugger_enabled = gDebuggerEnabled;
+    bool saved_debugger_enabled = gDebuggerEnabled;
 #endif
-	memset(g_reg, 0, sizeof(struct CpuRegs));
+    memset(g_reg, 0, sizeof(struct CpuRegs));
 #ifdef WITH_DEBUGGER
-	gDebuggerEnabled = saved_debugger_enabled;
+    gDebuggerEnabled = saved_debugger_enabled;
 #endif
 
-	setbit_STS_MSB(_N100, 1);
-	gCSR = 1 << 2; /* this bit sets the cache as not available */
+    setbit_STS_MSB(_N100, 1);
+    gCSR = 1 << 2; /* this bit sets the cache as not available */
 
-	// Destroy paging tables (they will be recreated when cpu is initialized)
-	DestroyPagingTables();
+    // Destroy paging tables (they will be recreated when cpu is initialized)
+    DestroyPagingTables();
 
-	// Allocate ShadowMemory for pagetables
-	CreatePagingTables();
+    // Allocate ShadowMemory for pagetables
+    CreatePagingTables();
 
 
-	set_cpu_run_mode(CPU_RUNNING);
-	g_instr_counter = 0;
+    set_cpu_run_mode(CPU_RUNNING);
+    g_instr_counter = 0;
 }
 
 /// @brief Cleanup the CPU
 /// @details This function cleans up the CPU. It destroys the paging tables and stops the debugger thread.
 void cleanup_cpu(void)
 {
-	// Destroy paging tables
-	DestroyPagingTables();
+    // Destroy paging tables
+    DestroyPagingTables();
 
 #ifdef WITH_DEBUGGER
-	if (gDebuggerEnabled)
+    if (gDebuggerEnabled)
     {
-		stop_debugger_thread();
+        stop_debugger_thread();
     }
 #endif
-
 }
-
 
 
 /// @brief Request from the debugger to take control of the CPU
@@ -1159,34 +1248,34 @@ void cleanup_cpu(void)
 void set_debugger_request_pause(bool requested)
 {
 #ifdef WITH_DEBUGGER
-	#ifdef __EMSCRIPTEN__
-		s_debugger_request_pause = requested;
-	#elif defined(_WIN32)
-		InterlockedExchange((volatile LONG *)&s_debugger_request_pause, (LONG)requested);
-	#else
-		atomic_store(&s_debugger_request_pause, requested);
-	#endif
+#ifdef __EMSCRIPTEN__
+    s_debugger_request_pause = requested;
+#elif defined(_WIN32)
+    InterlockedExchange((volatile LONG *)&s_debugger_request_pause, (LONG)requested);
+#else
+    atomic_store(&s_debugger_request_pause, requested);
+#endif
 #endif
 }
 
 /// @brief Check if the debugger has requested to pause the CPU
 /// @return true if the debugger has requested to pause the CPU, false otherwise
 /// @details This function is used to check if the debugger has requested to pause the CPU.
-bool get_debugger_request_pause(void) {
+bool get_debugger_request_pause(void)
+{
 #ifdef WITH_DEBUGGER
-	#ifdef __EMSCRIPTEN__
-		return s_debugger_request_pause;
-	#elif defined(_WIN32)
-		return (CPURunMode)InterlockedCompareExchange(
-			(volatile LONG *)&s_debugger_request_pause,
-			0,  // Exchange value (ignored)
-			0   // Comparand (ignored)
-		);
-	#else
-		return atomic_load(&s_debugger_request_pause);
-	#endif
+#ifdef __EMSCRIPTEN__
+    return s_debugger_request_pause;
+#elif defined(_WIN32)
+    return (CPURunMode)InterlockedCompareExchange((volatile LONG *)&s_debugger_request_pause,
+                                                  0, // Exchange value (ignored)
+                                                  0  // Comparand (ignored)
+    );
 #else
-	return false;
+    return atomic_load(&s_debugger_request_pause);
+#endif
+#else
+    return false;
 #endif
 }
 
@@ -1196,127 +1285,140 @@ bool get_debugger_request_pause(void) {
 void set_debugger_control_granted(bool requested)
 {
 #ifdef WITH_DEBUGGER
-	#ifdef __EMSCRIPTEN__
-		s_debugger_control_granted = requested;
-	#elif defined(_WIN32)
-		InterlockedExchange((volatile LONG *)&s_debugger_control_granted, (LONG)requested);
-	#else
-		atomic_store(&s_debugger_control_granted, requested);
-	#endif
+#ifdef __EMSCRIPTEN__
+    s_debugger_control_granted = requested;
+#elif defined(_WIN32)
+    InterlockedExchange((volatile LONG *)&s_debugger_control_granted, (LONG)requested);
+#else
+    atomic_store(&s_debugger_control_granted, requested);
+#endif
 #endif
 }
 
 /// @brief Check if the debugger control is granted
 /// @details This function is used to check if the debugger control is granted.
 /// @return  true if the debugger control is granted, false otherwise
-bool get_debugger_control_granted(void) {
+bool get_debugger_control_granted(void)
+{
 #ifdef WITH_DEBUGGER
-	#ifdef __EMSCRIPTEN__
-		return s_debugger_control_granted;
-	#elif defined(_WIN32)
-		return (CPURunMode)InterlockedCompareExchange(
-			(volatile LONG *)&s_debugger_control_granted,
-			0,  // Exchange value (ignored)
-			0   // Comparand (ignored)
-		);
-	#else
-		return atomic_load(&s_debugger_control_granted);
-	#endif
+#ifdef __EMSCRIPTEN__
+    return s_debugger_control_granted;
+#elif defined(_WIN32)
+    return (CPURunMode)InterlockedCompareExchange((volatile LONG *)&s_debugger_control_granted,
+                                                  0, // Exchange value (ignored)
+                                                  0  // Comparand (ignored)
+    );
 #else
-	return false;
+    return atomic_load(&s_debugger_control_granted);
+#endif
+#else
+    return false;
 #endif
 }
 
 /// @brief Set the debugger stop reason
 /// @param reason The reason for stopping the cpu
-void set_cpu_stop_reason(CpuStopReason reason) {
+void set_cpu_stop_reason(CpuStopReason reason)
+{
 #ifdef WITH_DEBUGGER
-	#ifdef __EMSCRIPTEN__
-		s_cpu_stop_reason = reason;
-	#elif defined(_WIN32)
-		InterlockedExchange((volatile LONG *)&s_cpu_stop_reason, (LONG)reason);
-	#else
-		atomic_store(&s_cpu_stop_reason, reason);
-	#endif
+#ifdef __EMSCRIPTEN__
+    s_cpu_stop_reason = reason;
+#elif defined(_WIN32)
+    InterlockedExchange((volatile LONG *)&s_cpu_stop_reason, (LONG)reason);
+#else
+    atomic_store(&s_cpu_stop_reason, reason);
+#endif
 #endif
 }
 
 
-CpuStopReason get_cpu_stop_reason(void) {
+CpuStopReason get_cpu_stop_reason(void)
+{
 #ifdef WITH_DEBUGGER
-	#ifdef __EMSCRIPTEN__
-		return (CpuStopReason)s_cpu_stop_reason;
-	#elif defined(_WIN32)
-		return (CpuStopReason)InterlockedCompareExchange(
-			(volatile LONG *)&s_cpu_stop_reason,
-			0,  // Exchange value (ignored)
-			0   // Comparand (ignored)
-		);
-	#else
-		return atomic_load(&s_cpu_stop_reason);
-	#endif
+#ifdef __EMSCRIPTEN__
+    return (CpuStopReason)s_cpu_stop_reason;
+#elif defined(_WIN32)
+    return (CpuStopReason)InterlockedCompareExchange((volatile LONG *)&s_cpu_stop_reason,
+                                                     0, // Exchange value (ignored)
+                                                     0  // Comparand (ignored)
+    );
 #else
-	return STOP_REASON_NONE;
+    return atomic_load(&s_cpu_stop_reason);
+#endif
+#else
+    return STOP_REASON_NONE;
 #endif
 }
 
 
-
-void set_cpu_run_mode(CPURunMode new_mode) {
+void set_cpu_run_mode(CPURunMode new_mode)
+{
 #ifdef WITH_DEBUGGER
-	#ifdef __EMSCRIPTEN__
-		s_cpu_run_mode = new_mode;
-	#elif defined(_WIN32)
-		InterlockedExchange((volatile LONG *)&s_cpu_run_mode, (LONG)new_mode);
-	#else
-		atomic_store(&s_cpu_run_mode, new_mode);
-	#endif
+#ifdef __EMSCRIPTEN__
+    s_cpu_run_mode = new_mode;
+#elif defined(_WIN32)
+    InterlockedExchange((volatile LONG *)&s_cpu_run_mode, (LONG)new_mode);
 #else
-	CurrentCPURunMode = new_mode;
+    atomic_store(&s_cpu_run_mode, new_mode);
+#endif
+#else
+    CurrentCPURunMode = new_mode;
 #endif
 }
 
 
-CPURunMode get_cpu_run_mode(void) {
+CPURunMode get_cpu_run_mode(void)
+{
 #ifdef WITH_DEBUGGER
-	#ifdef __EMSCRIPTEN__
-		return (CPURunMode)s_cpu_run_mode;
-	#elif defined(_WIN32)
-		return (CPURunMode)InterlockedCompareExchange(
-			(volatile LONG *)&s_cpu_run_mode,
-			0,  // Exchange value (ignored)
-			0   // Comparand (ignored)
-		);
-	#else
-		return atomic_load(&s_cpu_run_mode);
-	#endif
+#ifdef __EMSCRIPTEN__
+    return (CPURunMode)s_cpu_run_mode;
+#elif defined(_WIN32)
+    return (CPURunMode)InterlockedCompareExchange((volatile LONG *)&s_cpu_run_mode,
+                                                  0, // Exchange value (ignored)
+                                                  0  // Comparand (ignored)
+    );
 #else
-	return CurrentCPURunMode;
+    return atomic_load(&s_cpu_run_mode);
+#endif
+#else
+    return CurrentCPURunMode;
 #endif
 }
 
 // CPU throttle API
-void cpu_throttle_set_enabled(bool enabled) {
-	cpu_throttle_enabled = enabled;
-	if (enabled) {
-		LOG(LOG_CAT_CPU, LOG_INFO, "CPU throttle: ON (%.2f MHz)", cpu_throttle_mhz);
-	} else {
-		LOG(LOG_CAT_CPU, LOG_INFO, "CPU throttle: OFF (full speed)");
-	}
+void cpu_throttle_set_enabled(bool enabled)
+{
+    cpu_throttle_enabled = enabled;
+    if (enabled)
+    {
+        LOG(LOG_CAT_CPU, LOG_INFO, "CPU throttle: ON (%.2f MHz)", cpu_throttle_mhz);
+    }
+    else
+    {
+        LOG(LOG_CAT_CPU, LOG_INFO, "CPU throttle: OFF (full speed)");
+    }
 }
 
-bool cpu_throttle_get_enabled(void) {
-	return cpu_throttle_enabled;
+bool cpu_throttle_get_enabled(void)
+{
+    return cpu_throttle_enabled;
 }
 
-void cpu_throttle_set_mhz(double mhz) {
-	if (mhz < 0.1) mhz = 0.1;
-	if (mhz > 100.0) mhz = 100.0;
-	cpu_throttle_mhz = mhz;
-	LOG(LOG_CAT_CPU, LOG_INFO, "CPU throttle: target %.3f MHz", cpu_throttle_mhz);
+void cpu_throttle_set_mhz(double mhz)
+{
+    if (mhz < 0.1)
+    {
+        mhz = 0.1;
+    }
+    if (mhz > 100.0)
+    {
+        mhz = 100.0;
+    }
+    cpu_throttle_mhz = mhz;
+    LOG(LOG_CAT_CPU, LOG_INFO, "CPU throttle: target %.3f MHz", cpu_throttle_mhz);
 }
 
-double cpu_throttle_get_mhz(void) {
-	return cpu_throttle_mhz;
+double cpu_throttle_get_mhz(void)
+{
+    return cpu_throttle_mhz;
 }
-

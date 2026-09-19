@@ -33,83 +33,92 @@
 /// @return Returns true if the level was set, false otherwise
 bool setPIL(char newLevel)
 {
-	if (newLevel >= 16)
-		return false;
-	if (newLevel == gPIL)
-		return true; // already set
+    if (newLevel >= 16)
+    {
+        return false;
+    }
+    if (newLevel == gPIL)
+    {
+        return true; // already set
+    }
 
-	gPVL = gPIL; /* Save current runlevel */
+    gPVL = gPIL; /* Save current runlevel */
 
-	// Update SYSTEM bits - PIL
-	g_reg->reg_STS = (g_reg->reg_STS & 0xF000) | ((newLevel & 0x0f) << 8);
-	return true;
+    // Update SYSTEM bits - PIL
+    g_reg->reg_STS = (g_reg->reg_STS & 0xF000) | ((newLevel & 0x0f) << 8);
+    return true;
 }
 
 // Set and lock PEA
 void setPEA(uint16_t pea)
 {
-	if (gPEA_Lock)
-		return;
-	gPEA = pea;
-	gPEA_Lock = true;
+    if (gPEA_Lock)
+    {
+        return;
+    }
+    gPEA = pea;
+    gPEA_Lock = true;
 }
 
 // Set and lock PES
 void setPES(uint16_t pes)
 {
-	if (gPES_Lock)
-		return;
-	gPES = pes;
-	gPES_Lock = true;
+    if (gPES_Lock)
+    {
+        return;
+    }
+    gPES = pes;
+    gPES_Lock = true;
 }
 
 // Set and lock PGS
 void setPGS(uint16_t pgs)
 {
-	if (gPGS_Lock)
-		return;
-	gPGS = pgs;
-	if (pgs != 0)
-	{
-		gPGS_Lock = true;
-	}
+    if (gPGS_Lock)
+    {
+        return;
+    }
+    gPGS = pgs;
+    if (pgs != 0)
+    {
+        gPGS_Lock = true;
+    }
 }
-
 
 
 void setreg(int r, int val)
 {
-	if (r == _STS)
-	{
-		g_reg->reg[CurrLEVEL][r] = (uint16_t)(val & 0x00FF); // Only lower 8 bits
-	}
-	else
-	{
-		g_reg->reg[CurrLEVEL][r] = (uint16_t)(val & 0xFFFF);
-	}
+    if (r == _STS)
+    {
+        g_reg->reg[CurrLEVEL][r] = (uint16_t)(val & 0x00FF); // Only lower 8 bits
+    }
+    else
+    {
+        g_reg->reg[CurrLEVEL][r] = (uint16_t)(val & 0xFFFF);
+    }
 }
 
 uint16_t getbit(uint16_t regnum, uint16_t stsbit)
 {
-	uint16_t result, tmp;
-	if (regnum == _STS)
-	{
-		// Undoocumented, but all 16 STS bits are read
-		tmp = gSTSr;
-	}
-	else
-	{
-		tmp = g_reg->reg[CurrLEVEL][regnum];
-	}
-	result = (tmp >> stsbit) & 1;
-	return result;
+    uint16_t result, tmp;
+    if (regnum == _STS)
+    {
+        // Undoocumented, but all 16 STS bits are read
+        tmp = gSTSr;
+    }
+    else
+    {
+        tmp = g_reg->reg[CurrLEVEL][regnum];
+    }
+    result = (tmp >> stsbit) & 1;
+    return result;
 }
 
 void clrbit(uint16_t regnum, uint16_t stsbit)
 {
-	uint16_t thebit;
-	thebit = (1 << stsbit) ^ 0xFFFF;
-	g_reg->reg[CurrLEVEL][regnum] = (thebit & g_reg->reg[CurrLEVEL][regnum]);
+    uint16_t thebit;
+    thebit = (1 << stsbit) ^ 0xFFFF;
+    g_reg->reg[CurrLEVEL][regnum] = (thebit & g_reg->reg[CurrLEVEL][regnum]);
 }
 
 /*
@@ -119,64 +128,70 @@ void clrbit(uint16_t regnum, uint16_t stsbit)
  */
 void setbit_STS_MSB(uint16_t stsbit, char val)
 {
-	uint16_t thebit = 0;
+    uint16_t thebit = 0;
 
-	if (val)
-	{
-		thebit = (1 << stsbit);
-		g_reg->reg_STS = g_reg->reg_STS | thebit;
-	}
-	else
-	{
-		thebit = (1 << stsbit) ^ 0xFFFF;
-		g_reg->reg_STS = g_reg->reg_STS & thebit;
-	}
+    if (val)
+    {
+        thebit = (1 << stsbit);
+        g_reg->reg_STS = g_reg->reg_STS | thebit;
+    }
+    else
+    {
+        thebit = (1 << stsbit) ^ 0xFFFF;
+        g_reg->reg_STS = g_reg->reg_STS & thebit;
+    }
 }
-
 
 
 void setbit(uint16_t regnum, uint16_t stsbit, char val)
 {
 
-	if ((regnum == _STS) && (stsbit > 7))
-	{
-		setbit_STS_MSB(stsbit, val);
-		return;
-	}
+    if ((regnum == _STS) && (stsbit > 7))
+    {
+        setbit_STS_MSB(stsbit, val);
+        return;
+    }
 
-	uint16_t thebit = 0;
-	if (val)
-	{
-		thebit = (1 << stsbit);
-		g_reg->reg[CurrLEVEL][regnum] = (thebit | g_reg->reg[CurrLEVEL][regnum]);
+    uint16_t thebit = 0;
+    if (val)
+    {
+        thebit = (1 << stsbit);
+        g_reg->reg[CurrLEVEL][regnum] = (thebit | g_reg->reg[CurrLEVEL][regnum]);
 
-		if (stsbit == _Z) // error bit is set
-		{
-			gCHKIT = true; // we need to check PK after this
-		}
-	}
-	else
-	{
-		thebit = (1 << stsbit) ^ 0xFFFF;
-		g_reg->reg[CurrLEVEL][regnum] = (thebit & g_reg->reg[CurrLEVEL][regnum]);
-	}
+        if (stsbit == _Z) // error bit is set
+        {
+            gCHKIT = true; // we need to check PK after this
+        }
+    }
+    else
+    {
+        thebit = (1 << stsbit) ^ 0xFFFF;
+        g_reg->reg[CurrLEVEL][regnum] = (thebit & g_reg->reg[CurrLEVEL][regnum]);
+    }
 }
 
 
 void AdjustSTS(uint16_t reg_a, uint16_t operand, int result)
 {
-	/* C (carry) */
-	if (result > 0xFFFF)
-		setbit(_STS, _C, 1);
-	else
-		setbit(_STS, _C, 0);
+    /* C (carry) */
+    if (result > 0xFFFF)
+    {
+        setbit(_STS, _C, 1);
+    }
+    else
+    {
+        setbit(_STS, _C, 0);
+    }
 
-	/* O(static overflow), Q (dynamic overflow) */
-	if (!(((1 << 15) & reg_a) ^ ((1 << 15) & operand)) && (((1 << 15) & reg_a) ^ ((1 << 15) & result)))
-	{
-		setbit(_STS, _O, 1);
-		setbit(_STS, _Q, 1);
-	}
-	else
-		setbit(_STS, _Q, 0);
+    /* O(static overflow), Q (dynamic overflow) */
+    if (!(((1 << 15) & reg_a) ^ ((1 << 15) & operand)) &&
+        (((1 << 15) & reg_a) ^ ((1 << 15) & result)))
+    {
+        setbit(_STS, _O, 1);
+        setbit(_STS, _Q, 1);
+    }
+    else
+    {
+        setbit(_STS, _Q, 0);
+    }
 }

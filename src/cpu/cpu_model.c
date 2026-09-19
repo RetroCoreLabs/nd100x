@@ -22,6 +22,7 @@
 #define nd_strcasecmp strcasecmp
 #endif
 
+// clang-format off
 static const struct { const char *name; CpuType type; } g_models[] = {
     {"ND1",      ND1},
     {"ND4",      ND4},
@@ -35,15 +36,24 @@ static const struct { const char *name; CpuType type; } g_models[] = {
     {"ND110PCX", ND110PCX},
     {"ND120CX",  ND120CX},
 };
+// clang-format on
 
 #define MODEL_COUNT ((int)(sizeof(g_models) / sizeof(g_models[0])))
 
 bool CpuModel_FromName(const char *name, CpuType *out)
 {
-    if (!name) return false;
-    for (int i = 0; i < MODEL_COUNT; i++) {
-        if (nd_strcasecmp(name, g_models[i].name) == 0) {
-            if (out) *out = g_models[i].type;
+    if (!name)
+    {
+        return false;
+    }
+    for (int i = 0; i < MODEL_COUNT; i++)
+    {
+        if (nd_strcasecmp(name, g_models[i].name) == 0)
+        {
+            if (out)
+            {
+                *out = g_models[i].type;
+            }
             return true;
         }
     }
@@ -53,7 +63,12 @@ bool CpuModel_FromName(const char *name, CpuType *out)
 const char *CpuModel_Name(CpuType t)
 {
     for (int i = 0; i < MODEL_COUNT; i++)
-        if (g_models[i].type == t) return g_models[i].name;
+    {
+        if (g_models[i].type == t)
+        {
+            return g_models[i].name;
+        }
+    }
     return "ND?";
 }
 
@@ -63,26 +78,45 @@ const char *CpuModel_Name(CpuType t)
  * parser accepts, hyphens and all would break it. */
 const char *CpuModel_DisplayName(CpuType t)
 {
-    switch (t) {
-    case ND1:       return "ND-1";
-    case ND4:       return "ND-4";
-    case ND10:      return "ND-10";
-    case ND100:     return "ND-100";
-    case ND100CE:   return "ND-100/CE";
-    case ND100CX:   return "ND-100/CX";
-    case ND110:     return "ND-110";
-    case ND110CE:   return "ND-110/CE";
-    case ND110CX:   return "ND-110/CX";
-    case ND110PCX:  return "ND-110/PCX";
-    case ND120CX:   return "ND-120/CX";
-    default:        return "ND?";
+    switch (t)
+    {
+    case ND1:
+        return "ND-1";
+    case ND4:
+        return "ND-4";
+    case ND10:
+        return "ND-10";
+    case ND100:
+        return "ND-100";
+    case ND100CE:
+        return "ND-100/CE";
+    case ND100CX:
+        return "ND-100/CX";
+    case ND110:
+        return "ND-110";
+    case ND110CE:
+        return "ND-110/CE";
+    case ND110CX:
+        return "ND-110/CX";
+    case ND110PCX:
+        return "ND-110/PCX";
+    case ND120CX:
+        return "ND-120/CX";
+    default:
+        return "ND?";
     }
 }
 
-int CpuModel_Count(void) { return MODEL_COUNT; }
+int CpuModel_Count(void)
+{
+    return MODEL_COUNT;
+}
 
 const char *CpuModel_NameByIndex(int i)
 {
-    if (i < 0 || i >= MODEL_COUNT) return NULL;
+    if (i < 0 || i >= MODEL_COUNT)
+    {
+        return NULL;
+    }
     return g_models[i].name;
 }

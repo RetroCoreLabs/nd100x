@@ -28,7 +28,8 @@
 #include <stdlib.h>
 
 /* Parser state */
-typedef struct {
+typedef struct
+{
     const char *input;
     const char *pos;
     const char *error;
@@ -52,7 +53,9 @@ static uint16_t parse_primary(Parser *p);
 static void skip_ws(Parser *p)
 {
     while (*p->pos == ' ' || *p->pos == '\t')
+    {
         p->pos++;
+    }
 }
 
 /* Check if we hit an error */
@@ -65,14 +68,17 @@ static bool has_error(Parser *p)
 static void set_error(Parser *p, const char *msg)
 {
     if (!p->error)
+    {
         p->error = msg;
+    }
 }
 
 /* Try to match a two-character operator */
 static bool match2(Parser *p, char c1, char c2)
 {
     skip_ws(p);
-    if (p->pos[0] == c1 && p->pos[1] == c2) {
+    if (p->pos[0] == c1 && p->pos[1] == c2)
+    {
         p->pos += 2;
         return true;
     }
@@ -83,7 +89,8 @@ static bool match2(Parser *p, char c1, char c2)
 static bool match1(Parser *p, char c, char not_followed_by)
 {
     skip_ws(p);
-    if (*p->pos == c && p->pos[1] != not_followed_by) {
+    if (*p->pos == c && p->pos[1] != not_followed_by)
+    {
         p->pos++;
         return true;
     }
@@ -95,8 +102,9 @@ static bool match_keyword(Parser *p, const char *keyword)
 {
     skip_ws(p);
     int len = (int)strlen(keyword);
-    if (strncasecmp(p->pos, keyword, len) == 0 &&
-        !isalnum((unsigned char)p->pos[len]) && p->pos[len] != '_') {
+    if (strncasecmp(p->pos, keyword, len) == 0 && !isalnum((unsigned char)p->pos[len]) &&
+        p->pos[len] != '_')
+    {
         p->pos += len;
         return true;
     }
@@ -107,7 +115,8 @@ static bool match_keyword(Parser *p, const char *keyword)
 static bool match_char(Parser *p, char c)
 {
     skip_ws(p);
-    if (*p->pos == c) {
+    if (*p->pos == c)
+    {
         p->pos++;
         return true;
     }
@@ -214,24 +223,72 @@ static bool lookup_register(const char *name, int len, uint16_t *value)
     int i;
 
     if (len <= 0 || len >= (int)sizeof(buf))
+    {
         return false;
+    }
 
     for (i = 0; i < len; i++)
+    {
         buf[i] = (char)toupper((unsigned char)name[i]);
+    }
     buf[len] = '\0';
 
     /* Main registers (current PIL level) */
-    if (strcmp(buf, "A") == 0)   { *value = gA; return true; }
-    if (strcmp(buf, "B") == 0)   { *value = gB; return true; }
-    if (strcmp(buf, "D") == 0)   { *value = gD; return true; }
-    if (strcmp(buf, "T") == 0)   { *value = gT; return true; }
-    if (strcmp(buf, "X") == 0)   { *value = gX; return true; }
-    if (strcmp(buf, "L") == 0)   { *value = gL; return true; }
-    if (strcmp(buf, "P") == 0)   { *value = gPC; return true; }
-    if (strcmp(buf, "PC") == 0)  { *value = gPC; return true; }
-    if (strcmp(buf, "STS") == 0) { *value = gSTSr; return true; }
-    if (strcmp(buf, "PIL") == 0) { *value = (uint16_t)gPIL; return true; }
-    if (strcmp(buf, "EA") == 0)  { *value = gEA; return true; }
+    if (strcmp(buf, "A") == 0)
+    {
+        *value = gA;
+        return true;
+    }
+    if (strcmp(buf, "B") == 0)
+    {
+        *value = gB;
+        return true;
+    }
+    if (strcmp(buf, "D") == 0)
+    {
+        *value = gD;
+        return true;
+    }
+    if (strcmp(buf, "T") == 0)
+    {
+        *value = gT;
+        return true;
+    }
+    if (strcmp(buf, "X") == 0)
+    {
+        *value = gX;
+        return true;
+    }
+    if (strcmp(buf, "L") == 0)
+    {
+        *value = gL;
+        return true;
+    }
+    if (strcmp(buf, "P") == 0)
+    {
+        *value = gPC;
+        return true;
+    }
+    if (strcmp(buf, "PC") == 0)
+    {
+        *value = gPC;
+        return true;
+    }
+    if (strcmp(buf, "STS") == 0)
+    {
+        *value = gSTSr;
+        return true;
+    }
+    if (strcmp(buf, "PIL") == 0)
+    {
+        *value = (uint16_t)gPIL;
+        return true;
+    }
+    if (strcmp(buf, "EA") == 0)
+    {
+        *value = gEA;
+        return true;
+    }
 
     /* Internal registers */
     if (lookup_internal_register(buf, value))
@@ -240,7 +297,8 @@ static bool lookup_register(const char *name, int len, uint16_t *value)
     }
 
     /* Scratch registers U0-U7 (current PIL level) */
-    if (buf[0] == 'U' && len == 2 && buf[1] >= '0' && buf[1] <= '7') {
+    if (buf[0] == 'U' && len == 2 && buf[1] >= '0' && buf[1] <= '7')
+    {
         int idx = buf[1] - '0';
         *value = g_reg->reg[gPIL][_U0 + idx];
         return true;
@@ -258,21 +316,30 @@ static bool parse_number(Parser *p, uint16_t *value)
     unsigned long v;
 
     if (!isdigit((unsigned char)*start))
+    {
         return false;
+    }
 
-    if (start[0] == '0' && (start[1] == 'x' || start[1] == 'X')) {
+    if (start[0] == '0' && (start[1] == 'x' || start[1] == 'X'))
+    {
         /* Hex */
         v = strtoul(start, &end, 16);
-    } else if (start[0] == '0' && isdigit((unsigned char)start[1])) {
+    }
+    else if (start[0] == '0' && isdigit((unsigned char)start[1]))
+    {
         /* Octal */
         v = strtoul(start, &end, 8);
-    } else {
+    }
+    else
+    {
         /* Decimal */
         v = strtoul(start, &end, 10);
     }
 
     if (end == start)
+    {
         return false;
+    }
 
     *value = (uint16_t)(v & 0xFFFF);
     p->pos = end;
@@ -286,15 +353,21 @@ static bool parse_identifier(Parser *p, uint16_t *value)
     const char *start = p->pos;
 
     if (!isalpha((unsigned char)*start) && *start != '_')
+    {
         return false;
+    }
 
     while (isalnum((unsigned char)*p->pos) || *p->pos == '_')
+    {
         p->pos++;
+    }
 
     int len = (int)(p->pos - start);
 
     if (lookup_register(start, len, value))
+    {
         return true;
+    }
 
     /* Not a known register - restore position and error */
     p->pos = start;
@@ -307,35 +380,50 @@ static uint16_t parse_primary(Parser *p)
 {
     uint16_t val;
 
-    if (has_error(p)) return 0;
+    if (has_error(p))
+    {
+        return 0;
+    }
 
     skip_ws(p);
 
     /* Parenthesized expression */
-    if (match_char(p, '(')) {
+    if (match_char(p, '('))
+    {
         val = parse_expr(p);
         if (!match_char(p, ')'))
+        {
             set_error(p, "expected ')'");
+        }
         return val;
     }
 
     /* Memory dereference [addr] */
-    if (match_char(p, '[')) {
+    if (match_char(p, '['))
+    {
         val = parse_expr(p);
         if (!match_char(p, ']'))
+        {
             set_error(p, "expected ']'");
+        }
         if (!has_error(p))
+        {
             return (uint16_t)ReadVirtualMemory(val, false);
+        }
         return 0;
     }
 
     /* Number literal */
     if (parse_number(p, &val))
+    {
         return val;
+    }
 
     /* Register name */
     if (parse_identifier(p, &val))
+    {
         return val;
+    }
 
     set_error(p, "unexpected token");
     return 0;
@@ -344,20 +432,30 @@ static uint16_t parse_primary(Parser *p)
 /* unary = "~" unary | "!" unary | "-" unary | primary */
 static uint16_t parse_unary(Parser *p)
 {
-    if (has_error(p)) return 0;
+    if (has_error(p))
+    {
+        return 0;
+    }
 
     skip_ws(p);
 
     if (match_char(p, '~'))
+    {
         return ~parse_unary(p);
+    }
 
     if (match1(p, '!', '='))
+    {
         return parse_unary(p) ? 0 : 1;
+    }
 
     if (match_keyword(p, "not"))
+    {
         return parse_unary(p) ? 0 : 1;
+    }
 
-    if (match1(p, '-', '\0')) {
+    if (match1(p, '-', '\0'))
+    {
         /* Check it's not a negative sign before a number handled elsewhere */
         return (uint16_t)(-(int16_t)parse_unary(p));
     }
@@ -369,24 +467,46 @@ static uint16_t parse_unary(Parser *p)
 static uint16_t parse_multiplicative(Parser *p)
 {
     uint16_t left = parse_unary(p);
-    if (has_error(p)) return 0;
+    if (has_error(p))
+    {
+        return 0;
+    }
 
-    for (;;) {
+    for (;;)
+    {
         skip_ws(p);
-        if (match_char(p, '*')) {
+        if (match_char(p, '*'))
+        {
             left = left * parse_unary(p);
-        } else if (match_char(p, '/')) {
+        }
+        else if (match_char(p, '/'))
+        {
             uint16_t right = parse_unary(p);
-            if (right == 0) { set_error(p, "division by zero"); return 0; }
+            if (right == 0)
+            {
+                set_error(p, "division by zero");
+                return 0;
+            }
             left = left / right;
-        } else if (match_char(p, '%')) {
+        }
+        else if (match_char(p, '%'))
+        {
             uint16_t right = parse_unary(p);
-            if (right == 0) { set_error(p, "modulo by zero"); return 0; }
+            if (right == 0)
+            {
+                set_error(p, "modulo by zero");
+                return 0;
+            }
             left = left % right;
-        } else {
+        }
+        else
+        {
             break;
         }
-        if (has_error(p)) return 0;
+        if (has_error(p))
+        {
+            return 0;
+        }
     }
     return left;
 }
@@ -395,18 +515,30 @@ static uint16_t parse_multiplicative(Parser *p)
 static uint16_t parse_additive(Parser *p)
 {
     uint16_t left = parse_multiplicative(p);
-    if (has_error(p)) return 0;
+    if (has_error(p))
+    {
+        return 0;
+    }
 
-    for (;;) {
+    for (;;)
+    {
         skip_ws(p);
-        if (match_char(p, '+')) {
+        if (match_char(p, '+'))
+        {
             left = left + parse_multiplicative(p);
-        } else if (match_char(p, '-')) {
+        }
+        else if (match_char(p, '-'))
+        {
             left = left - parse_multiplicative(p);
-        } else {
+        }
+        else
+        {
             break;
         }
-        if (has_error(p)) return 0;
+        if (has_error(p))
+        {
+            return 0;
+        }
     }
     return left;
 }
@@ -415,22 +547,38 @@ static uint16_t parse_additive(Parser *p)
 static uint16_t parse_comparison(Parser *p)
 {
     uint16_t left = parse_additive(p);
-    if (has_error(p)) return 0;
+    if (has_error(p))
+    {
+        return 0;
+    }
 
-    for (;;) {
+    for (;;)
+    {
         skip_ws(p);
-        if (match2(p, '>', '=')) {
+        if (match2(p, '>', '='))
+        {
             left = (left >= parse_additive(p)) ? 1 : 0;
-        } else if (match2(p, '<', '=')) {
+        }
+        else if (match2(p, '<', '='))
+        {
             left = (left <= parse_additive(p)) ? 1 : 0;
-        } else if (match1(p, '>', '=')) {
+        }
+        else if (match1(p, '>', '='))
+        {
             left = (left > parse_additive(p)) ? 1 : 0;
-        } else if (match1(p, '<', '=')) {
+        }
+        else if (match1(p, '<', '='))
+        {
             left = (left < parse_additive(p)) ? 1 : 0;
-        } else {
+        }
+        else
+        {
             break;
         }
-        if (has_error(p)) return 0;
+        if (has_error(p))
+        {
+            return 0;
+        }
     }
     return left;
 }
@@ -439,20 +587,34 @@ static uint16_t parse_comparison(Parser *p)
 static uint16_t parse_equality(Parser *p)
 {
     uint16_t left = parse_comparison(p);
-    if (has_error(p)) return 0;
+    if (has_error(p))
+    {
+        return 0;
+    }
 
-    for (;;) {
+    for (;;)
+    {
         skip_ws(p);
-        if (match2(p, '=', '=')) {
+        if (match2(p, '=', '='))
+        {
             left = (left == parse_comparison(p)) ? 1 : 0;
-        } else if (match1(p, '=', '=')) {
+        }
+        else if (match1(p, '=', '='))
+        {
             left = (left == parse_comparison(p)) ? 1 : 0;
-        } else if (match2(p, '!', '=')) {
+        }
+        else if (match2(p, '!', '='))
+        {
             left = (left != parse_comparison(p)) ? 1 : 0;
-        } else {
+        }
+        else
+        {
             break;
         }
-        if (has_error(p)) return 0;
+        if (has_error(p))
+        {
+            return 0;
+        }
     }
     return left;
 }
@@ -461,17 +623,27 @@ static uint16_t parse_equality(Parser *p)
 static uint16_t parse_bitwise_and(Parser *p)
 {
     uint16_t left = parse_equality(p);
-    if (has_error(p)) return 0;
+    if (has_error(p))
+    {
+        return 0;
+    }
 
-    for (;;) {
+    for (;;)
+    {
         skip_ws(p);
         /* & but not && */
-        if (match1(p, '&', '&')) {
+        if (match1(p, '&', '&'))
+        {
             left = left & parse_equality(p);
-        } else {
+        }
+        else
+        {
             break;
         }
-        if (has_error(p)) return 0;
+        if (has_error(p))
+        {
+            return 0;
+        }
     }
     return left;
 }
@@ -480,16 +652,26 @@ static uint16_t parse_bitwise_and(Parser *p)
 static uint16_t parse_bitwise_xor(Parser *p)
 {
     uint16_t left = parse_bitwise_and(p);
-    if (has_error(p)) return 0;
+    if (has_error(p))
+    {
+        return 0;
+    }
 
-    for (;;) {
+    for (;;)
+    {
         skip_ws(p);
-        if (match_char(p, '^')) {
+        if (match_char(p, '^'))
+        {
             left = left ^ parse_bitwise_and(p);
-        } else {
+        }
+        else
+        {
             break;
         }
-        if (has_error(p)) return 0;
+        if (has_error(p))
+        {
+            return 0;
+        }
     }
     return left;
 }
@@ -498,17 +680,27 @@ static uint16_t parse_bitwise_xor(Parser *p)
 static uint16_t parse_bitwise_or(Parser *p)
 {
     uint16_t left = parse_bitwise_xor(p);
-    if (has_error(p)) return 0;
+    if (has_error(p))
+    {
+        return 0;
+    }
 
-    for (;;) {
+    for (;;)
+    {
         skip_ws(p);
         /* | but not || */
-        if (match1(p, '|', '|')) {
+        if (match1(p, '|', '|'))
+        {
             left = left | parse_bitwise_xor(p);
-        } else {
+        }
+        else
+        {
             break;
         }
-        if (has_error(p)) return 0;
+        if (has_error(p))
+        {
+            return 0;
+        }
     }
     return left;
 }
@@ -517,20 +709,32 @@ static uint16_t parse_bitwise_or(Parser *p)
 static uint16_t parse_logic_and(Parser *p)
 {
     uint16_t left = parse_bitwise_or(p);
-    if (has_error(p)) return 0;
+    if (has_error(p))
+    {
+        return 0;
+    }
 
-    for (;;) {
+    for (;;)
+    {
         skip_ws(p);
-        if (match2(p, '&', '&')) {
+        if (match2(p, '&', '&'))
+        {
             uint16_t right = parse_bitwise_or(p);
             left = (left && right) ? 1 : 0;
-        } else if (match_keyword(p, "and")) {
+        }
+        else if (match_keyword(p, "and"))
+        {
             uint16_t right = parse_bitwise_or(p);
             left = (left && right) ? 1 : 0;
-        } else {
+        }
+        else
+        {
             break;
         }
-        if (has_error(p)) return 0;
+        if (has_error(p))
+        {
+            return 0;
+        }
     }
     return left;
 }
@@ -539,20 +743,32 @@ static uint16_t parse_logic_and(Parser *p)
 static uint16_t parse_logic_or(Parser *p)
 {
     uint16_t left = parse_logic_and(p);
-    if (has_error(p)) return 0;
+    if (has_error(p))
+    {
+        return 0;
+    }
 
-    for (;;) {
+    for (;;)
+    {
         skip_ws(p);
-        if (match2(p, '|', '|')) {
+        if (match2(p, '|', '|'))
+        {
             uint16_t right = parse_logic_and(p);
             left = (left || right) ? 1 : 0;
-        } else if (match_keyword(p, "or")) {
+        }
+        else if (match_keyword(p, "or"))
+        {
             uint16_t right = parse_logic_and(p);
             left = (left || right) ? 1 : 0;
-        } else {
+        }
+        else
+        {
             break;
         }
-        if (has_error(p)) return 0;
+        if (has_error(p))
+        {
+            return 0;
+        }
     }
     return left;
 }
@@ -572,8 +788,12 @@ uint16_t expr_eval_value(const char *expr, const char **error)
     Parser p;
     uint16_t result;
 
-    if (!expr || !*expr) {
-        if (error) *error = "empty expression";
+    if (!expr || !*expr)
+    {
+        if (error)
+        {
+            *error = "empty expression";
+        }
         return 0;
     }
 
@@ -586,10 +806,14 @@ uint16_t expr_eval_value(const char *expr, const char **error)
     /* Check for trailing garbage */
     skip_ws(&p);
     if (!has_error(&p) && *p.pos != '\0')
+    {
         set_error(&p, "unexpected characters after expression");
+    }
 
     if (error)
+    {
         *error = p.error;
+    }
 
     return has_error(&p) ? 0 : result;
 }
@@ -598,6 +822,8 @@ bool expr_eval_condition(const char *expr, const char **error)
 {
     uint16_t val = expr_eval_value(expr, error);
     if (error && *error)
+    {
         return false;
+    }
     return val != 0;
 }

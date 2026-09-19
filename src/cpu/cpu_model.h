@@ -29,7 +29,7 @@ const char *CpuModel_Name(CpuType t);
 const char *CpuModel_DisplayName(CpuType t);
 
 /* The list, for building a picker. */
-int         CpuModel_Count(void);
+int CpuModel_Count(void);
 const char *CpuModel_NameByIndex(int i);
 
 #endif /* CPU_MODEL_H */
