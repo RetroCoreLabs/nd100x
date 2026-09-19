@@ -39,28 +39,28 @@ typedef enum
 
     // Total number of pages  044066 (oct) 18486 (dec) = 38MB (Block size = 2048 Bytes)
     // Total number of pages  110121 (oct) 36945 (dec) = 75MB
-    //	max 5 surfaces
+    //  max 5 surfaces
     //  max 18 sectors
     //  max 411 cylinders (0-410)
     //  110176 number of sectors
     //  Table Name: DT037
     DISK_38_MB,
 
-    //	max 5 surfaces
+    //  max 5 surfaces
     //  max 18 sectors
     //  max 823 cylinders (0-822)
     //  220526 number of sectors
     //  Table Name: DT075
     DISK_75_MB,
 
-    //	max 10 surfaces
+    //  max 10 surfaces
     //  max 18 sectors
     //  max 823 cylinders
     //  441254 number of sectors
     //  Table Name:  DT140 or DT160 ??
     DISK_150_MB,
 
-    //	max 19 surfaces
+    //  max 19 surfaces
     //  max 18 sectors
     //  max 823 cylinders
     //  1045572 number of sectors
@@ -72,19 +72,19 @@ typedef enum
     // ***************
 
     // Fujitsu 474Mb M2351A (EAGLE)
-    //	max 20 surfaces
+    //  max 20 surfaces
     //  max 24 sectors (+1 spare)
     //  max 842 cylinders
     DISK_474_MB,
 
     //  CDC 515MB FSD
-    //	max 24 surfaces
+    //  max 24 surfaces
     //  max 26 sectors (+1 spare)
     //  max 711 cylinders
     DISK_515_MB,
 
     //  CDC 825MB XMD
-    //	max 16 surfaces
+    //  max 16 surfaces
     //  max 44 sectors (+1 spare)
     //  max 1024 cylinders
     DISK_825_MB

@@ -529,20 +529,20 @@ static void SMD_Write(Device *self, uint32_t address, uint16_t value)
 
         /*
             Bit:
-                    0		Enable interrupt on device not active
-                    1		Enable interrupt on errors
-                    2		Active
+                    0       Enable interrupt on device not active
+                    1       Enable interrupt on errors
+                    2       Active
                                 When control word bit 2 is activated, the content of the block address register II (cylinder number) is transfered to the servo system in the selected unit.
                                 Logic in the unit will calculate the difference between the current cylinder and the new one. The difference and direction will command the servo to seek the new cylinder.
-                    3		Test mode
-                    4		Device clear (clear the active flip-flop) and controller error bas,
-                    5		Address bit 16 - Extension of core address register
-                    6		Address bit 17 - Extension of core address register
+                    3       Test mode
+                    4       Device clear (clear the active flip-flop) and controller error bas,
+                    5       Address bit 16 - Extension of core address register
+                    6       Address bit 17 - Extension of core address register
 
-                    7-9		Unit select (maximum 4 units)
-                    10		Marginal recovery cycle
-                    11-14	Device operation code
-                    15		Register multiplex bit
+                    7-9     Unit select (maximum 4 units)
+                    10      Marginal recovery cycle
+                    11-14   Device operation code
+                    15      Register multiplex bit
         */
 
         if (Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG))

@@ -182,8 +182,8 @@ int g_cpu_trace = 0;
  */
 int g_bsd_debug = 0;
 // clang-format off
-#define BSD_KSTK_BASE  0162000		/* u-area base (0xE400) */
-#define BSD_KSTK_TOP   0170000		/* KERN_STOP (0xF000, USIZE=3/KERN_SSIZE=1) */
+#define BSD_KSTK_BASE  0162000      /* u-area base (0xE400) */
+#define BSD_KSTK_TOP   0170000      /* KERN_STOP (0xF000, USIZE=3/KERN_SSIZE=1) */
 // clang-format on
 static unsigned short s_bsd_kstk_min = BSD_KSTK_TOP;
 uint64_t g_cpu_max_instr = 0;
@@ -247,11 +247,11 @@ void do_op(uint16_t operand, bool isEXR)
     }
 
     /*
-	 * ND-110 trace (--trace-nd110[=FILE]): log every execution of an ND-110-only opcode
-	 * (VERSN, the 1403xx S3SEG group, the 14050x/14051x group and the 14070x bank group).
-	 * Used to see which of them the guest actually reaches when the CPU presents as
-	 * ND-110/CX.
-	 */
+     * ND-110 trace (--trace-nd110[=FILE]): log every execution of an ND-110-only opcode
+     * (VERSN, the 1403xx S3SEG group, the 14050x/14051x group and the 14070x bank group).
+     * Used to see which of them the guest actually reaches when the CPU presents as
+     * ND-110/CX.
+     */
     if (nd110_trace_enabled)
     {
         if (operand == 0140133 || (operand >= 0140300 && operand <= 0140304) ||
@@ -267,8 +267,8 @@ void do_op(uint16_t operand, bool isEXR)
     }
 
     g_instr_funcs[operand](operand); /* call using a function pointer from the array
-				   this way we are as flexible as possible as we
-				   implement io calls. */
+                   this way we are as flexible as possible as we
+                   implement io calls. */
 }
 
 
@@ -431,18 +431,18 @@ void interrupt(uint16_t lvl, uint16_t sub)
         // Levels 0-5 and 12-15 cause ERRFATAL
         //
         // static const char *iic_names[] = {
-        // 	"n/a", "MC", "MPV", "PF", "II", "Z", "PI", "IOX", "PTY", "MOR", "POW"
+        //  "n/a", "MC", "MPV", "PF", "II", "Z", "PI", "IOX", "PTY", "MOR", "POW"
         // };
         // int iic_bit = -1;
         // for (int b = 10; b >= 0; b--) {
-        // 	if (sub & (1 << b)) { iic_bit = b; break; }
+        //  if (sub & (1 << b)) { iic_bit = b; break; }
         // }
         // const char *iic_name = (iic_bit >= 0 && iic_bit <= 10) ? iic_names[iic_bit] : "?";
         //
         // // Log internal interrupts on device levels (12-15) that cause TDTLEV ERRFATAL
         // if (gPIL >= 12)
         // {
-        // 		iic_name, sub, gPIL, gPC, gPVL);
+        //      iic_name, sub, gPIL, gPC, gPVL);
         // }
 
         gIID |= sub;
@@ -530,8 +530,8 @@ void cpu_watchpoint_triggered(uint32_t addr, bool isWrite)
         fprintf(stderr, "\n--- CPU stopped: watchpoint %s at %06o (PC=%06o) ---\n",
                 isWrite ? "write" : "read", addr, gPC);
         /* Caller frame context: B, B[-1]=NNN (frame size), and a window
-		 * so the offending .word NNN and arg-store offset can be read
-		 * directly instead of reconstructed. D-space (UseAPT=true). */
+         * so the offending .word NNN and arg-store offset can be read
+         * directly instead of reconstructed. D-space (UseAPT=true). */
         {
             int i;
             fprintf(stderr, "B=%06o  frame[B-2..B+4]:", gB);
@@ -924,7 +924,7 @@ void ring_dump(void)
 int cpu_run(int ticks_arg)
 {
     /* volatile: a fault longjmp()s back to the setjmp() below, and C11 7.13.2.1
-	 * leaves a non-volatile local that changed since setjmp indeterminate. */
+     * leaves a non-volatile local that changed since setjmp indeterminate. */
     volatile int ticks = ticks_arg;
 #ifdef WITH_DEBUGGER
     static uint32_t dbg_poll_ctr = 0; // emulated-instruction counter for async pause poll
@@ -1160,10 +1160,10 @@ void cpu_init(bool debuggerEnabled, int debuggerPort)
     cpu_set_type_from_env();
 
     /*
-	 * The VERSN identity (back-wiring PROM + microprogram/print version) depends on
-	 * the CPU model, so it is reset AFTER cpu_set_type_from_env() and then given the
-	 * chance to be overridden by the ND100X_* identity variables. See ndfunc_versn().
-	 */
+     * The VERSN identity (back-wiring PROM + microprogram/print version) depends on
+     * the CPU model, so it is reset AFTER cpu_set_type_from_env() and then given the
+     * chance to be overridden by the ND100X_* identity variables. See ndfunc_versn().
+     */
     cpu_versn_reset();
     cpu_versn_set_identity_from_env();
 

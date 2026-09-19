@@ -1177,9 +1177,9 @@ void WritePhysicalMemoryWM(int physicalAddress, uint16_t value, bool privileged,
 
     /*
 
-	ushort *p_phy_addr;
-	p_phy_addr = &VolatileMemory.n_Array[physicalAddress];
-	*p_phy_addr = value;
+    ushort *p_phy_addr;
+    p_phy_addr = &VolatileMemory.n_Array[physicalAddress];
+    *p_phy_addr = value;
  */
 }
 

@@ -310,12 +310,12 @@ extern uint32_t g_nd_memsize;
  */
 // clang-format off
 typedef enum {
-	ND_MEM_NONE   = 0x00, // Unmapped / not memory
-	ND_MEM_MPM5   = 0x04, // KMPM5  - MPM-5 multiport (ND-500/ND-5000 shared memory)
-	ND_MEM_LOCAL  = 0x08, // KMECCR - Local ND-100 memory (ECC/parity checked)
-	ND_MEM_PIOC   = 0x02, // KMPIOC - PIOC memory        (not modelled here)
-	ND_MEM_MPM3   = 0x05, // KMPM3  - MPM-3 multiport     (not modelled here)
-	ND_MEM_MPM4   = 0x06  // KMPM4  - MPM-4 multiport     (not modelled here)
+    ND_MEM_NONE   = 0x00, // Unmapped / not memory
+    ND_MEM_MPM5   = 0x04, // KMPM5  - MPM-5 multiport (ND-500/ND-5000 shared memory)
+    ND_MEM_LOCAL  = 0x08, // KMECCR - Local ND-100 memory (ECC/parity checked)
+    ND_MEM_PIOC   = 0x02, // KMPIOC - PIOC memory        (not modelled here)
+    ND_MEM_MPM3   = 0x05, // KMPM3  - MPM-3 multiport     (not modelled here)
+    ND_MEM_MPM4   = 0x06  // KMPM4  - MPM-4 multiport     (not modelled here)
 } NDMemoryType;
 // clang-format on
 
@@ -342,96 +342,96 @@ typedef enum {
 
 // clang-format off
 struct CpuRegs {
-	uint16_t	reg[16][16];	/* main CPU registers for all runlevels */
+    uint16_t    reg[16][16];    /* main CPU registers for all runlevels */
 
-	uint16_t	reg_STS;	/* STS register HIGH bits - not unique pr runlevel - used to be in reg[0][_STS]*/
+    uint16_t    reg_STS;    /* STS register HIGH bits - not unique pr runlevel - used to be in reg[0][_STS]*/
 
-	uint16_t	reg_PANS;	/* */
-	uint16_t	reg_PANC;	/* */
-	uint16_t	reg_OPR;	/* */
-	uint16_t	reg_LMP;	/* */
-	uint16_t	reg_PGS;	/* */
-	uint16_t	reg_PCR[16];	/* Paging Control Registers */
-	uint16_t	reg_PVL;	/* */
-	uint16_t	reg_IIC;	/* IIC is actually just a priority encoded (IID | IIE) */
-	uint16_t	reg_IID;	/* Actual interrupt reg */
-	uint16_t	reg_IIE;	/* */
-	uint16_t	reg_PID;	/* */
-	uint16_t	reg_PIE;	/* */
-	uint16_t	reg_CSR;	/* */
-	uint16_t	reg_CCL;	/* */
-	uint16_t	reg_LCIL;	/* */
-	uint16_t	reg_ALD;	/* */
-	uint16_t	reg_UCIL;	/* */
-	uint16_t	reg_PES;	/* */
-	uint16_t	reg_PGC;	/* */
-	uint16_t	reg_PEA;	/* */
-	uint16_t	reg_ECCR;	/* */
-	uint16_t	reg_ECBits;	/* Simulated ECC latch (store-on-write); see cpu_mms.c ECC block */
+    uint16_t    reg_PANS;   /* */
+    uint16_t    reg_PANC;   /* */
+    uint16_t    reg_OPR;    /* */
+    uint16_t    reg_LMP;    /* */
+    uint16_t    reg_PGS;    /* */
+    uint16_t    reg_PCR[16];    /* Paging Control Registers */
+    uint16_t    reg_PVL;    /* */
+    uint16_t    reg_IIC;    /* IIC is actually just a priority encoded (IID | IIE) */
+    uint16_t    reg_IID;    /* Actual interrupt reg */
+    uint16_t    reg_IIE;    /* */
+    uint16_t    reg_PID;    /* */
+    uint16_t    reg_PIE;    /* */
+    uint16_t    reg_CSR;    /* */
+    uint16_t    reg_CCL;    /* */
+    uint16_t    reg_LCIL;   /* */
+    uint16_t    reg_ALD;    /* */
+    uint16_t    reg_UCIL;   /* */
+    uint16_t    reg_PES;    /* */
+    uint16_t    reg_PGC;    /* */
+    uint16_t    reg_PEA;    /* */
+    uint16_t    reg_ECCR;   /* */
+    uint16_t    reg_ECBits; /* Simulated ECC latch (store-on-write); see cpu_mms.c ECC block */
 
-	/*
-	 * ND-110 "global pointers" (the S3SEG / SINTRAN-III segment-handling group).
-	 *
-	 * These three internal registers are written by WGLOB (140500) and read back by
-	 * RGLOB (140501); every one of the ND-110 core-map / segment-table instructions
-	 * (INSPL, REMPL, CNREK, CLPT, ENPT, REPT and the LASB/LACB/... bank group) uses
-	 * them as the *implicit* base of its physical accesses.  See ND-06.026.1 EN
-	 * (ND-110 Functional Description) p.196 and RetroCore
-	 * Emulated.HW/ND/CPU/ND100/Instructions.ND110Specific.cs (WGLOB/RGLOB).
-	 *
-	 * They are NOT per-runlevel: there is exactly one set for the whole CPU.
-	 */
-	uint16_t	reg_STBNK;	/* Bank number of the segment table  (written from T by WGLOB) */
-	uint16_t	reg_STSRT;	/* Start address of the segment table within that bank (from A; must be /8) */
-	uint16_t	reg_CMBUK;	/* Bank number of the core-map table (written from D by WGLOB) */
+    /*
+     * ND-110 "global pointers" (the S3SEG / SINTRAN-III segment-handling group).
+     *
+     * These three internal registers are written by WGLOB (140500) and read back by
+     * RGLOB (140501); every one of the ND-110 core-map / segment-table instructions
+     * (INSPL, REMPL, CNREK, CLPT, ENPT, REPT and the LASB/LACB/... bank group) uses
+     * them as the *implicit* base of its physical accesses.  See ND-06.026.1 EN
+     * (ND-110 Functional Description) p.196 and RetroCore
+     * Emulated.HW/ND/CPU/ND100/Instructions.ND110Specific.cs (WGLOB/RGLOB).
+     *
+     * They are NOT per-runlevel: there is exactly one set for the whole CPU.
+     */
+    uint16_t    reg_STBNK;  /* Bank number of the segment table  (written from T by WGLOB) */
+    uint16_t    reg_STSRT;  /* Start address of the segment table within that bank (from A; must be /8) */
+    uint16_t    reg_CMBUK;  /* Bank number of the core-map table (written from D by WGLOB) */
 
-	/* Personally Added to do Prefetch and Instruction more alike ND */
-	uint16_t	myreg_IR;	/* InstructionRegister */
-	uint16_t	myreg_PFB;	/* PrefetchBuffer */
+    /* Personally Added to do Prefetch and Instruction more alike ND */
+    uint16_t    myreg_IR;   /* InstructionRegister */
+    uint16_t    myreg_PFB;  /* PrefetchBuffer */
 
-	// Calculated EA and pagetable info (updated before opcode is executed)
-	uint16_t effectiveAddress;
-	bool useAPT;
+    // Calculated EA and pagetable info (updated before opcode is executed)
+    uint16_t effectiveAddress;
+    bool useAPT;
 
-	/* "locks" for registers that according to manual works that way (PES, PGS, IIC) */
-	/* 1 = "locked" */
-	/* :TODO: Check if PEA and PES should have a common lock */
-	bool	mylock_PEA;
-	bool	mylock_PES;
-	bool	mylock_PGS;
+    /* "locks" for registers that according to manual works that way (PES, PGS, IIC) */
+    /* 1 = "locked" */
+    /* :TODO: Check if PEA and PES should have a common lock */
+    bool    mylock_PEA;
+    bool    mylock_PES;
+    bool    mylock_PGS;
 
 
-	/* taking a shortcut by creating a PK 4bit register */
-	/* always modify this as well when touching PID or PIE */
-	uint16_t	myreg_PK;
+    /* taking a shortcut by creating a PK 4bit register */
+    /* always modify this as well when touching PID or PIE */
+    uint16_t    myreg_PK;
 
-	// should cpu levels be checked ?
-	bool    chkit;
+    // should cpu levels be checked ?
+    bool    chkit;
 
-	/* For MOPC/OPCOM tracing and breakpoint functionality */
-	/* counter for semirun mode*/
-	bool	has_instr_cntr;
-	uint16_t	instructioncounter;
-	/* flag for breakpoint and breakpoint address */
-	bool	has_breakpoint;
-	uint16_t	breakpoint;
+    /* For MOPC/OPCOM tracing and breakpoint functionality */
+    /* counter for semirun mode*/
+    bool    has_instr_cntr;
+    uint16_t    instructioncounter;
+    /* flag for breakpoint and breakpoint address */
+    bool    has_breakpoint;
+    uint16_t    breakpoint;
 
-	// Debugger enabled flag
-	bool	debugger_enabled;
-	// Debugger port
-	int	debugger_port;
+    // Debugger enabled flag
+    bool    debugger_enabled;
+    // Debugger port
+    int debugger_port;
 };
 // clang-format on
 
 
 // clang-format off
 typedef enum {
-	CPU_UNKNOWN_STATE, // Unknown state
-	CPU_RUNNING, // CPU is running normally
-	CPU_BREAKPOINT, // CPU hit a breakpoint
-	CPU_PAUSED,  // CPU is paused and waiting for debugger to resume
-	CPU_STOPPED,    // CPU is stopped and we are in OPCOM mode
-	CPU_SHUTDOWN // Shut down and exit
+    CPU_UNKNOWN_STATE, // Unknown state
+    CPU_RUNNING, // CPU is running normally
+    CPU_BREAKPOINT, // CPU hit a breakpoint
+    CPU_PAUSED,  // CPU is paused and waiting for debugger to resume
+    CPU_STOPPED,    // CPU is stopped and we are in OPCOM mode
+    CPU_SHUTDOWN // Shut down and exit
 }  CPURunMode;
 // clang-format on
 
@@ -456,8 +456,8 @@ typedef enum
  * if T changed it is the 48-bit FPP). */
 // clang-format off
 typedef enum {
-	FPP32,   /* optional 32-bit single precision FPP (T register unused) */
-	FPP48    /* standard 48-bit FPP (T,A,D floating accumulator)         */
+    FPP32,   /* optional 32-bit single precision FPP (T register unused) */
+    FPP48    /* standard 48-bit FPP (T,A,D floating accumulator)         */
 } FppType;
 // clang-format on
 
@@ -524,14 +524,14 @@ typedef enum {
 // clang-format on
 
 // clang-format off
-#define STS_PTM  ((g_reg->reg[gPIL][_STS]>>0) & 0x01)	/* */
-#define STS_TG   ((g_reg->reg[gPIL][_STS]>>1) & 0x01)	/* */
-#define STS_K    ((g_reg->reg[gPIL][_STS]>>2) & 0x01)	/* */
-#define STS_Z    ((g_reg->reg[gPIL][_STS]>>3) & 0x01)	/* */
-#define STS_Q    ((g_reg->reg[gPIL][_STS]>>4) & 0x01)	/* */
-#define STS_O    ((g_reg->reg[gPIL][_STS]>>5) & 0x01)	/* */
-#define STS_C    ((g_reg->reg[gPIL][_STS]>>6) & 0x01)	/* */
-#define STS_M    ((g_reg->reg[gPIL][_STS]>>7) & 0x01)	/* */
+#define STS_PTM  ((g_reg->reg[gPIL][_STS]>>0) & 0x01)   /* */
+#define STS_TG   ((g_reg->reg[gPIL][_STS]>>1) & 0x01)   /* */
+#define STS_K    ((g_reg->reg[gPIL][_STS]>>2) & 0x01)   /* */
+#define STS_Z    ((g_reg->reg[gPIL][_STS]>>3) & 0x01)   /* */
+#define STS_Q    ((g_reg->reg[gPIL][_STS]>>4) & 0x01)   /* */
+#define STS_O    ((g_reg->reg[gPIL][_STS]>>5) & 0x01)   /* */
+#define STS_C    ((g_reg->reg[gPIL][_STS]>>6) & 0x01)   /* */
+#define STS_M    ((g_reg->reg[gPIL][_STS]>>7) & 0x01)   /* */
 // clang-format on
 
 #define STS_PL   ((g_reg->reg_STS >> 8) & 0x0F)  /* Program runlevel */

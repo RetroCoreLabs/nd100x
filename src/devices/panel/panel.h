@@ -93,7 +93,7 @@ typedef enum
 ///  Response from panel to ND-100 cpu
 ///
 /// +-----------+--------+----------+-------+------------+------------+
-/// |	15      |  14    |  13		|   12  | 11-10-9-8  | 7    -   0 |
+/// |   15      |  14    |  13      |   12  | 11-10-9-8  | 7    -   0 |
 /// +-----------+--------+----------+-------+------------+------------+
 /// |DISP.PRESS |INP PDY | RPAN VAL |PAN INT|   PFUNC    |   RPAN     |
 /// +-----------+--------+----------+-------+------------+------------+
@@ -124,7 +124,7 @@ typedef union
 ///  Command from ND-100 cpu to panel
 ///
 /// +---+---+--------------+----+-----------+------------+
-/// |15 | 14|  13		   | 12 | 11-10-9-8 | 7    -   0 |
+/// |15 | 14|  13          | 12 | 11-10-9-8 | 7    -   0 |
 /// +---+---+--------------+----+-----------+------------+
 /// | 0 | 0 | Read Request |N.A.|  PFUNC    |   WPAN     |
 /// +---+---+--------------+----+-----------+------------+
@@ -161,10 +161,10 @@ struct display_panel
     // bool opcom_lamp; // read from signal on ND-100 bus C. Her maybe CPU in STOP mode ?
 
     //  int lock_key; // Is the key in LOCK, ON or STANDBY position
-    //	bool stop_button;
-    //	bool load_button;
-    //	bool opcom_button;
-    //	bool mcl_button;
+    //  bool stop_button;
+    //  bool load_button;
+    //  bool opcom_button;
+    //  bool mcl_button;
 
     int utilization; // Utilization percentage (calculated based on PIL level on 0 versus other PIL levels.0 =IDLE)
     int function_hit;  // Cache hit ? maybe on ND-BUS C signal

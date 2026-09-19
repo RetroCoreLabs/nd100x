@@ -155,10 +155,10 @@ void WriteEL(uint32_t el, uint16_t value)
 void illegal_instr(uint16_t operand)
 {
     /*
-	 * --log=cpu:debug logs every illegal-instruction trap.  This is how a guest's
-	 * CPU-type probe is observed: TPE's INSTRUCTION program executes VERSN (140133)
-	 * and decides "ND-100" if - and only if - it traps here.
-	 */
+     * --log=cpu:debug logs every illegal-instruction trap.  This is how a guest's
+     * CPU-type probe is observed: TPE's INSTRUCTION program executes VERSN (140133)
+     * and decides "ND-100" if - and only if - it traps here.
+     */
     LOG(LOG_CAT_CPU, LOG_DEBUG, "ILLEGAL %06o at %06o", operand, gPC);
 
     interrupt(14, 1 << 4); /* Illegal Instruction <= WILL TRAP! */
@@ -377,18 +377,18 @@ void CJP(bool jmp_flag, uint16_t operand)
         uint16_t temp = signExtend(operand & 0xff);
 
         /* MICROCODE-VALIDATED 2026-07-20: the address arithmetic must NOT touch STS.
-		 * do_add() writes STS C (and O/Q) as a side effect, but the whole CJP family
-		 * (RASK CS 007300-007337, ND-110-RASK.LISTING.TXT:12249-12287) carries NO "STS,xx"
-		 * token - so no status bit is written by a conditional jump, taken or not. Each
-		 * entry is "A,<reg> ALUF,PASSA ALUD,NONE IDBS,LA COMM,CJMP,<cond> T,JMP T,HOLD":
-		 * ALUD,NONE means the ALU result is not even latched, and the target address is
-		 * formed by the COMM,CJMP command from the latched displacement (IDBS,LA), not by
-		 * a status-updating ALU pass. STS bits 0-7 are written only by the STS,EA / STS,ES
-		 * / STS,LO tokens, none of which appear here. Confirmed live against the RASK
-		 * oracle: C keeps whatever it was seeded with across a taken and a non-taken jump.
-		 * Plain wrapping 16-bit add - identical arithmetic to the old do_add() call, minus
-		 * the flag write-back.
-		 */
+         * do_add() writes STS C (and O/Q) as a side effect, but the whole CJP family
+         * (RASK CS 007300-007337, ND-110-RASK.LISTING.TXT:12249-12287) carries NO "STS,xx"
+         * token - so no status bit is written by a conditional jump, taken or not. Each
+         * entry is "A,<reg> ALUF,PASSA ALUD,NONE IDBS,LA COMM,CJMP,<cond> T,JMP T,HOLD":
+         * ALUD,NONE means the ALU result is not even latched, and the target address is
+         * formed by the COMM,CJMP command from the latched displacement (IDBS,LA), not by
+         * a status-updating ALU pass. STS bits 0-7 are written only by the STS,EA / STS,ES
+         * / STS,LO tokens, none of which appear here. Confirmed live against the RASK
+         * oracle: C keeps whatever it was seeded with across a taken and a non-taken jump.
+         * Plain wrapping 16-bit add - identical arithmetic to the old do_add() call, minus
+         * the flag write-back.
+         */
         gPC = (uint16_t)((uint16_t)(gPC - 1) + (uint16_t)temp);
 
         if (g_disasm)
@@ -434,16 +434,16 @@ void ndfunc_jan(uint16_t operand)
 void ndfunc_jaz(uint16_t operand)
 {
     /* MICROCODE-VALIDATED 2026-07-20: JAZ does NOT touch STS.
-	 * RASK CS 007310-007313 (ND-110-RASK.LISTING.TXT:12259-12262) is
-	 *   "A,A ALUF,PASSA ALUD,NONE IDBS,LA COMM,CJMP,F=0 T,JMP T,HOLD CJP1"
-	 * - there is NO "STS,xx" token in the micro-word, and STS bits 0-7 are written only by
-	 * the STS,EA / STS,ES / STS,LO tokens. ALUD,NONE means the PASSA result is not even
-	 * latched. The same holds for every other CJP entry (JAP 007300, JAN 007304,
-	 * JAF 007314, JPC 007320, JNC 007324, JXZ 007330, JXN 007334).
-	 * The live RASK oracle confirms it: with A=0 and C seeded 0 the taken jump leaves C=0,
-	 * with C seeded 1 it leaves C=1 - C is simply PRESERVED.
-	 * The removed line ("setbit(_STS, _C, gA == 0)") was a fabricated carry side effect.
-	 */
+     * RASK CS 007310-007313 (ND-110-RASK.LISTING.TXT:12259-12262) is
+     *   "A,A ALUF,PASSA ALUD,NONE IDBS,LA COMM,CJMP,F=0 T,JMP T,HOLD CJP1"
+     * - there is NO "STS,xx" token in the micro-word, and STS bits 0-7 are written only by
+     * the STS,EA / STS,ES / STS,LO tokens. ALUD,NONE means the PASSA result is not even
+     * latched. The same holds for every other CJP entry (JAP 007300, JAN 007304,
+     * JAF 007314, JPC 007320, JNC 007324, JXZ 007330, JXN 007334).
+     * The live RASK oracle confirms it: with A=0 and C seeded 0 the taken jump leaves C=0,
+     * with C seeded 1 it leaves C=1 - C is simply PRESERVED.
+     * The removed line ("setbit(_STS, _C, gA == 0)") was a fabricated carry side effect.
+     */
     CJP(gA == 0, operand);
 }
 
@@ -521,22 +521,22 @@ void ndfunc_jpl(uint16_t operand)
     gEA = New_GetEffectiveAddr(operand, &gUseAPT);
 
     /* MICROCODE-VALIDATED 2026-07-20: addressing mode 5 (",X ,B" - X=1 I=0 B=1, i.e.
-	 * (B)+disp+(X)) does NOT update L on real ND-110/ND-120 silicon.
-	 *
-	 * Seven of the eight JPL entries begin with "A,P B,L ALUF,PASSA ALUD,B", i.e. L := P
-	 * (RASK CS 007340/007344/007350/007354/007360/007370/007374 =
-	 *  ND-110-RASK.LISTING.TXT:12289, 12294, 12299, 12304, 12309, 12319, 12324).
-	 * The mode-5 entry, RASK CS 007364-007367 (:12314-12317), is instead
-	 *   "A,X B,B ALUF,A+B ALUD,NONE IDBS,GPR T,JMP T,HOLD JMPXB"
-	 * - it forms X+B and hands over to JMPXB (CS 000213, :433) which is
-	 *   "ALUD,NONE IDBS,LA COMM,JMP,XB T,JMP T,HOLD".
-	 * Neither micro-word writes L, and the sequence is BIT-IDENTICAL to plain JMP's mode-5
-	 * entry (CS 007264-007267, :12233-12236) - the two instructions literally share the
-	 * JMPXB tail, so JPL,X,B cannot save a link. The ND-120 DELILAH microcode agrees
-	 * verbatim (ND-120-DELILAH-L.LISTING.TXT:15417-15429 vs :15365 for mode 0).
-	 * Confirmed live against the RASK oracle: mode 5 leaves L at its seeded value while the
-	 * mode-4 control returns L = P+1.
-	 */
+     * (B)+disp+(X)) does NOT update L on real ND-110/ND-120 silicon.
+     *
+     * Seven of the eight JPL entries begin with "A,P B,L ALUF,PASSA ALUD,B", i.e. L := P
+     * (RASK CS 007340/007344/007350/007354/007360/007370/007374 =
+     *  ND-110-RASK.LISTING.TXT:12289, 12294, 12299, 12304, 12309, 12319, 12324).
+     * The mode-5 entry, RASK CS 007364-007367 (:12314-12317), is instead
+     *   "A,X B,B ALUF,A+B ALUD,NONE IDBS,GPR T,JMP T,HOLD JMPXB"
+     * - it forms X+B and hands over to JMPXB (CS 000213, :433) which is
+     *   "ALUD,NONE IDBS,LA COMM,JMP,XB T,JMP T,HOLD".
+     * Neither micro-word writes L, and the sequence is BIT-IDENTICAL to plain JMP's mode-5
+     * entry (CS 007264-007267, :12233-12236) - the two instructions literally share the
+     * JMPXB tail, so JPL,X,B cannot save a link. The ND-120 DELILAH microcode agrees
+     * verbatim (ND-120-DELILAH-L.LISTING.TXT:15417-15429 vs :15365 for mode 0).
+     * Confirmed live against the RASK oracle: mode 5 leaves L at its seeded value while the
+     * mode-4 control returns L = P+1.
+     */
     if (((operand >> 8) & 0x07) != 5)
     {
         gL = gPC;
@@ -1128,17 +1128,17 @@ void ndfunc_geco(uint16_t operand)
 {
     (void)operand;
     /*
-		* Microcode listing lists this instruction from micro address 004000. Page 99 in the PDF document "MICROPROGRAMLISTNING FOR ND-110_32 BIT VERSION K-Gandalf-OCR"
-		* Page 134 listes the GECO offset address as 7427, assuming it is means opcode 1_427_nnn
+        * Microcode listing lists this instruction from micro address 004000. Page 99 in the PDF document "MICROPROGRAMLISTNING FOR ND-110_32 BIT VERSION K-Gandalf-OCR"
+        * Page 134 listes the GECO offset address as 7427, assuming it is means opcode 1_427_nnn
 
-		* https://www.ndwiki.org/wiki/GECO
+        * https://www.ndwiki.org/wiki/GECO
 
-		GECO is a customer-specifed instruction which appears to be included as part of the standard instruction set from ND-100/CE and later.
-		The name comes from the customer, GECO (Geophysical Company of Norway).
+        GECO is a customer-specifed instruction which appears to be included as part of the standard instruction set from ND-100/CE and later.
+        The name comes from the customer, GECO (Geophysical Company of Norway).
 
-		SINTRAN III version L, and probably version K and possibly earlier, tests for GECO as part of the startup.
-		From this it looks like the registers B, D, A, and X are all used as input parameters. When all are set to 0 the instruction seems to do nothing.
-	*/
+        SINTRAN III version L, and probably version K and possibly earlier, tests for GECO as part of the startup.
+        From this it looks like the registers B, D, A, and X are all used as input parameters. When all are set to 0 the instruction seems to do nothing.
+    */
 }
 
 /* VERSN - ND110+
@@ -1288,10 +1288,10 @@ void cpu_versn_reset(void)
     versn_load_default_prom();
 
     /*
-	 * 0x0708 (octal 3410, printed by TPE as "3410B" - the trailing B is Norsk
-	 * Data octal notation, NOT a revision letter). Kept byte for byte; the
-	 * CORRECT ND-110 revision is UNKNOWN and is deliberately not invented.
-	 */
+     * 0x0708 (octal 3410, printed by TPE as "3410B" - the trailing B is Norsk
+     * Data octal notation, NOT a revision letter). Kept byte for byte; the
+     * CORRECT ND-110 revision is UNKNOWN and is deliberately not invented.
+     */
     g_versn.microcode_version = 0x0708;
     g_versn.print_version = 0x80C;
 }
@@ -1597,10 +1597,10 @@ void cpu_versn_set_identity_from_env(void)
     if (text != NULL)
     {
         /*
-		 * The documented codes are 100/102/500/502/5561, but the SINTRAN source
-		 * writes that list with a trailing ".." (OPPSTART.NPL:3440), i.e. it is
-		 * OPEN-ENDED - any 16-bit value is accepted here on purpose.
-		 */
+         * The documented codes are 100/102/500/502/5561, but the SINTRAN source
+         * writes that list with a trailing ".." (OPPSTART.NPL:3440), i.e. it is
+         * OPEN-ENDED - any 16-bit value is accepted here on purpose.
+         */
         if (versn_identity_is_skip(text))
         {
             versn_set_word(VERSN_PROM_SYSTYPE_HI, VERSN_PROM_SYSTYPE_LO, 0xFFFF);
@@ -1692,10 +1692,10 @@ void ndfunc_versn(uint16_t operand)
 {
     (void)operand;
     /*
-	 * A bits 8-11 select which of the SIXTEEN PROM bytes to return in D.
-	 * The array is now VERSN_PROM_SIZE (16) entries long; it used to be 15,
-	 * so index 15 read one byte past the end of the array.
-	 */
+     * A bits 8-11 select which of the SIXTEEN PROM bytes to return in D.
+     * The array is now VERSN_PROM_SIZE (16) entries long; it used to be 15,
+     * so index 15 read one byte past the end of the array.
+     */
     int offset = (gA >> 8) & 0x0F;
     uint16_t a_in =
         gA; /* input A (PIL/offset selector) before VERSN overwrites it - for the trace below */
@@ -1741,8 +1741,8 @@ void ndfunc_versn(uint16_t operand)
     }
 
     /* Diagnostic (--log=cpu:debug): log every VERSN so an ND-110-vs-ND-120 boot can be diffed to see
-	 * why GCPUNR applies the PROM on one and not the other. Prints in octal: A_in (offset selector), the
-	 * PROM byte returned in D, and the assembled A / T. */
+     * why GCPUNR applies the PROM on one and not the other. Prints in octal: A_in (offset selector), the
+     * PROM byte returned in D, and the assembled A / T. */
     LOG(LOG_CAT_CPU, LOG_DEBUG, "[VERSN] A_in=%06o off=%2d PC=%06o -> D=%06o A=%06o T=%06o", a_in,
         offset, gPC, gD, gA, gT);
 }
@@ -1818,10 +1818,10 @@ void ndfunc_iot(uint16_t operand)
     }
 
     /* NORD-1 decoding: bits 0-7 device number, bits 8-10 ACT/SKA/PIN
-	 * (all zero = SNI). See NORD-1 Reference Manual sec 3.7 and the Device
-	 * struct comment. If a device claims this NORD-1 device number we use
-	 * that; SKA / "skip if OK" then skips the next instruction, which is what
-	 * the classic "IOT SKA DVN / JMP *-1" wait loop needs. */
+     * (all zero = SNI). See NORD-1 Reference Manual sec 3.7 and the Device
+     * struct comment. If a device claims this NORD-1 device number we use
+     * that; SKA / "skip if OK" then skips the next instruction, which is what
+     * the classic "IOT SKA DVN / JMP *-1" wait loop needs. */
     {
         uint8_t devno = (uint8_t)(operand & 0x00ff);
         uint8_t func = (uint8_t)((operand >> 8) & 0x07);
@@ -1840,9 +1840,9 @@ void ndfunc_iot(uint16_t operand)
     }
 
     /* Nothing claims it: keep the long-standing behaviour of treating IOT
-	 * like IOX. TSS's teletype scanner poking a device that is not present
-	 * relies on getting the IOX-error interrupt here rather than an illegal
-	 * instruction trap (which used to spin it in a trap loop). */
+     * like IOX. TSS's teletype scanner poking a device that is not present
+     * relies on getting the IOX-error interrupt here rather than an illegal
+     * instruction trap (which used to spin it in a trap loop). */
     gA = io_op(operand & 0x07ff, gA);
 }
 
@@ -2183,17 +2183,17 @@ void ndfunc_setpt(uint16_t operand)
     }
 
     /* ND110 Microcode:
-	9217  004054  %        OPCODE 140300 : SETPT 4
-	9218  004054  %
-	9219  004054  % SETPT: JXZ * 10               % FINISHED
-	9220  004054  %        LDDTX 20
-	9221  004054  %        BSET ZRO 130 DA        % PGU-BIT
-	9222  004054  %        LDBTX 10
-	9223  004054  %        177777                 % OLD BUG IN LDBTX
-	9224  004054  %        STD ,B                 % ALWAYS INSIDE PAGE TABLE
-	9225  004054  %        LDXTX 00
-	9226  004054  %        JMP *-7
-	*/
+    9217  004054  %        OPCODE 140300 : SETPT 4
+    9218  004054  %
+    9219  004054  % SETPT: JXZ * 10               % FINISHED
+    9220  004054  %        LDDTX 20
+    9221  004054  %        BSET ZRO 130 DA        % PGU-BIT
+    9222  004054  %        LDBTX 10
+    9223  004054  %        177777                 % OLD BUG IN LDBTX
+    9224  004054  %        STD ,B                 % ALWAYS INSIDE PAGE TABLE
+    9225  004054  %        LDXTX 00
+    9226  004054  %        JMP *-7
+    */
 
     int cnt = 0;
 
@@ -2217,7 +2217,7 @@ void ndfunc_setpt(uint16_t operand)
         uint32_t elval = ReadEL(EL);
         gB = (uint16_t)(((elval + elval) & 0xFFFF) | 0xFE00); // 177000
 
-        // 177777					% OLD BUG IN LDBTX
+        // 177777                   % OLD BUG IN LDBTX
 
         // STD ,B
         EffectiveAddress = (uint32_t)(gB & 0xFFFF); // (+displacement, which is 0 here)
@@ -2259,70 +2259,70 @@ void ndfunc_clept(uint16_t operand)
     }
 
     /* ND110 Microcode:
-	9229  004054  %        OPCODE 140301 I CLEPT
-	9230  004054  %9231  004054  % CLEPT: JXZ * 11               % FINISHED
-	9232  004054  %        LDBTX 10
-	9233  004054  %        177777                 % OLD BUG IN LDBTX
-	9234  004054  %        LDA ,B
-	9235  004054  %        JAZ * 3
-	9236  004054  %        STATX 20
-	9237  004054  %        STZ ,B                 % ALWAYS INSIDE PAGE TABLE
-	9238  004054  %        LDXTX 00
-	9239  004054  %        JMP *-10
-	9240  004054  %*
-	*/
+    9229  004054  %        OPCODE 140301 I CLEPT
+    9230  004054  %9231  004054  % CLEPT: JXZ * 11               % FINISHED
+    9232  004054  %        LDBTX 10
+    9233  004054  %        177777                 % OLD BUG IN LDBTX
+    9234  004054  %        LDA ,B
+    9235  004054  %        JAZ * 3
+    9236  004054  %        STATX 20
+    9237  004054  %        STZ ,B                 % ALWAYS INSIDE PAGE TABLE
+    9238  004054  %        LDXTX 00
+    9239  004054  %        JMP *-10
+    9240  004054  %*
+    */
 
     /*
 
-	 *  Affected: Pagetables, A, T, X, B registers ????
-	 *  T,X used as an adress reg  with 24 bits in the xxxTX instructions
-	 *
-	 * This instruction apparently is a replacement for this sequence:
-	 * CLEPT:	JXZ * 10	(if X=0 goto END)
-	 *		LDBTX 10	(B:=177000|(2*(EL)), EL=T,X+1)
-	 *		LDA ,B		(A:=(B))
-	 *		JAZ * 3		(if A=0 goto LOOP)
-	 *		STATX 20	((EL):=A, EL=T,X+2)
-	 *		STZ ,B		( (B):=0 )
-	 *		LDXTX 00	(X:=(EL), EL=T,X)
-	 * LOOP:	JMP *-7		(goto CLEPT)
-	 * END:		...
-	 */
+     *  Affected: Pagetables, A, T, X, B registers ????
+     *  T,X used as an adress reg  with 24 bits in the xxxTX instructions
+     *
+     * This instruction apparently is a replacement for this sequence:
+     * CLEPT:   JXZ * 10    (if X=0 goto END)
+     *      LDBTX 10    (B:=177000|(2*(EL)), EL=T,X+1)
+     *      LDA ,B      (A:=(B))
+     *      JAZ * 3     (if A=0 goto LOOP)
+     *      STATX 20    ((EL):=A, EL=T,X+2)
+     *      STZ ,B      ( (B):=0 )
+     *      LDXTX 00    (X:=(EL), EL=T,X)
+     * LOOP:    JMP *-7     (goto CLEPT)
+     * END:     ...
+     */
 
     /*
-	 * Ported from RetroCore CLEPT (Emulated.HW/ND/CPU/ND100/Instructions.ND110Specific.cs),
-	 * which carries the oracle-verified access ORDER.  The equivalent-assembler comment above
-	 * is a paraphrase and is NOT the access order the hardware uses - the real RASK microcode
-	 * body is CLPT1 (ND-110-RASK.LISTING.TXT 9339-9420, shared with CLEPU when R7 = 0):
-	 *
-	 *   004071 CLPT1:  Q := D, ARG 600
-	 *   004072          R4 := ...,  T,PUSH PATA1      <-- the FIRST memory touch of every node
-	 *   004120 PATA1:   LDSEG T                          (segment for the physical T,X accesses)
-	 *   004121 PATA2:   R1 := X                          (R1 = the node pointer)
-	 *   004122          EXRQ @X,  COND,F=0               (read [X]; F latches "X was 0")
-	 *   004123          X := DBR,  T,JMP T,POP           (X := [X] - happens on EVERY pass,
-	 *                                                     including the terminating X == 0 one)
-	 *   004124-004130   R1 := R1+1; EXRQ @[X+1];         (LDBTX 10: page index at [X+1] ->
-	 *                   B := 177000 | (2 * [X+1])         page-table entry address in B)
-	 *   004074          RDRQ,APT  -> PATA4 (004131)      (LDA ,B via the ALTERNATIVE page table)
-	 *   004075          COND on A == 0                   (JAZ *3: skip an unused entry)
-	 *   004077          DERQ  -> [X+2] := A              (STATX 20: save the used entry)
-	 *   004116          WRRQ,APT  ZERO                   (STZ ,B: clear the entry)
-	 *
-	 * Two bugs are fixed here versus the previous implementation:
-	 *
-	 *  1) ACCESS ORDER.  [X] (the next-node pointer) is read at the START of each node by
-	 *     PATA2 (004121-004123) - BEFORE the [X+1] page-index read - not at the end.  The old
-	 *     code read [X+1] first and [X] last, so a node that modified its own [X] word (which
-	 *     is exactly what SINTRAN's page-table chains do) walked the wrong successor.
-	 *
-	 *  2) FINAL X.  004123 loads X := [X] unconditionally, so on the terminating pass (X == 0)
-	 *     the microcode still reads [X] and puts that word in X.  The old code instead returned
-	 *     a LOOP COUNTER in X - copied from SETPT, which really does report a count - and worse,
-	 *     that counter (`ushort cnt;`) was NEVER INITIALISED, so CLEPT returned a garbage X that
-	 *     varied run to run.  That undefined behaviour is why the TPE INSTRUCTION failure looked
-	 *     "timing sensitive" and why one traced run appeared clean.  CLPT1 has no counter at all.
-	 */
+     * Ported from RetroCore CLEPT (Emulated.HW/ND/CPU/ND100/Instructions.ND110Specific.cs),
+     * which carries the oracle-verified access ORDER.  The equivalent-assembler comment above
+     * is a paraphrase and is NOT the access order the hardware uses - the real RASK microcode
+     * body is CLPT1 (ND-110-RASK.LISTING.TXT 9339-9420, shared with CLEPU when R7 = 0):
+     *
+     *   004071 CLPT1:  Q := D, ARG 600
+     *   004072          R4 := ...,  T,PUSH PATA1      <-- the FIRST memory touch of every node
+     *   004120 PATA1:   LDSEG T                          (segment for the physical T,X accesses)
+     *   004121 PATA2:   R1 := X                          (R1 = the node pointer)
+     *   004122          EXRQ @X,  COND,F=0               (read [X]; F latches "X was 0")
+     *   004123          X := DBR,  T,JMP T,POP           (X := [X] - happens on EVERY pass,
+     *                                                     including the terminating X == 0 one)
+     *   004124-004130   R1 := R1+1; EXRQ @[X+1];         (LDBTX 10: page index at [X+1] ->
+     *                   B := 177000 | (2 * [X+1])         page-table entry address in B)
+     *   004074          RDRQ,APT  -> PATA4 (004131)      (LDA ,B via the ALTERNATIVE page table)
+     *   004075          COND on A == 0                   (JAZ *3: skip an unused entry)
+     *   004077          DERQ  -> [X+2] := A              (STATX 20: save the used entry)
+     *   004116          WRRQ,APT  ZERO                   (STZ ,B: clear the entry)
+     *
+     * Two bugs are fixed here versus the previous implementation:
+     *
+     *  1) ACCESS ORDER.  [X] (the next-node pointer) is read at the START of each node by
+     *     PATA2 (004121-004123) - BEFORE the [X+1] page-index read - not at the end.  The old
+     *     code read [X+1] first and [X] last, so a node that modified its own [X] word (which
+     *     is exactly what SINTRAN's page-table chains do) walked the wrong successor.
+     *
+     *  2) FINAL X.  004123 loads X := [X] unconditionally, so on the terminating pass (X == 0)
+     *     the microcode still reads [X] and puts that word in X.  The old code instead returned
+     *     a LOOP COUNTER in X - copied from SETPT, which really does report a count - and worse,
+     *     that counter (`ushort cnt;`) was NEVER INITIALISED, so CLEPT returned a garbage X that
+     *     varied run to run.  That undefined behaviour is why the TPE INSTRUCTION failure looked
+     *     "timing sensitive" and why one traced run appeared clean.  CLPT1 has no counter at all.
+     */
 
     while (1)
     {
@@ -2390,45 +2390,45 @@ void ndfunc_clnreent(uint16_t operand)
     }
 
     /*
-	OPCODE 140302 : CLNREENT
+    OPCODE 140302 : CLNREENT
 
-	READ ADDRESS A+2 TO FIND PAGE TABLE TO BE AFFECTED
-	READ RT - DESCRIPTION BITMAP WORDS, FOUND FROM ADDRESS X + 25.
-	CLEAR PAGE-TABLE ENTRIES CORRESPONDING TO 1 - BITS IN BITMAP.
-	THE LAST BITMAP-ADDRESS IS IN ADDRESS X + T.
-	*/
+    READ ADDRESS A+2 TO FIND PAGE TABLE TO BE AFFECTED
+    READ RT - DESCRIPTION BITMAP WORDS, FOUND FROM ADDRESS X + 25.
+    CLEAR PAGE-TABLE ENTRIES CORRESPONDING TO 1 - BITS IN BITMAP.
+    THE LAST BITMAP-ADDRESS IS IN ADDRESS X + T.
+    */
 
     /*
-	 * Ported verbatim from RetroCore CLNREENT
-	 * (Emulated.HW/ND/CPU/ND100/Instructions.ND110Specific.cs), which is faithful to
-	 * RASK microcode CLNR1 (ND-110-RASK.LISTING.TXT lines 9460-9538) and was validated
-	 * against the ND-110 microcode oracle.  All memory accesses go through the
-	 * ALTERNATIVE page table (the operated-on process's page table).
-	 */
+     * Ported verbatim from RetroCore CLNREENT
+     * (Emulated.HW/ND/CPU/ND100/Instructions.ND110Specific.cs), which is faithful to
+     * RASK microcode CLNR1 (ND-110-RASK.LISTING.TXT lines 9460-9538) and was validated
+     * against the ND-110 microcode oracle.  All memory accesses go through the
+     * ALTERNATIVE page table (the operated-on process's page table).
+     */
     a_reg = gA;
     x_reg = gX;
     t_reg = gT;
 
     /*
-	 * 004132: the S3SG1 prologue leaves Q = A + 1, so F = Q + 1 = A + 2.  If A + 2 == 0
-	 * the instruction does nothing and returns (RASK LISTING 9460 / 9467, cond0 -> CONTINUE).
-	 */
+     * 004132: the S3SG1 prologue leaves Q = A + 1, so F = Q + 1 = A + 2.  If A + 2 == 0
+     * the instruction does nothing and returns (RASK LISTING 9460 / 9467, cond0 -> CONTINUE).
+     */
     if ((uint16_t)(a_reg + 2) == 0)
     {
         return;
     }
 
     /*
-	 * 004133: read the page-table pointer word via APT[A+2].  Its value is latched into Q
-	 * but the rest of CLNR1 uses the fixed APT base 0177000 instead, so this read is a side
-	 * effect only - it is kept so the memory-access trace matches the microcode oracle.
-	 */
+     * 004133: read the page-table pointer word via APT[A+2].  Its value is latched into Q
+     * but the rest of CLNR1 uses the fixed APT base 0177000 instead, so this read is a side
+     * effect only - it is kept so the memory-access trace matches the microcode oracle.
+     */
     (void)ReadVirtualMemory((uint16_t)(a_reg + 2), true);
 
     /*
-	 * 004135-004141: R1 = 0177000 (octal) APT-relative page-table base; R2 = X + 25 (octal)
-	 *                bitmap read cursor; R3 = X + T + 1 bitmap end (last bitmap word at X + T).
-	 */
+     * 004135-004141: R1 = 0177000 (octal) APT-relative page-table base; R2 = X + 25 (octal)
+     *                bitmap read cursor; R3 = X + T + 1 bitmap end (last bitmap word at X + T).
+     */
     r1 = 0xFE00;                   /* 0177000 octal */
     r2 = (uint16_t)(x_reg + 0x15); /* + 025 octal (= 21 decimal) */
     r3 = (uint16_t)(x_reg + t_reg + 1);
@@ -2446,19 +2446,19 @@ void ndfunc_clnreent(uint16_t operand)
         if (word == 0)
         {
             /*
-			 * CLNR5 004156: a zero bitmap word clears nothing; skip its 16 entries
-			 * (R1 += 040 octal = 32 = 16 entries * 2-word stride).
-			 */
+             * CLNR5 004156: a zero bitmap word clears nothing; skip its 16 entries
+             * (R1 += 040 octal = 32 = 16 entries * 2-word stride).
+             */
             r1 = (uint16_t)(r1 + 0x20);
             continue;
         }
 
         /*
-		 * Inner loop: 16 bit positions, LSB first.  Clear the page-table entry when its bit
-		 * is set (RASK 004150-004155; stride 2, one entry per bit).  The clear-when-set
-		 * predicate is the documented intent (LISTING 9246); the exact microcode latch is
-		 * oracle-validated.
-		 */
+         * Inner loop: 16 bit positions, LSB first.  Clear the page-table entry when its bit
+         * is set (RASK 004150-004155; stride 2, one entry per bit).  The clear-when-set
+         * predicate is the documented intent (LISTING 9246); the exact microcode latch is
+         * oracle-validated.
+         */
         for (bit = 0; bit < 16; bit++)
         {
             if ((word & (1 << bit)) != 0)
@@ -2505,24 +2505,24 @@ void ndfunc_chreent_pages(uint16_t operand)
     }
 
     /*
-		OPCODE 140303 : CHREENTPAGES
+        OPCODE 140303 : CHREENTPAGES
 
-		1. READ ADDRESS D.X -> R1 ; D,X -> PREVIOUS (SCRATCH REG)
-		2. IF R1 = 0; SKIP RETURN (FINISHED)
-		3. READ ADDRESS T,R1+2
-		4. IF NOT WIP; T.R1 -> PREVIOUS; READ ADDR T.R1 -> R1; GOTO 2
-		5. READ ADDRESS T,R1  -> R2
-		6. WRITE R2 -> ADDRESS PREVIOUS
-		7. R1 -> X ; PREVIOUS -> D.A ; RETURN
-	*/
+        1. READ ADDRESS D.X -> R1 ; D,X -> PREVIOUS (SCRATCH REG)
+        2. IF R1 = 0; SKIP RETURN (FINISHED)
+        3. READ ADDRESS T,R1+2
+        4. IF NOT WIP; T.R1 -> PREVIOUS; READ ADDR T.R1 -> R1; GOTO 2
+        5. READ ADDRESS T,R1  -> R2
+        6. WRITE R2 -> ADDRESS PREVIOUS
+        7. R1 -> X ; PREVIOUS -> D.A ; RETURN
+    */
 
     /*
-	 * Ported verbatim from RetroCore CHREENT_PAGES
-	 * (Emulated.HW/ND/CPU/ND100/Instructions.ND110Specific.cs), faithful to RASK microcode
-	 * CHRE1 (ND-110-RASK.LISTING.TXT lines 9540-9599) and validated against the microcode
-	 * oracle.  The chain lives in PHYSICAL memory addressed as segment:offset (a loaded
-	 * segment selects a 64K bank) - NOT through the page table.
-	 */
+     * Ported verbatim from RetroCore CHREENT_PAGES
+     * (Emulated.HW/ND/CPU/ND100/Instructions.ND110Specific.cs), faithful to RASK microcode
+     * CHRE1 (ND-110-RASK.LISTING.TXT lines 9540-9599) and validated against the microcode
+     * oracle.  The chain lives in PHYSICAL memory addressed as segment:offset (a loaded
+     * segment selects a 64K bank) - NOT through the page table.
+     */
     prog_d = gD;
     prog_x = gX;
     prog_t = gT;
@@ -2543,9 +2543,9 @@ void ndfunc_chreent_pages(uint16_t operand)
         link = (uint16_t)ReadPhysicalMemory((int)nd110_seg_phys(seg, off), true);
 
         /*
-		 * 004162-004163 / CHRE4 004200: a zero link ends the chain -> SKIP return
-		 * (extra P+1), registers unchanged.
-		 */
+         * 004162-004163 / CHRE4 004200: a zero link ends the chain -> SKIP return
+         * (extra P+1), registers unchanged.
+         */
         if (link == 0)
         {
             gPC++;
@@ -2561,10 +2561,10 @@ void ndfunc_chreent_pages(uint16_t operand)
         if ((status & ND110_WIP_BIT) != 0)
         {
             /*
-			 * WIP set: unlink this page.  004170: read successor at T:link;
-			 * 004174: DEPOSIT it into the previous slot; 004172-004175: set D/A/X,
-			 * normal return.
-			 */
+             * WIP set: unlink this page.  004170: read successor at T:link;
+             * 004174: DEPOSIT it into the previous slot; 004172-004175: set D/A/X,
+             * normal return.
+             */
             uint16_t successor =
                 (uint16_t)ReadPhysicalMemory((int)nd110_seg_phys(prog_t, link), true);
 
@@ -2617,46 +2617,46 @@ void ndfunc_clepu(uint16_t operand)
     // TODO: Implement
 
     /*
-		OPCODE 140304 : CLEPU
+        OPCODE 140304 : CLEPU
 
-		AS 'CLEPT" BUT INCLUDING WORKING SET INFORMATION
-		FOR ALL PAGE-TABLE ENTRIES HANDLED
-		IF PGU OF ENTRY IS 1
-			D /0 300
-			B /0 776 SHR 1 - D
-			B-REG BITS 0-3 IS NOW BIT NUMBER
-			B-REG BITS 4-6 IS NOW WORD NUMBER
-			SET BIT IN 8-WORD TABLE IN PAGE-MAP BANK
-			POINTED TO BY L-REGISTER
+        AS 'CLEPT" BUT INCLUDING WORKING SET INFORMATION
+        FOR ALL PAGE-TABLE ENTRIES HANDLED
+        IF PGU OF ENTRY IS 1
+            D /0 300
+            B /0 776 SHR 1 - D
+            B-REG BITS 0-3 IS NOW BIT NUMBER
+            B-REG BITS 4-6 IS NOW WORD NUMBER
+            SET BIT IN 8-WORD TABLE IN PAGE-MAP BANK
+            POINTED TO BY L-REGISTER
 
-		LAYOUT 0F 8-WORD TABLE
+        LAYOUT 0F 8-WORD TABLE
 
-							BIT 15									BIT O
-							________________________________________________
-		L-REG -> WORD	0	# PAGE 17								PAGE 0 #
-		WORD			1	# PAGE 37									20 #
-		WORD			2	# PAGE 57									40 #
-		WORD			3	# PAGE 177								   160 #
+                            BIT 15                                  BIT O
+                            ________________________________________________
+        L-REG -> WORD   0   # PAGE 17                               PAGE 0 #
+        WORD            1   # PAGE 37                                   20 #
+        WORD            2   # PAGE 57                                   40 #
+        WORD            3   # PAGE 177                                 160 #
 
-	*/
+    */
 
     /*
-	 * Ported verbatim from RetroCore CLEPU
-	 * (Emulated.HW/ND/CPU/ND100/Instructions.ND110Specific.cs), faithful to RASK
-	 * CLPU1/CLPT1 (ND-110-RASK.LISTING.TXT 9340-9418; the CLEPU dispatch at 005764 preloads
-	 * R7 = BMG(013 octal) = 04000 octal = bit 11) and validated against the microcode oracle.
-	 *
-	 * CLEPU is CLEPT plus: for every entry whose PGU (page-used) bit is set, BEFORE clearing
-	 * it, set that page's bit in an 8-word working-set table in the page-map bank pointed to
-	 * by L (PGU block LISTING 9370-9408).  Per the header table layout above, page = the
-	 * entry index at [X+1]; word number = page >> 4 (0..7), bit number = page & 0xF; the
-	 * table word lives at L + word (physical).  The save/PGU/clear order matches the
-	 * microcode: save [X+2] (004077), collect (004101-114), then clear (004116).
-	 *
-	 * NOTE: unlike the older ndfunc_clept above, the next-node pointer at [X] is read FIRST,
-	 * on every pass including the terminating one - that access order and the final X are
-	 * oracle-verified (see the RetroCore CLEPT/CLEPU comments).
-	 */
+     * Ported verbatim from RetroCore CLEPU
+     * (Emulated.HW/ND/CPU/ND100/Instructions.ND110Specific.cs), faithful to RASK
+     * CLPU1/CLPT1 (ND-110-RASK.LISTING.TXT 9340-9418; the CLEPU dispatch at 005764 preloads
+     * R7 = BMG(013 octal) = 04000 octal = bit 11) and validated against the microcode oracle.
+     *
+     * CLEPU is CLEPT plus: for every entry whose PGU (page-used) bit is set, BEFORE clearing
+     * it, set that page's bit in an 8-word working-set table in the page-map bank pointed to
+     * by L (PGU block LISTING 9370-9408).  Per the header table layout above, page = the
+     * entry index at [X+1]; word number = page >> 4 (0..7), bit number = page & 0xF; the
+     * table word lives at L + word (physical).  The save/PGU/clear order matches the
+     * microcode: save [X+2] (004077), collect (004101-114), then clear (004116).
+     *
+     * NOTE: unlike the older ndfunc_clept above, the next-node pointer at [X] is read FIRST,
+     * on every pass including the terminating one - that access order and the final X are
+     * oracle-verified (see the RetroCore CLEPT/CLEPU comments).
+     */
     for (;;)
     {
         uint16_t next_x;
@@ -2686,10 +2686,10 @@ void ndfunc_clepu(uint16_t operand)
             WriteEL(calcEL(2), gA);
 
             /*
-			 * 004100-004114 (PGU block): if the entry's PGU bit is set, mark the page in
-			 * the 8-word working-set table at L (page-map bank).
-			 * word = page >> 4, bit = page & 0xF.
-			 */
+             * 004100-004114 (PGU block): if the entry's PGU bit is set, mark the page in
+             * the 8-word working-set table at L (page-map bank).
+             * word = page >> 4, bit = page & 0xF.
+             */
             if ((gA & ND110_PGU_BIT) != 0)
             {
                 clepu_mark_working_set(idx);
@@ -2810,9 +2810,9 @@ void ndfunc_inspl(uint16_t operand)
     if (old_head == 0)
     {
         /*
-		 * 004473-004474 (INSP2, empty list): back link := anchor marker segIndex | 3,
-		 * where segIndex = (B - STSRT) >> 1.
-		 */
+         * 004473-004474 (INSP2, empty list): back link := anchor marker segIndex | 3,
+         * where segIndex = (B - STSRT) >> 1.
+         */
         uint16_t seg_index = (uint16_t)(((b_reg - gSTSRT) & 0xFFFF) >> 1);
 
         marker = (uint16_t)(seg_index | 3);
@@ -2870,10 +2870,10 @@ void ndfunc_rempl(uint16_t operand)
     if (tail)
     {
         /*
-		 * 004514-004520 (REMP2, tail page): the back link is the anchor marker; the
-		 * segment head slot is STBNK[(STSRT + 2*marker) | 7] (== B+7).  Set it to the
-		 * successor.
-		 */
+         * 004514-004520 (REMP2, tail page): the back link is the anchor marker; the
+         * segment head slot is STBNK[(STSRT + 2*marker) | 7] (== B+7).  Set it to the
+         * successor.
+         */
         uint32_t head_off = (uint32_t)(((gSTSRT + 2 * r2) | 7) & 0xFFFF);
 
         WritePhysicalMemory((int)(stbnk | head_off), r1, true);
@@ -3034,37 +3034,37 @@ void ndfunc_clpt(uint16_t operand)
                 WritePhysicalMemory((int)(cmbnk | (uint32_t)((x_reg + 2) & 0xFFFF)), r3, true);
 
                 /*
-				 * 004553 falls through into CLPK4 (004554) whose CONDENABL routes the TRUE
-				 * case to 004555 - the SAME `ALUF,ZERO / COMM,WRRQ,APT` clear the bit-15 path
-				 * uses.  So a SAVED entry is also CLEARED; the instruction is, after all,
-				 * CLear Page Tables and the bit-15 flag only selects whether the old entry is
-				 * saved first.  The 004552 CONDENABL has already jumped to CLPK3 when the
-				 * entry read back as zero, so a zero entry is neither saved nor cleared -
-				 * hence this sits inside `r3 != 0`.
-				 *
-				 * HONESTY NOTE: the listing latches `COND,F=0` at 004553 on an ALU operand
-				 * whose register select (`A,R3  B,A  ALUF,PASSB`) is not decidable from the
-				 * listing text alone, so "always clear here" cannot be formally separated from
-				 * "clear only when the A register is 0".  Every CLPT executed in the validated
-				 * SINTRAN III ND-110 boot has A = 0 (91 of 91, measured on the RetroCore B26
-				 * harness), so the two readings are indistinguishable on the available
-				 * evidence; pin it against the microcode oracle if it ever matters.
-				 *
-				 * Without this clear the ND-110 SINTRAN boot never releases a page-table
-				 * entry and live-locks re-entering the same pages forever (ledger B26): the
-				 * ND100CX control run performs 91 clearing writes into page table 9 while the
-				 * ND110CX run performed ZERO.  With it, RetroCore's ND110CX harness reaches
-				 * "SINTRAN III RUNNING -" in 23 s.
-				 */
+                 * 004553 falls through into CLPK4 (004554) whose CONDENABL routes the TRUE
+                 * case to 004555 - the SAME `ALUF,ZERO / COMM,WRRQ,APT` clear the bit-15 path
+                 * uses.  So a SAVED entry is also CLEARED; the instruction is, after all,
+                 * CLear Page Tables and the bit-15 flag only selects whether the old entry is
+                 * saved first.  The 004552 CONDENABL has already jumped to CLPK3 when the
+                 * entry read back as zero, so a zero entry is neither saved nor cleared -
+                 * hence this sits inside `r3 != 0`.
+                 *
+                 * HONESTY NOTE: the listing latches `COND,F=0` at 004553 on an ALU operand
+                 * whose register select (`A,R3  B,A  ALUF,PASSB`) is not decidable from the
+                 * listing text alone, so "always clear here" cannot be formally separated from
+                 * "clear only when the A register is 0".  Every CLPT executed in the validated
+                 * SINTRAN III ND-110 boot has A = 0 (91 of 91, measured on the RetroCore B26
+                 * harness), so the two readings are indistinguishable on the available
+                 * evidence; pin it against the microcode oracle if it ever matters.
+                 *
+                 * Without this clear the ND-110 SINTRAN boot never releases a page-table
+                 * entry and live-locks re-entering the same pages forever (ledger B26): the
+                 * ND100CX control run performs 91 clearing writes into page table 9 while the
+                 * ND110CX run performed ZERO.  With it, RetroCore's ND110CX harness reaches
+                 * "SINTRAN III RUNNING -" in 23 s.
+                 */
                 WriteVirtualMemory(b_reg, 0, true, WRITEMODE_WORD);
             }
 
             /*
-			 * DIAG (--ring-at-clpt=<n>): once the swap-in/swap-out livelock is
-			 * in steady state, dump the CPU instruction ring so we can see what the guest
-			 * actually executed between the ENPT that mapped the segment and this CLPT that
-			 * unmapped it again.  One-shot.
-			 */
+             * DIAG (--ring-at-clpt=<n>): once the swap-in/swap-out livelock is
+             * in steady state, dump the CPU instruction ring so we can see what the guest
+             * actually executed between the ENPT that mapped the segment and this CLPT that
+             * unmapped it again.  One-shot.
+             */
             {
                 static long clpt_calls = 0;
 
@@ -3781,7 +3781,7 @@ static inline void regop_logical(uint16_t operand, uint16_t sr, uint16_t dr, uin
         }
         break;
     case 2: /* REXO: plain = dest ^ src; but cm1 is OR-of-complement (dest | ~src), NOT XOR - the RASK
-	         * REXO;cm1;cld=0 routes through REX02 (ALUF,ORAB). cld (dest=0) yields ~src / src for free. */
+             * REXO;cm1;cld=0 routes through REX02 (ALUF,ORAB). cld (dest=0) yields ~src / src for free. */
         if (dr != 0)
         {
             g_reg->reg[CurrLEVEL][dr] = (cm1) ? (uint16_t)(destination | (uint16_t)~source)
@@ -3850,21 +3850,21 @@ void regop(uint16_t operand)
     dr = (operand & 0x0007);
 
     /* Register field 0 = "no register": reading yields 0, writing is DISCARDED. In nd100x reg[0] is
-	 * the STS register, so a write to register 0 must be suppressed or it corrupts STS. dr=0 must read
-	 * as 0 here too (NOT reg[0]=STS). Oracle-validated against the RASK microcode; see RetroCore commits
-	 * 0890b6fbb (SWAP reg-0), 7dbdbe729 (REXO;CM1), 581e7270a (RADD dr=0). */
+     * the STS register, so a write to register 0 must be suppressed or it corrupts STS. dr=0 must read
+     * as 0 here too (NOT reg[0]=STS). Oracle-validated against the RASK microcode; see RetroCore commits
+     * 0890b6fbb (SWAP reg-0), 7dbdbe729 (REXO;CM1), 581e7270a (RADD dr=0). */
     source = (sr == 0) ? 0 : g_reg->reg[CurrLEVEL][sr] & 0xFFFF;
     destination = (CLD) ? 0 : ((dr == 0) ? 0 : g_reg->reg[CurrLEVEL][dr] & 0xFFFF);
 
     switch (RAD)
     {
     case 0: /* Logical operation - SWAP RAND REXO RORA. NO dr!=0 guard: reg field 0 writes are discarded
-	         * (SWAP writes BOTH sr and dr, so dr=0 still writes the source-register half). */
+             * (SWAP writes BOTH sr and dr, so dr=0 still writes the source-register half). */
         regop_logical(operand, sr, dr, source, destination);
         break;
     case 1: /* Arithmetic - RADD/RSUB. RASK has NO dr==0 special case: run do_add (which sets C/O/Q) on
-	         * EVERY path and only discard the register write for dr=0. The manual's "dr=0 resets carry,
-	         * else no-op" is WRONG for the ND-110 silicon (oracle-confirmed). */
+             * EVERY path and only discard the register write for dr=0. The manual's "dr=0 resets carry,
+             * else no-op" is WRONG for the ND-110 silicon (oracle-confirmed). */
         regop_arith(operand, dr, source, destination);
         break;
     }
@@ -4053,13 +4053,13 @@ void DoTRA(uint16_t instr)
         gPES_Lock = false;
         break;
     case 017: /* TRA CS - read the writable control store (microprogram version). SINTRAN's LOCOSTORE
-	           * (PH-P2-RESTART.NPL: `X:=100; *150017; A=:MICVER`) reads the CPU's microcode version here
-	           * and compares bit 17 (bit 15) against the loaded microcode SEGMENT's CONVER: a 120 segment
-	           * on a non-120 CPU (or vice-versa) is a fatal "Mismatch CPU / micro-code-segm". Return octal
-	           * 023 (a revision >= SINTRAN's minimum 013 AND >= the on-disk segment rev, so LOCOSTORE takes
-	           * the NOTLOAD path instead of trying an IOX microcode download) with bit 15 SET on an ND-120
-	           * so it matches the ND-120 segment. nd100x has no real WCS; this mirrors RetroCore
-	           * ReadControlStore (commit 24ad44fd8). Without it an ND-120 aborts at RESTART.NPL 035551. */
+               * (PH-P2-RESTART.NPL: `X:=100; *150017; A=:MICVER`) reads the CPU's microcode version here
+               * and compares bit 17 (bit 15) against the loaded microcode SEGMENT's CONVER: a 120 segment
+               * on a non-120 CPU (or vice-versa) is a fatal "Mismatch CPU / micro-code-segm". Return octal
+               * 023 (a revision >= SINTRAN's minimum 013 AND >= the on-disk segment rev, so LOCOSTORE takes
+               * the NOTLOAD path instead of trying an IOX microcode download) with bit 15 SET on an ND-120
+               * so it matches the ND-120 segment. nd100x has no real WCS; this mirrors RetroCore
+               * ReadControlStore (commit 24ad44fd8). Without it an ND-120 aborts at RESTART.NPL 035551. */
         gA = (uint16_t)(0x13 | (versn_is_nd120() ? 0x8000 : 0));
         break;
     default: /* These registers dont exist, so just return 0 for now FIXME: Check correct behaviour.*/
@@ -4498,9 +4498,9 @@ uint16_t ShiftReg(uint16_t reg, uint16_t instr)
 {
     bool isneg = ((instr & 0x0020) >> 5) ? 1 : 0;
     /* Right-shift count is the two's complement of the 6-bit field, but the hardware shift counter is
-	 * only 5 BITS, so it wraps mod 32: field 040 octal (= 32) loads as 0 -> NO shift (register unchanged,
-	 * M preserved). Oracle-validated (RetroCore CpuND100.Fetch, commit 135a2ff28). Fields 041..077
-	 * (counts 31..1) already fit and are unaffected. M-on-count-0 is already correct here (tmp inits to M). */
+     * only 5 BITS, so it wraps mod 32: field 040 octal (= 32) loads as 0 -> NO shift (register unchanged,
+     * M preserved). Oracle-validated (RetroCore CpuND100.Fetch, commit 135a2ff28). Fields 041..077
+     * (counts 31..1) already fit and are unaffected. M-on-count-0 is already correct here (tmp inits to M). */
     uint16_t offset =
         (isneg) ? (uint16_t)((~((instr & 0x003F) | 0xFFC0) + 1) & 0x1F) : (instr & 0x003F);
     uint16_t shifttype = ((instr >> 9) & 0x03);
@@ -4539,7 +4539,7 @@ uint32_t ShiftDoubleReg(uint32_t reg, uint16_t instr)
 {
     bool isneg = ((instr & 0x0020) >> 5) ? 1 : 0;
     /* 5-bit shift-counter wrap: field 040 octal (=32) -> 0 = NO shift (SAD register pair unchanged, M
-	 * preserved). Oracle-validated (RetroCore 135a2ff28). See ShiftReg for the full note. */
+     * preserved). Oracle-validated (RetroCore 135a2ff28). See ShiftReg for the full note. */
     uint16_t offset =
         (isneg) ? (uint16_t)((~((instr & 0x003F) | 0xFFC0) + 1) & 0x1F) : (instr & 0x003F);
     uint16_t shifttype = ((instr >> 9) & 0x03);
@@ -4664,7 +4664,7 @@ void DoTSET(uint16_t instr)
 ///
 /// A and D - Source address
 /// X and T - Destination address
-/// L		- The number of words to be moved (max 2048)
+/// L       - The number of words to be moved (max 2048)
 ///
 /// A and/or X are used for physical memory-block moves and are incremented when the D and/or T registers overflow.
 ///
@@ -4842,9 +4842,9 @@ void DoMOVB(uint16_t instr)
             MemoryWrite(thebyte, addr_d, d_apt, ((i + d_lr) & 1));
         }
         /* NOTE: resetting i to 0 here used to leak into the end-state "next free byte"
-		 * parity below. That was WRONG - see the end_half computation after the loop,
-		 * which no longer uses i. The reset is kept because i is the loop cursor only.
-		 */
+         * parity below. That was WRONG - see the end_half computation after the loop,
+         * which no longer uses i. The reset is kept because i is the loop cursor only.
+         */
         i = 0;
     }
     else
@@ -4861,25 +4861,25 @@ void DoMOVB(uint16_t instr)
     }
 
     /* MICROCODE-VALIDATED 2026-07-20: the end-state byte-half parity is (len + d_lr) & 1,
-	 * NOT (i + d_lr) & 1.
-	 *
-	 * The manual is explicit - "After execution, bit 15 of the D and T registers point to
-	 * the end of the field that has been moved" (nd100-markdown cpu_documentation.md:5481).
-	 * "End of the field" = the byte AFTER the last one written, so its half is the start
-	 * half advanced by the number of bytes moved: (len + d_lr) & 1.
-	 *
-	 * The descending (dir != 0, source < dest) branch above resets i to 0, so the old
-	 * "(i + d_lr) & 1" evaluated the START half instead of the END half whenever the move
-	 * ran high-to-low. It only shows up for ODD byte counts (an even count leaves the
-	 * parity unchanged, which is why len=2 vectors always passed and len=3 always failed).
-	 *
-	 * Live RASK oracle, source 01500 -> dest 01540 (descending), destination word 0360:
-	 *   len=3 half=L -> D=8000 T=8003 X=0361   (parity 1 = (3+0)&1)
-	 *   len=3 half=R -> D=0000 T=0003 X=0362   (parity 0 = (3+1)&1)
-	 * Both are self-consistent with the bytes actually written (the next free byte really
-	 * is 0361-right / 0362-left), and reproduce bit-for-bit across runs. The ASCENDING
-	 * branch is unaffected: there i ends at len, so (i + d_lr) == (len + d_lr) already.
-	 */
+     * NOT (i + d_lr) & 1.
+     *
+     * The manual is explicit - "After execution, bit 15 of the D and T registers point to
+     * the end of the field that has been moved" (nd100-markdown cpu_documentation.md:5481).
+     * "End of the field" = the byte AFTER the last one written, so its half is the start
+     * half advanced by the number of bytes moved: (len + d_lr) & 1.
+     *
+     * The descending (dir != 0, source < dest) branch above resets i to 0, so the old
+     * "(i + d_lr) & 1" evaluated the START half instead of the END half whenever the move
+     * ran high-to-low. It only shows up for ODD byte counts (an even count leaves the
+     * parity unchanged, which is why len=2 vectors always passed and len=3 always failed).
+     *
+     * Live RASK oracle, source 01500 -> dest 01540 (descending), destination word 0360:
+     *   len=3 half=L -> D=8000 T=8003 X=0361   (parity 1 = (3+0)&1)
+     *   len=3 half=R -> D=0000 T=0003 X=0362   (parity 0 = (3+1)&1)
+     * Both are self-consistent with the bytes actually written (the next free byte really
+     * is 0361-right / 0362-left), and reproduce bit-for-bit across runs. The ASCENDING
+     * branch is unaffected: there i ends at len, so (i + d_lr) == (len + d_lr) already.
+     */
     int end_half = (len + d_lr) & 1;
 
     gD &= 0x7000;         /* Null number of bytes, as per manual, also null bit 15 */
@@ -4947,21 +4947,21 @@ void DoMOVBF(uint16_t instr)
     gX = dest + ((len + d_lr) >> 1);
 
     /* MICROCODE-VALIDATED 2026-07-20: bit 15 must be ASSIGNED the end-of-field parity, not
-	 * OR-ed on top of the start half.
-	 *
-	 * Manual: "After execution, bit 15 of the D and T registers point to the end of the
-	 * field that has been moved" (nd100-markdown cpu_documentation.md:5526). The masks
-	 * below (0xEFFF / 0xCFFF, and the later 0xF000) all PRESERVE bit 15, so the old
-	 * "|= parity << 15" could only ever SET it - a descriptor that started on the right
-	 * byte (bit 15 = 1) could never come back pointing at a left byte. It therefore only
-	 * diverged when the parity had to flip back to 0 (odd length starting on the right).
-	 *
-	 * Live RASK oracle, source 01500 -> dest 01540, destination word 0360:
-	 *   len=2 half=L -> D=0000 T=0000 X=0361   len=2 half=R -> D=8000 T=8000 X=0361
-	 *   len=3 half=L -> D=8000 T=8000 X=0361   len=3 half=R -> D=0000 T=0000 X=0362
-	 * i.e. exactly (len + d_lr) & 1 in all four cases (i == len here, the loop is always
-	 * ascending, so (i + d_lr) is already the right parity - only the CLEAR was missing).
-	 */
+     * OR-ed on top of the start half.
+     *
+     * Manual: "After execution, bit 15 of the D and T registers point to the end of the
+     * field that has been moved" (nd100-markdown cpu_documentation.md:5526). The masks
+     * below (0xEFFF / 0xCFFF, and the later 0xF000) all PRESERVE bit 15, so the old
+     * "|= parity << 15" could only ever SET it - a descriptor that started on the right
+     * byte (bit 15 = 1) could never come back pointing at a left byte. It therefore only
+     * diverged when the parity had to flip back to 0 (odd length starting on the right).
+     *
+     * Live RASK oracle, source 01500 -> dest 01540, destination word 0360:
+     *   len=2 half=L -> D=0000 T=0000 X=0361   len=2 half=R -> D=8000 T=8000 X=0361
+     *   len=3 half=L -> D=8000 T=8000 X=0361   len=3 half=R -> D=0000 T=0000 X=0362
+     * i.e. exactly (len + d_lr) & 1 in all four cases (i == len here, the loop is always
+     * ascending, so (i + d_lr) is already the right parity - only the CLEAR was missing).
+     */
     int end_half = (i + d_lr) & 1;
 
     gD &= 0xefff;         /* Null bit 12 */
@@ -5190,8 +5190,8 @@ void sub_A_mem(uint16_t eff_addr, bool UseAPT)
     data = MemoryRead(eff_addr, UseAPT);
     temp = gA - data;
     /*
-	 * FIXME - ADD FLAG HANDLING CORRECTLY FOR C,O,Q FLAGS (CHECK AGAIN THINK WE MIGHT HAVE SUBTLE BUGS)
-	 */
+     * FIXME - ADD FLAG HANDLING CORRECTLY FOR C,O,Q FLAGS (CHECK AGAIN THINK WE MIGHT HAVE SUBTLE BUGS)
+     */
     if ((temp > 0xFFFF) || (temp < 0))
     {
         setbit(_STS, _C, 0);
@@ -5269,11 +5269,11 @@ void rdiv_org(uint16_t instr)
 void rdiv(uint16_t instr)
 {
     /* FAITHFUL to RASK RDIV6 (CS 000430-000463); oracle-validated (RetroCore 4c29170d1). The success
-	 * "loop path" results are UNCHANGED (what SINTRAN depends on); only the ERROR paths and the
-	 * negative-dividend C/O/Q flags are corrected. Divide-by-zero / true overflow leave the dividend's
-	 * two's-complement MAGNITUDE in A/D (minus |divisor| in the high word) and OR-set Z; the ND manual's
-	 * "divide-by-zero -> A/D unchanged" is an abstraction (magnitude == original for a POSITIVE dividend,
-	 * so they coincide there - which is why the old code passed only for positive dividends). */
+     * "loop path" results are UNCHANGED (what SINTRAN depends on); only the ERROR paths and the
+     * negative-dividend C/O/Q flags are corrected. Divide-by-zero / true overflow leave the dividend's
+     * two's-complement MAGNITUDE in A/D (minus |divisor| in the high word) and OR-set Z; the ND manual's
+     * "divide-by-zero -> A/D unchanged" is an abstraction (magnitude == original for a POSITIVE dividend,
+     * so they coincide there - which is why the old code passed only for positive dividends). */
     int dividend = ((int)gA << 16) | (int)gD;
     short divisor = ((instr & 0x0038) >> 3) ? (short)g_reg->reg[gPIL][((instr & 0x0038) >> 3)] : 0;
 
@@ -5281,8 +5281,8 @@ void rdiv(uint16_t instr)
     uint16_t origLow = gD; /* low word the microcode negates at CS 000434 (`-B`) */
 
     /* CS 000434 (NEGATIVE DIVIDEND): negate the 32-bit dividend to its magnitude; STS,EA latches the
-	 * flags of the LOW-word (D) two's-complement negation. This precedes the STS save that brackets the
-	 * loop, so these flags PERSIST on both the loop and error paths. Positive dividend: C/O/Q untouched. */
+     * flags of the LOW-word (D) two's-complement negation. This precedes the STS save that brackets the
+     * loop, so these flags PERSIST on both the loop and error paths. Positive dividend: C/O/Q untouched. */
     if (dividendNegative)
     {
         int negOvf =
@@ -5303,9 +5303,9 @@ void rdiv(uint16_t instr)
     uint16_t dividendMagHigh = (uint16_t)(dividendMag >> 16);
 
     /* CS 000436 RDIV2 overflow PRE-CHECK: A := |dividend|_high - |divisor| (written back, ALUD,B). If
-	 * |dividend|_high >= |divisor| (unsigned, no borrow) OR divisor == 0, the quotient cannot fit 16
-	 * bits, so branch to RDIVZ BEFORE the loop: OR-set Z, leave A = that subtract and D = |dividend| low.
-	 * The quotient/remainder are NEVER computed on this path. */
+     * |dividend|_high >= |divisor| (unsigned, no borrow) OR divisor == 0, the quotient cannot fit 16
+     * bits, so branch to RDIVZ BEFORE the loop: OR-set Z, leave A = that subtract and D = |dividend| low.
+     * The quotient/remainder are NEVER computed on this path. */
     if (divisorMag == 0 || dividendMagHigh >= divisorMag)
     {
         gA = (uint16_t)(dividendMagHigh - divisorMag);
@@ -5324,7 +5324,7 @@ void rdiv(uint16_t instr)
     gD = dividendNegative ? (uint16_t)(0u - remainderMag) : (uint16_t)remainderMag;
 
     /* CS 000457 RDIV5 sign check: Z on SIGNED overflow (positive q > 32767, negative q > 32768 - so a
-	 * -32768 quotient is VALID and does NOT set Z, unlike a naive |q| >= 32768 test). */
+     * -32768 quotient is VALID and does NOT set Z, unlike a naive |q| >= 32768 test). */
     if (quotientNegative ? (quotientMag > 0x8000u) : (quotientMag > 0x7FFFu))
     {
         setbit(_STS, _Z, 1);
@@ -5398,10 +5398,10 @@ void rmpy(uint16_t instr)
     int result = abs_src * abs_dst; /* magnitude of the product (always non-negative here) */
 
     /* STATUS FLAGS from the RASK microcode, NOT "product > 16 bits" (that was a guess and is wrong).
-	 * RMPY runs its own routine RMPY4 (CS 004350-004363): a SAME-SIGN result writes NO status (C/O/Q/M
-	 * left unchanged); an OPPOSITE-SIGN result negates the product and STS,EA (CS 004362) latches the
-	 * flags of the LOW-word two's-complement negation: C = carry-out (low word == 0), Q = overflow
-	 * (low word == 0x8000), O = O OR that overflow. Oracle-validated (RetroCore 135a2ff28). */
+     * RMPY runs its own routine RMPY4 (CS 004350-004363): a SAME-SIGN result writes NO status (C/O/Q/M
+     * left unchanged); an OPPOSITE-SIGN result negates the product and STS,EA (CS 004362) latches the
+     * flags of the LOW-word two's-complement negation: C = carry-out (low word == 0), Q = overflow
+     * (low word == 0x8000), O = O OR that overflow. Oracle-validated (RetroCore 135a2ff28). */
     if (minusCnt == 1)
     {
         int lowWord = result & 0xFFFF; /* low word of the positive magnitude (what -Q negates) */
@@ -5584,7 +5584,7 @@ void Setup_Instructions(void) // NOLINT(readability-function-size)
     // Instruction_Add_Range(0114000, 0117777, &ndfunc_fdv); /* FDV  */
     Instruction_Add_Mask(0114000, 0xF800, &ndfunc_fdv);
 
-    // Instruction_Add_Range(0120000, 0123777, &mpy);		/* MPY  */
+    // Instruction_Add_Range(0120000, 0123777, &mpy);       /* MPY  */
     Instruction_Add_Mask(0120000, 0xF800, &mpy);
 
     // Instruction_Add_Range(0124000, 0127777, &ndfunc_jmp); /* JMP  */
@@ -5684,10 +5684,10 @@ void Setup_Instructions(void) // NOLINT(readability-function-size)
         Instruction_Add(0140507, &ndfunc_rept);  /* REPT  - ND110 Specific */
         Instruction_Add(0140510, &ndfunc_lbit);  /* LBIT  - ND110 Specific */
         /*
-		 * 140511 LBITP and 140512 SBIT were MISSING from this table entirely (not even
-		 * registered as unimplemented) - see ND-06.029.1 EN and RetroCore
-		 * Instructions.cs (hasND110Group), which registers the full 140510-140517 run.
-		 */
+         * 140511 LBITP and 140512 SBIT were MISSING from this table entirely (not even
+         * registered as unimplemented) - see ND-06.029.1 EN and RetroCore
+         * Instructions.cs (hasND110Group), which registers the full 140510-140517 run.
+         */
         Instruction_Add(0140511, &ndfunc_lbitp); /* LBITP - ND110 Specific */
         Instruction_Add(0140512, &ndfunc_sbit);  /* SBIT  - ND110 Specific */
         Instruction_Add(0140513, &ndfunc_sbitp); /* SBITP - ND110 Specific */
@@ -5711,13 +5711,13 @@ void Setup_Instructions(void) // NOLINT(readability-function-size)
     case ND110PCX:
     case ND120CX: /* ND-120 is instruction-set-identical to the ND-110/CX - same ND-110 opcode group. */
         /*
-		 * ALL are priveleged!
-		 *
-		 * These carry a 3-bit displacement in bits 3-5 of the opcode (14070x + delta<<3),
-		 * so they MUST be registered with mask 0xFFC7 (bits 3-5 left free) - registering
-		 * only the bare 14070x word left the 56 displaced encodings undecoded.
-		 * Note also that 0140703 was mislabelled "SASB" here; it is SACB.
-		 */
+         * ALL are priveleged!
+         *
+         * These carry a 3-bit displacement in bits 3-5 of the opcode (14070x + delta<<3),
+         * so they MUST be registered with mask 0xFFC7 (bits 3-5 left free) - registering
+         * only the bare 14070x word left the 56 displaced encodings undecoded.
+         * Note also that 0140703 was mislabelled "SASB" here; it is SACB.
+         */
         Instruction_Add_Mask(0140700, 0xFFC7, &ndfunc_lasb); /* LASB - ND110 Specific */
         Instruction_Add_Mask(0140701, 0xFFC7, &ndfunc_sasb); /* SASB - ND110 Specific */
         Instruction_Add_Mask(0140702, 0xFFC7, &ndfunc_lacb); /* LACB - ND110 Specific */

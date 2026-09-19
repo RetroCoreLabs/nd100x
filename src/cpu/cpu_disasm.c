@@ -640,7 +640,7 @@ void OpToStr(char *return_string, uint16_t max_len,
         offset = (isneg) ? (~((operand & 0x003F) | 0xFFC0) + 1) : (operand & 0x003F);
         (isneg) ? (void)snprintf(numstr, sizeof(numstr), "SHR %o", offset)
                 : (void)snprintf(numstr, sizeof(numstr), "%o", offset);
-        //		((int)offset <0) ? (void)snprintf(numstr,BUFSTRSIZE,"SHR %o",-(int)offset) : (void)snprintf(numstr,BUFSTRSIZE,"%o",offset);
+        //      ((int)offset <0) ? (void)snprintf(numstr,BUFSTRSIZE,"SHR %o",-(int)offset) : (void)snprintf(numstr,BUFSTRSIZE,"%o",offset);
         (void)snprintf(opstr, BUFSTRSIZE, "SHD %s%s", shtype_str[((operand & 0x0600) >> 9)],
                        numstr);
         break;
@@ -650,7 +650,7 @@ void OpToStr(char *return_string, uint16_t max_len,
         offset = (isneg) ? (~((operand & 0x003F) | 0xFFC0) + 1) : (operand & 0x003F);
         (isneg) ? (void)snprintf(numstr, sizeof(numstr), "SHR %o", offset)
                 : (void)snprintf(numstr, sizeof(numstr), "%o", offset);
-        //		((int)offset <0) ? (void)snprintf(numstr,BUFSTRSIZE,"SHR %o",-(int)offset) : (void)snprintf(numstr,BUFSTRSIZE,"%o",offset);
+        //      ((int)offset <0) ? (void)snprintf(numstr,BUFSTRSIZE,"SHR %o",-(int)offset) : (void)snprintf(numstr,BUFSTRSIZE,"%o",offset);
         (void)snprintf(opstr, BUFSTRSIZE, "SHA %s%s", shtype_str[((operand & 0x0600) >> 9)],
                        numstr);
         break;
@@ -660,17 +660,17 @@ void OpToStr(char *return_string, uint16_t max_len,
         offset = (isneg) ? (~((operand & 0x003F) | 0xFFC0) + 1) : (operand & 0x003F);
         (isneg) ? (void)snprintf(numstr, sizeof(numstr), "SHR %o", offset)
                 : (void)snprintf(numstr, sizeof(numstr), "%o", offset);
-        //		((int)offset <0) ? (void)snprintf(numstr,BUFSTRSIZE,"SHR %o",-(int)offset) : (void)snprintf(numstr,BUFSTRSIZE,"%o",offset);
+        //      ((int)offset <0) ? (void)snprintf(numstr,BUFSTRSIZE,"SHR %o",-(int)offset) : (void)snprintf(numstr,BUFSTRSIZE,"%o",offset);
         (void)snprintf(opstr, BUFSTRSIZE, "SAD %s%s", shtype_str[((operand & 0x0600) >> 9)],
                        numstr);
         break;
     case 0160000: /* IOT - NORD-1 compatible I/O */
         /* IOT is NOT an alias of IOX. Bits 0-7 are a device number and bits
-		 * 8-10 are the function ACT / SKA / PIN, all zero meaning SNI
-		 * (NORD-1 Reference Manual sec 3.7; ND-06.008.01 lists IOT and IOX as
-		 * separate instructions). Printing the low 11 bits as one address, as
-		 * this used to, renders "IOT SKA 144" as "IOT 1144" and hides the
-		 * function entirely. */
+         * 8-10 are the function ACT / SKA / PIN, all zero meaning SNI
+         * (NORD-1 Reference Manual sec 3.7; ND-06.008.01 lists IOT and IOX as
+         * separate instructions). Printing the low 11 bits as one address, as
+         * this used to, renders "IOT SKA 144" as "IOT 1144" and hides the
+         * function entirely. */
         {
             unsigned devno = operand & 0x00ff;
             unsigned func = (operand >> 8) & 0x07;

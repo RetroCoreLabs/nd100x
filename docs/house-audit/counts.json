@@ -9,20 +9,8 @@
    "total": 0
   },
   "1.5": {
-   "files": {
-    "src/cpu/cpu.c": 19,
-    "src/cpu/cpu_disasm.c": 8,
-    "src/cpu/cpu_instr.c": 351,
-    "src/cpu/cpu_mms.c": 3,
-    "src/cpu/cpu_types.h": 89,
-    "src/cpu/float.c": 37,
-    "src/devices/floppy/device_floppy_dma.c": 7,
-    "src/devices/floppy/device_floppy_dma.h": 30,
-    "src/devices/panel/panel.h": 6,
-    "src/devices/smd/device_smd.c": 11,
-    "src/devices/smd/disk_smd.h": 7
-   },
-   "total": 568
+   "files": {},
+   "total": 0
   },
   "10.3": {
    "files": {},

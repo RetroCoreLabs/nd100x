@@ -59,9 +59,9 @@ static bool ReadEnd(Device *self, int drive);
 /*
  https://www.ndwiki.org/wiki/ND_floppy_disks
 
-Format	Identification	Sector size			Sectors/t	Tracks/s	Sides/Density	Capacity pages
-0b		IBM SYS-32-II	512 bytes/sector	8			77			SS/SD			154
-17b		Non IBM			1024 bytes/sector	8			77			DS/DD			616
+Format  Identification  Sector size         Sectors/t   Tracks/s    Sides/Density   Capacity pages
+0b      IBM SYS-32-II   512 bytes/sector    8           77          SS/SD           154
+17b     Non IBM         1024 bytes/sector   8           77          DS/DD           616
 
 * The 8" Norsk Data format 0b was 512 bytes/sector, single sided/single density, 8 sectors per track, 77 tracks.
 * The total capacity was 154 pages of 2048 bytes per page. Of this 148 pages could be allocated for files.
@@ -690,10 +690,10 @@ static void ExecuteFloppyGo(Device *self)
         //*"Read format" returns format in Status word 2
         // Format read from diskette, valid for read format command or when eror 12
         // Bit 0-1 Bytes pr sector
-        //	00 = 512 bytes /sector
-        //	01 = 256 Bytes /sector
-        //	10 = 123 bytes /sector
-        //	11 = 1024 bytes/sector
+        //  00 = 512 bytes /sector
+        //  01 = 256 Bytes /sector
+        //  10 = 123 bytes /sector
+        //  11 = 1024 bytes/sector
 
         if (data->diskFileSize == 0) // No floppy mounted
         {

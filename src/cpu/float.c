@@ -57,9 +57,9 @@ void DoDNZ(char scaling);
  */
 // clang-format off
 struct fp {
-	int s;          /* sign: 0 = positive, 1 = negative */
-	int e;          /* exponent (unbiased) */
-	uint64_t m;     /* mantissa in upper 32 bits of a 64-bit value (for mul/div) */
+    int s;          /* sign: 0 = positive, 1 = negative */
+    int e;          /* exponent (unbiased) */
+    uint64_t m;     /* mantissa in upper 32 bits of a 64-bit value (for mul/div) */
 };
 // clang-format on
 
@@ -440,12 +440,12 @@ void DoDNZ(char scaling)
     if (sh < 0)
     {
         /*
-		 * Right-shift the mantissa down to the integer.  A C shift by >= the
-		 * operand width (here -sh >= 32) is UNDEFINED BEHAVIOUR, and on real
-		 * ND hardware such a large downscale simply underflows the fixed-point
-		 * result to zero.  Guard the shift so deep underflow yields 0 instead
-		 * of garbage (matches the ND-100 microcode ZAD2 zero-path).
-		 */
+         * Right-shift the mantissa down to the integer.  A C shift by >= the
+         * operand width (here -sh >= 32) is UNDEFINED BEHAVIOUR, and on real
+         * ND hardware such a large downscale simply underflows the fixed-point
+         * result to zero.  Guard the shift so deep underflow yields 0 instead
+         * of garbage (matches the ND-100 microcode ZAD2 zero-path).
+         */
         if (-sh >= 32)
         {
             val = 0;
@@ -545,7 +545,7 @@ static void pack32(int s, int e, uint64_t m, uint16_t *a, uint16_t *d)
     }
 
     /* Safety-net renormalization: bring the MSB to bit 31. The bounds of 40
-	 * are pure paranoia - a sane input needs at most ~32 iterations. */
+     * are pure paranoia - a sane input needs at most ~32 iterations. */
     for (i = 0; i < 40 && m > 0xFFFFFFFFULL; i++)
     {
         m >>= 1;
@@ -568,8 +568,8 @@ static void pack32(int s, int e, uint64_t m, uint16_t *a, uint16_t *d)
     {
         eb = 0x1FF;
     } /* overflow -> saturate; UNVERIFIED
-	                                               * against hardware, chosen as a
-	                                               * safe fallback (known gap)     */
+                                                   * against hardware, chosen as a
+                                                   * safe fallback (known gap)     */
 
     mant23 = (uint32_t)(m >> 9); /* top 23 bits, hidden MSB @ bit22 */
     *a = (uint16_t)((s << 15) | ((eb & 0x1FF) << 6) | ((mant23 >> 16) & 0x3F));
@@ -690,8 +690,8 @@ int NDFloat_Mul32(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
 
     m3 = f1.m * f2.m;     /* 32 x 32 -> 64 */
     e3 = f1.e + f2.e + 1; /* the +1 differs from the 48-bit path: it
-	                              * compensates the hidden-bit packing (the
-	                              * internal e is one below the packed binade) */
+                                  * compensates the hidden-bit packing (the
+                                  * internal e is one below the packed binade) */
     s3 = f1.s ^ f2.s;
 
     /* Normalize: if the product's MSB landed at bit 62 rather than 63, shift up. */
@@ -737,11 +737,11 @@ int NDFloat_Div32(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
     f2.m <<= 32;
     s3 = f1.s ^ f2.s;
     e3 = f2.e - f1.e - 1; /* the -1 differs from the 48-bit path: it
-	                                * compensates the hidden-bit packing (the
-	                                * internal e is one below the packed binade;
-	                                * the offsets cancel in the subtraction and
-	                                * the -1 restores the packed convention).
-	                                * Oracle: FDV(6,2) -> 040240 = 3. */
+                                    * compensates the hidden-bit packing (the
+                                    * internal e is one below the packed binade;
+                                    * the offsets cancel in the subtraction and
+                                    * the -1 restores the packed convention).
+                                    * Oracle: FDV(6,2) -> 040240 = 3. */
     m3 = f2.m / f1.m;
     if (f2.m % f1.m)
     {
@@ -749,7 +749,7 @@ int NDFloat_Div32(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
     }
 
     /* Quotient of two normalized mantissas is in (0.5, 2). If it reached >= 1
-	 * (bit 32 set), shift back into [0.5,1) and bump the exponent. */
+     * (bit 32 set), shift back into [0.5,1) and bump the exponent. */
     if (m3 >= (1ULL << 32))
     {
         m3 >>= 1;
@@ -800,14 +800,14 @@ void DoNLZ32(char scaling)
     }
 
     /* The intermediate keeps the 16384 bias so the normalization loop stays
-	 * identical to the 48-bit one; pack32 re-biases with 257. The extra -1
-	 * places the result in the manual's binade: NLZ(+16) of 1 -> 040100,
-	 * of 3 -> 040240, of -1 -> 140100, and NLZ(+17) of 1 -> 040200 - all
-	 * confirmed against the FIXED microcode oracle 2026-07-27 (the earlier
-	 * one-binade-high oracle readings came from a loop-counter bug in the
-	 * ND110 microcode emulator's NLZ, since root-caused and fixed). This
-	 * also makes the NLZ(+16) -> DNZ(-16) round trip the identity, which
-	 * DoDNZ32's shift formula is calibrated to. */
+     * identical to the 48-bit one; pack32 re-biases with 257. The extra -1
+     * places the result in the manual's binade: NLZ(+16) of 1 -> 040100,
+     * of 3 -> 040240, of -1 -> 140100, and NLZ(+17) of 1 -> 040200 - all
+     * confirmed against the FIXED microcode oracle 2026-07-27 (the earlier
+     * one-binade-high oracle readings came from a loop-counter bug in the
+     * ND110 microcode emulator's NLZ, since root-caused and fixed). This
+     * also makes the NLZ(+16) -> DNZ(-16) round trip the identity, which
+     * DoDNZ32's shift formula is calibrated to. */
     e = sh - 16384 - 1;
     m = ((uint64_t)(uint32_t)val) << 16; /* 16-bit mantissa MSB@15 -> MSB@31 */
     pack32(s, e, m, &gA, &gD);
@@ -838,18 +838,18 @@ void DoDNZ32(char scaling)
     mant23 = (1u << 22) | ((uint32_t)(gA & 0x3F) << 16) | gD;
 
     /* Extract the fixed-point integer by right-shifting the 23-bit mantissa.
-	 * The shift amount was derived empirically from the live 32-bit RASK
-	 * oracle via the NLZ(+16) -> DNZ(-16) round trip: for scaling = -16 the
-	 * shift is (22 - e), and each +1 of scaling halves the shift (doubles the
-	 * result). Hence shift = 6 - e - scaling.
-	 * UNVERIFIED (known gap): behaviour for scaling factors other than -16 -
-	 * the manual says other factors "will not cause a different result but
-	 * will affect the test for overflow", which this formula does not model
-	 * exactly. Do not extend without new oracle data. */
+     * The shift amount was derived empirically from the live 32-bit RASK
+     * oracle via the NLZ(+16) -> DNZ(-16) round trip: for scaling = -16 the
+     * shift is (22 - e), and each +1 of scaling halves the shift (doubles the
+     * result). Hence shift = 6 - e - scaling.
+     * UNVERIFIED (known gap): behaviour for scaling factors other than -16 -
+     * the manual says other factors "will not cause a different result but
+     * will affect the test for overflow", which this formula does not model
+     * exactly. Do not extend without new oracle data. */
     shift = 6 - e - (int)(signed char)scaling;
 
     /* A C shift by >= the operand width is undefined behaviour; real ND
-	 * hardware just underflows to zero (cf. the guard in DoDNZ). */
+     * hardware just underflows to zero (cf. the guard in DoDNZ). */
     if (shift >= 0)
     {
         val = (shift >= 32) ? 0 : (int64_t)(mant23 >> shift); /* deep underflow -> 0 */
