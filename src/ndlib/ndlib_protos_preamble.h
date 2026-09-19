@@ -1,3 +1,10 @@
+/*
+ * ndlib_protos_preamble.h - Forward type declarations used by the generated ndlib prototypes.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright (c) 2026 Ronny Hansen
+ */
+
 /* AUTO-GENERATED FILE. DO NOT EDIT! */
 
 /* Forward declarations for generated prototypes */

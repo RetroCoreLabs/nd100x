@@ -1,5 +1,9 @@
 /*
+ * tcp_receive_buffer.c - Ring buffer for bytes received over TCP by the HDLC modem.
+ *
  * nd100x - ND100 Virtual Machine
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Copyright (c) 2025 Ronny Hansen
  *

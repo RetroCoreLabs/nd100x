@@ -1,5 +1,9 @@
 /*
+ * test_machine_config.c - Unit tests for the [machine] fpp and rtc INI keys.
+ *
  * nd100x - ND100 Virtual Machine
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Copyright (c) 2026 Ronny Hansen
  *

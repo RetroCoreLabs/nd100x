@@ -1,5 +1,10 @@
 /*
+ * test_tcp_receive_buffer.c - Unit tests for the TCP receive ring buffer.
+ *
  * Unit tests for TcpReceiveBuffer (ring buffer).
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright (c) 2026 Ronny Hansen
  */
 
 #include <stdio.h>

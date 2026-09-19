@@ -1,6 +1,9 @@
 /*
  * nd100x - ND-100 emulator
  *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright (c) 2026 Ronny Hansen
+ *
  * scsi_bus.c - SCSI bus (wire-OR of control and data lines)
  *
  * Ported from RetroCore:

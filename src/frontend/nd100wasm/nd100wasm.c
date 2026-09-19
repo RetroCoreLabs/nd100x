@@ -1,5 +1,9 @@
 /*
+ * nd100wasm.c - WebAssembly frontend: JS terminal I/O, init, boot and debugger exports.
+ *
  * nd100wasm - ND100 Virtual Machine for WebAssembly
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Copyright (c) 2025 Ronny Hansen
  *

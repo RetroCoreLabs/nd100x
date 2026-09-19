@@ -1,6 +1,8 @@
 /*
  * nd100x - ND100 Virtual Machine
  *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ *
  * Copyright (c) 2025 Ronny Hansen
  *
  * net_compat.c - implementation of the cross-platform net compat layer.

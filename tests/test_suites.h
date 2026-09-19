@@ -1,4 +1,6 @@
 /*
+ * test_suites.h - Entry points of the test suites linked into a shared test main.
+ *
  * nd100x - ND100 Virtual Machine
  *
  * SPDX-License-Identifier: GPL-2.0-or-later

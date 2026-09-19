@@ -1,5 +1,9 @@
 /*
+ * device_winchester.c - Winchester disc controller, cards 3041/3038 (ND-11.015.01).
+ *
  * nd100x - ND100 Virtual Machine
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Copyright (c) 2026 Ronny Hansen
  *

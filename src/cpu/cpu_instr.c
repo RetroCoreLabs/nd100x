@@ -1,5 +1,9 @@
 /*
+ * cpu_instr.c - ND-100 instruction implementations, privilege checks and illegal-instruction trap.
+ *
  * nd100x - ND100 Virtual Machine
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Copyright (c) 2006 Per-Olof Astrom
  * Copyright (c) 2006-2008 Roger Abrahamsson

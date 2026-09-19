@@ -1,6 +1,9 @@
 /*
  * nd100x - ND-100 emulator
  *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright (c) 2026 Ronny Hansen
+ *
  * scsi_hdd.h - SCSI hard disk target (CDB decode + block I/O)
  *
  * Ported from RetroCore:

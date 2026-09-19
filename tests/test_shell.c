@@ -1,6 +1,9 @@
 /*
  * test_shell.c - Unit tests for the ND-100X interactive shell
  *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright (c) 2026 Ronny Hansen
+ *
  * These tests exercise the REAL shipped shell code, not a re-implementation
  * of its logic. nd100x_shell.c is #included directly so the file-static
  * functions (cmd_matches, parse_tokens, execute_command, cmd_list_files,

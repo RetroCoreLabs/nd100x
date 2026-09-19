@@ -1,6 +1,9 @@
 /*
  * machine_config_apply.h - turn a MachineConfig into an actual machine.
  *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright (c) 2026 Ronny Hansen
+ *
  * machine_config.h calls itself "the single in-memory model of what machine to
  * build". This is the other half: the code that BUILDS it. Until now that code
  * was a static function inside the native CLI frontend, which meant the model

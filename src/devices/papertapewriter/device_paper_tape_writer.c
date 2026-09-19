@@ -1,5 +1,9 @@
 /*
+ * device_paper_tape_writer.c - Paper tape punch interface (ND-06.015.02).
+ *
  * nd100x - ND100 Virtual Machine
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Copyright (c) 2025 Ronny Hansen
  *

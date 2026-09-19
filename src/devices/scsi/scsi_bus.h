@@ -1,6 +1,9 @@
 /*
  * nd100x - ND-100 emulator
  *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright (c) 2026 Ronny Hansen
+ *
  * scsi_bus.h - SCSI bus and the device base "class" that sits on it
  *
  * Ported from RetroCore:

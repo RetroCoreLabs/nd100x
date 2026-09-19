@@ -1,5 +1,10 @@
 /*
+ * test_pdfwriter.c - Unit tests for the PDF writer data model and rendered content.
+ *
  * Unit tests for pdfwriter module.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright (c) 2026 Ronny Hansen
  *
  * Tests verify both the in-memory data model AND the rendered PDF content
  * stream - the actual PDF operators that control font selection, text

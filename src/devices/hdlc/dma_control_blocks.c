@@ -1,5 +1,9 @@
 /*
+ * dma_control_blocks.c - HDLC DMA control blocks: TX/RX buffer list handling in memory.
+ *
  * nd100x - ND100 Virtual Machine
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Copyright (c) 2025 Ronny Hansen
  *

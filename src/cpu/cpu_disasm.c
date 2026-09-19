@@ -1,5 +1,9 @@
 /*
+ * cpu_disasm.c - ND-100 instruction disassembler used by the -a option and debugger.
+ *
  * nd100x - ND100 Virtual Machine
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Copyright (c) 2006 Per-Olof Astrom
  * Copyright (c) 2006-2008 Roger Abrahamsson

@@ -1,5 +1,9 @@
 /*
+ * escp.c - ESC/P printer control code interpreter producing styled text spans.
+ *
  * nd100x - ND100 Virtual Machine
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Copyright (c) 2025 Ronny Hansen
  *

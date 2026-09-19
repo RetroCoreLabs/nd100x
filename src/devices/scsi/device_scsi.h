@@ -1,6 +1,9 @@
 /*
  * nd100x - ND-100 emulator
  *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright (c) 2026 Ronny Hansen
+ *
  * device_scsi.h - ND-3201/3204 SCSI disk controller
  *
  * The ND-3201 (and the ND-3204 with external word count) is an NCR-5386 SCSI

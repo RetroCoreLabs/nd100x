@@ -1,5 +1,9 @@
 /*
+ * device_paper_tape_writer.h - Paper tape punch interface: registers and API.
+ *
  * nd100x - ND100 Virtual Machine
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Copyright (c) 2025 Ronny Hansen
  *
@@ -20,8 +24,8 @@
  * distribution in the file COPYING); if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef DEVICE_PAPERTAPEWRITER_H
-#define DEVICE_PAPERTAPEWRITER_H
+#ifndef DEVICE_PAPER_TAPE_WRITER_H
+#define DEVICE_PAPER_TAPE_WRITER_H
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -106,4 +110,4 @@ typedef struct
 Device *CreatePaperTapeWriterDevice(uint8_t thumbwheel);
 const uint8_t *PaperTapeWriter_GetTapeData(Device *self, size_t *length);
 
-#endif /* DEVICE_PAPERTAPEWRITER_H */
+#endif /* DEVICE_PAPER_TAPE_WRITER_H */

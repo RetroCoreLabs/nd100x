@@ -1,5 +1,9 @@
 /*
+ * disk_smd.c - SMD disk geometry per disk type (heads, sectors, cylinders).
+ *
  * nd100x - ND100 Virtual Machine
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Copyright (c) 2025 Ronny Hansen
  *

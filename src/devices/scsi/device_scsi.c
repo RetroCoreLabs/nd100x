@@ -1,6 +1,9 @@
 /*
  * nd100x - ND-100 emulator
  *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright (c) 2026 Ronny Hansen
+ *
  * device_scsi.c - ND-3201/3204 SCSI disk controller
  *
  * Ported from RetroCore:

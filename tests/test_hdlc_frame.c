@@ -1,5 +1,10 @@
 /*
+ * test_hdlc_frame.c - Unit tests for HDLC frame build, byte stuffing and processing.
+ *
  * Unit tests for HDLC frame processing: build, stuff/destuff, process, roundtrip.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright (c) 2026 Ronny Hansen
  */
 
 #include <stdio.h>

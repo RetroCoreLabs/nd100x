@@ -1,5 +1,9 @@
 /*
+ * device_line_printer.c - Line printer interface (ND-06.016.01), IOX 0430-0433.
+ *
  * nd100x - ND100 Virtual Machine
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Copyright (c) 2025 Ronny Hansen
  *

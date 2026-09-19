@@ -1,5 +1,9 @@
 /*
+ * telnetserver.h - Telnet server: configuration, terminal registration and status API.
+ *
  * nd100x - ND100 Virtual Machine
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Copyright (c) 2025 Ronny Hansen
  *
@@ -18,8 +22,8 @@
  * distribution in the file COPYING); if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef TELNET_SERVER_H
-#define TELNET_SERVER_H
+#ifndef TELNETSERVER_H
+#define TELNETSERVER_H
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -101,4 +105,4 @@ bool TelnetServer_GetPendingInfo(TelnetServer *server, int index, char *addrBuf,
 bool TelnetServer_DropPending(TelnetServer *server, int index);
 void TelnetServer_DropAllPending(TelnetServer *server);
 
-#endif // TELNET_SERVER_H
+#endif // TELNETSERVER_H

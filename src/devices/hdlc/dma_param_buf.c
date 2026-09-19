@@ -1,5 +1,9 @@
 /*
+ * dma_param_buf.c - HDLC DMA parameter buffer: control, sync and block-length fields.
+ *
  * nd100x - ND100 Virtual Machine
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Copyright (c) 2025 Ronny Hansen
  *

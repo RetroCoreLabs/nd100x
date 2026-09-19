@@ -1,5 +1,9 @@
 /*
+ * modem.h - HDLC modem: TCP link state, control lines and byte queues.
+ *
  * nd100x - ND100 Virtual Machine
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Copyright (c) 2025 Ronny Hansen
  *

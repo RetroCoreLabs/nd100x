@@ -1,5 +1,9 @@
 /*
+ * bcd.c - BCD Commercial Extended instructions ADDD, SUBD, COMD, SHDE, PACK, UPACK.
+ *
  * nd100x - ND100 Virtual Machine
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Copyright (c) 2025 Ronny Hansen
  *

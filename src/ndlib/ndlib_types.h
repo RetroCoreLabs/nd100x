@@ -1,5 +1,9 @@
 /*
+ * ndlib_types.h - ndlib shared types: keyboard events and memory access declarations.
+ *
  * nd100x - ND100 Virtual Machine
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Copyright (c) 2006 Per-Olof Astrom
  * Copyright (c) 2006-2008 Roger Abrahamsson
@@ -24,8 +28,8 @@
  */
 
 
-#ifndef ND_LIB_TYPES_H
-#define ND_LIB_TYPES_H
+#ifndef NDLIB_TYPES_H
+#define NDLIB_TYPES_H
 
 #include <stdint.h>
 #include <stdio.h>

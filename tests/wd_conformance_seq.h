@@ -1,3 +1,10 @@
+/*
+ * wd_conformance_seq.h - Winchester conformance IOX sequence shared with the Pico core.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright (c) 2026 Ronny Hansen
+ */
+
 /**************************************************************************
 ** WINCHESTER CONFORMANCE SEQUENCE - shared between two implementations   **
 **                                                                        **

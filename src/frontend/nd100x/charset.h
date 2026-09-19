@@ -1,5 +1,9 @@
 /*
+ * charset.h - National 7-bit ISO 646 charset translation: API.
+ *
  * nd100x - ND100 Virtual Machine
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Copyright (c) 2025 Ronny Hansen
  *
@@ -23,8 +27,8 @@
  * NEVER touched - those bytes stay raw 7-bit.
  */
 
-#ifndef ND100X_CHARSET_H
-#define ND100X_CHARSET_H
+#ifndef CHARSET_H
+#define CHARSET_H
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -68,4 +72,4 @@ int charset_mapping_count(CharsetVariant v);
 bool charset_mapping_at(CharsetVariant v, int i, uint8_t *byte, const char **glyph,
                         const char **utf8);
 
-#endif /* ND100X_CHARSET_H */
+#endif /* CHARSET_H */

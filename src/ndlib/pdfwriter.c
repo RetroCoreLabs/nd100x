@@ -1,5 +1,9 @@
 /*
+ * pdfwriter.c - Minimal PDF 1.4 writer for monospaced Courier text pages.
+ *
  * nd100x - ND100 Virtual Machine
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Copyright (c) 2025 Ronny Hansen
  *

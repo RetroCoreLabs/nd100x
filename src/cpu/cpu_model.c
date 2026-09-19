@@ -1,6 +1,9 @@
 /*
  * cpu_model.c - CPU model names, in one place.
  *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright (c) 2026 Ronny Hansen
+ *
  * These two tables were static functions inside the native CLI frontend
  * (cpu_type_from_name / cpu_type_display_name in src/frontend/nd100x/nd100x.c),
  * which meant --cputype could name any of the eleven models the emulator

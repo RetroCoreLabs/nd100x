@@ -1,6 +1,9 @@
 /*
  * cpu_model.h - CPU model names.
  *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright (c) 2026 Ronny Hansen
+ *
  * The emulator implements eleven CPU models (cpu_types.h, CpuType). Until now
  * only the CLI could name them: the lookup and display tables were static
  * functions inside src/frontend/nd100x/nd100x.c, so a machine-configuration

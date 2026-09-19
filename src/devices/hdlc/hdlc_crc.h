@@ -1,5 +1,9 @@
 /*
+ * hdlc_crc.h - HDLC CRC-16, CCITT CRC and parity function declarations.
+ *
  * nd100x - ND100 Virtual Machine
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Copyright (c) 2025 Ronny Hansen
  *

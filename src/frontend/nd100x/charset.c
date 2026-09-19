@@ -1,5 +1,9 @@
 /*
+ * charset.c - National 7-bit ISO 646 charset translation for the local console.
+ *
  * nd100x - ND100 Virtual Machine
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Copyright (c) 2025 Ronny Hansen
  *

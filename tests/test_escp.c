@@ -1,5 +1,10 @@
 /*
+ * test_escp.c - Unit tests for the ESC/P interpreter.
+ *
  * Unit tests for the ESC/P interpreter module.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright (c) 2026 Ronny Hansen
  */
 
 #include <stdio.h>

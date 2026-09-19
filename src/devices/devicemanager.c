@@ -1,5 +1,9 @@
 /*
+ * devicemanager.c - Device manager: creates, registers, clears and ticks all I/O devices.
+ *
  * nd100x - ND100 Virtual Machine
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Copyright (c) 2025 Ronny Hansen
  *

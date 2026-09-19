@@ -1,6 +1,9 @@
 /*
  * machine_config_json.h - a resolved MachineConfig as JSON.
  *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright (c) 2026 Ronny Hansen
+ *
  * For the Machine Setup form: it has to SHOW what a configuration says, and the
  * one way it must not find out is by parsing the INI itself. A second parser
  * drifts from the first, and then the form shows one machine while the emulator

@@ -1,5 +1,10 @@
 /*
+ * test_printer_main.c - Test runner for the printer tests: pdfwriter, escp, printjob.
+ *
  * Main test runner for printer module unit tests.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright (c) 2026 Ronny Hansen
  *
  * Runs all test suites: pdfwriter, escp, printjob.
  * Uses a temp directory for output files, cleaned up on exit.

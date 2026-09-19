@@ -1,5 +1,10 @@
 /*
+ * test_winchester.c - Unit tests for the Winchester disc controller (cards 3041/3038).
+ *
  * Unit tests for the 5 1/4 inch (ST506) / 8 inch Winchester disc controller
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright (c) 2026 Ronny Hansen
  * (src/devices/winchester/device_winchester.c), cards 3041/3038 at IOX 500-507.
  *
  * Follows the test_cdc.c / test_drum.c pattern: device_winchester.c and

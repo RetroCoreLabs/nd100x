@@ -1,3 +1,9 @@
+/*
+ * nd100x_types.h - Native frontend types: configuration structure, printer enums.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+
 
 /*
  * nd100x - ND100 Virtual Machine

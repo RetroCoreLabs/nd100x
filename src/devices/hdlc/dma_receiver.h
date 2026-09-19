@@ -1,5 +1,9 @@
 /*
+ * dma_receiver.h - HDLC DMA receiver: state structure, callbacks and API.
+ *
  * nd100x - ND100 Virtual Machine
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Copyright (c) 2025 Ronny Hansen
  *

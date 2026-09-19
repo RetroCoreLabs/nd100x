@@ -1,5 +1,10 @@
 /*
+ * device_drum.h - Swapping drum controller for NORD TSS (IOX 540-547): registers and API.
+ *
  * nd100x - ND100 Virtual Machine
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright (c) 2026 Ronny Hansen
  *
  * Swapping DRUM controller for NORD TSS (IOX 540-547).
  *

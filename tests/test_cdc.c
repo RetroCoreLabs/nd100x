@@ -1,5 +1,10 @@
 /*
+ * test_cdc.c - Unit tests for the CDC/NCR cartridge disc device (IOX 500-507).
+ *
  * Comprehensive unit tests for the NORD TSS CDC/NCR system-disc device
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright (c) 2026 Ronny Hansen
  * (src/devices/cdc/device_cdc.c), the cartridge disc at IOX 500-507.
  *
  * Following the test_drum.c / test_bcd.c pattern: device_cdc.c is linked in

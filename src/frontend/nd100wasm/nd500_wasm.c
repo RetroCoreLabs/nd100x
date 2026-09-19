@@ -1,6 +1,9 @@
 /*
  * nd500_wasm.c - the ND-500 inside nd100x's WebAssembly module.
  *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright (c) 2026 Ronny Hansen
+ *
  * WHY THE ND-500 IS LINKED IN HERE AND NOT LOADED AS A SECOND MODULE
  * -----------------------------------------------------------------
  * An ND-100 + ND-500 machine has SHARED MEMORY (MPM5): the ND-500 reads and

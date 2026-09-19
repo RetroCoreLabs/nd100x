@@ -1,6 +1,9 @@
 /*
  * nd100x - ND100 Virtual Machine
  *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright (c) 2026 Ronny Hansen
+ *
  * machine_config.h - machine configuration model, controller registry, and
  * INI parser/validator.
  *

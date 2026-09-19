@@ -1,5 +1,9 @@
 /*
+ * download.c - File download with libcurl, with stubs where curl is unavailable.
+ *
  * nd100x - ND100 Virtual Machine
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Copyright (c) 2025 Ronny Hansen
  *

@@ -1,6 +1,10 @@
 /*
+ * cpu_bkpt.c - Breakpoint manager: add, remove, clear and step breakpoints by address.
+ *
  * nd100x - ND100 Virtual Machine
  *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright (c) 2025 Ronny Hansen
  *
  * This file is originated from the nd100x project.
  *

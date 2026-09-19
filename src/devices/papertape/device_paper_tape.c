@@ -1,5 +1,9 @@
 /*
+ * device_paper_tape.c - Paper tape reader interface (ND-06.015.02), IOX 0400-0403.
+ *
  * nd100x - ND100 Virtual Machine
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Copyright (c) 2025 Ronny Hansen
  *

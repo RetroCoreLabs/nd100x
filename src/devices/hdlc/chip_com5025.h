@@ -1,5 +1,9 @@
 /*
+ * chip_com5025.h - COM5025 communications chip: state, pins and read/write API.
+ *
  * nd100x - ND100 Virtual Machine
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Copyright (c) 2025 Ronny Hansen
  *

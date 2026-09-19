@@ -1,5 +1,10 @@
 /*
+ * test_hdlc_crc.c - Unit tests for HDLC FCS (CRC-16-CCITT reflected).
+ *
  * Unit tests for HDLC FCS (CRC-16-CCITT reflected).
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright (c) 2026 Ronny Hansen
  */
 
 #include <stdio.h>

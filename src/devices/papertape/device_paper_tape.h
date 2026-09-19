@@ -1,5 +1,9 @@
 /*
+ * device_paper_tape.h - Paper tape reader interface: registers and API.
+ *
  * nd100x - ND100 Virtual Machine
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Copyright (c) 2025 Ronny Hansen
  *
@@ -20,8 +24,8 @@
  * distribution in the file COPYING); if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef DEVICE_PAPERTAPE_H
-#define DEVICE_PAPERTAPE_H
+#ifndef DEVICE_PAPER_TAPE_H
+#define DEVICE_PAPER_TAPE_H
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -114,4 +118,4 @@ typedef struct
 Device *CreatePaperTapeDevice(uint8_t thumbwheel);
 void PaperTape_LoadTape(Device *self, const uint8_t *data, size_t length);
 
-#endif /* DEVICE_PAPERTAPE_H */
+#endif /* DEVICE_PAPER_TAPE_H */

@@ -1,5 +1,9 @@
 /*
+ * device_rtc.c - Real-time clock device with ticks or wall-clock 50 Hz time base.
+ *
  * nd100x - ND100 Virtual Machine
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Copyright (c) 2025 Ronny Hansen
  *

@@ -1,6 +1,9 @@
 /*
  * machine_config_json.c - describe a resolved MachineConfig as JSON.
  *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright (c) 2026 Ronny Hansen
+ *
  * WHY: the Machine Setup form has to show what a configuration currently says -
  * which CPU, which controllers, which images. The obvious way is to parse the
  * INI in JavaScript, and that is the one thing this codebase keeps refusing to

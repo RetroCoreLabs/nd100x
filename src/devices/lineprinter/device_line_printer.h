@@ -1,5 +1,9 @@
 /*
+ * device_line_printer.h - Line printer interface: registers and create function.
+ *
  * nd100x - ND100 Virtual Machine
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Copyright (c) 2025 Ronny Hansen
  *
@@ -20,8 +24,8 @@
  * distribution in the file COPYING); if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef DEVICE_LINEPRINTER_H
-#define DEVICE_LINEPRINTER_H
+#ifndef DEVICE_LINE_PRINTER_H
+#define DEVICE_LINE_PRINTER_H
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -98,4 +102,4 @@ typedef struct
 // Function declarations
 Device *CreateLinePrinterDevice(uint8_t thumbwheel);
 
-#endif /* DEVICE_LINEPRINTER_H */
+#endif /* DEVICE_LINE_PRINTER_H */

@@ -1,5 +1,9 @@
 /*
+ * device.c - Common device base: init, reset, tick, boot, address registration, parity.
+ *
  * nd100x - ND100 Virtual Machine
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Copyright (c) 2025 Ronny Hansen
  *

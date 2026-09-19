@@ -1,6 +1,9 @@
 /*
  * expr_eval.h - Expression evaluator for conditional breakpoints
  *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright (c) 2026 Ronny Hansen
+ *
  * Evaluates expressions like "PIL == 7", "A > 100", "(STS & 0x00FF) != 0"
  * against CPU register state. Used by the breakpoint manager.
  *

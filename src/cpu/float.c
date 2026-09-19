@@ -1,5 +1,9 @@
 /*
+ * float.c - Floating point unit: 48-bit and 32-bit FAD, FSB, FMU, FDV, NLZ and DNZ.
+ *
  * nd100x - ND100 Virtual Machine
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Copyright (c) 2008 Zdravko
  *

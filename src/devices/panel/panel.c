@@ -1,5 +1,9 @@
 /*
+ * panel.c - Front panel emulation: message control, panel lamps, machine time.
+ *
  * nd100x - ND100 Virtual Machine
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Copyright (c) 2006 Per-Olof Astrom
  * Copyright (c) 2006-2008 Roger Abrahamsson

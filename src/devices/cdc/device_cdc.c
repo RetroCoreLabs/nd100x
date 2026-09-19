@@ -1,5 +1,10 @@
 /*
+ * device_cdc.c - CDC/NCR cartridge disc controller for NORD TSS (IOX 500-507).
+ *
  * nd100x - ND100 Virtual Machine
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright (c) 2026 Ronny Hansen
  *
  * CDC / NCR cartridge system-disc controller for NORD TSS (IOX 500-507).
  * See device_cdc.h for the full register map and bit model (with manual

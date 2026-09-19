@@ -1,6 +1,9 @@
 /*
  * machine_config_apply.c - turn a MachineConfig into an actual machine.
  *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright (c) 2026 Ronny Hansen
+ *
  * MOVED here from src/frontend/nd100x/nd100x.c, where it was a static function
  * called apply_machine_config(). See the header for why. The body is unchanged
  * apart from the two CLI override flags, which are now parameters instead of

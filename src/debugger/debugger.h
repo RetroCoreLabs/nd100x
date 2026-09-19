@@ -1,3 +1,10 @@
+/*
+ * debugger.h - DAP debugger interface: server start/stop and JSON query functions.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright (c) 2025 Ronny Hansen
+ */
+
 #ifndef DEBUGGER_H
 #define DEBUGGER_H
 

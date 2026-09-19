@@ -1,5 +1,9 @@
 /*
+ * screenmenu.c - F12 menu state machine: screen select, status and settings pages.
+ *
  * nd100x - ND100 Virtual Machine
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Copyright (c) 2025 Ronny Hansen
  *

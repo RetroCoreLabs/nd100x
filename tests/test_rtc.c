@@ -1,5 +1,9 @@
 /*
+ * test_rtc.c - Unit tests for the RTC ticks and wall-clock time bases.
+ *
  * nd100x - ND100 Virtual Machine
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Copyright (c) 2026 Ronny Hansen
  *

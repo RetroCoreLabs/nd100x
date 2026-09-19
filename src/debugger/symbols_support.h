@@ -1,3 +1,10 @@
+/*
+ * symbols_support.h - Symbol lookup helpers: symbol name and source line for an address.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright (c) 2025 Ronny Hansen
+ */
+
 #ifndef SYMBOLS_SUPPORT_H
 #define SYMBOLS_SUPPORT_H
 

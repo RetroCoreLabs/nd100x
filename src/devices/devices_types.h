@@ -1,5 +1,9 @@
 /*
+ * devices_types.h - Shared device types, constants and the Device structure.
+ *
  * nd100x - ND100 Virtual Machine
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Copyright (c) 2025 Ronny Hansen
  *

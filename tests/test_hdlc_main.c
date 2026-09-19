@@ -1,5 +1,10 @@
 /*
+ * test_hdlc_main.c - Test runner for the HDLC unit tests (ring buffer, frame, CRC).
+ *
  * Main test runner for HDLC module unit tests.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright (c) 2026 Ronny Hansen
  *
  * Runs: ring buffer, HDLC frame, CRC tests.
  */

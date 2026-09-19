@@ -1,6 +1,9 @@
 /*
  * expr_eval.c - Expression evaluator for conditional breakpoints
  *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright (c) 2026 Ronny Hansen
+ *
  * Recursive descent parser for breakpoint condition expressions.
  * Evaluates against live CPU register state.
  *

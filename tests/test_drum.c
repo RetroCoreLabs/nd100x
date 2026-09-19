@@ -1,5 +1,10 @@
 /*
+ * test_drum.c - Unit tests for the NORD TSS swapping drum device.
+ *
  * Unit tests for the NORD TSS swapping-drum device (src/devices/drum/device_drum.c).
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright (c) 2026 Ronny Hansen
  *
  * Following the test_bcd.c pattern: device_drum.c is linked in DIRECTLY together
  * with FAKE Device_* infrastructure provided here, so the drum's real register

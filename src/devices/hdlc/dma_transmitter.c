@@ -1,5 +1,9 @@
 /*
+ * dma_transmitter.c - HDLC DMA transmitter: sends frames from memory buffers to the modem.
+ *
  * nd100x - ND100 Virtual Machine
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Copyright (c) 2025 Ronny Hansen
  *

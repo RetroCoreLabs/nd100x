@@ -1,5 +1,9 @@
 /*
+ * escp.h - ESC/P interpreter: span, attribute and context definitions.
+ *
  * nd100x - ND100 Virtual Machine
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Copyright (c) 2025 Ronny Hansen
  *

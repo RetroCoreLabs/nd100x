@@ -1,5 +1,9 @@
 /*
+ * disk_winchester.h - Winchester drive types and geometries (ND-11.015.01 sec 2.1).
+ *
  * nd100x - ND100 Virtual Machine
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Copyright (c) 2026 Ronny Hansen
  *

@@ -1,3 +1,10 @@
+/*
+ * debugger.c - DAP debugger server: commands, stack traces, variables and thread control.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright (c) 2025 Ronny Hansen
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

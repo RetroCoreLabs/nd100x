@@ -1,5 +1,9 @@
 /*
+ * test_float.c - Unit tests for the 48-bit and 32-bit floating point engine.
+ *
  * nd100x - ND100 Virtual Machine
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Copyright (c) 2026 Ronny Hansen
  *

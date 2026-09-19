@@ -1,6 +1,9 @@
 /*
  * test_load_prog.c - Unit tests for the SINTRAN :PROG loader.
  *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright (c) 2026 Ronny Hansen
+ *
  * Exercises the REAL loader by #including src/ndlib/load_prog.c and stubbing its
  * two externals (WritePhysicalMemory + disasm hook), so the header parsing,
  * bank-1 word math and big-endian data placement are tested exactly as shipped,

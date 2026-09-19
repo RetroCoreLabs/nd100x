@@ -1,6 +1,9 @@
 /*
  * nd100x - ND-100 emulator
  *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright (c) 2026 Ronny Hansen
+ *
  * scsi_device.h - SCSI target-side phase state machine
  *
  * This is the target half of the bus: it answers the initiator's SELECT, walks

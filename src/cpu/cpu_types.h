@@ -1,5 +1,9 @@
 /*
+ * cpu_types.h - CPU types, register macros, constants and shared CPU declarations.
+ *
  * nd100em - ND100 Virtual Machine
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
  *  Copyright (c) 2025 Ronny Hansen
  *

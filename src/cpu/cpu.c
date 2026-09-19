@@ -1,5 +1,9 @@
 /*
+ * cpu.c - CPU execution loop, instruction dispatch, throttling, trace ring and debugger hooks.
+ *
  * nd100x - ND100 Virtual Machine
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Copyright (c) 2006 Per-Olof Astrom
  * Copyright (c) 2006-2008 Roger Abrahamsson
