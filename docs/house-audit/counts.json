@@ -173,10 +173,9 @@
     "src/cpu/cpu_model.c": 5,
     "src/cpu/cpu_regs.c": 8,
     "src/cpu/expr_eval.c": 41,
-    "src/cpu/float.c": 13,
-    "tools/reth-tap/reth-tap.c": 19
+    "src/cpu/float.c": 13
    },
-   "total": 487
+   "total": 468
   },
   "2.4": {
    "files": {
@@ -243,10 +242,9 @@
     "src/cpu/cpu_regs.c": 95,
     "src/cpu/cpu_types.h": 473,
     "src/cpu/expr_eval.c": 275,
-    "src/cpu/float.c": 490,
-    "tools/reth-tap/reth-tap.c": 148
+    "src/cpu/float.c": 490
    },
-   "total": 7322
+   "total": 7174
   },
   "3.1": {
    "files": {
