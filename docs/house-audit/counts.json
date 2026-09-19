@@ -424,8 +424,8 @@
     "src/frontend/nd100x/vscreen.c": 51,
     "src/frontend/nd100x/vscreen.h": 13,
     "src/machine/io.c": 5,
-    "src/machine/machine.c": 542,
-    "src/machine/machine_config.c": 689,
+    "src/machine/machine.c": 537,
+    "src/machine/machine_config.c": 621,
     "src/machine/machine_config.h": 95,
     "src/machine/machine_config_apply.c": 43,
     "src/machine/machine_config_apply.h": 3,
@@ -456,7 +456,7 @@
     "tools/reth-tap/test-framing.c": 47,
     "tools/reth-tap/test-gateway.c": 67
    },
-   "total": 22318
+   "total": 22245
   },
   "3.1": {
    "files": {
@@ -1078,7 +1078,7 @@
     "src/frontend/nd100x/menu.c": 6,
     "src/frontend/nd100x/nd100x.c": 3,
     "src/frontend/nd100x/nd100x_types.h": 2,
-    "src/machine/machine.c": 5,
+    "src/machine/machine.c": 3,
     "src/machine/machine_config.c": 10,
     "src/machine/machine_config.h": 2,
     "src/ndlib/download.c": 1,
@@ -1096,7 +1096,7 @@
     "tools/reth-tap/test-framing.c": 8,
     "tools/reth-tap/test-gateway.c": 7
    },
-   "total": 192
+   "total": 190
   },
   "5.3": {
    "files": {

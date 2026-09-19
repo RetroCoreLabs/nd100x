@@ -26,6 +26,7 @@
 /* ------------------------------------------------------------------ */
 /* IOX base per thumbwheel. Index is the thumbwheel number. Wheels outside a
  * controller's [min_wheel,max_wheel] are 0 and never referenced. */
+// clang-format off
 static const uint16_t iox_smd[]    = { 001540 };                               /* wheel 0 */
 static const uint16_t iox_wd[]     = { 000500 };                               /* wheel 0 */
 static const uint16_t iox_floppy[] = { 001560 };                               /* wheel 0 */
@@ -48,6 +49,7 @@ static const ControllerDescriptor g_descriptors[] = {
     { CTRL_SCSI,   "scsi",    0,  3,  iox_scsi_v,   0100,    7,  true,   true  },
     { CTRL_HDLC,   "hdlc",    1,  4,  iox_hdlc,     020,     0,  false,  false },
 };
+// clang-format on
 static const int g_descriptor_count =
     (int)(sizeof(g_descriptors) / sizeof(g_descriptors[0]));
 
@@ -813,6 +815,45 @@ static bool ranges_overlap(uint16_t a, int aspan, uint16_t b, int bspan)
     return a0 < b1 && b0 < a1;
 }
 
+/* The [boot] part of MachineConfig_Validate(): a disc boot device must be
+ * an enabled, bootable controller with an image on the chosen unit. */
+static bool validate_boot_device(const MachineConfig *cfg, char *err, size_t errlen,
+                                 const char *path)
+{
+    if (cfg->boot.is_disc) {
+        const ControllerDescriptor *d = MC_DescriptorForType(cfg->boot.type);
+        if (!d || !d->bootable)
+            return mc_err(err, errlen, path, 0,
+                "[boot] device: '%s' is not a bootable controller.",
+                MC_CtrlTypeName(cfg->boot.type));
+        /* find the enabled controller instance */
+        const MC_Controller *bc = NULL;
+        for (int i = 0; i < cfg->controllerCount; i++)
+            if (cfg->controllers[i].type == cfg->boot.type &&
+                cfg->controllers[i].wheel == cfg->boot.wheel) { bc = &cfg->controllers[i]; break; }
+        if (!bc || !bc->enabled)
+            return mc_err(err, errlen, path, 0,
+                "[boot] device = %s.%d.%d: no enabled %s controller on thumbwheel %d.",
+                d->name, cfg->boot.wheel, cfg->boot.unit, d->name, cfg->boot.wheel);
+        if (cfg->boot.unit < 0 || cfg->boot.unit >= d->disk_slots)
+            return mc_err(err, errlen, path, 0,
+                "[boot] device = %s.%d.%d: unit %d out of range (0-%d).",
+                d->name, cfg->boot.wheel, cfg->boot.unit, cfg->boot.unit, d->disk_slots - 1);
+        if (!bc->disks[cfg->boot.unit].present)
+            return mc_err(err, errlen, path, 0,
+                "[boot] device = %s.%d.%d: that unit has no image. "
+                "Add 'disk%d = FILE' to [controller.%s.%d], or boot a different device.",
+                d->name, cfg->boot.wheel, cfg->boot.unit, cfg->boot.unit, d->name, cfg->boot.wheel);
+        if (cfg->boot.type == CTRL_SCSI && bc->disks[cfg->boot.unit].media != SCSI_UNIT_HDD)
+            return mc_err(err, errlen, path, 0,
+                "[boot] device = scsi.%d.%d: media is '%s' but only 'hdd' can boot.",
+                cfg->boot.wheel, cfg->boot.unit,
+                SCSI_UnitTypeName(bc->disks[cfg->boot.unit].media));
+    }
+
+    return true;
+}
+
 bool MachineConfig_Validate(const MachineConfig *cfg, char *err, size_t errlen)
 {
     if (!cfg) return false;
@@ -865,38 +906,7 @@ bool MachineConfig_Validate(const MachineConfig *cfg, char *err, size_t errlen)
     }
 
     /* Boot device sanity. */
-    if (cfg->boot.is_disc) {
-        const ControllerDescriptor *d = MC_DescriptorForType(cfg->boot.type);
-        if (!d || !d->bootable)
-            return mc_err(err, errlen, path, 0,
-                "[boot] device: '%s' is not a bootable controller.",
-                MC_CtrlTypeName(cfg->boot.type));
-        /* find the enabled controller instance */
-        const MC_Controller *bc = NULL;
-        for (int i = 0; i < cfg->controllerCount; i++)
-            if (cfg->controllers[i].type == cfg->boot.type &&
-                cfg->controllers[i].wheel == cfg->boot.wheel) { bc = &cfg->controllers[i]; break; }
-        if (!bc || !bc->enabled)
-            return mc_err(err, errlen, path, 0,
-                "[boot] device = %s.%d.%d: no enabled %s controller on thumbwheel %d.",
-                d->name, cfg->boot.wheel, cfg->boot.unit, d->name, cfg->boot.wheel);
-        if (cfg->boot.unit < 0 || cfg->boot.unit >= d->disk_slots)
-            return mc_err(err, errlen, path, 0,
-                "[boot] device = %s.%d.%d: unit %d out of range (0-%d).",
-                d->name, cfg->boot.wheel, cfg->boot.unit, cfg->boot.unit, d->disk_slots - 1);
-        if (!bc->disks[cfg->boot.unit].present)
-            return mc_err(err, errlen, path, 0,
-                "[boot] device = %s.%d.%d: that unit has no image. "
-                "Add 'disk%d = FILE' to [controller.%s.%d], or boot a different device.",
-                d->name, cfg->boot.wheel, cfg->boot.unit, cfg->boot.unit, d->name, cfg->boot.wheel);
-        if (cfg->boot.type == CTRL_SCSI && bc->disks[cfg->boot.unit].media != SCSI_UNIT_HDD)
-            return mc_err(err, errlen, path, 0,
-                "[boot] device = scsi.%d.%d: media is '%s' but only 'hdd' can boot.",
-                cfg->boot.wheel, cfg->boot.unit,
-                SCSI_UnitTypeName(bc->disks[cfg->boot.unit].media));
-    }
-
-    return true;
+    return validate_boot_device(cfg, err, errlen, path);
 }
 
 /* ------------------------------------------------------------------ */

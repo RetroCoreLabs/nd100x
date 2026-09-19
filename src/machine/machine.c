@@ -19,6 +19,7 @@
  * along with this program (in the main directory of the nd100em
  * distribution in the file COPYING); if not, see <http://www.gnu.org/licenses/>.
  */
+#include <inttypes.h>
 #include <pthread.h>
 #include <unistd.h>
 #include <string.h>
@@ -635,22 +636,25 @@ void autoMountDrives(void)
  *
  * Bytes are masked to 7 bits (punched parity); NUL leader/trailer bytes
  * and LF are ignored. Returns the '!' start address, or -1 on error.     */
-static int tape_leader_load(const char *path, bool verbose)
+/* Read a whole tape file into a malloc'd buffer; *len_out gets its size.
+ * Returns NULL (after logging why) if the file cannot be opened, is empty,
+ * or cannot be read. The caller frees the buffer. */
+static uint8_t *read_whole_file(const char *path, int64_t *len_out)
 {
     FILE *f = fopen(path, "rb");
     if (!f)
     {
         LOG(LOG_CAT_MACHINE, LOG_ERROR, "Failed to open tape file '%s': %s\n", path, strerror(errno));
-        return -1;
+        return NULL;
     }
     fseek(f, 0, SEEK_END);
-    long len = ftell(f);
+    int64_t len = ftell(f);
     rewind(f);
     if (len <= 0)
     {
         fclose(f);
         LOG(LOG_CAT_MACHINE, LOG_ERROR, "Tape file '%s' is empty\n", path);
-        return -1;
+        return NULL;
     }
     uint8_t *data = (uint8_t *)malloc((size_t)len);
     if (!data || fread(data, 1, (size_t)len, f) != (size_t)len)
@@ -658,13 +662,25 @@ static int tape_leader_load(const char *path, bool verbose)
         fclose(f);
         free(data);
         LOG(LOG_CAT_MACHINE, LOG_ERROR, "Cannot read tape file '%s'\n", path);
-        return -1;
+        return NULL;
     }
     fclose(f);
+    *len_out = len;
+    return data;
+}
+
+static int tape_leader_load(const char *path, bool verbose)
+{
+    int64_t len = 0;
+    uint8_t *data = read_whole_file(path, &len);
+    if (!data)
+    {
+        return -1;
+    }
 
     uint16_t acc = 0, loc = 0, lo = 0xFFFF, hi = 0;
     int have = 0, start = -1, words = 0;
-    long i;
+    int64_t i;
     for (i = 0; i < len; i++)
     {
         int c = data[i] & 0x7F;
@@ -719,7 +735,7 @@ static int tape_leader_load(const char *path, bool verbose)
     if (verbose)
     {
         LOG(LOG_CAT_MACHINE, LOG_INFO, "Tape leader: %d words deposited at %06o-%06o, start %06o, "
-               "%ld bytes left in the reader\n",
+               "%" PRId64 " bytes left in the reader\n",
                words, lo, hi, (unsigned)start, len - i);
     }
     free(data);
@@ -896,6 +912,44 @@ static int tape_leader_load(const char *path, bool verbose)
  }
 
  // Mount a drive to the specified unit
+/* Open a local disk image for mount_drive(): read-write, or read-only (and
+ * marked write-protected) when the file may not be written. Fills the
+ * drive's file handle and size. Returns false if the file cannot be opened. */
+static bool open_local_image(MountedDriveInfo_t *drive, const char *image_path)
+{
+    drive->is_writeprotected = false;
+
+    // Local file - open for read-write binary
+    FILE* file = fopen(image_path, "rb+");
+    if (!file) {
+        int saved_errno = errno;
+        // If we dont have write access, try to open the file for read-only
+        if (saved_errno == EACCES || saved_errno == EROFS || saved_errno == EPERM) {
+            file = fopen(image_path, "rb");  // fallback
+            if (file) drive->is_writeprotected = true;
+        }
+        if (!file) {
+            return false;
+        }
+    }
+    if (file) {
+        // Get file size
+        fseek(file, 0, SEEK_END);
+        long file_size = ftell(file);
+        fseek(file, 0, SEEK_SET);
+
+        drive->is_remote = false;
+        drive->data.local_file = file;
+        drive->data_size = (size_t)file_size;
+
+    } else {
+        LOG(LOG_CAT_MACHINE, LOG_ERROR, "mount_drive: Failed to open %s\n", image_path);
+        drive->is_mounted = false;
+        return false;
+    }
+    return true;
+}
+
 void mount_drive(DRIVE_TYPE drive_type, int unit, const char *md5, const char *name, const char *description, const char *image_path) {
     MountedDriveInfo_t* drives = NULL;
     int max_units = 0;
@@ -946,36 +1000,7 @@ void mount_drive(DRIVE_TYPE drive_type, int unit, const char *md5, const char *n
                 return;
             }
         } else {
-
-
-            drives[unit].is_writeprotected = false;
-
-            // Local file - open for read-write binary
-            FILE* file = fopen(image_path, "rb+");
-            if (!file) {
-                int saved_errno = errno;
-                // If we dont have write access, try to open the file for read-only
-                if (saved_errno == EACCES || saved_errno == EROFS || saved_errno == EPERM) {
-                    file = fopen(image_path, "rb");  // fallback
-                    if (file) drives[unit].is_writeprotected = true;
-                }
-                if (!file) {
-                    return;
-                }
-            }
-            if (file) {
-                // Get file size
-                fseek(file, 0, SEEK_END);
-                long file_size = ftell(file);
-                fseek(file, 0, SEEK_SET);
-
-                drives[unit].is_remote = false;
-                drives[unit].data.local_file = file;
-                drives[unit].data_size = (size_t)file_size;
-
-            } else {
-                LOG(LOG_CAT_MACHINE, LOG_ERROR, "mount_drive: Failed to open %s\n", image_path);
-                drives[unit].is_mounted = false;
+            if (!open_local_image(&drives[unit], image_path)) {
                 return;
             }
         }
@@ -1190,6 +1215,54 @@ void mount_drive_gateway(DRIVE_TYPE drive_type, int unit, const char *name,
 }
 
 // Callback-based block READ for block devices
+/* Copy bytes at offset from a mounted remote (downloaded) or local image
+ * into buffer, zero-filling past the end of the data. Returns 1 on success,
+ * 0 if a remote image ends before offset, -1 on error. */
+static int read_entry_bytes(MountedDriveInfo_t *entry, uint8_t *buffer, size_t bytes,
+                            size_t offset)
+{
+    if (entry->is_remote) {
+        if (!entry->data.remote_data) return -1;
+        if (offset >= entry->data_size) return 0;
+        size_t to_copy = bytes;
+        if (offset + to_copy > entry->data_size) {
+            to_copy = entry->data_size - offset;
+        }
+        memcpy(buffer, entry->data.remote_data + offset, to_copy);
+        if (to_copy < bytes) {
+            memset(buffer + to_copy, 0, bytes - to_copy);
+        }
+    } else {
+        if (!entry->data.local_file) return -1;
+        if (fseek(entry->data.local_file, (long)offset, SEEK_SET) != 0) return -1;
+        size_t read_bytes = fread(buffer, 1, bytes, entry->data.local_file);
+        if (read_bytes < bytes) {
+            memset(buffer + read_bytes, 0, bytes - read_bytes);
+        }
+    }
+    return 1;
+}
+
+/* Diagnostic for machine_block_read(): logs the first five floppy block
+ * reads (drive state, address, block size). */
+static void log_floppy_read_diag(const MountedDriveInfo_t *drives, int unit,
+                                 uint32_t block_address, size_t block_size)
+{
+    static int _floppy_read_log = 0;
+    if (_floppy_read_log < 5) {
+        _floppy_read_log++;
+        Log_Write(LOG_CAT_FLOPPY, LOG_DEBUG, "[FLOPPY-DIAG] machine_block_read: unit=%d drives=%s mounted=%d gateway=%d opfs=%d remote=%d size=%d blkAddr=%u blkSize=%u\n",
+            unit,
+            drives ? "ok" : "NULL",
+            drives ? drives[unit].is_mounted : -1,
+            drives ? drives[unit].is_gateway : -1,
+            drives ? drives[unit].is_opfs : -1,
+            drives ? drives[unit].is_remote : -1,
+            drives ? (int)drives[unit].data_size : -1,
+            block_address, (unsigned)block_size);
+    }
+}
+
 int machine_block_read(Device *device, uint8_t *buffer, size_t size, uint32_t blockAddress, int unit) {
     if (!device || !buffer || size == 0) return -1;
 
@@ -1201,24 +1274,9 @@ int machine_block_read(Device *device, uint8_t *buffer, size_t size, uint32_t bl
     // and floppy 3, so an unchecked unit would index past the shorter arrays.
     if (unit < 0 || unit >= max_units) return -1;
 
-    if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_DEBUG))
+    if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_DEBUG) && drive_type == DRIVE_FLOPPY)
     {
-    // Diagnostic: log first floppy block read attempt
-    if (drive_type == DRIVE_FLOPPY) {
-        static int _floppy_read_log = 0;
-        if (_floppy_read_log < 5) {
-            _floppy_read_log++;
-            Log_Write(LOG_CAT_FLOPPY, LOG_DEBUG, "[FLOPPY-DIAG] machine_block_read: unit=%d drives=%s mounted=%d gateway=%d opfs=%d remote=%d size=%d blkAddr=%u blkSize=%u\n",
-                unit,
-                drives ? "ok" : "NULL",
-                drives ? drives[unit].is_mounted : -1,
-                drives ? drives[unit].is_gateway : -1,
-                drives ? drives[unit].is_opfs : -1,
-                drives ? drives[unit].is_remote : -1,
-                drives ? (int)drives[unit].data_size : -1,
-                blockAddress, (unsigned)device->blockSizeBytes);
-        }
-    }
+        log_floppy_read_diag(drives, unit, blockAddress, device->blockSizeBytes);
     }
 
     if (!drives) return -1;
@@ -1250,24 +1308,9 @@ int machine_block_read(Device *device, uint8_t *buffer, size_t size, uint32_t bl
     }
 #endif
 
-    if (entry->is_remote) {
-        if (!entry->data.remote_data) return -1;
-        if (offset >= entry->data_size) return 0;
-        size_t to_copy = bytes;
-        if (offset + to_copy > entry->data_size) {
-            to_copy = entry->data_size - offset;
-        }
-        memcpy(buffer, entry->data.remote_data + offset, to_copy);
-        if (to_copy < bytes) {
-            memset(buffer + to_copy, 0, bytes - to_copy);
-        }
-    } else {
-        if (!entry->data.local_file) return -1;
-        if (fseek(entry->data.local_file, (long)offset, SEEK_SET) != 0) return -1;
-        size_t read_bytes = fread(buffer, 1, bytes, entry->data.local_file);
-        if (read_bytes < bytes) {
-            memset(buffer + read_bytes, 0, bytes - read_bytes);
-        }
+    int rc = read_entry_bytes(entry, buffer, bytes, offset);
+    if (rc <= 0) {
+        return rc;
     }
     return (int)size; // number of blocks
 }
