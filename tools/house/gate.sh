@@ -51,6 +51,9 @@ has_extra() {
 }
 
 # Warnings from project files only: vendored and nd500x lines are dropped.
+# The builds run with make -Oline so parallel jobs cannot interleave lines;
+# a warning line that still has no file name fails the gate (it cannot be
+# attributed, so it cannot be excused).
 project_warnings() {
     grep -E 'warning:' "$1" |
         grep -v -e '/external/' -e '/tools/mkptypes/' -e 'nd500x/' \
@@ -64,7 +67,7 @@ build_clean() {  # dir, extra cmake args...
     rm -rf "$dir"
     mkdir -p "$dir"
     (cd "$dir" && cmake .. "$@" >>"$LOG" 2>&1) || fail "cmake configure $dir"
-    cmake --build "$dir" -j"$(nproc)" >"$TMP/$(basename "$dir").build" 2>&1 ||
+    cmake --build "$dir" -j"$(nproc)" -- -Oline >"$TMP/$(basename "$dir").build" 2>&1 ||
         fail "build $dir (see $TMP/$(basename "$dir").build)"
     W=$(project_warnings "$TMP/$(basename "$dir").build")
     if [ -n "$W" ]; then
@@ -87,7 +90,7 @@ if [ "$SKIP_WASM" -eq 0 ]; then
     mkdir -p build_gate_wasm
     (cd build_gate_wasm && emcmake cmake .. -DBUILD_WASM=ON -DDEBUGGER_ENABLED=ON >>"$LOG" 2>&1) ||
         fail "WASM configure"
-    cmake --build build_gate_wasm -j"$(nproc)" >"$TMP/build_gate_wasm.build" 2>&1 ||
+    cmake --build build_gate_wasm -j"$(nproc)" -- -Oline >"$TMP/build_gate_wasm.build" 2>&1 ||
         fail "WASM build"
     # emcmake exports CC=emcc and the configure step rebuilds the native
     # mkptypes tool with it (known build bug, see the nd100x profile).

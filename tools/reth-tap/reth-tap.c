@@ -372,6 +372,35 @@ static int parse_args(int argc, char **argv, const char **dev, const char **host
     return -1;
 }
 
+/* Move frames for the descriptors poll() reported ready. On a lost
+ * connection the socket is closed, *sock set to -1 and 1 returned (the
+ * caller reconnects); otherwise 0. */
+static int pump_ready(const struct pollfd fds[2], int tapfd, int *sock, uint8_t *rx, size_t *rxlen,
+                      size_t rxcap)
+{
+    if (fds[0].revents & POLLIN)
+    {
+        if (pump_tap_to_wire(tapfd, *sock) != 0)
+        {
+            close(*sock);
+            *sock = -1;
+            fprintf(stderr, "reth-tap: lost the segment - reconnecting\n");
+            return 1;
+        }
+    }
+    if (fds[1].revents & (POLLIN | POLLHUP | POLLERR))
+    {
+        if (pump_wire_to_tap(*sock, tapfd, rx, rxlen, rxcap) != 0)
+        {
+            close(*sock);
+            *sock = -1;
+            fprintf(stderr, "reth-tap: lost the segment - reconnecting\n");
+            return 1;
+        }
+    }
+    return 0;
+}
+
 int main(int argc, char **argv)
 {
     const char *dev = DEFAULT_DEV;
@@ -426,23 +455,9 @@ int main(int argc, char **argv)
             break;
         }
 
-        if (rc > 0) {
-            if (fds[0].revents & POLLIN) {
-                if (pump_tap_to_wire(tapfd, sock) != 0) {
-                    close(sock);
-                    sock = -1;
-                    fprintf(stderr, "reth-tap: lost the segment - reconnecting\n");
-                    continue;
-                }
-            }
-            if (fds[1].revents & (POLLIN | POLLHUP | POLLERR)) {
-                if (pump_wire_to_tap(sock, tapfd, rx, &rxlen, sizeof rx) != 0) {
-                    close(sock);
-                    sock = -1;
-                    fprintf(stderr, "reth-tap: lost the segment - reconnecting\n");
-                    continue;
-                }
-            }
+        if (rc > 0 && pump_ready(fds, tapfd, &sock, rx, &rxlen, sizeof rx) != 0)
+        {
+            continue;
         }
 
         /* Counters only when they have changed. A bridge that prints nothing

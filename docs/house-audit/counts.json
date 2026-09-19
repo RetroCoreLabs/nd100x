@@ -244,9 +244,9 @@
     "src/cpu/cpu_types.h": 473,
     "src/cpu/expr_eval.c": 275,
     "src/cpu/float.c": 490,
-    "tools/reth-tap/reth-tap.c": 153
+    "tools/reth-tap/reth-tap.c": 148
    },
-   "total": 7327
+   "total": 7322
   },
   "3.1": {
    "files": {
