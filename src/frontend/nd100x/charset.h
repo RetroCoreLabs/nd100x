@@ -44,31 +44,97 @@ typedef enum {
 // clang-format on
 
 /* Active variant (local console only). */
+
+/**
+ * @brief Select the active national charset variant for the local console.
+ *        Values outside CHARSET_OFF..CHARSET_COUNT-1 are ignored.
+ * @param v The variant to activate.
+ */
 void charset_set(CharsetVariant v);
+
+/**
+ * @brief Return the currently active national charset variant.
+ * @return The active CharsetVariant (CHARSET_OFF when translation is disabled).
+ */
 CharsetVariant charset_get(void);
 
 /* Human and CLI names. */
-const char *charset_name(CharsetVariant v);  /* "Norwegian" / "Off" */
+
+/**
+ * @brief Return the human-readable name of a variant, e.g. "Norwegian" or "Off".
+ * @param v The variant to name.
+ * @return The name, or "?" when v is out of range.
+ */
+const char *charset_name(CharsetVariant v); /* "Norwegian" / "Off" */
+
+/**
+ * @brief Return the short CLI code of a variant, e.g. "no" or "off".
+ * @param v The variant to name.
+ * @return The short code, or "?" when v is out of range.
+ */
 const char *charset_short(CharsetVariant v); /* "no" / "off"        */
 
 /* Parse a CLI/menu name. Accepts short codes and full names
  * (off, none, no, norwegian, dk, danish, se, swedish, fi, finnish,
  *  de, german). Returns false on no match. */
+
+/**
+ * @brief Match a CLI or menu name against the alias table (off, none, ascii, no,
+ *        norwegian, norsk, dk, danish, se, swedish, fi, finnish, de, german),
+ *        ignoring case.
+ * @param s The name to match; NULL yields false.
+ * @param out Receives the matched variant; NULL yields false.
+ * @return true when the name matched, false otherwise.
+ */
 bool charset_from_name(const char *s, CharsetVariant *out);
 
 /* OUTPUT: write one emulated 7-bit byte to host stdout, translating the
  * national positions to UTF-8 when a variant is active. */
+
+/**
+ * @brief Write one emulated 7-bit byte to stdout, replacing a national position
+ *        with its UTF-8 letter when the active variant maps that byte.
+ * @param c The 7-bit byte from the emulated terminal.
+ */
 void charset_emit_host(char c);
 
 /* INPUT: translate a raw host key byte sequence (possibly UTF-8 or Latin-1)
  * into emulated 7-bit bytes. Returns the number of bytes written to out
  * (<= outmax). When CHARSET_OFF, the sequence is copied verbatim. */
+
+/**
+ * @brief Translate a raw host key byte sequence into emulated 7-bit bytes,
+ *        decoding UTF-8/Latin-1 code points to their national 7-bit positions.
+ *        ASCII bytes (including ESC sequences) pass through; unmapped non-ASCII
+ *        code points are dropped. With CHARSET_OFF the sequence is copied verbatim.
+ * @param seq The raw host bytes; NULL yields 0.
+ * @param len Number of bytes in seq.
+ * @param out Buffer receiving the emulated bytes; NULL yields 0.
+ * @param outmax Capacity of out; must be > 0.
+ * @return Number of bytes written to out (<= outmax).
+ */
 int charset_translate_input(const char *seq, int len, char *out, int outmax);
 
 /* For the F12 detail view: enumerate the mappings of a variant.
  * On success fills *byte (the 7-bit code), *glyph (ASCII glyph, e.g. "{")
  * and *utf8 (the national letter). Returns false when i is out of range. */
+
+/**
+ * @brief Return how many 7-bit positions a variant remaps.
+ * @param v The variant to count.
+ * @return The number of mappings, or 0 when v is out of range or CHARSET_OFF.
+ */
 int charset_mapping_count(CharsetVariant v);
+
+/**
+ * @brief Fetch one mapping of a variant for the F12 detail view.
+ * @param v The variant to read.
+ * @param i Mapping index, 0 .. charset_mapping_count(v) - 1.
+ * @param byte Receives the 7-bit code; may be NULL.
+ * @param glyph Receives the ASCII glyph, e.g. "{"; may be NULL.
+ * @param utf8 Receives the national letter in UTF-8; may be NULL.
+ * @return true when the mapping was returned, false when v or i is out of range.
+ */
 bool charset_mapping_at(CharsetVariant v, int i, uint8_t *byte, const char **glyph,
                         const char **utf8);
 

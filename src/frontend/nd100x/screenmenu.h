@@ -55,6 +55,15 @@ typedef struct {
 // clang-format on
 
 // Initialize menu state (call once at startup)
+
+/**
+ * @brief Zero the menu state and record the virtual screen array it operates on.
+ *        Leaves the menu in MENU_NONE. Call once at startup.
+ * @param state Menu state to initialize.
+ * @param screens Array of virtual screens the menu can select between.
+ * @param screenCount Number of entries in screens.
+ * @param activeScreen Pointer to the caller's index of the currently shown screen.
+ */
 void menu_init(MenuState *state, VScreen *screens, int screenCount, int *activeScreen);
 
 // Check if menu is currently active (suppresses VScreen stdout output)
@@ -65,12 +74,55 @@ static inline bool menu_is_active(const MenuState *state)
 
 // Enter the F12 menu system
 #if !defined(__EMSCRIPTEN__)
+/**
+ * @brief Switch the menu into MENU_F12 and draw the top-level F12 menu.
+ * @param state Menu state to change.
+ * @param telnetServer Telnet server used by the screen and pending-client views;
+ *        may be NULL.
+ */
 void menu_enter(MenuState *state, TelnetServer *telnetServer);
+
+/**
+ * @brief Dispatch one keypress according to the current menu mode. ESC leaves the
+ *        current view; KEY_NONE and function or unknown multi-byte keys are ignored.
+ * @param state Menu state to act on.
+ * @param key The key event; NULL is ignored.
+ * @param telnetServer Telnet server used by the screen and pending-client views;
+ *        may be NULL.
+ */
 void menu_process_key(MenuState *state, const KeyEvent *key, TelnetServer *telnetServer);
+
+/**
+ * @brief Drive the menu's timed work: dismiss an expired MENU_MESSAGE back to its
+ *        return mode, and redraw the pending-client list every 2 seconds and the
+ *        HDLC status and CPU speed views every second.
+ * @param state Menu state to update.
+ * @param telnetServer Telnet server used by the pending-client view; may be NULL.
+ */
 void menu_tick(MenuState *state, TelnetServer *telnetServer);
 #else
+/**
+ * @brief Switch the menu into MENU_F12 and draw the top-level F12 menu.
+ * @param state Menu state to change.
+ * @param telnetServer Unused in the WASM build; may be NULL.
+ */
 void menu_enter(MenuState *state, void *telnetServer);
+
+/**
+ * @brief Dispatch one keypress according to the current menu mode. ESC leaves the
+ *        current view; KEY_NONE and function or unknown multi-byte keys are ignored.
+ * @param state Menu state to act on.
+ * @param key The key event; NULL is ignored.
+ * @param telnetServer Unused in the WASM build; may be NULL.
+ */
 void menu_process_key(MenuState *state, const KeyEvent *key, void *telnetServer);
+
+/**
+ * @brief Drive the menu's timed work: dismiss an expired MENU_MESSAGE back to its
+ *        return mode, and redraw the HDLC status and CPU speed views every second.
+ * @param state Menu state to update.
+ * @param telnetServer Unused in the WASM build; may be NULL.
+ */
 void menu_tick(MenuState *state, void *telnetServer);
 #endif
 

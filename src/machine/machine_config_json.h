@@ -21,10 +21,18 @@
 #include <stddef.h>
 #include "machine_config.h"
 
-/* Write <cfg> into <out> as a JSON object. Returns true on success; on
- * overflow returns false AND leaves {"error":"..."} in the buffer, so a caller
- * that ignores the return value still gets something parseable rather than a
- * truncated object. 8 KB is comfortable for any real machine. */
+/**
+ * @brief Write a resolved MachineConfig into a buffer as a JSON object.
+ *
+ * On overflow the buffer is left holding {"error":"..."}, so a caller that
+ * ignores the return value still gets something parseable rather than a
+ * truncated object. 8 KB is comfortable for any real machine.
+ *
+ * @param cfg    Configuration to serialize.
+ * @param out    Buffer receiving the JSON text.
+ * @param outlen Size of out in bytes.
+ * @return true on success; false on overflow, with {"error":"..."} in out.
+ */
 bool MachineConfig_ToJson(const MachineConfig *cfg, char *out, size_t outlen);
 
 #endif /* MACHINE_CONFIG_JSON_H */

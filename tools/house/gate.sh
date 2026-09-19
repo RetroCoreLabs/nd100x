@@ -145,6 +145,7 @@ boot_smd() {  # binary, tag
     grep -a -v -e '^Number of instructions run:' -e '^usertime:' \
         -e '^Current cpu cycle time is:' "$TMP/$2.console" >"$TMP/$2.console.norm"
     sha256sum <"$TMP/$2.img" | cut -d' ' -f1 >"$TMP/$2.img.sha256"
+    sha256sum <SMD0.IMG | cut -d' ' -f1 >"$TMP/$2.input.sha256"
 }
 
 step "G6 SMD boot"
@@ -156,8 +157,18 @@ if [ "$WRITE_GOLDEN" -eq 1 ]; then
     mkdir -p "$GOLDEN_DIR"
     cp "$TMP/smd.console.norm" "$GOLDEN_DIR/smd_boot.console"
     cp "$TMP/smd.img.sha256" "$GOLDEN_DIR/smd_boot.img.sha256"
+    cp "$TMP/smd.input.sha256" "$GOLDEN_DIR/smd_boot.input.sha256"
     echo "golden written to $GOLDEN_DIR"
 else
+    # Booting writes to the pack, so the image after the run only matches the
+    # golden hash when the INPUT image is the one the golden was taken from.
+    # SMD0.IMG lives outside git and anything may have booted it.
+    if ! cmp -s "$TMP/smd.input.sha256" "$GOLDEN_DIR/smd_boot.input.sha256"; then
+        echo "SMD0.IMG is not the image the golden was captured from"
+        echo "  golden input: $(cat "$GOLDEN_DIR/smd_boot.input.sha256")"
+        echo "  this run:     $(cat "$TMP/smd.input.sha256")"
+        fail "input image changed - check why, then re-capture with --golden"
+    fi
     cmp "$TMP/smd.console.norm" "$GOLDEN_DIR/smd_boot.console" ||
         fail "SMD console differs from golden"
     cmp "$TMP/smd.img.sha256" "$GOLDEN_DIR/smd_boot.img.sha256" ||

@@ -100,6 +100,264 @@ typedef struct
     int block_size;   // Block size for this drive (256, 512, 1024 bytes)
 } MountedDriveInfo_t;
 
+/* ------------------------------------------------------------------------
+ * Functions defined in io.c
+ * ------------------------------------------------------------------------ */
+
+/**
+ * @brief Initialise the device manager and add all emulated devices.
+ * @return 0 on success, -1 if the device manager could not be set up.
+ */
+int IO_Init(void);
+
+/**
+ * @brief Destroy the device manager and everything it owns.
+ */
+void IO_Destroy(void);
+
+/**
+ * @brief Ask the device manager which device identifies on an interrupt level.
+ * @param level Interrupt level to run the IDENT search on.
+ * @return The IDENT code returned by the device manager for that level.
+ */
+int IO_Ident(uint16_t);
+
+/**
+ * @brief Tick all devices once and raise the interrupts they report.
+ */
+void IO_Tick(void);
+
+/**
+ * @brief Perform one IOX transfer: odd addresses write, even addresses read.
+ * @param ioadd I/O address; bit 0 selects write (odd) or read (even).
+ * @param regA Value written to the device on a write operation.
+ * @return regA on a write, the value read from the device on a read.
+ */
+uint16_t io_op(uint16_t, uint16_t);
+
+
+/* ------------------------------------------------------------------------
+ * Functions defined in machine.c
+ * ------------------------------------------------------------------------ */
+
+/**
+ * @brief Mount a disk from the online catalog onto a unit, hot-swapping it like
+ *        machine_floppy_swap(); the drive type comes from the catalog entry.
+ * @param unit Drive unit to mount on (floppy 0-2, SMD 0-3).
+ * @param selector "md5:<hash>", "dir:<name>", or a bare token tried as md5 then
+ *        as a directory name.
+ * @return 0 ok, -1 bad unit, -2 not found, -3 catalog unavailable, -4 mount failed.
+ */
+int machine_floppy_mount_catalog(int, const char *);
+
+/**
+ * @brief Allocate the floppy, SMD, SCSI and Winchester mounted-drive tables.
+ * @return 0 on success, -1 if memory ran out (already allocated tables are kept).
+ */
+int init_drive_arrays(void);
+
+/**
+ * @brief Set up the whole machine: drive tables, CPU, CPU debugger and I/O devices,
+ *        then put the CPU into CPU_RUNNING mode.
+ * @param debuggerEnabled true to enable the DAP debugger.
+ * @param debuggerPort TCP port the debugger listens on.
+ * @return 0 on success, -1 on out of memory or device manager failure.
+ */
+int machine_init(bool, int);
+
+/**
+ * @brief Add an HDLC device with the given connection configuration and log the result.
+ * @param deviceNum HDLC device number to add.
+ * @param isServer true for server mode (listen on port), false for client mode.
+ * @param address Remote address to connect to in client mode.
+ * @param port TCP port to listen on or connect to.
+ */
+void machine_add_hdlc(int, bool, const char *, int);
+
+/**
+ * @brief Shut down the CPU and I/O, unmount every mounted drive and free the drive tables.
+ */
+void cleanup_machine(void);
+
+/**
+ * @brief Unmount a drive, clearing its entry in the table for that drive type.
+ * @param drive_type Which drive table to act on.
+ * @param unit Unit index inside that table.
+ */
+void unmount_drive(DRIVE_TYPE, int);
+
+/**
+ * @brief Run the CPU, servicing debugger pause/control requests, until the ticks are
+ *        used up or the CPU shuts down. Do NOT call from the debugger thread.
+ * @param ticks Number of ticks to run the CPU; -1 for infinite.
+ */
+void machine_run(int);
+
+/**
+ * @brief Stop the CPU by setting its run mode to CPU_STOPPED.
+ */
+void machine_stop(void);
+
+/**
+ * @brief Set the default configuration: boot type SMD, start address 0, disassembly off.
+ */
+void setdefaultconfig(void);
+
+/**
+ * @brief Write one word to physical memory, and to the disassembler if it is enabled.
+ *        Used as the write callback by the a.out loader.
+ * @param address Physical address to write to.
+ * @param value Value to write.
+ */
+void write_memory(uint32_t, uint16_t);
+
+/**
+ * @brief Mount a floppy image on a unit if the file can be opened, defaulting to
+ *        "FLOPPY.IMG" when no image file is given.
+ * @param imageFile Image file path, or NULL for the default.
+ * @param unit Floppy unit to mount on.
+ */
+void mount_floppy(const char *, int);
+
+/**
+ * @brief Mount a drive image, filling in the table entry for that drive type and unit.
+ * @param drive_type Which drive table to act on.
+ * @param unit Unit index inside that table.
+ * @param md5 MD5 hash string stored with the mount.
+ * @param name Short drive name.
+ * @param description Longer drive description.
+ * @param image_path Local file path or remote URL of the image.
+ */
+void mount_drive(DRIVE_TYPE, int, const char *, const char *, const char *, const char *);
+
+/**
+ * @brief Hot-swap the floppy in a unit: eject the current image, then mount the new
+ *        path; an empty or NULL path ejects only.
+ * @param unit Floppy unit (0-2).
+ * @param path Image file to mount, or NULL/empty to eject only.
+ * @return 0 ok, -1 bad unit, -2 image file could not be opened.
+ */
+int machine_floppy_swap(int, const char *);
+
+/**
+ * @brief Report whether a unit of the given drive type currently has an image mounted.
+ * @param drive_type Which drive table to check.
+ * @param unit Unit index inside that table.
+ * @return true if that unit is mounted, false otherwise.
+ */
+bool isMounted(DRIVE_TYPE, int);
+
+/**
+ * @brief Mount an SMD image on a unit if the file can be opened, defaulting to
+ *        "SMD<unit>.IMG" when no image file is given.
+ * @param imageFile Image file path, or NULL for the default.
+ * @param unit SMD unit to mount on.
+ */
+void mount_smd(const char *, int);
+
+/**
+ * @brief Mount a Winchester image on a unit (0 or 1) if the file can be opened,
+ *        defaulting to "WD<unit>.IMG" when no image file is given.
+ * @param imageFile Image file path, or NULL for the default.
+ * @param unit Winchester unit to mount on.
+ */
+void mount_winchester(const char *, int);
+
+/**
+ * @brief Mount a SCSI image on a unit if the file can be opened, defaulting to
+ *        "SCSI<unit>.IMG"; logs an error when the image cannot be opened.
+ * @param imageFile Image file path, or NULL for the default.
+ * @param unit SCSI unit to mount on.
+ */
+void mount_scsi(const char *, int);
+
+/**
+ * @brief Mount the default floppy and SMD images for units that are not already
+ *        mounted, if those image files exist.
+ */
+void autoMountDrives(void);
+
+/**
+ * @brief Load or boot according to the boot type: load a BP/BPUN/a.out/tape image or
+ *        boot from a block device, set the start address, then automount drives.
+ * @param bootType Which boot path to take.
+ * @param bootUnit Unit to boot from for block devices.
+ * @param imageFile Image file to load or mount.
+ * @param verbose true to print loader detail.
+ * @param text_start Text segment load address for a.out images.
+ * @param overlay_deposit true to deposit over existing memory rather than clearing it.
+ * @return 0 on success, PROGRAM_LOAD_ERR_LOAD (-2) if the image could not be loaded,
+ *         PROGRAM_LOAD_ERR_BOOT (-10) if the boot device failed, -1 for BOOT_NONE.
+ */
+int program_load(BOOT_TYPE, int, const char *, bool, uint16_t, bool);
+
+/**
+ * @brief Return the mounted-drive table for the given drive type.
+ * @param drive_type Which drive table to return.
+ * @return Pointer to the first entry of that table, or NULL if there is none.
+ */
+MountedDriveInfo_t *list_mount(DRIVE_TYPE);
+
+/**
+ * @brief Mount a drive in OPFS mode, with no FILE*; the actual I/O goes through the
+ *        JS opfsBlockRead/Write functions.
+ * @param drive_type Which drive table to act on.
+ * @param unit Unit index inside that table.
+ * @param name Short drive name.
+ * @param description Longer drive description.
+ * @param imageSize Image size in bytes.
+ */
+void mount_drive_opfs(DRIVE_TYPE, int, const char *, const char *, size_t);
+
+/**
+ * @brief Mount a drive in gateway mode, with no FILE*; the actual I/O goes through the
+ *        JS gatewayBlockRead/Write functions over a WebSocket.
+ * @param drive_type Which drive table to act on.
+ * @param unit Unit index inside that table.
+ * @param name Short drive name.
+ * @param description Longer drive description.
+ * @param imageSize Image size in bytes.
+ */
+void mount_drive_gateway(DRIVE_TYPE, int, const char *, const char *, size_t);
+
+/**
+ * @brief Block-read callback for block devices: reads size blocks from the mounted
+ *        image (local file, remote data, OPFS or gateway) into the buffer.
+ * @param device Device asking for the read; its type selects the drive table.
+ * @param buffer Destination buffer for the block data.
+ * @param size Number of blocks to read.
+ * @param blockAddress First block number to read.
+ * @param unit Unit index inside the drive table.
+ * @return Number of blocks read on success, or a value <= 0 on error (-1 for bad
+ *         arguments, unknown device, bad unit or unmounted drive).
+ */
+int machine_block_read(Device *, uint8_t *, size_t, uint32_t, int);
+
+/**
+ * @brief Block-write callback for block devices: writes size blocks from the buffer to
+ *        the mounted image.
+ * @param device Device asking for the write; its type selects the drive table.
+ * @param buffer Source buffer holding the block data.
+ * @param size Number of blocks to write.
+ * @param blockAddress First block number to write.
+ * @param unit Unit index inside the drive table.
+ * @return Number of blocks written on success, -1 for bad arguments, unknown device,
+ *         bad unit or unmounted drive.
+ */
+int machine_block_write(Device *, const uint8_t *, size_t, uint32_t, int);
+
+/**
+ * @brief Disk-info callback for block devices: reports the mounted image size and its
+ *        write-protect state. OPFS, gateway and remote images are never write protected.
+ * @param device Device asking for the info; its type selects the drive table.
+ * @param image_size Receives the image size in bytes.
+ * @param is_write_protected Receives the write-protect flag.
+ * @param unit Unit index inside the drive table.
+ * @return 0 on success, -1 for bad arguments, unknown device, bad unit or unmounted drive.
+ */
+int machine_block_disk_info(Device *, size_t *, bool *, int);
+
+
 #ifdef __EMSCRIPTEN__
 /* Browser storage imports, defined with EM_JS in machine.c (OPFS and the
  * gateway WebSocket disk service). Return bytes transferred, or < 0. */

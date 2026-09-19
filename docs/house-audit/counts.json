@@ -28,7 +28,6 @@
     "src/cpu/cpu_regs.c": 10,
     "src/cpu/expr_eval.c": 2,
     "src/cpu/float.c": 12,
-    "src/debugger/debugger.c": 15,
     "src/devices/cdc/device_cdc.c": 2,
     "src/devices/device.c": 31,
     "src/devices/devicemanager.c": 16,
@@ -62,21 +61,9 @@
     "src/devices/smd/disk_smd.c": 1,
     "src/devices/terminal/device_terminal.c": 2,
     "src/devices/winchester/device_winchester.c": 1,
-    "src/devices/winchester/disk_winchester.c": 2,
-    "src/frontend/nd100x/charset.c": 9,
-    "src/frontend/nd100x/config.c": 3,
-    "src/frontend/nd100x/menu.c": 1,
-    "src/frontend/nd100x/nd100x.c": 2,
-    "src/frontend/nd100x/nd100x_shell.c": 1,
-    "src/frontend/nd100x/screenmenu.c": 4,
-    "src/frontend/nd100x/vscreen.c": 4,
-    "src/machine/io.c": 5,
-    "src/machine/machine.c": 25,
-    "src/machine/machine_config.c": 10,
-    "src/machine/machine_config_apply.c": 2,
-    "src/machine/machine_config_json.c": 1
+    "src/devices/winchester/disk_winchester.c": 2
    },
-   "total": 515
+   "total": 433
   },
   "11.4": {
    "files": {

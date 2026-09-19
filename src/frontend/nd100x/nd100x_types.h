@@ -165,4 +165,48 @@ typedef struct {
 } Config_t;
 // clang-format on
 
+/**
+ * @brief Set every field of the configuration structure to its default value
+ *        (no boot type, unit 0, no image, port 4711, ticks RTC, and so on).
+ * @param config Configuration to fill; NULL is ignored.
+ */
+void Config_Init(Config_t *);
+
+/**
+ * @brief Parse the nd100x command line with getopt_long and fill the
+ *        configuration structure from the short and long options.
+ * @param config Configuration to fill.
+ * @param argc Argument count as passed to main().
+ * @param argv Argument vector as passed to main().
+ * @return true when every option parsed, false on a bad or unknown option
+ *         (an error message is printed to stderr).
+ */
+bool Config_ParseCommandLine(Config_t *, int, char *[]);
+
+/**
+ * @brief Print the version line, usage line and the full option list to stdout.
+ * @param progName Program name to show in the usage line (argv[0]).
+ */
+void Config_PrintHelp(const char *);
+
+/**
+ * @brief Run the ncurses floppy database browser: download the catalog from the
+ *        floppy database, let the user search, inspect and mount an image, then
+ *        free the catalog and shut libcurl down.
+ * @return 0 when the browser exited normally, -1 when the catalog could not be
+ *         loaded.
+ */
+int show_floppy_menu(void);
+
+/**
+ * @brief Seed the PRNG, reset the resource-usage counters, install the signal
+ *        handlers and put the host terminal into unbuffered cbreak mode.
+ */
+void initialize(void);
+
+/**
+ * @brief Shut the emulated machine down and restore the host terminal mode.
+ */
+void cleanup(void);
+
 #endif // CONFIG_H

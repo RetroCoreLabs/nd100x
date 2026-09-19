@@ -186,46 +186,115 @@ typedef struct
     bool bootable;
 } ControllerDescriptor;
 
+/**
+ * @brief Look up the registry row for a controller type.
+ *
+ * Scans the ControllerDescriptor table for the row whose type matches.
+ *
+ * @param type Controller type to look up.
+ * @return Pointer to the descriptor, or NULL if the type has no row.
+ */
 const ControllerDescriptor *MC_DescriptorForType(CtrlType type);
 
 
+/**
+ * @brief INI section name of a controller type ("floppy", "smd", "scsi", ...).
+ *
+ * @param type Controller type to name.
+ * @return The descriptor's name, or "none" if the type has no registry row.
+ */
 const char *MC_CtrlTypeName(CtrlType type);
 
-/* Baseline machine with NO disc/network controllers: cpu 100, terminals 5-11,
- * peripherals on, boot smd.0.0, default runtime. Use this before loading an INI
- * (the INI fully specifies the controllers). */
+/**
+ * @brief Baseline machine with NO disc/network controllers.
+ *
+ * cpu 100, terminals 5-11, peripherals on, boot smd.0.0, default runtime. Use
+ * this before loading an INI (the INI fully specifies the controllers).
+ *
+ * @param cfg Configuration to overwrite with the baseline machine.
+ */
 void MachineConfig_InitBaseline(MachineConfig *cfg);
 
-/* Build the built-in default machine: baseline PLUS floppy + SMD + SCSI enabled
- * on thumbwheel 0 - identical to today's behavior when no INI is present. */
+/**
+ * @brief Build the built-in default machine.
+ *
+ * Baseline PLUS floppy + SMD + SCSI enabled on thumbwheel 0 - identical to
+ * today's behavior when no INI is present.
+ *
+ * @param cfg Configuration to overwrite with the default machine.
+ */
 void MachineConfig_SetDefaults(MachineConfig *cfg);
 
-/* Parse an INI file into cfg (cfg should be default-initialized first). On a
- * syntax/semantic error returns false and writes a user-friendly, file:line
- * qualified message into err. */
+/**
+ * @brief Parse an INI file into cfg (cfg should be default-initialized first).
+ *
+ * @param cfg    Configuration filled in from the file.
+ * @param path   INI file to read.
+ * @param err    Buffer for a user-friendly, file:line qualified error message.
+ * @param errlen Size of err in bytes.
+ * @return true on success; false on a syntax/semantic error, with the message
+ *         written into err.
+ */
 bool MachineConfig_LoadFile(MachineConfig *cfg, const char *path, char *err, size_t errlen);
 
-/* Validate a populated config (wheel ranges, duplicate controllers, IOX overlap,
- * boot device sanity). Returns false + friendly message on the first problem. */
+/**
+ * @brief Validate a populated config.
+ *
+ * Checks wheel ranges, duplicate controllers, IOX overlap and boot device
+ * sanity.
+ *
+ * @param cfg    Configuration to check.
+ * @param err    Buffer for the friendly message describing the first problem.
+ * @param errlen Size of err in bytes.
+ * @return true if the configuration is usable; false on the first problem.
+ */
 bool MachineConfig_Validate(const MachineConfig *cfg, char *err, size_t errlen);
 
-/* Print the resolved machine (for --show-config): controllers, wheels, IOX
- * ranges, disks, boot, runtime. No ident codes. */
+/**
+ * @brief Print the resolved machine (for --show-config).
+ *
+ * Controllers, wheels, IOX ranges, disks, boot, runtime. No ident codes.
+ *
+ * @param cfg Configuration to print.
+ * @param out Stream to print to.
+ */
 void MachineConfig_Print(const MachineConfig *cfg, FILE *out);
 
-/* Serialize the machine to INI text (the native twin of the web Download-.ini).
- * Writes a commented, round-trippable file. Returns false on a write error with
- * a friendly message in err. */
+/**
+ * @brief Serialize the machine to INI text (the native twin of Download-.ini).
+ *
+ * Writes a commented, round-trippable file.
+ *
+ * @param cfg    Configuration to write.
+ * @param path   File to create.
+ * @param err    Buffer for a friendly message on a write error.
+ * @param errlen Size of err in bytes.
+ * @return true on success; false on a write error, message in err.
+ */
 bool MachineConfig_WriteFile(const MachineConfig *cfg, const char *path, char *err, size_t errlen);
 
-/* Map the INI cpu number (100/110) to the CPU emulator's CpuType. Returns true
- * and sets *outType on success; false if the number has no CpuType yet (e.g.
- * 120), leaving *outType untouched. Declared with int to avoid pulling the CPU
- * header into every config consumer. */
+/**
+ * @brief Map the INI cpu number (100/110) to the CPU emulator's CpuType.
+ *
+ * Declared with int to avoid pulling the CPU header into every config consumer.
+ *
+ * @param cpuNumber The family number from the INI, e.g. 100 or 110.
+ * @param outType   Receives the CpuType on success; untouched on failure.
+ * @return true and *outType set on success; false if the number has no CpuType
+ *         yet (e.g. 120).
+ */
 bool MachineConfig_CpuTypeForNumber(int cpuNumber, int *outType);
 
-/* Derive the autoload INI filename from argv[0]: basename, strip directory and
- * a trailing ".exe", append ".ini". e.g. ".../nd110x" -> "nd110x.ini". */
+/**
+ * @brief Derive the autoload INI filename from argv[0].
+ *
+ * Takes the basename, strips the directory and a trailing ".exe", and appends
+ * ".ini". e.g. ".../nd110x" -> "nd110x.ini".
+ *
+ * @param argv0  Program path as invoked; NULL is treated as "nd100x".
+ * @param outbuf Buffer receiving the filename; nothing is written if NULL.
+ * @param outlen Size of outbuf in bytes; nothing is written if 0.
+ */
 void MachineConfig_DefaultIniName(const char *argv0, char *outbuf, size_t outlen);
 
 #endif /* MACHINE_CONFIG_H */

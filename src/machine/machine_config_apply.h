@@ -43,7 +43,10 @@ typedef struct MachineConfigApplyOpts
  *
  * <opts> may be NULL, which means "nothing was decided elsewhere". */
 
-/* CPU model, FPP width and RTC time base.
+/**
+ * @brief Install the CPU model, FPP width and RTC time base from the config.
+ *
+ * CPU model, FPP width and RTC time base.
  *
  * MUST run BEFORE machine_init(). cpu_init() calls Setup_Instructions(), which
  * READS CurrentCPUType to decide which opcode groups to register - VERSN, the
@@ -54,14 +57,23 @@ typedef struct MachineConfigApplyOpts
  *
  * That is exactly what used to happen to every `cpu = 110` in an .ini. The CLI
  * escaped it only because apply_cputype_override() is called before
- * machine_init, with a comment saying it must be. */
+ * machine_init, with a comment saying it must be.
+ *
+ * @param mc   The configuration to install.
+ * @param opts What a command line already decided; may be NULL for "nothing".
+ */
 void MachineConfig_ApplyCpu(const MachineConfig *mc, const MachineConfigApplyOpts *opts);
 
-/* Terminals, disc controllers with their mounted images, and HDLC.
+/**
+ * @brief Add the configured terminals, disc controllers with their mounted
+ *        images, and HDLC.
  *
  * MUST run AFTER machine_init(): the core devices (RTC, console, floppy DMA,
  * SMD, tape, printer) are added by DeviceManager_AddAllDevices inside it, and
- * this adds the configured parts on top of them. */
+ * this adds the configured parts on top of them.
+ *
+ * @param mc The configuration whose devices are added.
+ */
 void MachineConfig_ApplyDevices(const MachineConfig *mc);
 
 #endif /* MACHINE_CONFIG_APPLY_H */

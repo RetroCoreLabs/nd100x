@@ -48,7 +48,8 @@
 /* normal machine run loop to execute it                 */
 
 /**
- * Run the interactive shell
+ * @brief Run the interactive shell: optionally execute a script file first, then
+ *        read and execute commands until the user quits or asks to run a program.
  *
  * @param nd100Root Directory to search for BPUN/PROG files (NULL = use current dir)
  * @param scriptPath Path to script file to execute (NULL = no script)
