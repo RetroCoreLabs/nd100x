@@ -50,13 +50,9 @@
     "src/frontend/nd100x/menu.c": 1,
     "src/frontend/nd100x/nd100x.c": 166,
     "src/frontend/nd100x/nd100x_types.h": 1,
-    "src/machine/machine.c": 34,
-    "src/ndlib/download.c": 5,
-    "src/ndlib/download.h": 1,
-    "src/ndlib/load_bpun.c": 19,
-    "src/ndlib/ndlib_types.h": 1
+    "src/machine/machine.c": 34
    },
-   "total": 5789
+   "total": 5763
   },
   "10.3": {
    "files": {},
@@ -252,15 +248,6 @@
     "src/machine/machine_config.c": 105,
     "src/machine/machine_config_apply.c": 16,
     "src/machine/machine_config_json.c": 9,
-    "src/ndlib/escp.c": 17,
-    "src/ndlib/floppydb.c": 26,
-    "src/ndlib/keyboard.c": 13,
-    "src/ndlib/load_bpun.c": 12,
-    "src/ndlib/load_prog.c": 8,
-    "src/ndlib/net_compat.c": 1,
-    "src/ndlib/pdfwriter.c": 12,
-    "src/ndlib/printjob.c": 19,
-    "src/ndlib/telnetserver.c": 52,
     "tests/test_bcd.c": 4,
     "tests/test_cdc.c": 24,
     "tests/test_drum.c": 13,
@@ -282,7 +269,7 @@
     "tools/reth-tap/test-framing.c": 2,
     "tools/reth-tap/test-gateway.c": 9
    },
-   "total": 1909
+   "total": 1749
   },
   "2.4": {
    "files": {
@@ -444,29 +431,6 @@
     "src/machine/machine_config_apply.h": 3,
     "src/machine/machine_config_json.c": 58,
     "src/machine/machine_types.h": 16,
-    "src/ndlib/download.c": 49,
-    "src/ndlib/download.h": 5,
-    "src/ndlib/escp.c": 252,
-    "src/ndlib/escp.h": 20,
-    "src/ndlib/floppydb.c": 128,
-    "src/ndlib/floppydb.h": 14,
-    "src/ndlib/keyboard.c": 111,
-    "src/ndlib/keyboard.h": 1,
-    "src/ndlib/load_bpun.c": 223,
-    "src/ndlib/load_prog.c": 66,
-    "src/ndlib/log.c": 36,
-    "src/ndlib/log.h": 15,
-    "src/ndlib/ndlib.c": 8,
-    "src/ndlib/ndlib_protos_preamble.h": 1,
-    "src/ndlib/ndlib_types.h": 18,
-    "src/ndlib/net_compat.c": 21,
-    "src/ndlib/net_compat.h": 55,
-    "src/ndlib/pdfwriter.c": 73,
-    "src/ndlib/pdfwriter.h": 13,
-    "src/ndlib/printjob.c": 132,
-    "src/ndlib/printjob.h": 26,
-    "src/ndlib/telnetserver.c": 316,
-    "src/ndlib/telnetserver.h": 15,
     "tests/test_bcd.c": 938,
     "tests/test_cdc.c": 98,
     "tests/test_drum.c": 53,
@@ -492,7 +456,7 @@
     "tools/reth-tap/test-framing.c": 47,
     "tools/reth-tap/test-gateway.c": 67
    },
-   "total": 23916
+   "total": 22318
   },
   "3.1": {
    "files": {

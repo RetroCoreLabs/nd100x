@@ -32,28 +32,31 @@
 #define PDF_STYLE_UNDERLINE 0x04
 
 // A single text span on a page
-typedef struct {
-    float x;           // X position in points
-    float y;           // Y position in points
-    uint8_t style;     // Combination of PDF_STYLE_* flags
-    float fontSize;    // Font size in points
-    char *text;        // Null-terminated text content
+typedef struct
+{
+    float x;        // X position in points
+    float y;        // Y position in points
+    uint8_t style;  // Combination of PDF_STYLE_* flags
+    float fontSize; // Font size in points
+    char *text;     // Null-terminated text content
 } PdfTextSpan;
 
 // A page is a list of text spans
-typedef struct {
+typedef struct
+{
     PdfTextSpan *spans;
     int spanCount;
     int spanCapacity;
 } PdfPage;
 
 // The PDF document
-typedef struct PdfDocument {
+typedef struct PdfDocument
+{
     PdfPage *pages;
     int pageCount;
     int pageCapacity;
-    float pageWidth;   // Points (A4 = 595.28)
-    float pageHeight;  // Points (A4 = 841.89)
+    float pageWidth;  // Points (A4 = 595.28)
+    float pageHeight; // Points (A4 = 841.89)
 } PdfDocument;
 
 // Create a new PDF document (A4 page size)
@@ -63,9 +66,8 @@ PdfDocument *Pdf_Create(void);
 int Pdf_AddPage(PdfDocument *doc);
 
 // Add a text span to a page
-void Pdf_AddTextSpan(PdfDocument *doc, int pageIndex,
-                     float x, float y, uint8_t style, float fontSize,
-                     const char *text);
+void Pdf_AddTextSpan(PdfDocument *doc, int pageIndex, float x, float y, uint8_t style,
+                     float fontSize, const char *text);
 
 // Write the PDF document to a file, returns true on success
 bool Pdf_WriteToFile(PdfDocument *doc, const char *filename);

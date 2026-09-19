@@ -51,8 +51,8 @@
 
 #include "escp.h"
 
-#define INITIAL_SPANS    256
-#define INITIAL_LINEBUF  256
+#define INITIAL_SPANS   256
+#define INITIAL_LINEBUF 256
 
 // Default line spacing: 1/6 inch = 36/216 inch
 #define DEFAULT_LINE_SPACING_216 36
@@ -68,25 +68,34 @@
 // Flush the current line buffer as a span
 static void flush_line_buffer(EscpContext *ctx)
 {
-    if (ctx->lineBufLen == 0) return;
+    if (ctx->lineBufLen == 0)
+    {
+        return;
+    }
 
     // Grow spans array if needed
-    if (ctx->spanCount >= ctx->spanCapacity) {
+    if (ctx->spanCount >= ctx->spanCapacity)
+    {
         int newCap = ctx->spanCapacity * 2;
         EscpSpan *tmp = realloc(ctx->spans, newCap * sizeof(EscpSpan));
-        if (!tmp) return;
+        if (!tmp)
+        {
+            return;
+        }
         ctx->spans = tmp;
         ctx->spanCapacity = newCap;
     }
 
     // Calculate character width in points based on pitch
     int effectiveCpi = ctx->cpi;
-    if (ctx->condensed) {
+    if (ctx->condensed)
+    {
         // Condensed roughly multiplies cpi by ~1.7
         effectiveCpi = (effectiveCpi == 10) ? 17 : 20;
     }
     float charWidth = POINTS_PER_INCH / (float)effectiveCpi;
-    if (ctx->expanded) {
+    if (ctx->expanded)
+    {
         charWidth *= 2.0f;
     }
 
@@ -97,16 +106,20 @@ static void flush_line_buffer(EscpContext *ctx)
     ctx->lineBuf[ctx->lineBufLen] = '\0';
 
     EscpSpan *span = &ctx->spans[ctx->spanCount++];
-    span->column = ctx->column - ctx->lineBufLen;  // Start column of this run
-    if (span->column < 0) span->column = 0;
+    span->column = ctx->column - ctx->lineBufLen; // Start column of this run
+    if (span->column < 0)
+    {
+        span->column = 0;
+    }
     span->line = ctx->line;
     span->page = ctx->page;
     span->attrs = ctx->attrs;
     span->charWidth = charWidth;
     span->lineHeight = lineHeight;
     span->text = strdup(ctx->lineBuf);
-    if (!span->text) {
-        ctx->spanCount--;   /* out of memory: drop this run of text */
+    if (!span->text)
+    {
+        ctx->spanCount--; /* out of memory: drop this run of text */
     }
 
     ctx->lineBufLen = 0;
@@ -115,10 +128,14 @@ static void flush_line_buffer(EscpContext *ctx)
 // Add a character to the line buffer
 static void buffer_char(EscpContext *ctx, char c)
 {
-    if (ctx->lineBufLen + 1 >= ctx->lineBufCap) {
+    if (ctx->lineBufLen + 1 >= ctx->lineBufCap)
+    {
         int newCap = ctx->lineBufCap * 2;
         char *tmp = realloc(ctx->lineBuf, newCap);
-        if (!tmp) return;
+        if (!tmp)
+        {
+            return;
+        }
         ctx->lineBuf = tmp;
         ctx->lineBufCap = newCap;
     }
@@ -133,7 +150,8 @@ static void line_feed(EscpContext *ctx)
     ctx->column = 0;
 
     // Check for page overflow
-    if (ctx->line >= ctx->pageLines) {
+    if (ctx->line >= ctx->pageLines)
+    {
         ctx->page++;
         ctx->line = 0;
     }
@@ -162,116 +180,135 @@ static void reset_printer(EscpContext *ctx)
 // Handle an ESC command that takes no parameters
 static void handle_esc_no_param(EscpContext *ctx, uint8_t cmd)
 {
-    switch (cmd) {
-        case '@':  // Initialize printer
-            flush_line_buffer(ctx);
-            reset_printer(ctx);
-            break;
+    switch (cmd)
+    {
+    case '@': // Initialize printer
+        flush_line_buffer(ctx);
+        reset_printer(ctx);
+        break;
 
-        case 'E':  // Bold on
-            flush_line_buffer(ctx);
-            ctx->attrs |= ESCP_ATTR_BOLD;
-            break;
+    case 'E': // Bold on
+        flush_line_buffer(ctx);
+        ctx->attrs |= ESCP_ATTR_BOLD;
+        break;
 
-        case 'F':  // Bold off
-            flush_line_buffer(ctx);
-            ctx->attrs &= ~ESCP_ATTR_BOLD;
-            break;
+    case 'F': // Bold off
+        flush_line_buffer(ctx);
+        ctx->attrs &= ~ESCP_ATTR_BOLD;
+        break;
 
-        case '4':  // Italic on
-            flush_line_buffer(ctx);
-            ctx->attrs |= ESCP_ATTR_ITALIC;
-            break;
+    case '4': // Italic on
+        flush_line_buffer(ctx);
+        ctx->attrs |= ESCP_ATTR_ITALIC;
+        break;
 
-        case '5':  // Italic off
-            flush_line_buffer(ctx);
-            ctx->attrs &= ~ESCP_ATTR_ITALIC;
-            break;
+    case '5': // Italic off
+        flush_line_buffer(ctx);
+        ctx->attrs &= ~ESCP_ATTR_ITALIC;
+        break;
 
-        case 'P':  // 10 cpi (Pica)
-            flush_line_buffer(ctx);
-            ctx->cpi = 10;
-            break;
+    case 'P': // 10 cpi (Pica)
+        flush_line_buffer(ctx);
+        ctx->cpi = 10;
+        break;
 
-        case 'M':  // 12 cpi (Elite)
-            flush_line_buffer(ctx);
-            ctx->cpi = 12;
-            break;
+    case 'M': // 12 cpi (Elite)
+        flush_line_buffer(ctx);
+        ctx->cpi = 12;
+        break;
 
-        case '0':  // Line spacing 1/8"
-            ctx->lineSpacing216 = LINE_SPACING_8TH_216;
-            ctx->pageLines = (int)(11.0f * 8.0f);  // 88 lines/page at 1/8"
-            break;
+    case '0': // Line spacing 1/8"
+        ctx->lineSpacing216 = LINE_SPACING_8TH_216;
+        ctx->pageLines = (int)(11.0f * 8.0f); // 88 lines/page at 1/8"
+        break;
 
-        case '2':  // Line spacing 1/6"
-            ctx->lineSpacing216 = DEFAULT_LINE_SPACING_216;
-            ctx->pageLines = DEFAULT_PAGE_LINES;
-            break;
+    case '2': // Line spacing 1/6"
+        ctx->lineSpacing216 = DEFAULT_LINE_SPACING_216;
+        ctx->pageLines = DEFAULT_PAGE_LINES;
+        break;
     }
 }
 
 // Handle an ESC command that takes 1 parameter byte
 static void handle_esc_with_param(EscpContext *ctx, uint8_t cmd, uint8_t param)
 {
-    switch (cmd) {
-        case '-':  // Underline on/off
-            flush_line_buffer(ctx);
-            if (param & 0x01) {
-                ctx->attrs |= ESCP_ATTR_UNDERLINE;
-            } else {
-                ctx->attrs &= ~ESCP_ATTR_UNDERLINE;
-            }
-            break;
+    switch (cmd)
+    {
+    case '-': // Underline on/off
+        flush_line_buffer(ctx);
+        if (param & 0x01)
+        {
+            ctx->attrs |= ESCP_ATTR_UNDERLINE;
+        }
+        else
+        {
+            ctx->attrs &= ~ESCP_ATTR_UNDERLINE;
+        }
+        break;
 
-        case 'W':  // Expanded mode on/off
-            flush_line_buffer(ctx);
-            ctx->expanded = (param & 0x01) != 0;
-            break;
+    case 'W': // Expanded mode on/off
+        flush_line_buffer(ctx);
+        ctx->expanded = (param & 0x01) != 0;
+        break;
 
-        case '3':  // Line spacing = n/216"
-            ctx->lineSpacing216 = param;
-            if (param > 0) {
-                ctx->pageLines = (int)((11.0f * 216.0f) / (float)param);
-            }
-            break;
+    case '3': // Line spacing = n/216"
+        ctx->lineSpacing216 = param;
+        if (param > 0)
+        {
+            ctx->pageLines = (int)((11.0f * 216.0f) / (float)param);
+        }
+        break;
     }
 }
 
 // Determine how many parameter bytes a given ESC command needs
 static int params_for_command(uint8_t cmd)
 {
-    switch (cmd) {
-        // 1-parameter commands
-        case '-':   // Underline
-        case 'W':   // Expanded
-        case '3':   // n/216" spacing
-            return 1;
+    switch (cmd)
+    {
+    // 1-parameter commands
+    case '-': // Underline
+    case 'W': // Expanded
+    case '3': // n/216" spacing
+        return 1;
 
-        // No-parameter commands
-        case '@': case 'E': case 'F': case '4': case '5':
-        case 'P': case 'M': case '0': case '2':
-            return 0;
+    // No-parameter commands
+    case '@':
+    case 'E':
+    case 'F':
+    case '4':
+    case '5':
+    case 'P':
+    case 'M':
+    case '0':
+    case '2':
+        return 0;
 
-        default:
-            return 0;  // Unknown command: consume no params, ignore
+    default:
+        return 0; // Unknown command: consume no params, ignore
     }
 }
 
 EscpContext *Escp_Create(void)
 {
     EscpContext *ctx = calloc(1, sizeof(EscpContext));
-    if (!ctx) return NULL;
+    if (!ctx)
+    {
+        return NULL;
+    }
 
     ctx->spanCapacity = INITIAL_SPANS;
     ctx->spans = calloc(ctx->spanCapacity, sizeof(EscpSpan));
-    if (!ctx->spans) {
+    if (!ctx->spans)
+    {
         free(ctx);
         return NULL;
     }
 
     ctx->lineBufCap = INITIAL_LINEBUF;
     ctx->lineBuf = malloc(ctx->lineBufCap);
-    if (!ctx->lineBuf) {
+    if (!ctx->lineBuf)
+    {
         free(ctx->spans);
         free(ctx);
         return NULL;
@@ -283,107 +320,141 @@ EscpContext *Escp_Create(void)
 
 void Escp_PutChar(EscpContext *ctx, uint8_t c)
 {
-    if (!ctx) return;
+    if (!ctx)
+    {
+        return;
+    }
 
-    switch (ctx->state) {
-        case ESCP_STATE_NORMAL:
-            // Control characters
-            switch (c) {
-                case 0x1B:  // ESC
-                    ctx->state = ESCP_STATE_ESC_SEEN;
-                    return;
+    switch (ctx->state)
+    {
+    case ESCP_STATE_NORMAL:
+        // Control characters
+        switch (c)
+        {
+        case 0x1B: // ESC
+            ctx->state = ESCP_STATE_ESC_SEEN;
+            return;
 
-                case 0x0D:  // CR
-                    flush_line_buffer(ctx);
-                    ctx->column = 0;
-                    return;
+        case 0x0D: // CR
+            flush_line_buffer(ctx);
+            ctx->column = 0;
+            return;
 
-                case 0x0A:  // LF
-                    line_feed(ctx);
-                    return;
+        case 0x0A: // LF
+            line_feed(ctx);
+            return;
 
-                case 0x0C:  // FF
-                    form_feed(ctx);
-                    return;
+        case 0x0C: // FF
+            form_feed(ctx);
+            return;
 
-                case 0x08:  // BS (backspace / overstrike)
-                    if (ctx->lineBufLen > 0) {
-                        // Remove last char from buffer (overstrike ignored for now)
-                        ctx->lineBufLen--;
-                    }
-                    if (ctx->column > 0) ctx->column--;
-                    return;
-
-                case 0x0F:  // SI: condensed on
-                    flush_line_buffer(ctx);
-                    ctx->condensed = true;
-                    return;
-
-                case 0x12:  // DC2: condensed off
-                    flush_line_buffer(ctx);
-                    ctx->condensed = false;
-                    return;
-
-                case 0x07:  // BEL - ignore
-                case 0x00:  // NUL - ignore
-                    return;
+        case 0x08: // BS (backspace / overstrike)
+            if (ctx->lineBufLen > 0)
+            {
+                // Remove last char from buffer (overstrike ignored for now)
+                ctx->lineBufLen--;
             }
-
-            // Printable character
-            if (c >= 0x20 && c <= 0x7E) {
-                buffer_char(ctx, (char)c);
-                ctx->column++;
+            if (ctx->column > 0)
+            {
+                ctx->column--;
             }
-            break;
+            return;
 
-        case ESCP_STATE_ESC_SEEN:
-            ctx->currentCommand = c;
-            ctx->paramsNeeded = params_for_command(c);
-            ctx->paramsReceived = 0;
+        case 0x0F: // SI: condensed on
+            flush_line_buffer(ctx);
+            ctx->condensed = true;
+            return;
 
-            if (ctx->paramsNeeded == 0) {
-                handle_esc_no_param(ctx, c);
-                ctx->state = ESCP_STATE_NORMAL;
-            } else {
-                ctx->state = ESCP_STATE_PARAM;
-            }
-            break;
+        case 0x12: // DC2: condensed off
+            flush_line_buffer(ctx);
+            ctx->condensed = false;
+            return;
 
-        case ESCP_STATE_PARAM:
-            ctx->params[ctx->paramsReceived++] = c;
-            if (ctx->paramsReceived >= ctx->paramsNeeded) {
-                handle_esc_with_param(ctx, ctx->currentCommand, ctx->params[0]);
-                ctx->state = ESCP_STATE_NORMAL;
-            }
-            break;
+        case 0x07: // BEL - ignore
+        case 0x00: // NUL - ignore
+            return;
+        }
+
+        // Printable character
+        if (c >= 0x20 && c <= 0x7E)
+        {
+            buffer_char(ctx, (char)c);
+            ctx->column++;
+        }
+        break;
+
+    case ESCP_STATE_ESC_SEEN:
+        ctx->currentCommand = c;
+        ctx->paramsNeeded = params_for_command(c);
+        ctx->paramsReceived = 0;
+
+        if (ctx->paramsNeeded == 0)
+        {
+            handle_esc_no_param(ctx, c);
+            ctx->state = ESCP_STATE_NORMAL;
+        }
+        else
+        {
+            ctx->state = ESCP_STATE_PARAM;
+        }
+        break;
+
+    case ESCP_STATE_PARAM:
+        ctx->params[ctx->paramsReceived++] = c;
+        if (ctx->paramsReceived >= ctx->paramsNeeded)
+        {
+            handle_esc_with_param(ctx, ctx->currentCommand, ctx->params[0]);
+            ctx->state = ESCP_STATE_NORMAL;
+        }
+        break;
     }
 }
 
 const EscpSpan *Escp_GetSpans(EscpContext *ctx, int *count)
 {
-    if (!ctx) { if (count) *count = 0; return NULL; }
+    if (!ctx)
+    {
+        if (count)
+        {
+            *count = 0;
+        }
+        return NULL;
+    }
 
     // Flush any pending text
     flush_line_buffer(ctx);
 
-    if (count) *count = ctx->spanCount;
+    if (count)
+    {
+        *count = ctx->spanCount;
+    }
     return ctx->spans;
 }
 
 int Escp_GetPageCount(EscpContext *ctx)
 {
-    if (!ctx) return 0;
+    if (!ctx)
+    {
+        return 0;
+    }
     // page is 0-based, so page count = page + 1 (if any content exists)
-    if (ctx->spanCount == 0 && ctx->lineBufLen == 0) return 0;
+    if (ctx->spanCount == 0 && ctx->lineBufLen == 0)
+    {
+        return 0;
+    }
     return ctx->page + 1;
 }
 
 void Escp_Reset(EscpContext *ctx)
 {
-    if (!ctx) return;
+    if (!ctx)
+    {
+        return;
+    }
 
     // Free span text
-    for (int i = 0; i < ctx->spanCount; i++) {
+    for (int i = 0; i < ctx->spanCount; i++)
+    {
         free(ctx->spans[i].text);
     }
     ctx->spanCount = 0;
@@ -399,9 +470,13 @@ void Escp_Reset(EscpContext *ctx)
 
 void Escp_Destroy(EscpContext *ctx)
 {
-    if (!ctx) return;
+    if (!ctx)
+    {
+        return;
+    }
 
-    for (int i = 0; i < ctx->spanCount; i++) {
+    for (int i = 0; i < ctx->spanCount; i++)
+    {
         free(ctx->spans[i].text);
     }
     free(ctx->spans);
@@ -411,37 +486,55 @@ void Escp_Destroy(EscpContext *ctx)
 
 char Escp_StripToPlainChar(EscpContext *ctx, uint8_t c)
 {
-    if (!ctx) return 0;
+    if (!ctx)
+    {
+        return 0;
+    }
 
-    switch (ctx->state) {
-        case ESCP_STATE_NORMAL:
-            if (c == 0x1B) {
-                ctx->state = ESCP_STATE_ESC_SEEN;
-                return 0;
-            }
-            // Pass through printable chars and common control chars
-            if (c >= 0x20 && c <= 0x7E) return (char)c;
-            if (c == 0x0D || c == 0x0A || c == 0x0C) return (char)c;
-            if (c == 0x09) return '\t';
-            return 0;  // Swallow other control chars
-
-        case ESCP_STATE_ESC_SEEN:
-            ctx->currentCommand = c;
-            ctx->paramsNeeded = params_for_command(c);
-            ctx->paramsReceived = 0;
-            if (ctx->paramsNeeded == 0) {
-                ctx->state = ESCP_STATE_NORMAL;
-            } else {
-                ctx->state = ESCP_STATE_PARAM;
-            }
+    switch (ctx->state)
+    {
+    case ESCP_STATE_NORMAL:
+        if (c == 0x1B)
+        {
+            ctx->state = ESCP_STATE_ESC_SEEN;
             return 0;
+        }
+        // Pass through printable chars and common control chars
+        if (c >= 0x20 && c <= 0x7E)
+        {
+            return (char)c;
+        }
+        if (c == 0x0D || c == 0x0A || c == 0x0C)
+        {
+            return (char)c;
+        }
+        if (c == 0x09)
+        {
+            return '\t';
+        }
+        return 0; // Swallow other control chars
 
-        case ESCP_STATE_PARAM:
-            ctx->paramsReceived++;
-            if (ctx->paramsReceived >= ctx->paramsNeeded) {
-                ctx->state = ESCP_STATE_NORMAL;
-            }
-            return 0;
+    case ESCP_STATE_ESC_SEEN:
+        ctx->currentCommand = c;
+        ctx->paramsNeeded = params_for_command(c);
+        ctx->paramsReceived = 0;
+        if (ctx->paramsNeeded == 0)
+        {
+            ctx->state = ESCP_STATE_NORMAL;
+        }
+        else
+        {
+            ctx->state = ESCP_STATE_PARAM;
+        }
+        return 0;
+
+    case ESCP_STATE_PARAM:
+        ctx->paramsReceived++;
+        if (ctx->paramsReceived >= ctx->paramsNeeded)
+        {
+            ctx->state = ESCP_STATE_NORMAL;
+        }
+        return 0;
     }
 
     return 0;

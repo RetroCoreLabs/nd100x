@@ -7,4 +7,3 @@ typedef struct EscpSpan EscpSpan;
 typedef struct PrintJob PrintJob;
 typedef enum PjPrinterType PjPrinterType;
 typedef enum PjOutputFormat PjOutputFormat;
-

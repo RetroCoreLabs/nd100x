@@ -36,20 +36,22 @@
 // Classified keyboard input produced by read_key_event(). Placed here rather
 // than in keyboard.h so the mkptypes-generated ndlib_protos.h - which declares
 // read_key_event() - can see the full definition regardless of include order.
-typedef enum {
-    KEY_NONE = 0,      // No key available
-    KEY_CHAR,          // Ordinary typed character (evt.ch)
-    KEY_ESCAPE,        // ESC key pressed alone
-    KEY_F12,           // F12 function key
-    KEY_ALT_DIGIT,     // Alt+1..9 (evt.ch is '1'..'9')
-    KEY_UNKNOWN,       // Multi-byte input we did not classify (raw in evt.seq)
+typedef enum
+{
+    KEY_NONE = 0,  // No key available
+    KEY_CHAR,      // Ordinary typed character (evt.ch)
+    KEY_ESCAPE,    // ESC key pressed alone
+    KEY_F12,       // F12 function key
+    KEY_ALT_DIGIT, // Alt+1..9 (evt.ch is '1'..'9')
+    KEY_UNKNOWN,   // Multi-byte input we did not classify (raw in evt.seq)
 } KeyType;
 
-typedef struct {
+typedef struct
+{
     KeyType type;
-    char    ch;        // Ordinary character (KEY_CHAR) or Alt digit (KEY_ALT_DIGIT)
-    char    seq[8];    // Raw byte sequence - populated for passthrough/KEY_UNKNOWN
-    int     seqLen;
+    char ch;     // Ordinary character (KEY_CHAR) or Alt digit (KEY_ALT_DIGIT)
+    char seq[8]; // Raw byte sequence - populated for passthrough/KEY_UNKNOWN
+    int seqLen;
 } KeyEvent;
 
 
@@ -94,10 +96,11 @@ typedef struct
     uint16_t lastBank1;      /* last  word address of Bank 1 image */
     uint16_t firstBank2;     /* first word address of Bank 2 image (0xFFFF if none) */
     uint16_t lastBank2;      /* last  word address of Bank 2 image (0x0000 if none) */
-    bool     twoBank;        /* true when a Bank 2 image is present */
+    bool twoBank;            /* true when a Bank 2 image is present */
 } PROG_Header;
 
-typedef enum {
+typedef enum
+{
     LoadState_Preamble,
     LoadState_Address,
     LoadState_Count,
@@ -107,14 +110,6 @@ typedef enum {
     LoadState_FloMonCount,
     LoadState_FloMonLoad
 } LoadState;
-
-
-
-
-
-
-
-
 
 
 #endif //

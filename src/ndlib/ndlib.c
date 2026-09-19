@@ -34,12 +34,13 @@
 
 #include <windows.h>
 
-static DWORD  saved_console_mode = 0;
+static DWORD saved_console_mode = 0;
 static HANDLE saved_console_handle = NULL;
 
 void unsetcbreak(void)
 {
-    if (saved_console_handle) {
+    if (saved_console_handle)
+    {
         SetConsoleMode(saved_console_handle, saved_console_mode);
     }
 }
@@ -47,17 +48,23 @@ void unsetcbreak(void)
 void setcbreak(void)
 {
     saved_console_handle = GetStdHandle(STD_INPUT_HANDLE);
-    if (!saved_console_handle || saved_console_handle == INVALID_HANDLE_VALUE) return;
+    if (!saved_console_handle || saved_console_handle == INVALID_HANDLE_VALUE)
+    {
+        return;
+    }
 
     DWORD mode = 0;
-    if (!GetConsoleMode(saved_console_handle, &mode)) return;
+    if (!GetConsoleMode(saved_console_handle, &mode))
+    {
+        return;
+    }
     saved_console_mode = mode;
 
     /* Clear line-input and echo so keys arrive one at a time without being
      * echoed. Window/menu events are read and discarded by read_key_event()
      * in keyboard.c. */
     mode &= ~(DWORD)(ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT | ENABLE_PROCESSED_INPUT);
-    mode |=  ENABLE_WINDOW_INPUT;
+    mode |= ENABLE_WINDOW_INPUT;
     SetConsoleMode(saved_console_handle, mode);
 }
 
@@ -86,7 +93,7 @@ void setcbreak(void)
     tcgetattr(0, &tty);
     tty.c_lflag &= ~(ECHO | ECHONL | ICANON | IEXTEN);
     tty.c_cc[VTIME] = (cc_t)0;
-    tty.c_cc[VMIN]  = (cc_t)0;
+    tty.c_cc[VMIN] = (cc_t)0;
     tcsetattr(0, TCSADRAIN, &tty);
 }
 

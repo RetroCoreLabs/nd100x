@@ -34,31 +34,41 @@
  * address; callers that need the real program entry ("start") or the "action"
  * autostart flag read them here. See GetLastBPUNHeader(). */
 static BPUN_Header s_last_bpun_header;
-static bool        s_last_bpun_valid = false;
+static bool s_last_bpun_valid = false;
 
 /* Copy the last successfully parsed BPUN header into *out.
  * Returns false (and leaves *out untouched) if no BPUN has loaded yet. */
-bool GetLastBPUNHeader(BPUN_Header* out) {
-    if (!s_last_bpun_valid || !out) return false;
+bool GetLastBPUNHeader(BPUN_Header *out)
+{
+    if (!s_last_bpun_valid || !out)
+    {
+        return false;
+    }
     *out = s_last_bpun_header;
     return true;
 }
 
-int LoadBPUN(const char* filename, bool verbose) {
+int LoadBPUN(const char *filename, bool verbose)
+{
     BPUN_Header bpun = {0};
 
-	FILE* bpunStream = fopen(filename, "rb");
-	if (!bpunStream) {
-		LOG(LOG_CAT_LOADER, LOG_ERROR, "Failed to open BPUN file '%s': %s\n", filename, strerror(errno));
-		return false;
-	}
+    FILE *bpunStream = fopen(filename, "rb");
+    if (!bpunStream)
+    {
+        LOG(LOG_CAT_LOADER, LOG_ERROR, "Failed to open BPUN file '%s': %s\n", filename,
+            strerror(errno));
+        return false;
+    }
 
-    bool loadOK = LoadBPUNStream(bpunStream,&bpun );
-	fclose(bpunStream);
+    bool loadOK = LoadBPUNStream(bpunStream, &bpun);
+    fclose(bpunStream);
     bpunStream = NULL;
 
-	if (!loadOK) {
-		LOG(LOG_CAT_LOADER, LOG_ERROR, "BPUN load failed: Error while parsing BPUN format (file may be corrupted or in wrong format)\n");
+    if (!loadOK)
+    {
+        LOG(LOG_CAT_LOADER, LOG_ERROR,
+            "BPUN load failed: Error while parsing BPUN format (file may be corrupted or in wrong "
+            "format)\n");
         return -1;
     }
 
@@ -74,8 +84,9 @@ int LoadBPUN(const char* filename, bool verbose) {
         LOG(LOG_CAT_LOADER, LOG_INFO, "Address: %06o\n", bpun.address);
         LOG(LOG_CAT_LOADER, LOG_INFO, "Count: %06o\n", bpun.count);
 
-        const char* crc = "[OK]";
-        if (bpun.checksum != bpun.calculatedChecksum) {
+        const char *crc = "[OK]";
+        if (bpun.checksum != bpun.calculatedChecksum)
+        {
             LOG(LOG_CAT_LOADER, LOG_ERROR, "CRC ERROR != %02X\n", bpun.calculatedChecksum);
             crc = "[CRC ERROR]";
         }
@@ -89,9 +100,9 @@ int LoadBPUN(const char* filename, bool verbose) {
     /* Capture the full header so callers can read the real program entry
      * (bpun.start) and the autostart flag (bpun.action). */
     s_last_bpun_header = bpun;
-    s_last_bpun_valid  = true;
+    s_last_bpun_valid = true;
 
-	return bpun.boot;
+    return bpun.boot;
 }
 
 
@@ -99,7 +110,7 @@ int LoadBPUN(const char* filename, bool verbose) {
 /// @param bpunStream The file stream to read from
 /// @param header The BPUN_Header structure to populate
 /// @return true if successful, false if there was an error
-bool LoadBPUNStream(FILE* bpunStream, BPUN_Header* header)
+bool LoadBPUNStream(FILE *bpunStream, BPUN_Header *header)
 {
     // Initialize header
     header->calculatedChecksum = 0;
@@ -110,192 +121,246 @@ bool LoadBPUNStream(FILE* bpunStream, BPUN_Header* header)
     header->isFloMon = false;
 
     LoadState loadState = LoadState_Preamble;
-    char tmpString[51] = {0};  // Max 50 chars + null terminator
+    char tmpString[51] = {0}; // Max 50 chars + null terminator
     int tmpStringPos = 0;
     uint16_t currentLocationCounter = 0;
     uint16_t loadAddress = 0;
     uint16_t lastValue = 0;
     uint16_t dataCounter = 0;
-	uint16_t dataLoadAddress = 0;
-    rewind(bpunStream);  // Seek to start of file
+    uint16_t dataLoadAddress = 0;
+    rewind(bpunStream); // Seek to start of file
     int b;
-    while ((b = fgetc(bpunStream)) != EOF) {
-        switch (loadState) {
-            case LoadState_Preamble: {
-                char c = (char)(b & 0x7F);  // Convert to 7-bit ASCII
+    while ((b = fgetc(bpunStream)) != EOF)
+    {
+        switch (loadState)
+        {
+        case LoadState_Preamble:
+        {
+            char c = (char)(b & 0x7F); // Convert to 7-bit ASCII
 
-                if (c == '!') {
-                    if (tmpStringPos > 0) {
-                        tmpString[tmpStringPos] = '\0';
-                        int tmp = (int)strtol(tmpString, NULL, 8);
-                        if (tmp >= 0) {
-                            loadAddress = (uint16_t)tmp;
+            if (c == '!')
+            {
+                if (tmpStringPos > 0)
+                {
+                    tmpString[tmpStringPos] = '\0';
+                    int tmp = (int)strtol(tmpString, NULL, 8);
+                    if (tmp >= 0)
+                    {
+                        loadAddress = (uint16_t)tmp;
+                    }
+                }
+                if (loadAddress == header->start)
+                {
+                    header->boot = lastValue;
+                }
+                else
+                {
+                    header->boot = loadAddress;
+                }
+                loadState = LoadState_Address;
+                tmpStringPos = 0;
+                continue;
+            }
+            else if (c == '/')
+            {
+                if (tmpStringPos > 0)
+                {
+                    tmpString[tmpStringPos] = '\0';
+                    int tmp = (int)strtol(tmpString, NULL, 8);
+                    if (tmp >= 0)
+                    {
+                        currentLocationCounter = (uint16_t)tmp;
+                        lastValue = currentLocationCounter;
+                        header->start = currentLocationCounter;
+                        if (loadAddress == 0)
+                        {
+                            loadAddress = currentLocationCounter;
                         }
                     }
-                    if (loadAddress == header->start) {
-                        header->boot = lastValue;
-                    } else {
-                        header->boot = loadAddress;
+                }
+                tmpStringPos = 0;
+            }
+            else if (c >= '0' && c <= '9')
+            {
+                if (tmpStringPos < 50)
+                {
+                    tmpString[tmpStringPos++] = c;
+                }
+            }
+            else if (c == 0x0D)
+            { // Carriage return
+                if (tmpStringPos > 0)
+                {
+                    tmpString[tmpStringPos] = '\0';
+                    int tmp = (int)strtol(tmpString, NULL, 8);
+                    if (tmp >= 0)
+                    {
+                        lastValue = (uint16_t)tmp;
                     }
-                    loadState = LoadState_Address;
                     tmpStringPos = 0;
-                    continue;
                 }
-                else if (c == '/') {
-                    if (tmpStringPos > 0) {
-                        tmpString[tmpStringPos] = '\0';
-                        int tmp = (int)strtol(tmpString, NULL, 8);
-                        if (tmp >= 0) {
-                            currentLocationCounter = (uint16_t)tmp;
-                            lastValue = currentLocationCounter;
-                            header->start = currentLocationCounter;
-                            if (loadAddress == 0) {
-                                loadAddress = currentLocationCounter;
-                            }
-                        }
-                    }
-                    tmpStringPos = 0;
-                }
-                else if (c >= '0' && c <= '9') {
-                    if (tmpStringPos < 50) {
-                        tmpString[tmpStringPos++] = c;
-                    }
-                }
-                else if (c == 0x0D) {  // Carriage return
-                    if (tmpStringPos > 0) {
-                        tmpString[tmpStringPos] = '\0';
-                        int tmp = (int)strtol(tmpString, NULL, 8);
-                        if (tmp >= 0) {
-                            lastValue = (uint16_t)tmp;
-                        }
-                        tmpStringPos = 0;
-                    }
-                }
-                break;
+            }
+            break;
+        }
+
+        case LoadState_Address:
+            header->address = (uint16_t)(b << 8);
+            b = fgetc(bpunStream);
+            if (b == EOF)
+            {
+                return false;
+            }
+            header->address |= (uint8_t)b;
+            loadState = LoadState_Count;
+
+            dataLoadAddress = header->address;
+            break;
+
+        case LoadState_Count:
+            header->count = (uint16_t)(b << 8);
+            b = fgetc(bpunStream);
+            if (b == EOF)
+            {
+                return false;
+            }
+            header->count |= (uint8_t)b;
+            dataCounter = header->count * 2; // Count is in words, we read bytes
+            loadState = LoadState_Data;
+            break;
+
+        case LoadState_Data:
+        {
+            uint16_t data_word = 0;
+            if (dataCounter > 0)
+            {
+                dataCounter--;
+                data_word = (b << 8) & 0xFF00;
             }
 
-            case LoadState_Address:
-                header->address = (uint16_t)(b << 8);
+            if (dataCounter > 0)
+            {
                 b = fgetc(bpunStream);
-                if (b == EOF) return false;
-                header->address |= (uint8_t)b;
-                loadState = LoadState_Count;
+                if (b == EOF)
+                {
+                    return false;
+                }
+                dataCounter--;
+                data_word |= (b & 0xFF);
+            }
 
-				dataLoadAddress = header->address;
-                break;
+            if (g_disasm)
+            {
+                disasm_addword(dataLoadAddress, data_word);
+            }
 
-            case LoadState_Count:
-                header->count = (uint16_t)(b << 8);
-                b = fgetc(bpunStream);
-                if (b == EOF) return false;
-                header->count |= (uint8_t)b;
-                dataCounter = header->count * 2;  // Count is in words, we read bytes
-                loadState = LoadState_Data;
-                break;
+            WritePhysicalMemory(dataLoadAddress++, data_word, false);
 
-            case LoadState_Data: {
+            if (dataCounter == 0)
+            {
+                loadState = LoadState_Checksum;
+            }
+
+            header->calculatedChecksum = (uint16_t)(header->calculatedChecksum + data_word);
+            break;
+        }
+
+        case LoadState_Checksum:
+            header->checksum = (uint16_t)(b << 8);
+            b = fgetc(bpunStream);
+            if (b == EOF)
+            {
+                return false;
+            }
+            header->checksum |= (uint8_t)b;
+            loadState = LoadState_Action;
+
+            if (header->address == 0 && header->count == 0 && header->checksum == 0)
+            {
+                loadState = LoadState_FloMonCount;
+            }
+            break;
+
+        case LoadState_Action:
+            header->action = (uint16_t)(b << 8);
+            b = fgetc(bpunStream);
+            if (b == EOF)
+            {
+                return false;
+            }
+            header->action |= (uint8_t)b;
+            return true;
+
+        case LoadState_FloMonCount:
+            header->isFloMon = true;
+            header->count = (uint16_t)b;
+            loadState = LoadState_FloMonLoad;
+            break;
+
+        case LoadState_FloMonLoad:
+        {
+            uint16_t floWords = 0;
+            while (floWords < header->count)
+            {
+
                 uint16_t data_word = 0;
-                if (dataCounter > 0) {
-                    dataCounter--;
-                    data_word = (b << 8) & 0xFF00;
+
+                // Entering here the first 0x00 byte has already been read by the outside loop. Check it and contiue
+                if (b != 0)
+                {
+                    return false;
                 }
 
-                if (dataCounter > 0) {
-                    b = fgetc(bpunStream);
-                    if (b == EOF) {
-                        return false;
-                    }
-                    dataCounter--;
-                    data_word |= (b & 0xFF);
+                // Read HI bits
+                b = fgetc(bpunStream);
+                if (b == EOF)
+                {
+                    return false;
                 }
+
+                data_word = (b << 8);
+
+                b = fgetc(bpunStream);
+                if (b == EOF || b != 0)
+                {
+                    return false;
+                }
+
+                b = fgetc(bpunStream);
+                if (b == EOF)
+                {
+                    return false;
+                }
+
+                data_word |= b & 0xFF;
+
+                b = fgetc(bpunStream);
+                if (b == EOF || b != 0)
+                {
+                    return false;
+                }
+
+                WritePhysicalMemory(header->address + floWords, data_word, false);
 
                 if (g_disasm)
-                    disasm_addword(dataLoadAddress, data_word);
-
-				WritePhysicalMemory(dataLoadAddress++, data_word, false);
-
-                if (dataCounter == 0) {
-                    loadState = LoadState_Checksum;
+                {
+                    disasm_addword(header->address + floWords, data_word);
                 }
 
-                header->calculatedChecksum = (uint16_t)(header->calculatedChecksum + data_word);
-                break;
+
+                floWords++;
             }
-
-            case LoadState_Checksum:
-                header->checksum = (uint16_t)(b << 8);
-                b = fgetc(bpunStream);
-                if (b == EOF) return false;
-                header->checksum |= (uint8_t)b;
-                loadState = LoadState_Action;
-
-                if (header->address == 0 && header->count == 0 && header->checksum == 0) {
-                    loadState = LoadState_FloMonCount;
-                }
-                break;
-
-            case LoadState_Action:
-                header->action = (uint16_t)(b << 8);
-                b = fgetc(bpunStream);
-                if (b == EOF) return false;
-                header->action |= (uint8_t)b;
-                return true;
-
-            case LoadState_FloMonCount:
-                header->isFloMon = true;
-                header->count = (uint16_t)b;
-                loadState = LoadState_FloMonLoad;
-                break;
-
-            case LoadState_FloMonLoad: {
-                uint16_t floWords = 0;
-                while (floWords < header->count) {
-
-					uint16_t data_word = 0;
-
-					// Entering here the first 0x00 byte has already been read by the outside loop. Check it and contiue
-                    if (b != 0) return false;
-
-					// Read HI bits
-                    b = fgetc(bpunStream);
-                    if (b == EOF) return false;
-
-					data_word = (b << 8);
-
-                    b = fgetc(bpunStream);
-                    if (b == EOF || b != 0) return false;
-
-                    b = fgetc(bpunStream);
-                    if (b == EOF) return false;
-
-					data_word |= b & 0xFF;
-
-                    b = fgetc(bpunStream);
-                    if (b == EOF || b != 0) return false;
-
-                    WritePhysicalMemory(header->address+floWords, data_word, false);
-
-                    if (g_disasm)
-                        disasm_addword(header->address+floWords, data_word);
-
-
-
-                    floWords++;
-                }
-                return true;
-            }
+            return true;
+        }
         }
     }
 
-    return false;  // Unexpected end of file
+    return false; // Unexpected end of file
 }
 
 
-int
-bp_load (const char *bpfile) {
-	(void)bpfile;
-	// do binary load of device
-   return -1;
+int bp_load(const char *bpfile)
+{
+    (void)bpfile;
+    // do binary load of device
+    return -1;
 }
-
-

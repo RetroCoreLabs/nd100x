@@ -34,15 +34,17 @@
 // (e.g. w64devkit without libcurl).
 
 // Get the actual size of downloaded data (not supported in WASM)
-size_t get_downloaded_size(void) {
-	return 0;
+size_t get_downloaded_size(void)
+{
+    return 0;
 }
 
 // Unified download function stub for WASM build
-char* download_file(const char* url) {
-	(void)url;
-	LOG(LOG_CAT_NET, LOG_WARN, "Download not supported in WASM build (CURL disabled)\n");
-	return NULL;
+char *download_file(const char *url)
+{
+    (void)url;
+    LOG(LOG_CAT_NET, LOG_WARN, "Download not supported in WASM build (CURL disabled)\n");
+    return NULL;
 }
 
 #else
@@ -62,23 +64,33 @@ char* download_file(const char* url) {
 static const char *win_ca_bundle(void)
 {
     static char path[MAX_PATH];
-    static int  resolved = 0;
-    if (resolved) return path[0] ? path : NULL;
+    static int resolved = 0;
+    if (resolved)
+    {
+        return path[0] ? path : NULL;
+    }
     resolved = 1;
 
     // (1) exe-relative curl-ca-bundle.crt
     char exe[MAX_PATH];
     DWORD n = GetModuleFileNameA(NULL, exe, (DWORD)sizeof(exe));
-    if (n > 0 && n < sizeof(exe)) {
+    if (n > 0 && n < sizeof(exe))
+    {
         char *slash = strrchr(exe, '\\');
-        if (slash) {
-            size_t dirlen = (size_t)(slash - exe) + 1;      // keep the trailing backslash
+        if (slash)
+        {
+            size_t dirlen = (size_t)(slash - exe) + 1; // keep the trailing backslash
             const char *leaf = "curl-ca-bundle.crt";
-            if (dirlen + strlen(leaf) < sizeof(path)) {
+            if (dirlen + strlen(leaf) < sizeof(path))
+            {
                 memcpy(path, exe, dirlen);
                 snprintf(path + dirlen, sizeof(path) - dirlen, "%s", leaf);
                 FILE *f = fopen(path, "rb");
-                if (f) { fclose(f); return path; }
+                if (f)
+                {
+                    fclose(f);
+                    return path;
+                }
             }
         }
     }
@@ -87,7 +99,11 @@ static const char *win_ca_bundle(void)
     // (2) compile-time vendored path (external/curl/bin/curl-ca-bundle.crt)
     snprintf(path, sizeof(path), "%s", ND100X_VENDORED_CA_BUNDLE);
     FILE *f2 = fopen(path, "rb");
-    if (f2) { fclose(f2); return path; }
+    if (f2)
+    {
+        fclose(f2);
+        return path;
+    }
 #endif
 
     path[0] = '\0';
@@ -99,13 +115,15 @@ static const char *win_ca_bundle(void)
 static size_t g_downloaded_size = 0;
 
 // Structure to hold download data and size
-typedef struct {
+typedef struct
+{
     char *data;
     size_t size;
 } DownloadData;
 
 // Callback function for CURL to write received data
-static size_t WriteCallback(void *contents, size_t size, size_t nmemb, void *userp) {
+static size_t WriteCallback(void *contents, size_t size, size_t nmemb, void *userp)
+{
     size_t realsize = size * nmemb;
     DownloadData *download_data = (DownloadData *)userp;
 
@@ -113,20 +131,23 @@ static size_t WriteCallback(void *contents, size_t size, size_t nmemb, void *use
     size_t new_size = download_data->size + realsize;
 
     // Check for integer overflow
-    if (new_size < download_data->size) {
+    if (new_size < download_data->size)
+    {
         LOG(LOG_CAT_NET, LOG_ERROR, "Error: Integer overflow in realloc size calculation\n");
         return 0;
     }
 
     // Check for maximum file size (500MB as requested)
-    if (new_size > 500 * 1024 * 1024) {
+    if (new_size > 500 * 1024 * 1024)
+    {
         LOG(LOG_CAT_NET, LOG_ERROR, "Error: File size exceeds 500MB limit\n");
         return 0;
     }
 
     // Reallocate memory
     char *new_data = realloc(download_data->data, new_size);
-    if (!new_data) {
+    if (!new_data)
+    {
         LOG(LOG_CAT_NET, LOG_ERROR, "Error: Failed to reallocate memory for download response\n");
         return 0;
     }
@@ -141,19 +162,23 @@ static size_t WriteCallback(void *contents, size_t size, size_t nmemb, void *use
 }
 
 // Get the actual size of downloaded data
-size_t get_downloaded_size(void) {
+size_t get_downloaded_size(void)
+{
     return g_downloaded_size;
 }
 
 // Unified download function that can handle both JSON and binary files
-char* download_file(const char* url) {
-    if (!url) {
+char *download_file(const char *url)
+{
+    if (!url)
+    {
         LOG(LOG_CAT_NET, LOG_ERROR, "Error: NULL URL provided to download_file\n");
         return NULL;
     }
 
     CURL *curl = curl_easy_init();
-    if (!curl) {
+    if (!curl)
+    {
         LOG(LOG_CAT_NET, LOG_ERROR, "Error: Failed to initialize CURL\n");
         return NULL;
     }
@@ -173,16 +198,21 @@ char* download_file(const char* url) {
     // Linux/macOS the system CA store is used automatically, so this is Windows-only.
     {
         const char *ca = win_ca_bundle();
-        if (ca) curl_easy_setopt(curl, CURLOPT_CAINFO, ca);
+        if (ca)
+        {
+            curl_easy_setopt(curl, CURLOPT_CAINFO, ca);
+        }
     }
 #endif
 
     // Perform the request
     CURLcode res = curl_easy_perform(curl);
 
-    if (res != CURLE_OK) {
+    if (res != CURLE_OK)
+    {
         LOG(LOG_CAT_NET, LOG_ERROR, "Error: CURL request failed: %s\n", curl_easy_strerror(res));
-        if (download_data.data) {
+        if (download_data.data)
+        {
             free(download_data.data);
         }
         curl_easy_cleanup(curl);
@@ -193,9 +223,11 @@ char* download_file(const char* url) {
     long http_code = 0;
     curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
 
-    if (http_code != 200) {
+    if (http_code != 200)
+    {
         LOG(LOG_CAT_NET, LOG_ERROR, "Error: HTTP request failed with code %ld\n", http_code);
-        if (download_data.data) {
+        if (download_data.data)
+        {
             free(download_data.data);
         }
         curl_easy_cleanup(curl);
@@ -203,14 +235,16 @@ char* download_file(const char* url) {
         return NULL;
     }
 
-    if (download_data.data && download_data.size > 0) {
+    if (download_data.data && download_data.size > 0)
+    {
 
         // Store the actual size globally
         g_downloaded_size = download_data.size;
 
         // Add null terminator for compatibility with string functions
         char *final_data = realloc(download_data.data, download_data.size + 1);
-        if (!final_data) {
+        if (!final_data)
+        {
             LOG(LOG_CAT_NET, LOG_ERROR, "Error: Failed to allocate memory for null terminator\n");
             free(download_data.data);
             curl_easy_cleanup(curl);
@@ -221,7 +255,9 @@ char* download_file(const char* url) {
         final_data[download_data.size] = '\0';
         curl_easy_cleanup(curl);
         return final_data;
-    } else {
+    }
+    else
+    {
         LOG(LOG_CAT_NET, LOG_ERROR, "Error: No data received from %s\n", url);
         curl_easy_cleanup(curl);
         g_downloaded_size = 0;

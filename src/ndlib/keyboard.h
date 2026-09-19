@@ -23,7 +23,7 @@
 #ifndef KEYBOARD_H
 #define KEYBOARD_H
 
-#include "ndlib_types.h"   // KeyType, KeyEvent
+#include "ndlib_types.h" // KeyType, KeyEvent
 
 // Read the next keyboard event (non-blocking).
 //

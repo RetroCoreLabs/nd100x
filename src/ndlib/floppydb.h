@@ -32,14 +32,15 @@
  *                      (several image versions of the same directory), so a
  *                      directory-name lookup can return several entries.
  */
-typedef struct {
-    int         id;
-    char        name[256];              /* JSON "Name" (catalog display name)              */
-    char        md5[33];                /* JSON "Md5" - UNIQUE key / image filename        */
-    char        directory_name[128];    /* "Directory name" from DirectoryContent          */
-    long        filesystem_pages;       /* "Filesystem image size : N pages" (octal)       */
-    bool        is_smd;                 /* true => SMD image (> 1000 pages), else a floppy  */
-    char       *directory_content;      /* full listing, owned by floppydb (may be "")     */
+typedef struct
+{
+    int id;
+    char name[256];           /* JSON "Name" (catalog display name)              */
+    char md5[33];             /* JSON "Md5" - UNIQUE key / image filename        */
+    char directory_name[128]; /* "Directory name" from DirectoryContent          */
+    long filesystem_pages;    /* "Filesystem image size : N pages" (octal)       */
+    bool is_smd;              /* true => SMD image (> 1000 pages), else a floppy  */
+    char *directory_content;  /* full listing, owned by floppydb (may be "")     */
 } FloppyDbEntry;
 
 /*

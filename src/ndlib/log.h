@@ -23,14 +23,15 @@
 #include <stdbool.h>
 
 /// @brief Subsystem a message belongs to. Each has its own minimum level.
-typedef enum {
+typedef enum
+{
     LOG_CAT_GENERAL,
     LOG_CAT_CPU,
-    LOG_CAT_MMS,        /* page tables, protection (hot path: needs ND100X_HOT_TRACE) */
-    LOG_CAT_MMSMAP,     /* every virtual-to-physical translation (ND100X_HOT_TRACE) */
-    LOG_CAT_TRAP,       /* internal-interrupt traps (ND100X_HOT_TRACE) */
-    LOG_CAT_PKSWITCH,   /* interrupt-level switches (ND100X_HOT_TRACE) */
-    LOG_CAT_DEVICE,     /* device manager, IOX dispatch */
+    LOG_CAT_MMS,      /* page tables, protection (hot path: needs ND100X_HOT_TRACE) */
+    LOG_CAT_MMSMAP,   /* every virtual-to-physical translation (ND100X_HOT_TRACE) */
+    LOG_CAT_TRAP,     /* internal-interrupt traps (ND100X_HOT_TRACE) */
+    LOG_CAT_PKSWITCH, /* interrupt-level switches (ND100X_HOT_TRACE) */
+    LOG_CAT_DEVICE,   /* device manager, IOX dispatch */
     LOG_CAT_SMD,
     LOG_CAT_FLOPPY,
     LOG_CAT_WD,
@@ -43,7 +44,7 @@ typedef enum {
     LOG_CAT_PANEL,
     LOG_CAT_TAPE,
     LOG_CAT_PRINTER,
-    LOG_CAT_NET,        /* telnet server, modem sockets, gateway */
+    LOG_CAT_NET, /* telnet server, modem sockets, gateway */
     LOG_CAT_DAP,
     LOG_CAT_MACHINE,
     LOG_CAT_LOADER,
@@ -53,7 +54,8 @@ typedef enum {
 
 /// @brief Message level. A message is written when its level is at or below
 ///        the category's minimum (ERROR is always the lowest number).
-typedef enum {
+typedef enum
+{
     LOG_ERROR,
     LOG_WARN,
     LOG_INFO,
@@ -134,13 +136,13 @@ const char *Log_LevelName(LogLevel lvl);
 
 /// @brief Write a message if its category is enabled at that level. The
 ///        arguments are not evaluated when it is not.
-#define LOG(cat, lvl, ...)                                  \
-    do                                                      \
-    {                                                       \
-        if (Log_IsEnabled((cat), (lvl)))                    \
-        {                                                   \
-            Log_Write((cat), (lvl), __VA_ARGS__);           \
-        }                                                   \
+#define LOG(cat, lvl, ...)                                                                         \
+    do                                                                                             \
+    {                                                                                              \
+        if (Log_IsEnabled((cat), (lvl)))                                                           \
+        {                                                                                          \
+            Log_Write((cat), (lvl), __VA_ARGS__);                                                  \
+        }                                                                                          \
     } while (0)
 
 #endif /* LOG_H */

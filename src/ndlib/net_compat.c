@@ -22,10 +22,12 @@ static volatile LONG g_net_init_refs = 0;
 int nd_net_init(void)
 {
     LONG prev = InterlockedIncrement(&g_net_init_refs);
-    if (prev == 1) {
+    if (prev == 1)
+    {
         WSADATA wsa;
         int r = WSAStartup(MAKEWORD(2, 2), &wsa);
-        if (r != 0) {
+        if (r != 0)
+        {
             InterlockedDecrement(&g_net_init_refs);
             return -1;
         }
@@ -36,9 +38,12 @@ int nd_net_init(void)
 void nd_net_shutdown(void)
 {
     LONG prev = InterlockedDecrement(&g_net_init_refs);
-    if (prev == 0) {
+    if (prev == 0)
+    {
         WSACleanup();
-    } else if (prev < 0) {
+    }
+    else if (prev < 0)
+    {
         /* Over-released - clamp back to zero to keep the refcount sane if
          * someone calls shutdown more times than init. */
         InterlockedIncrement(&g_net_init_refs);
@@ -65,8 +70,13 @@ int nd_last_socket_error(void)
 /* POSIX                                                                      */
 /* -------------------------------------------------------------------------- */
 
-int nd_net_init(void)      { return 0; }
-void nd_net_shutdown(void) { }
+int nd_net_init(void)
+{
+    return 0;
+}
+void nd_net_shutdown(void)
+{
+}
 
 int nd_socket_close(nd_socket_t s)
 {
@@ -103,43 +113,52 @@ int nd_wake_pair(nd_socket_t pair[2])
     pair[1] = ND_INVALID_SOCKET;
 
     nd_socket_t listener = (nd_socket_t)socket(AF_INET, SOCK_STREAM, 0);
-    if (listener == ND_INVALID_SOCKET) return -1;
+    if (listener == ND_INVALID_SOCKET)
+    {
+        return -1;
+    }
 
     struct sockaddr_in addr;
     memset(&addr, 0, sizeof(addr));
-    addr.sin_family      = AF_INET;
+    addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-    addr.sin_port        = 0;    /* kernel-assigned */
+    addr.sin_port = 0; /* kernel-assigned */
 
-    if (bind(ND_SOCK_NATIVE(listener), (struct sockaddr *)&addr, sizeof(addr)) != 0) {
+    if (bind(ND_SOCK_NATIVE(listener), (struct sockaddr *)&addr, sizeof(addr)) != 0)
+    {
         nd_socket_close(listener);
         return -1;
     }
-    if (listen(ND_SOCK_NATIVE(listener), 1) != 0) {
+    if (listen(ND_SOCK_NATIVE(listener), 1) != 0)
+    {
         nd_socket_close(listener);
         return -1;
     }
 
     nd_socklen_t alen = sizeof(addr);
-    if (getsockname(ND_SOCK_NATIVE(listener), (struct sockaddr *)&addr, &alen) != 0) {
+    if (getsockname(ND_SOCK_NATIVE(listener), (struct sockaddr *)&addr, &alen) != 0)
+    {
         nd_socket_close(listener);
         return -1;
     }
 
     nd_socket_t writer = (nd_socket_t)socket(AF_INET, SOCK_STREAM, 0);
-    if (writer == ND_INVALID_SOCKET) {
+    if (writer == ND_INVALID_SOCKET)
+    {
         nd_socket_close(listener);
         return -1;
     }
 
-    if (connect(ND_SOCK_NATIVE(writer), (struct sockaddr *)&addr, sizeof(addr)) != 0) {
+    if (connect(ND_SOCK_NATIVE(writer), (struct sockaddr *)&addr, sizeof(addr)) != 0)
+    {
         nd_socket_close(writer);
         nd_socket_close(listener);
         return -1;
     }
 
     nd_socket_t reader = (nd_socket_t)accept(ND_SOCK_NATIVE(listener), NULL, NULL);
-    if (reader == ND_INVALID_SOCKET) {
+    if (reader == ND_INVALID_SOCKET)
+    {
         nd_socket_close(writer);
         nd_socket_close(listener);
         return -1;

@@ -24,9 +24,10 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-struct Device;  // Forward declaration - no dependency on devices_types.h
+struct Device; // Forward declaration - no dependency on devices_types.h
 
-typedef enum {
+typedef enum
+{
     TRANSPORT_TELNET = 0,
     // TRANSPORT_SSH = 1,  // Phase 2
 } TransportType;
@@ -37,20 +38,22 @@ typedef void (*TelnetOutputFunc)(struct Device *device, char c);
 typedef void (*CarrierFunc)(struct Device *device, bool missing);
 
 // Terminal registration info
-typedef struct {
+typedef struct
+{
     struct Device *device;
     uint16_t identCode;
     uint16_t ioAddress;
     const char *name;
     TelnetInputFunc inputFunc;
-    TelnetOutputFunc origOutput;  // Original VScreen handler (for chaining)
+    TelnetOutputFunc origOutput; // Original VScreen handler (for chaining)
     CarrierFunc carrierFunc;
 } TelnetTerminalInfo;
 
 // Server configuration
-typedef struct {
-    int port;                     // Default 9000
-    int maxConnections;           // Default 8
+typedef struct
+{
+    int port;           // Default 9000
+    int maxConnections; // Default 8
     TransportType transport;
 } TelnetServerConfig;
 
@@ -65,11 +68,11 @@ void TelnetServer_Destroy(TelnetServer *server);
 
 // Status query (for F12 menu)
 int TelnetServer_GetTerminalCount(TelnetServer *server);
-bool TelnetServer_GetTerminalStatus(TelnetServer *server, int index,
-    const char **name, uint16_t *identCode, bool *connected, bool *locallyActive,
-    char *clientAddr, int addrLen);
-bool TelnetServer_GetTerminalStats(TelnetServer *server, int index,
-    uint64_t *bytesRx, uint64_t *bytesTx);
+bool TelnetServer_GetTerminalStatus(TelnetServer *server, int index, const char **name,
+                                    uint16_t *identCode, bool *connected, bool *locallyActive,
+                                    char *clientAddr, int addrLen);
+bool TelnetServer_GetTerminalStats(TelnetServer *server, int index, uint64_t *bytesRx,
+                                   uint64_t *bytesTx);
 bool TelnetServer_DisconnectTerminal(TelnetServer *server, int index);
 bool TelnetServer_DisconnectDevice(TelnetServer *server, struct Device *device);
 
@@ -93,9 +96,8 @@ const char *TelnetServer_GetDeviceClientAddr(TelnetServer *server, struct Device
 
 // Pending client management (connected but not yet assigned to a terminal)
 int TelnetServer_GetPendingCount(TelnetServer *server);
-bool TelnetServer_GetPendingInfo(TelnetServer *server, int index,
-    char *addrBuf, int addrBufLen, int *ageSecs,
-    uint64_t *bytesRx, uint64_t *bytesTx);
+bool TelnetServer_GetPendingInfo(TelnetServer *server, int index, char *addrBuf, int addrBufLen,
+                                 int *ageSecs, uint64_t *bytesRx, uint64_t *bytesTx);
 bool TelnetServer_DropPending(TelnetServer *server, int index);
 void TelnetServer_DropAllPending(TelnetServer *server);
 

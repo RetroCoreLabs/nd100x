@@ -26,7 +26,7 @@
 #include <stddef.h>
 
 // Unified download function that can handle both JSON and binary files
-char* download_file(const char* url);
+char *download_file(const char *url);
 
 // Get the actual size of downloaded data (for binary files)
 size_t get_downloaded_size(void);

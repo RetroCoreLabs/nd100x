@@ -31,40 +31,43 @@
 #define ESCP_ATTR_UNDERLINE 0x04
 
 // A styled text span produced by the ESC/P interpreter
-typedef struct EscpSpan {
-    int column;        // Column position (0-based)
-    int line;          // Line number on current page (0-based)
-    int page;          // Page number (0-based)
-    uint8_t attrs;     // Combination of ESCP_ATTR_* flags
-    float charWidth;   // Character width in points (based on pitch)
-    float lineHeight;  // Line height in points
-    char *text;        // Text content (allocated)
+typedef struct EscpSpan
+{
+    int column;       // Column position (0-based)
+    int line;         // Line number on current page (0-based)
+    int page;         // Page number (0-based)
+    uint8_t attrs;    // Combination of ESCP_ATTR_* flags
+    float charWidth;  // Character width in points (based on pitch)
+    float lineHeight; // Line height in points
+    char *text;       // Text content (allocated)
 } EscpSpan;
 
 // Parser state machine states
-typedef enum {
+typedef enum
+{
     ESCP_STATE_NORMAL,
     ESCP_STATE_ESC_SEEN,
     ESCP_STATE_PARAM
 } EscpState;
 
 // The ESC/P interpreter context
-typedef struct EscpContext {
+typedef struct EscpContext
+{
     // Parser state
     EscpState state;
-    uint8_t currentCommand;    // ESC command byte being processed
-    int paramsNeeded;          // Number of parameter bytes expected
-    int paramsReceived;        // Number of parameter bytes received
-    uint8_t params[4];         // Parameter buffer
+    uint8_t currentCommand; // ESC command byte being processed
+    int paramsNeeded;       // Number of parameter bytes expected
+    int paramsReceived;     // Number of parameter bytes received
+    uint8_t params[4];      // Parameter buffer
 
     // Position tracking
-    int column;                // Current column (0-based)
-    int line;                  // Current line on page (0-based)
-    int page;                  // Current page (0-based)
+    int column; // Current column (0-based)
+    int line;   // Current line on page (0-based)
+    int page;   // Current page (0-based)
 
     // Text attributes
-    uint8_t attrs;             // Active ESCP_ATTR_* flags
-    bool expanded;             // Double-width mode
+    uint8_t attrs; // Active ESCP_ATTR_* flags
+    bool expanded; // Double-width mode
 
     // Pitch: characters per inch (default 10 = Pica)
     int cpi;
@@ -74,7 +77,7 @@ typedef struct EscpContext {
     int lineSpacing216;
 
     // Page geometry (in lines at current spacing)
-    int pageLines;             // Lines per page (default 66 for 11" paper at 1/6")
+    int pageLines; // Lines per page (default 66 for 11" paper at 1/6")
 
     // Output: accumulated spans
     EscpSpan *spans;

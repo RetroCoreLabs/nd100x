@@ -33,30 +33,14 @@
 
 /* Indexed by LogCategory; these are the names a level specification uses. */
 static const char *const s_category_names[LOG_CAT_COUNT] = {
-    [LOG_CAT_GENERAL] = "general",
-    [LOG_CAT_CPU]     = "cpu",
-    [LOG_CAT_MMS]     = "mms",
-    [LOG_CAT_MMSMAP]  = "mmsmap",
-    [LOG_CAT_TRAP]    = "trap",
-    [LOG_CAT_PKSWITCH] = "pkswitch",
-    [LOG_CAT_DEVICE]  = "device",
-    [LOG_CAT_SMD]     = "smd",
-    [LOG_CAT_FLOPPY]  = "floppy",
-    [LOG_CAT_WD]      = "wd",
-    [LOG_CAT_SCSI]    = "scsi",
-    [LOG_CAT_CDC]     = "cdc",
-    [LOG_CAT_DRUM]    = "drum",
-    [LOG_CAT_HDLC]    = "hdlc",
-    [LOG_CAT_RTC]     = "rtc",
-    [LOG_CAT_TERM]    = "term",
-    [LOG_CAT_PANEL]   = "panel",
-    [LOG_CAT_TAPE]    = "tape",
-    [LOG_CAT_PRINTER] = "printer",
-    [LOG_CAT_NET]     = "net",
-    [LOG_CAT_DAP]     = "dap",
-    [LOG_CAT_MACHINE] = "machine",
-    [LOG_CAT_LOADER]  = "loader",
-    [LOG_CAT_CONFIG]  = "config",
+    [LOG_CAT_GENERAL] = "general", [LOG_CAT_CPU] = "cpu",       [LOG_CAT_MMS] = "mms",
+    [LOG_CAT_MMSMAP] = "mmsmap",   [LOG_CAT_TRAP] = "trap",     [LOG_CAT_PKSWITCH] = "pkswitch",
+    [LOG_CAT_DEVICE] = "device",   [LOG_CAT_SMD] = "smd",       [LOG_CAT_FLOPPY] = "floppy",
+    [LOG_CAT_WD] = "wd",           [LOG_CAT_SCSI] = "scsi",     [LOG_CAT_CDC] = "cdc",
+    [LOG_CAT_DRUM] = "drum",       [LOG_CAT_HDLC] = "hdlc",     [LOG_CAT_RTC] = "rtc",
+    [LOG_CAT_TERM] = "term",       [LOG_CAT_PANEL] = "panel",   [LOG_CAT_TAPE] = "tape",
+    [LOG_CAT_PRINTER] = "printer", [LOG_CAT_NET] = "net",       [LOG_CAT_DAP] = "dap",
+    [LOG_CAT_MACHINE] = "machine", [LOG_CAT_LOADER] = "loader", [LOG_CAT_CONFIG] = "config",
 };
 
 /* Indexed by LogLevel. */
