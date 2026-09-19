@@ -11,3 +11,6 @@
 *.bz2 binary
 *.gif binary
 *.png binary
+
+# Golden emulator output: compared byte for byte (CR LF from the guest)
+docs/house-audit/golden/* -text
