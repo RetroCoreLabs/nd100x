@@ -1387,6 +1387,8 @@ static void handle_mount_popup_input(int ch)
     case 27: // ESC
         hide_mount_popup();
         break;
+    default:
+        break;
     }
 }
 
@@ -1571,6 +1573,8 @@ static void handle_unmount_popup_input(int ch)
     break;
     case 27: // ESC
         hide_unmount_popup();
+        break;
+    default:
         break;
     }
 }

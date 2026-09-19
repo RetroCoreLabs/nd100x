@@ -323,6 +323,9 @@ uint16_t New_GetEffectiveAddr(uint16_t instr, bool *use_apt)
         eff_addr = gX + ReadIndirectVirtualMemory(eff_addr, true);
         *use_apt = true;
         break;
+    default: /* not reached: the mode field is 3 bits and all 8 values are handled */
+        eff_addr = 0;
+        break;
     }
     return eff_addr;
 }

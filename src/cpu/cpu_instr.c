@@ -3795,6 +3795,8 @@ static inline void regop_logical(uint16_t operand, uint16_t sr, uint16_t dr, uin
                 (uint16_t)(destination | ((cm1) ? (uint16_t)~source : source));
         }
         break;
+    default:
+        break;
     }
 }
 
@@ -3828,6 +3830,8 @@ static inline void regop_arith(uint16_t operand, uint16_t dr, uint16_t source, u
     case 6:    /* NOOP */
         break;
     case 7: /* NOOP */
+        break;
+    default:
         break;
     }
     if (dr != 0)
@@ -3866,6 +3870,8 @@ void regop(uint16_t operand)
              * EVERY path and only discard the register write for dr=0. The manual's "dr=0 resets carry,
              * else no-op" is WRONG for the ND-110 silicon (oracle-confirmed). */
         regop_arith(operand, dr, source, destination);
+        break;
+    default:
         break;
     }
 
@@ -4253,6 +4259,8 @@ void DoTRR(uint16_t instr)
         break;
     case 017: /* TRR CS (ND110 only) */
         break;
+    default:
+        break;
     }
 }
 
@@ -4415,6 +4423,8 @@ bool IsSkip(uint16_t instr)
             return true;
         }
         break;
+    default:
+        break;
     }
     return false;
 }
@@ -4491,6 +4501,8 @@ void do_bops(uint16_t operand)
     case 15: /* BORA */
         setbit(_STS, _K, (getbit(dr, bn) | getbit(_STS, _K)));
         break;
+    default:
+        break;
     }
 }
 
@@ -4525,6 +4537,8 @@ uint16_t ShiftReg(uint16_t reg, uint16_t instr)
             break;
         case 3: /* LIN */
             reg = (isneg) ? ((reg & 0x7fff) | (m << 15)) : ((reg & 0xfffe) | m);
+            break;
+        default:
             break;
         }
     }
@@ -4565,6 +4579,8 @@ uint32_t ShiftDoubleReg(uint32_t reg, uint16_t instr)
             break;
         case 3: /* LIN */
             reg = (isneg) ? ((reg & 0x7fffffff) | (m << 31)) : ((reg & 0xfffffffe) | m);
+            break;
+        default:
             break;
         }
     }
@@ -4705,6 +4721,8 @@ void DoMOVEW(uint16_t instr)
 
         sourceAddress = (sourceAddress | (gA << 16)) & 0xFFFFFF;
         isSourcePhysical = true;
+        break;
+    default:
         break;
     }
 

@@ -167,6 +167,8 @@ static uint16_t FloppyDMA_Read(Device *self, uint32_t address)
         // ND-100 Binary Format Load / Mass Storage Load microcode) -- NOT status word 2.
         value = CalculateHardwareStatusWord(self);
         break;
+    default:
+        break;
     }
 
     if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_DEBUG))
@@ -241,6 +243,8 @@ static void FloppyDMA_Write(Device *self, uint32_t address, uint16_t value)
 
     case FLOPPY_DMA_LOAD_POINTER_LO:
         data->pointerLO = value;
+        break;
+    default:
         break;
     }
 }
@@ -483,6 +487,9 @@ static void ExecuteFloppyGo(Device *self)
         break;
     case 3:
         bytes_pr_sector = 1024; // 5.25" 1.2MB disk
+        break;
+    default:
+        break;
     }
 
     // Reflect current sector size on the device so block callbacks know bytes per block

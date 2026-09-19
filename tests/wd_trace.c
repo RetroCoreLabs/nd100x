@@ -254,6 +254,8 @@ int main(void)
              * both print nothing, so the traces stay aligned. */
             Device_TickIODelay(dev);
             break;
+        default:
+            break;
         }
     }
 

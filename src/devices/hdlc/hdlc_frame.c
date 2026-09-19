@@ -183,6 +183,8 @@ bool HDLCFrame_AddByte(HDLCFrame *frame, uint8_t data)
             frame->state = HDLC_STATE_RECEIVING;
         }
         break;
+    default:
+        break;
     }
 
     frame->prevByte = data;

@@ -83,6 +83,8 @@ static uint16_t PaperTape_Read(Device *self, uint32_t address)
     case PAPERTAPE_READ_STATUS_REGISTER:
         value = data->statusRegister.raw;
         break;
+    default:
+        break;
     }
 
     return value;
@@ -176,6 +178,9 @@ static void PaperTape_Write(Device *self, uint32_t address, uint16_t value)
                                   self->interruptLevel);
         break;
     }
+    break;
+    default:
+        break;
     }
 }
 

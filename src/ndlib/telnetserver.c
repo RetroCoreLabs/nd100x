@@ -1057,6 +1057,8 @@ static void *accept_thread_func(void *arg)
                         server->pending[i].iacState = TELNET_STATE_SB_DATA;
                     }
                     break;
+                default:
+                    break;
                 }
             }
 
@@ -1328,6 +1330,8 @@ static void *client_thread_func(void *arg)
                     {
                         iacState = TELNET_STATE_SB_DATA;
                     }
+                    break;
+                default:
                     break;
                 }
             }

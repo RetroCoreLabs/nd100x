@@ -405,6 +405,8 @@ static uint16_t SMD_Read(Device *self, uint32_t address)
             value = data->regs.blockAddressI;
         }
         break;
+    default:
+        break;
     }
 
     if (Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG))
@@ -783,6 +785,8 @@ static void SMD_Write(Device *self, uint32_t address, uint16_t value)
                 data->regs.wcwFlipFlop = !data->regs.wcwFlipFlop;
             }
         }
+        break;
+    default:
         break;
     }
 }
@@ -1452,6 +1456,8 @@ static void ExecuteGO(Device *self)
         regs->selectedDisk = NULL;
         FinishOperation(self);
         break;
+    default:
+        break;
     }
 }
 
@@ -1783,6 +1789,8 @@ static void HandleError(Device *self, DiskError error)
 
     case DISK_ERR_TIMEOUT: // 500 ms controller timeout (status b6)
         data->statusRegister.bits.timeOut = 1;
+        break;
+    default:
         break;
     }
 }

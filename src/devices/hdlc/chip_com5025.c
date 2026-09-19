@@ -294,6 +294,8 @@ void COM5025_WriteWord(COM5025State *chip, COM5025RegistersWord reg, uint16_t va
     case COM5025_REG_WORD_DATA_LENGTH_SELECT:
         registers.dataLengthSelect = hi;
         break;
+    default:
+        break;
     }
 }
 

@@ -86,6 +86,8 @@ static uint16_t PaperTapeWriter_Read(Device *self, uint32_t address)
     case PTW_READ_STATUS_REGISTER:
         value = data->statusRegister.raw;
         break;
+    default:
+        break;
     }
 
     return value;
@@ -205,6 +207,9 @@ static void PaperTapeWriter_Write(Device *self, uint32_t address, uint16_t value
         }
         break;
     }
+    break;
+    default:
+        break;
     }
 }
 

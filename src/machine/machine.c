@@ -993,6 +993,8 @@ int program_load(BOOT_TYPE bootType, int bootUnit, const char *imageFile, bool v
         break;
     case BOOT_NONE:
         return -1;
+    default:
+        break;
     }
 
     autoMountDrives();

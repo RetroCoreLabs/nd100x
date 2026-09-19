@@ -154,6 +154,8 @@ static uint16_t FloppyPIO_Read(Device *self, uint32_t address)
             }
         }
         break;
+    default:
+        break;
     }
 
     if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_DEBUG))
@@ -276,6 +278,8 @@ static void FloppyPIO_Write(Device *self, uint32_t address, uint16_t value)
                 data->bytes_pr_sector = 512;
                 data->sectors_pr_track = 8;
                 break;
+            default:
+                break;
             }
         }
         else
@@ -311,6 +315,8 @@ static void FloppyPIO_Write(Device *self, uint32_t address, uint16_t value)
             data->sector = data->sectorControl.bits.sectorNumber;
             data->sectorAutoIncrement = data->sectorControl.bits.autoIncrement;
         }
+        break;
+    default:
         break;
     }
 }

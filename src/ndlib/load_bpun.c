@@ -351,6 +351,9 @@ bool LoadBPUNStream(FILE *bpunStream, BPUN_Header *header)
             }
             return true;
         }
+        break;
+        default:
+            break;
         }
     }
 

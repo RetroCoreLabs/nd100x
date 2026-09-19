@@ -428,6 +428,8 @@ static void draw_hdlc_status(void)
                     case 3:
                         rxState = "Error";
                         break;
+                    default:
+                        break;
                     }
                 }
             }

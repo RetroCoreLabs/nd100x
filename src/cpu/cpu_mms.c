@@ -142,6 +142,8 @@ uint16_t GetPTShadowAddress(uint32_t pageTable, uint32_t VPN, PageTableMode ptm)
         case Sixteen: // ONLY for MMS2
             offset = SHADOW_RAM_EXTENDED_MODE_16PT - g_paging_tables.shadowRamAddress;
             break;
+        default:
+            break;
         }
     }
     else

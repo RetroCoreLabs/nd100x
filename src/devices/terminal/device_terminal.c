@@ -187,6 +187,8 @@ static uint16_t Terminal_Tick(Device *self)
             case 3: // 5 bits
                 value &= 0x1F;
                 break;
+            default:
+                break;
             }
 
             data->uartInputBuf = value;
@@ -373,6 +375,8 @@ static void Terminal_Write(Device *self, uint32_t address, uint16_t value)
                                   data->outputStatus.bits.interruptEnabled &&
                                       data->outputStatus.bits.readyForTransfer,
                                   10);
+        break;
+    default:
         break;
     }
 }

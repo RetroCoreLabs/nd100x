@@ -170,6 +170,8 @@ static void bcdtest_run(const bcd_test_case *tc)
     case OP_SHDE:
         ndfunc_shde(0140126);
         break;
+    default:
+        break;
     }
 
     if ((gPC == 1) != tc->expect_skip)

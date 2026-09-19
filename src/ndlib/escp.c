@@ -226,6 +226,8 @@ static void handle_esc_no_param(EscpContext *ctx, uint8_t cmd)
         ctx->lineSpacing216 = DEFAULT_LINE_SPACING_216;
         ctx->pageLines = DEFAULT_PAGE_LINES;
         break;
+    default:
+        break;
     }
 }
 
@@ -257,6 +259,8 @@ static void handle_esc_with_param(EscpContext *ctx, uint8_t cmd, uint8_t param)
         {
             ctx->pageLines = (int)((11.0f * 216.0f) / (float)param);
         }
+        break;
+    default:
         break;
     }
 }
@@ -373,6 +377,8 @@ void Escp_PutChar(EscpContext *ctx, uint8_t c)
         case 0x07: // BEL - ignore
         case 0x00: // NUL - ignore
             return;
+        default:
+            break;
         }
 
         // Printable character
@@ -406,6 +412,8 @@ void Escp_PutChar(EscpContext *ctx, uint8_t c)
             handle_esc_with_param(ctx, ctx->currentCommand, ctx->params[0]);
             ctx->state = ESCP_STATE_NORMAL;
         }
+        break;
+    default:
         break;
     }
 }
@@ -535,6 +543,8 @@ char Escp_StripToPlainChar(EscpContext *ctx, uint8_t c)
             ctx->state = ESCP_STATE_NORMAL;
         }
         return 0;
+    default:
+        break;
     }
 
     return 0;

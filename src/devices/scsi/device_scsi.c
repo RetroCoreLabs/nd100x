@@ -961,6 +961,8 @@ Device *CreateSCSIDevice(uint8_t thumbwheel)
         dev->identCode = 0140443;
         dev->logicalDevice = 02205;
         break;
+    default:
+        break;
     }
 
     dev->interruptLevel = 11; /* Output channel interrupt = 11 (disk) */

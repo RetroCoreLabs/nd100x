@@ -226,6 +226,8 @@ void ProcessTerminalPanc(void)
         case STATUS_F_TYPED:
             // TODO: Implement!
             break;
+        default:
+            break;
         }
     }
     gPANS = pans.raw;

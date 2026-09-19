@@ -376,6 +376,8 @@ static bool SCSITarget_CommandDone(SCSITarget *t, uint8_t command, int length)
         return length == 6;
     case 7:
         return length == 6;
+    default:
+        break;
     }
     return true;
 }

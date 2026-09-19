@@ -160,31 +160,8 @@
    "total": 36
   },
   "2.7": {
-   "files": {
-    "src/cpu/cpu.c": 1,
-    "src/cpu/cpu_instr.c": 9,
-    "src/cpu/cpu_mms.c": 1,
-    "src/devices/floppy/device_floppy_dma.c": 3,
-    "src/devices/floppy/device_floppy_pio.c": 3,
-    "src/devices/hdlc/chip_com5025.c": 1,
-    "src/devices/hdlc/hdlc_frame.c": 1,
-    "src/devices/panel/panel.c": 1,
-    "src/devices/papertape/device_paper_tape.c": 2,
-    "src/devices/papertapewriter/device_paper_tape_writer.c": 2,
-    "src/devices/scsi/device_scsi.c": 1,
-    "src/devices/scsi/scsi_device.c": 1,
-    "src/devices/smd/device_smd.c": 4,
-    "src/devices/terminal/device_terminal.c": 2,
-    "src/frontend/nd100x/menu.c": 2,
-    "src/frontend/nd100x/screenmenu.c": 1,
-    "src/machine/machine.c": 1,
-    "src/ndlib/escp.c": 5,
-    "src/ndlib/load_bpun.c": 1,
-    "src/ndlib/telnetserver.c": 2,
-    "tests/test_bcd.c": 1,
-    "tests/wd_trace.c": 1
-   },
-   "total": 46
+   "files": {},
+   "total": 0
   },
   "2.x": {
    "files": {},
