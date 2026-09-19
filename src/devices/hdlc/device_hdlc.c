@@ -938,17 +938,11 @@ static void HDLC_OnCOM5025PinValueChanged(Device *device, COM5025SignalPinOut pi
     // - TBMT, TSA: update status + CheckTriggerInterrupt
     switch (pin) {
         case COM5025_PIN_OUT_SFR: // Sync/Flag received - no interrupt check
-            if (value)
-                data->rxTransferStatus.bits.syncFlagReceived = 1;
-            else
-                data->rxTransferStatus.bits.syncFlagReceived = 0;
+            data->rxTransferStatus.bits.syncFlagReceived = value ? 1 : 0;
             break;
 
         case COM5025_PIN_OUT_RXACT: // Receiver Active - no interrupt check
-            if (value)
-                data->rxTransferStatus.bits.receiverActive = 1;
-            else
-                data->rxTransferStatus.bits.receiverActive = 0;
+            data->rxTransferStatus.bits.receiverActive = value ? 1 : 0;
             break;
 
         case COM5025_PIN_OUT_RDA: // Receiver Data Available - triggers interrupt check on rising edge only (matches C#)
@@ -961,26 +955,17 @@ static void HDLC_OnCOM5025PinValueChanged(Device *device, COM5025SignalPinOut pi
             break;
 
         case COM5025_PIN_OUT_TXACT: // Transmitter Active - updates RQTS only
-            if (value)
-                data->txTransferStatus.bits.transmitterActive = 1;
-            else
-                data->txTransferStatus.bits.transmitterActive = 0;
+            data->txTransferStatus.bits.transmitterActive = value ? 1 : 0;
             HDLC_UpdateRQTS(device);
             break;
 
         case COM5025_PIN_OUT_TBMT: // Transmitter Buffer Empty - triggers interrupt check
-            if (value)
-                data->txTransferStatus.bits.transmitBufferEmpty = 1;
-            else
-                data->txTransferStatus.bits.transmitBufferEmpty = 0;
+            data->txTransferStatus.bits.transmitBufferEmpty = value ? 1 : 0;
             HDLC_CheckTriggerInterrupt(device);
             break;
 
         case COM5025_PIN_OUT_TSA: // Transmitter Status Available - triggers interrupt check
-            if (value)
-                data->txTransferStatus.bits.transmitterUnderrun = 1;
-            else
-                data->txTransferStatus.bits.transmitterUnderrun = 0;
+            data->txTransferStatus.bits.transmitterUnderrun = value ? 1 : 0;
             HDLC_CheckTriggerInterrupt(device);
             break;
 

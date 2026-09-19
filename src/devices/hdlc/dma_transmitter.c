@@ -142,6 +142,48 @@ void DMATransmitter_SetTXDMAFlag(DMATransmitter *transmitter, uint16_t flag)
     }
 }
 
+// Record a sent frame in the device's TX history ring (diagnostics).
+static void record_tx_history(DMATransmitter *transmitter, HdlcDCB *dcb,
+                              const uint8_t *frame_buffer, int frame_length)
+{
+    if (transmitter->hdlcDevice && transmitter->hdlcDevice->deviceData) {
+        HDLCData *hd = (HDLCData *)transmitter->hdlcDevice->deviceData;
+        int idx = hd->txHistoryIdx % HDLC_TX_HISTORY_SIZE;
+        hd->txHistory[idx].listPtr = DCB_GetBufferAddress(dcb);
+        hd->txHistory[idx].dataAddr = DCB_GetDataMemoryAddress(dcb);
+        hd->txHistory[idx].byteCount = dcb->byteCount;
+        hd->txHistory[idx].keyBefore = DCB_GetKeyValue(dcb);
+        hd->txHistory[idx].frameSize = (uint16_t)frame_length;
+        int copyLen = frame_length < HDLC_TX_HISTORY_DATA_SIZE ? frame_length : HDLC_TX_HISTORY_DATA_SIZE;
+        memcpy(hd->txHistory[idx].data, frame_buffer, (size_t)copyLen);
+        hd->txHistory[idx].dataLen = (uint8_t)copyLen;
+        hd->txHistoryIdx++;
+    }
+}
+
+// Build an HDLC frame from the accumulated outbound buffer and hand it to
+// the send callback (and the TX history).
+static void send_outbound_frame(DMATransmitter *transmitter, DMAControlBlocks *dma_cb)
+{
+    if (dma_cb->outboundBuffer && dma_cb->outboundBufferSize > 0 &&
+        transmitter->onSendHDLCFrame) {
+        uint8_t frameBuffer[HDLC_MAX_FRAME_SIZE + 10];
+        int frameLength = HDLCFrame_BuildFrame(dma_cb->outboundBuffer,
+                                              dma_cb->outboundBufferSize,
+                                              frameBuffer, sizeof(frameBuffer));
+        if (frameLength > 0) {
+            record_tx_history(transmitter, dma_cb->txDCB, frameBuffer, frameLength);
+
+            HDLCFrame callbackFrame;
+            HDLCFrame_Init(&callbackFrame);
+            memcpy(callbackFrame.frameBuffer, frameBuffer, (size_t)frameLength);
+            callbackFrame.frameLength = frameLength;
+            callbackFrame.frameComplete = true;
+            transmitter->onSendHDLCFrame(transmitter->callbackContext, &callbackFrame);
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // SendAllBuffers: read TX DCBs, accumulate frames, send complete HDLC frames.
 // Returns true when all buffers have been sent.
@@ -195,36 +237,7 @@ bool DMATransmitter_SendAllBuffers(DMATransmitter *transmitter)
 
             // End of frame: build HDLC frame and send it
             if (DCB_HasREOMFlag(dmaCB->txDCB)) {
-                if (dmaCB->outboundBuffer && dmaCB->outboundBufferSize > 0 &&
-                    transmitter->onSendHDLCFrame) {
-                    uint8_t frameBuffer[HDLC_MAX_FRAME_SIZE + 10];
-                    int frameLength = HDLCFrame_BuildFrame(dmaCB->outboundBuffer,
-                                                          dmaCB->outboundBufferSize,
-                                                          frameBuffer, sizeof(frameBuffer));
-                    if (frameLength > 0) {
-                        // Record in TX history
-                        if (transmitter->hdlcDevice && transmitter->hdlcDevice->deviceData) {
-                            HDLCData *hd = (HDLCData *)transmitter->hdlcDevice->deviceData;
-                            int idx = hd->txHistoryIdx % HDLC_TX_HISTORY_SIZE;
-                            hd->txHistory[idx].listPtr = DCB_GetBufferAddress(dmaCB->txDCB);
-                            hd->txHistory[idx].dataAddr = DCB_GetDataMemoryAddress(dmaCB->txDCB);
-                            hd->txHistory[idx].byteCount = dmaCB->txDCB->byteCount;
-                            hd->txHistory[idx].keyBefore = DCB_GetKeyValue(dmaCB->txDCB);
-                            hd->txHistory[idx].frameSize = (uint16_t)frameLength;
-                            int copyLen = frameLength < HDLC_TX_HISTORY_DATA_SIZE ? frameLength : HDLC_TX_HISTORY_DATA_SIZE;
-                            memcpy(hd->txHistory[idx].data, frameBuffer, (size_t)copyLen);
-                            hd->txHistory[idx].dataLen = (uint8_t)copyLen;
-                            hd->txHistoryIdx++;
-                        }
-
-                        HDLCFrame callbackFrame;
-                        HDLCFrame_Init(&callbackFrame);
-                        memcpy(callbackFrame.frameBuffer, frameBuffer, (size_t)frameLength);
-                        callbackFrame.frameLength = frameLength;
-                        callbackFrame.frameComplete = true;
-                        transmitter->onSendHDLCFrame(transmitter->callbackContext, &callbackFrame);
-                    }
-                }
+                send_outbound_frame(transmitter, dmaCB);
                 dmaCB->outboundBufferSize = 0;
                 tmpTSB |= TTS_FRAME_END;
             }

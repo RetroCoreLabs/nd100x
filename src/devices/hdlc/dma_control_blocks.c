@@ -364,6 +364,40 @@ void DMAControlBlocks_MarkBufferReceived(DMAControlBlocks *dmaCB, uint8_t rxStat
 
 // Buffer Description Loading
 
+/* Read the buffer description words at address (key value, and for a
+ * non-zero key the byte count and the two data-address words) into
+ * description. Returns the key value. */
+static uint16_t read_dcb_words(DMAControlBlocks *dma_cb, HdlcDCB *description, uint32_t address)
+{
+    uint16_t key_value = (uint16_t)DMAControlBlocks_DMARead(dma_cb, address++);
+    DCB_SetKeyValue(description, key_value);
+
+    if (key_value != 0) {
+        uint16_t byteCount = (uint16_t)DMAControlBlocks_DMARead(dma_cb, address++);
+        uint16_t mostAddress = (uint16_t)DMAControlBlocks_DMARead(dma_cb, address++);
+        uint16_t leastAddress = (uint16_t)DMAControlBlocks_DMARead(dma_cb, address++);
+
+        DCB_SetByteCount(description, byteCount);
+
+        // Set the data memory address using the most and least address parts
+        uint32_t dataMemoryAddr = ((uint32_t)(mostAddress & 0x00FF) << 16) | leastAddress;
+        DCB_SetDataMemoryAddress(description, dataMemoryAddr);
+    }
+    return key_value;
+}
+
+/* Displacement for the buffer at offset: the first buffer in the list uses
+ * Displacement1, all others Displacement2 (0 without parameters). */
+static uint16_t pick_displacement(const DMAControlBlocks *dma_cb, uint16_t offset)
+{
+    if (offset == 0) {
+        // First buffer in the list uses Displacement1
+        return dma_cb->parameters ? (uint16_t)dma_cb->parameters->displacement1 : 0;
+    }
+    // All other buffers use Displacement2
+    return dma_cb->parameters ? (uint16_t)dma_cb->parameters->displacement2 : 0;
+}
+
 HdlcDCB* DMAControlBlocks_LoadBufferDescription(DMAControlBlocks *dmaCB, uint32_t listPointer, uint16_t offset, bool isRX)
 {
     (void)isRX;
@@ -379,31 +413,10 @@ HdlcDCB* DMAControlBlocks_LoadBufferDescription(DMAControlBlocks *dmaCB, uint32_
     DCB_SetOffsetFromLP(description, offset);
     DCB_SetBufferAddress(description, actualListPointer);
 
-    uint32_t address = actualListPointer;
-    uint16_t keyValue = (uint16_t)DMAControlBlocks_DMARead(dmaCB, address++);
-    DCB_SetKeyValue(description, keyValue);
-
-    if (keyValue != 0) {
-        uint16_t byteCount = (uint16_t)DMAControlBlocks_DMARead(dmaCB, address++);
-        uint16_t mostAddress = (uint16_t)DMAControlBlocks_DMARead(dmaCB, address++);
-        uint16_t leastAddress = (uint16_t)DMAControlBlocks_DMARead(dmaCB, address++);
-
-        DCB_SetByteCount(description, byteCount);
-
-        // Set the data memory address using the most and least address parts
-        uint32_t dataMemoryAddr = ((uint32_t)(mostAddress & 0x00FF) << 16) | leastAddress;
-        DCB_SetDataMemoryAddress(description, dataMemoryAddr);
-    }
+    uint16_t keyValue = read_dcb_words(dmaCB, description, actualListPointer);
 
     // Set displacement based on offset
-    uint16_t displacement;
-    if (offset == 0) {
-        // First buffer in the list uses Displacement1
-        displacement = dmaCB->parameters ? (uint16_t)dmaCB->parameters->displacement1 : 0;
-    } else {
-        // All other buffers use Displacement2
-        displacement = dmaCB->parameters ? (uint16_t)dmaCB->parameters->displacement2 : 0;
-    }
+    uint16_t displacement = pick_displacement(dmaCB, offset);
     DCB_SetDisplacement(description, displacement);
 
     if (Log_IsEnabled(LOG_CAT_HDLC, LOG_DEBUG))

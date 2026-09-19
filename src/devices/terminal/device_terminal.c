@@ -240,6 +240,37 @@ static uint16_t Terminal_Read(Device *self, uint32_t address)
     return value;
 }
 
+// Load the input control word: interrupt/activate bits into the input
+// status, device clear, and clearing of the error bits.
+static void terminal_write_input_control(Device *self, TerminalData *data, uint16_t value)
+{
+    // make a copy of the control word
+    data->inputControl.raw = value;
+
+    // Update status register
+    data->inputStatus.bits.interruptEnabled = data->inputControl.bits.interruptEnabled;
+    data->inputStatus.bits.deviceActivated = data->inputControl.bits.deviceActivated;
+
+    // Trigger interrupt ?
+    Device_SetInterruptStatus(self, data->inputStatus.bits.interruptEnabled && data->inputStatus.bits.deviceReadyForTransfer, 12);
+
+    if (data->inputControl.bits.deviceClear)
+    {
+        // Clear input status
+        data->inputStatus.raw = 0;
+        data->inputStatus.bits.deviceActivated = true;
+
+        // Clear output status
+        data->outputStatus.raw = 0;
+        data->outputStatus.bits.readyForTransfer = true;
+    }
+
+    // Clear errors
+    data->inputStatus.bits.framingError = false;
+    data->inputStatus.bits.parityError = false;
+    data->inputStatus.bits.overrunError = false;
+}
+
 static void Terminal_Write(Device *self, uint32_t address, uint16_t value)
 {
     if (!self)
@@ -263,33 +294,7 @@ static void Terminal_Write(Device *self, uint32_t address, uint16_t value)
         break;
 
     case TERMINAL_WRITE_INPUT_CONTROL:
-
-        // make a copy of the control word
-        data->inputControl.raw = value;
-
-        // Update status register
-        data->inputStatus.bits.interruptEnabled = data->inputControl.bits.interruptEnabled;
-        data->inputStatus.bits.deviceActivated = data->inputControl.bits.deviceActivated;
-
-        // Trigger interrupt ?
-        Device_SetInterruptStatus(self, data->inputStatus.bits.interruptEnabled && data->inputStatus.bits.deviceReadyForTransfer, 12);
-
-        if (data->inputControl.bits.deviceClear)
-        {
-            // Clear input status
-            data->inputStatus.raw = 0;
-            data->inputStatus.bits.deviceActivated = true;
-
-            // Clear output status
-            data->outputStatus.raw = 0;
-            data->outputStatus.bits.readyForTransfer = true;
-        }
-
-        // Clear errors
-        data->inputStatus.bits.framingError = false;
-        data->inputStatus.bits.parityError = false;
-        data->inputStatus.bits.overrunError = false;
-
+        terminal_write_input_control(self, data, value);
         break;
 
     case TERMINAL_WRITE_DATA:

@@ -376,6 +376,49 @@ static void *server_worker(void *arg)
 }
 
 // ---- CLIENT WORKER ----
+// Service one connected socket: move bytes between the socket and the
+// modem queues until the peer closes, an error occurs or shutdown is asked.
+static void service_connection(ModemState *modem, nd_socket_t client_fd)
+{
+    while (!atomic_load(&modem->shutdownReq)) {
+        nd_pollfd_t fds;
+        fds.fd = ND_SOCK_NATIVE(client_fd);
+        fds.events = POLLIN;
+        fds.revents = 0;
+
+        if (queue_has_data(&modem->txQueue)) {
+            fds.events |= POLLOUT;
+        }
+
+        int pr = nd_poll(&fds, 1, 100);
+        if (pr < 0) break;
+
+        if (fds.revents & POLLIN) {
+            uint8_t buf[4096];
+            int n = recv(ND_SOCK_NATIVE(client_fd), (char *)buf, (int)sizeof(buf), 0);
+            if (n <= 0) break;
+            queue_write_all(&modem->rxQueue, buf, n, &modem->rxDropped);
+        }
+
+        if (fds.revents & POLLOUT) {
+            uint8_t buf[4096];
+            int n = queue_read(&modem->txQueue, buf, sizeof(buf));
+            if (n > 0) {
+                int sent = 0;
+                while (sent < n) {
+                    int w = send(ND_SOCK_NATIVE(client_fd),
+                                 (const char *)(buf + sent),
+                                 n - sent, MSG_NOSIGNAL);
+                    if (w <= 0) return;
+                    sent += w;
+                }
+            }
+        }
+
+        if (fds.revents & (POLLERR | POLLHUP)) break;
+    }
+}
+
 static void *client_worker(void *arg)
 {
     ModemState *modem = (ModemState *)arg;
@@ -409,46 +452,8 @@ static void *client_worker(void *arg)
         atomic_store(&modem->connected, true);
         attempt = 0; // reset backoff on success
 
-        // Service connection
-        while (!atomic_load(&modem->shutdownReq)) {
-            nd_pollfd_t fds;
-            fds.fd = ND_SOCK_NATIVE(clientFd);
-            fds.events = POLLIN;
-            fds.revents = 0;
+        service_connection(modem, clientFd);
 
-            if (queue_has_data(&modem->txQueue)) {
-                fds.events |= POLLOUT;
-            }
-
-            int pr = nd_poll(&fds, 1, 100);
-            if (pr < 0) break;
-
-            if (fds.revents & POLLIN) {
-                uint8_t buf[4096];
-                int n = recv(ND_SOCK_NATIVE(clientFd), (char *)buf, (int)sizeof(buf), 0);
-                if (n <= 0) break;
-                queue_write_all(&modem->rxQueue, buf, n, &modem->rxDropped);
-            }
-
-            if (fds.revents & POLLOUT) {
-                uint8_t buf[4096];
-                int n = queue_read(&modem->txQueue, buf, sizeof(buf));
-                if (n > 0) {
-                    int sent = 0;
-                    while (sent < n) {
-                        int w = send(ND_SOCK_NATIVE(clientFd),
-                                     (const char *)(buf + sent),
-                                     n - sent, MSG_NOSIGNAL);
-                        if (w <= 0) goto disconnected;
-                        sent += w;
-                    }
-                }
-            }
-
-            if (fds.revents & (POLLERR | POLLHUP)) break;
-        }
-
-disconnected:
         nd_socket_close(clientFd);
         atomic_store(&modem->connected, false);
         LOG(LOG_CAT_NET, LOG_INFO, "Modem: Disconnected from %s:%d\n", host, modem->port);

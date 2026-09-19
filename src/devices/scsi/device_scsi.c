@@ -374,6 +374,45 @@ static void SCSI_Reset(Device *self)
 /* ------------------------------------------------------------------ */
 /* IOX                                                                 */
 /* ------------------------------------------------------------------ */
+/* NCR 5386 register behind a card read register, or -1 if the card
+ * register is not a plain NCR read (RITRG is handled by SCSI_Read itself). */
+static int ncr_read_register(uint32_t reg)
+{
+    switch (reg)
+    {
+    case SCSI_REG_RNDAT: return NCR_REG_DATA;
+    case SCSI_REG_RNCOM: return NCR_REG_COMMAND;
+    case SCSI_REG_RNCNT: return NCR_REG_CONTROL;
+    case SCSI_REG_RDESI: return NCR_REG_DESTINATION_ID;
+    case SCSI_REG_RAUXS: return NCR_REG_AUX_STATUS;
+    case SCSI_REG_ROIDN: return NCR_REG_ID;
+    case SCSI_REG_RSOUI: return NCR_REG_SOURCE_ID;
+    case SCSI_REG_RDIST: return NCR_REG_DIAGNOSTIC_STATUS;
+    case SCSI_REG_RTCM:  return NCR_REG_TRANSFER_COUNT_MSB;
+    case SCSI_REG_RTC2:  return NCR_REG_TRANSFER_COUNT_MID;
+    case SCSI_REG_RTCL:  return NCR_REG_TRANSFER_COUNT_LSB;
+    default:             return -1;
+    }
+}
+
+/* The RSTAU status word (the bits the emulator can ever set). */
+static uint16_t scsi_status_word(SCSIData *data)
+{
+    uint16_t rval = 0;
+    if (data->interruptEnabled)             rval |= SCSI_STAT_INTERRUPT_ENABLED;
+    if (data->active)                       rval |= SCSI_STAT_ACTIVE;
+    if (data->readyForTransfer)             rval |= SCSI_STAT_READY_FOR_TRANSFER;
+    if (data->resetOnSCSIBus)               rval |= SCSI_STAT_RESET_ON_SCSI_BUS;
+    if (NCR5386_ChipDisabled(&data->ncr))   rval |= SCSI_STAT_NCR_DISABLED;
+    if (data->dataRequestFromNCR)           rval |= SCSI_STAT_DATA_REQUEST;
+    if (data->interruptFromNCR)             rval |= SCSI_STAT_INTERRUPT_FROM_NCR;
+    if (data->dataAcknowledgeToNCR)         rval |= SCSI_STAT_DATA_ACKNOWLEDGE;
+    if (NCR5386_SCSI_BSY(&data->ncr))       rval |= SCSI_STAT_SCSI_BSY;
+    if (NCR5386_SCSI_REQ(&data->ncr))       rval |= SCSI_STAT_SCSI_REQ;
+    if (NCR5386_SCSI_ACK(&data->ncr))       rval |= SCSI_STAT_SCSI_ACK;
+    return rval;
+}
+
 static uint16_t SCSI_Read(Device *self, uint32_t address)
 {
     SCSIData *data = (SCSIData *)self->deviceData;
@@ -408,17 +447,7 @@ static uint16_t SCSI_Read(Device *self, uint32_t address)
          * Reading this register does NOT clear the NCR interrupt: that only
          * happens on a RITRG read.
          */
-        if (data->interruptEnabled)             rval |= SCSI_STAT_INTERRUPT_ENABLED;
-        if (data->active)                       rval |= SCSI_STAT_ACTIVE;
-        if (data->readyForTransfer)             rval |= SCSI_STAT_READY_FOR_TRANSFER;
-        if (data->resetOnSCSIBus)               rval |= SCSI_STAT_RESET_ON_SCSI_BUS;
-        if (NCR5386_ChipDisabled(&data->ncr))   rval |= SCSI_STAT_NCR_DISABLED;
-        if (data->dataRequestFromNCR)           rval |= SCSI_STAT_DATA_REQUEST;
-        if (data->interruptFromNCR)             rval |= SCSI_STAT_INTERRUPT_FROM_NCR;
-        if (data->dataAcknowledgeToNCR)         rval |= SCSI_STAT_DATA_ACKNOWLEDGE;
-        if (NCR5386_SCSI_BSY(&data->ncr))       rval |= SCSI_STAT_SCSI_BSY;
-        if (NCR5386_SCSI_REQ(&data->ncr))       rval |= SCSI_STAT_SCSI_REQ;
-        if (NCR5386_SCSI_ACK(&data->ncr))       rval |= SCSI_STAT_SCSI_ACK;
+        rval = scsi_status_word(data);
         break;
 
     case SCSI_REG_RHMAR:
@@ -432,14 +461,6 @@ static uint16_t SCSI_Read(Device *self, uint32_t address)
         rval = data->externalWordCount;
         break;
 
-    /* ---- NCR chip registers ---- */
-    case SCSI_REG_RNDAT: rval = NCR5386_Read(&data->ncr, NCR_REG_DATA); break;
-    case SCSI_REG_RNCOM: rval = NCR5386_Read(&data->ncr, NCR_REG_COMMAND); break;
-    case SCSI_REG_RNCNT: rval = NCR5386_Read(&data->ncr, NCR_REG_CONTROL); break;
-    case SCSI_REG_RDESI: rval = NCR5386_Read(&data->ncr, NCR_REG_DESTINATION_ID); break;
-    case SCSI_REG_RAUXS: rval = NCR5386_Read(&data->ncr, NCR_REG_AUX_STATUS); break;
-    case SCSI_REG_ROIDN: rval = NCR5386_Read(&data->ncr, NCR_REG_ID); break;
-
     case SCSI_REG_RITRG:
         /* Reading the interrupt register is the ONLY thing that acknowledges
          * the NCR interrupt on this card. */
@@ -447,15 +468,17 @@ static uint16_t SCSI_Read(Device *self, uint32_t address)
         data->interruptFromNCR = false;
         break;
 
-    case SCSI_REG_RSOUI: rval = NCR5386_Read(&data->ncr, NCR_REG_SOURCE_ID); break;
-    case SCSI_REG_RDIST: rval = NCR5386_Read(&data->ncr, NCR_REG_DIAGNOSTIC_STATUS); break;
-    case SCSI_REG_RTCM:  rval = NCR5386_Read(&data->ncr, NCR_REG_TRANSFER_COUNT_MSB); break;
-    case SCSI_REG_RTC2:  rval = NCR5386_Read(&data->ncr, NCR_REG_TRANSFER_COUNT_MID); break;
-    case SCSI_REG_RTCL:  rval = NCR5386_Read(&data->ncr, NCR_REG_TRANSFER_COUNT_LSB); break;
-
     default:
-        /* Unused IOX offsets give undefined data, not an IOX error. */
+    {
+        /* NCR chip registers (except RITRG above), read straight through.
+         * Unused IOX offsets give undefined data, not an IOX error. */
+        int ncr_reg = ncr_read_register(reg);
+        if (ncr_reg >= 0)
+        {
+            rval = NCR5386_Read(&data->ncr, (uint8_t)ncr_reg);
+        }
         break;
+    }
     }
 
     if (Log_IsEnabled(LOG_CAT_SCSI, LOG_DEBUG))
@@ -465,6 +488,73 @@ static uint16_t SCSI_Read(Device *self, uint32_t address)
     return rval;
 }
 
+
+/* WCONT: load the control word - enable bits, test-mode PIO word, clear
+ * device, SCSI bus reset, and activate / interrupt-when-ready. */
+static void scsi_write_control(Device *self, SCSIData *data, uint16_t value)
+{
+    data->interruptEnabled = (value & SCSI_CTRL_ENABLE_INTERRUPT) != 0;
+    data->active           = (value & SCSI_CTRL_ACTIVATE) != 0;
+    data->testMode         = (value & SCSI_CTRL_TEST_MODE) != 0;
+    data->dmaEnable        = (value & SCSI_CTRL_DMA_ENABLE) != 0;
+    data->writeNDMemory    = (value & SCSI_CTRL_WRITE_ND_MEMORY) != 0;
+
+    if (Log_IsEnabled(LOG_CAT_SCSI, LOG_DEBUG))
+        SCSI_Log("CONTROL WORD=%o (0x%04X) IntEn=%d Active=%d Test=%d DMA=%d WriteND=%d",
+                 value, value, data->interruptEnabled, data->active,
+                 data->testMode, data->dmaEnable, data->writeNDMemory);
+
+    /* Test mode does a single PIO word through the DMA path. */
+    if (data->testMode)
+    {
+        uint32_t dma_address = SCSI_GetMAR(data);
+        if (data->writeNDMemory)
+            Device_DMAWrite(dma_address, data->readWriteData);
+        else
+            data->readWriteData = (uint16_t)Device_DMARead(dma_address);
+    }
+
+    /* Clear device: zeroes the MAR and buffer pointers, resets the NCR and
+     * sets ready-for-transfer. The SCSI bus RST signal is NOT affected. */
+    if (value & SCSI_CTRL_CLEAR_DEVICE)
+    {
+        data->memoryAddressLSB = 0;
+        data->memoryAddressMSB = 0;
+        data->dma_bytes_read = 0;
+        data->dma_bytes_written = 0;
+        NCR5386_DeviceReset(&data->ncr);
+        /* Re-assert the strapped own ID after the chip reset (a strap
+         * cannot be reset) - both ID Register (ROIDN readback) and
+         * Source ID (arbitration). See SCSI_Reset for the full rationale. */
+        NCR5386_Write(&data->ncr, NCR_REG_ID, SCSI_CONTROLLER_ID);
+        NCR5386_Write(&data->ncr, NCR_REG_SOURCE_ID, SCSI_CONTROLLER_ID);
+        data->readyForTransfer = true;
+    }
+
+    data->resetOnSCSIBus = (value & SCSI_CTRL_RESET_SCSI_BUS) != 0;
+    if (data->resetOnSCSIBus)
+        NCR5386_InitiateResetSCSIBus(&data->ncr);
+
+    /* Writing the activate bit starts the transfer and clears
+     * ready-for-transfer. */
+    if (data->active)
+        data->readyForTransfer = false;
+    else if (data->interruptEnabled && data->readyForTransfer)
+    {
+        /* "Interrupt when ready" (alignment 2026-07-17, ported from
+         * RetroCore NDBusDiscControllerSCSI.cs Write WCONT else-branch,
+         * live-verified against SINTRAN): a control word with bit 0
+         * (enable interrupt) set but bit 2 (activate) CLEAR raises the
+         * level-11 interrupt immediately when the controller is already
+         * ready for transfer. The ND doc's bit-0 text says interrupt is
+         * given "as soon as the controller is ready". Every observed
+         * SINTRAN WCONT enable also sets activate, so this branch is
+         * normally dormant - but a driver that enables interrupts while
+         * idle (e.g. after Clear Device, which sets readyForTransfer)
+         * would otherwise hang waiting for an interrupt that never comes. */
+        Device_GenerateInterrupt(self, self->interruptLevel);
+    }
+}
 
 static void SCSI_Write(Device *self, uint32_t address, uint16_t value)
 {
@@ -490,67 +580,7 @@ static void SCSI_Write(Device *self, uint32_t address, uint16_t value)
         break;
 
     case SCSI_REG_WCONT:
-        data->interruptEnabled = (value & SCSI_CTRL_ENABLE_INTERRUPT) != 0;
-        data->active           = (value & SCSI_CTRL_ACTIVATE) != 0;
-        data->testMode         = (value & SCSI_CTRL_TEST_MODE) != 0;
-        data->dmaEnable        = (value & SCSI_CTRL_DMA_ENABLE) != 0;
-        data->writeNDMemory    = (value & SCSI_CTRL_WRITE_ND_MEMORY) != 0;
-
-        if (Log_IsEnabled(LOG_CAT_SCSI, LOG_DEBUG))
-            SCSI_Log("CONTROL WORD=%o (0x%04X) IntEn=%d Active=%d Test=%d DMA=%d WriteND=%d",
-                     value, value, data->interruptEnabled, data->active,
-                     data->testMode, data->dmaEnable, data->writeNDMemory);
-
-        /* Test mode does a single PIO word through the DMA path. */
-        if (data->testMode)
-        {
-            uint32_t dma_address = SCSI_GetMAR(data);
-            if (data->writeNDMemory)
-                Device_DMAWrite(dma_address, data->readWriteData);
-            else
-                data->readWriteData = (uint16_t)Device_DMARead(dma_address);
-        }
-
-        /* Clear device: zeroes the MAR and buffer pointers, resets the NCR and
-         * sets ready-for-transfer. The SCSI bus RST signal is NOT affected. */
-        if (value & SCSI_CTRL_CLEAR_DEVICE)
-        {
-            data->memoryAddressLSB = 0;
-            data->memoryAddressMSB = 0;
-            data->dma_bytes_read = 0;
-            data->dma_bytes_written = 0;
-            NCR5386_DeviceReset(&data->ncr);
-            /* Re-assert the strapped own ID after the chip reset (a strap
-             * cannot be reset) - both ID Register (ROIDN readback) and
-             * Source ID (arbitration). See SCSI_Reset for the full rationale. */
-            NCR5386_Write(&data->ncr, NCR_REG_ID, SCSI_CONTROLLER_ID);
-            NCR5386_Write(&data->ncr, NCR_REG_SOURCE_ID, SCSI_CONTROLLER_ID);
-            data->readyForTransfer = true;
-        }
-
-        data->resetOnSCSIBus = (value & SCSI_CTRL_RESET_SCSI_BUS) != 0;
-        if (data->resetOnSCSIBus)
-            NCR5386_InitiateResetSCSIBus(&data->ncr);
-
-        /* Writing the activate bit starts the transfer and clears
-         * ready-for-transfer. */
-        if (data->active)
-            data->readyForTransfer = false;
-        else if (data->interruptEnabled && data->readyForTransfer)
-        {
-            /* "Interrupt when ready" (alignment 2026-07-17, ported from
-             * RetroCore NDBusDiscControllerSCSI.cs Write WCONT else-branch,
-             * live-verified against SINTRAN): a control word with bit 0
-             * (enable interrupt) set but bit 2 (activate) CLEAR raises the
-             * level-11 interrupt immediately when the controller is already
-             * ready for transfer. The ND doc's bit-0 text says interrupt is
-             * given "as soon as the controller is ready". Every observed
-             * SINTRAN WCONT enable also sets activate, so this branch is
-             * normally dormant - but a driver that enables interrupts while
-             * idle (e.g. after Clear Device, which sets readyForTransfer)
-             * would otherwise hang waiting for an interrupt that never comes. */
-            Device_GenerateInterrupt(self, self->interruptLevel);
-        }
+        scsi_write_control(self, data, value);
         break;
 
     /* ---- NCR chip registers ---- */

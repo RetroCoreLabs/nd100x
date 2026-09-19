@@ -210,7 +210,7 @@
     "src/devices/floppy/device_floppy_pio.c": 21,
     "src/devices/hdlc/chip_com5025.c": 34,
     "src/devices/hdlc/chip_com5025_registers.c": 37,
-    "src/devices/hdlc/device_hdlc.c": 65,
+    "src/devices/hdlc/device_hdlc.c": 55,
     "src/devices/hdlc/dma_control_blocks.c": 31,
     "src/devices/hdlc/dma_dcb.c": 30,
     "src/devices/hdlc/dma_engine.c": 34,
@@ -263,7 +263,7 @@
     "tools/reth-tap/test-framing.c": 2,
     "tools/reth-tap/test-gateway.c": 9
    },
-   "total": 1571
+   "total": 1561
   },
   "2.4": {
    "files": {
@@ -349,9 +349,9 @@
     "src/devices/hdlc/chip_com5025.h": 26,
     "src/devices/hdlc/chip_com5025_registers.c": 119,
     "src/devices/hdlc/chip_com5025_registers.h": 11,
-    "src/devices/hdlc/device_hdlc.c": 528,
+    "src/devices/hdlc/device_hdlc.c": 513,
     "src/devices/hdlc/device_hdlc.h": 163,
-    "src/devices/hdlc/dma_control_blocks.c": 241,
+    "src/devices/hdlc/dma_control_blocks.c": 239,
     "src/devices/hdlc/dma_control_blocks.h": 9,
     "src/devices/hdlc/dma_dcb.c": 60,
     "src/devices/hdlc/dma_dcb.h": 1,
@@ -362,14 +362,14 @@
     "src/devices/hdlc/dma_param_buf.h": 1,
     "src/devices/hdlc/dma_receiver.c": 122,
     "src/devices/hdlc/dma_receiver.h": 4,
-    "src/devices/hdlc/dma_transmitter.c": 96,
+    "src/devices/hdlc/dma_transmitter.c": 95,
     "src/devices/hdlc/dma_transmitter.h": 4,
     "src/devices/hdlc/hdlc_constants.h": 13,
     "src/devices/hdlc/hdlc_crc.c": 51,
     "src/devices/hdlc/hdlc_crc.h": 2,
     "src/devices/hdlc/hdlc_frame.c": 108,
     "src/devices/hdlc/hdlc_frame.h": 9,
-    "src/devices/hdlc/modem.c": 189,
+    "src/devices/hdlc/modem.c": 188,
     "src/devices/hdlc/modem.h": 16,
     "src/devices/hdlc/tcp_receive_buffer.c": 23,
     "src/devices/hdlc/tcp_receive_buffer.h": 4,
@@ -383,7 +383,7 @@
     "src/devices/papertapewriter/device_paper_tape_writer.h": 36,
     "src/devices/rtc/device_rtc.c": 121,
     "src/devices/rtc/device_rtc.h": 32,
-    "src/devices/scsi/device_scsi.c": 171,
+    "src/devices/scsi/device_scsi.c": 161,
     "src/devices/scsi/device_scsi.h": 72,
     "src/devices/scsi/disk_scsi.c": 20,
     "src/devices/scsi/disk_scsi.h": 7,
@@ -442,7 +442,7 @@
     "tools/reth-tap/test-framing.c": 47,
     "tools/reth-tap/test-gateway.c": 67
    },
-   "total": 20867
+   "total": 20838
   },
   "3.1": {
    "files": {
@@ -1250,10 +1250,8 @@
    "total": 33
   },
   "6.4": {
-   "files": {
-    "src/devices/hdlc/modem.c": 1
-   },
-   "total": 1
+   "files": {},
+   "total": 0
   },
   "6.5": {
    "files": {},
