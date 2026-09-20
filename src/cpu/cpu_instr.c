@@ -4608,7 +4608,7 @@ static void do_ident(uint16_t priolevel)
     int id = IO_Ident(priolevel);
 
     // IDENT is the ND-100 interrupt ACKNOWLEDGE for this level. IO_Ident /
-    // Terminal_Ident already clears the identified device's own request, and the
+    // terminal_ident already clears the identified device's own request, and the
     // CPU's pending-interrupt latch (gPID) is recomputed from LIVE device requests
     // by the IO_Tick / device_interrupt() path - so IDENT must NOT force-clear gPID
     // or force a level switch here.

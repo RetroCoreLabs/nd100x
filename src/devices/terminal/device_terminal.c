@@ -36,7 +36,7 @@
 
 
 // Device definitions array
-static const DeviceDefinition deviceDefinitions[] = {
+static const DeviceDefinition device_definitions[] = {
     // Group 1 (starts at offset 0)
     {0300, 01, 01, "CONSOLE TERMINAL - TERMINAL 1"},
     {0310, 0121, 011, "TERMINAL 2/ TET15"},
@@ -105,13 +105,13 @@ static const DeviceDefinition deviceDefinitions[] = {
     {01520, 0146, 01062, "TERMINAL 51"},
     {01530, 0147, 01063, "TERMINAL 52"}};
 
-static const size_t numDeviceDefinitions = sizeof(deviceDefinitions) / sizeof(DeviceDefinition);
+static const size_t num_device_definitions = sizeof(device_definitions) / sizeof(DeviceDefinition);
 
-// Forward declaration of WriteEnd
-static bool WriteEnd(void *context, int param);
+// Forward declaration of write_end
+static bool write_end(void *context, int param);
 
 
-static void Terminal_Reset(Device *self)
+static void terminal_reset(Device *self)
 {
     TerminalData *data = (TerminalData *)self->deviceData;
     if (!data)
@@ -131,7 +131,7 @@ static void Terminal_Reset(Device *self)
     // Clear other
 }
 
-static uint16_t Terminal_Tick(Device *self)
+static uint16_t terminal_tick(Device *self)
 {
     if (!self)
     {
@@ -207,7 +207,7 @@ static uint16_t Terminal_Tick(Device *self)
     return self->interruptBits;
 }
 
-static uint16_t Terminal_Read(Device *self, uint32_t address)
+static uint16_t terminal_read(Device *self, uint32_t address)
 {
     if (!self)
     {
@@ -294,7 +294,7 @@ static void terminal_write_input_control(Device *self, TerminalData *data, uint1
     data->inputStatus.bits.overrunError = false;
 }
 
-static void Terminal_Write(Device *self, uint32_t address, uint16_t value)
+static void terminal_write(Device *self, uint32_t address, uint16_t value)
 {
     if (!self)
     {
@@ -363,7 +363,7 @@ static void Terminal_Write(Device *self, uint32_t address, uint16_t value)
         }
 
         // Simulate transfer delay
-        Device_QueueIODelay(self, IODELAY_TERMINAL, WriteEnd, self->identCode,
+        Device_QueueIODelay(self, IODELAY_TERMINAL, write_end, self->identCode,
                             self->interruptLevel);
         break;
 
@@ -385,7 +385,7 @@ static void Terminal_Write(Device *self, uint32_t address, uint16_t value)
     }
 }
 
-static uint16_t Terminal_Ident(Device *self, uint16_t level)
+static uint16_t terminal_ident(Device *self, uint16_t level)
 {
     if (!self)
     {
@@ -409,7 +409,7 @@ static uint16_t Terminal_Ident(Device *self, uint16_t level)
     return 0;
 }
 
-static bool WriteEnd(void *context, int param)
+static bool write_end(void *context, int param)
 {
     (void)param;
     Device *self = (Device *)context;
@@ -462,7 +462,7 @@ void Terminal_QueueKeyCode(Device *self, uint8_t keycode)
 }
 
 // Character input handler for terminal devices
-static void Terminal_InputFunction(Device *device, char c)
+static void terminal_input_function(Device *device, char c)
 {
     if (!device)
     {
@@ -495,13 +495,13 @@ Device *CreateTerminalDevice(uint8_t thumbwheel)
 
     // Find device definition
     const DeviceDefinition *def = NULL;
-    if (thumbwheel < numDeviceDefinitions)
+    if (thumbwheel < num_device_definitions)
     {
         if (thumbwheel > 0)
         {
             thumbwheel--; // Offset into definitions is 0
         }
-        def = &deviceDefinitions[thumbwheel];
+        def = &device_definitions[thumbwheel];
     }
     else
     {
@@ -520,11 +520,11 @@ Device *CreateTerminalDevice(uint8_t thumbwheel)
     snprintf(dev->memoryName, sizeof(dev->memoryName), "%s", def->deviceName);
 
     // Set up device function pointers
-    dev->Reset = Terminal_Reset;
-    dev->Tick = Terminal_Tick;
-    dev->Read = Terminal_Read;
-    dev->Write = Terminal_Write;
-    dev->Ident = Terminal_Ident;
+    dev->Reset = terminal_reset;
+    dev->Tick = terminal_tick;
+    dev->Read = terminal_read;
+    dev->Write = terminal_write;
+    dev->Ident = terminal_ident;
     dev->deviceData = data;
 
     // Initialize input queue
@@ -537,7 +537,7 @@ Device *CreateTerminalDevice(uint8_t thumbwheel)
 
 
     // hook up  Device_SetCharacterInput to Terminal_QueueKeyCode
-    Device_SetCharacterInput(dev, Terminal_InputFunction);
+    Device_SetCharacterInput(dev, terminal_input_function);
 
     LOG(LOG_CAT_TERM, LOG_INFO, "Terminal %d created (%s, ident %o, address %o)\n",
         dev->logicalDevice, dev->memoryName, dev->identCode, dev->startAddress);
