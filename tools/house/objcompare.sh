@@ -100,10 +100,15 @@ def dump(path, is_base):
     for sec in secs:
         args += ["-j", sec]
     data = subprocess.run(args + [path], capture_output=True, text=True).stdout
-    txt = "\n".join(out.split("\n")[2:]) + "\n" + "\n".join(data.split("\n")[2:])
+    code = "\n".join(out.split("\n")[2:])
+    # The rename map may only rewrite symbol names, which live in the
+    # disassembly. It must NOT touch the section dump: objdump -s prints an
+    # ASCII rendering beside the hex, so renaming RTC_Ident -> rtc_ident there
+    # rewrites the .rodata string "RTC_Ident: %d" in the base only and reports
+    # a difference the bytes do not have. The hex is the same either way.
     if is_base and sym:
-        txt = sym.sub(lambda m: mapping[m.group(1)], txt)
-    return txt
+        code = sym.sub(lambda m: mapping[m.group(1)], code)
+    return code + "\n" + "\n".join(data.split("\n")[2:])
 
 base, work = objs(os.path.join(tmp, "base")), objs(os.path.join(tmp, "work"))
 bad = []

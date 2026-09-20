@@ -107,16 +107,37 @@ def module_sources(module_dir):
     return [f for f in files if f.endswith(".c")]
 
 
+def tidy_config(out_dir):
+    """audit.clang-tidy plus the options needed to reach static functions.
+
+    clang-tidy's StaticFunctionCase matches nothing for a file-scope static in
+    C. FunctionCase reaches it, but also reaches non-static functions. Setting
+    GlobalFunctionCase as well makes clang-tidy report the non-static ones as
+    "global function" and the statics as "function", so rule 3.2 can be fixed
+    here while rule 3.1 is left to the prefix-aware clang-rename pass.
+    """
+    with open(TIDY_CONFIG, encoding="utf-8") as handle:
+        cfg = yaml.safe_load(handle)
+    options = cfg.setdefault("CheckOptions", {})
+    options["readability-identifier-naming.FunctionCase"] = "lower_case"
+    options["readability-identifier-naming.GlobalFunctionCase"] = "lower_case"
+    path = os.path.join(out_dir, "tidy.yaml")
+    with open(path, "w", encoding="utf-8") as handle:
+        yaml.safe_dump(cfg, handle)
+    return path
+
+
 def run_tidy(sources, module_dir, out_dir):
     """Run clang-tidy over sources, exporting fixes to out_dir. No writes."""
     tidy = tool("CLANG_TIDY", "clang-tidy")
+    config = tidy_config(out_dir)
     fixes = []
     for index, source in enumerate(sources):
         out = os.path.join(out_dir, f"fixes{index}.yaml")
         cmd = [
             tidy,
             "-p", os.path.join(REPO, "build"),
-            f"--config-file={TIDY_CONFIG}",
+            f"--config-file={config}",
             "--checks=-*,readability-identifier-naming",
             f"--header-filter=^{re.escape(os.path.join(REPO, module_dir))}/.*\\.h$",
             f"--export-fixes={out}",
@@ -147,6 +168,10 @@ def load_renames(fix_files, module_dir):
             if not found:
                 continue
             kind, old = found.group(1), found.group(2)
+            if kind == "global function":
+                # Rule 3.1: needs the per-file prefix from prefixes.tsv, so it
+                # is done by the clang-rename pass, not here.
+                continue
             where = message.get("FilePath", "")
             if generated(where):
                 continue
@@ -206,6 +231,8 @@ def filter_fixes(fix_files, module_dir, out_dir):
             message["Replacements"] = repls
             found = MSG.search(message.get("Message", ""))
             if found:
+                if found.group(1) == "global function":
+                    continue  # rule 3.1, left to the clang-rename pass
                 if fix_prefix(found.group(1), message) == found.group(2):
                     continue  # no-op after the g_ strip; nothing to write
             diag["DiagnosticMessage"] = message
