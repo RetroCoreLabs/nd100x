@@ -1,0 +1,490 @@
+commit	date	rules	kind	file	line	old	new	count
+f236f30	2026-09-20	3.4	static variable	src/devices/rtc/device_rtc.c	51	rtcWallClockMode	rtc_wall_clock_mode	3
+ec4b8ec	2026-09-20	3.2	static function	src/devices/rtc/device_rtc.c	94	RTC_ClearClockTicks	rtc_clear_clock_ticks	6
+ec4b8ec	2026-09-20	3.2	static function	src/devices/rtc/device_rtc.c	280	RTC_Ident	rtc_ident	2
+ec4b8ec	2026-09-20	3.2	static function	src/devices/rtc/device_rtc.c	183	RTC_Read	rtc_read	2
+ec4b8ec	2026-09-20	3.2	static function	src/devices/rtc/device_rtc.c	76	RTC_Reset	rtc_reset	2
+ec4b8ec	2026-09-20	3.2	static function	src/devices/rtc/device_rtc.c	46	RTC_Tick	rtc_tick	4
+ec4b8ec	2026-09-20	3.2	static function	src/devices/rtc/device_rtc.c	218	RTC_Write	rtc_write	2
+ec4b8ec	2026-09-20	3.2	local variable	tests/test_rtc.c	12	RTC_Tick	rtc_tick	3
+6d00d41	2026-09-20	3.2	static function	src/devices/lineprinter/device_line_printer.c	168	LinePrinter_Ident	line_printer_ident	2
+6d00d41	2026-09-20	3.2	static function	src/devices/lineprinter/device_line_printer.c	68	LinePrinter_Read	line_printer_read	2
+6d00d41	2026-09-20	3.2	static function	src/devices/lineprinter/device_line_printer.c	43	LinePrinter_Reset	line_printer_reset	2
+6d00d41	2026-09-20	3.2	static function	src/devices/lineprinter/device_line_printer.c	59	LinePrinter_Tick	line_printer_tick	2
+6d00d41	2026-09-20	3.2	static function	src/devices/lineprinter/device_line_printer.c	96	LinePrinter_Write	line_printer_write	2
+69c4e62	2026-09-20	3.2,3.4	static function	src/devices/papertape/device_paper_tape.c	208	PaperTape_Destroy	paper_tape_destroy	2
+69c4e62	2026-09-20	3.2,3.4	static function	src/devices/papertape/device_paper_tape.c	191	PaperTape_Ident	paper_tape_ident	2
+69c4e62	2026-09-20	3.2,3.4	static function	src/devices/papertape/device_paper_tape.c	69	PaperTape_Read	paper_tape_read	2
+69c4e62	2026-09-20	3.2,3.4	static function	src/devices/papertape/device_paper_tape.c	43	PaperTape_Reset	paper_tape_reset	2
+69c4e62	2026-09-20	3.2,3.4	static function	src/devices/papertape/device_paper_tape.c	59	PaperTape_Tick	paper_tape_tick	2
+69c4e62	2026-09-20	3.2,3.4	static function	src/devices/papertape/device_paper_tape.c	97	PaperTape_Write	paper_tape_write	2
+69c4e62	2026-09-20	3.2,3.4	local variable	src/devices/papertape/device_paper_tape.c	230	ptData	pt_data	11
+69c4e62	2026-09-20	3.2,3.4	local variable	src/devices/winchester/device_winchester.c	699	PaperTape_Ident	paper_tape_ident	1
+ca999eb	2026-09-20	3.2,3.4	local variable	src/cpu/cpu_instr.c	4611	Terminal_Ident	terminal_ident	1
+ca999eb	2026-09-20	3.2,3.4	static function	src/devices/terminal/device_terminal.c	388	Terminal_Ident	terminal_ident	2
+ca999eb	2026-09-20	3.2,3.4	static function	src/devices/terminal/device_terminal.c	465	Terminal_InputFunction	terminal_input_function	2
+ca999eb	2026-09-20	3.2,3.4	static function	src/devices/terminal/device_terminal.c	210	Terminal_Read	terminal_read	2
+ca999eb	2026-09-20	3.2,3.4	static function	src/devices/terminal/device_terminal.c	114	Terminal_Reset	terminal_reset	2
+ca999eb	2026-09-20	3.2,3.4	static function	src/devices/terminal/device_terminal.c	134	Terminal_Tick	terminal_tick	2
+ca999eb	2026-09-20	3.2,3.4	static function	src/devices/terminal/device_terminal.c	297	Terminal_Write	terminal_write	2
+ca999eb	2026-09-20	3.2,3.4	static function	src/devices/terminal/device_terminal.c	110	WriteEnd	write_end	4
+ca999eb	2026-09-20	3.2,3.4	static variable	src/devices/terminal/device_terminal.c	39	deviceDefinitions	device_definitions	3
+ca999eb	2026-09-20	3.2,3.4	static variable	src/devices/terminal/device_terminal.c	108	numDeviceDefinitions	num_device_definitions	2
+ca84ded	2026-09-20	3.6,3.7	local variable	src/devices/panel/panel.c	81	ClearAndRotate	CLEAR_AND_ROTATE	1
+ca84ded	2026-09-20	3.6,3.7	local variable	src/devices/panel/panel.c	74	ClearTextBuffer	CLEAR_TEXT_BUFFER	1
+ca84ded	2026-09-20	3.6,3.7	parameter	src/devices/panel/panel.c	61	PANC_Register	PancRegister	2
+ca84ded	2026-09-20	3.6,3.7	local variable	src/devices/panel/panel.c	105	PANS_Register	PansRegister	1
+ca84ded	2026-09-20	3.6,3.7	local variable	src/devices/panel/panel.c	71	ReturnDisplayToNormal	RETURN_DISPLAY_TO_NORMAL	1
+ca84ded	2026-09-20	3.6,3.7	local variable	src/devices/panel/panel.c	78	RotateMessage	ROTATE_MESSAGE	1
+ca84ded	2026-09-20	3.6,3.7	local variable	src/devices/panel/panel.c	68	StopRotatingMessage	STOP_ROTATING_MESSAGE	1
+ca84ded	2026-09-20	3.6,3.7	local variable	src/devices/panel/panel.c	43	display_panel	DisplayPanel	2
+ca84ded	2026-09-20	3.6,3.7	local variable	src/devices/panel/panel.h	69	ClearAndRotate	CLEAR_AND_ROTATE	1
+ca84ded	2026-09-20	3.6,3.7	local variable	src/devices/panel/panel.h	59	ClearTextBuffer	CLEAR_TEXT_BUFFER	1
+ca84ded	2026-09-20	3.6,3.7	local variable	src/devices/panel/panel.h	150	PANC_Register	PancRegister	1
+ca84ded	2026-09-20	3.6,3.7	local variable	src/devices/panel/panel.h	43	PANEL_STATUS_FUNCTIONS	PanelStatusFunctions	5
+ca84ded	2026-09-20	3.6,3.7	local variable	src/devices/panel/panel.h	125	PANS_Register	PansRegister	2
+ca84ded	2026-09-20	3.6,3.7	local variable	src/devices/panel/panel.h	54	ReturnDisplayToNormal	RETURN_DISPLAY_TO_NORMAL	1
+ca84ded	2026-09-20	3.6,3.7	local variable	src/devices/panel/panel.h	64	RotateMessage	ROTATE_MESSAGE	1
+ca84ded	2026-09-20	3.6,3.7	local variable	src/devices/panel/panel.h	49	StopRotatingMessage	STOP_ROTATING_MESSAGE	1
+ca84ded	2026-09-20	3.6,3.7	local variable	src/devices/panel/panel.h	152	display_panel	DisplayPanel	1
+2970514	2026-09-20	3.2,3.4	static function	src/devices/papertapewriter/device_paper_tape_writer.c	256	PaperTapeWriter_Destroy	paper_tape_writer_destroy	2
+2970514	2026-09-20	3.2,3.4	static function	src/devices/papertapewriter/device_paper_tape_writer.c	101	PaperTapeWriter_GrowBuffer	paper_tape_writer_grow_buffer	2
+2970514	2026-09-20	3.2,3.4	static function	src/devices/papertapewriter/device_paper_tape_writer.c	220	PaperTapeWriter_Ident	paper_tape_writer_ident	2
+2970514	2026-09-20	3.2,3.4	static function	src/devices/papertapewriter/device_paper_tape_writer.c	69	PaperTapeWriter_Read	paper_tape_writer_read	2
+2970514	2026-09-20	3.2,3.4	static function	src/devices/papertapewriter/device_paper_tape_writer.c	45	PaperTapeWriter_Reset	paper_tape_writer_reset	2
+2970514	2026-09-20	3.2,3.4	static function	src/devices/papertapewriter/device_paper_tape_writer.c	59	PaperTapeWriter_Tick	paper_tape_writer_tick	2
+2970514	2026-09-20	3.2,3.4	static function	src/devices/papertapewriter/device_paper_tape_writer.c	131	PaperTapeWriter_Write	paper_tape_writer_write	2
+2970514	2026-09-20	3.2,3.4	static function	src/devices/papertapewriter/device_paper_tape_writer.c	43	PunchEnd	punch_end	3
+2970514	2026-09-20	3.2,3.4	local variable	src/devices/papertapewriter/device_paper_tape_writer.c	118	newBuffer	new_buffer	3
+2970514	2026-09-20	3.2,3.4	local variable	src/devices/papertapewriter/device_paper_tape_writer.c	117	newCapacity	new_capacity	4
+e868ac8	2026-09-20	3.2,3.4	static function	src/devices/drum/device_drum.c	57	Drum_AttachBacking	drum_attach_backing	2
+e868ac8	2026-09-20	3.2,3.4	static function	src/devices/drum/device_drum.c	33	Drum_Destroy	drum_destroy	5
+e868ac8	2026-09-20	3.2,3.4	static function	src/devices/drum/device_drum.c	35	Drum_End	drum_end	4
+e868ac8	2026-09-20	3.2,3.4	static function	src/devices/drum/device_drum.c	34	Drum_ExecuteGO	drum_execute_go	3
+e868ac8	2026-09-20	3.2,3.4	static function	src/devices/drum/device_drum.c	32	Drum_Ident	drum_ident	3
+e868ac8	2026-09-20	3.2,3.4	static function	src/devices/drum/device_drum.c	29	Drum_Read	drum_read	3
+e868ac8	2026-09-20	3.2,3.4	static function	src/devices/drum/device_drum.c	28	Drum_Reset	drum_reset	4
+e868ac8	2026-09-20	3.2,3.4	static function	src/devices/drum/device_drum.c	31	Drum_Tick	drum_tick	3
+e868ac8	2026-09-20	3.2,3.4	static function	src/devices/drum/device_drum.c	30	Drum_Write	drum_write	3
+e868ac8	2026-09-20	3.2,3.4	static variable	src/devices/drum/device_drum.c	38	g_drumBackingPath	drum_backing_path	5
+e868ac8	2026-09-20	3.2,3.4	static variable	src/devices/drum/device_drum.c	39	g_drumHasBackingPath	drum_has_backing_path	4
+e868ac8	2026-09-20	3.2,3.4	local variable	src/devices/drum/device_drum.c	170	wordOffset	word_offset	10
+8bab358	2026-09-20	3.2,3.4	static function	src/devices/cdc/device_cdc.c	115	Cdc_AttachBacking	cdc_attach_backing	2
+8bab358	2026-09-20	3.2,3.4	static function	src/devices/cdc/device_cdc.c	576	Cdc_Boot	cdc_boot	2
+8bab358	2026-09-20	3.2,3.4	static function	src/devices/cdc/device_cdc.c	42	Cdc_Destroy	cdc_destroy	5
+8bab358	2026-09-20	3.2,3.4	static function	src/devices/cdc/device_cdc.c	44	Cdc_End	cdc_end	5
+8bab358	2026-09-20	3.2,3.4	static function	src/devices/cdc/device_cdc.c	92	Cdc_EnsureSurface	cdc_ensure_surface	2
+8bab358	2026-09-20	3.2,3.4	static function	src/devices/cdc/device_cdc.c	43	Cdc_ExecuteGO	cdc_execute_go	4
+8bab358	2026-09-20	3.2,3.4	static function	src/devices/cdc/device_cdc.c	41	Cdc_Ident	cdc_ident	3
+8bab358	2026-09-20	3.2,3.4	static function	src/devices/cdc/device_cdc.c	642	Cdc_IotOp	cdc_iot_op	2
+8bab358	2026-09-20	3.2,3.4	static function	src/devices/cdc/device_cdc.c	38	Cdc_Read	cdc_read	7
+8bab358	2026-09-20	3.2,3.4	static function	src/devices/cdc/device_cdc.c	37	Cdc_Reset	cdc_reset	5
+8bab358	2026-09-20	3.2,3.4	static function	src/devices/cdc/device_cdc.c	40	Cdc_Tick	cdc_tick	3
+8bab358	2026-09-20	3.2,3.4	static function	src/devices/cdc/device_cdc.c	39	Cdc_Write	cdc_write	7
+8bab358	2026-09-20	3.2,3.4	local variable	src/devices/cdc/device_cdc.c	590	allZero	all_zero	3
+8bab358	2026-09-20	3.2,3.4	local variable	src/devices/cdc/device_cdc.c	136	fileBytes	file_bytes	4
+8bab358	2026-09-20	3.2,3.4	local variable	src/devices/cdc/device_cdc.c	145	fileSectors	file_sectors	2
+8bab358	2026-09-20	3.2,3.4	static variable	src/devices/cdc/device_cdc.c	47	g_cdcBackingPath	cdc_backing_path	5
+8bab358	2026-09-20	3.2,3.4	static variable	src/devices/cdc/device_cdc.c	48	g_cdcHasBackingPath	cdc_has_backing_path	4
+8bab358	2026-09-20	3.2,3.4	local variable	src/devices/cdc/device_cdc.c	98	newWords	new_words	4
+8bab358	2026-09-20	3.2,3.4	parameter	src/devices/cdc/device_cdc.c	642	regA	reg_a	8
+8bab358	2026-09-20	3.2,3.4	local variable	src/devices/cdc/device_cdc.c	306	wordOff	word_off	11
+8bab358	2026-09-20	3.2,3.4	local variable	tests/test_cdc.c	20	Cdc_AttachBacking	cdc_attach_backing	1
+8bab358	2026-09-20	3.2,3.4	local variable	tests/test_cdc.c	20	Cdc_Destroy	cdc_destroy	1
+8bab358	2026-09-20	3.2,3.4	local variable	tests/test_cdc.c	19	Cdc_End	cdc_end	1
+8bab358	2026-09-20	3.2,3.4	local variable	tests/test_cdc.c	21	Cdc_EnsureSurface	cdc_ensure_surface	2
+8bab358	2026-09-20	3.2,3.4	local variable	tests/test_cdc.c	18	Cdc_ExecuteGO	cdc_execute_go	1
+8bab358	2026-09-20	3.2,3.4	local variable	tests/test_cdc.c	20	Cdc_Ident	cdc_ident	1
+8bab358	2026-09-20	3.2,3.4	local variable	tests/test_cdc.c	17	Cdc_Read	cdc_read	1
+8bab358	2026-09-20	3.2,3.4	local variable	tests/test_cdc.c	17	Cdc_Reset	cdc_reset	1
+8bab358	2026-09-20	3.2,3.4	local variable	tests/test_cdc.c	19	Cdc_Tick	cdc_tick	1
+8bab358	2026-09-20	3.2,3.4	local variable	tests/test_cdc.c	18	Cdc_Write	cdc_write	1
+b0845de	2026-09-20	3.4,3.5	local variable	src/debugger/debugger.c	2103	PPN	ppn	5
+b0845de	2026-09-20	3.4,3.5	parameter	src/debugger/debugger.c	2094	PTe	p_te	13
+b0845de	2026-09-20	3.4,3.5	local variable	src/debugger/debugger.c	4225	byteCount	byte_count	8
+b0845de	2026-09-20	3.4,3.5	local variable	src/debugger/debugger.c	4264	bytesRead	bytes_read	7
+b0845de	2026-09-20	3.4,3.5	static variable	src/debugger/debugger.c	2097	debugInfo	debug_info	36
+b0845de	2026-09-20	3.4,3.5	local variable	src/debugger/debugger.c	2100	memoryRange	memory_range	4
+b0845de	2026-09-20	3.4,3.5	local variable	src/debugger/debugger.c	2280	pageTableEntry	page_table_entry	2
+b0845de	2026-09-20	3.4,3.5	local variable	src/debugger/debugger.c	2146	ppnStr	ppn_str	4
+b0845de	2026-09-20	3.4,3.5	local variable	src/debugger/debugger.c	1689	rP	r_p	4
+b0845de	2026-09-20	3.4,3.5	local variable	src/debugger/debugger.c	1690	rPCR	r_pcr	19
+b0845de	2026-09-20	3.4,3.5	local variable	src/debugger/debugger.c	5100	runMode	run_mode	4
+b0845de	2026-09-20	3.4,3.5	local variable	src/debugger/debugger.c	2244	useAPT	use_apt	2
+b0845de	2026-09-20	3.4,3.5	local variable	src/debugger/debugger.c	2997	validSymbol	valid_symbol	8
+b0845de	2026-09-20	3.4,3.5	parameter	src/debugger/debugger.c	4540	virtualAddress	virtual_address	11
+3506fb8	2026-09-20	3.2,3.4	static function	src/devices/winchester/device_winchester.c	61	WdTransferEnd	wd_transfer_end	6
+3506fb8	2026-09-20	3.2,3.4	static function	src/devices/winchester/device_winchester.c	63	WdUnitAttached	wd_unit_attached	5
+3506fb8	2026-09-20	3.2,3.4	static function	src/devices/winchester/device_winchester.c	761	Wd_Boot	wd_boot	2
+3506fb8	2026-09-20	3.2,3.4	static function	src/devices/winchester/device_winchester.c	155	Wd_ClearErrors	wd_clear_errors	3
+3506fb8	2026-09-20	3.2,3.4	static function	src/devices/winchester/device_winchester.c	97	Wd_ClearFlipFlops	wd_clear_flip_flops	7
+3506fb8	2026-09-20	3.2,3.4	static function	src/devices/winchester/device_winchester.c	848	Wd_Destroy	wd_destroy	2
+3506fb8	2026-09-20	3.2,3.4	static function	src/devices/winchester/device_winchester.c	167	Wd_DeviceClear	wd_device_clear	2
+3506fb8	2026-09-20	3.2,3.4	static function	src/devices/winchester/device_winchester.c	62	Wd_ExecuteGO	wd_execute_go	3
+3506fb8	2026-09-20	3.2,3.4	static function	src/devices/winchester/device_winchester.c	137	Wd_FinishOperation	wd_finish_operation	11
+3506fb8	2026-09-20	3.2,3.4	static function	src/devices/winchester/device_winchester.c	687	Wd_Ident	wd_ident	2
+3506fb8	2026-09-20	3.2,3.4	static function	src/devices/winchester/device_winchester.c	65	Wd_OpName	wd_op_name	3
+3506fb8	2026-09-20	3.2,3.4	static function	src/devices/winchester/device_winchester.c	221	Wd_Read	wd_read	2
+3506fb8	2026-09-20	3.2,3.4	static function	src/devices/winchester/device_winchester.c	184	Wd_ReadStatus	wd_read_status	2
+3506fb8	2026-09-20	3.2,3.4	static function	src/devices/winchester/device_winchester.c	60	Wd_Reset	wd_reset	4
+3506fb8	2026-09-20	3.2,3.4	static function	src/devices/winchester/device_winchester.c	681	Wd_Tick	wd_tick	2
+3506fb8	2026-09-20	3.2,3.4	static function	src/devices/winchester/device_winchester.c	281	Wd_Write	wd_write	2
+3506fb8	2026-09-20	3.2,3.4	local variable	src/devices/winchester/device_winchester.c	819	allZero	all_zero	3
+3506fb8	2026-09-20	3.2,3.4	local variable	src/devices/winchester/device_winchester.c	567	blockCounter	block_counter	15
+3506fb8	2026-09-20	3.2,3.4	local variable	src/devices/winchester/device_winchester.c	617	blocksRead	blocks_read	7
+3506fb8	2026-09-20	3.2,3.4	local variable	src/devices/winchester/device_winchester.c	566	coreAddress	core_address	10
+3506fb8	2026-09-20	3.2,3.4	local variable	src/devices/winchester/device_winchester.c	116	imageSize	image_size	4
+3506fb8	2026-09-20	3.2,3.4	local variable	src/devices/winchester/device_winchester.c	117	isWriteProtected	is_write_protected	3
+3506fb8	2026-09-20	3.2,3.4	local variable	src/devices/winchester/device_winchester.c	474	positioningOnly	positioning_only	2
+3506fb8	2026-09-20	3.2,3.4	local variable	src/devices/winchester/device_winchester.c	838	readData	read_data	2
+3506fb8	2026-09-20	3.2,3.4	local variable	src/devices/winchester/device_winchester.c	565	wordCounter	word_counter	13
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/device.c	535	blockAddress	block_address	4
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/device.c	59	blockSize	block_size	4
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/device.c	430	coreAddress	core_address	4
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/device.c	59	deviceClass	device_class	3
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/device.c	521	infoFunc	info_func	2
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/device.c	459	inputFunc	input_func	2
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/device.c	224	newCapacity	new_capacity	3
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/device.c	225	newDelays	new_delays	3
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/device.c	448	outputFunc	output_func	2
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/device.c	494	readFunc	read_func	2
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/device.c	494	userData	user_data	8
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/device.c	506	writeFunc	write_func	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/devicemanager.c	196	CreateDevice	create_device	2
+5e56442	2026-09-21	3.2,3.4-3.7	static variable	src/devices/devicemanager.c	48	deviceManager	device_manager	45
+5e56442	2026-09-21	3.2,3.4-3.7	static variable	src/devices/devicemanager.c	178	hdlcBaseAddr	hdlc_base_addr	2
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/devicemanager.c	468	interruptBits	interrupt_bits	3
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/devicemanager.c	169	isServer	is_server	2
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/devicemanager.c	520	regA	reg_a	2
+5e56442	2026-09-21	3.2,3.4-3.7	static variable	src/devices/devicemanager.c	152	scsiBaseAddr	scsi_base_addr	2
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/devicemanager.c	146	unitTypes	unit_types	4
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/devices_types.h	97	blockAddress	block_address	2
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/devices_types.h	43	physicalAddress	physical_address	2
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/devices_types.h	203	regA	reg_a	1
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/floppy/device_floppy_dma.c	42	AutoLoadEnd	auto_load_end	3
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/floppy/device_floppy_dma.c	117	CalculateHardwareStatusWord	calculate_hardware_status_word	3
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/floppy/device_floppy_dma.c	109	CalculateOrOfErrors	calculate_or_of_errors	3
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/floppy/device_floppy_dma.c	135	CalculateStatusWord1	calculate_status_word1	3
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/floppy/device_floppy_dma.c	325	DmaAutoloadErrorImage	dma_autoload_error_image	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/floppy/device_floppy_dma.c	40	ExecuteAutoload	execute_autoload	3
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/floppy/device_floppy_dma.c	38	ExecuteFloppyGo	execute_floppy_go	3
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/floppy/device_floppy_dma.c	39	ExecuteTest	execute_test	3
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/floppy/device_floppy_dma.c	269	FloppyDMA_Ident	floppy_dma_ident	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/floppy/device_floppy_dma.c	150	FloppyDMA_Read	floppy_dma_read	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/floppy/device_floppy_dma.c	84	FloppyDMA_Reset	floppy_dma_reset	3
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/floppy/device_floppy_dma.c	258	FloppyDMA_Tick	floppy_dma_tick	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/floppy/device_floppy_dma.c	188	FloppyDMA_Write	floppy_dma_write	2
+5e56442	2026-09-21	3.2,3.4-3.7	static variable	src/devices/floppy/device_floppy_dma.c	301	LOAD_ERROR_IMAGE	load_error_image	4
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/floppy/device_floppy_dma.c	43	ReadEnd	read_end	15
+5e56442	2026-09-21	3.2,3.4-3.7	static variable	src/devices/floppy/device_floppy_dma.c	310	WRONG_BOOTSTRAP_TEXT	wrong_bootstrap_text	5
+5e56442	2026-09-21	3.2,3.4-3.7	static variable	src/devices/floppy/device_floppy_dma.c	409	_floppy_go_log	floppy_go_log	3
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/floppy/device_floppy_dma.c	542	blockCounter	block_counter	7
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/floppy/device_floppy_dma.c	546	blocksRead	blocks_read	5
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/floppy/device_floppy_dma.c	661	blocksWrite	blocks_write	3
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/floppy/device_floppy_dma.c	325	errorCodeOctal6bit	error_code_octal6bit	2
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/floppy/device_floppy_dma.c	469	floppyFormat	floppy_format	2
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/floppy/device_floppy_dma.c	475	imageSize	image_size	3
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/floppy/device_floppy_dma.c	458	isWC	is_wc	2
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/floppy/device_floppy_dma.c	474	isWriteProtected	is_write_protected	3
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/floppy/device_floppy_dma.c	451	memAddress	mem_address	7
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/floppy/device_floppy_dma.c	598	readData	read_data	3
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/floppy/device_floppy_dma.c	39	testData	test_data	4
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/floppy/device_floppy_dma.c	464	wordCount	word_count	2
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/floppy/device_floppy_dma.c	506	wordsToRead	words_to_read	8
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/floppy/device_floppy_dma.c	539	wordsTransfered	words_transfered	5
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/floppy/device_floppy_pio.c	404	FloppyPIO_ClearAllErrorFlags	floppy_pio_clear_all_error_flags	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/floppy/device_floppy_pio.c	331	FloppyPIO_Ident	floppy_pio_ident	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/floppy/device_floppy_pio.c	94	FloppyPIO_Read	floppy_pio_read	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/floppy/device_floppy_pio.c	348	FloppyPIO_ReadEnd	floppy_pio_read_end	6
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/floppy/device_floppy_pio.c	372	FloppyPIO_RecalibrateEnd	floppy_pio_recalibrate_end	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/floppy/device_floppy_pio.c	69	FloppyPIO_Reset	floppy_pio_reset	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/floppy/device_floppy_pio.c	388	FloppyPIO_SeekEnd	floppy_pio_seek_end	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/floppy/device_floppy_pio.c	84	FloppyPIO_Tick	floppy_pio_tick	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/floppy/device_floppy_pio.c	180	FloppyPIO_Write	floppy_pio_write	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/floppy/device_floppy_pio.c	428	SectorIsDeleted	sector_is_deleted	3
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/floppy/device_floppy_pio.c	416	SetSectorAsDeleted	set_sector_as_deleted	4
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/floppy/device_floppy_pio.c	529	formatData	format_data	2
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/floppy/device_floppy_pio.c	719	readData	read_data	3
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/floppy/device_floppy_pio.c	451	transferWordCount	transfer_word_count	11
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/floppy/device_floppy_pio.c	452	wordsRead	words_read	7
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/floppy/device_floppy_pio.c	583	writeData	write_data	4
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/hdlc/chip_com5025.c	39	COM5025_ClearAllInputPins	com5025_clear_all_input_pins	3
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/hdlc/chip_com5025.c	41	COM5025_ClearTransmitterBufferEmpty	com5025_clear_transmitter_buffer_empty	3
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/hdlc/chip_com5025.c	48	COM5025_MapBits2CharLen	com5025_map_bits_to_character_length	4
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/hdlc/chip_com5025.c	43	COM5025_MoveTDBtoTSR	com5025_move_data_buffer_to_shift_register	3
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/hdlc/chip_com5025.c	46	COM5025_SendOneByte	com5025_send_one_byte	6
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/hdlc/chip_com5025.c	38	COM5025_SetOutputPin	com5025_set_output_pin	27
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/hdlc/chip_com5025.c	40	COM5025_SetTransmitterBufferEmpty	com5025_set_transmitter_buffer_empty	4
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/hdlc/chip_com5025.c	47	COM5025_TSR_Empty	com5025_shift_register_empty	3
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/hdlc/chip_com5025.c	45	COM5025_TransmitByteOutput	com5025_transmit_byte_output	3
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/hdlc/chip_com5025.c	44	COM5025_WriteDataToTSR	com5025_write_data_to_shift_register	3
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/hdlc/chip_com5025.c	42	COM5025_WriteTransmitterDataBuffer	com5025_write_transmitter_data_buffer	4
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/chip_com5025.c	742	bitsFrom0To1	bits_from0_to1	2
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/chip_com5025.c	45	isData	is_data	4
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/chip_com5025.c	739	maskedNewStatus	masked_new_status	2
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/chip_com5025.c	738	maskedOriginalStatus	masked_original_status	2
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/chip_com5025.c	730	newRxStatus	new_rx_status	3
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/chip_com5025.c	317	oldValue	old_value	5
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/chip_com5025.c	421	transmitSerialOutputPin	transmit_serial_output_pin	3
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/chip_com5025.h	425	newRxStatus	new_rx_status	1
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/chip_com5025_registers.c	147	modeControl	mode_control	5
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/chip_com5025_registers.c	300	nextData	next_data	5
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/chip_com5025_registers.h	212	modeControl	mode_control	1
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/hdlc/device_hdlc.c	133	HDLC_CheckTriggerIRQ12	hdlc_check_trigger_interrupt_request_12	4
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/hdlc/device_hdlc.c	134	HDLC_CheckTriggerIRQ13	hdlc_check_trigger_interrupt_request_13	6
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/hdlc/device_hdlc.c	135	HDLC_CheckTriggerInterrupt	hdlc_check_trigger_interrupt	7
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/hdlc/device_hdlc.c	647	HDLC_Destroy	hdlc_destroy	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/hdlc/device_hdlc.c	613	HDLC_Ident	hdlc_ident	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/hdlc/device_hdlc.c	159	HDLC_OnCOM5025PinValueChanged	hdlc_on_com5025_pin_value_changed	4
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/hdlc/device_hdlc.c	156	HDLC_OnCOM5025TransmitterOutput	hdlc_on_com5025_transmitter_output	4
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/hdlc/device_hdlc.c	153	HDLC_OnDMAClearCommand	hdlc_on_dma_clear_command	3
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/hdlc/device_hdlc.c	149	HDLC_OnDMAReadDMA	hdlc_on_dma_read_dma	3
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/hdlc/device_hdlc.c	151	HDLC_OnDMASendHDLCFrame	hdlc_on_dma_send_hdlc_frame	3
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/hdlc/device_hdlc.c	150	HDLC_OnDMASetInterruptBit	hdlc_on_dma_set_interrupt_bit	3
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/hdlc/device_hdlc.c	152	HDLC_OnDMAUpdateReceiverStatus	hdlc_on_dma_update_receiver_status	3
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/hdlc/device_hdlc.c	148	HDLC_OnDMAWriteDMA	hdlc_on_dma_write_dma	3
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/hdlc/device_hdlc.c	143	HDLC_OnModemClearToSend	hdlc_on_modem_clear_to_send	3
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/hdlc/device_hdlc.c	141	HDLC_OnModemDataSetReady	hdlc_on_modem_data_set_ready	3
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/hdlc/device_hdlc.c	145	HDLC_OnModemDataTerminalReady	hdlc_on_modem_data_terminal_ready	3
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/hdlc/device_hdlc.c	139	HDLC_OnModemReceivedData	hdlc_on_modem_received_data	3
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/hdlc/device_hdlc.c	144	HDLC_OnModemRequestToSend	hdlc_on_modem_request_to_send	3
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/hdlc/device_hdlc.c	140	HDLC_OnModemRingIndicator	hdlc_on_modem_ring_indicator	3
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/hdlc/device_hdlc.c	142	HDLC_OnModemSignalDetector	hdlc_on_modem_signal_detector	3
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/hdlc/device_hdlc.c	289	HDLC_Read	hdlc_read	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/hdlc/device_hdlc.c	176	HDLC_Reset	hdlc_reset	3
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/hdlc/device_hdlc.c	241	HDLC_Tick	hdlc_tick	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/hdlc/device_hdlc.c	136	HDLC_UpdateRQTS	hdlc_update_rqts	5
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/hdlc/device_hdlc.c	387	HDLC_Write	hdlc_write	2
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/device_hdlc.c	1256	RMSC	rmsc	2
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/device_hdlc.c	1223	TMCS	tmcs	2
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/device_hdlc.c	751	devIndex	dev_index	6
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/device_hdlc.c	554	fullAddr	full_addr	2
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/device_hdlc.c	563	fullDMAAddress	full_dma_address	3
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/device_hdlc.c	826	hdlcData	hdlc_data	12
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/device_hdlc.c	168	hdlcDeviceDefinitions	g_hdlc_device_definitions	5
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/device_hdlc.c	508	newBank	new_bank	7
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/device_hdlc.c	140	pinValue	pin_value	18
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/device_hdlc.c	1398	rxFrame	rx_frame	4
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/device_hdlc.c	156	serialOutput	serial_output	3
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/hdlc/dma_control_blocks.c	48	DMAControlBlocks_DMARead	dma_control_blocks_dma_read	16
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/hdlc/dma_control_blocks.c	47	DMAControlBlocks_DMAWrite	dma_control_blocks_dma_write	7
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_control_blocks.c	805	DMAControlBlocks_InterruptCallback	DmaControlBlocksInterruptCallback	1
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/hdlc/dma_control_blocks.c	49	DMAControlBlocks_Log	dma_control_blocks_log	34
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_control_blocks.c	771	DMAControlBlocks_ReadCallback	DmaControlBlocksReadCallback	1
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_control_blocks.c	793	DMAControlBlocks_SendFrameCallback	DmaControlBlocksSendFrameCallback	1
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_control_blocks.c	782	DMAControlBlocks_WriteCallback	DmaControlBlocksWriteCallback	1
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_control_blocks.c	514	actualListPointer	actual_list_pointer	5
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_control_blocks.c	479	byteCount	byte_count	2
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_control_blocks.c	629	bytesRead	bytes_read	7
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_control_blocks.c	696	bytesWritten	bytes_written	12
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_control_blocks.c	486	dataMemoryAddr	data_memory_addr	2
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_control_blocks.c	640	dmaAddr	dma_addr	16
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/dma_control_blocks.c	47	dmaCB	dma_cb	212
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_control_blocks.c	734	dmaWriteData	dma_write_data	5
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_control_blocks.c	403	flagsBuffer	flags_buffer	10
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/dma_control_blocks.c	52	hdlcDevice	hdlc_device	2
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/dma_control_blocks.c	506	isRX	is_rx	4
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/dma_control_blocks.c	606	isRx	is_rx	4
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_control_blocks.c	200	keyValue	key_value	14
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_control_blocks.c	481	leastAddress	least_address	2
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/dma_control_blocks.c	173	listPointer	list_pointer	10
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_control_blocks.c	740	memData	mem_data	4
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_control_blocks.c	480	mostAddress	most_address	2
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_control_blocks.c	648	readData	read_data	5
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/dma_control_blocks.c	373	rxStatus	rx_status	2
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/dma_control_blocks.h	45	DMAControlBlocks_InterruptCallback	DmaControlBlocksInterruptCallback	3
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/dma_control_blocks.h	42	DMAControlBlocks_ReadCallback	DmaControlBlocksReadCallback	3
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/dma_control_blocks.h	44	DMAControlBlocks_SendFrameCallback	DmaControlBlocksSendFrameCallback	3
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/dma_control_blocks.h	43	DMAControlBlocks_WriteCallback	DmaControlBlocksWriteCallback	3
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/dma_control_blocks.h	105	dmaCB	dma_cb	19
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/dma_control_blocks.h	98	hdlcDevice	hdlc_device	1
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/dma_control_blocks.h	209	isRX	is_rx	1
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/dma_control_blocks.h	219	isRx	is_rx	2
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/dma_control_blocks.h	121	listPointer	list_pointer	3
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/dma_control_blocks.h	195	rxStatus	rx_status	1
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/dma_dcb.c	195	byteCount	byte_count	2
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/dma_dcb.c	277	bytesRead	bytes_read	2
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/dma_dcb.c	297	bytesWritten	bytes_written	2
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/dma_dcb.c	175	keyValue	key_value	2
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/dma_dcb.c	235	listPointer	list_pointer	2
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/dma_dcb.h	212	byteCount	byte_count	1
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/dma_dcb.h	270	bytesRead	bytes_read	1
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/dma_dcb.h	284	bytesWritten	bytes_written	1
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/dma_dcb.h	198	keyValue	key_value	1
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/dma_dcb.h	240	listPointer	list_pointer	1
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/hdlc/dma_engine.c	60	DMAEngine_CBReadDMA	dma_engine_cb_read_dma	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/hdlc/dma_engine.c	68	DMAEngine_CBWriteDMA	dma_engine_cb_write_dma	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/hdlc/dma_engine.c	92	DMAEngine_RXInterrupt	dma_engine_rx_interrupt	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/hdlc/dma_engine.c	85	DMAEngine_TXInterrupt	dma_engine_tx_interrupt	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/hdlc/dma_engine.c	75	DMAEngine_TXSendFrame	dma_engine_tx_send_frame	2
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/dma_engine.c	98	burstMode	burst_mode	2
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_engine.c	388	characterLength	character_length	4
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_engine.c	743	currentListPointer	current_list_pointer	2
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_engine.c	620	firstReg	first_reg	5
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/dma_engine.c	98	hdlcDevice	hdlc_device	5
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_engine.c	744	keyValue	key_value	2
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/dma_engine.c	736	listPointer	list_pointer	2
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_engine.c	391	maxReceiverBlockLength	max_receiver_block_length	4
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_engine.c	755	nextMem	next_mem	5
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_engine.c	386	parameterControlRegister	parameter_control_register	4
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_engine.c	696	readVal	read_val	4
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_engine.c	387	syncAddressRegister	sync_address_register	4
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/dma_engine.h	104	burstMode	burst_mode	1
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/dma_engine.h	104	hdlcDevice	hdlc_device	1
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/dma_engine.h	214	listPointer	list_pointer	1
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/dma_param_buf.c	35	paramBuf	param_buf	68
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/dma_param_buf.h	104	paramBuf	param_buf	20
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/hdlc/dma_receiver.c	144	StopReceiver	stop_receiver	2
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_receiver.c	261	bytesProcessed	bytes_processed	5
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_receiver.c	283	dataByte	data_byte	3
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_receiver.c	344	dataLength	data_length	2
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/dma_receiver.c	48	dmaCB	dma_cb	10
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_receiver.c	290	frameComplete	frame_complete	2
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_receiver.c	326	frameData	frame_data	2
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_receiver.c	327	frameLength	frame_length	2
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_receiver.c	146	hdlcData	hdlc_data	34
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_receiver.c	49	hdlcDevice	hdlc_device	2
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_receiver.c	260	maxBytes	max_bytes	2
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_receiver.c	345	writeSuccess	write_success	7
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/dma_receiver.h	87	dmaCB	dma_cb	1
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_receiver.h	88	hdlcDevice	hdlc_device	1
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_transmitter.c	224	HDLCFrame	frame_length	1
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_transmitter.c	289	bytesToSend	bytes_to_send	2
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_transmitter.c	225	callbackFrame	callback_frame	2
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_transmitter.c	200	copyLen	copy_len	3
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/dma_transmitter.c	46	dmaCB	dma_cb	34
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_transmitter.c	214	frameBuffer	frame_buffer	3
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_transmitter.c	215	frameLength	frame_length	2
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_transmitter.c	96	hdlcData	hdlc_data	22
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_transmitter.c	47	hdlcDevice	hdlc_device	2
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/dma_transmitter.c	367	senderState	sender_state	3
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_transmitter.c	243	tmpTSB	tmp_tsb	7
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/dma_transmitter.h	72	dmaCB	dma_cb	1
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_transmitter.h	73	hdlcDevice	hdlc_device	1
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/dma_transmitter.h	107	senderState	sender_state	1
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/hdlc_crc.c	153	calculatedParity	calculated_parity	2
+5e56442	2026-09-21	3.2,3.4-3.7	static variable	src/devices/hdlc/hdlc_crc.c	65	evenParityTable	even_parity_table	4
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/hdlc/hdlc_crc.c	68	initializeParityTables	initialize_parity_tables	3
+5e56442	2026-09-21	3.2,3.4-3.7	static variable	src/devices/hdlc/hdlc_crc.c	64	oddParityTable	odd_parity_table	4
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/hdlc_crc.c	144	parityBit	parity_bit	2
+5e56442	2026-09-21	3.2,3.4-3.7	static variable	src/devices/hdlc/hdlc_crc.c	66	parityTablesInitialized	parity_tables_initialized	3
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/hdlc_frame.c	220	bufferSize	buffer_size	10
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/hdlc_frame.c	250	dataLength	data_length	4
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/hdlc_frame.c	220	outputBuffer	output_buffer	12
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/hdlc_frame.c	220	outputIndex	output_index	16
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/hdlc_frame.h	157	bufferSize	buffer_size	2
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/hdlc_frame.h	156	dataLength	data_length	1
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/hdlc_frame.h	156	outputBuffer	output_buffer	2
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/hdlc_frame.h	169	outputIndex	output_index	1
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/modem.c	367	clientFd	client_fd	11
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/modem.c	580	hdlcDevice	hdlc_device	2
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/modem.c	625	isServer	is_server	3
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/modem.c	317	listenFd	listen_fd	10
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/modem.c	150	totalWritten	total_written	7
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/modem.h	137	hdlcDevice	hdlc_device	1
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/modem.h	158	isServer	is_server	1
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/modem.h	62	pinValue	pin_value	1
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/tcp_receive_buffer.c	74	bytesToWrite	bytes_to_write	10
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/tcp_receive_buffer.c	88	firstPart	first_part	4
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/tcp_receive_buffer.c	75	freeSpace	free_space	3
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/tcp_receive_buffer.c	90	secondPart	second_part	3
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/scsi/device_scsi.c	787	SCSI_Boot	scsi_boot	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/scsi/device_scsi.c	99	SCSI_GetMAR	scsi_get_mar	6
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/scsi/device_scsi.c	751	SCSI_Ident	scsi_ident	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/scsi/device_scsi.c	104	SCSI_IncrementMAR	scsi_increment_mar	4
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/scsi/device_scsi.c	80	SCSI_Log	scsi_log	7
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/scsi/device_scsi.c	214	SCSI_OnNCRDataRequest	scsi_on_ncr_data_request	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/scsi/device_scsi.c	198	SCSI_OnNCRInterrupt	scsi_on_ncr_interrupt	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/scsi/device_scsi.c	496	SCSI_Read	scsi_read	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/scsi/device_scsi.c	243	SCSI_ReadNextByteDMA	scsi_read_next_byte_dma	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/scsi/device_scsi.c	354	SCSI_Reset	scsi_reset	3
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/scsi/device_scsi.c	298	SCSI_StepGoState	scsi_step_go_state	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/scsi/device_scsi.c	725	SCSI_Tick	scsi_tick	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/scsi/device_scsi.c	653	SCSI_Write	scsi_write	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/scsi/device_scsi.c	263	SCSI_WriteNextByteDMA	scsi_write_next_byte_dma	2
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/scsi/device_scsi.c	845	allZero	all_zero	3
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/scsi/device_scsi.c	825	blockCounter	block_counter	6
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/scsi/device_scsi.c	834	blocksRead	blocks_read	4
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/scsi/device_scsi.c	266	memData	mem_data	3
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/scsi/device_scsi.c	869	readData	read_data	2
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/scsi/device_scsi.c	326	startWritten	start_written	3
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/scsi/device_scsi.c	826	wordCounter	word_counter	3
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/scsi/device_scsi.c	267	writeData	write_data	5
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/scsi/disk_scsi.c	55	DiskSCSI_SetField	disk_scsi_set_field	13
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/scsi/scsi_bus.c	102	SCSIBus_RegenCtrl	scsi_bus_regen_ctrl	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/scsi/scsi_bus.c	86	SCSIBus_RegenData	scsi_bus_regen_data	2
+5e56442	2026-09-21	3.2,3.4-3.7	static variable	src/devices/scsi/scsi_bus.c	23	scsiPhaseDescription	scsi_phase_description	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/scsi/scsi_device.c	91	SCSITarget_AdjustTimer	scsi_target_adjust_timer	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/scsi/scsi_device.c	122	SCSITarget_BufControlPop	scsi_target_buf_control_pop	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/scsi/scsi_device.c	102	SCSITarget_BufControlPush	scsi_target_buf_control_push	7
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/scsi/scsi_device.c	646	SCSITarget_Clock	scsi_target_clock	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/scsi/scsi_device.c	358	SCSITarget_CommandDone	scsi_target_command_done	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/scsi/scsi_device.c	664	SCSITarget_CtrlChanged	scsi_target_ctrl_changed	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/scsi/scsi_device.c	189	SCSITarget_GetData	scsi_target_get_data	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/scsi/scsi_device.c	72	SCSITarget_Log	scsi_target_log	12
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/scsi/scsi_device.c	393	SCSITarget_Message	scsi_target_message	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/scsi/scsi_device.c	199	SCSITarget_PutData	scsi_target_put_data	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/scsi/scsi_device.c	329	SCSITarget_RecvByte	scsi_target_recv_byte	5
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/scsi/scsi_device.c	348	SCSITarget_SendBufferByte	scsi_target_send_buffer_byte	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/scsi/scsi_device.c	338	SCSITarget_SendByte	scsi_target_send_byte	4
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/scsi/scsi_device.c	256	SCSITarget_SetSenseData	scsi_target_set_sense_data	3
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/scsi/scsi_device.c	29	SCSITarget_Step	scsi_target_step	12
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/scsi/scsi_device.c	366	commandGroup	command_group	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/scsi/scsi_hdd.c	537	SCSIHDD_Command	scsihdd_command	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/scsi/scsi_hdd.c	272	SCSIHDD_CommandInquiry	scsihdd_command_inquiry	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/scsi/scsi_hdd.c	350	SCSIHDD_CommandModeSense	scsihdd_command_mode_sense	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/scsi/scsi_hdd.c	248	SCSIHDD_CommandReadCapacity	scsihdd_command_read_capacity	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/scsi/scsi_hdd.c	322	SCSIHDD_CommandTestUnitReady	scsihdd_command_test_unit_ready	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/scsi/scsi_hdd.c	135	SCSIHDD_GetData	scsihdd_get_data	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/scsi/scsi_hdd.c	67	SCSIHDD_GetLun	scsihdd_get_lun	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/scsi/scsi_hdd.c	48	SCSIHDD_HasMedia	scsihdd_has_media	5
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/scsi/scsi_hdd.c	27	SCSIHDD_Log	scsihdd_log	19
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/scsi/scsi_hdd.c	183	SCSIHDD_PutData	scsihdd_put_data	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/scsi/scsi_hdd.c	84	SCSIHDD_ReadBlock	scsihdd_read_block	4
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/scsi/scsi_hdd.c	110	SCSIHDD_WriteBlock	scsihdd_write_block	2
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/scsi/scsi_hdd.c	98	blocksRead	blocks_read	3
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/scsi/scsi_hdd.c	123	blocksWritten	blocks_written	2
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/scsi/scsi_hdd.c	808	diskType	disk_type	2
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/scsi/scsi_hdd.c	55	imageSize	image_size	3
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/scsi/scsi_hdd.c	56	isWriteProtected	is_write_protected	2
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/scsi/scsi_hdd.c	251	lastLba	last_lba	4
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/scsi/scsi_hdd.h	101	diskType	disk_type	1
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/smd/device_smd.c	55	ClearErrors	clear_errors	3
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/smd/device_smd.c	52	ClearFlipFlops	clear_flip_flops	7
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/smd/device_smd.c	57	ConvertCHStoLBA	convert_cylinder_head_sector_to_logical_block	4
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/smd/device_smd.c	60	DecrementWordCounter	decrement_word_counter	6
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/smd/device_smd.c	56	ExecuteGO	execute_go	3
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/smd/device_smd.c	63	FinishOperation	finish_operation	21
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/smd/device_smd.c	54	HandleError	handle_error	24
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/smd/device_smd.c	59	IncrementCoreAddress	increment_core_address	6
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/smd/device_smd.c	65	LoadIsIllegal	load_is_illegal	5
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/smd/device_smd.c	61	SMDReadEnd	smd_read_end	10
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/smd/device_smd.c	62	SMDTimeoutEnd	smd_timeout_end	3
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/smd/device_smd.c	836	SMD_Boot	smd_boot	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/smd/device_smd.c	130	SMD_ErrorName	smd_error_name	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/smd/device_smd.c	814	SMD_Ident	smd_ident	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/smd/device_smd.c	67	SMD_OpName	smd_op_name	13
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/smd/device_smd.c	178	SMD_Read	smd_read	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/smd/device_smd.c	96	SMD_RegReadName	smd_reg_read_name	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/smd/device_smd.c	113	SMD_RegWriteName	smd_reg_write_name	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/smd/device_smd.c	157	SMD_Reset	smd_reset	3
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/smd/device_smd.c	802	SMD_Tick	smd_tick	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/smd/device_smd.c	429	SMD_Write	smd_write	2
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/smd/device_smd.c	53	SetSelectedUnit	set_selected_unit	3
+5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/smd/device_smd.c	64	UnitAttached	unit_attached	5
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/smd/device_smd.c	902	allZero	all_zero	3
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/smd/device_smd.c	878	blockCounter	block_counter	19
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/smd/device_smd.c	890	blocksRead	blocks_read	14
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/smd/device_smd.c	1195	blocksWrite	blocks_write	3
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/smd/device_smd.c	1081	coreAddress	core_address	12
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/smd/device_smd.c	96	cwrBit	cwr_bit	13
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/smd/device_smd.c	200	dbgData	dbg_data	6
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/smd/device_smd.c	1289	diskData	disk_data	2
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/smd/device_smd.c	486	firstAccess	first_access	4
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/smd/device_smd.c	1372	fmtWordsPrTrack	fmt_words_pr_track	4
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/smd/device_smd.c	862	imageSize	image_size	9
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/smd/device_smd.c	861	isWriteProtected	is_write_protected	8
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/smd/device_smd.c	1046	maxPosition	max_position	2
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/smd/device_smd.c	1292	memData	mem_data	4
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/smd/device_smd.c	923	readData	read_data	7
+5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/smd/device_smd.c	886	wordCounter	word_counter	19

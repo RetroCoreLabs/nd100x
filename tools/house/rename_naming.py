@@ -156,7 +156,7 @@ def load_renames(fix_files, module_dir):
     Each rename is (kind, old, new, file). The same rename is reported once
     per translation unit that sees it, so duplicates are collapsed.
     """
-    inside, outside = {}, {}
+    inside, outside, unspellable = {}, {}, []
     for path in fix_files:
         with open(path, encoding="utf-8") as handle:
             doc = yaml.safe_load(handle)
@@ -176,13 +176,49 @@ def load_renames(fix_files, module_dir):
             if generated(where):
                 continue
             new = fix_prefix(kind, message)
+            if not new:
+                continue  # non-static global: needs a whole-tree pass
+            if SUSPECT.search(new) and not SUSPECT.search(old.lower()):
+                # A split acronym the table does not cover. Guessing produces
+                # names like co_m5025_send_one_byte, so it is left alone and
+                # reported for a person to spell.
+                unspellable.append((kind, old, new, message.get("FilePath", "")))
+                continue
             if new == old:
                 # Stripping the g_ (see fix_prefix) can land back on the name
                 # the file already uses: compliant, not a finding.
                 continue
             target = inside if inside_module(where, module_dir) else outside
             target[(kind, old)] = (kind, old, new, where)
-    return sorted(inside.values()), sorted(outside.values())
+    return sorted(inside.values()), sorted(outside.values()), unspellable
+
+
+# clang-tidy splits an identifier on every capital, so an acronym followed by
+# digits or glued to a word comes apart: COM5025 -> co_m5025, IRQ12 -> ir_q12,
+# CHStoLBA -> ch_sto_lba, TDBtoTSR -> td_bto_tsr. House style is a name that
+# reads as words, so the acronym is spelled out rather than shortened.
+SPELLINGS = {
+    "co_m5025": "com5025",
+    "ir_q": "interrupt_request_",
+    "ch_sto_lba": "cylinder_head_sector_to_logical_block",
+    "td_bto_tsr": "data_buffer_to_shift_register",
+    "_to_tsr": "_to_shift_register",
+    "_tsr_empty": "_shift_register_empty",
+    "bits2_char_len": "bits_to_character_length",
+}
+
+# A name that still looks like a split acronym after the table has been applied
+# is not guessed at: a single letter alone between underscores, or a letter
+# immediately followed by digits where the original had none.
+SUSPECT = re.compile(r"(^|_)[a-z](_|[0-9])")
+
+
+def spell_out(new):
+    """Repair a name clang-tidy split through an acronym."""
+    for bad, good in SPELLINGS.items():
+        if bad in new:
+            new = new.replace(bad, good)
+    return re.sub(r"__+", "_", new).strip("_")
 
 
 def fix_prefix(kind, message):
@@ -198,7 +234,19 @@ def fix_prefix(kind, message):
     repls = message.get("Replacements", [])
     if not repls:
         return ""
-    new = repls[0].get("ReplacementText", "")
+    # A non-static file-scope variable is used from any translation unit, and
+    # clang-tidy reports each TU separately, so the atomic check below cannot
+    # see the other uses. Renaming scsi_debug_enabled to g_scsi_debug_enabled
+    # updated src/devices/scsi/device_scsi.{c,h} and left the use in the
+    # vendored ncr5386.c, which then failed to compile. True globals need a
+    # whole-tree pass; this tool only touches file statics.
+    if kind == "global variable" and not is_static_decl(
+            os.path.normpath(os.path.join(REPO, message.get("FilePath", ""))),
+            message.get("FileOffset", 0)):
+        return ""
+    new = spell_out(repls[0].get("ReplacementText", ""))
+    for repl in repls:
+        repl["ReplacementText"] = spell_out(repl.get("ReplacementText", ""))
     if kind == "global variable" and new.startswith("g_"):
         decl = os.path.normpath(os.path.join(REPO, message.get("FilePath", "")))
         if is_static_decl(decl, message.get("FileOffset", 0)):
@@ -240,8 +288,11 @@ def filter_fixes(fix_files, module_dir, out_dir):
             if found:
                 if found.group(1) == "global function":
                     continue  # rule 3.1, left to the clang-rename pass
-                if fix_prefix(found.group(1), message) == found.group(2):
-                    continue  # no-op after the g_ strip; nothing to write
+                spelled = fix_prefix(found.group(1), message)
+                if not spelled or spelled == found.group(2):
+                    continue  # non-static global, or a no-op after the g_ strip
+                if SUSPECT.search(spelled) and not SUSPECT.search(found.group(2).lower()):
+                    continue  # split acronym with no known spelling
             diag["DiagnosticMessage"] = message
             diags.append(diag)
             kept += len(repls)
@@ -262,6 +313,28 @@ def write_rename_tsv(inside):
         for old, new in sorted(rows):
             handle.write(f"{old}\t{new}\n")
     return len(rows)
+
+
+KINDS_TSV = os.path.join(REPO, "docs", "house-audit", "rename_kinds.tsv")
+
+
+def record_kinds(inside, module_dir):
+    """Append what was renamed, and what kind of thing it was.
+
+    git shows that an identifier changed but not whether it was a parameter, a
+    local or a static function. clang-tidy knows, so it is recorded here, and
+    tools/house/rename_log.py joins it onto the trace it builds from history.
+    Append-only: this is the record of every phase (see docs/TODO.md).
+    """
+    new_file = not os.path.exists(KINDS_TSV)
+    with open(KINDS_TSV, "a", encoding="utf-8") as handle:
+        if new_file:
+            handle.write("module\tkind\tfile\told\tnew\n")
+        for kind, old, new, where in inside:
+            rel = os.path.relpath(
+                os.path.normpath(os.path.join(REPO, where)), REPO)
+            handle.write(f"{module_dir}\t{kind}\t{rel}\t{old}\t{new}\n")
+    return len(inside)
 
 
 def update_review(inside):
@@ -382,7 +455,7 @@ def main():
     work = tempfile.mkdtemp(prefix="rename_naming.")
     try:
         fix_files = run_tidy(sources, module_dir, work)
-        inside, outside = load_renames(fix_files, module_dir)
+        inside, outside, unspellable = load_renames(fix_files, module_dir)
 
         by_kind = {}
         for kind, old, new, _ in inside:
@@ -391,6 +464,13 @@ def main():
             print(f"\n{kind} ({len(by_kind[kind])}):")
             for old, new in sorted(by_kind[kind]):
                 print(f"  {old} -> {new}")
+        if unspellable:
+            print(f"\nNOT renamed - clang-tidy split an acronym and the "
+                  f"spelling is not known ({len(unspellable)}):")
+            for kind, o, n, where in unspellable:
+                print(f"  {o} -> {n}   [{kind}, "
+                      f"{os.path.relpath(os.path.normpath(os.path.join(REPO, where)), REPO)}]")
+            print("  add the spelling to SPELLINGS in this script, then re-run")
         if outside:
             print(f"\nskipped (outside module) ({len(outside)}):")
             for kind, old, new, where in outside:
@@ -415,6 +495,7 @@ def main():
             sys.stderr.write(result.stderr)
             sys.exit("rename_naming: clang-apply-replacements failed")
         symbols = write_rename_tsv(inside)
+        record_kinds(inside, module_dir)
         tables = update_review(inside)
         if tables:
             print(f"updated {tables} review table(s) in docs/house-audit/review")
