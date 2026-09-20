@@ -221,12 +221,19 @@ def filter_fixes(fix_files, module_dir, out_dir):
         diags = []
         for diag in doc.get("Diagnostics", []):
             message = diag.get("DiagnosticMessage", {})
-            repls = [
-                r for r in message.get("Replacements", [])
-                if inside_module(r.get("FilePath", ""), module_dir)
-                and not generated(r.get("FilePath", ""))
-            ]
+            repls = message.get("Replacements", [])
             if not repls:
+                continue
+            # A rename is all-or-nothing. Applying only the parts that fall
+            # inside the module splits it: the macro gPANS is defined in
+            # src/cpu/cpu_types.h and used in src/devices/panel/panel.c, so
+            # filtering replacement by replacement renamed the uses to G_PANS
+            # and left the definition, and the build failed with "G_PANS
+            # undeclared". A declaration owned by another module is that
+            # module's rename to make.
+            if any(not inside_module(r.get("FilePath", ""), module_dir)
+                   or generated(r.get("FilePath", ""))
+                   for r in repls):
                 continue
             message["Replacements"] = repls
             found = MSG.search(message.get("Message", ""))
