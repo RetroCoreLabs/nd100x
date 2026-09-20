@@ -696,7 +696,7 @@ static uint16_t Wd_Ident(Device *self, uint16_t level)
      * level - a card with no pending interrupt must stay silent so the IDENT
      * goes to whoever else is waiting. Testing interruptBits, not just the
      * level number, is what the paper-tape reader does
-     * (device_paper_tape.c PaperTape_Ident). */
+     * (device_paper_tape.c paper_tape_ident). */
     if ((self->interruptBits & (1u << level)) == 0)
     {
         return 0;

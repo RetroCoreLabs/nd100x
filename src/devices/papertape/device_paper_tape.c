@@ -40,7 +40,7 @@
 #include "../devices_types.h"
 #include "../devices_protos.h"
 
-static void PaperTape_Reset(Device *self)
+static void paper_tape_reset(Device *self)
 {
     PaperTapeData *data = (PaperTapeData *)self->deviceData;
     if (!data)
@@ -56,7 +56,7 @@ static void PaperTape_Reset(Device *self)
     // not the tape position. Use device clear for that.
 }
 
-static uint16_t PaperTape_Tick(Device *self)
+static uint16_t paper_tape_tick(Device *self)
 {
     if (!self)
     {
@@ -66,7 +66,7 @@ static uint16_t PaperTape_Tick(Device *self)
     return self->interruptBits;
 }
 
-static uint16_t PaperTape_Read(Device *self, uint32_t address)
+static uint16_t paper_tape_read(Device *self, uint32_t address)
 {
     if (!self)
     {
@@ -94,7 +94,7 @@ static uint16_t PaperTape_Read(Device *self, uint32_t address)
     return value;
 }
 
-static void PaperTape_Write(Device *self, uint32_t address, uint16_t value)
+static void paper_tape_write(Device *self, uint32_t address, uint16_t value)
 {
     if (!self)
     {
@@ -188,7 +188,7 @@ static void PaperTape_Write(Device *self, uint32_t address, uint16_t value)
     }
 }
 
-static uint16_t PaperTape_Ident(Device *self, uint16_t level)
+static uint16_t paper_tape_ident(Device *self, uint16_t level)
 {
     if (!self)
     {
@@ -205,7 +205,7 @@ static uint16_t PaperTape_Ident(Device *self, uint16_t level)
     return 0;
 }
 
-static void PaperTape_Destroy(Device *self)
+static void paper_tape_destroy(Device *self)
 {
     if (!self)
     {
@@ -227,31 +227,31 @@ void PaperTape_LoadTape(Device *self, const uint8_t *data, size_t length)
         return;
     }
 
-    PaperTapeData *ptData = (PaperTapeData *)self->deviceData;
-    if (!ptData)
+    PaperTapeData *pt_data = (PaperTapeData *)self->deviceData;
+    if (!pt_data)
     {
         return;
     }
 
     // Free existing tape data
-    if (ptData->tapeData)
+    if (pt_data->tapeData)
     {
-        free(ptData->tapeData);
+        free(pt_data->tapeData);
     }
 
     // Allocate and copy
-    ptData->tapeData = malloc(length);
-    if (ptData->tapeData)
+    pt_data->tapeData = malloc(length);
+    if (pt_data->tapeData)
     {
-        memcpy(ptData->tapeData, data, length);
-        ptData->tapeLength = length;
-        ptData->tapePosition = 0;
+        memcpy(pt_data->tapeData, data, length);
+        pt_data->tapeLength = length;
+        pt_data->tapePosition = 0;
         LOG(LOG_CAT_TAPE, LOG_INFO, "Paper tape loaded: %zu bytes\n", length);
     }
     else
     {
-        ptData->tapeLength = 0;
-        ptData->tapePosition = 0;
+        pt_data->tapeLength = 0;
+        pt_data->tapePosition = 0;
         LOG(LOG_CAT_TAPE, LOG_ERROR, "Failed to allocate memory for paper tape (%zu bytes)\n",
             length);
     }
@@ -304,12 +304,12 @@ Device *CreatePaperTapeDevice(uint8_t thumbwheel)
     }
 
     // Set up device function pointers
-    dev->Reset = PaperTape_Reset;
-    dev->Tick = PaperTape_Tick;
-    dev->Read = PaperTape_Read;
-    dev->Write = PaperTape_Write;
-    dev->Ident = PaperTape_Ident;
-    dev->Destroy = PaperTape_Destroy;
+    dev->Reset = paper_tape_reset;
+    dev->Tick = paper_tape_tick;
+    dev->Read = paper_tape_read;
+    dev->Write = paper_tape_write;
+    dev->Ident = paper_tape_ident;
+    dev->Destroy = paper_tape_destroy;
     dev->deviceData = data;
 
     LOG(LOG_CAT_TAPE, LOG_INFO, "Paper Tape Reader created: %s CODE[%o] ADDRESS[%o-%o]\n",
