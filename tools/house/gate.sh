@@ -33,6 +33,16 @@ for arg in "$@"; do
     esac
 done
 
+# An unknown extra used to be accepted and then simply never match, so the
+# gate printed a pass without ever running the check that was asked for
+# (--extra=wd silently skipped G11, which is selected by "devices").
+for name in $(echo "$EXTRA" | tr ',' ' '); do
+    case "$name" in
+    cpu | devices | floppy | wasm | dap) ;;
+    *) echo "gate: unknown extra '$name' (cpu, devices, floppy, wasm, dap)"; exit 2 ;;
+    esac
+done
+
 TMP="${GATE_TMP:-$(mktemp -d)}"
 mkdir -p "$TMP"
 LOG="$TMP/gate.log"
