@@ -57,12 +57,12 @@ typedef enum {
 // clang-format on
 
 
-static void Wd_Reset(Device *self);
-static bool WdTransferEnd(Device *self, int drive);
-static void Wd_ExecuteGO(Device *self);
-static bool WdUnitAttached(Device *self, WDDiskInfo *disk);
+static void wd_reset(Device *self);
+static bool wd_transfer_end(Device *self, int drive);
+static void wd_execute_go(Device *self);
+static bool wd_unit_attached(Device *self, WDDiskInfo *disk);
 
-static const char *Wd_OpName(WDDeviceOperation op)
+static const char *wd_op_name(WDDeviceOperation op)
 {
     switch (op)
     {
@@ -94,7 +94,7 @@ static const char *Wd_OpName(WDDeviceOperation op)
  * easy to miss and matters: a driver that activates without re-reading status
  * still gets a known state.
  */
-static void Wd_ClearFlipFlops(WDControllerRegs *regs)
+static void wd_clear_flip_flops(WDControllerRegs *regs)
 {
     regs->memoryAddressWriteFF = false;
     regs->memoryAddressReadFF = false;
@@ -105,7 +105,7 @@ static void Wd_ClearFlipFlops(WDControllerRegs *regs)
  * drive and must report not ready. The size callback stats a file, so the
  * answer is cached per unit - status is read very frequently.
  */
-static bool WdUnitAttached(Device *self, WDDiskInfo *disk)
+static bool wd_unit_attached(Device *self, WDDiskInfo *disk)
 {
     if (!self || !disk)
     {
@@ -113,15 +113,15 @@ static bool WdUnitAttached(Device *self, WDDiskInfo *disk)
     }
     if (!disk->unitAttachChecked)
     {
-        size_t imageSize = 0;
-        bool isWriteProtected = false;
+        size_t image_size = 0;
+        bool is_write_protected = false;
         if (self->blockCallbacks.diskInfoFunc)
         {
-            self->blockCallbacks.diskInfoFunc(self, &imageSize, &isWriteProtected, disk->unit);
+            self->blockCallbacks.diskInfoFunc(self, &image_size, &is_write_protected, disk->unit);
         }
-        disk->unitAttached = (imageSize > 0);
-        disk->diskIsWriteProtected = isWriteProtected;
-        disk->diskFileSize = imageSize;
+        disk->unitAttached = (image_size > 0);
+        disk->diskIsWriteProtected = is_write_protected;
+        disk->diskFileSize = image_size;
         disk->unitAttachChecked = true;
     }
     return disk->unitAttached;
@@ -134,7 +134,7 @@ static bool WdUnitAttached(Device *self, WDDiskInfo *disk)
  * Sec 3.5: bit 2 "Controller active", bit 3 "Controller finished with a device
  * operation"; an operation that ended in error has still finished.
  */
-static void Wd_FinishOperation(Device *self)
+static void wd_finish_operation(Device *self)
 {
     WinchesterData *data = (WinchesterData *)self->deviceData;
     if (!data)
@@ -144,7 +144,7 @@ static void Wd_FinishOperation(Device *self)
 
     data->statusRegister.bits.active = 0;
     data->statusRegister.bits.readyForTransfer = 1;
-    Wd_ClearFlipFlops(&data->regs);
+    wd_clear_flip_flops(&data->regs);
 
     if (data->statusRegister.bits.interruptEnabled)
     {
@@ -152,7 +152,7 @@ static void Wd_FinishOperation(Device *self)
     }
 }
 
-static void Wd_ClearErrors(WinchesterData *data)
+static void wd_clear_errors(WinchesterData *data)
 {
     data->statusRegister.bits.inclusiveOrErrors = 0;
     data->statusRegister.bits.rtzViolation = 0;
@@ -164,13 +164,13 @@ static void Wd_ClearErrors(WinchesterData *data)
     data->statusRegister.bits.dmaChannelError = 0;
 }
 
-static void Wd_DeviceClear(Device *self)
+static void wd_device_clear(Device *self)
 {
     WinchesterData *data = (WinchesterData *)self->deviceData;
 
     data->statusRegister.bits.active = 0;
-    Wd_ClearErrors(data);
-    Wd_ClearFlipFlops(&data->regs);
+    wd_clear_errors(data);
+    wd_clear_flip_flops(&data->regs);
 
     data->regs.memoryAddress = 0;
     data->regs.memoryAddressHiBits = 0;
@@ -181,7 +181,7 @@ static void Wd_DeviceClear(Device *self)
     Device_SetInterruptStatus(self, false, self->interruptLevel);
 }
 
-static uint16_t Wd_ReadStatus(Device *self)
+static uint16_t wd_read_status(Device *self)
 {
     WinchesterData *data = (WinchesterData *)self->deviceData;
     WDStatusRegister st = data->statusRegister;
@@ -195,7 +195,7 @@ static uint16_t Wd_ReadStatus(Device *self)
 
     /* Drive-sourced bits. With no unit attached the drive is powered off:
      * not on cylinder. */
-    if (data->regs.selectedDisk && WdUnitAttached(self, data->regs.selectedDisk))
+    if (data->regs.selectedDisk && wd_unit_attached(self, data->regs.selectedDisk))
     {
         st.bits.onCylinder = data->regs.selectedDisk->onCylinder ? 1 : 0;
     }
@@ -213,12 +213,12 @@ static uint16_t Wd_ReadStatus(Device *self)
     st.bits.notUsed12 = 0;
 
     /* A status read is one of the four flip-flop reset conditions. */
-    Wd_ClearFlipFlops(&data->regs);
+    wd_clear_flip_flops(&data->regs);
 
     return st.raw;
 }
 
-static uint16_t Wd_Read(Device *self, uint32_t address)
+static uint16_t wd_read(Device *self, uint32_t address)
 {
     WinchesterData *data = (WinchesterData *)self->deviceData;
     if (!data)
@@ -254,7 +254,7 @@ static uint16_t Wd_Read(Device *self, uint32_t address)
         break;
 
     case WD_READ_STATUS:
-        value = Wd_ReadStatus(self);
+        value = wd_read_status(self);
         break;
 
     case WD_READ_BLOCK_ADDRESS:
@@ -278,7 +278,7 @@ static uint16_t Wd_Read(Device *self, uint32_t address)
     return value;
 }
 
-static void Wd_Write(Device *self, uint32_t address, uint16_t value)
+static void wd_write(Device *self, uint32_t address, uint16_t value)
 {
     WinchesterData *data = (WinchesterData *)self->deviceData;
     if (!data)
@@ -362,7 +362,7 @@ static void Wd_Write(Device *self, uint32_t address, uint16_t value)
          * (device_paper_tape.c: "processed inline, does NOT break"). */
         if (data->controlRegister.bits.deviceClear)
         {
-            Wd_DeviceClear(self);
+            wd_device_clear(self);
         }
 
         /* Activation (bit 2). Sec 3.4 line: "All device operation codes will
@@ -380,11 +380,11 @@ static void Wd_Write(Device *self, uint32_t address, uint16_t value)
         if (data->controlRegister.bits.active && data->regs.deviceOperation != WD_OP_LOAD_CTRL_BITS)
         {
             /* Activation is a flip-flop reset condition (sec 3.2). */
-            Wd_ClearFlipFlops(&data->regs);
+            wd_clear_flip_flops(&data->regs);
 
             data->statusRegister.bits.active = 1;
             data->statusRegister.bits.readyForTransfer = 0;
-            Wd_ClearErrors(data);
+            wd_clear_errors(data);
 
             /* Sec 4.1 states BINT11 as a condition on the CURRENT status -
              * ready (bit 3) AND interrupt enabled (bit 0) - not as a pulse.
@@ -396,7 +396,7 @@ static void Wd_Write(Device *self, uint32_t address, uint16_t value)
              * interrupt on both sides of it (device_paper_tape.c:130-149). */
             Device_SetInterruptStatus(self, false, self->interruptLevel);
 
-            Wd_ExecuteGO(self);
+            wd_execute_go(self);
             break;
         }
 
@@ -430,7 +430,7 @@ static void Wd_Write(Device *self, uint32_t address, uint16_t value)
  * Completion callback: the operation has finished, so the controller goes not
  * active and raises the interrupt if enabled.
  */
-static bool WdTransferEnd(Device *self, int drive)
+static bool wd_transfer_end(Device *self, int drive)
 {
     WinchesterData *data = (WinchesterData *)self->deviceData;
     if (!data)
@@ -442,7 +442,7 @@ static bool WdTransferEnd(Device *self, int drive)
 
     data->statusRegister.bits.active = 0;
     data->statusRegister.bits.readyForTransfer = 1;
-    Wd_ClearFlipFlops(&data->regs);
+    wd_clear_flip_flops(&data->regs);
 
     if (Log_IsEnabled(LOG_CAT_WD, LOG_DEBUG))
     {
@@ -453,7 +453,7 @@ static bool WdTransferEnd(Device *self, int drive)
     return data->statusRegister.bits.interruptEnabled ? true : false;
 }
 
-static void Wd_ExecuteGO(Device *self)
+static void wd_execute_go(Device *self)
 {
     WinchesterData *data = (WinchesterData *)self->deviceData;
     WDControllerRegs *regs = &data->regs;
@@ -462,7 +462,7 @@ static void Wd_ExecuteGO(Device *self)
     {
         /* No such unit. Report a disk fault and terminate - never hang. */
         data->statusRegister.bits.diskFault = 1;
-        Wd_FinishOperation(self);
+        wd_finish_operation(self);
         return;
     }
 
@@ -471,14 +471,14 @@ static void Wd_ExecuteGO(Device *self)
     /* M4 and M7 position the arm and need no image; every other operation
      * needs a mounted pack. Sec 3.4: "For M4, only Word count (= step count)
      * and unit number is necessary, and for M7, only unit number." */
-    bool positioningOnly =
+    bool positioning_only =
         (regs->deviceOperation == WD_OP_SEEK || regs->deviceOperation == WD_OP_RETURN_TO_ZERO);
 
-    if (!WdUnitAttached(self, disk) && !positioningOnly)
+    if (!wd_unit_attached(self, disk) && !positioning_only)
     {
         disk->diskUnitNotReady = true;
         data->statusRegister.bits.diskFault = 1;
-        Wd_FinishOperation(self);
+        wd_finish_operation(self);
         return;
     }
 
@@ -515,18 +515,18 @@ static void Wd_ExecuteGO(Device *self)
         if (Log_IsEnabled(LOG_CAT_WD, LOG_DEBUG))
         {
             Log_Write(LOG_CAT_WD, LOG_DEBUG, "%s unit=%d dir=%s count=%d -> cylinder %d\n",
-                      Wd_OpName(regs->deviceOperation), regs->selectedUnit,
+                      wd_op_name(regs->deviceOperation), regs->selectedUnit,
                       regs->seekDirection == WD_SEEK_IN ? "in" : "out", regs->wordCounter,
                       disk->cylinder);
         }
-        Device_QueueIODelay(self, IODELAY_HDD, (IODelayedCallback)WdTransferEnd, disk->unit,
+        Device_QueueIODelay(self, IODELAY_HDD, (IODelayedCallback)wd_transfer_end, disk->unit,
                             self->interruptLevel);
         break;
 
     case WD_OP_RETURN_TO_ZERO:
         disk->cylinder = 0;
         disk->onCylinder = true;
-        Device_QueueIODelay(self, IODELAY_HDD, (IODelayedCallback)WdTransferEnd, disk->unit,
+        Device_QueueIODelay(self, IODELAY_HDD, (IODelayedCallback)wd_transfer_end, disk->unit,
                             self->interruptLevel);
         break;
 
@@ -540,7 +540,7 @@ static void Wd_ExecuteGO(Device *self)
         if (lba < 0)
         {
             data->statusRegister.bits.addressMismatch = 1;
-            Wd_FinishOperation(self);
+            wd_finish_operation(self);
             return;
         }
 
@@ -549,7 +549,7 @@ static void Wd_ExecuteGO(Device *self)
             regs->sector >= disk->sectorsPrTrack)
         {
             data->statusRegister.bits.addressMismatch = 1;
-            Wd_FinishOperation(self);
+            wd_finish_operation(self);
             return;
         }
 
@@ -558,36 +558,36 @@ static void Wd_ExecuteGO(Device *self)
         {
             disk->diskUnitNotReady = true;
             data->statusRegister.bits.diskFault = 1;
-            Wd_FinishOperation(self);
+            wd_finish_operation(self);
             return;
         }
 
-        uint32_t wordCounter = regs->wordCounter;
-        uint32_t coreAddress = ((uint32_t)regs->memoryAddressHiBits << 16) | regs->memoryAddress;
-        uint32_t blockCounter = (wordCounter * 2) / (uint32_t)self->blockSizeBytes;
+        uint32_t word_counter = regs->wordCounter;
+        uint32_t core_address = ((uint32_t)regs->memoryAddressHiBits << 16) | regs->memoryAddress;
+        uint32_t block_counter = (word_counter * 2) / (uint32_t)self->blockSizeBytes;
         uint32_t buffer_ptr = 0;
 
         if (Log_IsEnabled(LOG_CAT_WD, LOG_DEBUG))
         {
             Log_Write(LOG_CAT_WD, LOG_DEBUG, "GO %s unit=%d C/H/S=%d/%d/%d LBA=%ld WC=%u core=%o\n",
-                      Wd_OpName(regs->deviceOperation), regs->selectedUnit, regs->cylinder,
-                      regs->head, regs->sector, lba, wordCounter, coreAddress);
+                      wd_op_name(regs->deviceOperation), regs->selectedUnit, regs->cylinder,
+                      regs->head, regs->sector, lba, word_counter, core_address);
         }
 
-        if (blockCounter == 0 || !self->blockCallbacks.readFunc || !self->blockCallbacks.writeFunc)
+        if (block_counter == 0 || !self->blockCallbacks.readFunc || !self->blockCallbacks.writeFunc)
         {
             /* Nothing to move, or no backing store hooked up: complete
              * cleanly rather than transferring garbage. */
-            Device_QueueIODelay(self, IODELAY_HDD, (IODelayedCallback)WdTransferEnd, disk->unit,
+            Device_QueueIODelay(self, IODELAY_HDD, (IODelayedCallback)wd_transfer_end, disk->unit,
                                 self->interruptLevel);
             break;
         }
 
-        uint8_t *buffer = (uint8_t *)malloc(blockCounter * self->blockSizeBytes);
+        uint8_t *buffer = (uint8_t *)malloc(block_counter * self->blockSizeBytes);
         if (!buffer)
         {
             data->statusRegister.bits.dmaChannelError = 1;
-            Wd_FinishOperation(self);
+            wd_finish_operation(self);
             return;
         }
 
@@ -595,32 +595,32 @@ static void Wd_ExecuteGO(Device *self)
             regs->deviceOperation == WD_OP_WRITE_FORMAT)
         {
             /* Pull the words out of ND memory, then commit whole blocks. */
-            while (wordCounter > 0)
+            while (word_counter > 0)
             {
-                uint16_t w = Device_DMARead(coreAddress);
+                uint16_t w = Device_DMARead(core_address);
                 Device_IO_BufferWriteWord(self, buffer, buffer_ptr++, w);
-                coreAddress++;
-                wordCounter--;
+                core_address++;
+                word_counter--;
             }
             int written =
-                self->blockCallbacks.writeFunc(self, buffer, blockCounter, lba, disk->unit);
-            if (written < 0 || (uint32_t)written != blockCounter)
+                self->blockCallbacks.writeFunc(self, buffer, block_counter, lba, disk->unit);
+            if (written < 0 || (uint32_t)written != block_counter)
             {
                 data->statusRegister.bits.diskFault = 1;
                 free(buffer);
-                Wd_FinishOperation(self);
+                wd_finish_operation(self);
                 return;
             }
         }
         else
         {
-            int blocksRead =
-                self->blockCallbacks.readFunc(self, buffer, blockCounter, lba, disk->unit);
-            if (blocksRead < 0 || (uint32_t)blocksRead != blockCounter)
+            int blocks_read =
+                self->blockCallbacks.readFunc(self, buffer, block_counter, lba, disk->unit);
+            if (blocks_read < 0 || (uint32_t)blocks_read != block_counter)
             {
                 data->statusRegister.bits.diskFault = 1;
                 free(buffer);
-                Wd_FinishOperation(self);
+                wd_finish_operation(self);
                 return;
             }
 
@@ -629,27 +629,27 @@ static void Wd_ExecuteGO(Device *self)
              * "No data transfer to the computer memory is performed." */
             if (regs->deviceOperation == WD_OP_READ_TRANSFER)
             {
-                while (wordCounter > 0)
+                while (word_counter > 0)
                 {
                     uint32_t w = Device_IO_BufferReadWord(self, buffer, buffer_ptr++);
-                    Device_DMAWrite(coreAddress, (uint16_t)w);
-                    coreAddress++;
-                    wordCounter--;
+                    Device_DMAWrite(core_address, (uint16_t)w);
+                    core_address++;
+                    word_counter--;
                 }
             }
             else if (regs->deviceOperation == WD_OP_COMPARE)
             {
-                while (wordCounter > 0)
+                while (word_counter > 0)
                 {
                     uint32_t w = Device_IO_BufferReadWord(self, buffer, buffer_ptr++);
-                    uint16_t m = Device_DMARead(coreAddress);
+                    uint16_t m = Device_DMARead(core_address);
                     if ((uint16_t)w != m)
                     {
                         data->statusRegister.bits.compareError = 1;
                         break;
                     }
-                    coreAddress++;
-                    wordCounter--;
+                    core_address++;
+                    word_counter--;
                 }
             }
         }
@@ -658,33 +658,33 @@ static void Wd_ExecuteGO(Device *self)
 
         /* Write back the advanced address and the residual count, as a real
          * DMA controller leaves them. */
-        regs->memoryAddress = (uint16_t)(coreAddress & 0xFFFF);
-        regs->memoryAddressHiBits = (uint8_t)((coreAddress >> 16) & 0xFF);
-        regs->wordCounter = (uint16_t)wordCounter;
+        regs->memoryAddress = (uint16_t)(core_address & 0xFFFF);
+        regs->memoryAddressHiBits = (uint8_t)((core_address >> 16) & 0xFF);
+        regs->wordCounter = (uint16_t)word_counter;
 
-        Device_QueueIODelay(self, IODELAY_HDD, (IODelayedCallback)WdTransferEnd, disk->unit,
+        Device_QueueIODelay(self, IODELAY_HDD, (IODelayedCallback)wd_transfer_end, disk->unit,
                             self->interruptLevel);
         break;
     }
 
     case WD_OP_LOAD_CTRL_BITS:
         /* M6 is never activated; handled at the call site. */
-        Wd_FinishOperation(self);
+        wd_finish_operation(self);
         break;
 
     default:
-        Wd_FinishOperation(self);
+        wd_finish_operation(self);
         break;
     }
 }
 
-static uint16_t Wd_Tick(Device *self)
+static uint16_t wd_tick(Device *self)
 {
     Device_TickIODelay(self);
     return self->interruptBits;
 }
 
-static uint16_t Wd_Ident(Device *self, uint16_t level)
+static uint16_t wd_ident(Device *self, uint16_t level)
 {
     WinchesterData *data = (WinchesterData *)self->deviceData;
     if (!data)
@@ -714,7 +714,7 @@ static uint16_t Wd_Ident(Device *self, uint16_t level)
     return self->identCode;
 }
 
-static void Wd_Reset(Device *self)
+static void wd_reset(Device *self)
 {
     WinchesterData *data = (WinchesterData *)self->deviceData;
     if (!data)
@@ -741,7 +741,7 @@ static void Wd_Reset(Device *self)
     data->regs.selectedDisk = data->regs.disks ? &data->regs.disks[0] : NULL;
 
     /* Master clear is one of the four flip-flop reset conditions (sec 3.2). */
-    Wd_ClearFlipFlops(&data->regs);
+    wd_clear_flip_flops(&data->regs);
 
     Device_SetInterruptStatus(self, false, self->interruptLevel);
 }
@@ -758,7 +758,7 @@ static void Wd_Reset(Device *self)
  * boot loads. The figure is the CPU's, not the controller's, so it is taken
  * from the ND-100/ND-120 reference rather than ND-11.015.01.
  */
-static int Wd_Boot(Device *self, int unit)
+static int wd_boot(Device *self, int unit)
 {
     WinchesterData *data = (WinchesterData *)self->deviceData;
     WDControllerRegs *regs = &data->regs;
@@ -779,7 +779,7 @@ static int Wd_Boot(Device *self, int unit)
     regs->selectedDisk = &regs->disks[unit];
     WDDiskInfo *disk = regs->selectedDisk;
 
-    if (!WdUnitAttached(self, disk))
+    if (!wd_unit_attached(self, disk))
     {
         LOG(LOG_CAT_WD, LOG_ERROR, "Error: no image mounted on Winchester unit %d\n", unit);
         return -1;
@@ -791,41 +791,41 @@ static int Wd_Boot(Device *self, int unit)
     }
     self->blockSizeBytes = disk->bytesPrSector;
 
-    const int wordCounter = 1024; /* 1K words */
-    uint32_t blockCounter = (uint32_t)((wordCounter * 2) / self->blockSizeBytes);
-    if (blockCounter == 0)
+    const int word_counter = 1024; /* 1K words */
+    uint32_t block_counter = (uint32_t)((word_counter * 2) / self->blockSizeBytes);
+    if (block_counter == 0)
     {
-        blockCounter = 1;
+        block_counter = 1;
     }
 
-    uint8_t *buffer = (uint8_t *)malloc(blockCounter * self->blockSizeBytes);
+    uint8_t *buffer = (uint8_t *)malloc(block_counter * self->blockSizeBytes);
     if (!buffer)
     {
         return -1;
     }
 
-    int blocksRead = self->blockCallbacks.readFunc(self, buffer, blockCounter, 0, disk->unit);
-    if (blocksRead < 0 || blocksRead != (int)blockCounter)
+    int blocks_read = self->blockCallbacks.readFunc(self, buffer, block_counter, 0, disk->unit);
+    if (blocks_read < 0 || blocks_read != (int)block_counter)
     {
         LOG(LOG_CAT_WD, LOG_ERROR,
-            "[Winchester Boot] block read failed: got %d blocks, expected %u\n", blocksRead,
-            blockCounter);
+            "[Winchester Boot] block read failed: got %d blocks, expected %u\n", blocks_read,
+            block_counter);
         free(buffer);
         return -1;
     }
 
     /* An all-zero first block means a blank or unformatted pack; loading it
      * would start the CPU on zeros rather than fail visibly. */
-    bool allZero = true;
-    for (uint32_t i = 0; i < blockCounter * self->blockSizeBytes; i++)
+    bool all_zero = true;
+    for (uint32_t i = 0; i < block_counter * self->blockSizeBytes; i++)
     {
         if (buffer[i] != 0)
         {
-            allZero = false;
+            all_zero = false;
             break;
         }
     }
-    if (allZero)
+    if (all_zero)
     {
         LOG(LOG_CAT_WD, LOG_ERROR,
             "Error: Winchester boot sector is all zeros (blank or unformatted disk)\n");
@@ -833,10 +833,10 @@ static int Wd_Boot(Device *self, int unit)
         return -1;
     }
 
-    for (int i = 0; i < wordCounter; i++)
+    for (int i = 0; i < word_counter; i++)
     {
-        uint32_t readData = Device_IO_BufferReadWord(self, buffer, i);
-        Device_DMAWrite((uint32_t)i, (uint16_t)readData);
+        uint32_t read_data = Device_IO_BufferReadWord(self, buffer, i);
+        Device_DMAWrite((uint32_t)i, (uint16_t)read_data);
     }
 
     free(buffer);
@@ -845,7 +845,7 @@ static int Wd_Boot(Device *self, int unit)
     return 0;
 }
 
-static void Wd_Destroy(Device *self)
+static void wd_destroy(Device *self)
 {
     if (!self)
     {
@@ -902,13 +902,13 @@ Device *CreateWinchesterDevice(uint8_t thumbwheel)
         DiskWinchester_SetDiskType(&data->regs.disks[i], WD_DISK_MICROPOLIS_1325);
     }
 
-    dev->Read = Wd_Read;
-    dev->Write = Wd_Write;
-    dev->Tick = Wd_Tick;
-    dev->Reset = Wd_Reset;
-    dev->Ident = Wd_Ident;
-    dev->Boot = Wd_Boot;
-    dev->Destroy = Wd_Destroy;
+    dev->Read = wd_read;
+    dev->Write = wd_write;
+    dev->Tick = wd_tick;
+    dev->Reset = wd_reset;
+    dev->Ident = wd_ident;
+    dev->Boot = wd_boot;
+    dev->Destroy = wd_destroy;
 
     /* Address block and identity, ND-11.015.01 sec 3.1 / 4.1: disk system 1 at
      * 500-507 ident 1, disk system 2 at 510-517 ident 5, both on level 11. */
@@ -934,7 +934,7 @@ Device *CreateWinchesterDevice(uint8_t thumbwheel)
     dev->endAddress = dev->startAddress + 7;
     dev->interruptLevel = WD_INT_LEVEL;
 
-    Wd_Reset(dev);
+    wd_reset(dev);
 
 
     LOG(LOG_CAT_WD, LOG_INFO, "Winchester disc device created: %s ident %o level %d (%d units)\n",
