@@ -48,11 +48,11 @@
 // [machine] rtc = wall, the pulse fires every 20 ms of host monotonic time
 // instead, giving a real-time 50 Hz clock regardless of emulation speed.
 #define RTC_WALL_PERIOD_NS 20000000ULL /* 20 ms */
-static bool rtcWallClockMode = false;
+static bool rtc_wall_clock_mode = false;
 
 void RTC_SetWallClockMode(bool enable)
 {
-    rtcWallClockMode = enable;
+    rtc_wall_clock_mode = enable;
 }
 
 static uint64_t rtc_now_ns(void)
@@ -130,7 +130,7 @@ static uint16_t RTC_Tick(Device *self)
     // Count down the timer
     data->rtcCounter--;
 
-    if (rtcWallClockMode)
+    if (rtc_wall_clock_mode)
     {
         // Wall-clock mode: the counter keeps running for data-register readers,
         // but the pulse fires on host time, not on the countdown.
