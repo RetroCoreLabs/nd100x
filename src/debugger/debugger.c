@@ -1686,40 +1686,40 @@ static void add_level_variables(DAPServer *server, char *info_message, size_t in
 
     for (int i = 0; i < 16; i++)
     {
-        uint16_t rP = g_reg->reg[i][_P];
-        uint16_t rPCR = g_reg->reg_PCR[i];
+        uint16_t r_p = g_reg->reg[i][_P];
+        uint16_t r_pcr = g_reg->reg_PCR[i];
         uint16_t pt = 0;
         uint16_t apt = 0;
 
         // decode PCR
-        uint16_t ring = rPCR & 0x03;
-        if (rPCR & (1 << 2))
+        uint16_t ring = r_pcr & 0x03;
+        if (r_pcr & (1 << 2))
         {
             // Sixteen page table mode
-            pt = (rPCR >> 11) & 0x0F;
-            apt = (rPCR >> 7) & 0x0F;
+            pt = (r_pcr >> 11) & 0x0F;
+            apt = (r_pcr >> 7) & 0x0F;
         }
         else
         {
             // Four page table mode
-            pt = (rPCR >> 9) & 0x03;
-            apt = (rPCR >> 7) & 0x03;
+            pt = (r_pcr >> 9) & 0x03;
+            apt = (r_pcr >> 7) & 0x03;
         }
         char pcr_str[100];
-        snprintf(pcr_str, sizeof(pcr_str), "Ring[%d] PT[%d] APT[%d] P[%06d]", ring, pt, apt, rP);
+        snprintf(pcr_str, sizeof(pcr_str), "Ring[%d] PT[%d] APT[%d] P[%06d]", ring, pt, apt, r_p);
 
         char name[20];
         snprintf(name, sizeof(name), "Level %d", i);
 
         char memory_reference[100];
-        snprintf(memory_reference, sizeof(memory_reference), "0x%04x", rP);
+        snprintf(memory_reference, sizeof(memory_reference), "0x%04x", r_p);
 
         add_variable_to_array(
             server,
             name,                   // name
             pcr_str,                // value
             "integer",              // type
-            rP,                     // memoryReference
+            r_p,                    // memoryReference
             SCOPE_ID_PIL_BASE + i,  // variablesReference -> expandable per-PIL bank
             DAP_VARIABLE_KIND_DATA, // kind
             DAP_VARIABLE_ATTR_NONE  // attributes
@@ -2091,79 +2091,80 @@ static void add_status_flag_variables(DAPServer *server, char *info_message,
 /// @brief Get informaiton about a page table entry
 /// @param PTe
 /// @return
-static char *get_page_table_entry_info(uint32_t PTe)
+static char *get_page_table_entry_info(uint32_t p_te)
 {
 
-    static char debugInfo[256];
-    debugInfo[0] = '\0';
+    static char debug_info[256];
+    debug_info[0] = '\0';
 
-    char memoryRange[50];
+    char memory_range[50];
 
     // Map to physical page
-    uint16_t PPN = 0;
+    uint16_t ppn = 0;
     if (STS_SEXI)
     {
         // Use lower 14-bit
-        PPN = (uint16_t)(PTe & 0x3FFF);
+        ppn = (uint16_t)(p_te & 0x3FFF);
     }
     else
     {
         // "normal" mode, use only the lower 9-bits
-        PPN = (uint16_t)(PTe & 0x1FF);
+        ppn = (uint16_t)(p_te & 0x1FF);
     }
 
-    PTe = PTe >> 16;
+    p_te = p_te >> 16;
 
-    if ((PTe & 1 << 15) != 0)
+    if ((p_te & 1 << 15) != 0)
     {
-        snprintf(debugInfo + strlen(debugInfo), sizeof(debugInfo) - strlen(debugInfo), "%s",
+        snprintf(debug_info + strlen(debug_info), sizeof(debug_info) - strlen(debug_info), "%s",
                  "[WPM]");
     }
-    if ((PTe & 1 << 14) != 0)
+    if ((p_te & 1 << 14) != 0)
     {
-        snprintf(debugInfo + strlen(debugInfo), sizeof(debugInfo) - strlen(debugInfo), "%s",
+        snprintf(debug_info + strlen(debug_info), sizeof(debug_info) - strlen(debug_info), "%s",
                  "[RPM]");
     }
-    if ((PTe & 1 << 13) != 0)
+    if ((p_te & 1 << 13) != 0)
     {
-        snprintf(debugInfo + strlen(debugInfo), sizeof(debugInfo) - strlen(debugInfo), "%s",
+        snprintf(debug_info + strlen(debug_info), sizeof(debug_info) - strlen(debug_info), "%s",
                  "[FPM]");
     }
-    if ((PTe & 1 << 12) != 0)
+    if ((p_te & 1 << 12) != 0)
     {
-        snprintf(debugInfo + strlen(debugInfo), sizeof(debugInfo) - strlen(debugInfo), "%s",
+        snprintf(debug_info + strlen(debug_info), sizeof(debug_info) - strlen(debug_info), "%s",
                  "[WIP]");
     }
-    if ((PTe & 1 << 11) != 0)
+    if ((p_te & 1 << 11) != 0)
     {
-        snprintf(debugInfo + strlen(debugInfo), sizeof(debugInfo) - strlen(debugInfo), "%s",
+        snprintf(debug_info + strlen(debug_info), sizeof(debug_info) - strlen(debug_info), "%s",
                  "[PGU]");
     }
 
-    int ring = (int)((PTe >> 9) & 0x03);
-    snprintf(debugInfo, sizeof(debugInfo), "[R:%d]", ring);
+    int ring = (int)((p_te >> 9) & 0x03);
+    snprintf(debug_info, sizeof(debug_info), "[R:%d]", ring);
 
-    char ppnStr[16];
-    snprintf(ppnStr, sizeof(ppnStr), "[PPN:0x%04X]", PPN);
-    snprintf(debugInfo + strlen(debugInfo), sizeof(debugInfo) - strlen(debugInfo), "%s", ppnStr);
+    char ppn_str[16];
+    snprintf(ppn_str, sizeof(ppn_str), "[PPN:0x%04X]", ppn);
+    snprintf(debug_info + strlen(debug_info), sizeof(debug_info) - strlen(debug_info), "%s",
+             ppn_str);
 
-    uint32_t start = PPN << 10;
+    uint32_t start = ppn << 10;
     uint32_t end = start | 0x3FFF;
 
-    snprintf(memoryRange, sizeof(memoryRange), " MEM[0x%06X:0x%06X]", start, end);
-    snprintf(debugInfo + strlen(debugInfo), sizeof(debugInfo) - strlen(debugInfo), "%s",
-             memoryRange);
+    snprintf(memory_range, sizeof(memory_range), " MEM[0x%06X:0x%06X]", start, end);
+    snprintf(debug_info + strlen(debug_info), sizeof(debug_info) - strlen(debug_info), "%s",
+             memory_range);
 
-    return debugInfo;
+    return debug_info;
 }
 
-char *GetPageTableMemoryRange(uint32_t PTe)
+char *GetPageTableMemoryRange(uint32_t p_te)
 {
-    static char debugInfo[256];
-    debugInfo[0] = '\0';
-    (void)PTe; /* decoding the entry is not implemented; callers get "" */
+    static char debug_info[256];
+    debug_info[0] = '\0';
+    (void)p_te; /* decoding the entry is not implemented; callers get "" */
 
-    return debugInfo;
+    return debug_info;
 }
 
 static void add_page_mms_entries(DAPServer *server, char *info_message, size_t info_message_size)
@@ -2174,22 +2175,22 @@ static void add_page_mms_entries(DAPServer *server, char *info_message, size_t i
     // Property kind with readonly attribute
 
     // Get PCR for current runlevel
-    uint16_t rPCR = g_reg->reg_PCR[gPIL];
+    uint16_t r_pcr = g_reg->reg_PCR[gPIL];
     uint16_t pt = 0;
     uint16_t apt = 0;
 
     // decode PT and APT PCR
-    if (rPCR & (1 << 2))
+    if (r_pcr & (1 << 2))
     {
         // Sixteen page table mode
-        pt = (rPCR >> 11) & 0x0F;
-        apt = (rPCR >> 7) & 0x0F;
+        pt = (r_pcr >> 11) & 0x0F;
+        apt = (r_pcr >> 7) & 0x0F;
     }
     else
     {
         // Four page table mode
-        pt = (rPCR >> 9) & 0x03;
-        apt = (rPCR >> 7) & 0x03;
+        pt = (r_pcr >> 9) & 0x03;
+        apt = (r_pcr >> 7) & 0x03;
     }
 
     char display_name[64];
@@ -2240,7 +2241,7 @@ static void add_page_mms_entries(DAPServer *server, char *info_message, size_t i
  * @param info_message_size Size of info message buffer
  */
 static void add_page_table_entries(DAPServer *server, char *info_message, size_t info_message_size,
-                                   bool useAPT)
+                                   bool use_apt)
 {
     (void)info_message;
     (void)info_message_size;
@@ -2248,43 +2249,43 @@ static void add_page_table_entries(DAPServer *server, char *info_message, size_t
     // Property kind with readonly attribute
 
     // Get PCR for current runlevel
-    uint16_t rPCR = g_reg->reg_PCR[gPIL];
+    uint16_t r_pcr = g_reg->reg_PCR[gPIL];
     uint16_t pt = 0;
     uint16_t apt = 0;
     PageTableMode ptm = Four; // Default to four page tables
 
     // decode PT and APT PCR
-    if (rPCR & (1 << 2))
+    if (r_pcr & (1 << 2))
     {
         // Sixteen page table mode
-        pt = (rPCR >> 11) & 0x0F;
-        apt = (rPCR >> 7) & 0x0F;
+        pt = (r_pcr >> 11) & 0x0F;
+        apt = (r_pcr >> 7) & 0x0F;
         ptm = Sixteen;
     }
     else
     {
         // Four page table mode
-        pt = (rPCR >> 9) & 0x03;
-        apt = (rPCR >> 7) & 0x03;
+        pt = (r_pcr >> 9) & 0x03;
+        apt = (r_pcr >> 7) & 0x03;
         ptm = Four;
     }
 
-    if (useAPT)
+    if (use_apt)
     {
         pt = apt;
     }
 
     for (int vpn = 0; vpn < 64; vpn++)
     {
-        uint32_t pageTableEntry = GetPageTableEntry(pt, vpn, ptm);
+        uint32_t page_table_entry = GetPageTableEntry(pt, vpn, ptm);
 
         char vpn_str[32];
         snprintf(vpn_str, sizeof(vpn_str), "%d", vpn);
 
         add_variable_to_array(server,
-                              vpn_str,                                   // name
-                              get_page_table_entry_info(pageTableEntry), // value
-                              "memory",                                  // type
+                              vpn_str,                                     // name
+                              get_page_table_entry_info(page_table_entry), // value
+                              "memory",                                    // type
                               -1,                         // memoryReference (-1 = not present)
                               0,                          // variablesReference
                               DAP_VARIABLE_KIND_PROPERTY, // kind
@@ -2993,36 +2994,36 @@ static int cmd_set_breakpoints(DAPServer *server)
     {
         DAPBreakpoint *bp = &server->current_command.context.breakpoint.breakpoints[i];
 
-        bool validSymbol = false;
+        bool valid_symbol = false;
         uint16_t address = 0;
         uint16_t diff = 0;
 
         // Try multiple symbol tables in order of preference
 
         // 1. Try STABS (most detailed for C/mixed programs)
-        if (!validSymbol && s_symbol_tables.symbol_table_stabs)
+        if (!valid_symbol && s_symbol_tables.symbol_table_stabs)
         {
-            validSymbol = symbols_find_address(s_symbol_tables.symbol_table_stabs, source_path,
-                                               &address, &diff, bp->line);
+            valid_symbol = symbols_find_address(s_symbol_tables.symbol_table_stabs, source_path,
+                                                &address, &diff, bp->line);
         }
 
         // 2. Try MAP file (reliable for assembly)
-        if (!validSymbol && s_symbol_tables.symbol_table_map)
+        if (!valid_symbol && s_symbol_tables.symbol_table_map)
         {
-            validSymbol = symbols_find_address(s_symbol_tables.symbol_table_map, source_path,
-                                               &address, &diff, bp->line);
+            valid_symbol = symbols_find_address(s_symbol_tables.symbol_table_map, source_path,
+                                                &address, &diff, bp->line);
         }
 
         // 3. Try AOUT (last resort - function symbols)
-        if (!validSymbol && s_symbol_tables.symbol_table_aout && str_ends_with(source_path, ".s"))
+        if (!valid_symbol && s_symbol_tables.symbol_table_aout && str_ends_with(source_path, ".s"))
         {
             // For assembly files, try to find by label/function name
             // This is a fallback for when line mapping doesn't work
-            validSymbol = symbols_find_address(s_symbol_tables.symbol_table_aout, source_path,
-                                               &address, &diff, bp->line);
+            valid_symbol = symbols_find_address(s_symbol_tables.symbol_table_aout, source_path,
+                                                &address, &diff, bp->line);
         }
 
-        if (!validSymbol)
+        if (!valid_symbol)
         {
             char msg[256];
             snprintf(
@@ -4221,16 +4222,16 @@ static int cmd_read_memory(DAPServer *server)
     // Extract parameters from the command context
     uint32_t memory_reference = server->current_command.context.read_memory.memory_reference;
     uint32_t offset = server->current_command.context.read_memory.offset;
-    size_t byteCount = server->current_command.context.read_memory.count;
+    size_t byte_count = server->current_command.context.read_memory.count;
     bool is_physical =
         (server->current_command.context.read_memory.address_space == DAP_DATA_BP_ADDR_PHYSICAL);
 
     uint32_t address = memory_reference + offset;
 
     server->current_command.context.read_memory.base64_data = NULL;
-    server->current_command.context.read_memory.unreadable_bytes = byteCount;
+    server->current_command.context.read_memory.unreadable_bytes = byte_count;
 
-    if (byteCount == 0)
+    if (byte_count == 0)
     {
         server->current_command.context.read_memory.base64_data = strdup("");
         server->current_command.context.read_memory.unreadable_bytes = 0;
@@ -4238,13 +4239,13 @@ static int cmd_read_memory(DAPServer *server)
     }
 
     // read memory from memory_reference + offset, count bytes
-    uint8_t *data = (uint8_t *)malloc(byteCount);
+    uint8_t *data = (uint8_t *)malloc(byte_count);
     if (!data)
     {
         return 0;
     }
 
-    memset(data, 0, byteCount);
+    memset(data, 0, byte_count);
 
     // Address space selection with optional PIL override:
     //   physical - bypass MMU entirely (PIL ignored)
@@ -4260,9 +4261,9 @@ static int cmd_read_memory(DAPServer *server)
     // unreadable and is NOT included in the returned buffer. Handing back a
     // zero-filled buffer for those bytes would be indistinguishable from a
     // region of memory that genuinely contains zeroes.
-    size_t bytesRead = 0;
+    size_t bytes_read = 0;
 
-    while (bytesRead < byteCount)
+    while (bytes_read < byte_count)
     {
         int word;
         if (is_physical)
@@ -4286,18 +4287,18 @@ static int cmd_read_memory(DAPServer *server)
             break;
         }
 
-        data[bytesRead++] = (uint8_t)(word >> 8);
-        if (bytesRead < byteCount)
+        data[bytes_read++] = (uint8_t)(word >> 8);
+        if (bytes_read < byte_count)
         {
-            data[bytesRead++] = (uint8_t)(word & 0xFF);
+            data[bytes_read++] = (uint8_t)(word & 0xFF);
         }
         address++;
     }
 
-    server->current_command.context.read_memory.unreadable_bytes = byteCount - bytesRead;
+    server->current_command.context.read_memory.unreadable_bytes = byte_count - bytes_read;
 
     // encode the readable part only to base64
-    server->current_command.context.read_memory.base64_data = base64_encode(data, bytesRead);
+    server->current_command.context.read_memory.base64_data = base64_encode(data, bytes_read);
 
     // free data
     free(data);
@@ -4536,7 +4537,7 @@ static int cmd_disassemble(DAPServer *server)
         server->current_command.context.disassemble.address_space;
     int8_t pil = server->current_command.context.disassemble.pil;
 
-    int virtualAddress = memory_reference + offset + instruction_offset;
+    int virtual_address = memory_reference + offset + instruction_offset;
 
     // Allocate memory for the instructions
     server->current_command.context.disassemble.instructions =
@@ -4560,7 +4561,7 @@ static int cmd_disassemble(DAPServer *server)
         DisassembleInstruction *instruction =
             &server->current_command.context.disassemble.instructions
                  [server->current_command.context.disassemble.actual_instruction_count];
-        if (virtualAddress < 0)
+        if (virtual_address < 0)
         {
             // Might happen if the instruction offset is too large
             continue;
@@ -4569,10 +4570,10 @@ static int cmd_disassemble(DAPServer *server)
         {
 
             // Read instruction word using the requested address space + PIL
-            int word = read_disasm_word(addr_space, virtualAddress, pil);
+            int word = read_disasm_word(addr_space, virtual_address, pil);
             // Get the address of the instruction (DAP SPEC says it must be hex)
             char address_str[10];
-            snprintf(address_str, sizeof(address_str), "0x%04x", virtualAddress);
+            snprintf(address_str, sizeof(address_str), "0x%04x", virtual_address);
             instruction->address = strdup(address_str);
 
             char instruction_str[100];
@@ -4582,7 +4583,7 @@ static int cmd_disassemble(DAPServer *server)
             instruction->symbol = NULL;
             if (resolve_symbols)
             {
-                const char *sym = get_symbol_for_address(virtualAddress);
+                const char *sym = get_symbol_for_address(virtual_address);
                 if (sym)
                 {
                     instruction->symbol = strdup(sym);
@@ -4592,7 +4593,7 @@ static int cmd_disassemble(DAPServer *server)
 
         // Add the instruction to the instructions array
         server->current_command.context.disassemble.actual_instruction_count++;
-        virtualAddress++;
+        virtual_address++;
     }
     return 0;
 }
@@ -5096,9 +5097,9 @@ void debugger_kbd_input(char c)
     // Print the current PC and run mode
     if (c == '.')
     {
-        int runMode = get_cpu_run_mode();
+        int run_mode = get_cpu_run_mode();
 
-        printf("P=%6o  RunMode=%d\n", gPC, runMode);
+        printf("P=%6o  RunMode=%d\n", gPC, run_mode);
     }
 
     // Step the CPU
@@ -5111,17 +5112,17 @@ void debugger_kbd_input(char c)
     // Disassemble the instruction at the current PC
     if (c == 'd')
     {
-        int runMode = get_cpu_run_mode();
-        printf("P=%6o  RunMode=%d\n\n", gPC, runMode);
+        int run_mode = get_cpu_run_mode();
+        printf("P=%6o  RunMode=%d\n\n", gPC, run_mode);
 
-        int virtualAddress = gPC;
+        int virtual_address = gPC;
         for (int i = 0; i < 10; i++)
         {
 
-            uint16_t operand = Dbg_ReadVirtualMemoryISpace(virtualAddress);
+            uint16_t operand = Dbg_ReadVirtualMemoryISpace(virtual_address);
 
             // Get the address of the instruction (DAP SPEC says it must be hex)
-            printf("[%06o] ", virtualAddress);
+            printf("[%06o] ", virtual_address);
 
             // Get the instruction
 
@@ -5131,7 +5132,7 @@ void debugger_kbd_input(char c)
 
             printf("%06o %s", operand, operand_str);
 
-            const char *sym = get_symbol_for_address(virtualAddress);
+            const char *sym = get_symbol_for_address(virtual_address);
             if (sym)
             {
                 printf("    (%s)", sym);
@@ -5139,7 +5140,7 @@ void debugger_kbd_input(char c)
 
             printf("\n");
 
-            virtualAddress++;
+            virtual_address++;
         }
     }
 }

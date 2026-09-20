@@ -198,7 +198,6 @@
     "src/cpu/cpu_regs.c": 1,
     "src/cpu/cpu_types.h": 82,
     "src/cpu/float.c": 5,
-    "src/debugger/debugger.c": 20,
     "src/devices/device.c": 16,
     "src/devices/devicemanager.c": 7,
     "src/devices/devices_types.h": 5,
@@ -281,7 +280,7 @@
     "tools/reth-tap/test-framing.c": 1,
     "tools/reth-tap/test-gateway.c": 1
    },
-   "total": 1016
+   "total": 996
   },
   "3.8": {
    "files": {
