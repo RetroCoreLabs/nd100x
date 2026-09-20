@@ -59,7 +59,7 @@ static const int g_descriptor_count = (int)(sizeof(g_descriptors) / sizeof(g_des
 
 /* Silence the unused-array warning for the reserved zero table; kept for
  * symmetry/readability with iox_scsi_v. */
-static const uint16_t *const _mc_unused_iox = iox_scsi;
+static const uint16_t *const mc_unused_iox = iox_scsi;
 
 const ControllerDescriptor *MC_DescriptorForType(CtrlType type)
 {
@@ -217,7 +217,7 @@ void MachineConfig_InitBaseline(MachineConfig *cfg)
     cfg->runtime.nd100_root[0] = '\0';  /* empty -> use current dir */
     cfg->runtime.script[0] = '\0';      /* no script file unless script= given */
 
-    (void)_mc_unused_iox;
+    (void)mc_unused_iox;
 }
 
 void MachineConfig_SetDefaults(MachineConfig *cfg)
@@ -229,7 +229,7 @@ void MachineConfig_SetDefaults(MachineConfig *cfg)
     MachineConfig_InitBaseline(cfg);
 
     /* floppy.0 */
-    MC_Controller *fl = &cfg->controllers[cfg->controllerCount++];
+    McController *fl = &cfg->controllers[cfg->controllerCount++];
     fl->type = CTRL_FLOPPY;
     fl->wheel = 0;
     fl->enabled = true;
@@ -238,7 +238,7 @@ void MachineConfig_SetDefaults(MachineConfig *cfg)
     str_copy(fl->disks[0].image, MC_PATH_LEN, "FLOPPY.IMG");
 
     /* smd.0 */
-    MC_Controller *sm = &cfg->controllers[cfg->controllerCount++];
+    McController *sm = &cfg->controllers[cfg->controllerCount++];
     sm->type = CTRL_SMD;
     sm->wheel = 0;
     sm->enabled = true;
@@ -247,7 +247,7 @@ void MachineConfig_SetDefaults(MachineConfig *cfg)
     str_copy(sm->disks[0].image, MC_PATH_LEN, "SMD0.IMG");
 
     /* scsi.0 */
-    MC_Controller *sc = &cfg->controllers[cfg->controllerCount++];
+    McController *sc = &cfg->controllers[cfg->controllerCount++];
     sc->type = CTRL_SCSI;
     sc->wheel = 0;
     sc->enabled = true;
@@ -340,7 +340,7 @@ static int mc_err(char *err, size_t errlen, const char *path, int line, const ch
 
 /* Find (or create) the controller matching (type,wheel). Returns NULL if the
  * table is full. *created set true when a new entry was allocated. */
-static MC_Controller *mc_get_controller(MachineConfig *cfg, CtrlType type, int wheel, bool *created)
+static McController *mc_get_controller(MachineConfig *cfg, CtrlType type, int wheel, bool *created)
 {
     if (created)
     {
@@ -357,7 +357,7 @@ static MC_Controller *mc_get_controller(MachineConfig *cfg, CtrlType type, int w
     {
         return NULL;
     }
-    MC_Controller *c = &cfg->controllers[cfg->controllerCount++];
+    McController *c = &cfg->controllers[cfg->controllerCount++];
     memset(c, 0, sizeof(*c));
     c->type = type;
     c->wheel = wheel;
@@ -385,29 +385,29 @@ static bool mc_parse_controller_header(const char *rest, CtrlType *type, int *wh
                       rest);
     }
     *dot = '\0';
-    const char *typeName = buf;
-    const char *wheelStr = dot + 1;
+    const char *type_name = buf;
+    const char *wheel_str = dot + 1;
 
-    const ControllerDescriptor *d = mc_descriptor_for_name(typeName);
+    const ControllerDescriptor *d = mc_descriptor_for_name(type_name);
     if (!d)
     {
         return mc_err(err, errlen, path, line,
                       "unknown controller type '%s'. Known types: floppy, smd, wd, scsi, hdlc.",
-                      typeName);
+                      type_name);
     }
 
     char *endp;
-    long w = strtol(wheelStr, &endp, 10);
+    long w = strtol(wheel_str, &endp, 10);
     if (*endp != '\0' || w < 0)
     {
         return mc_err(err, errlen, path, line, "[controller.%s.%s]: thumbwheel must be a number.",
-                      typeName, wheelStr);
+                      type_name, wheel_str);
     }
     if (w < d->min_wheel || w > d->max_wheel)
     {
         return mc_err(err, errlen, path, line,
-                      "[controller.%s.%ld]: thumbwheel %ld out of range for %s (%d-%d).", typeName,
-                      w, w, typeName, d->min_wheel, d->max_wheel);
+                      "[controller.%s.%ld]: thumbwheel %ld out of range for %s (%d-%d).", type_name,
+                      w, w, type_name, d->min_wheel, d->max_wheel);
     }
 
     *type = d->type;
@@ -416,7 +416,7 @@ static bool mc_parse_controller_header(const char *rest, CtrlType *type, int *wh
 }
 
 /* Parse a diskN key for a disc controller. keyrest is the text after "disk". */
-static bool mc_parse_disk_key(MC_Controller *c, const ControllerDescriptor *d, const char *keyrest,
+static bool mc_parse_disk_key(McController *c, const ControllerDescriptor *d, const char *keyrest,
                               const char *value, char *err, size_t errlen, const char *path,
                               int line)
 {
@@ -504,10 +504,10 @@ bool MachineConfig_LoadFile(MachineConfig *cfg, const char *path, char *err, siz
     int lineno = 0;
 
     SectionKind kind = SEC_NONE;
-    CtrlType curType = CTRL_NONE;
-    int curWheel = 0;
-    MC_Controller *curCtrl = NULL;
-    char periphName[64] = {0};
+    CtrlType cur_type = CTRL_NONE;
+    int cur_wheel = 0;
+    McController *cur_ctrl = NULL;
+    char periph_name[64] = {0};
 
     while (fgets(line, sizeof(line), f))
     {
@@ -542,7 +542,7 @@ bool MachineConfig_LoadFile(MachineConfig *cfg, const char *path, char *err, siz
             char *sec = str_trim(p + 1);
             str_lower(sec);
 
-            curCtrl = NULL;
+            cur_ctrl = NULL;
             if (str_ieq(sec, "machine"))
             {
                 kind = SEC_MACHINE;
@@ -570,7 +570,7 @@ bool MachineConfig_LoadFile(MachineConfig *cfg, const char *path, char *err, siz
             else if (strncmp(sec, "controller.", 11) == 0)
             {
                 kind = SEC_CONTROLLER;
-                if (!mc_parse_controller_header(sec + 11, &curType, &curWheel, err, errlen, path,
+                if (!mc_parse_controller_header(sec + 11, &cur_type, &cur_wheel, err, errlen, path,
                                                 lineno))
                 {
                     fclose(f);
@@ -579,21 +579,21 @@ bool MachineConfig_LoadFile(MachineConfig *cfg, const char *path, char *err, siz
                 /* duplicate controller = duplicate (type,wheel) section */
                 for (int i = 0; i < cfg->controllerCount; i++)
                 {
-                    if (cfg->controllers[i].type == curType &&
-                        cfg->controllers[i].wheel == curWheel)
+                    if (cfg->controllers[i].type == cur_type &&
+                        cfg->controllers[i].wheel == cur_wheel)
                     {
                         fclose(f);
                         return mc_err(err, errlen, path, lineno,
                                       "[controller.%s.%d]: duplicate controller. "
                                       "A '%s' controller on thumbwheel %d is already defined. "
                                       "Each controller+thumbwheel may appear only once.",
-                                      MC_CtrlTypeName(curType), curWheel, MC_CtrlTypeName(curType),
-                                      curWheel);
+                                      MC_CtrlTypeName(cur_type), cur_wheel,
+                                      MC_CtrlTypeName(cur_type), cur_wheel);
                     }
                 }
                 bool created = false;
-                curCtrl = mc_get_controller(cfg, curType, curWheel, &created);
-                if (!curCtrl)
+                cur_ctrl = mc_get_controller(cfg, cur_type, cur_wheel, &created);
+                if (!cur_ctrl)
                 {
                     fclose(f);
                     return mc_err(err, errlen, path, lineno, "too many controllers (max %d).",
@@ -603,7 +603,7 @@ bool MachineConfig_LoadFile(MachineConfig *cfg, const char *path, char *err, siz
             else if (strncmp(sec, "peripheral.", 11) == 0)
             {
                 kind = SEC_PERIPHERAL;
-                str_copy(periphName, sizeof(periphName), sec + 11);
+                str_copy(periph_name, sizeof(periph_name), sec + 11);
             }
             else
             {
@@ -715,11 +715,11 @@ bool MachineConfig_LoadFile(MachineConfig *cfg, const char *path, char *err, siz
 
         case SEC_CONTROLLER:
         {
-            if (!curCtrl)
+            if (!cur_ctrl)
             {
                 break;
             }
-            const ControllerDescriptor *d = MC_DescriptorForType(curType);
+            const ControllerDescriptor *d = MC_DescriptorForType(cur_type);
             if (!d)
             {
                 break;
@@ -732,13 +732,13 @@ bool MachineConfig_LoadFile(MachineConfig *cfg, const char *path, char *err, siz
                     fclose(f);
                     return mc_err(err, errlen, path, lineno,
                                   "[controller.%s.%d] enabled = %s: use yes or no.", d->name,
-                                  curWheel, val);
+                                  cur_wheel, val);
                 }
-                curCtrl->enabled = (b == 1);
+                cur_ctrl->enabled = (b == 1);
             }
             else if (strncmp(keyl, "disk", 4) == 0 && d->is_disc)
             {
-                if (!mc_parse_disk_key(curCtrl, d, keyl + 4, val, err, errlen, path, lineno))
+                if (!mc_parse_disk_key(cur_ctrl, d, keyl + 4, val, err, errlen, path, lineno))
                 {
                     fclose(f);
                     return false;
@@ -748,23 +748,23 @@ bool MachineConfig_LoadFile(MachineConfig *cfg, const char *path, char *err, siz
             {
                 if (str_ieq(val, "server"))
                 {
-                    curCtrl->hdlc_is_server = true;
+                    cur_ctrl->hdlc_is_server = true;
                 }
                 else if (str_ieq(val, "client"))
                 {
-                    curCtrl->hdlc_is_server = false;
+                    cur_ctrl->hdlc_is_server = false;
                 }
                 else
                 {
                     fclose(f);
                     return mc_err(err, errlen, path, lineno,
-                                  "[controller.hdlc.%d] mode = %s: use server or client.", curWheel,
-                                  val);
+                                  "[controller.hdlc.%d] mode = %s: use server or client.",
+                                  cur_wheel, val);
                 }
             }
             else if (d->type == CTRL_HDLC && str_ieq(keyl, "host"))
             {
-                str_copy(curCtrl->hdlc_host, MC_PATH_LEN, val);
+                str_copy(cur_ctrl->hdlc_host, MC_PATH_LEN, val);
             }
             else if (d->type == CTRL_HDLC && str_ieq(keyl, "port"))
             {
@@ -774,16 +774,16 @@ bool MachineConfig_LoadFile(MachineConfig *cfg, const char *path, char *err, siz
                 {
                     fclose(f);
                     return mc_err(err, errlen, path, lineno,
-                                  "[controller.hdlc.%d] port = %s: must be 1-65535.", curWheel,
+                                  "[controller.hdlc.%d] port = %s: must be 1-65535.", cur_wheel,
                                   val);
                 }
-                curCtrl->hdlc_port = (int)pt;
+                cur_ctrl->hdlc_port = (int)pt;
             }
             else
             {
                 fclose(f);
                 return mc_err(err, errlen, path, lineno, "[controller.%s.%d]: unknown key '%s'.",
-                              d->name, curWheel, key);
+                              d->name, cur_wheel, key);
             }
             break;
         }
@@ -826,15 +826,15 @@ bool MachineConfig_LoadFile(MachineConfig *cfg, const char *path, char *err, siz
         case SEC_PERIPHERAL:
         {
             bool *target = NULL;
-            if (str_ieq(periphName, "papertape-reader"))
+            if (str_ieq(periph_name, "papertape-reader"))
             {
                 target = &cfg->ptreader_enabled;
             }
-            else if (str_ieq(periphName, "papertape-punch"))
+            else if (str_ieq(periph_name, "papertape-punch"))
             {
                 target = &cfg->ptpunch_enabled;
             }
-            else if (str_ieq(periphName, "lineprinter"))
+            else if (str_ieq(periph_name, "lineprinter"))
             {
                 target = &cfg->lineprinter_enabled;
             }
@@ -844,7 +844,7 @@ bool MachineConfig_LoadFile(MachineConfig *cfg, const char *path, char *err, siz
                 return mc_err(err, errlen, path, lineno,
                               "unknown peripheral '%s'. Known: papertape-reader, papertape-punch, "
                               "lineprinter.",
-                              periphName);
+                              periph_name);
             }
             if (str_ieq(keyl, "enabled"))
             {
@@ -853,7 +853,7 @@ bool MachineConfig_LoadFile(MachineConfig *cfg, const char *path, char *err, siz
                 {
                     fclose(f);
                     return mc_err(err, errlen, path, lineno,
-                                  "[peripheral.%s] enabled = %s: use yes or no.", periphName, val);
+                                  "[peripheral.%s] enabled = %s: use yes or no.", periph_name, val);
                 }
                 *target = (b == 1);
             }
@@ -1159,7 +1159,7 @@ static bool validate_boot_device(const MachineConfig *cfg, char *err, size_t err
                           MC_CtrlTypeName(cfg->boot.type));
         }
         /* find the enabled controller instance */
-        const MC_Controller *bc = NULL;
+        const McController *bc = NULL;
         for (int i = 0; i < cfg->controllerCount; i++)
         {
             if (cfg->controllers[i].type == cfg->boot.type &&
@@ -1212,15 +1212,15 @@ bool MachineConfig_Validate(const MachineConfig *cfg, char *err, size_t errlen)
     /* Gather IOX ranges of every enabled controller, checking overlap as we go
      * (against core devices and each other). */
     IoxRange used[MC_MAX_CONTROLLERS + 8];
-    int usedCount = 0;
+    int used_count = 0;
     for (size_t i = 0; i < sizeof(g_core_ranges) / sizeof(g_core_ranges[0]); i++)
     {
-        used[usedCount++] = g_core_ranges[i];
+        used[used_count++] = g_core_ranges[i];
     }
 
     for (int i = 0; i < cfg->controllerCount; i++)
     {
-        const MC_Controller *c = &cfg->controllers[i];
+        const McController *c = &cfg->controllers[i];
         if (!c->enabled)
         {
             continue;
@@ -1248,7 +1248,7 @@ bool MachineConfig_Validate(const MachineConfig *cfg, char *err, size_t errlen)
         }
 
         uint16_t base = d->iox_base[c->wheel];
-        for (int j = 0; j < usedCount; j++)
+        for (int j = 0; j < used_count; j++)
         {
             if (ranges_overlap(base, d->iox_span, used[j].base, used[j].span))
             {
@@ -1258,10 +1258,10 @@ bool MachineConfig_Validate(const MachineConfig *cfg, char *err, size_t errlen)
                               d->name, c->wheel, base, base + d->iox_span - 1, used[j].name);
             }
         }
-        used[usedCount].base = base;
-        used[usedCount].span = d->iox_span;
-        used[usedCount].name = d->name;
-        usedCount++;
+        used[used_count].base = base;
+        used[used_count].span = d->iox_span;
+        used[used_count].name = d->name;
+        used_count++;
 
         /* SCSI: booting/using needs implemented media (hdd only today) */
         for (int s = 0; s < d->disk_slots; s++)
@@ -1296,7 +1296,7 @@ void MachineConfig_Print(const MachineConfig *cfg, FILE *out)
     fprintf(out, "  Controllers:\n");
     for (int i = 0; i < cfg->controllerCount; i++)
     {
-        const MC_Controller *c = &cfg->controllers[i];
+        const McController *c = &cfg->controllers[i];
         const ControllerDescriptor *d = MC_DescriptorForType(c->type);
         if (!d)
         {
@@ -1419,7 +1419,7 @@ bool MachineConfig_WriteFile(const MachineConfig *cfg, const char *path, char *e
 
     for (int i = 0; i < cfg->controllerCount; i++)
     {
-        const MC_Controller *c = &cfg->controllers[i];
+        const McController *c = &cfg->controllers[i];
         const ControllerDescriptor *d = MC_DescriptorForType(c->type);
         if (!d)
         {
@@ -1601,26 +1601,26 @@ bool MachineConfig_WriteFile(const MachineConfig *cfg, const char *path, char *e
 /* ------------------------------------------------------------------ */
 /* CPU number -> CpuType                                               */
 /* ------------------------------------------------------------------ */
-bool MachineConfig_CpuTypeForNumber(int cpuNumber, int *outType)
+bool MachineConfig_CpuTypeForNumber(int cpu_number, int *out_type)
 {
-    switch (cpuNumber)
+    switch (cpu_number)
     {
     case 100:
-        if (outType)
+        if (out_type)
         {
-            *outType = ND100;
+            *out_type = ND100;
         }
         return true;
     case 110:
-        if (outType)
+        if (out_type)
         {
-            *outType = ND110;
+            *out_type = ND110;
         }
         return true;
     case 120:
-        if (outType)
+        if (out_type)
         {
-            *outType = ND120CX;
+            *out_type = ND120CX;
         }
         return true;
     default:

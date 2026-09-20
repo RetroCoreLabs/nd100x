@@ -72,7 +72,7 @@ void MachineConfig_ApplyDevices(const MachineConfig *mc)
 
     for (int i = 0; i < mc->controllerCount; i++)
     {
-        const MC_Controller *c = &mc->controllers[i];
+        const McController *c = &mc->controllers[i];
         if (!c->enabled)
         {
             continue;

@@ -197,7 +197,7 @@ bool MachineConfig_ToJson(const MachineConfig *cfg, char *out, size_t outlen)
     put(&s, "\"controllers\":[");
     for (i = 0; i < cfg->controllerCount; i++)
     {
-        const MC_Controller *c = &cfg->controllers[i];
+        const McController *c = &cfg->controllers[i];
         const ControllerDescriptor *d = MC_DescriptorForType(c->type);
         put(&s, "%s{", i ? "," : "");
         kv_str(&s, "type", MC_CtrlTypeName(c->type), 1);
@@ -209,7 +209,7 @@ bool MachineConfig_ToJson(const MachineConfig *cfg, char *out, size_t outlen)
         put(&s, "\"disks\":[");
         for (j = 0; j < MC_MAX_DISK_SLOTS; j++)
         {
-            const MC_DiskSlot *k = &c->disks[j];
+            const McDiskSlot *k = &c->disks[j];
             put(&s, "%s{\"slot\":%d,\"present\":%s,", j ? "," : "", j,
                 k->present ? "true" : "false");
             kv_str(&s, "media", media_name(k->media), 1);

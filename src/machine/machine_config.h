@@ -59,20 +59,20 @@ typedef struct
     bool present;
     SCSIUnitType media;
     char image[MC_PATH_LEN];
-} MC_DiskSlot;
+} McDiskSlot;
 
 typedef struct
 {
     CtrlType type;
     int wheel;
     bool enabled;
-    MC_DiskSlot disks[MC_MAX_DISK_SLOTS];
+    McDiskSlot disks[MC_MAX_DISK_SLOTS];
 
     /* HDLC-only settings (ignored for other types). */
     bool hdlc_is_server; /* true = server (listen), false = client */
     char hdlc_host[MC_PATH_LEN];
     int hdlc_port;
-} MC_Controller;
+} McController;
 
 /* Boot device. For a disc boot, (type,wheel,unit) name the controller slot.
  * For a file boot (bpun/aout), file_boot_type + file are used instead. */
@@ -84,7 +84,7 @@ typedef struct
     int unit;
     BOOT_TYPE file_boot_type; /* BOOT_BPUN / BOOT_AOUT when !is_disc */
     char file[MC_PATH_LEN];
-} MC_BootSpec;
+} McBootSpec;
 
 /* Non-hardware runtime options. A CLI flag overrides the INI value per run. */
 typedef struct
@@ -137,7 +137,7 @@ typedef struct
     /* disk0 is the root. A slot is unused when its image is empty. */
     char disks[MC_ND500_MAX_DISKS][MC_PATH_LEN];
     bool disk_writable[MC_ND500_MAX_DISKS];
-} MC_Nd500;
+} McNd500;
 
 typedef struct
 {
@@ -154,7 +154,7 @@ typedef struct
     bool rtc_wall; /* false = RTC counts instruction ticks (default);
                                        true = RTC pulses every 20 ms of host wall-clock time */
 
-    MC_Controller controllers[MC_MAX_CONTROLLERS];
+    McController controllers[MC_MAX_CONTROLLERS];
     int controllerCount;
 
     int terminals[MC_MAX_TERMINALS];
@@ -164,9 +164,9 @@ typedef struct
     bool ptpunch_enabled;
     bool lineprinter_enabled;
 
-    MC_BootSpec boot;
+    McBootSpec boot;
     MC_Runtime runtime;
-    MC_Nd500 nd500;
+    McNd500 nd500;
 
     bool loaded_from_file;
     char source_path[MC_PATH_LEN];
@@ -283,7 +283,7 @@ bool MachineConfig_WriteFile(const MachineConfig *cfg, const char *path, char *e
  * @return true and *outType set on success; false if the number has no CpuType
  *         yet (e.g. 120).
  */
-bool MachineConfig_CpuTypeForNumber(int cpuNumber, int *outType);
+bool MachineConfig_CpuTypeForNumber(int cpu_number, int *out_type);
 
 /**
  * @brief Derive the autoload INI filename from argv[0].

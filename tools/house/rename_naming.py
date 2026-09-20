@@ -178,7 +178,7 @@ def load_renames(fix_files, module_dir):
             new = fix_prefix(kind, message)
             if not new:
                 continue  # non-static global: needs a whole-tree pass
-            if SUSPECT.search(new) and not SUSPECT.search(old.lower()):
+            if suspect(old, new):
                 # A split acronym the table does not cover. Guessing produces
                 # names like co_m5025_send_one_byte, so it is left alone and
                 # reported for a person to spell.
@@ -207,10 +207,31 @@ SPELLINGS = {
     "bits2_char_len": "bits_to_character_length",
 }
 
-# A name that still looks like a split acronym after the table has been applied
-# is not guessed at: a single letter alone between underscores, or a letter
-# immediately followed by digits where the original had none.
-SUSPECT = re.compile(r"(^|_)[a-z](_|[0-9])")
+# Split a name the way a reader would: an all-capitals run with any trailing
+# digits is one word (COM5025, IRQ12, B1), otherwise a capital starts a word.
+WORD = re.compile(r"[A-Z]+(?![a-z])[0-9]*|[A-Z][a-z0-9]*|[a-z][a-z0-9]*|[0-9]+")
+
+
+def expected_snake(old):
+    """What lower_case should look like, keeping acronyms whole."""
+    words = []
+    for part in old.split("_"):
+        words += WORD.findall(part)
+    return "_".join(w.lower() for w in words)
+
+
+def suspect(old, new):
+    """True if clang-tidy split the name somewhere a reader would not.
+
+    COM5025_SendOneByte comes back as co_m5025_send_one_byte and IRQ12 as
+    ir_q12, because clang-tidy breaks at every capital. firstB1 -> first_b1 is
+    correct and must not be refused, so the test is whether the result matches
+    an acronym-aware split rather than whether it merely looks odd.
+
+    A lowercase word glued to an acronym - CHStoLBA - cannot be told apart
+    this way and still needs a person; SPELLINGS carries those.
+    """
+    return new != expected_snake(old)
 
 
 def spell_out(new):
@@ -258,7 +279,7 @@ def fix_prefix(kind, message):
     return new
 
 
-def filter_fixes(fix_files, module_dir, out_dir):
+def filter_fixes(fix_files, module_dir, out_dir, escapes=()):
     """Copy the fix files to out_dir, dropping replacements outside module_dir."""
     kept = 0
     for index, path in enumerate(fix_files):
@@ -288,10 +309,12 @@ def filter_fixes(fix_files, module_dir, out_dir):
             if found:
                 if found.group(1) == "global function":
                     continue  # rule 3.1, left to the clang-rename pass
+                if found.group(2) in escapes:
+                    continue  # used from another module; not ours to rewrite
                 spelled = fix_prefix(found.group(1), message)
                 if not spelled or spelled == found.group(2):
                     continue  # non-static global, or a no-op after the g_ strip
-                if SUSPECT.search(spelled) and not SUSPECT.search(found.group(2).lower()):
+                if suspect(found.group(2), spelled):
                     continue  # split acronym with no known spelling
             diag["DiagnosticMessage"] = message
             diags.append(diag)
@@ -316,6 +339,40 @@ def write_rename_tsv(inside):
 
 
 KINDS_TSV = os.path.join(REPO, "docs", "house-audit", "rename_kinds.tsv")
+
+
+def used_outside(names, module_dir):
+    """Of these names, the ones that also appear in files outside the module.
+
+    clang-tidy works one translation unit at a time, so a name declared here
+    and used from another module is reported only as this module's diagnostic:
+    the atomic check cannot see the other uses. That is how renaming
+    scsi_debug_enabled broke the vendored ncr5386.c, and how renaming the
+    typedef BOOT_TYPE would break src/frontend/nd100x.
+
+    A textual scan is the right tool here: it is looking for the name anywhere
+    the compiler is not looking, including inactive #ifdef branches.
+    """
+    if not names:
+        return set()
+    pattern = re.compile(r"\b(" + "|".join(map(re.escape, names)) + r")\b")
+    found = set()
+    for top in ("src", "tests"):
+        for base, dirs, files in os.walk(os.path.join(REPO, top)):
+            dirs[:] = [d for d in dirs if d != "external"]
+            for name in files:
+                if not name.endswith((".c", ".h")):
+                    continue
+                path = os.path.join(base, name)
+                if inside_module(path, module_dir):
+                    continue
+                try:
+                    with open(path, encoding="utf-8", errors="replace") as handle:
+                        for line in handle:
+                            found.update(pattern.findall(line))
+                except OSError:
+                    continue
+    return found
 
 
 def record_kinds(inside, module_dir):
@@ -456,6 +513,14 @@ def main():
     try:
         fix_files = run_tidy(sources, module_dir, work)
         inside, outside, unspellable = load_renames(fix_files, module_dir)
+        # A local or a parameter cannot be referenced from another file, so
+        # only the rest are checked; their names also recur harmlessly.
+        local_kinds = ("local variable", "parameter")
+        escapes = used_outside(
+            [old for kind, old, _, _ in inside if kind not in local_kinds],
+            module_dir)
+        if escapes:
+            inside = [r for r in inside if r[1] not in escapes]
 
         by_kind = {}
         for kind, old, new, _ in inside:
@@ -464,6 +529,12 @@ def main():
             print(f"\n{kind} ({len(by_kind[kind])}):")
             for old, new in sorted(by_kind[kind]):
                 print(f"  {old} -> {new}")
+        if escapes:
+            print(f"\nNOT renamed - declared here but used from another "
+                  f"module, which this per-module tool cannot rewrite "
+                  f"({len(escapes)}):")
+            for name in sorted(escapes):
+                print(f"  {name}")
         if unspellable:
             print(f"\nNOT renamed - clang-tidy split an acronym and the "
                   f"spelling is not known ({len(unspellable)}):")
@@ -484,7 +555,7 @@ def main():
 
         applied = os.path.join(work, "apply")
         os.makedirs(applied)
-        count = filter_fixes(fix_files, module_dir, applied)
+        count = filter_fixes(fix_files, module_dir, applied, escapes)
         if not count:
             print("\nnothing to apply")
             return 0

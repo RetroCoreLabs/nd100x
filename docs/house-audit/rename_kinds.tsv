@@ -1,0 +1,28 @@
+module	kind	file	old	new
+src/machine	global variable	src/machine/machine_config.c	_mc_unused_iox	mc_unused_iox
+src/machine	local variable	src/machine/machine.c	bootAddress	boot_address
+src/machine	local variable	src/machine/machine_config.c	curCtrl	cur_ctrl
+src/machine	local variable	src/machine/machine_config.c	curType	cur_type
+src/machine	local variable	src/machine/machine_config.c	curWheel	cur_wheel
+src/machine	local variable	src/machine/io.c	interruptBits	interrupt_bits
+src/machine	local variable	src/machine/machine_config.c	periphName	periph_name
+src/machine	local variable	src/machine/machine_config.c	typeName	type_name
+src/machine	local variable	src/machine/machine_config.c	usedCount	used_count
+src/machine	local variable	src/machine/machine_config.c	wheelStr	wheel_str
+src/machine	parameter	src/machine/machine.c	blockAddress	block_address
+src/machine	parameter	src/machine/machine.c	bootType	boot_type
+src/machine	parameter	src/machine/machine.c	bootUnit	boot_unit
+src/machine	parameter	src/machine/machine_config.h	cpuNumber	cpu_number
+src/machine	parameter	src/machine/machine.c	debuggerEnabled	debugger_enabled
+src/machine	parameter	src/machine/machine.c	debuggerPort	debugger_port
+src/machine	parameter	src/machine/machine.c	deviceNum	device_num
+src/machine	parameter	src/machine/machine.c	imageFile	image_file
+src/machine	parameter	src/machine/machine.c	imageSize	image_size
+src/machine	parameter	src/machine/machine.c	isServer	is_server
+src/machine	parameter	src/machine/machine_config.h	outType	out_type
+src/machine	parameter	src/machine/io.c	regA	reg_a
+src/machine	static variable	src/machine/machine.c	_floppy_read_log	floppy_read_log
+src/machine	typedef	src/machine/machine_config.h	MC_BootSpec	McBootSpec
+src/machine	typedef	src/machine/machine_config.h	MC_Controller	McController
+src/machine	typedef	src/machine/machine_config.h	MC_DiskSlot	McDiskSlot
+src/machine	typedef	src/machine/machine_config.h	MC_Nd500	McNd500

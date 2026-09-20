@@ -206,7 +206,7 @@ static bool drive_type_for_device(const Device *device, DRIVE_TYPE *drive_type)
 }
 
 // Returns 0, or -1 if the machine could not be set up (out of memory).
-int machine_init(bool debuggerEnabled, int debuggerPort)
+int machine_init(bool debugger_enabled, int debugger_port)
 {
 
     // Initialize drive arrays
@@ -217,7 +217,7 @@ int machine_init(bool debuggerEnabled, int debuggerPort)
     }
 
     // Initialize the CPU
-    cpu_init(debuggerEnabled, debuggerPort);
+    cpu_init(debugger_enabled, debugger_port);
 
     // Initialize the CPU debugger (if enabled, starts the debugger thread)
     init_cpu_debugger();
@@ -234,25 +234,25 @@ int machine_init(bool debuggerEnabled, int debuggerPort)
     return 0;
 }
 
-void machine_add_hdlc(int deviceNum, bool isServer, const char *address, int port)
+void machine_add_hdlc(int device_num, bool is_server, const char *address, int port)
 {
-    bool success = DeviceManager_AddHDLCDevice_WithConfig(deviceNum, isServer, address, port);
+    bool success = DeviceManager_AddHDLCDevice_WithConfig(device_num, is_server, address, port);
     if (success)
     {
-        if (isServer)
+        if (is_server)
         {
-            LOG(LOG_CAT_MACHINE, LOG_INFO, "HDLC %d added (server mode on port %d)\n", deviceNum,
+            LOG(LOG_CAT_MACHINE, LOG_INFO, "HDLC %d added (server mode on port %d)\n", device_num,
                 port);
         }
         else
         {
-            LOG(LOG_CAT_MACHINE, LOG_INFO, "HDLC %d added (client mode to %s:%d)\n", deviceNum,
+            LOG(LOG_CAT_MACHINE, LOG_INFO, "HDLC %d added (client mode to %s:%d)\n", device_num,
                 address, port);
         }
     }
     else
     {
-        LOG(LOG_CAT_MACHINE, LOG_ERROR, "Failed to add HDLC device %d\n", deviceNum);
+        LOG(LOG_CAT_MACHINE, LOG_ERROR, "Failed to add HDLC device %d\n", device_num);
     }
 }
 
@@ -422,9 +422,9 @@ void write_memory(uint32_t address, uint16_t value)
 }
 
 
-void mount_floppy(const char *imageFile, int unit)
+void mount_floppy(const char *image_file, int unit)
 {
-    const char *floppy_img = imageFile ? imageFile : "FLOPPY.IMG";
+    const char *floppy_img = image_file ? image_file : "FLOPPY.IMG";
 
     // if file exists  mount it
     FILE *ftmp = fopen(floppy_img, "rb");
@@ -595,12 +595,12 @@ int machine_floppy_mount_catalog(int unit, const char *selector)
 }
 
 
-void mount_smd(const char *imageFile, int unit)
+void mount_smd(const char *image_file, int unit)
 {
     char path[256];
     snprintf(path, sizeof(path), "SMD%d.IMG", unit);
 
-    const char *smd_img = imageFile ? imageFile : path;
+    const char *smd_img = image_file ? image_file : path;
 
     // if file exists  mount it
     FILE *ftmp2 = fopen(smd_img, "rb");
@@ -625,12 +625,12 @@ void mount_smd(const char *imageFile, int unit)
  * carries the unit in a single bit (b9), so the unit range is a hardware
  * property rather than a configuration choice.
  */
-void mount_winchester(const char *imageFile, int unit)
+void mount_winchester(const char *image_file, int unit)
 {
     char path[256];
     snprintf(path, sizeof(path), "WD%d.IMG", unit);
 
-    const char *wd_img = imageFile ? imageFile : path;
+    const char *wd_img = image_file ? image_file : path;
 
     /* if the file exists, mount it */
     FILE *ftmp = fopen(wd_img, "rb");
@@ -660,12 +660,12 @@ void mount_winchester(const char *imageFile, int unit)
  * in machine_block_read/write uses device->blockSizeBytes, not the mount's
  * block_size, so the mount stays type-agnostic.
  */
-void mount_scsi(const char *imageFile, int unit)
+void mount_scsi(const char *image_file, int unit)
 {
     char path[256];
     snprintf(path, sizeof(path), "SCSI%d.IMG", unit);
 
-    const char *scsi_img = imageFile ? imageFile : path;
+    const char *scsi_img = image_file ? image_file : path;
 
     // if file exists mount it
     FILE *ftmp = fopen(scsi_img, "rb");
@@ -857,31 +857,31 @@ static int tape_leader_load(const char *path, bool verbose)
     return start;
 }
 
-int program_load(BOOT_TYPE bootType, int bootUnit, const char *imageFile, bool verbose,
+int program_load(BOOT_TYPE boot_type, int boot_unit, const char *image_file, bool verbose,
                  uint16_t text_start, bool overlay_deposit)
 {
-    int bootAddress;
+    int boot_address;
     g_start_addr = 0;
 
-    switch (bootType)
+    switch (boot_type)
     {
     case BOOT_BP:
-        bootAddress = bp_load(imageFile);
-        if (bootAddress < 0)
+        boot_address = bp_load(image_file);
+        if (boot_address < 0)
         {
-            LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error loading BP file '%s'\n", imageFile);
+            LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error loading BP file '%s'\n", image_file);
             return PROGRAM_LOAD_ERR_LOAD;
         }
         break;
 
     case BOOT_BPUN:
-        bootAddress = LoadBPUN(imageFile, verbose);
-        if (bootAddress < 0)
+        boot_address = LoadBPUN(image_file, verbose);
+        if (boot_address < 0)
         {
-            LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error loading BPUN file '%s'\n", imageFile);
+            LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error loading BPUN file '%s'\n", image_file);
             return PROGRAM_LOAD_ERR_LOAD;
         }
-        g_start_addr = bootAddress;
+        g_start_addr = boot_address;
         break;
     case BOOT_AOUT:
 #ifdef _WIN32
@@ -889,96 +889,96 @@ int program_load(BOOT_TYPE bootType, int bootUnit, const char *imageFile, bool v
             "Error: AOUT boot not available on Windows (libsymbols not ported yet)\n");
         return PROGRAM_LOAD_ERR_LOAD;
 #else
-        bootAddress = load_aout(imageFile, verbose, write_memory, text_start, overlay_deposit);
-        if (bootAddress < 0)
+        boot_address = load_aout(image_file, verbose, write_memory, text_start, overlay_deposit);
+        if (boot_address < 0)
         {
-            LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error loading AOUT file '%s'\n", imageFile);
+            LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error loading AOUT file '%s'\n", image_file);
             return PROGRAM_LOAD_ERR_LOAD;
         }
-        g_start_addr = bootAddress;
+        g_start_addr = boot_address;
 #endif
         break;
     case BOOT_PROG:
         /* SINTRAN :PROG loadable image. LoadPROG() writes the Bank 1 image to
          * physical memory and returns the program start address. Unlike BPUN,
          * the entry is the real start address (no separate boot/action fields). */
-        bootAddress = LoadPROG(imageFile, verbose);
-        if (bootAddress < 0)
+        boot_address = LoadPROG(image_file, verbose);
+        if (boot_address < 0)
         {
-            LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error loading PROG file '%s'\n", imageFile);
+            LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error loading PROG file '%s'\n", image_file);
             return PROGRAM_LOAD_ERR_LOAD;
         }
-        g_start_addr = bootAddress;
+        g_start_addr = boot_address;
         break;
     case BOOT_FLOPPY:
         // Record mount state for UI/menus; device still boots via BPUN for now
-        mount_floppy(imageFile, 0);
+        mount_floppy(image_file, 0);
 
-        bootAddress = LoadBPUN(imageFile, verbose);
-        if (bootAddress < 0)
+        boot_address = LoadBPUN(image_file, verbose);
+        if (boot_address < 0)
         {
             LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error loading BPUN file\n");
             return PROGRAM_LOAD_ERR_LOAD;
         }
 
-        g_start_addr = bootAddress;
+        g_start_addr = boot_address;
         break;
     case BOOT_SMD:
 
         // Only mount from MEMFS file if not already mounted (gateway/OPFS mounts take priority)
-        if (!isMounted(DRIVE_SMD, bootUnit))
+        if (!isMounted(DRIVE_SMD, boot_unit))
         {
-            mount_smd(imageFile, bootUnit);
+            mount_smd(image_file, boot_unit);
         }
 
-        bootAddress = DeviceManager_BootFrom(DEVICE_TYPE_DISC_SMD, bootUnit);
-        if (bootAddress < 0)
+        boot_address = DeviceManager_BootFrom(DEVICE_TYPE_DISC_SMD, boot_unit);
+        if (boot_address < 0)
         {
-            LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error booting from SMD unit %d\n", bootUnit);
+            LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error booting from SMD unit %d\n", boot_unit);
             return PROGRAM_LOAD_ERR_BOOT;
         }
-        g_start_addr = bootAddress;
+        g_start_addr = boot_address;
         break;
     case BOOT_WINCHESTER:
 
         // Only mount from MEMFS file if not already mounted
-        if (!isMounted(DRIVE_WINCHESTER, bootUnit))
+        if (!isMounted(DRIVE_WINCHESTER, boot_unit))
         {
-            mount_winchester(imageFile, bootUnit);
+            mount_winchester(image_file, boot_unit);
         }
 
-        bootAddress = DeviceManager_BootFrom(DEVICE_TYPE_DISC_WINCHESTER, bootUnit);
-        if (bootAddress < 0)
+        boot_address = DeviceManager_BootFrom(DEVICE_TYPE_DISC_WINCHESTER, boot_unit);
+        if (boot_address < 0)
         {
-            LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error booting from Winchester unit %d\n", bootUnit);
+            LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error booting from Winchester unit %d\n", boot_unit);
             return PROGRAM_LOAD_ERR_BOOT;
         }
-        g_start_addr = bootAddress;
+        g_start_addr = boot_address;
         break;
     case BOOT_SCSI:
 
         // Only mount from MEMFS file if not already mounted
-        if (!isMounted(DRIVE_SCSI, bootUnit))
+        if (!isMounted(DRIVE_SCSI, boot_unit))
         {
-            mount_scsi(imageFile, bootUnit);
+            mount_scsi(image_file, boot_unit);
         }
 
-        bootAddress = DeviceManager_BootFrom(DEVICE_TYPE_DISC_SCSI, bootUnit);
-        if (bootAddress < 0)
+        boot_address = DeviceManager_BootFrom(DEVICE_TYPE_DISC_SCSI, boot_unit);
+        if (boot_address < 0)
         {
-            LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error booting from SCSI unit %d\n", bootUnit);
+            LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error booting from SCSI unit %d\n", boot_unit);
             return PROGRAM_LOAD_ERR_BOOT;
         }
-        g_start_addr = bootAddress;
+        g_start_addr = boot_address;
         break;
     case BOOT_TAPE:
-        bootAddress = tape_leader_load(imageFile, verbose);
-        if (bootAddress < 0)
+        boot_address = tape_leader_load(image_file, verbose);
+        if (boot_address < 0)
         {
-            LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error booting tape '%s'\n", imageFile);
+            LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error booting tape '%s'\n", image_file);
             return PROGRAM_LOAD_ERR_BOOT;
         }
-        g_start_addr = bootAddress;
+        g_start_addr = boot_address;
         break;
 
     case BOOT_CDC:
@@ -988,13 +988,13 @@ int program_load(BOOT_TYPE bootType, int bootUnit, const char *imageFile, bool v
          * LOAD-SYSTEM command (LOADV) does exactly the same thing at runtime.
          * The CDC controller keeps its surface in memory, so there is no
          * mount step here - the image is attached with --cdc=FILE. */
-        bootAddress = DeviceManager_BootFrom(DEVICE_TYPE_CDC, bootUnit);
-        if (bootAddress < 0)
+        boot_address = DeviceManager_BootFrom(DEVICE_TYPE_CDC, boot_unit);
+        if (boot_address < 0)
         {
             LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error booting from CDC disc\n");
             return PROGRAM_LOAD_ERR_BOOT;
         }
-        g_start_addr = bootAddress;
+        g_start_addr = boot_address;
         break;
     case BOOT_NONE:
         return -1;
@@ -1325,7 +1325,7 @@ EM_JS(int, gateway_is_available_js, (int driveType, int unit), {
 /* Mount an SMD drive for OPFS mode (no FILE* needed).
  * The actual I/O goes through JS opfsBlockRead/Write. */
 void mount_drive_opfs(DRIVE_TYPE drive_type, int unit, const char *name, const char *description,
-                      size_t imageSize)
+                      size_t image_size)
 {
     MountedDriveInfo_t *drives = NULL;
     int max_units = 0;
@@ -1356,7 +1356,7 @@ void mount_drive_opfs(DRIVE_TYPE drive_type, int unit, const char *name, const c
     drives[unit].is_opfs = true;
     drives[unit].is_writeprotected = false;
     drives[unit].data.local_file = NULL;
-    drives[unit].data_size = imageSize;
+    drives[unit].data_size = image_size;
     drives[unit].block_size = (drive_type == DRIVE_FLOPPY) ? 512 : 1024;
 
     snprintf(drives[unit].md5, sizeof(drives[unit].md5), "%s", "opfs");
@@ -1368,7 +1368,7 @@ void mount_drive_opfs(DRIVE_TYPE drive_type, int unit, const char *name, const c
 /* Mount a drive for gateway mode (block I/O via WebSocket, no FILE*).
  * The actual I/O goes through JS gatewayBlockRead/Write. */
 void mount_drive_gateway(DRIVE_TYPE drive_type, int unit, const char *name, const char *description,
-                         size_t imageSize)
+                         size_t image_size)
 {
     MountedDriveInfo_t *drives = NULL;
     int max_units = 0;
@@ -1400,7 +1400,7 @@ void mount_drive_gateway(DRIVE_TYPE drive_type, int unit, const char *name, cons
     drives[unit].is_gateway = true;
     drives[unit].is_writeprotected = false;
     drives[unit].data.local_file = NULL;
-    drives[unit].data_size = imageSize;
+    drives[unit].data_size = image_size;
     drives[unit].block_size = (drive_type == DRIVE_FLOPPY) ? 512 : 1024;
 
     snprintf(drives[unit].md5, sizeof(drives[unit].md5), "%s", "gateway");
@@ -1460,10 +1460,10 @@ static int read_entry_bytes(MountedDriveInfo_t *entry, uint8_t *buffer, size_t b
 static void log_floppy_read_diag(const MountedDriveInfo_t *drives, int unit, uint32_t block_address,
                                  size_t block_size)
 {
-    static int _floppy_read_log = 0;
-    if (_floppy_read_log < 5)
+    static int floppy_read_log = 0;
+    if (floppy_read_log < 5)
     {
-        _floppy_read_log++;
+        floppy_read_log++;
         Log_Write(LOG_CAT_FLOPPY, LOG_DEBUG,
                   "[FLOPPY-DIAG] machine_block_read: unit=%d drives=%s mounted=%d gateway=%d "
                   "opfs=%d remote=%d size=%d blkAddr=%u blkSize=%u\n",
@@ -1474,7 +1474,7 @@ static void log_floppy_read_diag(const MountedDriveInfo_t *drives, int unit, uin
     }
 }
 
-int machine_block_read(Device *device, uint8_t *buffer, size_t size, uint32_t blockAddress,
+int machine_block_read(Device *device, uint8_t *buffer, size_t size, uint32_t block_address,
                        int unit)
 {
     if (!device || !buffer || size == 0)
@@ -1498,7 +1498,7 @@ int machine_block_read(Device *device, uint8_t *buffer, size_t size, uint32_t bl
 
     if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_DEBUG) && drive_type == DRIVE_FLOPPY)
     {
-        log_floppy_read_diag(drives, unit, blockAddress, device->blockSizeBytes);
+        log_floppy_read_diag(drives, unit, block_address, device->blockSizeBytes);
     }
 
     if (!drives)
@@ -1508,7 +1508,7 @@ int machine_block_read(Device *device, uint8_t *buffer, size_t size, uint32_t bl
 
     // block size is determined by the device; size is number of blocks
     size_t bytes = size * device->blockSizeBytes;
-    size_t offset = (size_t)blockAddress * device->blockSizeBytes;
+    size_t offset = (size_t)block_address * device->blockSizeBytes;
 
     MountedDriveInfo_t *entry = &drives[unit];
     if (!entry->is_mounted)
@@ -1555,7 +1555,7 @@ int machine_block_read(Device *device, uint8_t *buffer, size_t size, uint32_t bl
 }
 
 // Callback-based block WRITE for block devices
-int machine_block_write(Device *device, const uint8_t *buffer, size_t size, uint32_t blockAddress,
+int machine_block_write(Device *device, const uint8_t *buffer, size_t size, uint32_t block_address,
                         int unit)
 {
     if (!device || !buffer || size == 0)
@@ -1583,7 +1583,7 @@ int machine_block_write(Device *device, const uint8_t *buffer, size_t size, uint
 
     // block size is determined by the device; size is number of blocks
     size_t bytes = size * device->blockSizeBytes;
-    size_t offset = (size_t)blockAddress * device->blockSizeBytes;
+    size_t offset = (size_t)block_address * device->blockSizeBytes;
 
     MountedDriveInfo_t *entry = &drives[unit];
     if (!entry->is_mounted)

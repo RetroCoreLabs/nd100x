@@ -70,16 +70,16 @@ int IO_Ident(uint16_t level)
 void IO_Tick(void)
 {
     // Tick all devices, and check for interrupts
-    uint16_t interruptBits = DeviceManager_Tick();
+    uint16_t interrupt_bits = DeviceManager_Tick();
 
-    if (interruptBits)
+    if (interrupt_bits)
     {
-        device_interrupt(interruptBits);
+        device_interrupt(interrupt_bits);
     }
 }
 
 
-uint16_t io_op(uint16_t ioadd, uint16_t regA)
+uint16_t io_op(uint16_t ioadd, uint16_t reg_a)
 {
     // Even addresses are read operations, odd addresses are write operations
     if (ioadd & 1)
@@ -87,8 +87,8 @@ uint16_t io_op(uint16_t ioadd, uint16_t regA)
         // Odd address - write operation
 
         // HACK!! needed for RISC-V version (if not the emulator just ignores output and input)
-        io_write(ioadd, regA);
-        return regA;
+        io_write(ioadd, reg_a);
+        return reg_a;
     }
     else
     {

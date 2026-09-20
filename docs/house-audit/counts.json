@@ -193,10 +193,7 @@
     "src/frontend/nd100x/screenmenu.h": 5,
     "src/frontend/nd100x/vscreen.c": 4,
     "src/frontend/nd100x/vscreen.h": 1,
-    "src/machine/io.c": 2,
-    "src/machine/machine.c": 17,
-    "src/machine/machine_config.c": 10,
-    "src/machine/machine_config.h": 7,
+    "src/machine/machine_config.h": 1,
     "src/machine/machine_types.h": 3,
     "src/ndlib/escp.c": 5,
     "src/ndlib/keyboard.c": 1,
@@ -229,7 +226,7 @@
     "tools/reth-tap/test-framing.c": 1,
     "tools/reth-tap/test-gateway.c": 1
    },
-   "total": 629
+   "total": 594
   },
   "3.8": {
    "files": {
