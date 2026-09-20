@@ -479,7 +479,42 @@ def check_tidy(bdir, entries, files, f, jobs):
                     seen.add(key)
                     if rule == "7.1" and size_exempt(rel, int(m.group(2))):
                         continue
+                    if rule == "3.4-3.7" and static_ok(rel, int(m.group(2)), m.group(4)):
+                        continue
                     f.add(rule, rel, int(m.group(2)), m.group(4))
+
+
+# Rule 3.4 allows a static file-scope variable to be s_snake_case OR plain
+# snake_case. clang-tidy cannot express that: in C it calls every file-scope
+# variable a "global variable" (StaticVariableCase only reaches function-local
+# statics), so audit.clang-tidy's GlobalVariablePrefix g_ makes it demand a g_
+# on compliant statics such as rtc_wall_clock_mode and s_wrtc_bits. Those are
+# not findings and are dropped here.
+CASE_MSG = re.compile(r"invalid case style for global variable '([^']+)'")
+STATIC_NAME = re.compile(r"^(s_)?[a-z][a-z0-9_]*$")
+
+
+def static_ok(rel, line, message):
+    """True for a file-scope static whose name rule 3.4 already allows."""
+    found = CASE_MSG.match(message)
+    if not found or not STATIC_NAME.match(found.group(1)):
+        return False
+    try:
+        with open(os.path.join(REPO, rel), encoding="utf-8", errors="replace") as h:
+            lines = h.readlines()
+    except OSError:
+        return False
+    if line > len(lines):
+        return False
+    # The declaration may be wrapped; look back to the end of the previous one.
+    text = ""
+    for no in range(line - 1, max(-1, line - 4), -1):
+        text = lines[no] + text
+        if re.search(r"\bstatic\b", text):
+            return True
+        if re.search(r"[;{}]", lines[no]) and no != line - 1:
+            break
+    return False
 
 
 def size_exempt(rel, line):
