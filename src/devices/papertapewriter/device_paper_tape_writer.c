@@ -40,9 +40,9 @@
 #include "../devices_protos.h"
 
 // Forward declaration
-static bool PunchEnd(void *context, int param);
+static bool punch_end(void *context, int param);
 
-static void PaperTapeWriter_Reset(Device *self)
+static void paper_tape_writer_reset(Device *self)
 {
     PaperTapeWriterData *data = (PaperTapeWriterData *)self->deviceData;
     if (!data)
@@ -56,7 +56,7 @@ static void PaperTapeWriter_Reset(Device *self)
     // Don't reset tape buffer on reset - only on device clear
 }
 
-static uint16_t PaperTapeWriter_Tick(Device *self)
+static uint16_t paper_tape_writer_tick(Device *self)
 {
     if (!self)
     {
@@ -66,7 +66,7 @@ static uint16_t PaperTapeWriter_Tick(Device *self)
     return self->interruptBits;
 }
 
-static uint16_t PaperTapeWriter_Read(Device *self, uint32_t address)
+static uint16_t paper_tape_writer_read(Device *self, uint32_t address)
 {
     if (!self)
     {
@@ -98,7 +98,7 @@ static uint16_t PaperTapeWriter_Read(Device *self, uint32_t address)
 }
 
 // Grow tape buffer if needed
-static bool PaperTapeWriter_GrowBuffer(PaperTapeWriterData *data)
+static bool paper_tape_writer_grow_buffer(PaperTapeWriterData *data)
 {
     if (!data->tapeBuffer)
     {
@@ -114,21 +114,21 @@ static bool PaperTapeWriter_GrowBuffer(PaperTapeWriterData *data)
 
     if (data->tapePosition >= data->tapeCapacity)
     {
-        size_t newCapacity = data->tapeCapacity * 2;
-        uint8_t *newBuffer = realloc(data->tapeBuffer, newCapacity);
-        if (!newBuffer)
+        size_t new_capacity = data->tapeCapacity * 2;
+        uint8_t *new_buffer = realloc(data->tapeBuffer, new_capacity);
+        if (!new_buffer)
         {
             LOG(LOG_CAT_TAPE, LOG_ERROR, "Paper tape punch: buffer grow failed at %zu bytes\n",
-                newCapacity);
+                new_capacity);
             return false;
         }
-        data->tapeBuffer = newBuffer;
-        data->tapeCapacity = newCapacity;
+        data->tapeBuffer = new_buffer;
+        data->tapeCapacity = new_capacity;
     }
     return true;
 }
 
-static void PaperTapeWriter_Write(Device *self, uint32_t address, uint16_t value)
+static void paper_tape_writer_write(Device *self, uint32_t address, uint16_t value)
 {
     if (!self)
     {
@@ -189,7 +189,7 @@ static void PaperTapeWriter_Write(Device *self, uint32_t address, uint16_t value
         if (data->statusRegister.bits.active)
         {
             // Store in tape buffer
-            if (PaperTapeWriter_GrowBuffer(data))
+            if (paper_tape_writer_grow_buffer(data))
             {
                 data->tapeBuffer[data->tapePosition] = data->characterBuffer;
                 data->tapePosition++;
@@ -206,7 +206,7 @@ static void PaperTapeWriter_Write(Device *self, uint32_t address, uint16_t value
             // Queue IO delay for punch timing
             if (data->statusRegister.bits.interruptEnabled)
             {
-                Device_QueueIODelay(self, IODELAY_PAPERTAPE, PunchEnd, 0, self->interruptLevel);
+                Device_QueueIODelay(self, IODELAY_PAPERTAPE, punch_end, 0, self->interruptLevel);
             }
         }
         break;
@@ -217,7 +217,7 @@ static void PaperTapeWriter_Write(Device *self, uint32_t address, uint16_t value
     }
 }
 
-static uint16_t PaperTapeWriter_Ident(Device *self, uint16_t level)
+static uint16_t paper_tape_writer_ident(Device *self, uint16_t level)
 {
     if (!self)
     {
@@ -234,7 +234,7 @@ static uint16_t PaperTapeWriter_Ident(Device *self, uint16_t level)
     return 0;
 }
 
-static bool PunchEnd(void *context, int param)
+static bool punch_end(void *context, int param)
 {
     (void)param;
     Device *self = (Device *)context;
@@ -253,7 +253,7 @@ static bool PunchEnd(void *context, int param)
     return data->statusRegister.bits.interruptEnabled;
 }
 
-static void PaperTapeWriter_Destroy(Device *self)
+static void paper_tape_writer_destroy(Device *self)
 {
     if (!self)
     {
@@ -333,12 +333,12 @@ Device *CreatePaperTapeWriterDevice(uint8_t thumbwheel)
     }
 
     // Set up device function pointers
-    dev->Reset = PaperTapeWriter_Reset;
-    dev->Tick = PaperTapeWriter_Tick;
-    dev->Read = PaperTapeWriter_Read;
-    dev->Write = PaperTapeWriter_Write;
-    dev->Ident = PaperTapeWriter_Ident;
-    dev->Destroy = PaperTapeWriter_Destroy;
+    dev->Reset = paper_tape_writer_reset;
+    dev->Tick = paper_tape_writer_tick;
+    dev->Read = paper_tape_writer_read;
+    dev->Write = paper_tape_writer_write;
+    dev->Ident = paper_tape_writer_ident;
+    dev->Destroy = paper_tape_writer_destroy;
     dev->deviceData = data;
 
     LOG(LOG_CAT_TAPE, LOG_INFO, "Paper Tape Punch created: %s CODE[%o] ADDRESS[%o-%o]\n",

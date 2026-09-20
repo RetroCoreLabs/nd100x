@@ -169,7 +169,6 @@
     "src/devices/hdlc/dma_engine.c": 5,
     "src/devices/hdlc/dma_receiver.c": 1,
     "src/devices/hdlc/hdlc_crc.c": 1,
-    "src/devices/papertapewriter/device_paper_tape_writer.c": 8,
     "src/devices/scsi/device_scsi.c": 14,
     "src/devices/scsi/disk_scsi.c": 1,
     "src/devices/scsi/scsi_bus.c": 2,
@@ -182,7 +181,7 @@
     "src/ndlib/download.c": 1,
     "src/ndlib/log.h": 1
    },
-   "total": 198
+   "total": 190
   },
   "3.3": {
    "files": {
@@ -232,7 +231,6 @@
     "src/devices/hdlc/modem.c": 6,
     "src/devices/hdlc/modem.h": 3,
     "src/devices/hdlc/tcp_receive_buffer.c": 4,
-    "src/devices/papertapewriter/device_paper_tape_writer.c": 2,
     "src/devices/scsi/device_scsi.c": 8,
     "src/devices/scsi/device_scsi.h": 1,
     "src/devices/scsi/scsi_bus.c": 1,
@@ -287,7 +285,7 @@
     "tools/reth-tap/test-framing.c": 1,
     "tools/reth-tap/test-gateway.c": 1
    },
-   "total": 1029
+   "total": 1027
   },
   "3.8": {
    "files": {
