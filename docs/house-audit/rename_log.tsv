@@ -521,3 +521,99 @@ b0845de	2026-09-20	3.4,3.5	parameter	src/debugger/debugger.c	4540	virtualAddress
 787701c	2026-09-21	3.2,3.4-3.7	local variable	src/machine/machine_config_apply.c	75	MC_Controller	McController	1
 787701c	2026-09-21	3.2,3.4-3.7	local variable	src/machine/machine_config_json.c	200	MC_Controller	McController	1
 787701c	2026-09-21	3.2,3.4-3.7	local variable	src/machine/machine_config_json.c	212	MC_DiskSlot	McDiskSlot	1
+0dc46db	2026-09-21	3.2,3.4-3.7	function	src/ndlib/download.c	130	WriteCallback	write_callback	2
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/escp.c	100	charWidth	char_width	3
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/escp.c	94	effectiveCpi	effective_cpi	4
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/escp.c	107	lineHeight	line_height	2
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/escp.c	83	newCap	new_cap	6
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/keyboard.c	379	copyLen	copy_len	3
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/load_bpun.c	281	LoadState_Action	LOAD_STATE_ACTION	2
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/load_bpun.c	166	LoadState_Address	LOAD_STATE_ADDRESS	2
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/load_bpun.c	266	LoadState_Checksum	LOAD_STATE_CHECKSUM	2
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/load_bpun.c	220	LoadState_Count	LOAD_STATE_COUNT	2
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/load_bpun.c	234	LoadState_Data	LOAD_STATE_DATA	2
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/load_bpun.c	285	LoadState_FloMonCount	LOAD_STATE_FLO_MON_COUNT	2
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/load_bpun.c	302	LoadState_FloMonLoad	LOAD_STATE_FLO_MON_LOAD	2
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/load_bpun.c	129	LoadState_Preamble	LOAD_STATE_PREAMBLE	2
+0dc46db	2026-09-21	3.2,3.4-3.7	parameter	src/ndlib/load_bpun.c	61	bpunStream	bpun_stream	17
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/load_bpun.c	132	currentLocationCounter	current_location_counter	5
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/load_bpun.c	135	dataCounter	data_counter	7
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/load_bpun.c	136	dataLoadAddress	data_load_address	4
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/load_bpun.c	307	floWords	flo_words	5
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/load_bpun.c	134	lastValue	last_value	4
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/load_bpun.c	133	loadAddress	load_address	6
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/load_bpun.c	69	loadOK	load_ok	2
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/load_bpun.c	129	loadState	load_state	9
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/load_bpun.c	130	tmpString	tmp_string	8
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/load_bpun.c	131	tmpStringPos	tmp_string_pos	12
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/load_prog.c	144	firstB1	first_b1	3
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/load_prog.c	146	firstB2	first_b2	3
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/load_prog.c	145	lastB1	last_b1	3
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/load_prog.c	147	lastB2	last_b2	3
+0dc46db	2026-09-21	3.2,3.4-3.7	enum constant	src/ndlib/ndlib_types.h	113	LoadState_Action	LOAD_STATE_ACTION	1
+0dc46db	2026-09-21	3.2,3.4-3.7	enum constant	src/ndlib/ndlib_types.h	109	LoadState_Address	LOAD_STATE_ADDRESS	1
+0dc46db	2026-09-21	3.2,3.4-3.7	enum constant	src/ndlib/ndlib_types.h	112	LoadState_Checksum	LOAD_STATE_CHECKSUM	1
+0dc46db	2026-09-21	3.2,3.4-3.7	enum constant	src/ndlib/ndlib_types.h	110	LoadState_Count	LOAD_STATE_COUNT	1
+0dc46db	2026-09-21	3.2,3.4-3.7	enum constant	src/ndlib/ndlib_types.h	111	LoadState_Data	LOAD_STATE_DATA	1
+0dc46db	2026-09-21	3.2,3.4-3.7	enum constant	src/ndlib/ndlib_types.h	114	LoadState_FloMonCount	LOAD_STATE_FLO_MON_COUNT	1
+0dc46db	2026-09-21	3.2,3.4-3.7	enum constant	src/ndlib/ndlib_types.h	115	LoadState_FloMonLoad	LOAD_STATE_FLO_MON_LOAD	1
+0dc46db	2026-09-21	3.2,3.4-3.7	enum constant	src/ndlib/ndlib_types.h	108	LoadState_Preamble	LOAD_STATE_PREAMBLE	1
+0dc46db	2026-09-21	3.2,3.4-3.7	parameter	src/ndlib/ndlib_types.h	63	physicalAddress	physical_address	2
+0dc46db	2026-09-21	3.2,3.4-3.7	typedef	src/ndlib/net_compat.h	55	nd_ssize_t	NdSsizeT	1
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/pdfwriter.c	179	bufSize	buf_size	11
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/pdfwriter.c	235	charWidth	char_width	2
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/pdfwriter.c	344	contObj	cont_obj	5
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/pdfwriter.c	331	contentBufs	content_bufs	6
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/pdfwriter.c	332	contentLens	content_lens	6
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/pdfwriter.c	340	contentObjBase	content_obj_base	3
+0dc46db	2026-09-21	3.2,3.4-3.7	static variable	src/ndlib/pdfwriter.c	275	fontNames	font_names	2
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/pdfwriter.c	122	fontSize	font_size	2
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/pdfwriter.c	236	lineWidth	line_width	2
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/pdfwriter.c	237	lineY	line_y	3
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/pdfwriter.c	98	newCap	new_cap	7
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/pdfwriter.c	316	numPages	num_pages	10
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/pdfwriter.c	279	objNum	obj_num	3
+0dc46db	2026-09-21	3.2,3.4-3.7	parameter	src/ndlib/pdfwriter.c	176	outLen	out_len	4
+0dc46db	2026-09-21	3.2,3.4-3.7	parameter	src/ndlib/pdfwriter.c	121	pageIndex	page_index	4
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/pdfwriter.c	343	pageObj	page_obj	3
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/pdfwriter.c	196	textLen	text_len	3
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/pdfwriter.c	318	totalObjects	total_objects	3
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/pdfwriter.c	290	xrefOffset	xref_offset	2
+0dc46db	2026-09-21	3.2,3.4-3.7	parameter	src/ndlib/pdfwriter.h	96	fontSize	font_size	1
+0dc46db	2026-09-21	3.2,3.4-3.7	parameter	src/ndlib/pdfwriter.h	95	pageIndex	page_index	1
+0dc46db	2026-09-21	3.2,3.4-3.7	parameter	src/ndlib/printjob.c	109	bufSize	buf_size	2
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/printjob.c	301	lineH	line_h	2
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/printjob.c	282	maxPage	max_page	4
+0dc46db	2026-09-21	3.2,3.4-3.7	parameter	src/ndlib/printjob.c	68	outputDir	output_dir	3
+0dc46db	2026-09-21	3.2,3.4-3.7	global variable	src/ndlib/printjob.c	172	pdfLineBuf	pdf_line_buf	5
+0dc46db	2026-09-21	3.2,3.4-3.7	global variable	src/ndlib/printjob.c	173	pdfLineBufLen	pdf_line_buf_len	6
+0dc46db	2026-09-21	3.2,3.4-3.7	parameter	src/ndlib/printjob.c	68	printerType	printer_type	3
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/printjob.c	274	spanCount	span_count	5
+0dc46db	2026-09-21	3.2,3.4-3.7	parameter	src/ndlib/printjob.h	102	outputDir	output_dir	1
+0dc46db	2026-09-21	3.2,3.4-3.7	parameter	src/ndlib/printjob.h	101	printerType	printer_type	1
+0dc46db	2026-09-21	3.2,3.4-3.7	parameter	src/ndlib/telnetserver.c	657	addrBuf	addr_buf	3
+0dc46db	2026-09-21	3.2,3.4-3.7	parameter	src/ndlib/telnetserver.c	657	addrBufLen	addr_buf_len	3
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/telnetserver.c	477	addrLen	addr_len	5
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/telnetserver.c	1155	addrStr	addr_str	7
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/telnetserver.c	658	ageSecs	age_secs	3
+0dc46db	2026-09-21	3.2,3.4-3.7	parameter	src/ndlib/telnetserver.c	612	bytesRx	bytes_rx	6
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/telnetserver.c	613	bytesTx	bytes_tx	6
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/telnetserver.c	477	clientAddr	client_addr	8
+0dc46db	2026-09-21	3.2,3.4-3.7	parameter	src/ndlib/telnetserver.c	759	clientFd	client_fd	13
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/telnetserver.c	876	connMsg	conn_msg	5
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/telnetserver.c	1224	iacState	iac_state	15
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/telnetserver.c	476	identCode	ident_code	3
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/telnetserver.c	973	inputBuf	input_buf	4
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/telnetserver.c	476	locallyActive	locally_active	3
+0dc46db	2026-09-21	3.2,3.4-3.7	global variable	src/ndlib/telnetserver.c	753	menuMap	menu_map	6
+0dc46db	2026-09-21	3.2,3.4-3.7	global variable	src/ndlib/telnetserver.c	754	menuMapCount	menu_map_count	13
+0dc46db	2026-09-21	3.2,3.4-3.7	local variable	src/ndlib/telnetserver.c	851	termIdx	term_idx	5
+0dc46db	2026-09-21	3.2,3.4-3.7	parameter	src/ndlib/telnetserver.h	248	addrBuf	addr_buf	1
+0dc46db	2026-09-21	3.2,3.4-3.7	parameter	src/ndlib/telnetserver.h	248	addrBufLen	addr_buf_len	1
+0dc46db	2026-09-21	3.2,3.4-3.7	parameter	src/ndlib/telnetserver.h	142	addrLen	addr_len	1
+0dc46db	2026-09-21	3.2,3.4-3.7	parameter	src/ndlib/telnetserver.h	249	ageSecs	age_secs	1
+0dc46db	2026-09-21	3.2,3.4-3.7	parameter	src/ndlib/telnetserver.h	152	bytesRx	bytes_rx	2
+0dc46db	2026-09-21	3.2,3.4-3.7	parameter	src/ndlib/telnetserver.h	153	bytesTx	bytes_tx	2
+0dc46db	2026-09-21	3.2,3.4-3.7	parameter	src/ndlib/telnetserver.h	142	clientAddr	client_addr	1
+0dc46db	2026-09-21	3.2,3.4-3.7	parameter	src/ndlib/telnetserver.h	141	identCode	ident_code	1
+0dc46db	2026-09-21	3.2,3.4-3.7	parameter	src/ndlib/telnetserver.h	141	locallyActive	locally_active	1
