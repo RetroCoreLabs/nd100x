@@ -65,7 +65,7 @@
 static void flush_job(PrintJob *pj);
 static void ensure_directory(const char *path);
 
-PrintJob *PrintJob_Create(PjPrinterType printerType, PjOutputFormat format, const char *outputDir)
+PrintJob *PrintJob_Create(PjPrinterType printer_type, PjOutputFormat format, const char *output_dir)
 {
     PrintJob *pj = calloc(1, sizeof(PrintJob));
     if (!pj)
@@ -73,9 +73,9 @@ PrintJob *PrintJob_Create(PjPrinterType printerType, PjOutputFormat format, cons
         return NULL;
     }
 
-    pj->printerType = printerType;
+    pj->printerType = printer_type;
     pj->outputFormat = format;
-    pj->outputDir = strdup(outputDir ? outputDir : "./prints");
+    pj->outputDir = strdup(output_dir ? output_dir : "./prints");
     if (!pj->outputDir)
     {
         free(pj);
@@ -83,7 +83,7 @@ PrintJob *PrintJob_Create(PjPrinterType printerType, PjOutputFormat format, cons
     }
     pj->jobTimeout = DEFAULT_JOB_TIMEOUT;
 
-    if (printerType == PJ_PRINTER_ESCP)
+    if (printer_type == PJ_PRINTER_ESCP)
     {
         pj->escpCtx = Escp_Create();
         if (!pj->escpCtx)
@@ -106,10 +106,10 @@ static void ensure_directory(const char *path)
 }
 
 // Build the output filename for current job
-static void build_filename(PrintJob *pj, char *buf, size_t bufSize)
+static void build_filename(PrintJob *pj, char *buf, size_t buf_size)
 {
     const char *ext = (pj->outputFormat == PJ_FORMAT_PDF) ? "pdf" : "txt";
-    snprintf(buf, bufSize, "%s/print-%d.%s", pj->outputDir, pj->jobNumber, ext);
+    snprintf(buf, buf_size, "%s/print-%d.%s", pj->outputDir, pj->jobNumber, ext);
 }
 
 // Start a new job
@@ -169,24 +169,24 @@ static void text_txt_putchar(PrintJob *pj, char c)
 // --- TEXT + PDF pipeline: monospaced text accumulation ---
 
 // Line buffer for text+pdf mode
-static char pdfLineBuf[1024];
-static int pdfLineBufLen = 0;
+static char pdf_line_buf[1024];
+static int pdf_line_buf_len = 0;
 
 static void text_pdf_flush_line(PrintJob *pj)
 {
-    if (pdfLineBufLen == 0 || !pj->pdfDoc)
+    if (pdf_line_buf_len == 0 || !pj->pdfDoc)
     {
         return;
     }
 
-    pdfLineBuf[pdfLineBufLen] = '\0';
+    pdf_line_buf[pdf_line_buf_len] = '\0';
 
     float x = PDF_MARGIN_LEFT;
     float y = PDF_PAGE_HEIGHT - PDF_MARGIN_TOP - (pj->pdfLine * PDF_LINE_HEIGHT);
 
     Pdf_AddTextSpan(pj->pdfDoc, pj->pdfCurrentPage, x, y, PDF_STYLE_NORMAL, PDF_FONT_SIZE,
-                    pdfLineBuf);
-    pdfLineBufLen = 0;
+                    pdf_line_buf);
+    pdf_line_buf_len = 0;
 }
 
 static void text_pdf_putchar(PrintJob *pj, char c)
@@ -225,9 +225,9 @@ static void text_pdf_putchar(PrintJob *pj, char c)
     default:
         if (c >= 0x20 && c <= 0x7E)
         {
-            if (pdfLineBufLen < (int)sizeof(pdfLineBuf) - 1)
+            if (pdf_line_buf_len < (int)sizeof(pdf_line_buf) - 1)
             {
-                pdfLineBuf[pdfLineBufLen++] = c;
+                pdf_line_buf[pdf_line_buf_len++] = c;
             }
             pj->pdfColumn++;
         }
@@ -271,35 +271,35 @@ static void escp_pdf_flush(PrintJob *pj)
         return;
     }
 
-    int spanCount = 0;
-    const EscpSpan *spans = Escp_GetSpans(pj->escpCtx, &spanCount);
-    if (!spans || spanCount == 0)
+    int span_count = 0;
+    const EscpSpan *spans = Escp_GetSpans(pj->escpCtx, &span_count);
+    if (!spans || span_count == 0)
     {
         return;
     }
 
     // Ensure we have enough pages
-    int maxPage = 0;
-    for (int i = 0; i < spanCount; i++)
+    int max_page = 0;
+    for (int i = 0; i < span_count; i++)
     {
-        if (spans[i].page > maxPage)
+        if (spans[i].page > max_page)
         {
-            maxPage = spans[i].page;
+            max_page = spans[i].page;
         }
     }
-    while (pj->pdfDoc->pageCount <= maxPage)
+    while (pj->pdfDoc->pageCount <= max_page)
     {
         Pdf_AddPage(pj->pdfDoc);
     }
 
     // Convert each ESC/P span to a PDF text span
-    for (int i = 0; i < spanCount; i++)
+    for (int i = 0; i < span_count; i++)
     {
         const EscpSpan *sp = &spans[i];
 
         float x = PDF_MARGIN_LEFT + sp->column * sp->charWidth;
-        float lineH = sp->lineHeight > 0 ? sp->lineHeight : PDF_LINE_HEIGHT;
-        float y = PDF_PAGE_HEIGHT - PDF_MARGIN_TOP - (sp->line * lineH);
+        float line_h = sp->lineHeight > 0 ? sp->lineHeight : PDF_LINE_HEIGHT;
+        float y = PDF_PAGE_HEIGHT - PDF_MARGIN_TOP - (sp->line * line_h);
 
         // Map ESC/P attrs to PDF style flags
         uint8_t style = PDF_STYLE_NORMAL;

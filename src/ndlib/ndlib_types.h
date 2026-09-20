@@ -60,8 +60,8 @@ typedef struct
 
 
 // Physical memory functions in cpu_mms.c
-extern int ReadPhysicalMemory(int physicalAddress, bool privileged);
-extern void WritePhysicalMemory(int physicalAddress, uint16_t value, bool privileged);
+extern int ReadPhysicalMemory(int physical_address, bool privileged);
+extern void WritePhysicalMemory(int physical_address, uint16_t value, bool privileged);
 /* Also provided by the cpu module: the -a disassembler records each word a
  * loader deposits (cpu_disasm.c; declared for the cpu module in cpu_types.h). */
 extern int g_disasm;
@@ -105,14 +105,14 @@ typedef struct
 
 typedef enum
 {
-    LoadState_Preamble,
-    LoadState_Address,
-    LoadState_Count,
-    LoadState_Data,
-    LoadState_Checksum,
-    LoadState_Action,
-    LoadState_FloMonCount,
-    LoadState_FloMonLoad
+    LOAD_STATE_PREAMBLE,
+    LOAD_STATE_ADDRESS,
+    LOAD_STATE_COUNT,
+    LOAD_STATE_DATA,
+    LOAD_STATE_CHECKSUM,
+    LOAD_STATE_ACTION,
+    LOAD_STATE_FLO_MON_COUNT,
+    LOAD_STATE_FLO_MON_LOAD
 } LoadState;
 
 

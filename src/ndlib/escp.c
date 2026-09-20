@@ -80,31 +80,31 @@ static void flush_line_buffer(EscpContext *ctx)
     // Grow spans array if needed
     if (ctx->spanCount >= ctx->spanCapacity)
     {
-        int newCap = ctx->spanCapacity * 2;
-        EscpSpan *tmp = realloc(ctx->spans, newCap * sizeof(EscpSpan));
+        int new_cap = ctx->spanCapacity * 2;
+        EscpSpan *tmp = realloc(ctx->spans, new_cap * sizeof(EscpSpan));
         if (!tmp)
         {
             return;
         }
         ctx->spans = tmp;
-        ctx->spanCapacity = newCap;
+        ctx->spanCapacity = new_cap;
     }
 
     // Calculate character width in points based on pitch
-    int effectiveCpi = ctx->cpi;
+    int effective_cpi = ctx->cpi;
     if (ctx->condensed)
     {
         // Condensed roughly multiplies cpi by ~1.7
-        effectiveCpi = (effectiveCpi == 10) ? 17 : 20;
+        effective_cpi = (effective_cpi == 10) ? 17 : 20;
     }
-    float charWidth = POINTS_PER_INCH / (float)effectiveCpi;
+    float char_width = POINTS_PER_INCH / (float)effective_cpi;
     if (ctx->expanded)
     {
-        charWidth *= 2.0f;
+        char_width *= 2.0f;
     }
 
     // Line height in points
-    float lineHeight = (ctx->lineSpacing216 / 216.0f) * POINTS_PER_INCH;
+    float line_height = (ctx->lineSpacing216 / 216.0f) * POINTS_PER_INCH;
 
     // Null-terminate the line buffer
     ctx->lineBuf[ctx->lineBufLen] = '\0';
@@ -118,8 +118,8 @@ static void flush_line_buffer(EscpContext *ctx)
     span->line = ctx->line;
     span->page = ctx->page;
     span->attrs = ctx->attrs;
-    span->charWidth = charWidth;
-    span->lineHeight = lineHeight;
+    span->charWidth = char_width;
+    span->lineHeight = line_height;
     span->text = strdup(ctx->lineBuf);
     if (!span->text)
     {
@@ -134,14 +134,14 @@ static void buffer_char(EscpContext *ctx, char c)
 {
     if (ctx->lineBufLen + 1 >= ctx->lineBufCap)
     {
-        int newCap = ctx->lineBufCap * 2;
-        char *tmp = realloc(ctx->lineBuf, newCap);
+        int new_cap = ctx->lineBufCap * 2;
+        char *tmp = realloc(ctx->lineBuf, new_cap);
         if (!tmp)
         {
             return;
         }
         ctx->lineBuf = tmp;
-        ctx->lineBufCap = newCap;
+        ctx->lineBufCap = new_cap;
     }
     ctx->lineBuf[ctx->lineBufLen++] = c;
 }

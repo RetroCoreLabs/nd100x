@@ -138,8 +138,8 @@ int TelnetServer_GetTerminalCount(TelnetServer *server);
  * @return true on success; false if server is NULL or index is out of range.
  */
 bool TelnetServer_GetTerminalStatus(TelnetServer *server, int index, const char **name,
-                                    uint16_t *identCode, bool *connected, bool *locallyActive,
-                                    char *clientAddr, int addrLen);
+                                    uint16_t *ident_code, bool *connected, bool *locally_active,
+                                    char *client_addr, int addr_len);
 
 /**
  * @brief Read one terminal's byte counters.
@@ -149,8 +149,8 @@ bool TelnetServer_GetTerminalStatus(TelnetServer *server, int index, const char 
  * @param bytesTx Receives bytes sent to the client; may be NULL.
  * @return true on success; false if server is NULL or index is out of range.
  */
-bool TelnetServer_GetTerminalStats(TelnetServer *server, int index, uint64_t *bytesRx,
-                                   uint64_t *bytesTx);
+bool TelnetServer_GetTerminalStats(TelnetServer *server, int index, uint64_t *bytes_rx,
+                                   uint64_t *bytes_tx);
 
 /**
  * @brief Disconnect the telnet client attached to a device: close its socket,
@@ -245,8 +245,8 @@ int TelnetServer_GetPendingCount(TelnetServer *server);
  * @param bytesTx    Receives bytes sent to the client; may be NULL.
  * @return true on success; false if server is NULL or index is out of range.
  */
-bool TelnetServer_GetPendingInfo(TelnetServer *server, int index, char *addrBuf, int addrBufLen,
-                                 int *ageSecs, uint64_t *bytesRx, uint64_t *bytesTx);
+bool TelnetServer_GetPendingInfo(TelnetServer *server, int index, char *addr_buf, int addr_buf_len,
+                                 int *age_secs, uint64_t *bytes_rx, uint64_t *bytes_tx);
 
 /**
  * @brief Send "Disconnected by operator." to one pending client and remove it

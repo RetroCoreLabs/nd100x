@@ -178,7 +178,7 @@ def load_renames(fix_files, module_dir):
             new = fix_prefix(kind, message)
             if not new:
                 continue  # non-static global: needs a whole-tree pass
-            if suspect(old, new):
+            if suspect(old, new, kind):
                 # A split acronym the table does not cover. Guessing produces
                 # names like co_m5025_send_one_byte, so it is left alone and
                 # reported for a person to spell.
@@ -220,7 +220,14 @@ def expected_snake(old):
     return "_".join(w.lower() for w in words)
 
 
-def suspect(old, new):
+# Only these are spelled lower_case. A typedef or struct becomes CamelCase and
+# an enum constant or macro UPPER_CASE, so comparing them with a snake_case
+# split refuses every one of them.
+SNAKE_KINDS = ("function", "local variable", "parameter", "static variable",
+               "global variable")
+
+
+def suspect(old, new, kind=None):
     """True if clang-tidy split the name somewhere a reader would not.
 
     COM5025_SendOneByte comes back as co_m5025_send_one_byte and IRQ12 as
@@ -231,6 +238,11 @@ def suspect(old, new):
     A lowercase word glued to an acronym - CHStoLBA - cannot be told apart
     this way and still needs a person; SPELLINGS carries those.
     """
+    if kind is not None and kind not in SNAKE_KINDS:
+        # CamelCase and UPPER_CASE names: the split is not snake_case, so this
+        # test does not apply. A mangled one shows up as a build failure or in
+        # the dry-run list, which is read before applying.
+        return False
     return new != expected_snake(old)
 
 
@@ -314,7 +326,7 @@ def filter_fixes(fix_files, module_dir, out_dir, escapes=()):
                 spelled = fix_prefix(found.group(1), message)
                 if not spelled or spelled == found.group(2):
                     continue  # non-static global, or a no-op after the g_ strip
-                if suspect(found.group(2), spelled):
+                if suspect(found.group(2), spelled, found.group(1)):
                     continue  # split acronym with no known spelling
             diag["DiagnosticMessage"] = message
             diags.append(diag)
@@ -330,7 +342,20 @@ def filter_fixes(fix_files, module_dir, out_dir, escapes=()):
 
 def write_rename_tsv(inside):
     """Record the symbol-visible renames (static functions) for gate G9."""
-    rows = [(old, new) for kind, old, new, _ in inside if "function" in kind]
+    rows = {(old, new) for kind, old, new, _ in inside if "function" in kind}
+    # Keep what is already there. A module often takes more than one pass -
+    # src/ndlib needed a second after the acronym check was corrected - and
+    # overwriting dropped the first pass's entries, so G9 compared a renamed
+    # symbol against an empty map and reported a difference that did not
+    # exist. Entries for names no longer present are harmless: the map is
+    # applied to the base disassembly and simply does not match.
+    if os.path.exists(RENAME_TSV):
+        with open(RENAME_TSV, encoding="utf-8") as handle:
+            for line in handle:
+                if line.strip():
+                    parts = line.rstrip("\n").split("\t")
+                    if len(parts) >= 2:
+                        rows.add((parts[0], parts[1]))
     os.makedirs(os.path.dirname(RENAME_TSV), exist_ok=True)
     with open(RENAME_TSV, "w", encoding="utf-8") as handle:
         for old, new in sorted(rows):

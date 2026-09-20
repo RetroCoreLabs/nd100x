@@ -52,7 +52,7 @@ typedef WSAPOLLFD nd_pollfd_t;
 #include <unistd.h>
 #include <errno.h>
 typedef int nd_socket_t;
-typedef ssize_t nd_ssize_t;
+typedef ssize_t NdSsizeT;
 typedef socklen_t nd_socklen_t;
 typedef struct pollfd nd_pollfd_t;
 #define ND_INVALID_SOCKET ((nd_socket_t) - 1)

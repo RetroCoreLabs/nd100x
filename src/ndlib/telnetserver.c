@@ -473,8 +473,8 @@ int TelnetServer_GetTerminalCount(TelnetServer *server)
 }
 
 bool TelnetServer_GetTerminalStatus(TelnetServer *server, int index, const char **name,
-                                    uint16_t *identCode, bool *connected, bool *locallyActive,
-                                    char *clientAddr, int addrLen)
+                                    uint16_t *ident_code, bool *connected, bool *locally_active,
+                                    char *client_addr, int addr_len)
 {
     if (!server || index < 0 || index >= server->terminalCount)
     {
@@ -486,21 +486,21 @@ bool TelnetServer_GetTerminalStatus(TelnetServer *server, int index, const char 
     {
         *name = rt->info.name;
     }
-    if (identCode)
+    if (ident_code)
     {
-        *identCode = rt->info.identCode;
+        *ident_code = rt->info.identCode;
     }
     if (connected)
     {
         *connected = (rt->clientFd != ND_INVALID_SOCKET);
     }
-    if (locallyActive)
+    if (locally_active)
     {
-        *locallyActive = rt->locallyActive;
+        *locally_active = rt->locallyActive;
     }
-    if (clientAddr && addrLen > 0)
+    if (client_addr && addr_len > 0)
     {
-        snprintf(clientAddr, addrLen, "%s", rt->clientAddrStr);
+        snprintf(client_addr, addr_len, "%s", rt->clientAddrStr);
     }
     return true;
 }
@@ -609,21 +609,21 @@ void TelnetServer_ClearDeviceCarrier(TelnetServer *server, struct Device *device
     }
 }
 
-bool TelnetServer_GetTerminalStats(TelnetServer *server, int index, uint64_t *bytesRx,
-                                   uint64_t *bytesTx)
+bool TelnetServer_GetTerminalStats(TelnetServer *server, int index, uint64_t *bytes_rx,
+                                   uint64_t *bytes_tx)
 {
     if (!server || index < 0 || index >= server->terminalCount)
     {
         return false;
     }
     RegisteredTerminal *rt = &server->terminals[index];
-    if (bytesRx)
+    if (bytes_rx)
     {
-        *bytesRx = rt->bytesRx;
+        *bytes_rx = rt->bytesRx;
     }
-    if (bytesTx)
+    if (bytes_tx)
     {
-        *bytesTx = rt->bytesTx;
+        *bytes_tx = rt->bytesTx;
     }
     return true;
 }
@@ -654,8 +654,8 @@ int TelnetServer_GetPendingCount(TelnetServer *server)
     return count;
 }
 
-bool TelnetServer_GetPendingInfo(TelnetServer *server, int index, char *addrBuf, int addrBufLen,
-                                 int *ageSecs, uint64_t *bytesRx, uint64_t *bytesTx)
+bool TelnetServer_GetPendingInfo(TelnetServer *server, int index, char *addr_buf, int addr_buf_len,
+                                 int *age_secs, uint64_t *bytes_rx, uint64_t *bytes_tx)
 {
     if (!server)
     {
@@ -668,21 +668,21 @@ bool TelnetServer_GetPendingInfo(TelnetServer *server, int index, char *addrBuf,
         return false;
     }
     PendingClient *pc = &server->pending[index];
-    if (addrBuf && addrBufLen > 0)
+    if (addr_buf && addr_buf_len > 0)
     {
-        snprintf(addrBuf, addrBufLen, "%s", pc->addrStr);
+        snprintf(addr_buf, addr_buf_len, "%s", pc->addrStr);
     }
-    if (ageSecs)
+    if (age_secs)
     {
-        *ageSecs = (int)(time(NULL) - pc->connectTime);
+        *age_secs = (int)(time(NULL) - pc->connectTime);
     }
-    if (bytesRx)
+    if (bytes_rx)
     {
-        *bytesRx = pc->bytesRx;
+        *bytes_rx = pc->bytesRx;
     }
-    if (bytesTx)
+    if (bytes_tx)
     {
-        *bytesTx = pc->bytesTx;
+        *bytes_tx = pc->bytesTx;
     }
     pthread_mutex_unlock(&server->pendingMutex);
     return true;
@@ -750,28 +750,28 @@ static void remove_pending(TelnetServer *server, int idx)
 
 // Menu index mapping: displayed menu numbers -> terminal indices
 // Only available (not locally active, not connected) terminals are shown
-static int menuMap[TELNET_MAX_TERMINALS];
-static int menuMapCount = 0;
+static int menu_map[TELNET_MAX_TERMINALS];
+static int menu_map_count = 0;
 
 // Send terminal selection menu to client (only shows available terminals).
 // If clientFd == ND_INVALID_SOCKET, only rebuild menuMap without sending.
 // Returns number of available terminals (menuMapCount).
-static int send_menu(TelnetServer *server, nd_socket_t clientFd)
+static int send_menu(TelnetServer *server, nd_socket_t client_fd)
 {
     // Build mapping of available terminals
-    menuMapCount = 0;
+    menu_map_count = 0;
     for (int i = 0; i < server->terminalCount; i++)
     {
         RegisteredTerminal *rt = &server->terminals[i];
         if (rt->clientFd == ND_INVALID_SOCKET && !rt->locallyActive)
         {
-            menuMap[menuMapCount++] = i;
+            menu_map[menu_map_count++] = i;
         }
     }
 
-    if (clientFd == ND_INVALID_SOCKET)
+    if (client_fd == ND_INVALID_SOCKET)
     {
-        return menuMapCount; // Map-only rebuild
+        return menu_map_count; // Map-only rebuild
     }
 
     char buf[2048];
@@ -783,7 +783,7 @@ static int send_menu(TelnetServer *server, nd_socket_t clientFd)
                     "\r\n",
                     server->config.port);
 
-    if (menuMapCount == 0)
+    if (menu_map_count == 0)
     {
         // Caller should disconnect - this path shouldn't normally be reached
         pos += snprintf(buf + pos, sizeof(buf) - pos, "No terminals available.\r\n");
@@ -792,9 +792,9 @@ static int send_menu(TelnetServer *server, nd_socket_t clientFd)
     {
         pos += snprintf(buf + pos, sizeof(buf) - pos, "Available terminals:\r\n");
 
-        for (int m = 0; m < menuMapCount && pos < (int)sizeof(buf) - 1; m++)
+        for (int m = 0; m < menu_map_count && pos < (int)sizeof(buf) - 1; m++)
         {
-            RegisteredTerminal *rt = &server->terminals[menuMap[m]];
+            RegisteredTerminal *rt = &server->terminals[menu_map[m]];
             pos += snprintf(buf + pos, sizeof(buf) - pos, "  %d) %s\r\n", m + 1, rt->info.name);
         }
 
@@ -802,7 +802,7 @@ static int send_menu(TelnetServer *server, nd_socket_t clientFd)
         {
             pos += snprintf(buf + pos, sizeof(buf) - pos,
                             "\r\nSelect terminal (1-%d), ENTER for next available, or Q to quit: ",
-                            menuMapCount);
+                            menu_map_count);
         }
     }
 
@@ -812,14 +812,14 @@ static int send_menu(TelnetServer *server, nd_socket_t clientFd)
         pos = (int)sizeof(buf) - 1;
     }
 
-    int sent = send(ND_SOCK_NATIVE(clientFd), buf, pos, MSG_NOSIGNAL);
+    int sent = send(ND_SOCK_NATIVE(client_fd), buf, pos, MSG_NOSIGNAL);
 
     // Track tx bytes for pending clients
     if (sent > 0)
     {
         for (int i = 0; i < server->pendingCount; i++)
         {
-            if (server->pending[i].fd == clientFd)
+            if (server->pending[i].fd == client_fd)
             {
                 server->pending[i].bytesTx += sent;
                 break;
@@ -827,7 +827,7 @@ static int send_menu(TelnetServer *server, nd_socket_t clientFd)
         }
     }
 
-    return menuMapCount;
+    return menu_map_count;
 }
 
 // Send menu to a pending client and snapshot the mapping
@@ -835,21 +835,21 @@ static int send_menu_to_pending(TelnetServer *server, PendingClient *pc)
 {
     int avail = send_menu(server, pc->fd);
     // Snapshot the menu map so we validate against what was shown
-    pc->shownMapCount = menuMapCount;
-    memcpy(pc->shownMap, menuMap, menuMapCount * sizeof(int));
+    pc->shownMapCount = menu_map_count;
+    memcpy(pc->shownMap, menu_map, menu_map_count * sizeof(int));
     return avail;
 }
 
 // Try to assign a pending client's selection to a terminal
 static bool try_assign_pending(TelnetServer *server, PendingClient *pc, int selection)
 {
-    if (selection < 0 || selection >= menuMapCount)
+    if (selection < 0 || selection >= menu_map_count)
     {
         return false;
     }
 
-    int termIdx = menuMap[selection];
-    RegisteredTerminal *rt = &server->terminals[termIdx];
+    int term_idx = menu_map[selection];
+    RegisteredTerminal *rt = &server->terminals[term_idx];
     if (rt->clientFd != ND_INVALID_SOCKET || rt->locallyActive)
     {
         return false;
@@ -873,9 +873,9 @@ static bool try_assign_pending(TelnetServer *server, PendingClient *pc, int sele
     pthread_mutex_unlock(&rt->outputMutex);
 
     // Send connected message
-    char connMsg[128];
-    snprintf(connMsg, sizeof(connMsg), "\r\nConnected to %s\r\n\r\n", rt->info.name);
-    send(ND_SOCK_NATIVE(pc->fd), connMsg, (int)strlen(connMsg), MSG_NOSIGNAL);
+    char conn_msg[128];
+    snprintf(conn_msg, sizeof(conn_msg), "\r\nConnected to %s\r\n\r\n", rt->info.name);
+    send(ND_SOCK_NATIVE(pc->fd), conn_msg, (int)strlen(conn_msg), MSG_NOSIGNAL);
 
     // Clear carrier missing
     if (rt->info.carrierFunc)
@@ -970,9 +970,9 @@ static void *accept_thread_func(void *arg)
                 continue;
             }
 
-            uint8_t inputBuf[64];
-            int n = recv(ND_SOCK_NATIVE(server->pending[i].fd), (char *)inputBuf,
-                         (int)sizeof(inputBuf), 0);
+            uint8_t input_buf[64];
+            int n = recv(ND_SOCK_NATIVE(server->pending[i].fd), (char *)input_buf,
+                         (int)sizeof(input_buf), 0);
             if (n <= 0)
             {
                 LOG(LOG_CAT_NET, LOG_INFO, "Telnet: %s disconnected during menu\n",
@@ -987,7 +987,7 @@ static void *accept_thread_func(void *arg)
             int selection = -1;
             for (int b = 0; b < n && !quit; b++)
             {
-                uint8_t byte = inputBuf[b];
+                uint8_t byte = input_buf[b];
 
                 switch (server->pending[i].iacState)
                 {
@@ -1089,8 +1089,8 @@ static void *accept_thread_func(void *arg)
                 }
 
                 // Look up the terminal the client intended to select
-                int termIdx = pc->shownMap[selection];
-                RegisteredTerminal *rt = &server->terminals[termIdx];
+                int term_idx = pc->shownMap[selection];
+                RegisteredTerminal *rt = &server->terminals[term_idx];
 
                 if (rt->clientFd != ND_INVALID_SOCKET || rt->locallyActive)
                 {
@@ -1111,8 +1111,8 @@ static void *accept_thread_func(void *arg)
                 else
                 {
                     // Use menuMap for try_assign - set it to match the client's intended terminal
-                    menuMap[0] = termIdx;
-                    menuMapCount = 1;
+                    menu_map[0] = term_idx;
+                    menu_map_count = 1;
                     if (try_assign_pending(server, pc, 0))
                     {
                         // Remove from pending (fd already transferred)
@@ -1131,11 +1131,11 @@ static void *accept_thread_func(void *arg)
         // Accept new connection
         if (pfds[0].revents & POLLIN)
         {
-            struct sockaddr_in clientAddr;
-            nd_socklen_t addrLen = sizeof(clientAddr);
-            nd_socket_t clientFd = (nd_socket_t)accept(ND_SOCK_NATIVE(server->listenFd),
-                                                       (struct sockaddr *)&clientAddr, &addrLen);
-            if (clientFd == ND_INVALID_SOCKET)
+            struct sockaddr_in client_addr;
+            nd_socklen_t addr_len = sizeof(client_addr);
+            nd_socket_t client_fd = (nd_socket_t)accept(ND_SOCK_NATIVE(server->listenFd),
+                                                        (struct sockaddr *)&client_addr, &addr_len);
+            if (client_fd == ND_INVALID_SOCKET)
             {
                 // Transient accept failure; retry. This includes our own
                 // shutdown-triggered close of listenFd - the outer while loop
@@ -1145,46 +1145,46 @@ static void *accept_thread_func(void *arg)
 
             // Enable TCP_NODELAY
             int opt = 1;
-            setsockopt(ND_SOCK_NATIVE(clientFd), IPPROTO_TCP, TCP_NODELAY, (const char *)&opt,
+            setsockopt(ND_SOCK_NATIVE(client_fd), IPPROTO_TCP, TCP_NODELAY, (const char *)&opt,
                        sizeof(opt));
 
             // Send telnet negotiation
-            send(ND_SOCK_NATIVE(clientFd), (const char *)telnet_init, (int)sizeof(telnet_init),
+            send(ND_SOCK_NATIVE(client_fd), (const char *)telnet_init, (int)sizeof(telnet_init),
                  MSG_NOSIGNAL);
 
-            char addrStr[48];
-            snprintf(addrStr, sizeof(addrStr), "%s:%d", inet_ntoa(clientAddr.sin_addr),
-                     ntohs(clientAddr.sin_port));
+            char addr_str[48];
+            snprintf(addr_str, sizeof(addr_str), "%s:%d", inet_ntoa(client_addr.sin_addr),
+                     ntohs(client_addr.sin_port));
 
-            LOG(LOG_CAT_NET, LOG_INFO, "Telnet: connection from %s\n", addrStr);
+            LOG(LOG_CAT_NET, LOG_INFO, "Telnet: connection from %s\n", addr_str);
 
             pthread_mutex_lock(&server->pendingMutex);
             if (server->pendingCount >= TELNET_MAX_PENDING)
             {
                 const char *full = "\r\nToo many pending connections. Try again later.\r\n";
-                send(ND_SOCK_NATIVE(clientFd), full, (int)strlen(full), MSG_NOSIGNAL);
-                nd_socket_close(clientFd);
-                LOG(LOG_CAT_NET, LOG_INFO, "Telnet: %s rejected (pending slots full)\n", addrStr);
+                send(ND_SOCK_NATIVE(client_fd), full, (int)strlen(full), MSG_NOSIGNAL);
+                nd_socket_close(client_fd);
+                LOG(LOG_CAT_NET, LOG_INFO, "Telnet: %s rejected (pending slots full)\n", addr_str);
             }
             else
             {
                 // Check if any terminals are available before adding to pending
                 send_menu(server, ND_INVALID_SOCKET); // Rebuild menuMap only
-                if (menuMapCount == 0)
+                if (menu_map_count == 0)
                 {
                     const char *noterm = "\r\nND-100/CX Terminal Server\r\n\r\n"
                                          "No terminals available. All are in use.\r\n"
                                          "Disconnecting.\r\n";
-                    send(ND_SOCK_NATIVE(clientFd), noterm, (int)strlen(noterm), MSG_NOSIGNAL);
-                    nd_socket_close(clientFd);
+                    send(ND_SOCK_NATIVE(client_fd), noterm, (int)strlen(noterm), MSG_NOSIGNAL);
+                    nd_socket_close(client_fd);
                     LOG(LOG_CAT_NET, LOG_INFO, "Telnet: %s rejected (no free terminals)\n",
-                        addrStr);
+                        addr_str);
                 }
                 else
                 {
                     PendingClient *pc = &server->pending[server->pendingCount];
-                    pc->fd = clientFd;
-                    snprintf(pc->addrStr, sizeof(pc->addrStr), "%s", addrStr);
+                    pc->fd = client_fd;
+                    snprintf(pc->addrStr, sizeof(pc->addrStr), "%s", addr_str);
                     pc->connectTime = time(NULL);
                     pc->iacState = TELNET_STATE_DATA;
                     pc->bytesRx = 0;
@@ -1221,7 +1221,7 @@ static void *client_thread_func(void *arg)
 
     TelnetServer *server = s_telnet_server;
     nd_socket_t fd = rt->clientFd;
-    TelnetIACState iacState = TELNET_STATE_DATA;
+    TelnetIACState iac_state = TELNET_STATE_DATA;
 
     nd_pollfd_t pfds[2];
     pfds[0].fd = ND_SOCK_NATIVE(fd);
@@ -1262,12 +1262,12 @@ static void *client_thread_func(void *arg)
             {
                 uint8_t byte = buf[i];
 
-                switch (iacState)
+                switch (iac_state)
                 {
                 case TELNET_STATE_DATA:
                     if (byte == IAC)
                     {
-                        iacState = TELNET_STATE_IAC;
+                        iac_state = TELNET_STATE_IAC;
                     }
                     else
                     {
@@ -1286,19 +1286,19 @@ static void *client_thread_func(void *arg)
                     switch (byte)
                     {
                     case WILL:
-                        iacState = TELNET_STATE_WILL;
+                        iac_state = TELNET_STATE_WILL;
                         break;
                     case WONT:
-                        iacState = TELNET_STATE_WONT;
+                        iac_state = TELNET_STATE_WONT;
                         break;
                     case DO:
-                        iacState = TELNET_STATE_DO;
+                        iac_state = TELNET_STATE_DO;
                         break;
                     case DONT:
-                        iacState = TELNET_STATE_DONT;
+                        iac_state = TELNET_STATE_DONT;
                         break;
                     case SB:
-                        iacState = TELNET_STATE_SB;
+                        iac_state = TELNET_STATE_SB;
                         break;
                     case IAC:
                         // Escaped 255 - pass as data
@@ -1306,10 +1306,10 @@ static void *client_thread_func(void *arg)
                         {
                             rt->info.inputFunc(rt->info.device, byte);
                         }
-                        iacState = TELNET_STATE_DATA;
+                        iac_state = TELNET_STATE_DATA;
                         break;
                     default:
-                        iacState = TELNET_STATE_DATA;
+                        iac_state = TELNET_STATE_DATA;
                         break;
                     }
                     break;
@@ -1317,25 +1317,25 @@ static void *client_thread_func(void *arg)
                 case TELNET_STATE_WONT:
                 case TELNET_STATE_DO:
                 case TELNET_STATE_DONT:
-                    iacState = TELNET_STATE_DATA;
+                    iac_state = TELNET_STATE_DATA;
                     break;
                 case TELNET_STATE_SB:
-                    iacState = TELNET_STATE_SB_DATA;
+                    iac_state = TELNET_STATE_SB_DATA;
                     break;
                 case TELNET_STATE_SB_DATA:
                     if (byte == IAC)
                     {
-                        iacState = TELNET_STATE_SB_IAC;
+                        iac_state = TELNET_STATE_SB_IAC;
                     }
                     break;
                 case TELNET_STATE_SB_IAC:
                     if (byte == SE)
                     {
-                        iacState = TELNET_STATE_DATA;
+                        iac_state = TELNET_STATE_DATA;
                     }
                     else
                     {
-                        iacState = TELNET_STATE_SB_DATA;
+                        iac_state = TELNET_STATE_SB_DATA;
                     }
                     break;
                 default:

@@ -98,7 +98,8 @@ typedef struct PrintJob
  * @return New manager the caller frees with PrintJob_Destroy(), or NULL if an
  *         allocation failed.
  */
-PrintJob *PrintJob_Create(PjPrinterType printerType, PjOutputFormat format, const char *outputDir);
+PrintJob *PrintJob_Create(PjPrinterType printer_type, PjOutputFormat format,
+                          const char *output_dir);
 
 /**
  * @brief Feed one character from the printer device into the current job.

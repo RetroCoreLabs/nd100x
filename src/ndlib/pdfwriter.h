@@ -92,8 +92,8 @@ int Pdf_AddPage(PdfDocument *doc);
  * @param fontSize  Font size in points.
  * @param text      NUL-terminated text; NULL is ignored.
  */
-void Pdf_AddTextSpan(PdfDocument *doc, int pageIndex, float x, float y, uint8_t style,
-                     float fontSize, const char *text);
+void Pdf_AddTextSpan(PdfDocument *doc, int page_index, float x, float y, uint8_t style,
+                     float font_size, const char *text);
 
 /**
  * @brief Write the whole document as a PDF file: catalog, page tree, the four

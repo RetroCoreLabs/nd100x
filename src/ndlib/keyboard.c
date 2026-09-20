@@ -376,9 +376,9 @@ KeyEvent read_key_event(void)
     }
 
     // Copy raw bytes into the event for passthrough / KEY_UNKNOWN consumers.
-    int copyLen = (len < (int)sizeof(evt.seq)) ? len : (int)sizeof(evt.seq);
-    memcpy(evt.seq, buf, (size_t)copyLen);
-    evt.seqLen = copyLen;
+    int copy_len = (len < (int)sizeof(evt.seq)) ? len : (int)sizeof(evt.seq);
+    memcpy(evt.seq, buf, (size_t)copy_len);
+    evt.seqLen = copy_len;
 
     // Classify.
     if (len == 1)

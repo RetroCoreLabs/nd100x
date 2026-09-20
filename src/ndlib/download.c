@@ -127,7 +127,7 @@ typedef struct
 } DownloadData;
 
 // Callback function for CURL to write received data
-static size_t WriteCallback(void *contents, size_t size, size_t nmemb, void *userp)
+static size_t write_callback(void *contents, size_t size, size_t nmemb, void *userp)
 {
     size_t realsize = size * nmemb;
     DownloadData *download_data = (DownloadData *)userp;
@@ -192,7 +192,7 @@ char *download_file(const char *url)
 
     // Set up CURL options
     curl_easy_setopt(curl, CURLOPT_URL, url);
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &download_data);
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30L);

@@ -141,11 +141,11 @@ int LoadPROG(const char *filename, bool verbose)
     /* --- Header 1 --- */
     int start = read_be16(f);
     int restart = read_be16(f);
-    int firstB1 = read_be16(f);
-    int lastB1 = read_be16(f);
-    int firstB2 = read_be16(f);
-    int lastB2 = read_be16(f);
-    if (start < 0 || restart < 0 || firstB1 < 0 || lastB1 < 0 || firstB2 < 0 || lastB2 < 0)
+    int first_b1 = read_be16(f);
+    int last_b1 = read_be16(f);
+    int first_b2 = read_be16(f);
+    int last_b2 = read_be16(f);
+    if (start < 0 || restart < 0 || first_b1 < 0 || last_b1 < 0 || first_b2 < 0 || last_b2 < 0)
     {
         LOG(LOG_CAT_LOADER, LOG_INFO, "PROG load: header too short in '%s'\n", filename);
         fclose(f);
@@ -155,10 +155,10 @@ int LoadPROG(const char *filename, bool verbose)
     PROG_Header hdr;
     hdr.startAddress = (uint16_t)start;
     hdr.restartAddress = (uint16_t)restart;
-    hdr.firstBank1 = (uint16_t)firstB1;
-    hdr.lastBank1 = (uint16_t)lastB1;
-    hdr.firstBank2 = (uint16_t)firstB2;
-    hdr.lastBank2 = (uint16_t)lastB2;
+    hdr.firstBank1 = (uint16_t)first_b1;
+    hdr.lastBank1 = (uint16_t)last_b1;
+    hdr.firstBank2 = (uint16_t)first_b2;
+    hdr.lastBank2 = (uint16_t)last_b2;
     /* 1-bank sentinel: first==0xFFFF, last==0x0000 -> no Bank 2. */
     hdr.twoBank = !(hdr.firstBank2 == 0xFFFF && hdr.lastBank2 == 0x0000);
 

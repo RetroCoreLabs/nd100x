@@ -26,3 +26,80 @@ src/machine	typedef	src/machine/machine_config.h	MC_BootSpec	McBootSpec
 src/machine	typedef	src/machine/machine_config.h	MC_Controller	McController
 src/machine	typedef	src/machine/machine_config.h	MC_DiskSlot	McDiskSlot
 src/machine	typedef	src/machine/machine_config.h	MC_Nd500	McNd500
+src/ndlib	function	src/ndlib/download.c	WriteCallback	write_callback
+src/ndlib	global variable	src/ndlib/telnetserver.c	menuMap	menu_map
+src/ndlib	global variable	src/ndlib/telnetserver.c	menuMapCount	menu_map_count
+src/ndlib	global variable	src/ndlib/printjob.c	pdfLineBuf	pdf_line_buf
+src/ndlib	global variable	src/ndlib/printjob.c	pdfLineBufLen	pdf_line_buf_len
+src/ndlib	local variable	src/ndlib/telnetserver.c	addrLen	addr_len
+src/ndlib	local variable	src/ndlib/telnetserver.c	addrStr	addr_str
+src/ndlib	local variable	src/ndlib/load_bpun.c	bpunStream	bpun_stream
+src/ndlib	local variable	src/ndlib/pdfwriter.c	bufSize	buf_size
+src/ndlib	local variable	src/ndlib/pdfwriter.c	charWidth	char_width
+src/ndlib	local variable	src/ndlib/telnetserver.c	clientAddr	client_addr
+src/ndlib	local variable	src/ndlib/telnetserver.c	clientFd	client_fd
+src/ndlib	local variable	src/ndlib/telnetserver.c	connMsg	conn_msg
+src/ndlib	local variable	src/ndlib/pdfwriter.c	contObj	cont_obj
+src/ndlib	local variable	src/ndlib/pdfwriter.c	contentBufs	content_bufs
+src/ndlib	local variable	src/ndlib/pdfwriter.c	contentLens	content_lens
+src/ndlib	local variable	src/ndlib/pdfwriter.c	contentObjBase	content_obj_base
+src/ndlib	local variable	src/ndlib/keyboard.c	copyLen	copy_len
+src/ndlib	local variable	src/ndlib/load_bpun.c	currentLocationCounter	current_location_counter
+src/ndlib	local variable	src/ndlib/load_bpun.c	dataCounter	data_counter
+src/ndlib	local variable	src/ndlib/load_bpun.c	dataLoadAddress	data_load_address
+src/ndlib	local variable	src/ndlib/escp.c	effectiveCpi	effective_cpi
+src/ndlib	local variable	src/ndlib/load_prog.c	firstB1	first_b1
+src/ndlib	local variable	src/ndlib/load_prog.c	firstB2	first_b2
+src/ndlib	local variable	src/ndlib/load_bpun.c	floWords	flo_words
+src/ndlib	local variable	src/ndlib/telnetserver.c	iacState	iac_state
+src/ndlib	local variable	src/ndlib/telnetserver.c	inputBuf	input_buf
+src/ndlib	local variable	src/ndlib/load_prog.c	lastB1	last_b1
+src/ndlib	local variable	src/ndlib/load_prog.c	lastB2	last_b2
+src/ndlib	local variable	src/ndlib/load_bpun.c	lastValue	last_value
+src/ndlib	local variable	src/ndlib/printjob.c	lineH	line_h
+src/ndlib	local variable	src/ndlib/escp.c	lineHeight	line_height
+src/ndlib	local variable	src/ndlib/pdfwriter.c	lineWidth	line_width
+src/ndlib	local variable	src/ndlib/pdfwriter.c	lineY	line_y
+src/ndlib	local variable	src/ndlib/load_bpun.c	loadAddress	load_address
+src/ndlib	local variable	src/ndlib/load_bpun.c	loadOK	load_ok
+src/ndlib	local variable	src/ndlib/load_bpun.c	loadState	load_state
+src/ndlib	local variable	src/ndlib/printjob.c	maxPage	max_page
+src/ndlib	local variable	src/ndlib/pdfwriter.c	newCap	new_cap
+src/ndlib	local variable	src/ndlib/pdfwriter.c	numPages	num_pages
+src/ndlib	local variable	src/ndlib/pdfwriter.c	objNum	obj_num
+src/ndlib	local variable	src/ndlib/pdfwriter.c	pageObj	page_obj
+src/ndlib	local variable	src/ndlib/printjob.c	spanCount	span_count
+src/ndlib	local variable	src/ndlib/telnetserver.c	termIdx	term_idx
+src/ndlib	local variable	src/ndlib/pdfwriter.c	textLen	text_len
+src/ndlib	local variable	src/ndlib/load_bpun.c	tmpString	tmp_string
+src/ndlib	local variable	src/ndlib/load_bpun.c	tmpStringPos	tmp_string_pos
+src/ndlib	local variable	src/ndlib/pdfwriter.c	totalObjects	total_objects
+src/ndlib	local variable	src/ndlib/pdfwriter.c	xrefOffset	xref_offset
+src/ndlib	parameter	src/ndlib/telnetserver.h	addrBuf	addr_buf
+src/ndlib	parameter	src/ndlib/telnetserver.h	addrBufLen	addr_buf_len
+src/ndlib	parameter	src/ndlib/telnetserver.h	addrLen	addr_len
+src/ndlib	parameter	src/ndlib/telnetserver.h	ageSecs	age_secs
+src/ndlib	parameter	src/ndlib/load_bpun.c	bpunStream	bpun_stream
+src/ndlib	parameter	src/ndlib/printjob.c	bufSize	buf_size
+src/ndlib	parameter	src/ndlib/telnetserver.h	bytesRx	bytes_rx
+src/ndlib	parameter	src/ndlib/telnetserver.h	bytesTx	bytes_tx
+src/ndlib	parameter	src/ndlib/telnetserver.h	clientAddr	client_addr
+src/ndlib	parameter	src/ndlib/telnetserver.c	clientFd	client_fd
+src/ndlib	parameter	src/ndlib/pdfwriter.h	fontSize	font_size
+src/ndlib	parameter	src/ndlib/telnetserver.h	identCode	ident_code
+src/ndlib	parameter	src/ndlib/telnetserver.h	locallyActive	locally_active
+src/ndlib	parameter	src/ndlib/pdfwriter.c	outLen	out_len
+src/ndlib	parameter	src/ndlib/printjob.h	outputDir	output_dir
+src/ndlib	parameter	src/ndlib/pdfwriter.h	pageIndex	page_index
+src/ndlib	parameter	src/ndlib/ndlib_types.h	physicalAddress	physical_address
+src/ndlib	parameter	src/ndlib/printjob.h	printerType	printer_type
+src/ndlib	static variable	src/ndlib/pdfwriter.c	fontNames	font_names
+src/ndlib	enum constant	src/ndlib/ndlib_types.h	LoadState_Action	LOAD_STATE_ACTION
+src/ndlib	enum constant	src/ndlib/ndlib_types.h	LoadState_Address	LOAD_STATE_ADDRESS
+src/ndlib	enum constant	src/ndlib/ndlib_types.h	LoadState_Checksum	LOAD_STATE_CHECKSUM
+src/ndlib	enum constant	src/ndlib/ndlib_types.h	LoadState_Count	LOAD_STATE_COUNT
+src/ndlib	enum constant	src/ndlib/ndlib_types.h	LoadState_Data	LOAD_STATE_DATA
+src/ndlib	enum constant	src/ndlib/ndlib_types.h	LoadState_FloMonCount	LOAD_STATE_FLO_MON_COUNT
+src/ndlib	enum constant	src/ndlib/ndlib_types.h	LoadState_FloMonLoad	LOAD_STATE_FLO_MON_LOAD
+src/ndlib	enum constant	src/ndlib/ndlib_types.h	LoadState_Preamble	LOAD_STATE_PREAMBLE
+src/ndlib	typedef	src/ndlib/net_compat.h	nd_ssize_t	NdSsizeT

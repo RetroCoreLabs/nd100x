@@ -95,15 +95,15 @@ int Pdf_AddPage(PdfDocument *doc)
 
     if (doc->pageCount >= doc->pageCapacity)
     {
-        int newCap = doc->pageCapacity * 2;
-        PdfPage *tmp = realloc(doc->pages, newCap * sizeof(PdfPage));
+        int new_cap = doc->pageCapacity * 2;
+        PdfPage *tmp = realloc(doc->pages, new_cap * sizeof(PdfPage));
         if (!tmp)
         {
             return -1;
         }
-        memset(tmp + doc->pageCapacity, 0, (newCap - doc->pageCapacity) * sizeof(PdfPage));
+        memset(tmp + doc->pageCapacity, 0, (new_cap - doc->pageCapacity) * sizeof(PdfPage));
         doc->pages = tmp;
-        doc->pageCapacity = newCap;
+        doc->pageCapacity = new_cap;
     }
 
     PdfPage *page = &doc->pages[doc->pageCount];
@@ -118,32 +118,32 @@ int Pdf_AddPage(PdfDocument *doc)
     return doc->pageCount++;
 }
 
-void Pdf_AddTextSpan(PdfDocument *doc, int pageIndex, float x, float y, uint8_t style,
-                     float fontSize, const char *text)
+void Pdf_AddTextSpan(PdfDocument *doc, int page_index, float x, float y, uint8_t style,
+                     float font_size, const char *text)
 {
-    if (!doc || pageIndex < 0 || pageIndex >= doc->pageCount || !text)
+    if (!doc || page_index < 0 || page_index >= doc->pageCount || !text)
     {
         return;
     }
 
-    PdfPage *page = &doc->pages[pageIndex];
+    PdfPage *page = &doc->pages[page_index];
     if (page->spanCount >= page->spanCapacity)
     {
-        int newCap = page->spanCapacity * 2;
-        PdfTextSpan *tmp = realloc(page->spans, newCap * sizeof(PdfTextSpan));
+        int new_cap = page->spanCapacity * 2;
+        PdfTextSpan *tmp = realloc(page->spans, new_cap * sizeof(PdfTextSpan));
         if (!tmp)
         {
             return;
         }
         page->spans = tmp;
-        page->spanCapacity = newCap;
+        page->spanCapacity = new_cap;
     }
 
     PdfTextSpan *span = &page->spans[page->spanCount++];
     span->x = x;
     span->y = y;
     span->style = style;
-    span->fontSize = fontSize;
+    span->fontSize = font_size;
     span->text = strdup(text);
     if (!span->text)
     {
@@ -173,47 +173,47 @@ static const char *pdf_font_name(uint8_t style)
 }
 
 // Build the content stream for one page into a dynamic buffer
-static char *build_page_content(PdfPage *page, size_t *outLen)
+static char *build_page_content(PdfPage *page, size_t *out_len)
 {
     // Estimate: each span ~100 bytes
-    size_t bufSize = 256 + page->spanCount * 128;
-    char *buf = malloc(bufSize);
+    size_t buf_size = 256 + page->spanCount * 128;
+    char *buf = malloc(buf_size);
     if (!buf)
     {
-        *outLen = 0;
+        *out_len = 0;
         return NULL;
     }
 
     size_t pos = 0;
 
-    pos += snprintf(buf + pos, bufSize - pos, "BT\n");
+    pos += snprintf(buf + pos, buf_size - pos, "BT\n");
 
     for (int i = 0; i < page->spanCount; i++)
     {
         PdfTextSpan *span = &page->spans[i];
 
         // Grow buffer if needed
-        size_t textLen = span->text ? strlen(span->text) : 0;
-        size_t needed = pos + textLen * 2 + 256;
-        if (needed > bufSize)
+        size_t text_len = span->text ? strlen(span->text) : 0;
+        size_t needed = pos + text_len * 2 + 256;
+        if (needed > buf_size)
         {
-            bufSize = needed * 2;
-            char *tmp = realloc(buf, bufSize);
+            buf_size = needed * 2;
+            char *tmp = realloc(buf, buf_size);
             if (!tmp)
             {
                 free(buf);
-                *outLen = 0;
+                *out_len = 0;
                 return NULL;
             }
             buf = tmp;
         }
 
         // Font selection
-        pos += snprintf(buf + pos, bufSize - pos, "%s %.1f Tf\n", pdf_font_name(span->style),
+        pos += snprintf(buf + pos, buf_size - pos, "%s %.1f Tf\n", pdf_font_name(span->style),
                         span->fontSize);
 
         // Position (Tm sets absolute text matrix, unlike Td which is relative)
-        pos += snprintf(buf + pos, bufSize - pos, "1 0 0 1 %.2f %.2f Tm\n", span->x, span->y);
+        pos += snprintf(buf + pos, buf_size - pos, "1 0 0 1 %.2f %.2f Tm\n", span->x, span->y);
 
         // Text
         // Escape manually into buf
@@ -227,27 +227,27 @@ static char *build_page_content(PdfPage *page, size_t *outLen)
             buf[pos++] = *p;
         }
         buf[pos++] = ')';
-        pos += snprintf(buf + pos, bufSize - pos, " Tj\n");
+        pos += snprintf(buf + pos, buf_size - pos, " Tj\n");
 
         // Underline: draw a line under the text
         if (span->style & PDF_STYLE_UNDERLINE)
         {
-            float charWidth = span->fontSize * 0.6f; // Courier character width
-            float lineWidth = charWidth * textLen;
-            float lineY = span->y - 2.0f;
+            float char_width = span->fontSize * 0.6f; // Courier character width
+            float line_width = char_width * text_len;
+            float line_y = span->y - 2.0f;
 
-            pos += snprintf(buf + pos, bufSize - pos,
+            pos += snprintf(buf + pos, buf_size - pos,
                             "ET\n"
                             "0.5 w\n"
                             "%.2f %.2f m %.2f %.2f l S\n"
                             "BT\n",
-                            span->x, lineY, span->x + lineWidth, lineY);
+                            span->x, line_y, span->x + line_width, line_y);
         }
     }
 
-    pos += snprintf(buf + pos, bufSize - pos, "ET\n");
+    pos += snprintf(buf + pos, buf_size - pos, "ET\n");
 
-    *outLen = pos;
+    *out_len = pos;
     return buf;
 }
 
@@ -272,14 +272,14 @@ static void write_head_objects(FILE *f, int64_t *offsets, int num_pages)
     fprintf(f, " ] /Count %d >>\nendobj\n", num_pages);
 
     // Objects 3-6: Fonts
-    static const char *fontNames[] = {"Courier", "Courier-Bold", "Courier-Oblique",
-                                      "Courier-BoldOblique"};
+    static const char *font_names[] = {"Courier", "Courier-Bold", "Courier-Oblique",
+                                       "Courier-BoldOblique"};
     for (int i = 0; i < 4; i++)
     {
-        int objNum = OBJ_FONT_REGULAR + i;
-        offsets[objNum] = ftell(f);
-        fprintf(f, "%d 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /%s >>\nendobj\n", objNum,
-                fontNames[i]);
+        int obj_num = OBJ_FONT_REGULAR + i;
+        offsets[obj_num] = ftell(f);
+        fprintf(f, "%d 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /%s >>\nendobj\n", obj_num,
+                font_names[i]);
     }
 }
 
@@ -287,7 +287,7 @@ static void write_head_objects(FILE *f, int64_t *offsets, int num_pages)
 static void write_xref_and_trailer(FILE *f, const int64_t *offsets, int total_objects)
 {
     // Cross-reference table
-    int64_t xrefOffset = ftell(f);
+    int64_t xref_offset = ftell(f);
     fprintf(f, "xref\n0 %d\n", total_objects + 1);
     fprintf(f, "0000000000 65535 f \n");
     for (int i = 1; i <= total_objects; i++)
@@ -297,7 +297,7 @@ static void write_xref_and_trailer(FILE *f, const int64_t *offsets, int total_ob
 
     // Trailer
     fprintf(f, "trailer\n<< /Size %d /Root 1 0 R >>\n", total_objects + 1);
-    fprintf(f, "startxref\n%" PRId64 "\n%%%%EOF\n", xrefOffset);
+    fprintf(f, "startxref\n%" PRId64 "\n%%%%EOF\n", xref_offset);
 }
 
 bool Pdf_WriteToFile(PdfDocument *doc, const char *filename)
@@ -313,36 +313,36 @@ bool Pdf_WriteToFile(PdfDocument *doc, const char *filename)
         return false;
     }
 
-    int numPages = doc->pageCount;
+    int num_pages = doc->pageCount;
     // Total objects: catalog + pages + 4 fonts + numPages page objs + numPages content objs
-    int totalObjects = 6 + numPages * 2;
+    int total_objects = 6 + num_pages * 2;
 
     // Track byte offsets for xref
-    int64_t *offsets = calloc(totalObjects + 1, sizeof(int64_t));
+    int64_t *offsets = calloc(total_objects + 1, sizeof(int64_t));
     if (!offsets)
     {
         fclose(f);
         return false;
     }
 
-    write_head_objects(f, offsets, numPages);
+    write_head_objects(f, offsets, num_pages);
 
     // Build content streams first so we know their lengths
-    char **contentBufs = calloc(numPages, sizeof(char *));
-    size_t *contentLens = calloc(numPages, sizeof(size_t));
+    char **content_bufs = calloc(num_pages, sizeof(char *));
+    size_t *content_lens = calloc(num_pages, sizeof(size_t));
 
-    for (int i = 0; i < numPages; i++)
+    for (int i = 0; i < num_pages; i++)
     {
-        contentBufs[i] = build_page_content(&doc->pages[i], &contentLens[i]);
+        content_bufs[i] = build_page_content(&doc->pages[i], &content_lens[i]);
     }
 
     // Page objects (OBJ_FIRST_PAGE .. OBJ_FIRST_PAGE + numPages - 1)
-    int contentObjBase = OBJ_FIRST_PAGE + numPages;
-    for (int i = 0; i < numPages; i++)
+    int content_obj_base = OBJ_FIRST_PAGE + num_pages;
+    for (int i = 0; i < num_pages; i++)
     {
-        int pageObj = OBJ_FIRST_PAGE + i;
-        int contObj = contentObjBase + i;
-        offsets[pageObj] = ftell(f);
+        int page_obj = OBJ_FIRST_PAGE + i;
+        int cont_obj = content_obj_base + i;
+        offsets[page_obj] = ftell(f);
         fprintf(f,
                 "%d 0 obj\n"
                 "<< /Type /Page /Parent 2 0 R\n"
@@ -350,31 +350,31 @@ bool Pdf_WriteToFile(PdfDocument *doc, const char *filename)
                 "   /Contents %d 0 R\n"
                 "   /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R /F4 6 0 R >> >>\n"
                 ">>\nendobj\n",
-                pageObj, doc->pageWidth, doc->pageHeight, contObj);
+                page_obj, doc->pageWidth, doc->pageHeight, cont_obj);
     }
 
     // Content stream objects
-    for (int i = 0; i < numPages; i++)
+    for (int i = 0; i < num_pages; i++)
     {
-        int contObj = contentObjBase + i;
-        offsets[contObj] = ftell(f);
-        fprintf(f, "%d 0 obj\n<< /Length %zu >>\nstream\n", contObj, contentLens[i]);
-        if (contentBufs[i] && contentLens[i] > 0)
+        int cont_obj = content_obj_base + i;
+        offsets[cont_obj] = ftell(f);
+        fprintf(f, "%d 0 obj\n<< /Length %zu >>\nstream\n", cont_obj, content_lens[i]);
+        if (content_bufs[i] && content_lens[i] > 0)
         {
-            fwrite(contentBufs[i], 1, contentLens[i], f);
+            fwrite(content_bufs[i], 1, content_lens[i], f);
         }
         fprintf(f, "endstream\nendobj\n");
     }
 
-    write_xref_and_trailer(f, offsets, totalObjects);
+    write_xref_and_trailer(f, offsets, total_objects);
 
     // Cleanup
-    for (int i = 0; i < numPages; i++)
+    for (int i = 0; i < num_pages; i++)
     {
-        free(contentBufs[i]);
+        free(content_bufs[i]);
     }
-    free(contentBufs);
-    free(contentLens);
+    free(content_bufs);
+    free(content_lens);
     free(offsets);
     fclose(f);
     return true;
