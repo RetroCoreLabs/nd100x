@@ -40,33 +40,33 @@
 
 /// @brief Message control functions.
 /// Read from WPAN bits 0-2
-/// Used when PANS/PANC PANEL_STATUS_FUNCTIONS is STATUS_MESSAGE_CONTROL
+/// Used when PANS/PANC PanelStatusFunctions is STATUS_MESSAGE_CONTROL
 typedef enum
 {
     /// <summary>
     /// Stop rotating the message
     /// </summary>
-    StopRotatingMessage = 0b000,
+    STOP_ROTATING_MESSAGE = 0b000,
 
     /// <summary>
     /// Return display to normal funciont
     /// </summary>
-    ReturnDisplayToNormal = 0b001,
+    RETURN_DISPLAY_TO_NORMAL = 0b001,
 
     /// <summary>
     /// Clear text buffer and Function display. Prepare for text to be appended
     /// </summary>
-    ClearTextBuffer = 0b010,
+    CLEAR_TEXT_BUFFER = 0b010,
 
     /// <summary>
     /// Rotate the message in the text buffer, displaying four characters at a a time
     /// </summary>
-    RotateMessage = 0b100,
+    ROTATE_MESSAGE = 0b100,
 
     /// <summary>
     /// CLear the text and start rotating. (Command 010 plus command 100)
     /// </summary>
-    ClearAndRotate = 0b110,
+    CLEAR_AND_ROTATE = 0b110,
 } MessageControl;
 
 /// @brief User/external functions.
@@ -91,7 +91,7 @@ typedef enum
     STATUS_OUT_EXAMINE_MODE, // 13 - (EXM02) after 1 byte Q ?
     STATUS_SEND_LABEL,       // 14 - After, 2 words: AB,TXT1 then AB,TXT2 (LABEL:)
     STATUS_F_TYPED           // 15 -
-} PANEL_STATUS_FUNCTIONS;
+} PanelStatusFunctions;
 
 ///  PANS (READ)
 ///  Response from panel to ND-100 cpu
@@ -102,7 +102,7 @@ typedef enum
 /// |DISP.PRESS |INP PDY | RPAN VAL |PAN INT|   PFUNC    |   RPAN     |
 /// +-----------+--------+----------+-------+------------+------------+
 // NOTE on bit-field storage type: every bit-field must share the same
-// underlying storage type (uint16_t). Using an enum (`PANEL_STATUS_FUNCTIONS`)
+// underlying storage type (uint16_t). Using an enum (`PanelStatusFunctions`)
 // for `pfunc` broke the layout on Windows/MinGW - GCC defaults to
 // -mms-bitfields there, which places different-typed bit-fields in separate
 // storage units, so the `raw` uint16_t overlay no longer covered `pfunc`.
@@ -113,7 +113,7 @@ typedef union
     struct
     {
         uint16_t rpan : 8;  // Bits 0-7: RPAN (return from Panel)
-        uint16_t pfunc : 4; // Bits 8-11: PFUNC (Panel function code; see PANEL_STATUS_FUNCTIONS)
+        uint16_t pfunc : 4; // Bits 8-11: PFUNC (Panel function code; see PanelStatusFunctions)
         uint16_t pan_interrupt
             : 1; // Bit 12: Panel Interrupt (set to 1 when responding) - Also known as "COM RDY", The command in PCOM has been processed
         uint16_t read_panel_valid
@@ -122,7 +122,7 @@ typedef union
             : 1; // Bit 14: Input Pending (When 0, the PAC fifo is full. If status stays at 0 for more than 2 ms then PAP (Panel Processor) is not working)
         uint16_t panel_present : 1; // Bit 15: Panel Present (1=Display is present)
     } bits;
-} PANS_Register;
+} PansRegister;
 
 ///  PANC - Panel Control Register (WRITE)
 ///  Command from ND-100 cpu to panel
@@ -132,7 +132,7 @@ typedef union
 /// +---+---+--------------+----+-----------+------------+
 /// | 0 | 0 | Read Request |N.A.|  PFUNC    |   WPAN     |
 /// +---+---+--------------+----+-----------+------------+
-// Same bit-field-storage-type constraint as PANS_Register - keep every
+// Same bit-field-storage-type constraint as PansRegister - keep every
 // field as uint16_t so the `raw` overlay matches the bits view on both
 // Linux (packed) and Windows/MinGW (-mms-bitfields) ABIs.
 typedef union
@@ -140,16 +140,16 @@ typedef union
     uint16_t raw;
     struct
     {
-        uint16_t wpan : 8;  // Bits 0-7: WPAN (Write to Panel)
-        uint16_t pfunc : 4; // Bits 8-11: PFUNC (Panel function code; see PANEL_STATUS_FUNCTIONS)
-        uint16_t reserved12 : 1;   // Bit 12: N.A.
+        uint16_t wpan : 8;       // Bits 0-7: WPAN (Write to Panel)
+        uint16_t pfunc : 4;      // Bits 8-11: PFUNC (Panel function code; see PanelStatusFunctions)
+        uint16_t reserved12 : 1; // Bit 12: N.A.
         uint16_t read_request : 1; // Bit 13: Read Request
         uint16_t reserved14 : 1;   // Bit 14: Reserved
         uint16_t reserved15 : 1;   // Bit 15: Reserved
     } bits;
-} PANC_Register;
+} PancRegister;
 
-struct display_panel
+struct DisplayPanel
 {
     bool sec_tick; /* Seconds tick from rtc, update counters */
 

@@ -232,7 +232,6 @@
     "src/devices/hdlc/modem.c": 6,
     "src/devices/hdlc/modem.h": 3,
     "src/devices/hdlc/tcp_receive_buffer.c": 4,
-    "src/devices/panel/panel.h": 9,
     "src/devices/papertapewriter/device_paper_tape_writer.c": 2,
     "src/devices/scsi/device_scsi.c": 8,
     "src/devices/scsi/device_scsi.h": 1,
@@ -288,7 +287,7 @@
     "tools/reth-tap/test-framing.c": 1,
     "tools/reth-tap/test-gateway.c": 1
    },
-   "total": 1038
+   "total": 1029
   },
   "3.8": {
    "files": {

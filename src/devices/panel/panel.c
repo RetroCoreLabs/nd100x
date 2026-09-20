@@ -40,7 +40,7 @@
 static void update_machine_time(void);
 
 
-static struct display_panel *s_pap;
+static struct DisplayPanel *s_pap;
 
 
 void setup_pap(void)
@@ -51,34 +51,34 @@ void setup_pap(void)
     gPANS = gPANS | 0x4000; /* Set FULL which is active low, so not full */
 
     /* static storage: allocated once, never freed, cannot fail */
-    static struct display_panel s_pap_storage;
+    static struct DisplayPanel s_pap_storage;
     memset(&s_pap_storage, 0, sizeof(s_pap_storage));
     s_pap = &s_pap_storage;
 
     update_machine_time();
 }
 
-static void process_message_control(PANC_Register panc)
+static void process_message_control(PancRegister panc)
 {
     MessageControl mc = (panc.bits.wpan & 0b111);
 
 
     switch (mc)
     {
-    case StopRotatingMessage:
+    case STOP_ROTATING_MESSAGE:
         s_pap->function_mode = 0; // Stop rotating
         break;
-    case ReturnDisplayToNormal:
+    case RETURN_DISPLAY_TO_NORMAL:
         s_pap->function_mode = 1; // Return to normal
         break;
-    case ClearTextBuffer:
+    case CLEAR_TEXT_BUFFER:
         s_pap->fdisp_cntr = 0;                                       // Clear display counter
         memset(s_pap->func_display, 0, sizeof(s_pap->func_display)); // Clear display buffer
         break;
-    case RotateMessage:
+    case ROTATE_MESSAGE:
         s_pap->function_mode = 2; // Start rotating
         break;
-    case ClearAndRotate:
+    case CLEAR_AND_ROTATE:
         s_pap->fdisp_cntr = 0;                                       // Clear display counter
         memset(s_pap->func_display, 0, sizeof(s_pap->func_display)); // Clear display buffer
         s_pap->function_mode = 2;                                    // Start rotating
@@ -99,10 +99,10 @@ void ProcessTerminalPanc(void)
         return;
     }
 
-    PANC_Register panc;
+    PancRegister panc;
     panc.raw = gPANC;
 
-    PANS_Register pans;
+    PansRegister pans;
     pans.raw = 0;
 
     // Update time from the Host realtime clock when reading
