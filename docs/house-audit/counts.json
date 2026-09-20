@@ -169,7 +169,6 @@
     "src/devices/hdlc/dma_engine.c": 5,
     "src/devices/hdlc/dma_receiver.c": 1,
     "src/devices/hdlc/hdlc_crc.c": 1,
-    "src/devices/lineprinter/device_line_printer.c": 5,
     "src/devices/papertape/device_paper_tape.c": 6,
     "src/devices/papertapewriter/device_paper_tape_writer.c": 8,
     "src/devices/scsi/device_scsi.c": 14,
@@ -185,7 +184,7 @@
     "src/ndlib/download.c": 1,
     "src/ndlib/log.h": 1
    },
-   "total": 216
+   "total": 211
   },
   "3.3": {
    "files": {

@@ -40,7 +40,7 @@
 #include "../devices_types.h"
 #include "../devices_protos.h"
 
-static void LinePrinter_Reset(Device *self)
+static void line_printer_reset(Device *self)
 {
     LinePrinterData *data = (LinePrinterData *)self->deviceData;
     if (!data)
@@ -56,7 +56,7 @@ static void LinePrinter_Reset(Device *self)
     data->statusRegister.bits.readyForTransfer = 1;
 }
 
-static uint16_t LinePrinter_Tick(Device *self)
+static uint16_t line_printer_tick(Device *self)
 {
     if (!self)
     {
@@ -65,7 +65,7 @@ static uint16_t LinePrinter_Tick(Device *self)
     return self->interruptBits;
 }
 
-static uint16_t LinePrinter_Read(Device *self, uint32_t address)
+static uint16_t line_printer_read(Device *self, uint32_t address)
 {
     if (!self)
     {
@@ -93,7 +93,7 @@ static uint16_t LinePrinter_Read(Device *self, uint32_t address)
     return value;
 }
 
-static void LinePrinter_Write(Device *self, uint32_t address, uint16_t value)
+static void line_printer_write(Device *self, uint32_t address, uint16_t value)
 {
     if (!self)
     {
@@ -165,7 +165,7 @@ static void LinePrinter_Write(Device *self, uint32_t address, uint16_t value)
     }
 }
 
-static uint16_t LinePrinter_Ident(Device *self, uint16_t level)
+static uint16_t line_printer_ident(Device *self, uint16_t level)
 {
     if (!self)
     {
@@ -231,11 +231,11 @@ Device *CreateLinePrinterDevice(uint8_t thumbwheel)
     }
 
     // Set up device function pointers
-    dev->Reset = LinePrinter_Reset;
-    dev->Tick = LinePrinter_Tick;
-    dev->Read = LinePrinter_Read;
-    dev->Write = LinePrinter_Write;
-    dev->Ident = LinePrinter_Ident;
+    dev->Reset = line_printer_reset;
+    dev->Tick = line_printer_tick;
+    dev->Read = line_printer_read;
+    dev->Write = line_printer_write;
+    dev->Ident = line_printer_ident;
     dev->deviceData = data;
 
     LOG(LOG_CAT_PRINTER, LOG_INFO, "Line Printer device created: %s CODE[%o] ADDRESS[%o-%o]\n",
