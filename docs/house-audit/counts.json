@@ -158,7 +158,6 @@
   "3.2": {
    "files": {
     "src/cpu/cpu_mms.c": 4,
-    "src/devices/cdc/device_cdc.c": 12,
     "src/devices/devicemanager.c": 1,
     "src/devices/floppy/device_floppy_dma.c": 14,
     "src/devices/floppy/device_floppy_pio.c": 11,
@@ -180,7 +179,7 @@
     "src/ndlib/download.c": 1,
     "src/ndlib/log.h": 1
    },
-   "total": 181
+   "total": 169
   },
   "3.3": {
    "files": {
@@ -200,7 +199,6 @@
     "src/cpu/cpu_types.h": 82,
     "src/cpu/float.c": 5,
     "src/debugger/debugger.c": 20,
-    "src/devices/cdc/device_cdc.c": 8,
     "src/devices/device.c": 16,
     "src/devices/devicemanager.c": 7,
     "src/devices/devices_types.h": 5,
@@ -283,7 +281,7 @@
     "tools/reth-tap/test-framing.c": 1,
     "tools/reth-tap/test-gateway.c": 1
    },
-   "total": 1024
+   "total": 1016
   },
   "3.8": {
    "files": {

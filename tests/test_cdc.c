@@ -14,11 +14,11 @@
  * a real disk image.
  *
  * Coverage: every function in device_cdc.c and every register/path -
- *   CreateCdcDevice, Cdc_Reset, Cdc_Read (RST/RCA two-read/RSECT/SEEK+test),
- *   Cdc_Write (LCA/LBA/LWC/LCW-activate/LCW-clear), Cdc_ExecuteGO
- *   (read/write/read-parity/compare/test-mode/bounds), Cdc_End, Cdc_Tick,
- *   Cdc_Ident, Cdc_Destroy, CdcDevice_SetBackingFile + Cdc_AttachBacking +
- *   Cdc_EnsureSurface (backing-file round-trip) - PLUS the authoritative
+ *   CreateCdcDevice, cdc_reset, cdc_read (RST/RCA two-read/RSECT/SEEK+test),
+ *   cdc_write (LCA/LBA/LWC/LCW-activate/LCW-clear), cdc_execute_go
+ *   (read/write/read-parity/compare/test-mode/bounds), cdc_end, cdc_tick,
+ *   cdc_ident, cdc_destroy, CdcDevice_SetBackingFile + cdc_attach_backing +
+ *   cdc_ensure_surface (backing-file round-trip) - PLUS the authoritative
  *   register/bit model: control-word decode (activate/test/op 00-11/unit/
  *   core-addr bits 5-6), status-word bits, and the test-mode self-test.
  *
@@ -176,7 +176,7 @@ int main(void)
 
     /* Default surface must cover the corrected DKADR overlay range (max
      * physical sector 458 - see CDC_DEFAULT_SECTORS in device_cdc.h). The
-     * surface grows on demand (Cdc_EnsureSurface) for anything beyond it. */
+     * surface grows on demand (cdc_ensure_surface) for anything beyond it. */
     CHECK(d->surfaceSectors == CDC_DEFAULT_SECTORS && d->surfaceSectors == 512u,
           "default surface is 512 sectors");
     CHECK(d->surfaceSectors > 458u,
