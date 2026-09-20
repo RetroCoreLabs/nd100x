@@ -45,19 +45,19 @@
 
 // Define the level strings array
 
-static DeviceManager deviceManager = {0}; // Initialize to zero
+static DeviceManager device_manager = {0}; // Initialize to zero
 
 // Returns 0, or -1 if the device table could not be allocated.
 int DeviceManager_Init(void)
 {
 
-    deviceManager.deviceCapacity = INITIAL_DEVICE_CAPACITY;
-    deviceManager.deviceCount = 0;
-    deviceManager.devices = malloc(sizeof(DeviceInfo) * INITIAL_DEVICE_CAPACITY);
-    if (deviceManager.devices)
+    device_manager.deviceCapacity = INITIAL_DEVICE_CAPACITY;
+    device_manager.deviceCount = 0;
+    device_manager.devices = malloc(sizeof(DeviceInfo) * INITIAL_DEVICE_CAPACITY);
+    if (device_manager.devices)
     {
         // Zero initialize the device array
-        memset(deviceManager.devices, 0, sizeof(DeviceInfo) * INITIAL_DEVICE_CAPACITY);
+        memset(device_manager.devices, 0, sizeof(DeviceInfo) * INITIAL_DEVICE_CAPACITY);
     }
     else
     {
@@ -70,24 +70,24 @@ int DeviceManager_Init(void)
 void DeviceManager_Destroy(void)
 {
     // Clean up all devices
-    for (int i = 0; i < deviceManager.deviceCount; i++)
+    for (int i = 0; i < device_manager.deviceCount; i++)
     {
-        if (deviceManager.devices[i].device)
+        if (device_manager.devices[i].device)
         {
-            Device_Destroy(deviceManager.devices[i].device);
-            free(deviceManager.devices[i].device); // Free the device itself
-            deviceManager.devices[i].device = NULL;
+            Device_Destroy(device_manager.devices[i].device);
+            free(device_manager.devices[i].device); // Free the device itself
+            device_manager.devices[i].device = NULL;
         }
     }
 
-    if (deviceManager.devices)
+    if (device_manager.devices)
     {
-        free(deviceManager.devices);
-        deviceManager.devices = NULL;
+        free(device_manager.devices);
+        device_manager.devices = NULL;
     }
 
-    deviceManager.deviceCount = 0;
-    deviceManager.deviceCapacity = 0;
+    device_manager.deviceCount = 0;
+    device_manager.deviceCapacity = 0;
 }
 
 void DeviceManager_AddAllDevices(void)
@@ -143,21 +143,21 @@ void DeviceManager_AddAllDevices(void)
  *
  * SCSI IOX bases by thumbwheel TW2: 0=0144300, 1=0144400, 2=0144500, 3=0144600.
  */
-bool DeviceManager_AddSCSIDevice_WithConfig(int thumbwheel, const SCSIUnitType *unitTypes)
+bool DeviceManager_AddSCSIDevice_WithConfig(int thumbwheel, const SCSIUnitType *unit_types)
 {
     bool success = DeviceManager_AddDevice(DEVICE_TYPE_DISC_SCSI, (uint8_t)thumbwheel);
 
-    if (success && unitTypes)
+    if (success && unit_types)
     {
-        static const uint16_t scsiBaseAddr[] = {0144300, 0144400, 0144500, 0144600};
-        Device *dev = DeviceManager_GetDeviceByAddress(scsiBaseAddr[thumbwheel & 0x03]);
+        static const uint16_t scsi_base_addr[] = {0144300, 0144400, 0144500, 0144600};
+        Device *dev = DeviceManager_GetDeviceByAddress(scsi_base_addr[thumbwheel & 0x03]);
         if (dev)
         {
             for (int unit = 0; unit < SCSI_MAX_UNITS; unit++)
             {
-                if (unitTypes[unit] != SCSI_UNIT_NONE)
+                if (unit_types[unit] != SCSI_UNIT_NONE)
                 {
-                    SCSI_SetUnitType(dev, unit, unitTypes[unit]);
+                    SCSI_SetUnitType(dev, unit, unit_types[unit]);
                 }
             }
         }
@@ -166,7 +166,7 @@ bool DeviceManager_AddSCSIDevice_WithConfig(int thumbwheel, const SCSIUnitType *
     return success;
 }
 
-bool DeviceManager_AddHDLCDevice_WithConfig(int thumbwheel, bool isServer, const char *address,
+bool DeviceManager_AddHDLCDevice_WithConfig(int thumbwheel, bool is_server, const char *address,
                                             int port)
 {
     bool success = DeviceManager_AddDevice(DEVICE_TYPE_HDLC, (uint8_t)thumbwheel);
@@ -175,16 +175,16 @@ bool DeviceManager_AddHDLCDevice_WithConfig(int thumbwheel, bool isServer, const
     {
         // Find the just-added device and start its modem with TCP config
         // HDLC base addresses: thumbwheel 1=01640, 2=01660, 3=01700, 4=01720
-        static const uint16_t hdlcBaseAddr[] = {0, 01640, 01660, 01700, 01720};
+        static const uint16_t hdlc_base_addr[] = {0, 01640, 01660, 01700, 01720};
         if (thumbwheel >= 1 && thumbwheel <= 4)
         {
-            Device *dev = DeviceManager_GetDeviceByAddress(hdlcBaseAddr[thumbwheel]);
+            Device *dev = DeviceManager_GetDeviceByAddress(hdlc_base_addr[thumbwheel]);
             if (dev && dev->deviceData)
             {
                 HDLCData *data = (HDLCData *)dev->deviceData;
                 if (data->modem)
                 {
-                    Modem_StartModem(data->modem, isServer, address, port);
+                    Modem_StartModem(data->modem, is_server, address, port);
                 }
             }
         }
@@ -193,7 +193,7 @@ bool DeviceManager_AddHDLCDevice_WithConfig(int thumbwheel, bool isServer, const
     return success;
 }
 
-static Device *CreateDevice(DeviceType type, uint8_t thumbwheel)
+static Device *create_device(DeviceType type, uint8_t thumbwheel)
 {
     Device *dev = NULL;
 
@@ -323,11 +323,11 @@ static Device *CreateDevice(DeviceType type, uint8_t thumbwheel)
 
 void DeviceManager_MasterClear(void)
 {
-    for (int i = 0; i < deviceManager.deviceCount; i++)
+    for (int i = 0; i < device_manager.deviceCount; i++)
     {
-        if (deviceManager.devices[i].device)
+        if (device_manager.devices[i].device)
         {
-            Device_Reset(deviceManager.devices[i].device);
+            Device_Reset(device_manager.devices[i].device);
         }
     }
 }
@@ -335,16 +335,16 @@ void DeviceManager_MasterClear(void)
 bool DeviceManager_AddDevice(DeviceType type, uint8_t thumbwheel)
 {
     // Check if we have capacity
-    if (deviceManager.deviceCount >= deviceManager.deviceCapacity)
+    if (device_manager.deviceCount >= device_manager.deviceCapacity)
     {
         LOG(LOG_CAT_DEVICE, LOG_ERROR,
             "Failed to add device: device array is full (capacity: %d, count: %d)\n",
-            deviceManager.deviceCapacity, deviceManager.deviceCount);
+            device_manager.deviceCapacity, device_manager.deviceCount);
         return false;
     }
 
     // Create and add new device
-    Device *dev = CreateDevice(type, thumbwheel);
+    Device *dev = create_device(type, thumbwheel);
     if (dev)
     {
         /* Refuse an IOX address block that overlaps a device already present.
@@ -353,9 +353,9 @@ bool DeviceManager_AddDevice(DeviceType type, uint8_t thumbwheel)
          * fitted. The Winchester controller makes this reachable: it answers
          * 500-507, the same block as the CDC system disc, exactly as the real
          * cards would - a backplane holds one or the other. */
-        for (int i = 0; i < deviceManager.deviceCount; i++)
+        for (int i = 0; i < device_manager.deviceCount; i++)
         {
-            Device *other = deviceManager.devices[i].device;
+            Device *other = device_manager.devices[i].device;
             if (!other)
             {
                 continue;
@@ -373,7 +373,7 @@ bool DeviceManager_AddDevice(DeviceType type, uint8_t thumbwheel)
             }
         }
 
-        deviceManager.devices[deviceManager.deviceCount].device = dev;
+        device_manager.devices[device_manager.deviceCount].device = dev;
         // If this is a block device, hook up machine-level block IO callbacks
         if (dev->deviceClass == DEVICE_CLASS_BLOCK)
         {
@@ -381,7 +381,7 @@ bool DeviceManager_AddDevice(DeviceType type, uint8_t thumbwheel)
             Device_SetBlockWrite(dev, machine_block_write, NULL);
             Device_SetBlockDiskInfo(dev, machine_block_disk_info, NULL);
         }
-        deviceManager.deviceCount++;
+        device_manager.deviceCount++;
         return true;
     }
     else
@@ -394,10 +394,10 @@ bool DeviceManager_AddDevice(DeviceType type, uint8_t thumbwheel)
 
 uint16_t DeviceManager_Read(uint32_t address)
 {
-    for (int i = 0; i < deviceManager.deviceCount; i++)
+    for (int i = 0; i < device_manager.deviceCount; i++)
     {
 
-        Device *dev = deviceManager.devices[i].device;
+        Device *dev = device_manager.devices[i].device;
 
         if (dev && Device_IsInAddress(dev, address))
         {
@@ -412,9 +412,9 @@ uint16_t DeviceManager_Read(uint32_t address)
 
 void DeviceManager_Write(uint32_t address, uint16_t value)
 {
-    for (int i = 0; i < deviceManager.deviceCount; i++)
+    for (int i = 0; i < device_manager.deviceCount; i++)
     {
-        Device *dev = deviceManager.devices[i].device;
+        Device *dev = device_manager.devices[i].device;
         if (!dev)
         {
             LOG(LOG_CAT_DEVICE, LOG_ERROR, "Device at index %d is NULL\n", i);
@@ -434,9 +434,9 @@ void DeviceManager_Write(uint32_t address, uint16_t value)
 
 int DeviceManager_Ident(uint16_t level)
 {
-    for (int i = 0; i < deviceManager.deviceCount; i++)
+    for (int i = 0; i < device_manager.deviceCount; i++)
     {
-        Device *dev = deviceManager.devices[i].device;
+        Device *dev = device_manager.devices[i].device;
         if (dev && (dev->interruptBits & (1 << level)))
         {
             uint16_t id = Device_Ident(dev, level);
@@ -465,23 +465,23 @@ int DeviceManager_Ident(uint16_t level)
 
 uint16_t DeviceManager_Tick(void)
 {
-    uint16_t interruptBits = 0;
-    for (int i = 0; i < deviceManager.deviceCount; i++)
+    uint16_t interrupt_bits = 0;
+    for (int i = 0; i < device_manager.deviceCount; i++)
     {
-        Device *dev = deviceManager.devices[i].device;
+        Device *dev = device_manager.devices[i].device;
         if (dev)
         {
-            interruptBits |= Device_Tick(dev);
+            interrupt_bits |= Device_Tick(dev);
         }
     }
 
-    return interruptBits;
+    return interrupt_bits;
 }
 Device *DeviceManager_GetDeviceByAddress(uint32_t address)
 {
-    for (int i = 0; i < deviceManager.deviceCount; i++)
+    for (int i = 0; i < device_manager.deviceCount; i++)
     {
-        Device *dev = deviceManager.devices[i].device;
+        Device *dev = device_manager.devices[i].device;
         if (dev && Device_IsInAddress(dev, address))
         {
             return dev;
@@ -493,16 +493,16 @@ Device *DeviceManager_GetDeviceByAddress(uint32_t address)
 
 int DeviceManager_GetDeviceCount(void)
 {
-    return deviceManager.deviceCount;
+    return device_manager.deviceCount;
 }
 
 Device *DeviceManager_GetDeviceByIndex(int index)
 {
-    if (index < 0 || index >= deviceManager.deviceCount)
+    if (index < 0 || index >= device_manager.deviceCount)
     {
         return NULL;
     }
-    return deviceManager.devices[index].device;
+    return device_manager.devices[index].device;
 }
 
 // Loads boot code from disk to memory. Returns the boot address, or -1 if error.
@@ -517,11 +517,11 @@ Device *DeviceManager_GetDeviceByIndex(int index)
 // Note: each controller's Boot function performs a MEMORY boot (first blocks
 // of the unit loaded to address 0). BPUN and bootstrap boot modes are handled
 // elsewhere (program_load) or not implemented.
-bool DeviceManager_IotOp(uint8_t devno, uint8_t func, uint16_t *regA, bool *skip)
+bool DeviceManager_IotOp(uint8_t devno, uint8_t func, uint16_t *reg_a, bool *skip)
 {
-    for (int i = 0; i < deviceManager.deviceCount; i++)
+    for (int i = 0; i < device_manager.deviceCount; i++)
     {
-        Device *dev = deviceManager.devices[i].device;
+        Device *dev = device_manager.devices[i].device;
         if (!dev || !dev->IotOp || dev->nord1Device == 0)
         {
             continue;
@@ -530,7 +530,7 @@ bool DeviceManager_IotOp(uint8_t devno, uint8_t func, uint16_t *regA, bool *skip
         uint16_t count = dev->nord1DeviceCount ? dev->nord1DeviceCount : 1;
         if (devno >= first && devno < first + count)
         {
-            return dev->IotOp(dev, devno, func, regA, skip);
+            return dev->IotOp(dev, devno, func, reg_a, skip);
         }
     }
     return false;
@@ -538,9 +538,9 @@ bool DeviceManager_IotOp(uint8_t devno, uint8_t func, uint16_t *regA, bool *skip
 
 int DeviceManager_BootFrom(DeviceType type, int unit)
 {
-    for (int i = 0; i < deviceManager.deviceCount; i++)
+    for (int i = 0; i < device_manager.deviceCount; i++)
     {
-        Device *dev = deviceManager.devices[i].device;
+        Device *dev = device_manager.devices[i].device;
         if (dev && dev->type == type)
         {
             return Device_Boot(dev, unit);

@@ -39,10 +39,10 @@ struct Device;
 #include "hdlc_frame.h"
 
 // Callback function types (match those used in actual implementation)
-typedef uint16_t (*DMAControlBlocks_ReadCallback)(void *context, uint32_t address);
-typedef void (*DMAControlBlocks_WriteCallback)(void *context, uint32_t address, uint16_t data);
-typedef void (*DMAControlBlocks_SendFrameCallback)(void *context, void *frame);
-typedef void (*DMAControlBlocks_InterruptCallback)(void *context, uint8_t bit);
+typedef uint16_t (*DmaControlBlocksReadCallback)(void *context, uint32_t address);
+typedef void (*DmaControlBlocksWriteCallback)(void *context, uint32_t address, uint16_t data);
+typedef void (*DmaControlBlocksSendFrameCallback)(void *context, void *frame);
+typedef void (*DmaControlBlocksInterruptCallback)(void *context, uint8_t bit);
 
 #include "dma_param_buf.h"
 
@@ -76,10 +76,10 @@ typedef struct DMAControlBlocks
     int dmaWaitTicks;
 
     // Callbacks
-    DMAControlBlocks_ReadCallback onReadDMA;
-    DMAControlBlocks_WriteCallback onWriteDMA;
-    DMAControlBlocks_SendFrameCallback onSendHDLCFrame;
-    DMAControlBlocks_InterruptCallback onSetInterruptBit;
+    DmaControlBlocksReadCallback onReadDMA;
+    DmaControlBlocksWriteCallback onWriteDMA;
+    DmaControlBlocksSendFrameCallback onSendHDLCFrame;
+    DmaControlBlocksInterruptCallback onSetInterruptBit;
     void *callbackContext;
 
     // Associated device
@@ -95,21 +95,21 @@ typedef struct DMAControlBlocks
  * @param dcbs Control block structure to initialize.
  * @param hdlcDevice Owning HDLC device, stored for status counters and logging.
  */
-void DMAControlBlocks_Init(DMAControlBlocks *dcbs, struct Device *hdlcDevice);
+void DMAControlBlocks_Init(DMAControlBlocks *dcbs, struct Device *hdlc_device);
 
 /**
  * @brief Free the outbound buffer, TX/RX DCBs and receive HDLCFrame, then
  * zero the whole structure.
  * @param dmaCB Control block structure to tear down.
  */
-void DMAControlBlocks_Destroy(DMAControlBlocks *dmaCB);
+void DMAControlBlocks_Destroy(DMAControlBlocks *dma_cb);
 
 /**
  * @brief Free the TX/RX DCBs, reset the list pointers and the outbound
  * buffer size, without freeing the outbound buffer itself.
  * @param dmaCB Control block structure to reset.
  */
-void DMAControlBlocks_Clear(DMAControlBlocks *dmaCB);
+void DMAControlBlocks_Clear(DMAControlBlocks *dma_cb);
 
 /**
  * @brief Set the transmit list pointer, reset its offset to 0 and load the
@@ -118,21 +118,21 @@ void DMAControlBlocks_Clear(DMAControlBlocks *dmaCB);
  * @param listPointer Memory address of the start of the TX buffer list.
  * @param offset Unused (kept for interface symmetry with the RX pointer setter); unverified.
  */
-void DMAControlBlocks_SetTXPointer(DMAControlBlocks *dmaCB, uint32_t listPointer, int offset);
+void DMAControlBlocks_SetTXPointer(DMAControlBlocks *dma_cb, uint32_t list_pointer, int offset);
 
 /**
  * @brief Log up to 100 TX list entries (key value per 4-word block) at
  * LOG_DEBUG until an empty key or a new-list-pointer key is seen.
  * @param dmaCB Control block structure.
  */
-void DMAControlBlocks_DebugTXFrames(DMAControlBlocks *dmaCB);
+void DMAControlBlocks_DebugTXFrames(DMAControlBlocks *dma_cb);
 
 /**
  * @brief Free the current TX DCB and reload it from the current TX list
  * pointer and offset.
  * @param dmaCB Control block structure.
  */
-void DMAControlBlocks_LoadTXBuffer(DMAControlBlocks *dmaCB);
+void DMAControlBlocks_LoadTXBuffer(DMAControlBlocks *dma_cb);
 
 /**
  * @brief Advance the TX list offset by one and reload the TX buffer.
@@ -140,7 +140,7 @@ void DMAControlBlocks_LoadTXBuffer(DMAControlBlocks *dmaCB);
  * @return true if the newly loaded buffer's key is
  * KEYFLAG_BLOCK_TO_BE_TRANSMITTED, false otherwise (including on NULL dmaCB).
  */
-bool DMAControlBlocks_LoadNextTXBuffer(DMAControlBlocks *dmaCB);
+bool DMAControlBlocks_LoadNextTXBuffer(DMAControlBlocks *dma_cb);
 
 /**
  * @brief Mark the current TX DCB as sent by OR-ing in
@@ -148,7 +148,7 @@ bool DMAControlBlocks_LoadNextTXBuffer(DMAControlBlocks *dmaCB);
  * memory, bumping the device's dcbTxMarked counter.
  * @param dmaCB Control block structure.
  */
-void DMAControlBlocks_MarkBufferSent(DMAControlBlocks *dmaCB);
+void DMAControlBlocks_MarkBufferSent(DMAControlBlocks *dma_cb);
 
 /**
  * @brief Set the receive list pointer and offset and load the buffer
@@ -157,14 +157,14 @@ void DMAControlBlocks_MarkBufferSent(DMAControlBlocks *dmaCB);
  * @param listPointer Memory address of the start of the RX buffer list.
  * @param offset Offset (in 4-word blocks) of the first RX buffer to load.
  */
-void DMAControlBlocks_SetRXPointer(DMAControlBlocks *dmaCB, uint32_t listPointer, int offset);
+void DMAControlBlocks_SetRXPointer(DMAControlBlocks *dma_cb, uint32_t list_pointer, int offset);
 
 /**
  * @brief Free the current RX DCB and reload it from the current RX list
  * pointer and offset.
  * @param dmaCB Control block structure.
  */
-void DMAControlBlocks_LoadRXBuffer(DMAControlBlocks *dmaCB);
+void DMAControlBlocks_LoadRXBuffer(DMAControlBlocks *dma_cb);
 
 /**
  * @brief Advance the RX list offset by one (wrapping at 128), reload the RX
@@ -173,7 +173,7 @@ void DMAControlBlocks_LoadRXBuffer(DMAControlBlocks *dmaCB);
  * @return true if the resulting buffer's key is KEYFLAG_EMPTY_RECEIVER_BLOCK,
  * false if the list is exhausted or dmaCB/its DCB is NULL.
  */
-bool DMAControlBlocks_LoadNextRXBuffer(DMAControlBlocks *dmaCB);
+bool DMAControlBlocks_LoadNextRXBuffer(DMAControlBlocks *dma_cb);
 
 /**
  * @brief Peek at the RX list entry one slot past the current RX offset
@@ -182,7 +182,7 @@ bool DMAControlBlocks_LoadNextRXBuffer(DMAControlBlocks *dmaCB);
  * @return true if that entry's key is KEYFLAG_EMPTY_RECEIVER_BLOCK, false
  * otherwise (including on NULL dmaCB).
  */
-bool DMAControlBlocks_IsNextRXbufValid(DMAControlBlocks *dmaCB);
+bool DMAControlBlocks_IsNextRXbufValid(DMAControlBlocks *dma_cb);
 
 /**
  * @brief Mark the current RX DCB as filled: OR the caller-supplied status
@@ -192,7 +192,7 @@ bool DMAControlBlocks_IsNextRXbufValid(DMAControlBlocks *dmaCB);
  * @param dmaCB Control block structure.
  * @param rxStatus Receiver status byte (RCOST) to store in the key value's low 8 bits.
  */
-void DMAControlBlocks_MarkBufferReceived(DMAControlBlocks *dmaCB, uint8_t rxStatus);
+void DMAControlBlocks_MarkBufferReceived(DMAControlBlocks *dma_cb, uint8_t rx_status);
 
 /**
  * @brief Allocate and fill a HdlcDCB by reading the key value and, if
@@ -205,8 +205,8 @@ void DMAControlBlocks_MarkBufferReceived(DMAControlBlocks *dmaCB, uint8_t rxStat
  * @return Newly allocated HdlcDCB (caller-owned), or NULL if dmaCB is NULL,
  * listPointer is 0, or allocation fails.
  */
-HdlcDCB *DMAControlBlocks_LoadBufferDescription(DMAControlBlocks *dmaCB, uint32_t listPointer,
-                                                uint16_t offset, bool isRX);
+HdlcDCB *DMAControlBlocks_LoadBufferDescription(DMAControlBlocks *dma_cb, uint32_t list_pointer,
+                                                uint16_t offset, bool is_rx);
 
 /**
  * @brief Read the next data byte of the active TX or RX DCB, skipping the
@@ -216,7 +216,7 @@ HdlcDCB *DMAControlBlocks_LoadBufferDescription(DMAControlBlocks *dmaCB, uint32_
  * @param isRx true to read from the RX DCB, false for the TX DCB.
  * @return Next data byte, or 0 if dmaCB or the selected DCB is NULL.
  */
-uint8_t DMAControlBlocks_ReadNextByteDMA(DMAControlBlocks *dmaCB, bool isRx);
+uint8_t DMAControlBlocks_ReadNextByteDMA(DMAControlBlocks *dma_cb, bool is_rx);
 
 /**
  * @brief Write the next data byte into the active TX or RX DCB's buffer,
@@ -226,7 +226,7 @@ uint8_t DMAControlBlocks_ReadNextByteDMA(DMAControlBlocks *dmaCB, bool isRx);
  * @param data Byte to write.
  * @param isRx true to write into the RX DCB, false for the TX DCB.
  */
-void DMAControlBlocks_WriteNextByteDMA(DMAControlBlocks *dmaCB, uint8_t data, bool isRx);
+void DMAControlBlocks_WriteNextByteDMA(DMAControlBlocks *dma_cb, uint8_t data, bool is_rx);
 
 /**
  * @brief Install the DMA memory-read callback and its context.
@@ -234,8 +234,8 @@ void DMAControlBlocks_WriteNextByteDMA(DMAControlBlocks *dmaCB, uint8_t data, bo
  * @param callback Function to call for a DMA memory read.
  * @param context Opaque context passed back to the callback.
  */
-void DMAControlBlocks_SetReadDMACallback(DMAControlBlocks *dmaCB,
-                                         DMAControlBlocks_ReadCallback callback, void *context);
+void DMAControlBlocks_SetReadDMACallback(DMAControlBlocks *dma_cb,
+                                         DmaControlBlocksReadCallback callback, void *context);
 
 /**
  * @brief Install the DMA memory-write callback and its context.
@@ -243,8 +243,8 @@ void DMAControlBlocks_SetReadDMACallback(DMAControlBlocks *dmaCB,
  * @param callback Function to call for a DMA memory write.
  * @param context Opaque context passed back to the callback.
  */
-void DMAControlBlocks_SetWriteDMACallback(DMAControlBlocks *dmaCB,
-                                          DMAControlBlocks_WriteCallback callback, void *context);
+void DMAControlBlocks_SetWriteDMACallback(DMAControlBlocks *dma_cb,
+                                          DmaControlBlocksWriteCallback callback, void *context);
 
 /**
  * @brief Install the callback used to hand a completed HDLC frame onward.
@@ -252,8 +252,8 @@ void DMAControlBlocks_SetWriteDMACallback(DMAControlBlocks *dmaCB,
  * @param callback Function to call with the assembled frame.
  * @param context Opaque context passed back to the callback.
  */
-void DMAControlBlocks_SetSendHDLCFrameCallback(DMAControlBlocks *dmaCB,
-                                               DMAControlBlocks_SendFrameCallback callback,
+void DMAControlBlocks_SetSendHDLCFrameCallback(DMAControlBlocks *dma_cb,
+                                               DmaControlBlocksSendFrameCallback callback,
                                                void *context);
 
 /**
@@ -262,8 +262,8 @@ void DMAControlBlocks_SetSendHDLCFrameCallback(DMAControlBlocks *dmaCB,
  * @param callback Function to call with the interrupt bit number.
  * @param context Opaque context passed back to the callback.
  */
-void DMAControlBlocks_SetInterruptCallback(DMAControlBlocks *dmaCB,
-                                           DMAControlBlocks_InterruptCallback callback,
+void DMAControlBlocks_SetInterruptCallback(DMAControlBlocks *dma_cb,
+                                           DmaControlBlocksInterruptCallback callback,
                                            void *context);
 
 #endif // DMA_CONTROL_BLOCKS_H

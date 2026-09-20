@@ -195,7 +195,7 @@ uint16_t DCB_GetOffsetFromLP(const HdlcDCB *dcb);
  * @param dcb Descriptor to modify.
  * @param keyValue Raw key value to store.
  */
-void DCB_SetKeyValue(HdlcDCB *dcb, uint16_t keyValue);
+void DCB_SetKeyValue(HdlcDCB *dcb, uint16_t key_value);
 
 /**
  * @brief Get the raw KEY value (flags plus control information).
@@ -209,7 +209,7 @@ uint16_t DCB_GetKeyValue(const HdlcDCB *dcb);
  * @param dcb Descriptor to modify.
  * @param byteCount Byte count to store.
  */
-void DCB_SetByteCount(HdlcDCB *dcb, uint16_t byteCount);
+void DCB_SetByteCount(HdlcDCB *dcb, uint16_t byte_count);
 
 /**
  * @brief Get the byte count (number of information bytes).
@@ -237,7 +237,7 @@ uint16_t DCB_GetDisplacement(const HdlcDCB *dcb);
  * @param dcb Descriptor to modify.
  * @param listPointer List pointer value to store.
  */
-void DCB_SetListPointer(HdlcDCB *dcb, uint32_t listPointer);
+void DCB_SetListPointer(HdlcDCB *dcb, uint32_t list_pointer);
 
 /**
  * @brief Get the list pointer value (start-of-list address this buffer belongs to).
@@ -267,7 +267,7 @@ uint32_t DCB_GetDMAAddress(const HdlcDCB *dcb);
  * @param dcb Descriptor to modify.
  * @param bytesRead Byte count to store.
  */
-void DCB_SetDMABytesRead(HdlcDCB *dcb, int bytesRead);
+void DCB_SetDMABytesRead(HdlcDCB *dcb, int bytes_read);
 
 /**
  * @brief Get the count of bytes read so far during this buffer's DMA transfer.
@@ -281,7 +281,7 @@ int DCB_GetDMABytesRead(const HdlcDCB *dcb);
  * @param dcb Descriptor to modify.
  * @param bytesWritten Byte count to store.
  */
-void DCB_SetDMABytesWritten(HdlcDCB *dcb, int bytesWritten);
+void DCB_SetDMABytesWritten(HdlcDCB *dcb, int bytes_written);
 
 /**
  * @brief Get the count of bytes written so far during this buffer's DMA transfer.

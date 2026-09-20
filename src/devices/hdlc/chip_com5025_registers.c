@@ -144,7 +144,7 @@ uint8_t COM5025Registers_GetTransmitterCharacterLen(COM5025Registers *regs)
     return (uint8_t)((regs->dataLengthSelect >> 5) & 0x07);
 }
 
-void COM5025Registers_SetModeControl(COM5025Registers *regs, uint16_t modeControl)
+void COM5025Registers_SetModeControl(COM5025Registers *regs, uint16_t mode_control)
 {
     if (!regs)
     {
@@ -156,13 +156,13 @@ void COM5025Registers_SetModeControl(COM5025Registers *regs, uint16_t modeContro
     regs->transmitterState = COM5025_TX_STATE_IDLE;
 
     // Set ModeControl
-    regs->modeControl = modeControl;
+    regs->modeControl = mode_control;
 
     // Update CRC mode based on X, Y, Z bits
     int mode = 0;
-    mode |= (modeControl & COM5025_MODE_CONTROL_Z) ? (1 << 2) : 0;
-    mode |= (modeControl & COM5025_MODE_CONTROL_Y) ? (1 << 1) : 0;
-    mode |= (modeControl & COM5025_MODE_CONTROL_X) ? (1 << 0) : 0;
+    mode |= (mode_control & COM5025_MODE_CONTROL_Z) ? (1 << 2) : 0;
+    mode |= (mode_control & COM5025_MODE_CONTROL_Y) ? (1 << 1) : 0;
+    mode |= (mode_control & COM5025_MODE_CONTROL_X) ? (1 << 0) : 0;
     regs->crcMode = (COM5025CrcMode)mode;
 }
 
@@ -297,10 +297,10 @@ bool COM5025Registers_IsNextByteSync(COM5025Registers *regs)
         return false;
     }
 
-    uint16_t nextData = regs->receiveQueue.head->data;
+    uint16_t next_data = regs->receiveQueue.head->data;
 
     // Bit 8 set means this is byte-stuffed data
-    if ((nextData & 0xFF00) != 0)
+    if ((next_data & 0xFF00) != 0)
     {
         return false;
     }
@@ -308,7 +308,8 @@ bool COM5025Registers_IsNextByteSync(COM5025Registers *regs)
     if (COM5025Registers_IsProtocolModeCCP(regs))
     {
         // Byte protocol - check for SYNC character or frame delimiter
-        if ((nextData == (uint8_t)regs->syncSecondaryAddress) || (nextData == HDLC_FRAME_DELIMITER))
+        if ((next_data == (uint8_t)regs->syncSecondaryAddress) ||
+            (next_data == HDLC_FRAME_DELIMITER))
         {
             return true;
         }
@@ -316,7 +317,7 @@ bool COM5025Registers_IsNextByteSync(COM5025Registers *regs)
     else
     {
         // Bit protocol - check for frame delimiter
-        if (nextData == HDLC_FRAME_DELIMITER)
+        if (next_data == HDLC_FRAME_DELIMITER)
         {
             return true;
         }

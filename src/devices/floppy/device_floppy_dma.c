@@ -35,12 +35,12 @@
 #include "../devices_protos.h"
 
 /* File-local helpers (defined below) */
-static void ExecuteFloppyGo(Device *self);
-static void ExecuteTest(Device *self, int testData);
-static void ExecuteAutoload(Device *self, int drive);
+static void execute_floppy_go(Device *self);
+static void execute_test(Device *self, int test_data);
+static void execute_autoload(Device *self, int drive);
 
-static bool AutoLoadEnd(Device *self, int drive);
-static bool ReadEnd(Device *self, int drive);
+static bool auto_load_end(Device *self, int drive);
+static bool read_end(Device *self, int drive);
 
 /// <summary>
 /// Floppy Disk Controller - 3112
@@ -81,7 +81,7 @@ Format  Identification  Sector size         Sectors/t   Tracks/s    Sides/Densit
 * This became feasible when media with higher density became available.
 */
 
-static void FloppyDMA_Reset(Device *self)
+static void floppy_dma_reset(Device *self)
 {
     FloppyDMAData *data = (FloppyDMAData *)self->deviceData;
     if (!data)
@@ -106,7 +106,7 @@ static void FloppyDMA_Reset(Device *self)
 
 // Bit 4 "OR of errors": set whenever a non-zero error code is present (firmware @06bc: SET 4 if
 // code != 0), not only for hard/deleted/retry -- e.g. CRC or write-protect set errorCode alone.
-static uint16_t CalculateOrOfErrors(StatusRegister1 s)
+static uint16_t calculate_or_of_errors(StatusRegister1 s)
 {
     return (uint16_t)(s.bits.hardError | s.bits.deletedRecord | s.bits.retryOnController |
                       (s.bits.errorCode != 0));
@@ -114,7 +114,7 @@ static uint16_t CalculateOrOfErrors(StatusRegister1 s)
 
 // Hardware Status Word (IOX +2 / +4 read): flags + bit 15 dual-density (how SINTRAN detects the
 // 3112 DMA card), but NO numeric error code. ND-11.021.1 section 3.7 / section 3.1 Note 1 (+2 == +4).
-static uint16_t CalculateHardwareStatusWord(Device *self)
+static uint16_t calculate_hardware_status_word(Device *self)
 {
     FloppyDMAData *data = (FloppyDMAData *)self->deviceData;
     if (!data)
@@ -124,7 +124,7 @@ static uint16_t CalculateHardwareStatusWord(Device *self)
 
     StatusRegister1 s;
     s.raw = data->status1.raw;
-    s.bits.inclusiveOrBits = CalculateOrOfErrors(s);
+    s.bits.inclusiveOrBits = calculate_or_of_errors(s);
     s.bits.errorCode = 0;   // no numeric code on the hardware status word
     s.bits.dualDensity = 1; // always 1 on the DMA controller
     return s.raw;
@@ -132,7 +132,7 @@ static uint16_t CalculateHardwareStatusWord(Device *self)
 
 // Status Word 1 (command block +6 memory writeback): flags + error code in bits 9-14, with
 // bit 15 CLEAR (dual-density belongs only on the IOX hardware status word). ND-11.021.1 section 3.4.
-static uint16_t CalculateStatusWord1(Device *self)
+static uint16_t calculate_status_word1(Device *self)
 {
     FloppyDMAData *data = (FloppyDMAData *)self->deviceData;
     if (!data)
@@ -142,12 +142,12 @@ static uint16_t CalculateStatusWord1(Device *self)
 
     StatusRegister1 s;
     s.raw = data->status1.raw;
-    s.bits.inclusiveOrBits = CalculateOrOfErrors(s);
+    s.bits.inclusiveOrBits = calculate_or_of_errors(s);
     s.bits.dualDensity = 0; // bit 15 clear in the memory word
     return s.raw;
 }
 
-static uint16_t FloppyDMA_Read(Device *self, uint32_t address)
+static uint16_t floppy_dma_read(Device *self, uint32_t address)
 {
     FloppyDMAData *data = (FloppyDMAData *)self->deviceData;
     if (!data)
@@ -165,13 +165,13 @@ static uint16_t FloppyDMA_Read(Device *self, uint32_t address)
         break;
 
     case FLOPPY_DMA_READ_STATUS1:
-        value = CalculateHardwareStatusWord(self);
+        value = calculate_hardware_status_word(self);
         break;
 
     case FLOPPY_DMA_READ_STATUS2:
         // section 3.1 Note 1: +4 returns the SAME hardware status word as +2 (duplicated for the
         // ND-100 Binary Format Load / Mass Storage Load microcode) -- NOT status word 2.
-        value = CalculateHardwareStatusWord(self);
+        value = calculate_hardware_status_word(self);
         break;
     default:
         break;
@@ -185,7 +185,7 @@ static uint16_t FloppyDMA_Read(Device *self, uint32_t address)
     return value;
 }
 
-static void FloppyDMA_Write(Device *self, uint32_t address, uint16_t value)
+static void floppy_dma_write(Device *self, uint32_t address, uint16_t value)
 {
     FloppyDMAData *data = (FloppyDMAData *)self->deviceData;
     if (!data)
@@ -220,13 +220,13 @@ static void FloppyDMA_Write(Device *self, uint32_t address, uint16_t value)
 
         if (data->controlWord.bits.activateAutoload)
         {
-            ExecuteAutoload(self, data->drive);
+            execute_autoload(self, data->drive);
         }
         else if (data->controlWord.bits.executeCommand)
         {
             if (data->controlWord.bits.testMode)
             {
-                ExecuteTest(self, data->controlWord.bits.testData);
+                execute_test(self, data->controlWord.bits.testData);
             }
             else
             {
@@ -236,7 +236,7 @@ static void FloppyDMA_Write(Device *self, uint32_t address, uint16_t value)
                 }
                 else
                 {
-                    ExecuteFloppyGo(self);
+                    execute_floppy_go(self);
                 }
             }
         }
@@ -255,7 +255,7 @@ static void FloppyDMA_Write(Device *self, uint32_t address, uint16_t value)
     }
 }
 
-static uint16_t FloppyDMA_Tick(Device *self)
+static uint16_t floppy_dma_tick(Device *self)
 {
     if (!self)
     {
@@ -266,7 +266,7 @@ static uint16_t FloppyDMA_Tick(Device *self)
     return self->interruptBits;
 }
 
-static uint16_t FloppyDMA_Ident(Device *self, uint16_t level)
+static uint16_t floppy_dma_ident(Device *self, uint16_t level)
 {
     if (!self)
     {
@@ -298,7 +298,7 @@ static uint16_t FloppyDMA_Ident(Device *self, uint16_t level)
  */
 
 /* 0x3A-byte LOAD-ERROR image (Z80 ROM @1a92). */
-static const uint8_t LOAD_ERROR_IMAGE[] = {
+static const uint8_t load_error_image[] = {
     /* ND-100 code (13 words) */
     0x50, 0x0D, 0xF1, 0x27, 0xCC, 0x69, 0xF3, 0x00, 0xE8, 0xC6, 0xFA, 0x9D, 0xA8, 0xFE, 0xC4, 0x80,
     0xC4, 0x29, 0xD2, 0x00, 0xE8, 0xC5, 0xF7, 0x01, 0xA8, 0xF8,
@@ -307,7 +307,7 @@ static const uint8_t LOAD_ERROR_IMAGE[] = {
     0x52, 0x4F, 0x52, 0x3A, 0x20, 0x20, 0x20, 0x20, 0x30, 0x30, 0x20, 0x2A, 0x2A, 0x0D, 0x0A, 0x27};
 
 /* 0x1C-byte "** WRONG BOOTSTTRAP ! **" text (Z80 ROM @1acc; firmware's "BOOTSTTRAP" typo). */
-static const uint8_t WRONG_BOOTSTRAP_TEXT[] = {
+static const uint8_t wrong_bootstrap_text[] = {
     0x20, 0x2A, 0x2A, 0x20, 0x57, 0x52, 0x4F, 0x4E, 0x47, 0x20, 0x42, 0x4F, 0x4F, 0x54,
     0x53, 0x54, 0x54, 0x52, 0x41, 0x50, 0x20, 0x21, 0x20, 0x2A, 0x2A, 0x0D, 0x0A, 0x27};
 
@@ -322,27 +322,27 @@ static const uint8_t WRONG_BOOTSTRAP_TEXT[] = {
  * the 3112 firmware does, so the ND-100 prints the failure on the console when run from word 0.
  * Returns the ND-100 word entry point (0).
  */
-static int DmaAutoloadErrorImage(int errorCodeOctal6bit)
+static int dma_autoload_error_image(int error_code_octal6bit)
 {
-    int c = errorCodeOctal6bit & 0x3F;
-    uint8_t buf[WRONG_BOOTSTRAP_OVERLAY_OFFSET + sizeof(WRONG_BOOTSTRAP_TEXT)];
+    int c = error_code_octal6bit & 0x3F;
+    uint8_t buf[WRONG_BOOTSTRAP_OVERLAY_OFFSET + sizeof(wrong_bootstrap_text)];
     int len;
 
-    memcpy(buf, LOAD_ERROR_IMAGE, sizeof(LOAD_ERROR_IMAGE));
+    memcpy(buf, load_error_image, sizeof(load_error_image));
 
     if (c == WRONG_BOOTSTRAP_CODE_OCTAL)
     {
         /* Wrong-bootstrap: overlay the WRONG text after the LOAD-ERROR text. */
-        memcpy(buf + WRONG_BOOTSTRAP_OVERLAY_OFFSET, WRONG_BOOTSTRAP_TEXT,
-               sizeof(WRONG_BOOTSTRAP_TEXT));
-        len = WRONG_BOOTSTRAP_OVERLAY_OFFSET + (int)sizeof(WRONG_BOOTSTRAP_TEXT);
+        memcpy(buf + WRONG_BOOTSTRAP_OVERLAY_OFFSET, wrong_bootstrap_text,
+               sizeof(wrong_bootstrap_text));
+        len = WRONG_BOOTSTRAP_OVERLAY_OFFSET + (int)sizeof(wrong_bootstrap_text);
     }
     else
     {
         /* Everything else: patch the two octal error digits. */
         buf[ERROR_DIGIT_LOW_OFFSET - 1] = (uint8_t)('0' + ((c >> 3) & 7)); /* high octal digit */
         buf[ERROR_DIGIT_LOW_OFFSET] = (uint8_t)('0' + (c & 7));            /* low octal digit */
-        len = (int)sizeof(LOAD_ERROR_IMAGE);
+        len = (int)sizeof(load_error_image);
     }
 
     /* DMA the byte buffer to ND-100 memory as big-endian 16-bit words, starting at word 0. */
@@ -356,7 +356,7 @@ static int DmaAutoloadErrorImage(int errorCodeOctal6bit)
 }
 
 // Load floppy monitor (FLO-LOAD, almost like BPUN from the first sector)
-static void ExecuteAutoload(Device *self, int drive)
+static void execute_autoload(Device *self, int drive)
 {
     (void)drive;
     FloppyDMAData *data = (FloppyDMAData *)self->deviceData;
@@ -380,36 +380,36 @@ static void ExecuteAutoload(Device *self, int drive)
      */
     data->status1.bits.errorCode = FLOPPY_ERR_NO_BOOTSTRAP; /* oct 50 */
     data->status1.bits.hardError = true;
-    DmaAutoloadErrorImage(FLOPPY_ERR_NO_BOOTSTRAP);
+    dma_autoload_error_image(FLOPPY_ERR_NO_BOOTSTRAP);
 
-    Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)AutoLoadEnd, 0,
+    Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)auto_load_end, 0,
                         self->interruptLevel);
 }
 
 // Execute test mode
 // Se page 16 of 3027 manual
-static void ExecuteTest(Device *self, int testData)
+static void execute_test(Device *self, int test_data)
 {
     (void)self;
-    (void)testData;
+    (void)test_data;
     // TODO: Implement
 
     if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_DEBUG))
     {
-        Log_Write(LOG_CAT_FLOPPY, LOG_DEBUG, "FloppyDMA: Executing test %d\n", testData);
+        Log_Write(LOG_CAT_FLOPPY, LOG_DEBUG, "FloppyDMA: Executing test %d\n", test_data);
     }
 }
 
-static void ExecuteFloppyGo(Device *self)
+static void execute_floppy_go(Device *self)
 {
     if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_DEBUG))
     {
         // Diagnostic: log first few floppy commands
         {
-            static int _floppy_go_log = 0;
-            if (_floppy_go_log < 5)
+            static int floppy_go_log = 0;
+            if (floppy_go_log < 5)
             {
-                _floppy_go_log++;
+                floppy_go_log++;
                 Log_Write(LOG_CAT_FLOPPY, LOG_DEBUG,
                           "[FLOPPY-DIAG] ExecuteFloppyGo called (readFunc=%s writeFunc=%s)\n",
                           self && self->blockCallbacks.readFunc ? "ok" : "NULL",
@@ -448,39 +448,39 @@ static void ExecuteFloppyGo(Device *self)
     data->commandBlock.fields.memoryAddressLo =
         Device_DMARead(data->commandBlockAddress + 3); // Bits 15-0
 
-    uint32_t memAddress = data->commandBlock.fields.memoryAddressLo |
-                          (data->commandBlock.fields.memoryAddressHi
-                           << 16); // Calculate memory address for read/write IO
+    uint32_t mem_address = data->commandBlock.fields.memoryAddressLo |
+                           (data->commandBlock.fields.memoryAddressHi
+                            << 16); // Calculate memory address for read/write IO
 
     data->commandBlock.fields.optionsWordCountHi =
         Device_DMARead(data->commandBlockAddress +
                        4); // Bit 15 = 1 => WordCount, 0=SectorCount. Bit 7-0 WordCountHi
-    bool isWC = (data->commandBlock.fields.optionsWordCountHi & (1 << 15)) != 0;
+    bool is_wc = (data->commandBlock.fields.optionsWordCountHi & (1 << 15)) != 0;
 
     data->commandBlock.fields.wordSectorCount =
         Device_DMARead(data->commandBlockAddress + 5); // Word count / Sector count
 
     data->commandBlock.fields.status1 = Device_DMARead(data->commandBlockAddress + 6);
-    uint32_t wordCount = data->commandBlock.fields.wordSectorCount |
-                         (data->commandBlock.fields.optionsWordCountHi & 0xFF) << 16;
+    uint32_t word_count = data->commandBlock.fields.wordSectorCount |
+                          (data->commandBlock.fields.optionsWordCountHi & 0xFF) << 16;
 
     data->command = (FloppyFunction)(data->commandBlock.fields.commandWord & 0b111111);
     data->drive = (data->commandBlock.fields.commandWord >> 6) & 0b11;
-    uint32_t floppyFormat = (data->commandBlock.fields.commandWord >> 8) & 0b11;
+    uint32_t floppy_format = (data->commandBlock.fields.commandWord >> 8) & 0b11;
 
     // Get information on file size and readonly
     if (self->blockCallbacks.diskInfoFunc)
     {
-        bool isWriteProtected = false;
-        size_t imageSize = 0;
+        bool is_write_protected = false;
+        size_t image_size = 0;
 
-        self->blockCallbacks.diskInfoFunc(self, &imageSize, &isWriteProtected, data->drive);
-        data->diskFileSize = imageSize;
-        data->readOnly = isWriteProtected;
+        self->blockCallbacks.diskInfoFunc(self, &image_size, &is_write_protected, data->drive);
+        data->diskFileSize = image_size;
+        data->readOnly = is_write_protected;
     }
 
     // Calculate sector size based on format
-    switch (floppyFormat)
+    switch (floppy_format)
     {
     case 0:
         bytes_pr_sector = 512; // 8" disk
@@ -503,10 +503,10 @@ static void ExecuteFloppyGo(Device *self)
 
 
     uint32_t position = data->commandBlock.fields.diskAddress * bytes_pr_sector;
-    uint32_t wordsToRead = wordCount;
-    if (!isWC)
+    uint32_t words_to_read = word_count;
+    if (!is_wc)
     {
-        wordsToRead *= (bytes_pr_sector >> 1);
+        words_to_read *= (bytes_pr_sector >> 1);
     }
 
     data->status1.bits.errorCode = FLOPPY_ERR_OK;
@@ -536,19 +536,19 @@ static void ExecuteFloppyGo(Device *self)
     data->commandBlock.fields.status1 = 0;
     data->commandBlock.fields.status2 =
         (data->drive << 8); // Selected unit is reported back in bits 8-9
-    int wordsTransfered = 0;
+    int words_transfered = 0;
 
     // Number of blocks to transfer where each block is blockSizeBytes bytes (typically 512/1024)
-    uint32_t blockCounter = (wordsToRead * 2) / self->blockSizeBytes;
+    uint32_t block_counter = (words_to_read * 2) / self->blockSizeBytes;
     uint32_t buffer_ptr = 0;
 
     uint8_t *buffer = NULL;
-    int blocksRead = -1;
+    int blocks_read = -1;
 
     // Allocate memory buffer if we need to read or write blocks of data
-    if (blockCounter > 0)
+    if (block_counter > 0)
     {
-        buffer = (uint8_t *)malloc(blockCounter * self->blockSizeBytes);
+        buffer = (uint8_t *)malloc(block_counter * self->blockSizeBytes);
         if (!buffer)
         {
             data->status1.bits.errorCode = RAM_ERROR;
@@ -577,39 +577,39 @@ static void ExecuteFloppyGo(Device *self)
         {
             Log_Write(LOG_CAT_FLOPPY, LOG_TRACE,
                       "Starting ReadData on drive position %d, wordsToRead: %d\r\n", position,
-                      wordsToRead);
+                      words_to_read);
         }
 
         if (buffer)
         {
             // Read all blocks from floppy  disk file into buffer
-            blocksRead = self->blockCallbacks.readFunc(
-                self, buffer, blockCounter, data->commandBlock.fields.diskAddress, data->drive);
-            if ((blocksRead < 0) || ((uint32_t)blocksRead != blockCounter))
+            blocks_read = self->blockCallbacks.readFunc(
+                self, buffer, block_counter, data->commandBlock.fields.diskAddress, data->drive);
+            if ((blocks_read < 0) || ((uint32_t)blocks_read != block_counter))
             {
                 data->status1.bits.errorCode = DRIVE_NOT_READY;
                 data->status1.bits.deviceActive = false;
                 data->status1.bits.readyForTransfer = true;
             }
 
-            while (wordsToRead > 0)
+            while (words_to_read > 0)
             {
                 // Read word from disk buffer (or 0 if no blocks was read to buffer)
-                uint32_t readData = 0;
-                if (blocksRead > 0)
+                uint32_t read_data = 0;
+                if (blocks_read > 0)
                 {
-                    readData = Device_IO_BufferReadWord(self, buffer, buffer_ptr++);
+                    read_data = Device_IO_BufferReadWord(self, buffer, buffer_ptr++);
                 }
 
                 // DMA Write to RAM memory
-                Device_DMAWrite(memAddress, (uint16_t)readData);
+                Device_DMAWrite(mem_address, (uint16_t)read_data);
 
-                memAddress++;
-                wordsToRead--;
-                wordsTransfered++;
+                mem_address++;
+                words_to_read--;
+                words_transfered++;
             }
         }
-        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)ReadEnd, data->drive,
+        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)read_end, data->drive,
                             self->interruptLevel);
         break;
 
@@ -635,9 +635,9 @@ static void ExecuteFloppyGo(Device *self)
         {
             if (buffer)
             {
-                while (wordsToRead > 0)
+                while (words_to_read > 0)
                 {
-                    uint16_t word = Device_DMARead(memAddress);
+                    uint16_t word = Device_DMARead(mem_address);
 
                     // Write word to disk buffer
                     if (Device_IO_BufferWriteWord(self, buffer, buffer_ptr++, (uint16_t)word) < 0)
@@ -652,15 +652,16 @@ static void ExecuteFloppyGo(Device *self)
                         break;
                     }
 
-                    memAddress++;
-                    wordsToRead--;
-                    wordsTransfered++;
+                    mem_address++;
+                    words_to_read--;
+                    words_transfered++;
                 }
 
                 // Write all blocks to floppy disk file from buffer
-                int blocksWrite = self->blockCallbacks.writeFunc(
-                    self, buffer, blockCounter, data->commandBlock.fields.diskAddress, data->drive);
-                if ((blocksWrite < 0) || ((uint32_t)blocksWrite != blockCounter))
+                int blocks_write = self->blockCallbacks.writeFunc(
+                    self, buffer, block_counter, data->commandBlock.fields.diskAddress,
+                    data->drive);
+                if ((blocks_write < 0) || ((uint32_t)blocks_write != block_counter))
                 {
                     data->status1.bits.errorCode = DRIVE_NOT_READY;
                     data->status1.bits.deviceActive = false;
@@ -672,25 +673,25 @@ static void ExecuteFloppyGo(Device *self)
                 }
             }
         }
-        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)ReadEnd, data->drive,
+        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)read_end, data->drive,
                             self->interruptLevel);
         break;
 
     case FLOPPY_FUNC_FIND_EOF:
         LOG(LOG_CAT_FLOPPY, LOG_DEBUG, "Starting FindEOF on drive position %d\r\n", position);
-        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)ReadEnd, data->drive,
+        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)read_end, data->drive,
                             self->interruptLevel);
         break;
 
     case FLOPPY_FUNC_WRITE_EOF:
         LOG(LOG_CAT_FLOPPY, LOG_DEBUG, "Starting WriteEOF on drive position %d\r\n", position);
-        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)ReadEnd, data->drive,
+        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)read_end, data->drive,
                             self->interruptLevel);
         break;
 
     case FLOPPY_FUNC_FORMAT_FLOPPY:
         LOG(LOG_CAT_FLOPPY, LOG_DEBUG, "Starting FormatFloppy on drive position %d\r\n", position);
-        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)ReadEnd, data->drive,
+        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)read_end, data->drive,
                             self->interruptLevel);
         break;
 
@@ -733,33 +734,33 @@ static void ExecuteFloppyGo(Device *self)
             data->commandBlock.fields.status2 |= (1 << 2); // Double sided
             data->commandBlock.fields.status2 |= (1 << 3); // Double density
         }
-        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)ReadEnd, data->drive,
+        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)read_end, data->drive,
                             self->interruptLevel);
         break;
 
     case FLOPPY_FUNC_READ_DELETED:
         LOG(LOG_CAT_FLOPPY, LOG_DEBUG, "Starting ReadDeletedRecord on drive position %d\r\n",
             position);
-        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)ReadEnd, data->drive,
+        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)read_end, data->drive,
                             self->interruptLevel);
         break;
 
     case FLOPPY_FUNC_WRITE_DELETED:
         LOG(LOG_CAT_FLOPPY, LOG_DEBUG, "Starting WriteDeletedRecord on drive position %d\r\n",
             position);
-        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)ReadEnd, data->drive,
+        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)read_end, data->drive,
                             self->interruptLevel);
         break;
 
     case FLOPPY_FUNC_COPY_FLOPPY:
         LOG(LOG_CAT_FLOPPY, LOG_DEBUG, "Starting CopyFloppy on drive position %d\r\n", position);
-        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)ReadEnd, data->drive,
+        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)read_end, data->drive,
                             self->interruptLevel);
         break;
 
     case FLOPPY_FUNC_FORMAT_TRACK:
         LOG(LOG_CAT_FLOPPY, LOG_DEBUG, "Starting FormatTrack on drive position %d\r\n", position);
-        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)ReadEnd, data->drive,
+        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)read_end, data->drive,
                             self->interruptLevel);
         break;
 
@@ -779,19 +780,19 @@ static void ExecuteFloppyGo(Device *self)
 
          */
         LOG(LOG_CAT_FLOPPY, LOG_DEBUG, "Starting CheckFloppy on drive position %d\r\n", position);
-        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)ReadEnd, data->drive,
+        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)read_end, data->drive,
                             self->interruptLevel);
         break;
 
     case FLOPPY_FUNC_IDENTIFY:
         LOG(LOG_CAT_FLOPPY, LOG_DEBUG, "Starting Identify on drive position %d\r\n", position);
-        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)ReadEnd, data->drive,
+        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)read_end, data->drive,
                             self->interruptLevel);
         break;
 
     default:
         LOG(LOG_CAT_FLOPPY, LOG_WARN, "FloppyDMA: Unknown command: %d\n", data->command);
-        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)ReadEnd, data->drive,
+        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)read_end, data->drive,
                             self->interruptLevel);
         break;
     }
@@ -807,25 +808,25 @@ static void ExecuteFloppyGo(Device *self)
     /**************************/
 
     // Status 1 (memory writeback: error code in bits 9-14, bit 15 clear)
-    data->commandBlock.fields.status1 = CalculateStatusWord1(self);
+    data->commandBlock.fields.status1 = calculate_status_word1(self);
     Device_DMAWrite(data->commandBlockAddress + 6, data->commandBlock.fields.status1);
 
     // Status 2
     Device_DMAWrite(data->commandBlockAddress + 7, data->commandBlock.fields.status2);
 
     // Send back last mem address
-    Device_DMAWrite(data->commandBlockAddress + 8, (uint16_t)((memAddress >> 16) & 0xFF)); // HI
-    Device_DMAWrite(data->commandBlockAddress + 9, (uint16_t)(memAddress & 0xFFFF));       // LO
+    Device_DMAWrite(data->commandBlockAddress + 8, (uint16_t)((mem_address >> 16) & 0xFF)); // HI
+    Device_DMAWrite(data->commandBlockAddress + 9, (uint16_t)(mem_address & 0xFFFF));       // LO
 
     // Update words to read
     Device_DMAWrite(data->commandBlockAddress + 10,
-                    (uint16_t)((wordsTransfered >> 16) & 0xFF));                           // HI
-    Device_DMAWrite(data->commandBlockAddress + 11, (uint16_t)(wordsTransfered & 0xFFFF)); // LO
+                    (uint16_t)((words_transfered >> 16) & 0xFF));                           // HI
+    Device_DMAWrite(data->commandBlockAddress + 11, (uint16_t)(words_transfered & 0xFFFF)); // LO
 
     // For now, just simulate completion
 }
 
-static bool ReadEnd(Device *self, int drive)
+static bool read_end(Device *self, int drive)
 {
     (void)drive;
     FloppyDMAData *data = (FloppyDMAData *)self->deviceData;
@@ -837,7 +838,7 @@ static bool ReadEnd(Device *self, int drive)
     data->status1.bits.deviceActive = false;
     data->status1.bits.readyForTransfer = true;
 
-    data->commandBlock.fields.status1 = CalculateStatusWord1(self);
+    data->commandBlock.fields.status1 = calculate_status_word1(self);
     Device_DMAWrite(data->commandBlockAddress + 6, data->commandBlock.fields.status1);
 
     Device_SetInterruptStatus(
@@ -846,7 +847,7 @@ static bool ReadEnd(Device *self, int drive)
     return false;
 }
 
-static bool AutoLoadEnd(Device *self, int drive)
+static bool auto_load_end(Device *self, int drive)
 {
     (void)drive;
     FloppyDMAData *data = (FloppyDMAData *)self->deviceData;
@@ -885,7 +886,7 @@ Device *CreateFloppyDMADevice(uint8_t thumbwheel)
     Device_Init(dev, thumbwheel, DEVICE_CLASS_BLOCK, 1024);
 
     // Initialize device state
-    FloppyDMA_Reset(dev);
+    floppy_dma_reset(dev);
 
     // Set up device address and interrupt settings based on thumbwheel
     switch (thumbwheel)
@@ -913,11 +914,11 @@ Device *CreateFloppyDMADevice(uint8_t thumbwheel)
     data->diskFileSize = 0;   // unknown size
 
     // Set up function pointers
-    dev->Read = FloppyDMA_Read;
-    dev->Write = FloppyDMA_Write;
-    dev->Tick = FloppyDMA_Tick;
-    dev->Reset = FloppyDMA_Reset;
-    dev->Ident = FloppyDMA_Ident;
+    dev->Read = floppy_dma_read;
+    dev->Write = floppy_dma_write;
+    dev->Tick = floppy_dma_tick;
+    dev->Reset = floppy_dma_reset;
+    dev->Ident = floppy_dma_ident;
     dev->deviceData = data;
 
     LOG(LOG_CAT_FLOPPY, LOG_INFO,

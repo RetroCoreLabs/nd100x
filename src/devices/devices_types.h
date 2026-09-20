@@ -40,8 +40,8 @@
 void interrupt(uint16_t lvl, uint16_t sub); // cpu.c
 
 // Physical memory functions in cpu_mms.c
-extern int ReadPhysicalMemory(int physicalAddress, bool privileged);
-extern void WritePhysicalMemory(int physicalAddress, uint16_t value, bool privileged);
+extern int ReadPhysicalMemory(int physical_address, bool privileged);
+extern void WritePhysicalMemory(int physical_address, uint16_t value, bool privileged);
 
 // ** Device **
 
@@ -94,9 +94,9 @@ typedef struct {
 
 
 typedef int (*BlockDeviceReadFunc)(struct Device *device, uint8_t *buffer, size_t size,
-                                   uint32_t blockAddress, int unit);
+                                   uint32_t block_address, int unit);
 typedef int (*BlockDeviceWriteFunc)(struct Device *device, const uint8_t *buffer, size_t size,
-                                    uint32_t blockAddress, int unit);
+                                    uint32_t block_address, int unit);
 typedef int (*BlockDeviceDiskInfoFunc)(struct Device *device, size_t *image_size,
                                        bool *is_write_protected, int unit);
 
@@ -200,7 +200,7 @@ typedef struct Device {
     uint16_t nord1Device;       /* first NORD-1 device number, 0 = none */
     uint8_t  nord1DeviceCount;  /* how many consecutive numbers it answers */
     bool (*IotOp)(struct Device *self, uint8_t devno, uint8_t func,
-                  uint16_t *regA, bool *skip);
+                  uint16_t *reg_a, bool *skip);
 
     void (*Destroy)(struct Device *self);
 

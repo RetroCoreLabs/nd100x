@@ -84,8 +84,8 @@ typedef struct DMAReceiver
  * @param hdlcDevice Owning HDLC device.
  * @return void.
  */
-void DMAReceiver_Init(DMAReceiver *receiver, void *com5025, DMAControlBlocks *dmaCB,
-                      struct Device *hdlcDevice);
+void DMAReceiver_Init(DMAReceiver *receiver, void *com5025, DMAControlBlocks *dma_cb,
+                      struct Device *hdlc_device);
 
 /**
  * @brief Free the TCP receive ring buffer and clear the interrupt callback.

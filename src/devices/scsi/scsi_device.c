@@ -26,7 +26,7 @@
 static void scsi_target_report_condition(SCSITarget *t, uint8_t sense_key, uint16_t sense_key_code,
                                          const SCSISenseData *data);
 
-static void SCSITarget_Step(SCSITarget *t, bool timeout);
+static void scsi_target_step(SCSITarget *t, bool timeout);
 
 
 /* ------------------------------------------------------------------ */
@@ -69,10 +69,10 @@ uint32_t scsi_get_u32be(const uint8_t *buf)
 }
 
 
-static void SCSITarget_Log(SCSITarget *t, const char *fmt, ...)
+static void scsi_target_log(SCSITarget *t, const char *fmt, ...)
     __attribute__((format(printf, 2, 3)));
 
-static void SCSITarget_Log(SCSITarget *t, const char *fmt, ...)
+static void scsi_target_log(SCSITarget *t, const char *fmt, ...)
 {
     if (!Log_IsEnabled(LOG_CAT_SCSI, LOG_DEBUG))
     {
@@ -88,7 +88,7 @@ static void SCSITarget_Log(SCSITarget *t, const char *fmt, ...)
 }
 
 
-static void SCSITarget_AdjustTimer(SCSITarget *t, int ticks, bool param)
+static void scsi_target_adjust_timer(SCSITarget *t, int ticks, bool param)
 {
     t->timerEnabled = true;
     t->timerTicks = ticks;
@@ -99,7 +99,7 @@ static void SCSITarget_AdjustTimer(SCSITarget *t, int ticks, bool param)
 /* ------------------------------------------------------------------ */
 /* buf_control FIFO                                                    */
 /* ------------------------------------------------------------------ */
-static SCSIBufControl *SCSITarget_BufControlPush(SCSITarget *t)
+static SCSIBufControl *scsi_target_buf_control_push(SCSITarget *t)
 {
     if (t->buf_control_wpos == SCSI_BUF_CONTROL_SIZE)
     {
@@ -119,7 +119,7 @@ static SCSIBufControl *SCSITarget_BufControlPush(SCSITarget *t)
 }
 
 
-static SCSIBufControl *SCSITarget_BufControlPop(SCSITarget *t)
+static SCSIBufControl *scsi_target_buf_control_pop(SCSITarget *t)
 {
     if (t->buf_control_rpos == t->buf_control_wpos)
     {
@@ -157,7 +157,7 @@ uint8_t SCSITarget_DefaultGetData(SCSITarget *t, SBUF id, int pos)
         }
         return t->scsi_sense_buffer[pos];
     default:
-        SCSITarget_Log(t, "FATALERROR: scsi_get_data - unknown id %d", id);
+        scsi_target_log(t, "FATALERROR: scsi_get_data - unknown id %d", id);
         return 0;
     }
 }
@@ -180,13 +180,13 @@ void SCSITarget_DefaultPutData(SCSITarget *t, SBUF id, int pos, uint8_t data)
         }
         break;
     default:
-        SCSITarget_Log(t, "FATALERROR: scsi_put_data - unknown id %d", id);
+        scsi_target_log(t, "FATALERROR: scsi_put_data - unknown id %d", id);
         break;
     }
 }
 
 
-static uint8_t SCSITarget_GetData(SCSITarget *t, SBUF id, int pos)
+static uint8_t scsi_target_get_data(SCSITarget *t, SBUF id, int pos)
 {
     if (t->scsi_get_data)
     {
@@ -196,7 +196,7 @@ static uint8_t SCSITarget_GetData(SCSITarget *t, SBUF id, int pos)
 }
 
 
-static void SCSITarget_PutData(SCSITarget *t, SBUF id, int pos, uint8_t data)
+static void scsi_target_put_data(SCSITarget *t, SBUF id, int pos, uint8_t data)
 {
     if (t->scsi_put_data)
     {
@@ -214,18 +214,18 @@ static void SCSITarget_PutData(SCSITarget *t, SBUF id, int pos, uint8_t data)
 /* ------------------------------------------------------------------ */
 void SCSITarget_DataIn(SCSITarget *t, SBUF buf, int size)
 {
-    SCSIBufControl *c = SCSITarget_BufControlPush(t);
+    SCSIBufControl *c = scsi_target_buf_control_push(t);
     c->action = BC_DATA_IN;
     c->param1 = (int)buf;
     c->param2 = size;
-    SCSITarget_Log(t, "scsi_data_in: queued size=%d buf=%d wpos=%d", size, buf,
-                   t->buf_control_wpos);
+    scsi_target_log(t, "scsi_data_in: queued size=%d buf=%d wpos=%d", size, buf,
+                    t->buf_control_wpos);
 }
 
 
 void SCSITarget_DataOut(SCSITarget *t, SBUF buf, int size)
 {
-    SCSIBufControl *c = SCSITarget_BufControlPush(t);
+    SCSIBufControl *c = scsi_target_buf_control_push(t);
     c->action = BC_DATA_OUT;
     c->param1 = (int)buf;
     c->param2 = size;
@@ -235,17 +235,17 @@ void SCSITarget_DataOut(SCSITarget *t, SBUF buf, int size)
 /* Queue STATUS + COMMAND COMPLETE message + BUS FREE. */
 void SCSITarget_StatusComplete(SCSITarget *t, uint8_t status)
 {
-    SCSITarget_Log(t, "scsi_status_complete: status=0x%02X", status);
+    scsi_target_log(t, "scsi_status_complete: status=0x%02X", status);
 
-    SCSIBufControl *c = SCSITarget_BufControlPush(t);
+    SCSIBufControl *c = scsi_target_buf_control_push(t);
     c->action = BC_STATUS;
     c->param1 = status;
 
-    c = SCSITarget_BufControlPush(t);
+    c = scsi_target_buf_control_push(t);
     c->action = BC_MESSAGE_1;
     c->param1 = SM_COMMAND_COMPLETE;
 
-    c = SCSITarget_BufControlPush(t);
+    c = scsi_target_buf_control_push(t);
     c->action = BC_BUS_FREE;
 }
 
@@ -253,8 +253,8 @@ void SCSITarget_StatusComplete(SCSITarget *t, uint8_t status)
 /* ------------------------------------------------------------------ */
 /* Sense                                                               */
 /* ------------------------------------------------------------------ */
-static void SCSITarget_SetSenseData(SCSITarget *t, uint8_t sense_key, uint16_t sense_key_code,
-                                    const SCSISenseData *data)
+static void scsi_target_set_sense_data(SCSITarget *t, uint8_t sense_key, uint16_t sense_key_code,
+                                       const SCSISenseData *data)
 {
     /*
      * NOTE: RetroCore's set_sense_data() clear loop is
@@ -297,28 +297,28 @@ void SCSITarget_Sense(SCSITarget *t, bool deferred, uint8_t key, int asc, int as
     s.deferred = deferred;
 
     uint16_t code = (uint16_t)((asc << 8) | ascq);
-    SCSITarget_SetSenseData(t, key, code, &s);
+    scsi_target_set_sense_data(t, key, code, &s);
 }
 
 
 static void scsi_target_report_condition(SCSITarget *t, uint8_t sense_key, uint16_t sense_key_code,
                                          const SCSISenseData *data)
 {
-    SCSITarget_SetSenseData(t, sense_key, sense_key_code, data);
+    scsi_target_set_sense_data(t, sense_key, sense_key_code, data);
     SCSITarget_StatusComplete(t, SS_CHECK_CONDITION);
 }
 
 
 void SCSITarget_ReportBadCmd(SCSITarget *t, uint8_t cmd)
 {
-    SCSITarget_Log(t, "cmd 0x%02X    *** BAD COMMAND", cmd);
+    scsi_target_log(t, "cmd 0x%02X    *** BAD COMMAND", cmd);
     scsi_target_report_condition(t, SK_ILLEGAL_REQUEST, SKC_INVALID_COMMAND_OPERATION_CODE, NULL);
 }
 
 
 void SCSITarget_ReportBadLun(SCSITarget *t, uint8_t cmd, uint8_t lun)
 {
-    SCSITarget_Log(t, "cmd 0x%02X lun=%d    *** BAD LUN", cmd, lun);
+    scsi_target_log(t, "cmd 0x%02X lun=%d    *** BAD LUN", cmd, lun);
     scsi_target_report_condition(t, SK_ILLEGAL_REQUEST, SKC_LOGICAL_UNIT_NOT_SUPPORTED, NULL);
 }
 
@@ -326,28 +326,28 @@ void SCSITarget_ReportBadLun(SCSITarget *t, uint8_t cmd, uint8_t lun)
 /* ------------------------------------------------------------------ */
 /* Byte transfer helpers                                               */
 /* ------------------------------------------------------------------ */
-static void SCSITarget_RecvByte(SCSITarget *t)
+static void scsi_target_recv_byte(SCSITarget *t)
 {
     SCSIBus_ControlWait(t->bus, t->dev.refid, S_ACK, S_ACK);
     t->scsi_state = (t->scsi_state & SCSI_STATE_MASK) | TS_RECV_BYTE_T_WAIT_ACK_1;
     SCSIBus_ControlWrite(t->bus, t->dev.refid, S_REQ, S_REQ);
-    SCSITarget_Step(t, false);
+    scsi_target_step(t, false);
 }
 
 
-static void SCSITarget_SendByte(SCSITarget *t, uint8_t val)
+static void scsi_target_send_byte(SCSITarget *t, uint8_t val)
 {
     SCSIBus_ControlWait(t->bus, t->dev.refid, S_ACK, S_ACK);
     t->scsi_state = (t->scsi_state & SCSI_STATE_MASK) | TS_SEND_BYTE_T_WAIT_ACK_1;
     SCSIBus_DataWrite(t->bus, t->dev.refid, val);
     SCSIBus_ControlWrite(t->bus, t->dev.refid, S_REQ, S_REQ);
-    SCSITarget_Step(t, false);
+    scsi_target_step(t, false);
 }
 
 
-static void SCSITarget_SendBufferByte(SCSITarget *t)
+static void scsi_target_send_buffer_byte(SCSITarget *t)
 {
-    SCSITarget_SendByte(t, SCSITarget_GetData(t, t->data_buffer_id, t->data_buffer_pos++));
+    scsi_target_send_byte(t, scsi_target_get_data(t, t->data_buffer_id, t->data_buffer_pos++));
 }
 
 
@@ -355,7 +355,7 @@ static void SCSITarget_SendBufferByte(SCSITarget *t)
  * CDB length by command group (top 3 bits of the opcode).
  * Groups 0/3/6/7 = 6 bytes, 1/2 = 10, 4 = 16, 5 = 12.
  */
-static bool SCSITarget_CommandDone(SCSITarget *t, uint8_t command, int length)
+static bool scsi_target_command_done(SCSITarget *t, uint8_t command, int length)
 {
     (void)t;
     if (length == 0)
@@ -363,8 +363,8 @@ static bool SCSITarget_CommandDone(SCSITarget *t, uint8_t command, int length)
         return false;
     }
 
-    uint8_t commandGroup = command >> 5;
-    switch (commandGroup)
+    uint8_t command_group = command >> 5;
+    switch (command_group)
     {
     case 0:
         return length == 6;
@@ -390,7 +390,7 @@ static bool SCSITarget_CommandDone(SCSITarget *t, uint8_t command, int length)
 
 
 /* An IDENTIFY message has bit 7 set; anything else is logged and ignored. */
-static void SCSITarget_Message(SCSITarget *t)
+static void scsi_target_message(SCSITarget *t)
 {
     if (t->scsi_cmdbuf[0] & 0x80)
     {
@@ -398,14 +398,14 @@ static void SCSITarget_Message(SCSITarget *t)
         return;
     }
 
-    SCSITarget_Log(t, "Unknown message 0x%02X", t->scsi_cmdbuf[0]);
+    scsi_target_log(t, "Unknown message 0x%02X", t->scsi_cmdbuf[0]);
 }
 
 
 /* ------------------------------------------------------------------ */
 /* The state machine                                                   */
 /* ------------------------------------------------------------------ */
-static void SCSITarget_Step(SCSITarget *t, bool timeout)
+static void scsi_target_step(SCSITarget *t, bool timeout)
 {
     if (!t->bus)
     {
@@ -419,7 +419,7 @@ static void SCSITarget_Step(SCSITarget *t, bool timeout)
 
     if (ctrl & S_RST)
     {
-        SCSITarget_Log(t, "scsi bus reset");
+        scsi_target_log(t, "scsi bus reset");
         SCSITarget_DeviceReset(t);
         return;
     }
@@ -439,7 +439,7 @@ static void SCSITarget_Step(SCSITarget *t, bool timeout)
         {
             t->scsi_state = TS_TARGET_SELECT_WAIT_BUS_SETTLE;
             /* scsi_bus_settle_delay() is 0 under NO_SCSI_DELAY. */
-            SCSITarget_AdjustTimer(t, 0, true);
+            scsi_target_adjust_timer(t, 0, true);
         }
         break;
 
@@ -461,18 +461,18 @@ static void SCSITarget_Step(SCSITarget *t, bool timeout)
             break;
         }
         {
-            SCSIBufControl *c = SCSITarget_BufControlPush(t);
+            SCSIBufControl *c = scsi_target_buf_control_push(t);
             c->action = BC_MSG_OR_COMMAND;
         }
         t->scsi_state = TS_TARGET_NEXT_CONTROL;
-        SCSITarget_Step(t, false);
+        scsi_target_step(t, false);
         break;
 
     case TS_RECV_BYTE_T_WAIT_ACK_1:
         if (ctrl & S_ACK)
         {
-            SCSITarget_PutData(t, t->data_buffer_id, t->data_buffer_pos++,
-                               SCSIBus_DataRead(t->bus));
+            scsi_target_put_data(t, t->data_buffer_id, t->data_buffer_pos++,
+                                 SCSIBus_DataRead(t->bus));
             t->scsi_state = (t->scsi_state & SCSI_STATE_MASK) | TS_RECV_BYTE_T_WAIT_ACK_0;
             SCSIBus_ControlWrite(t->bus, t->dev.refid, 0, S_REQ);
         }
@@ -484,7 +484,7 @@ static void SCSITarget_Step(SCSITarget *t, bool timeout)
             t->scsi_state &= SCSI_STATE_MASK;
             SCSIBus_ControlWait(t->bus, t->dev.refid, 0, S_ACK);
             /* scsi_data_byte_period() is 0 -> step immediately. */
-            SCSITarget_Step(t, false);
+            scsi_target_step(t, false);
         }
         break;
 
@@ -502,13 +502,13 @@ static void SCSITarget_Step(SCSITarget *t, bool timeout)
         {
             t->scsi_state &= SCSI_STATE_MASK;
             SCSIBus_ControlWait(t->bus, t->dev.refid, 0, S_ACK);
-            SCSITarget_Step(t, false);
+            scsi_target_step(t, false);
         }
         break;
 
     case TS_TARGET_NEXT_CONTROL:
     {
-        SCSIBufControl *ctl = SCSITarget_BufControlPop(t);
+        SCSIBufControl *ctl = scsi_target_buf_control_pop(t);
 
         switch (ctl->action)
         {
@@ -525,12 +525,12 @@ static void SCSITarget_Step(SCSITarget *t, bool timeout)
                 t->scsi_state = TS_TARGET_WAIT_CMD_BYTE;
                 SCSIBus_ControlWrite(t->bus, t->dev.refid, S_PHASE_COMMAND, S_PHASE_MASK);
             }
-            SCSITarget_RecvByte(t);
+            scsi_target_recv_byte(t);
             break;
 
         case BC_STATUS:
             SCSIBus_ControlWrite(t->bus, t->dev.refid, S_PHASE_STATUS, S_PHASE_MASK);
-            SCSITarget_SendByte(t, (uint8_t)ctl->param1);
+            scsi_target_send_byte(t, (uint8_t)ctl->param1);
             break;
 
         case BC_DATA_IN:
@@ -540,7 +540,7 @@ static void SCSITarget_Step(SCSITarget *t, bool timeout)
             t->data_buffer_pos = 0;
             t->scsi_state =
                 (t->data_buffer_size > 0) ? TS_TARGET_WAIT_DATA_IN_BYTE : TS_TARGET_NEXT_CONTROL;
-            SCSITarget_Step(t, false);
+            scsi_target_step(t, false);
             break;
 
         case BC_DATA_OUT:
@@ -550,12 +550,12 @@ static void SCSITarget_Step(SCSITarget *t, bool timeout)
             t->data_buffer_pos = 0;
             t->scsi_state =
                 (t->data_buffer_size > 0) ? TS_TARGET_WAIT_DATA_OUT_BYTE : TS_TARGET_NEXT_CONTROL;
-            SCSITarget_Step(t, false);
+            scsi_target_step(t, false);
             break;
 
         case BC_MESSAGE_1:
             SCSIBus_ControlWrite(t->bus, t->dev.refid, S_PHASE_MSG_IN, S_PHASE_MASK);
-            SCSITarget_SendByte(t, (uint8_t)ctl->param1);
+            scsi_target_send_byte(t, (uint8_t)ctl->param1);
             break;
 
         case BC_BUS_FREE:
@@ -576,7 +576,7 @@ static void SCSITarget_Step(SCSITarget *t, bool timeout)
         {
             t->scsi_state = TS_TARGET_NEXT_CONTROL;
         }
-        SCSITarget_SendBufferByte(t);
+        scsi_target_send_buffer_byte(t);
         break;
 
     case TS_TARGET_WAIT_DATA_OUT_BYTE:
@@ -584,7 +584,7 @@ static void SCSITarget_Step(SCSITarget *t, bool timeout)
         {
             t->scsi_state = TS_TARGET_NEXT_CONTROL;
         }
-        SCSITarget_RecvByte(t);
+        scsi_target_recv_byte(t);
         break;
 
     case TS_TARGET_WAIT_MSG_BYTE:
@@ -595,13 +595,13 @@ static void SCSITarget_Step(SCSITarget *t, bool timeout)
         if (!(ctrl & S_ATN))
         {
             t->scsi_cmdsize = t->data_buffer_pos;
-            SCSITarget_Message(t);
+            scsi_target_message(t);
             t->data_buffer_id = SBUF_MAIN;
             t->data_buffer_pos = 0;
             t->scsi_state = TS_TARGET_WAIT_CMD_BYTE;
             SCSIBus_ControlWrite(t->bus, t->dev.refid, S_PHASE_COMMAND, S_PHASE_MASK);
         }
-        SCSITarget_RecvByte(t);
+        scsi_target_recv_byte(t);
         break;
 
     case TS_TARGET_WAIT_CMD_BYTE:
@@ -611,11 +611,11 @@ static void SCSITarget_Step(SCSITarget *t, bool timeout)
         }
         if (ctrl & S_ATN)
         {
-            SCSITarget_Log(t, "Parity error? Say what?");
+            scsi_target_log(t, "Parity error? Say what?");
             t->scsi_state = TS_IDLE;
             break;
         }
-        if (SCSITarget_CommandDone(t, t->scsi_cmdbuf[0], t->data_buffer_pos))
+        if (scsi_target_command_done(t, t->scsi_cmdbuf[0], t->data_buffer_pos))
         {
             t->scsi_cmdsize = t->data_buffer_pos;
             SCSIBus_ControlWait(t->bus, t->dev.refid, 0, S_ACK);
@@ -625,16 +625,16 @@ static void SCSITarget_Step(SCSITarget *t, bool timeout)
             }
             t->scsi_state = TS_TARGET_NEXT_CONTROL;
             /* scsi_data_command_delay() is 0 -> step immediately. */
-            SCSITarget_Step(t, false);
+            scsi_target_step(t, false);
         }
         else
         {
-            SCSITarget_RecvByte(t);
+            scsi_target_recv_byte(t);
         }
         break;
 
     default:
-        SCSITarget_Log(t, "step() unexpected state 0x%04X", t->scsi_state);
+        scsi_target_log(t, "step() unexpected state 0x%04X", t->scsi_state);
         break;
     }
 }
@@ -643,7 +643,7 @@ static void SCSITarget_Step(SCSITarget *t, bool timeout)
 /* ------------------------------------------------------------------ */
 /* SCSIDevice vtable hooks                                             */
 /* ------------------------------------------------------------------ */
-static void SCSITarget_Clock(SCSIDevice *self)
+static void scsi_target_clock(SCSIDevice *self)
 {
     SCSITarget *t = (SCSITarget *)self->impl;
     if (!t || !t->timerEnabled)
@@ -656,17 +656,17 @@ static void SCSITarget_Clock(SCSIDevice *self)
     if (t->timerTicks-- <= 0)
     {
         t->timerEnabled = false;
-        SCSITarget_Step(t, t->timerParam);
+        scsi_target_step(t, t->timerParam);
     }
 }
 
 
-static void SCSITarget_CtrlChanged(SCSIDevice *self)
+static void scsi_target_ctrl_changed(SCSIDevice *self)
 {
     SCSITarget *t = (SCSITarget *)self->impl;
     if (t)
     {
-        SCSITarget_Step(t, false);
+        scsi_target_step(t, false);
     }
 }
 
@@ -704,8 +704,8 @@ void SCSITarget_Init(SCSITarget *t, SCSIBus *bus, uint8_t scsi_id, const char *n
      * filled in the concrete-target hooks. Only the base fields are set here. */
     t->dev.name = name;
     t->dev.scsi_id = scsi_id;
-    t->dev.Clock = SCSITarget_Clock;
-    t->dev.ctrl_changed = SCSITarget_CtrlChanged;
+    t->dev.Clock = scsi_target_clock;
+    t->dev.ctrl_changed = scsi_target_ctrl_changed;
     t->dev.impl = t;
     t->dev.refid = -1;
 

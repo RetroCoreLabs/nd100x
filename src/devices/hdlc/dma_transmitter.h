@@ -69,8 +69,8 @@ typedef struct DMATransmitter
  * @param hdlcDevice Owning HDLC device.
  * @return void.
  */
-void DMATransmitter_Init(DMATransmitter *transmitter, void *com5025, DMAControlBlocks *dmaCB,
-                         struct Device *hdlcDevice);
+void DMATransmitter_Init(DMATransmitter *transmitter, void *com5025, DMAControlBlocks *dma_cb,
+                         struct Device *hdlc_device);
 
 /**
  * @brief Clear the transmitter's callback pointers.
@@ -104,7 +104,7 @@ void DMATransmitter_Tick(DMATransmitter *transmitter);
  * @param senderState New DmaEngineSenderState value.
  * @return void.
  */
-void DMATransmitter_SetSenderState(DMATransmitter *transmitter, int senderState);
+void DMATransmitter_SetSenderState(DMATransmitter *transmitter, int sender_state);
 
 
 // Data transmission (burst mode)

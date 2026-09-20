@@ -101,7 +101,7 @@ typedef struct DMAEngine
  * @param modem Modem state, stored as struct ModemState * (opaque here).
  * @param com5025 COM5025 chip state, stored as COM5025State * (opaque here).
  */
-void DMAEngine_Init(DMAEngine *dma, bool burstMode, struct Device *hdlcDevice, void *modem,
+void DMAEngine_Init(DMAEngine *dma, bool burst_mode, struct Device *hdlc_device, void *modem,
                     void *com5025);
 
 /**
@@ -211,7 +211,7 @@ void DMAEngine_SetDMAAddress(DMAEngine *dma, uint32_t address);
  * @param offset Offset (in 4-word blocks) of the entry to read.
  * @return Key value read from memory, or 0 if dma is NULL.
  */
-uint16_t DMAEngine_GetBufferKeyVault(DMAEngine *dma, uint32_t listPointer, uint16_t offset);
+uint16_t DMAEngine_GetBufferKeyVault(DMAEngine *dma, uint32_t list_pointer, uint16_t offset);
 
 /**
  * @brief Scan forward from start in 4-word steps for the next TX list entry

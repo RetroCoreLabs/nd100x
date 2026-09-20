@@ -66,7 +66,7 @@ static const uint8_t floppy_boot[388] = {
 
 static const size_t floppy_boot_length = sizeof(floppy_boot);
 
-static void FloppyPIO_Reset(Device *self)
+static void floppy_pio_reset(Device *self)
 {
     FloppyPIOData *data = (FloppyPIOData *)self->deviceData;
     if (!data)
@@ -81,7 +81,7 @@ static void FloppyPIO_Reset(Device *self)
     data->selectedDrive = -1;
 }
 
-static uint16_t FloppyPIO_Tick(Device *self)
+static uint16_t floppy_pio_tick(Device *self)
 {
     if (!self)
     {
@@ -91,7 +91,7 @@ static uint16_t FloppyPIO_Tick(Device *self)
     return self->interruptBits;
 }
 
-static uint16_t FloppyPIO_Read(Device *self, uint32_t address)
+static uint16_t floppy_pio_read(Device *self, uint32_t address)
 {
     if (!self)
     {
@@ -177,7 +177,7 @@ static uint16_t FloppyPIO_Read(Device *self, uint32_t address)
     return value;
 }
 
-static void FloppyPIO_Write(Device *self, uint32_t address, uint16_t value)
+static void floppy_pio_write(Device *self, uint32_t address, uint16_t value)
 {
     if (!self)
     {
@@ -328,7 +328,7 @@ static void FloppyPIO_Write(Device *self, uint32_t address, uint16_t value)
     }
 }
 
-static uint16_t FloppyPIO_Ident(Device *self, uint16_t level)
+static uint16_t floppy_pio_ident(Device *self, uint16_t level)
 {
     if (!self)
     {
@@ -345,7 +345,7 @@ static uint16_t FloppyPIO_Ident(Device *self, uint16_t level)
     return 0;
 }
 
-static bool FloppyPIO_ReadEnd(Device *self, int drive)
+static bool floppy_pio_read_end(Device *self, int drive)
 {
     (void)drive;
     FloppyPIOData *data = (FloppyPIOData *)self->deviceData;
@@ -369,7 +369,7 @@ static bool FloppyPIO_ReadEnd(Device *self, int drive)
     return data->status1.bits.interruptEnabled;
 }
 
-static bool FloppyPIO_RecalibrateEnd(Device *self, int drive)
+static bool floppy_pio_recalibrate_end(Device *self, int drive)
 {
     (void)drive;
     FloppyPIOData *data = (FloppyPIOData *)self->deviceData;
@@ -385,7 +385,7 @@ static bool FloppyPIO_RecalibrateEnd(Device *self, int drive)
     return data->status1.bits.interruptEnabled;
 }
 
-static bool FloppyPIO_SeekEnd(Device *self, int drive)
+static bool floppy_pio_seek_end(Device *self, int drive)
 {
     (void)drive;
     FloppyPIOData *data = (FloppyPIOData *)self->deviceData;
@@ -401,7 +401,7 @@ static bool FloppyPIO_SeekEnd(Device *self, int drive)
     return data->status1.bits.interruptEnabled;
 }
 
-static void FloppyPIO_ClearAllErrorFlags(Device *self)
+static void floppy_pio_clear_all_error_flags(Device *self)
 {
     FloppyPIOData *data = (FloppyPIOData *)self->deviceData;
     if (!data)
@@ -413,7 +413,7 @@ static void FloppyPIO_ClearAllErrorFlags(Device *self)
     data->status2.raw = 0;
 }
 
-static void SetSectorAsDeleted(FloppyPIOData *data, int sector, int track, bool deleted)
+static void set_sector_as_deleted(FloppyPIOData *data, int sector, int track, bool deleted)
 {
     if (!data)
     {
@@ -425,7 +425,7 @@ static void SetSectorAsDeleted(FloppyPIOData *data, int sector, int track, bool 
     }
 }
 
-static bool SectorIsDeleted(FloppyPIOData *data, int sector, int track)
+static bool sector_is_deleted(FloppyPIOData *data, int sector, int track)
 {
     if (!data)
     {
@@ -446,11 +446,11 @@ static void floppy_pio_execute_go(Device *self, FloppyPIOCommand command)
         return;
     }
 
-    FloppyPIO_ClearAllErrorFlags(self);
+    floppy_pio_clear_all_error_flags(self);
 
-    int transferWordCount = data->bytes_pr_sector >> 1;
-    int wordsRead = 0;
-    (void)wordsRead; /* reported only under DEBUG_DETAIL */
+    int transfer_word_count = data->bytes_pr_sector >> 1;
+    int words_read = 0;
+    (void)words_read; /* reported only under DEBUG_DETAIL */
 
     data->status1.bits.deviceReadyForTransfer = 0;
     data->status1.bits.readWriteComplete = 0;
@@ -526,14 +526,14 @@ static void floppy_pio_execute_go(Device *self, FloppyPIOCommand command)
             return;
         }
 
-        uint16_t formatData = 0xAAFF;
+        uint16_t format_data = 0xAAFF;
 
         for (int s = 1; s <= data->sectors_pr_track; s++)
         {
-            transferWordCount = data->bytes_pr_sector >> 1;
-            while (transferWordCount > 0)
+            transfer_word_count = data->bytes_pr_sector >> 1;
+            while (transfer_word_count > 0)
             {
-                if (!Device_IO_WriteWord(self, data->floppyFile, formatData))
+                if (!Device_IO_WriteWord(self, data->floppyFile, format_data))
                 {
                     if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_DEBUG))
                     {
@@ -545,12 +545,12 @@ static void floppy_pio_execute_go(Device *self, FloppyPIOCommand command)
                     data->status1.bits.deviceBusy = 0;
                     return;
                 }
-                transferWordCount--;
+                transfer_word_count--;
             }
-            SetSectorAsDeleted(data, s, data->track, false);
+            set_sector_as_deleted(data, s, data->track, false);
         }
 
-        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)FloppyPIO_ReadEnd, unit,
+        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)floppy_pio_read_end, unit,
                             self->interruptLevel);
         break;
 
@@ -578,12 +578,12 @@ static void floppy_pio_execute_go(Device *self, FloppyPIOCommand command)
             return;
         }
 
-        while (transferWordCount > 0)
+        while (transfer_word_count > 0)
         {
-            uint16_t writeData = data->dataBuffer[data->bufferPointer];
+            uint16_t write_data = data->dataBuffer[data->bufferPointer];
             data->bufferPointer = (data->bufferPointer + 1) & 0x3FF;
 
-            if (!Device_IO_WriteWord(self, data->floppyFile, writeData))
+            if (!Device_IO_WriteWord(self, data->floppyFile, write_data))
             {
                 if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_DEBUG))
                 {
@@ -594,18 +594,18 @@ static void floppy_pio_execute_go(Device *self, FloppyPIOCommand command)
                 return;
             }
 
-            wordsRead++;
-            transferWordCount--;
+            words_read++;
+            transfer_word_count--;
         }
 
-        SetSectorAsDeleted(data, data->sector, data->track, false);
+        set_sector_as_deleted(data, data->sector, data->track, false);
 
         if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_TRACE))
         {
-            Log_Write(LOG_CAT_FLOPPY, LOG_TRACE, "FloppyPIO: Write %d WORDs\r\n", wordsRead);
+            Log_Write(LOG_CAT_FLOPPY, LOG_TRACE, "FloppyPIO: Write %d WORDs\r\n", words_read);
         }
 
-        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)FloppyPIO_ReadEnd, unit,
+        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)floppy_pio_read_end, unit,
                             self->interruptLevel);
         break;
 
@@ -621,7 +621,7 @@ static void floppy_pio_execute_go(Device *self, FloppyPIOCommand command)
             return;
         }
 
-        SetSectorAsDeleted(data, data->sector, data->track, true);
+        set_sector_as_deleted(data, data->sector, data->track, true);
 
         if (fseek(data->floppyFile, position, SEEK_SET) != 0)
         {
@@ -635,12 +635,12 @@ static void floppy_pio_execute_go(Device *self, FloppyPIOCommand command)
             return;
         }
 
-        while (transferWordCount > 0)
+        while (transfer_word_count > 0)
         {
-            uint16_t writeData = data->dataBuffer[data->bufferPointer];
+            uint16_t write_data = data->dataBuffer[data->bufferPointer];
             data->bufferPointer = (data->bufferPointer + 1) & 0x3FF;
 
-            if (!Device_IO_WriteWord(self, data->floppyFile, writeData))
+            if (!Device_IO_WriteWord(self, data->floppyFile, write_data))
             {
                 if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_DEBUG))
                 {
@@ -652,11 +652,11 @@ static void floppy_pio_execute_go(Device *self, FloppyPIOCommand command)
                 return;
             }
 
-            wordsRead++;
-            transferWordCount--;
+            words_read++;
+            transfer_word_count--;
         }
 
-        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)FloppyPIO_ReadEnd, unit,
+        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)floppy_pio_read_end, unit,
                             self->interruptLevel);
         break;
 
@@ -666,7 +666,7 @@ static void floppy_pio_execute_go(Device *self, FloppyPIOCommand command)
             Log_Write(LOG_CAT_FLOPPY, LOG_DEBUG, "Starting ReadID \r\n");
         }
 
-        if (SectorIsDeleted(data, data->sector, data->track))
+        if (sector_is_deleted(data, data->sector, data->track))
         {
             data->dataBuffer[0] = 0xFF00;
             data->dataBuffer[1] = 0xFF02;
@@ -678,7 +678,7 @@ static void floppy_pio_execute_go(Device *self, FloppyPIOCommand command)
         }
 
         data->bufferPointer = 0;
-        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)FloppyPIO_ReadEnd, unit,
+        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)floppy_pio_read_end, unit,
                             self->interruptLevel);
         break;
 
@@ -686,8 +686,8 @@ static void floppy_pio_execute_go(Device *self, FloppyPIOCommand command)
         if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_DEBUG))
         {
             Log_Write(LOG_CAT_FLOPPY, LOG_DEBUG,
-                      "Starting ReadData, transferWordCount=%d, position=%d\r\n", transferWordCount,
-                      position);
+                      "Starting ReadData, transferWordCount=%d, position=%d\r\n",
+                      transfer_word_count, position);
         }
 
         if (fseek(data->floppyFile, position, SEEK_SET) != 0)
@@ -709,15 +709,15 @@ static void floppy_pio_execute_go(Device *self, FloppyPIOCommand command)
             return;
         }
 
-        if (SectorIsDeleted(data, data->sector, data->track))
+        if (sector_is_deleted(data, data->sector, data->track))
         {
             data->status1.bits.deletedRecord = 1;
         }
 
-        while (transferWordCount > 0)
+        while (transfer_word_count > 0)
         {
-            int readData = Device_IO_ReadWord(self, data->floppyFile);
-            if (readData == -1)
+            int read_data = Device_IO_ReadWord(self, data->floppyFile);
+            if (read_data == -1)
             {
                 if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_DEBUG))
                 {
@@ -729,19 +729,19 @@ static void floppy_pio_execute_go(Device *self, FloppyPIOCommand command)
                 return;
             }
 
-            wordsRead++;
-            data->dataBuffer[data->bufferPointer] = (uint16_t)readData;
+            words_read++;
+            data->dataBuffer[data->bufferPointer] = (uint16_t)read_data;
             data->bufferPointer = (data->bufferPointer + 1) & 0x3FF;
-            transferWordCount--;
+            transfer_word_count--;
         }
 
         if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_TRACE))
         {
-            Log_Write(LOG_CAT_FLOPPY, LOG_TRACE, "FloppyPIO: Read %d WORDs\r\n", wordsRead);
+            Log_Write(LOG_CAT_FLOPPY, LOG_TRACE, "FloppyPIO: Read %d WORDs\r\n", words_read);
         }
 
         // Simulate transfer delay
-        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)FloppyPIO_ReadEnd, unit,
+        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)floppy_pio_read_end, unit,
                             self->interruptLevel);
         break;
 
@@ -759,7 +759,7 @@ static void floppy_pio_execute_go(Device *self, FloppyPIOCommand command)
             return;
         }
 
-        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)FloppyPIO_SeekEnd, unit,
+        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)floppy_pio_seek_end, unit,
                             self->interruptLevel);
         break;
 
@@ -767,8 +767,8 @@ static void floppy_pio_execute_go(Device *self, FloppyPIOCommand command)
         LOG(LOG_CAT_FLOPPY, LOG_DEBUG, "Starting Recalibrate\r\n");
         data->track = 0;
         data->sector = 1;
-        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)FloppyPIO_RecalibrateEnd, unit,
-                            self->interruptLevel);
+        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)floppy_pio_recalibrate_end,
+                            unit, self->interruptLevel);
         break;
 
     case FLOPPY_CMD_CONTROL_RESET:
@@ -849,11 +849,11 @@ Device *CreateFloppyPIODevice(uint8_t thumbwheel)
     }
 
     // Set up device function pointers
-    dev->Reset = FloppyPIO_Reset;
-    dev->Tick = FloppyPIO_Tick;
-    dev->Read = FloppyPIO_Read;
-    dev->Write = FloppyPIO_Write;
-    dev->Ident = FloppyPIO_Ident;
+    dev->Reset = floppy_pio_reset;
+    dev->Tick = floppy_pio_tick;
+    dev->Read = floppy_pio_read;
+    dev->Write = floppy_pio_write;
+    dev->Ident = floppy_pio_ident;
     dev->deviceData = data;
 
     LOG(LOG_CAT_FLOPPY, LOG_INFO, "FloppyPIO object created.\n");

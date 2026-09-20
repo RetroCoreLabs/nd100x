@@ -147,12 +147,12 @@ static int queue_write_all(ModemQueue *q, const uint8_t *data, int len, uint64_t
     }
     (void)dropped; // tracked for stats but we never actually drop
 
-    int totalWritten = 0;
-    while (totalWritten < len)
+    int total_written = 0;
+    while (total_written < len)
     {
-        int n = queue_write(q, data + totalWritten, len - totalWritten);
-        totalWritten += n;
-        if (totalWritten < len)
+        int n = queue_write(q, data + total_written, len - total_written);
+        total_written += n;
+        if (total_written < len)
         {
 #if defined(_WIN32) || defined(_WIN64)
             Sleep(0); // yield timeslice on Windows
@@ -161,7 +161,7 @@ static int queue_write_all(ModemQueue *q, const uint8_t *data, int len, uint64_t
 #endif
         }
     }
-    return totalWritten;
+    return total_written;
 }
 
 // Returns number of bytes read into dst
@@ -314,8 +314,8 @@ static void *server_worker(void *arg)
 {
     ModemState *modem = (ModemState *)arg;
 
-    nd_socket_t listenFd = (nd_socket_t)socket(AF_INET, SOCK_STREAM, 0);
-    if (listenFd == ND_INVALID_SOCKET)
+    nd_socket_t listen_fd = (nd_socket_t)socket(AF_INET, SOCK_STREAM, 0);
+    if (listen_fd == ND_INVALID_SOCKET)
     {
         LOG(LOG_CAT_NET, LOG_ERROR, "Modem: Failed to create listen socket (err %d)\n",
             nd_last_socket_error());
@@ -323,7 +323,7 @@ static void *server_worker(void *arg)
     }
 
     int reuse = 1;
-    setsockopt(ND_SOCK_NATIVE(listenFd), SOL_SOCKET, SO_REUSEADDR, (const char *)&reuse,
+    setsockopt(ND_SOCK_NATIVE(listen_fd), SOL_SOCKET, SO_REUSEADDR, (const char *)&reuse,
                sizeof(reuse));
 
     struct sockaddr_in addr;
@@ -332,18 +332,18 @@ static void *server_worker(void *arg)
     addr.sin_addr.s_addr = INADDR_ANY;
     addr.sin_port = htons((uint16_t)modem->port);
 
-    if (bind(ND_SOCK_NATIVE(listenFd), (struct sockaddr *)&addr, sizeof(addr)) < 0)
+    if (bind(ND_SOCK_NATIVE(listen_fd), (struct sockaddr *)&addr, sizeof(addr)) < 0)
     {
         LOG(LOG_CAT_NET, LOG_ERROR, "Modem: Failed to bind port %d (err %d)\n", modem->port,
             nd_last_socket_error());
-        nd_socket_close(listenFd);
+        nd_socket_close(listen_fd);
         return NULL;
     }
 
-    if (listen(ND_SOCK_NATIVE(listenFd), 1) < 0)
+    if (listen(ND_SOCK_NATIVE(listen_fd), 1) < 0)
     {
         LOG(LOG_CAT_NET, LOG_ERROR, "Modem: Failed to listen (err %d)\n", nd_last_socket_error());
-        nd_socket_close(listenFd);
+        nd_socket_close(listen_fd);
         return NULL;
     }
 
@@ -353,7 +353,7 @@ static void *server_worker(void *arg)
     {
         // Accept with timeout so we can check shutdown
         nd_pollfd_t pfd;
-        pfd.fd = ND_SOCK_NATIVE(listenFd);
+        pfd.fd = ND_SOCK_NATIVE(listen_fd);
         pfd.events = POLLIN;
         pfd.revents = 0;
         int ret = nd_poll(&pfd, 1, 500); // 500ms timeout
@@ -364,14 +364,14 @@ static void *server_worker(void *arg)
 
         struct sockaddr_in peer;
         nd_socklen_t peerlen = sizeof(peer);
-        nd_socket_t clientFd =
-            (nd_socket_t)accept(ND_SOCK_NATIVE(listenFd), (struct sockaddr *)&peer, &peerlen);
-        if (clientFd == ND_INVALID_SOCKET)
+        nd_socket_t client_fd =
+            (nd_socket_t)accept(ND_SOCK_NATIVE(listen_fd), (struct sockaddr *)&peer, &peerlen);
+        if (client_fd == ND_INVALID_SOCKET)
         {
             continue;
         }
 
-        set_nodelay(clientFd);
+        set_nodelay(client_fd);
         LOG(LOG_CAT_NET, LOG_INFO, "Modem: Accepted connection from %s:%d\n",
             inet_ntoa(peer.sin_addr), ntohs(peer.sin_port));
         atomic_store(&modem->connected, true);
@@ -380,7 +380,7 @@ static void *server_worker(void *arg)
         while (!atomic_load(&modem->shutdownReq))
         {
             nd_pollfd_t fds;
-            fds.fd = ND_SOCK_NATIVE(clientFd);
+            fds.fd = ND_SOCK_NATIVE(client_fd);
             fds.events = POLLIN;
             fds.revents = 0;
 
@@ -400,7 +400,7 @@ static void *server_worker(void *arg)
             if (fds.revents & POLLIN)
             {
                 uint8_t buf[4096];
-                int n = recv(ND_SOCK_NATIVE(clientFd), (char *)buf, (int)sizeof(buf), 0);
+                int n = recv(ND_SOCK_NATIVE(client_fd), (char *)buf, (int)sizeof(buf), 0);
                 if (n <= 0)
                 {
                     break; // disconnect or error
@@ -418,8 +418,8 @@ static void *server_worker(void *arg)
                     int sent = 0;
                     while (sent < n)
                     {
-                        int w = send(ND_SOCK_NATIVE(clientFd), (const char *)(buf + sent), n - sent,
-                                     MSG_NOSIGNAL);
+                        int w = send(ND_SOCK_NATIVE(client_fd), (const char *)(buf + sent),
+                                     n - sent, MSG_NOSIGNAL);
                         if (w <= 0)
                         {
                             break;
@@ -436,12 +436,12 @@ static void *server_worker(void *arg)
         }
 
         // Connection ended
-        nd_socket_close(clientFd);
+        nd_socket_close(client_fd);
         atomic_store(&modem->connected, false);
         LOG(LOG_CAT_NET, LOG_INFO, "Modem: Client disconnected, waiting for new connection...\n");
     }
 
-    nd_socket_close(listenFd);
+    nd_socket_close(listen_fd);
     return NULL;
 }
 
@@ -527,8 +527,8 @@ static void *client_worker(void *arg)
         LOG(LOG_CAT_NET, LOG_DEBUG, "Modem: Connecting to %s:%d (attempt %d)...\n", host,
             modem->port, attempt);
 
-        nd_socket_t clientFd = try_connect(&addr, 5000); // 5 second timeout
-        if (clientFd == ND_INVALID_SOCKET)
+        nd_socket_t client_fd = try_connect(&addr, 5000); // 5 second timeout
+        if (client_fd == ND_INVALID_SOCKET)
         {
             // Backoff: 1s, 2s, 4s, 8s, 16s, 30s max
             int delay = 1;
@@ -552,9 +552,9 @@ static void *client_worker(void *arg)
         atomic_store(&modem->connected, true);
         attempt = 0; // reset backoff on success
 
-        service_connection(modem, clientFd);
+        service_connection(modem, client_fd);
 
-        nd_socket_close(clientFd);
+        nd_socket_close(client_fd);
         atomic_store(&modem->connected, false);
         LOG(LOG_CAT_NET, LOG_INFO, "Modem: Disconnected from %s:%d\n", host, modem->port);
 
@@ -577,14 +577,14 @@ static void *client_worker(void *arg)
 // Public API - called from emulation thread
 // ============================================================================
 
-void Modem_Init(ModemState *modem, Device *hdlcDevice)
+void Modem_Init(ModemState *modem, Device *hdlc_device)
 {
     if (!modem)
     {
         return;
     }
     memset(modem, 0, sizeof(ModemState));
-    modem->hdlcDevice = hdlcDevice;
+    modem->hdlcDevice = hdlc_device;
 
 #ifdef MODEM_HAS_NETWORKING
     // Refcounted - on Windows this calls WSAStartup; no-op on POSIX.
@@ -622,14 +622,14 @@ void Modem_Destroy(ModemState *modem)
     atomic_store(&modem->networkStarted, false);
 }
 
-void Modem_StartModem(ModemState *modem, bool isServer, const char *address, int port)
+void Modem_StartModem(ModemState *modem, bool is_server, const char *address, int port)
 {
     if (!modem)
     {
         return;
     }
 
-    modem->isServer = isServer;
+    modem->isServer = is_server;
     modem->port = port;
     if (address)
     {
@@ -641,7 +641,7 @@ void Modem_StartModem(ModemState *modem, bool isServer, const char *address, int
 
     // Spawn worker thread - ALL socket ops happen there
     int err;
-    if (isServer)
+    if (is_server)
     {
         err = pthread_create(&modem->workerThread, NULL, server_worker, modem);
     }

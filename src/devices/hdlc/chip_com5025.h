@@ -422,7 +422,7 @@ void COM5025_TransmitData(COM5025State *chip, uint8_t data);
  * @param newRxStatus New receiver status register value.
  * @return void.
  */
-void COM5025_SetReceiverStatus(COM5025State *chip, uint16_t newRxStatus);
+void COM5025_SetReceiverStatus(COM5025State *chip, uint16_t new_rx_status);
 
 /**
  * @brief Register the callback invoked when the chip serializes a

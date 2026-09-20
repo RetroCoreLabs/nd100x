@@ -153,8 +153,8 @@ void HDLCFrame_AddBytes(HDLCFrame *frame, const uint8_t *data, int length); // f
  * @return Number of bytes written to outputBuffer, or -1 on invalid
  *         arguments or if outputBuffer is too small.
  */
-int HDLCFrame_BuildFrame(const uint8_t *data, int dataLength, uint8_t *outputBuffer,
-                         int bufferSize);
+int HDLCFrame_BuildFrame(const uint8_t *data, int data_length, uint8_t *output_buffer,
+                         int buffer_size);
 
 /**
  * @brief Append one byte to outputBuffer, escaping it (ESCAPE + byte XOR
@@ -166,7 +166,7 @@ int HDLCFrame_BuildFrame(const uint8_t *data, int dataLength, uint8_t *outputBuf
  * @return Number of bytes written (1 or 2), or -1 if there is no room or an
  *         argument is NULL.
  */
-int HDLCFrame_StuffByte(uint8_t data, uint8_t *outputBuffer, int bufferSize, int *outputIndex);
+int HDLCFrame_StuffByte(uint8_t data, uint8_t *output_buffer, int buffer_size, int *output_index);
 
 /**
  * @brief Reverse byte stuffing on a single escaped byte (XOR with

@@ -71,34 +71,34 @@ int TcpReceiveBuffer_Enqueue(TcpReceiveBuffer *buf, const uint8_t *data, int len
         return 0;
     }
 
-    int bytesToWrite = length;
-    int freeSpace = buf->capacity - buf->count;
-    if (bytesToWrite > freeSpace)
+    int bytes_to_write = length;
+    int free_space = buf->capacity - buf->count;
+    if (bytes_to_write > free_space)
     {
-        bytesToWrite = freeSpace;
+        bytes_to_write = free_space;
     }
-    if (bytesToWrite == 0)
+    if (bytes_to_write == 0)
     {
         return 0;
     }
 
     // Write in two parts if wrapping around
-    if (buf->head + bytesToWrite > buf->capacity)
+    if (buf->head + bytes_to_write > buf->capacity)
     {
-        int firstPart = buf->capacity - buf->head;
-        memcpy(&buf->buffer[buf->head], data, (size_t)firstPart);
-        int secondPart = bytesToWrite - firstPart;
-        memcpy(&buf->buffer[0], &data[firstPart], (size_t)secondPart);
-        buf->head = secondPart;
+        int first_part = buf->capacity - buf->head;
+        memcpy(&buf->buffer[buf->head], data, (size_t)first_part);
+        int second_part = bytes_to_write - first_part;
+        memcpy(&buf->buffer[0], &data[first_part], (size_t)second_part);
+        buf->head = second_part;
     }
     else
     {
-        memcpy(&buf->buffer[buf->head], data, (size_t)bytesToWrite);
-        buf->head = (buf->head + bytesToWrite) % buf->capacity;
+        memcpy(&buf->buffer[buf->head], data, (size_t)bytes_to_write);
+        buf->head = (buf->head + bytes_to_write) % buf->capacity;
     }
 
-    buf->count += bytesToWrite;
-    return bytesToWrite;
+    buf->count += bytes_to_write;
+    return bytes_to_write;
 }
 
 bool TcpReceiveBuffer_DequeueByte(TcpReceiveBuffer *buf, uint8_t *out)

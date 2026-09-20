@@ -209,7 +209,7 @@ uint8_t COM5025Registers_GetTransmitterCharacterLen(COM5025Registers *regs);
  * @param modeControl New Mode Control register value.
  * @return void.
  */
-void COM5025Registers_SetModeControl(COM5025Registers *regs, uint16_t modeControl);
+void COM5025Registers_SetModeControl(COM5025Registers *regs, uint16_t mode_control);
 
 /**
  * @brief Test the PROTO bit of the Mode Control register.

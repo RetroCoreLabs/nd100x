@@ -24,10 +24,10 @@
 #include "../devices_protos.h"
 
 
-static void SCSIHDD_Log(SCSIHDDDevice *hdd, const char *fmt, ...)
+static void scsihdd_log(SCSIHDDDevice *hdd, const char *fmt, ...)
     __attribute__((format(printf, 2, 3)));
 
-static void SCSIHDD_Log(SCSIHDDDevice *hdd, const char *fmt, ...)
+static void scsihdd_log(SCSIHDDDevice *hdd, const char *fmt, ...)
 {
     if (!Log_IsEnabled(LOG_CAT_SCSI, LOG_DEBUG))
     {
@@ -45,18 +45,18 @@ static void SCSIHDD_Log(SCSIHDDDevice *hdd, const char *fmt, ...)
 
 /* Is an image mounted on this unit? Uses the machine's disk-info callback,
  * which fails for an unmounted drive (RetroCore's IsMountedCallback). */
-static bool SCSIHDD_HasMedia(SCSIHDDDevice *hdd)
+static bool scsihdd_has_media(SCSIHDDDevice *hdd)
 {
     if (!hdd->owner || !hdd->owner->blockCallbacks.diskInfoFunc)
     {
         return false;
     }
 
-    size_t imageSize = 0;
-    bool isWriteProtected = false;
-    int rc = hdd->owner->blockCallbacks.diskInfoFunc(hdd->owner, &imageSize, &isWriteProtected,
+    size_t image_size = 0;
+    bool is_write_protected = false;
+    int rc = hdd->owner->blockCallbacks.diskInfoFunc(hdd->owner, &image_size, &is_write_protected,
                                                      hdd->unit);
-    return (rc >= 0) && (imageSize > 0);
+    return (rc >= 0) && (image_size > 0);
 }
 
 
@@ -64,7 +64,7 @@ static bool SCSIHDD_HasMedia(SCSIHDDDevice *hdd)
  * LUN from the IDENTIFY message, falling back to the CDB's LUN field.
  * (SCSIFullDevice.cs get_lun)
  */
-static int SCSIHDD_GetLun(SCSIHDDDevice *hdd, int def)
+static int scsihdd_get_lun(SCSIHDDDevice *hdd, int def)
 {
     if (hdd->target.scsi_identify & 0x80)
     {
@@ -81,7 +81,7 @@ static int SCSIHDD_GetLun(SCSIHDDDevice *hdd, int def)
  * owner->blockSizeBytes for the byte maths - so this is the exact equivalent of
  * RetroCore's readBlock(), which computes location = lba * sectorbytes itself.
  */
-static bool SCSIHDD_ReadBlock(SCSIHDDDevice *hdd, int read_lba)
+static bool scsihdd_read_block(SCSIHDDDevice *hdd, int read_lba)
 {
     if (!hdd->owner || !hdd->owner->blockCallbacks.readFunc)
     {
@@ -90,16 +90,16 @@ static bool SCSIHDD_ReadBlock(SCSIHDDDevice *hdd, int read_lba)
 
     if (read_lba < 0 || (uint32_t)read_lba > DiskSCSI_LastLBA(&hdd->hdinfo))
     {
-        SCSIHDD_Log(hdd, "HD READ ERROR! LBA=%d out of range (last=%u)", read_lba,
+        scsihdd_log(hdd, "HD READ ERROR! LBA=%d out of range (last=%u)", read_lba,
                     DiskSCSI_LastLBA(&hdd->hdinfo));
         return false;
     }
 
-    int blocksRead = hdd->owner->blockCallbacks.readFunc(hdd->owner, hdd->sectorData, 1,
-                                                         (uint32_t)read_lba, hdd->unit);
-    if (blocksRead != 1)
+    int blocks_read = hdd->owner->blockCallbacks.readFunc(hdd->owner, hdd->sectorData, 1,
+                                                          (uint32_t)read_lba, hdd->unit);
+    if (blocks_read != 1)
     {
-        SCSIHDD_Log(hdd, "HD READ ERROR! LBA=%d rc=%d", read_lba, blocksRead);
+        scsihdd_log(hdd, "HD READ ERROR! LBA=%d rc=%d", read_lba, blocks_read);
         return false;
     }
 
@@ -107,7 +107,7 @@ static bool SCSIHDD_ReadBlock(SCSIHDDDevice *hdd, int read_lba)
 }
 
 
-static bool SCSIHDD_WriteBlock(SCSIHDDDevice *hdd, int write_lba)
+static bool scsihdd_write_block(SCSIHDDDevice *hdd, int write_lba)
 {
     if (!hdd->owner || !hdd->owner->blockCallbacks.writeFunc)
     {
@@ -116,13 +116,13 @@ static bool SCSIHDD_WriteBlock(SCSIHDDDevice *hdd, int write_lba)
 
     if (write_lba < 0 || (uint32_t)write_lba > DiskSCSI_LastLBA(&hdd->hdinfo))
     {
-        SCSIHDD_Log(hdd, "HD SEEK ERROR! LBA=%d", write_lba);
+        scsihdd_log(hdd, "HD SEEK ERROR! LBA=%d", write_lba);
         return false;
     }
 
-    int blocksWritten = hdd->owner->blockCallbacks.writeFunc(hdd->owner, hdd->sectorData, 1,
-                                                             (uint32_t)write_lba, hdd->unit);
-    return blocksWritten == 1;
+    int blocks_written = hdd->owner->blockCallbacks.writeFunc(hdd->owner, hdd->sectorData, 1,
+                                                              (uint32_t)write_lba, hdd->unit);
+    return blocks_written == 1;
 }
 
 
@@ -132,7 +132,7 @@ static bool SCSIHDD_WriteBlock(SCSIHDDDevice *hdd, int write_lba)
  * Multi-block transfers stream sector by sector: recompute the LBA from the
  * byte position and re-read whenever it moves, then index within the sector.
  */
-static uint8_t SCSIHDD_GetData(SCSITarget *t, SBUF id, int pos)
+static uint8_t scsihdd_get_data(SCSITarget *t, SBUF id, int pos)
 {
     SCSIHDDDevice *hdd = (SCSIHDDDevice *)t->impl;
 
@@ -146,7 +146,7 @@ static uint8_t SCSIHDD_GetData(SCSITarget *t, SBUF id, int pos)
         return hdd->sectorData[pos];
     }
 
-    if (!SCSIHDD_HasMedia(hdd))
+    if (!scsihdd_has_media(hdd))
     {
         return 0x00;
     }
@@ -160,7 +160,7 @@ static uint8_t SCSIHDD_GetData(SCSITarget *t, SBUF id, int pos)
     if (clba != hdd->cur_lba)
     {
         hdd->cur_lba = clba;
-        hdd->sectorDataValid = SCSIHDD_ReadBlock(hdd, clba);
+        hdd->sectorDataValid = scsihdd_read_block(hdd, clba);
         if (!hdd->sectorDataValid)
         {
             memset(hdd->sectorData, 0, sizeof(hdd->sectorData));
@@ -180,7 +180,7 @@ static uint8_t SCSIHDD_GetData(SCSITarget *t, SBUF id, int pos)
  * DATA OUT byte store. Mirrors scsi_get_data and flushes the sector to the
  * image on the last byte of each block.
  */
-static void SCSIHDD_PutData(SCSITarget *t, SBUF id, int pos, uint8_t data)
+static void scsihdd_put_data(SCSITarget *t, SBUF id, int pos, uint8_t data)
 {
     SCSIHDDDevice *hdd = (SCSIHDDDevice *)t->impl;
     uint8_t cmd = t->scsi_cmdbuf[0];
@@ -211,7 +211,7 @@ static void SCSIHDD_PutData(SCSITarget *t, SBUF id, int pos, uint8_t data)
         return;
     }
 
-    if (!SCSIHDD_HasMedia(hdd))
+    if (!scsihdd_has_media(hdd))
     {
         return;
     }
@@ -225,7 +225,7 @@ static void SCSIHDD_PutData(SCSITarget *t, SBUF id, int pos, uint8_t data)
     if (offset == hdd->hdinfo.sectorbytes - 1)
     {
         hdd->cur_lba = clba;
-        SCSIHDD_WriteBlock(hdd, clba);
+        scsihdd_write_block(hdd, clba);
     }
 }
 
@@ -245,17 +245,17 @@ static void SCSIHDD_PutData(SCSITarget *t, SBUF id, int pos, uint8_t data)
  * one: SINTRAN's carved READ-CAPACITY completion handler ECAPD validates it,
  * and a wrong value stamps DISC TRANSFER ERROR (STATUS 100020B).
  */
-static void SCSIHDD_CommandReadCapacity(SCSIHDDDevice *hdd)
+static void scsihdd_command_read_capacity(SCSIHDDDevice *hdd)
 {
     SCSITarget *t = &hdd->target;
-    uint32_t lastLba = DiskSCSI_LastLBA(&hdd->hdinfo);
+    uint32_t last_lba = DiskSCSI_LastLBA(&hdd->hdinfo);
 
-    scsi_put_u32be(&t->scsi_cmdbuf[0], lastLba);
+    scsi_put_u32be(&t->scsi_cmdbuf[0], last_lba);
     scsi_put_u32be(&t->scsi_cmdbuf[4], hdd->hdinfo.sectorbytes);
 
-    SCSIHDD_Log(hdd, "READ CAPACITY -> blockSize=%u lastLBA=%u capacityBytes=%lld",
-                hdd->hdinfo.sectorbytes, lastLba,
-                (long long)(lastLba + 1) * hdd->hdinfo.sectorbytes);
+    scsihdd_log(hdd, "READ CAPACITY -> blockSize=%u lastLBA=%u capacityBytes=%lld",
+                hdd->hdinfo.sectorbytes, last_lba,
+                (long long)(last_lba + 1) * hdd->hdinfo.sectorbytes);
 
     /* NOTE: buffer id 0 = SBUF_MAIN - the payload was just written into the
      * command buffer, not the data buffer. */
@@ -269,7 +269,7 @@ static void SCSIHDD_CommandReadCapacity(SCSIHDDDevice *hdd)
  *
  * Verified real-hardware exchange: CDB 12 00 00 00 24 00 -> 36 bytes.
  */
-static void SCSIHDD_CommandInquiry(SCSIHDDDevice *hdd)
+static void scsihdd_command_inquiry(SCSIHDDDevice *hdd)
 {
     SCSITarget *t = &hdd->target;
     int page = t->scsi_cmdbuf[2];
@@ -279,7 +279,7 @@ static void SCSIHDD_CommandInquiry(SCSIHDDDevice *hdd)
     {
         /* RetroCore only implements page 0; other pages fall through with
          * whatever status the media check produces below. */
-        SCSIHDD_Log(hdd, "INQUIRY page %d not supported", page);
+        scsihdd_log(hdd, "INQUIRY page %d not supported", page);
     }
     else
     {
@@ -308,7 +308,7 @@ static void SCSIHDD_CommandInquiry(SCSIHDDDevice *hdd)
         SCSITarget_DataIn(t, SBUF_MAIN, size);
     }
 
-    if (SCSIHDD_HasMedia(hdd))
+    if (scsihdd_has_media(hdd))
     {
         SCSITarget_StatusComplete(t, SS_GOOD);
     }
@@ -319,11 +319,11 @@ static void SCSIHDD_CommandInquiry(SCSIHDDDevice *hdd)
 }
 
 
-static void SCSIHDD_CommandTestUnitReady(SCSIHDDDevice *hdd)
+static void scsihdd_command_test_unit_ready(SCSIHDDDevice *hdd)
 {
-    SCSIHDD_Log(hdd, "command TEST UNIT READY");
+    scsihdd_log(hdd, "command TEST UNIT READY");
 
-    if (SCSIHDD_HasMedia(hdd))
+    if (scsihdd_has_media(hdd))
     {
         SCSITarget_StatusComplete(&hdd->target, SS_GOOD);
     }
@@ -347,7 +347,7 @@ static void SCSIHDD_CommandTestUnitReady(SCSIHDDDevice *hdd)
  * LUN note: the C# checks the LUN inside CommandModeSense (bad_lun); here the
  * generic lun != 0 rejection in SCSIHDD_Command's preamble already covers it.
  */
-static void SCSIHDD_CommandModeSense(SCSIHDDDevice *hdd)
+static void scsihdd_command_mode_sense(SCSIHDDDevice *hdd)
 {
     SCSITarget *t = &hdd->target;
     int page = t->scsi_cmdbuf[2] & 0x3f;
@@ -359,7 +359,7 @@ static void SCSIHDD_CommandModeSense(SCSIHDDDevice *hdd)
     int p;
     bool fail = false;
 
-    SCSIHDD_Log(hdd, "command MODE SENSE(6) page=0x%02X alloc=0x%02X link=0x%02X", page, size,
+    scsihdd_log(hdd, "command MODE SENSE(6) page=0x%02X alloc=0x%02X link=0x%02X", page, size,
                 t->scsi_cmdbuf[5]);
 
     t->scsi_cmdbuf[pos++] = 0x00; /* medium type */
@@ -505,7 +505,7 @@ static void SCSIHDD_CommandModeSense(SCSIHDDDevice *hdd)
         default:
             if (page != 0x3f)
             {
-                SCSIHDD_Log(hdd, "mode sense page 0x%02X unhandled", page);
+                scsihdd_log(hdd, "mode sense page 0x%02X unhandled", page);
                 fail = true;
             }
             break;
@@ -534,15 +534,15 @@ static void SCSIHDD_CommandModeSense(SCSIHDDDevice *hdd)
 /* ------------------------------------------------------------------ */
 /* CDB decode                                                          */
 /* ------------------------------------------------------------------ */
-static void SCSIHDD_Command(SCSITarget *t)
+static void scsihdd_command(SCSITarget *t)
 {
     SCSIHDDDevice *hdd = (SCSIHDDDevice *)t->impl;
     uint8_t cmd = t->scsi_cmdbuf[0];
-    int lun = SCSIHDD_GetLun(hdd, t->scsi_cmdbuf[1] >> 5);
+    int lun = scsihdd_get_lun(hdd, t->scsi_cmdbuf[1] >> 5);
 
     if (Log_IsEnabled(LOG_CAT_SCSI, LOG_DEBUG))
     {
-        SCSIHDD_Log(hdd, "CDB op=0x%02X cdb=%02X,%02X,%02X,%02X,%02X lun=%d", cmd,
+        scsihdd_log(hdd, "CDB op=0x%02X cdb=%02X,%02X,%02X,%02X,%02X lun=%d", cmd,
                     t->scsi_cmdbuf[1], t->scsi_cmdbuf[2], t->scsi_cmdbuf[3], t->scsi_cmdbuf[4],
                     t->scsi_cmdbuf[5], lun);
     }
@@ -561,7 +561,7 @@ static void SCSIHDD_Command(SCSITarget *t)
     switch (cmd)
     {
     case SC_TEST_UNIT_READY:
-        SCSIHDD_CommandTestUnitReady(hdd);
+        scsihdd_command_test_unit_ready(hdd);
         break;
 
     case SC_REQUEST_SENSE:
@@ -575,11 +575,11 @@ static void SCSIHDD_Command(SCSITarget *t)
         break;
 
     case SC_INQUIRY:
-        SCSIHDD_CommandInquiry(hdd);
+        scsihdd_command_inquiry(hdd);
         break;
 
     case SC_READ_CAPACITY:
-        SCSIHDD_CommandReadCapacity(hdd);
+        scsihdd_command_read_capacity(hdd);
         break;
 
     case SC_READ_6:
@@ -591,7 +591,7 @@ static void SCSIHDD_Command(SCSITarget *t)
             hdd->blocks = 256;
         }
 
-        SCSIHDD_Log(hdd, "command READ(6) lba=%d blocks=%d", hdd->lba, hdd->blocks);
+        scsihdd_log(hdd, "command READ(6) lba=%d blocks=%d", hdd->lba, hdd->blocks);
 
         if ((uint32_t)hdd->lba > DiskSCSI_LastLBA(&hdd->hdinfo))
         {
@@ -599,7 +599,7 @@ static void SCSIHDD_Command(SCSITarget *t)
         }
         else
         {
-            hdd->sectorDataValid = SCSIHDD_ReadBlock(hdd, hdd->lba);
+            hdd->sectorDataValid = scsihdd_read_block(hdd, hdd->lba);
             hdd->cur_lba = hdd->lba;
         }
 
@@ -623,7 +623,7 @@ static void SCSIHDD_Command(SCSITarget *t)
             hdd->blocks = 256;
         }
 
-        SCSIHDD_Log(hdd, "command WRITE(6) lba=%d blocks=%d", hdd->lba, hdd->blocks);
+        scsihdd_log(hdd, "command WRITE(6) lba=%d blocks=%d", hdd->lba, hdd->blocks);
 
         SCSITarget_DataOut(t, SBUF_DATA, hdd->blocks * hdd->hdinfo.sectorbytes);
         SCSITarget_StatusComplete(t, SS_GOOD);
@@ -633,9 +633,9 @@ static void SCSIHDD_Command(SCSITarget *t)
         hdd->lba = (int)scsi_get_u32be(&t->scsi_cmdbuf[2]);
         hdd->blocks = scsi_get_u16be(&t->scsi_cmdbuf[7]);
 
-        SCSIHDD_Log(hdd, "command READ(10) lba=%d blocks=%d", hdd->lba, hdd->blocks);
+        scsihdd_log(hdd, "command READ(10) lba=%d blocks=%d", hdd->lba, hdd->blocks);
 
-        hdd->sectorDataValid = SCSIHDD_ReadBlock(hdd, hdd->lba);
+        hdd->sectorDataValid = scsihdd_read_block(hdd, hdd->lba);
         hdd->cur_lba = hdd->lba;
 
         if (hdd->sectorDataValid)
@@ -654,7 +654,7 @@ static void SCSIHDD_Command(SCSITarget *t)
         hdd->lba = (int)scsi_get_u32be(&t->scsi_cmdbuf[2]);
         hdd->blocks = scsi_get_u16be(&t->scsi_cmdbuf[7]);
 
-        SCSIHDD_Log(hdd, "command WRITE(10) lba=%d blocks=%d", hdd->lba, hdd->blocks);
+        scsihdd_log(hdd, "command WRITE(10) lba=%d blocks=%d", hdd->lba, hdd->blocks);
 
         SCSITarget_DataOut(t, SBUF_DATA, hdd->blocks * hdd->hdinfo.sectorbytes);
         SCSITarget_StatusComplete(t, SS_GOOD);
@@ -690,7 +690,7 @@ static void SCSIHDD_Command(SCSITarget *t)
     case SC_MODE_SELECT_6:
         /* Parameters are accepted and IGNORED - the sector size is fixed at
          * 1024 and never changes, whatever the block descriptor asks for. */
-        SCSIHDD_Log(hdd,
+        scsihdd_log(hdd,
                     "command MODE SELECT(6) paramLen=%d (block descriptor IGNORED, "
                     "sector size fixed at %u)",
                     t->scsi_cmdbuf[4], hdd->hdinfo.sectorbytes);
@@ -704,11 +704,11 @@ static void SCSIHDD_Command(SCSITarget *t)
     case SC_MODE_SENSE_6:
         /* Ported 2026-07-17 from RetroCore SCSIHDD.CommandModeSense - was
          * previously missing here (fell through to ReportBadCmd). */
-        SCSIHDD_CommandModeSense(hdd);
+        scsihdd_command_mode_sense(hdd);
         break;
 
     case SC_START_STOP_UNIT:
-        SCSIHDD_Log(hdd, "command %s UNIT", (t->scsi_cmdbuf[4] & 0x01) ? "START" : "STOP");
+        scsihdd_log(hdd, "command %s UNIT", (t->scsi_cmdbuf[4] & 0x01) ? "START" : "STOP");
         SCSITarget_StatusComplete(t, SS_GOOD);
         break;
 
@@ -737,7 +737,7 @@ static void SCSIHDD_Command(SCSITarget *t)
          * Returning GOOD is the safe behaviour and matches what the port spec
          * calls for; a real format is not needed to mount or boot.
          */
-        SCSIHDD_Log(hdd, "command FORMAT UNIT (accepted, image NOT modified)");
+        scsihdd_log(hdd, "command FORMAT UNIT (accepted, image NOT modified)");
         SCSITarget_StatusComplete(t, SS_GOOD);
         break;
 
@@ -779,7 +779,7 @@ static void SCSIHDD_Command(SCSITarget *t)
         break;
 
     default:
-        SCSIHDD_Log(hdd, "command 0x%02X *** UNKNOWN ***", cmd);
+        scsihdd_log(hdd, "command 0x%02X *** UNKNOWN ***", cmd);
         SCSITarget_ReportBadCmd(t, cmd);
         break;
     }
@@ -805,7 +805,7 @@ static void scsihdd_device_reset(SCSIHDDDevice *hdd)
 
 
 void SCSIHDD_Init(SCSIHDDDevice *hdd, SCSIBus *bus, uint8_t scsi_id, struct Device *owner, int unit,
-                  SCSIDiskType diskType)
+                  SCSIDiskType disk_type)
 {
     memset(hdd, 0, sizeof(SCSIHDDDevice));
 
@@ -813,14 +813,14 @@ void SCSIHDD_Init(SCSIHDDDevice *hdd, SCSIBus *bus, uint8_t scsi_id, struct Devi
     hdd->unit = unit;
     hdd->cur_lba = -1;
 
-    DiskSCSI_SetDiskType(&hdd->hdinfo, diskType);
+    DiskSCSI_SetDiskType(&hdd->hdinfo, disk_type);
 
     /* Hooks must be set before SCSITarget_Init - it calls DeviceReset, which
      * touches the sense buffer through them. */
     hdd->target.impl = hdd;
-    hdd->target.scsi_command = SCSIHDD_Command;
-    hdd->target.scsi_get_data = SCSIHDD_GetData;
-    hdd->target.scsi_put_data = SCSIHDD_PutData;
+    hdd->target.scsi_command = scsihdd_command;
+    hdd->target.scsi_get_data = scsihdd_get_data;
+    hdd->target.scsi_put_data = scsihdd_put_data;
 
     SCSITarget_Init(&hdd->target, bus, scsi_id, "SCSI-HDD");
 

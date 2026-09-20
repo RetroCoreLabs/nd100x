@@ -130,33 +130,33 @@ static const HdlcBitName s_wttc_bits[] = {
     LOG(LOG_CAT_HDLC, LOG_DEBUG, ">>> IRQ %d triggered: %s", (level), (reason))
 
 // Forward declarations
-static void HDLC_CheckTriggerIRQ12(Device *self);
-static void HDLC_CheckTriggerIRQ13(Device *self);
-static void HDLC_CheckTriggerInterrupt(Device *self);
-static void HDLC_UpdateRQTS(Device *self);
+static void hdlc_check_trigger_interrupt_request_12(Device *self);
+static void hdlc_check_trigger_interrupt_request_13(Device *self);
+static void hdlc_check_trigger_interrupt(Device *self);
+static void hdlc_update_rqts(Device *self);
 
 // Modem event callbacks
-static void HDLC_OnModemReceivedData(Device *device, const uint8_t *data, int length);
-static void HDLC_OnModemRingIndicator(Device *device, bool pinValue);
-static void HDLC_OnModemDataSetReady(Device *device, bool pinValue);
-static void HDLC_OnModemSignalDetector(Device *device, bool pinValue);
-static void HDLC_OnModemClearToSend(Device *device, bool pinValue);
-static void HDLC_OnModemRequestToSend(Device *device, bool pinValue);
-static void HDLC_OnModemDataTerminalReady(Device *device, bool pinValue);
+static void hdlc_on_modem_received_data(Device *device, const uint8_t *data, int length);
+static void hdlc_on_modem_ring_indicator(Device *device, bool pin_value);
+static void hdlc_on_modem_data_set_ready(Device *device, bool pin_value);
+static void hdlc_on_modem_signal_detector(Device *device, bool pin_value);
+static void hdlc_on_modem_clear_to_send(Device *device, bool pin_value);
+static void hdlc_on_modem_request_to_send(Device *device, bool pin_value);
+static void hdlc_on_modem_data_terminal_ready(Device *device, bool pin_value);
 
 // DMA engine event callbacks
-static void HDLC_OnDMAWriteDMA(Device *device, uint32_t address, uint16_t data);
-static void HDLC_OnDMAReadDMA(Device *device, uint32_t address, int *data);
-static void HDLC_OnDMASetInterruptBit(Device *device, uint8_t bit);
-static void HDLC_OnDMASendHDLCFrame(Device *device, HDLCFrame *frame);
-static void HDLC_OnDMAUpdateReceiverStatus(Device *device, uint16_t status);
-static void HDLC_OnDMAClearCommand(Device *device);
+static void hdlc_on_dma_write_dma(Device *device, uint32_t address, uint16_t data);
+static void hdlc_on_dma_read_dma(Device *device, uint32_t address, int *data);
+static void hdlc_on_dma_set_interrupt_bit(Device *device, uint8_t bit);
+static void hdlc_on_dma_send_hdlc_frame(Device *device, HDLCFrame *frame);
+static void hdlc_on_dma_update_receiver_status(Device *device, uint16_t status);
+static void hdlc_on_dma_clear_command(Device *device);
 
 // COM5025 transmitter output callback
-static void HDLC_OnCOM5025TransmitterOutput(Device *device, uint8_t serialOutput);
+static void hdlc_on_com5025_transmitter_output(Device *device, uint8_t serial_output);
 
 // COM5025 pin value changed callback
-static void HDLC_OnCOM5025PinValueChanged(Device *device, COM5025SignalPinOut pin, bool value);
+static void hdlc_on_com5025_pin_value_changed(Device *device, COM5025SignalPinOut pin, bool value);
 
 
 // Device definitions array for HDLC devices
@@ -165,7 +165,7 @@ static const struct
     uint16_t addressBase;
     uint16_t identCode;
     const char *deviceName;
-} hdlcDeviceDefinitions[] = {
+} g_hdlc_device_definitions[] = {
     {01640, 0150, "HDLC/MEGALINK 1"}, // thumbwheel 1
     {01660, 0151, "HDLC/MEGALINK 2"}, // thumbwheel 2
     {01700, 0152, "HDLC/MEGALINK 3"}, // thumbwheel 3
@@ -173,7 +173,7 @@ static const struct
     {01740, 0154, "HDLC/MEGALINK 5"}, // thumbwheel 5
 };
 
-static void HDLC_Reset(Device *self)
+static void hdlc_reset(Device *self)
 {
     HDLCData *data = (HDLCData *)self->deviceData;
     if (!data)
@@ -216,10 +216,10 @@ static void HDLC_Reset(Device *self)
     {
         COM5025_Init(data->com5025);
         COM5025_SetTransmitterOutputCallback(
-            data->com5025, (void (*)(void *, uint8_t))HDLC_OnCOM5025TransmitterOutput, self);
+            data->com5025, (void (*)(void *, uint8_t))hdlc_on_com5025_transmitter_output, self);
         COM5025_SetPinValueChangedCallback(
             data->com5025,
-            (void (*)(void *, COM5025SignalPinOut, bool))HDLC_OnCOM5025PinValueChanged, self);
+            (void (*)(void *, COM5025SignalPinOut, bool))hdlc_on_com5025_pin_value_changed, self);
         COM5025_Reset(data->com5025);
     }
 
@@ -238,7 +238,7 @@ static void HDLC_Reset(Device *self)
     data->baudRate = HDLC_BAUD_9600; // Default to 9600 bps
 }
 
-static uint16_t HDLC_Tick(Device *self)
+static uint16_t hdlc_tick(Device *self)
 {
     if (!self)
     {
@@ -286,7 +286,7 @@ static uint16_t HDLC_Tick(Device *self)
     return self->interruptBits;
 }
 
-static uint16_t HDLC_Read(Device *self, uint32_t address)
+static uint16_t hdlc_read(Device *self, uint32_t address)
 {
     if (!self)
     {
@@ -384,7 +384,7 @@ static uint16_t HDLC_Read(Device *self, uint32_t address)
     return value;
 }
 
-static void HDLC_Write(Device *self, uint32_t address, uint16_t value)
+static void hdlc_write(Device *self, uint32_t address, uint16_t value)
 {
     if (!self)
     {
@@ -442,7 +442,7 @@ static void HDLC_Write(Device *self, uint32_t address, uint16_t value)
         if (!data->maintenanceMode && data->rxTransferControl.bits.deviceClearSelectMaint)
         {
             HDLC_LOG("Device Clear");
-            HDLC_Reset(self);
+            hdlc_reset(self);
             data->rxTransferControl.bits.deviceClearSelectMaint = 0;
             data->maintenanceMode = true;
         }
@@ -455,7 +455,7 @@ static void HDLC_Write(Device *self, uint32_t address, uint16_t value)
         if (data->maintenanceMode)
         {
             COM5025_SetInputPin(data->com5025, COM5025_PIN_IN_MSEL, true);
-            HDLC_UpdateRQTS(self);
+            hdlc_update_rqts(self);
         }
 
         // Handle DTR signal to modem (equivalent to C# modem.SetDTR())
@@ -465,8 +465,8 @@ static void HDLC_Write(Device *self, uint32_t address, uint16_t value)
         }
 
         // Check for interrupt triggers
-        HDLC_CheckTriggerIRQ13(self);
-        HDLC_CheckTriggerInterrupt(self);
+        hdlc_check_trigger_interrupt_request_13(self);
+        hdlc_check_trigger_interrupt(self);
         break;
 
     case HDLC_WRITE_TX_TRANSFER_CONTROL: // IOX +13: Write Transmitter Transfer Control
@@ -482,10 +482,10 @@ static void HDLC_Write(Device *self, uint32_t address, uint16_t value)
                             data->txTransferControl.bits.transmitterEnabled);
 
         // Update RQTS signal logic
-        HDLC_UpdateRQTS(self);
+        hdlc_update_rqts(self);
 
         // Check modem status change -> IRQ 12 (matches C#: CheckModemStatusChangeTriggerIRQ12)
-        HDLC_CheckTriggerIRQ12(self);
+        hdlc_check_trigger_interrupt_request_12(self);
 
         // Check if DMAModuleIE is being enabled while DMAModuleRequest is already pending
         // (matches C# - does NOT check TBMT/underrun here, only DMA completion state)
@@ -505,7 +505,7 @@ static void HDLC_Write(Device *self, uint32_t address, uint16_t value)
     case HDLC_WRITE_DMA_COMMAND: // IOX +17: Write DMA Command
         data->dmaCommand = (value >> 8) & 0x07;
         {
-            uint8_t newBank = (uint8_t)(value & 0x0F);
+            uint8_t new_bank = (uint8_t)(value & 0x0F);
             // Bank bits ride in this IOX+17 word with the command, paired with the low
             // address written at IOX+15. D>0 latches the carried bank for that channel;
             // D=0 reuses the bank last latched for the SAME channel (XSSDATA sets D=0 to
@@ -521,16 +521,16 @@ static void HDLC_Write(Device *self, uint32_t address, uint16_t value)
             {
             case DMA_CMD_RECEIVER_START:
             case DMA_CMD_RECEIVER_CONTINUE:
-                if (newBank != 0)
+                if (new_bank != 0)
                 {
-                    data->rxBankBits = newBank;
+                    data->rxBankBits = new_bank;
                 }
                 data->dmaBankBits = data->rxBankBits;
                 break;
             case DMA_CMD_TRANSMITTER_START:
-                if (newBank != 0)
+                if (new_bank != 0)
                 {
-                    data->txBankBits = newBank;
+                    data->txBankBits = new_bank;
                 }
                 data->dmaBankBits = data->txBankBits;
                 break;
@@ -538,9 +538,9 @@ static void HDLC_Write(Device *self, uint32_t address, uint16_t value)
                 // INITIALIZE / DUMP / LOAD / DEVICE_CLEAR: use the carried bank,
                 // falling back to the last resolved bank when D=0 (INITIALIZE
                 // carries bank=1). Unchanged from before.
-                if (newBank != 0)
+                if (new_bank != 0)
                 {
-                    data->dmaBankBits = newBank;
+                    data->dmaBankBits = new_bank;
                 }
                 break;
             }
@@ -551,17 +551,17 @@ static void HDLC_Write(Device *self, uint32_t address, uint16_t value)
                 static const char *cmd_names[] = {"DEVICE_CLEAR", "INITIALIZE", "RX_START",
                                                   "RX_CONTINUE",  "TX_START",   "DUMP_DATA",
                                                   "DUMP_REGS",    "LOAD_REGS"};
-                uint32_t fullAddr = ((uint32_t)data->dmaBankBits << 16) | data->dmaAddress;
+                uint32_t full_addr = ((uint32_t)data->dmaBankBits << 16) | data->dmaAddress;
                 HDLC_LOG("DMA %s addr=0x%05X (bank=%d lo=0x%04X)", cmd_names[data->dmaCommand & 7],
-                         fullAddr, data->dmaBankBits, data->dmaAddress);
+                         full_addr, data->dmaBankBits, data->dmaAddress);
             }
         }
         // Execute DMA command
         if (data->dmaEngine)
         {
             // Combine bank bits with 16-bit DMA address to form 20-bit physical address
-            uint32_t fullDMAAddress = ((uint32_t)data->dmaBankBits << 16) | data->dmaAddress;
-            DMAEngine_SetDMAAddress(data->dmaEngine, fullDMAAddress);
+            uint32_t full_dma_address = ((uint32_t)data->dmaBankBits << 16) | data->dmaAddress;
+            DMAEngine_SetDMAAddress(data->dmaEngine, full_dma_address);
 
             switch (data->dmaCommand)
             {
@@ -581,7 +581,7 @@ static void HDLC_Write(Device *self, uint32_t address, uint16_t value)
                 break;
             case DMA_CMD_TRANSMITTER_START:
                 data->txStarts++;
-                data->txLastListPtr = fullDMAAddress;
+                data->txLastListPtr = full_dma_address;
                 DMAEngine_CommandTransmitterStart(data->dmaEngine);
                 break;
             case DMA_CMD_DUMP_DATA_MODULE:
@@ -610,7 +610,7 @@ static void HDLC_Write(Device *self, uint32_t address, uint16_t value)
     }
 }
 
-static uint16_t HDLC_Ident(Device *self, uint16_t level)
+static uint16_t hdlc_ident(Device *self, uint16_t level)
 {
     if (!self)
     {
@@ -644,7 +644,7 @@ static uint16_t HDLC_Ident(Device *self, uint16_t level)
     return self->identCode;
 }
 
-static void HDLC_Destroy(Device *self)
+static void hdlc_destroy(Device *self)
 {
     if (!self)
     {
@@ -748,31 +748,32 @@ Device *CreateHDLCDevice(uint8_t thumbwheel)
     }
 
     // Set up device configuration based on thumbwheel
-    int devIndex = thumbwheel - 1;
+    int dev_index = thumbwheel - 1;
 
     // Configure device address range
-    dev->startAddress = hdlcDeviceDefinitions[devIndex].addressBase;
-    dev->endAddress = hdlcDeviceDefinitions[devIndex].addressBase + 15; // 16 registers (0-15)
+    dev->startAddress = g_hdlc_device_definitions[dev_index].addressBase;
+    dev->endAddress = g_hdlc_device_definitions[dev_index].addressBase + 15; // 16 registers (0-15)
 
     // Configure device identification
-    dev->identCode = hdlcDeviceDefinitions[devIndex].identCode;
+    dev->identCode = g_hdlc_device_definitions[dev_index].identCode;
     dev->logicalDevice = 1360 + (thumbwheel - 1) * 2; // SINTRAN logical device numbers
     dev->interruptLevel = 12;                         // Default to transmitter interrupt level
 
     // Set device name
-    snprintf(dev->memoryName, MAX_DEVICE_NAME, "%s", hdlcDeviceDefinitions[devIndex].deviceName);
+    snprintf(dev->memoryName, MAX_DEVICE_NAME, "%s",
+             g_hdlc_device_definitions[dev_index].deviceName);
 
     // Configure device-specific data
     data->thumbwheel = thumbwheel;
     data->baudRate = HDLC_BAUD_9600; // Default baud rate
 
     // Set device function pointers
-    dev->Reset = HDLC_Reset;
-    dev->Tick = HDLC_Tick;
-    dev->Read = HDLC_Read;
-    dev->Write = HDLC_Write;
-    dev->Ident = HDLC_Ident;
-    dev->Destroy = HDLC_Destroy;
+    dev->Reset = hdlc_reset;
+    dev->Tick = hdlc_tick;
+    dev->Read = hdlc_read;
+    dev->Write = hdlc_write;
+    dev->Ident = hdlc_ident;
+    dev->Destroy = hdlc_destroy;
     dev->Boot = NULL; // HDLC devices don't support booting
 
     // Link device data
@@ -781,33 +782,33 @@ Device *CreateHDLCDevice(uint8_t thumbwheel)
     // Initialize COM5025, modem, and DMA engine
     Modem_Init(data->modem, dev);
 #ifdef __EMSCRIPTEN__
-    Modem_SetWasmBridgeChannel(data->modem, devIndex);
+    Modem_SetWasmBridgeChannel(data->modem, dev_index);
 #endif
     DMAEngine_Init(data->dmaEngine, true, dev, data->modem, data->com5025);
 
     // Set up COM5025 callbacks
     COM5025_SetTransmitterOutputCallback(
-        data->com5025, (void (*)(void *, uint8_t))HDLC_OnCOM5025TransmitterOutput, dev);
+        data->com5025, (void (*)(void *, uint8_t))hdlc_on_com5025_transmitter_output, dev);
     COM5025_SetPinValueChangedCallback(
-        data->com5025, (void (*)(void *, COM5025SignalPinOut, bool))HDLC_OnCOM5025PinValueChanged,
-        dev);
+        data->com5025,
+        (void (*)(void *, COM5025SignalPinOut, bool))hdlc_on_com5025_pin_value_changed, dev);
 
     // Set up modem callbacks (equivalent to C# event subscriptions)
-    Modem_SetReceivedDataCallback(data->modem, HDLC_OnModemReceivedData);
-    Modem_SetRingIndicatorCallback(data->modem, HDLC_OnModemRingIndicator);
-    Modem_SetDataSetReadyCallback(data->modem, HDLC_OnModemDataSetReady);
-    Modem_SetSignalDetectorCallback(data->modem, HDLC_OnModemSignalDetector);
-    Modem_SetClearToSendCallback(data->modem, HDLC_OnModemClearToSend);
-    Modem_SetRequestToSendCallback(data->modem, HDLC_OnModemRequestToSend);
-    Modem_SetDataTerminalReadyCallback(data->modem, HDLC_OnModemDataTerminalReady);
+    Modem_SetReceivedDataCallback(data->modem, hdlc_on_modem_received_data);
+    Modem_SetRingIndicatorCallback(data->modem, hdlc_on_modem_ring_indicator);
+    Modem_SetDataSetReadyCallback(data->modem, hdlc_on_modem_data_set_ready);
+    Modem_SetSignalDetectorCallback(data->modem, hdlc_on_modem_signal_detector);
+    Modem_SetClearToSendCallback(data->modem, hdlc_on_modem_clear_to_send);
+    Modem_SetRequestToSendCallback(data->modem, hdlc_on_modem_request_to_send);
+    Modem_SetDataTerminalReadyCallback(data->modem, hdlc_on_modem_data_terminal_ready);
 
     // Set up DMA engine callbacks (equivalent to C# event subscriptions)
-    DMAEngine_SetWriteDMACallback(data->dmaEngine, HDLC_OnDMAWriteDMA);
-    DMAEngine_SetReadDMACallback(data->dmaEngine, HDLC_OnDMAReadDMA);
-    DMAEngine_SetInterruptCallback(data->dmaEngine, HDLC_OnDMASetInterruptBit);
-    DMAEngine_SetSendFrameCallback(data->dmaEngine, HDLC_OnDMASendHDLCFrame);
-    DMAEngine_SetUpdateReceiverStatusCallback(data->dmaEngine, HDLC_OnDMAUpdateReceiverStatus);
-    DMAEngine_SetClearCommandCallback(data->dmaEngine, HDLC_OnDMAClearCommand);
+    DMAEngine_SetWriteDMACallback(data->dmaEngine, hdlc_on_dma_write_dma);
+    DMAEngine_SetReadDMACallback(data->dmaEngine, hdlc_on_dma_read_dma);
+    DMAEngine_SetInterruptCallback(data->dmaEngine, hdlc_on_dma_set_interrupt_bit);
+    DMAEngine_SetSendFrameCallback(data->dmaEngine, hdlc_on_dma_send_hdlc_frame);
+    DMAEngine_SetUpdateReceiverStatusCallback(data->dmaEngine, hdlc_on_dma_update_receiver_status);
+    DMAEngine_SetClearCommandCallback(data->dmaEngine, hdlc_on_dma_clear_command);
 
     HDLC_LOG("Created device thumbwheel=%d address=%o-%o ident=%o", thumbwheel, dev->startAddress,
              dev->endAddress, dev->identCode);
@@ -822,48 +823,48 @@ void HDLC_BridgeInjectRx(Device *device, const uint8_t *data, int length)
         return;
     }
 
-    HDLCData *hdlcData = (HDLCData *)device->deviceData;
-    if (!hdlcData || !hdlcData->dmaEngine || !hdlcData->dmaEngine->receiver)
+    HDLCData *hdlc_data = (HDLCData *)device->deviceData;
+    if (!hdlc_data || !hdlc_data->dmaEngine || !hdlc_data->dmaEngine->receiver)
     {
         return;
     }
 
     // C# guard: ignore data when receiver is not active (e.g. after LIST_EMPTY)
-    if (!hdlcData->rxTransferStatus.bits.receiverActive)
+    if (!hdlc_data->rxTransferStatus.bits.receiverActive)
     {
         return;
     }
 
-    DMAReceiver_ReceiveDataFromModem(hdlcData->dmaEngine->receiver, data, length);
+    DMAReceiver_ReceiveDataFromModem(hdlc_data->dmaEngine->receiver, data, length);
 }
 
 // Modem event callback implementations (equivalent to C# event handlers)
 
-static void HDLC_OnModemReceivedData(Device *device, const uint8_t *data, int length)
+static void hdlc_on_modem_received_data(Device *device, const uint8_t *data, int length)
 {
     if (!device || !data)
     {
         return;
     }
 
-    HDLCData *hdlcData = (HDLCData *)device->deviceData;
-    if (!hdlcData || !hdlcData->dmaEngine || !hdlcData->dmaEngine->receiver)
+    HDLCData *hdlc_data = (HDLCData *)device->deviceData;
+    if (!hdlc_data || !hdlc_data->dmaEngine || !hdlc_data->dmaEngine->receiver)
     {
         return;
     }
 
     // C# guard: ignore data when receiver is not active (e.g. after LIST_EMPTY)
-    if (!hdlcData->rxTransferStatus.bits.receiverActive)
+    if (!hdlc_data->rxTransferStatus.bits.receiverActive)
     {
         return;
     }
 
     // Non-blocking enqueue into ring buffer.
     // Processed pull-based by DMAReceiver_Tick.
-    DMAReceiver_ReceiveDataFromModem(hdlcData->dmaEngine->receiver, data, length);
+    DMAReceiver_ReceiveDataFromModem(hdlc_data->dmaEngine->receiver, data, length);
 }
 
-static void HDLC_OnModemRingIndicator(Device *device, bool pinValue)
+static void hdlc_on_modem_ring_indicator(Device *device, bool pin_value)
 {
     if (!device)
     {
@@ -876,7 +877,7 @@ static void HDLC_OnModemRingIndicator(Device *device, bool pinValue)
         return;
     }
 
-    if (pinValue)
+    if (pin_value)
     {
         data->rxModemFlags.bits.ringIndicator = 1;
     }
@@ -884,10 +885,10 @@ static void HDLC_OnModemRingIndicator(Device *device, bool pinValue)
     {
         data->rxModemFlags.bits.ringIndicator = 0;
     }
-    HDLC_CheckTriggerIRQ13(device);
+    hdlc_check_trigger_interrupt_request_13(device);
 }
 
-static void HDLC_OnModemDataSetReady(Device *device, bool pinValue)
+static void hdlc_on_modem_data_set_ready(Device *device, bool pin_value)
 {
     if (!device)
     {
@@ -900,7 +901,7 @@ static void HDLC_OnModemDataSetReady(Device *device, bool pinValue)
         return;
     }
 
-    if (pinValue)
+    if (pin_value)
     {
         data->rxModemFlags.bits.dataSetReady = 1;
     }
@@ -908,10 +909,10 @@ static void HDLC_OnModemDataSetReady(Device *device, bool pinValue)
     {
         data->rxModemFlags.bits.dataSetReady = 0;
     }
-    HDLC_CheckTriggerIRQ13(device);
+    hdlc_check_trigger_interrupt_request_13(device);
 }
 
-static void HDLC_OnModemSignalDetector(Device *device, bool pinValue)
+static void hdlc_on_modem_signal_detector(Device *device, bool pin_value)
 {
     if (!device)
     {
@@ -924,7 +925,7 @@ static void HDLC_OnModemSignalDetector(Device *device, bool pinValue)
         return;
     }
 
-    if (pinValue)
+    if (pin_value)
     {
         data->rxModemFlags.bits.signalDetector = 1;
     }
@@ -932,10 +933,10 @@ static void HDLC_OnModemSignalDetector(Device *device, bool pinValue)
     {
         data->rxModemFlags.bits.signalDetector = 0;
     }
-    HDLC_CheckTriggerIRQ13(device);
+    hdlc_check_trigger_interrupt_request_13(device);
 }
 
-static void HDLC_OnModemClearToSend(Device *device, bool pinValue)
+static void hdlc_on_modem_clear_to_send(Device *device, bool pin_value)
 {
     if (!device)
     {
@@ -949,7 +950,7 @@ static void HDLC_OnModemClearToSend(Device *device, bool pinValue)
     }
 
     // Equivalent to C# Modem_OnClearToSend
-    if (pinValue)
+    if (pin_value)
     {
         data->txModemFlags.bits.readyForSending = 1;
     }
@@ -957,10 +958,10 @@ static void HDLC_OnModemClearToSend(Device *device, bool pinValue)
     {
         data->txModemFlags.bits.readyForSending = 0;
     }
-    HDLC_CheckTriggerIRQ12(device);
+    hdlc_check_trigger_interrupt_request_12(device);
 }
 
-static void HDLC_OnModemRequestToSend(Device *device, bool pinValue)
+static void hdlc_on_modem_request_to_send(Device *device, bool pin_value)
 {
     if (!device)
     {
@@ -975,10 +976,10 @@ static void HDLC_OnModemRequestToSend(Device *device, bool pinValue)
 
     // Equivalent to C# Modem_OnRequestToSend
     // In point-to-point setup, RTS connects to CTS
-    Modem_SetCTS(data->modem, pinValue);
+    Modem_SetCTS(data->modem, pin_value);
 }
 
-static void HDLC_OnModemDataTerminalReady(Device *device, bool pinValue)
+static void hdlc_on_modem_data_terminal_ready(Device *device, bool pin_value)
 {
     if (!device)
     {
@@ -993,12 +994,12 @@ static void HDLC_OnModemDataTerminalReady(Device *device, bool pinValue)
 
     // Equivalent to C# Modem_OnDataTerminalReady
     // In point-to-point setup, DTR connects to DSR
-    Modem_SetDSR(data->modem, pinValue);
+    Modem_SetDSR(data->modem, pin_value);
 }
 
 // DMA engine event callback implementations (equivalent to C# event handlers)
 
-static void HDLC_OnDMAWriteDMA(Device *device, uint32_t address, uint16_t data)
+static void hdlc_on_dma_write_dma(Device *device, uint32_t address, uint16_t data)
 {
     if (!device)
     {
@@ -1007,7 +1008,7 @@ static void HDLC_OnDMAWriteDMA(Device *device, uint32_t address, uint16_t data)
     Device_DMAWrite(address, data);
 }
 
-static void HDLC_OnDMAReadDMA(Device *device, uint32_t address, int *data)
+static void hdlc_on_dma_read_dma(Device *device, uint32_t address, int *data)
 {
     if (!device || !data)
     {
@@ -1018,7 +1019,7 @@ static void HDLC_OnDMAReadDMA(Device *device, uint32_t address, int *data)
     *data = Device_DMARead(address);
 }
 
-static void HDLC_OnDMASetInterruptBit(Device *device, uint8_t bit)
+static void hdlc_on_dma_set_interrupt_bit(Device *device, uint8_t bit)
 {
     if (!device)
     {
@@ -1043,7 +1044,7 @@ static void HDLC_OnDMASetInterruptBit(Device *device, uint8_t bit)
     Device_SetInterruptStatus(device, true, bit);
 }
 
-static void HDLC_OnDMASendHDLCFrame(Device *device, HDLCFrame *frame)
+static void hdlc_on_dma_send_hdlc_frame(Device *device, HDLCFrame *frame)
 {
     if (!device || !frame)
     {
@@ -1064,7 +1065,7 @@ static void HDLC_OnDMASendHDLCFrame(Device *device, HDLCFrame *frame)
     }
 }
 
-static void HDLC_OnDMAUpdateReceiverStatus(Device *device, uint16_t status)
+static void hdlc_on_dma_update_receiver_status(Device *device, uint16_t status)
 {
     if (!device)
     {
@@ -1082,7 +1083,7 @@ static void HDLC_OnDMAUpdateReceiverStatus(Device *device, uint16_t status)
     data->rxTransferStatus.raw |= (status & 0xFF); // Only use lower 8 bits
 }
 
-static void HDLC_OnDMAClearCommand(Device *device)
+static void hdlc_on_dma_clear_command(Device *device)
 {
     if (!device)
     {
@@ -1101,7 +1102,7 @@ static void HDLC_OnDMAClearCommand(Device *device)
 
 // COM5025 transmitter output callback implementation
 
-static void HDLC_OnCOM5025TransmitterOutput(Device *device, uint8_t serialOutput)
+static void hdlc_on_com5025_transmitter_output(Device *device, uint8_t serial_output)
 {
     if (!device)
     {
@@ -1114,11 +1115,11 @@ static void HDLC_OnCOM5025TransmitterOutput(Device *device, uint8_t serialOutput
     // and corrupt the byte-stuffed HDLC frames.
     //
     // This callback is only needed for character mode (non-DMA), which is not used.
-    (void)serialOutput;
+    (void)serial_output;
 }
 
 // COM5025 pin value changed callback implementation
-static void HDLC_OnCOM5025PinValueChanged(Device *device, COM5025SignalPinOut pin, bool value)
+static void hdlc_on_com5025_pin_value_changed(Device *device, COM5025SignalPinOut pin, bool value)
 {
     if (!device)
     {
@@ -1152,7 +1153,7 @@ static void HDLC_OnCOM5025PinValueChanged(Device *device, COM5025SignalPinOut pi
         if (value)
         {
             data->rxTransferStatus.bits.dataAvailable = 1;
-            HDLC_CheckTriggerInterrupt(device);
+            hdlc_check_trigger_interrupt(device);
         }
         else
         {
@@ -1162,24 +1163,24 @@ static void HDLC_OnCOM5025PinValueChanged(Device *device, COM5025SignalPinOut pi
 
     case COM5025_PIN_OUT_TXACT: // Transmitter Active - updates RQTS only
         data->txTransferStatus.bits.transmitterActive = value ? 1 : 0;
-        HDLC_UpdateRQTS(device);
+        hdlc_update_rqts(device);
         break;
 
     case COM5025_PIN_OUT_TBMT: // Transmitter Buffer Empty - triggers interrupt check
         data->txTransferStatus.bits.transmitBufferEmpty = value ? 1 : 0;
-        HDLC_CheckTriggerInterrupt(device);
+        hdlc_check_trigger_interrupt(device);
         break;
 
     case COM5025_PIN_OUT_TSA: // Transmitter Status Available - triggers interrupt check
         data->txTransferStatus.bits.transmitterUnderrun = value ? 1 : 0;
-        HDLC_CheckTriggerInterrupt(device);
+        hdlc_check_trigger_interrupt(device);
         break;
 
     case COM5025_PIN_OUT_RSA: // Receiver Status Available - triggers interrupt check on rising edge only (matches C#)
         if (value)
         {
             data->rxTransferStatus.bits.statusAvailable = 1;
-            HDLC_CheckTriggerInterrupt(device);
+            hdlc_check_trigger_interrupt(device);
         }
         else
         {
@@ -1195,7 +1196,7 @@ static void HDLC_OnCOM5025PinValueChanged(Device *device, COM5025SignalPinOut pi
     }
 }
 
-static void HDLC_CheckTriggerIRQ12(Device *self)
+static void hdlc_check_trigger_interrupt_request_12(Device *self)
 {
     if (!self)
     {
@@ -1219,8 +1220,8 @@ static void HDLC_CheckTriggerIRQ12(Device *self)
     uint16_t modem_signals = data->txModemFlags.raw & data->txModemFlagsMask.raw;
 
     // TMCS (Transmit Modem Status Change) set => Trigger interrupt 12 on change
-    bool TMCS = (write_signals != modem_signals);
-    if (TMCS)
+    bool tmcs = (write_signals != modem_signals);
+    if (tmcs)
     {
         HDLC_LOG_IRQ(12, "TX modem status change");
         data->irq12Count++;
@@ -1228,7 +1229,7 @@ static void HDLC_CheckTriggerIRQ12(Device *self)
     }
 }
 
-static void HDLC_CheckTriggerIRQ13(Device *self)
+static void hdlc_check_trigger_interrupt_request_13(Device *self)
 {
     if (!self)
     {
@@ -1252,8 +1253,8 @@ static void HDLC_CheckTriggerIRQ13(Device *self)
     uint16_t modem_signals = data->rxModemFlags.raw & data->rxModemFlagsMask.raw;
 
     // RMSC (Receive Modem Status Change) set => Trigger interrupt 13 on change
-    bool RMSC = (read_signals != modem_signals);
-    if (RMSC)
+    bool rmsc = (read_signals != modem_signals);
+    if (rmsc)
     {
         HDLC_LOG_IRQ(13, "RX modem status change");
         data->irq13_modem++;
@@ -1269,7 +1270,7 @@ static void HDLC_CheckTriggerIRQ13(Device *self)
     }
 }
 
-static void HDLC_CheckTriggerInterrupt(Device *self)
+static void hdlc_check_trigger_interrupt(Device *self)
 {
     if (!self)
     {
@@ -1326,7 +1327,7 @@ static void HDLC_CheckTriggerInterrupt(Device *self)
     }
 }
 
-static void HDLC_UpdateRQTS(Device *self)
+static void hdlc_update_rqts(Device *self)
 {
     if (!self)
     {
@@ -1394,11 +1395,11 @@ bool HDLC_GetRxFrameStatus(const HDLCData *data, HDLCRxFrameStatus *status)
     // RX status
     status->rxDmaEnabled = data->rxTransferControl.bits.enableReceiverDMA;
     status->rxEnabled = data->rxTransferControl.bits.enableReceiver;
-    HDLCFrame *rxFrame = cb->hdlcReceiveFrame;
-    if (rxFrame)
+    HDLCFrame *rx_frame = cb->hdlcReceiveFrame;
+    if (rx_frame)
     {
-        status->state = (int)rxFrame->state;
-        status->frameLength = rxFrame->frameLength;
+        status->state = (int)rx_frame->state;
+        status->frameLength = rx_frame->frameLength;
     }
     status->rxDcbReady = (cb->rxDCB != NULL);
 

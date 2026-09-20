@@ -77,9 +77,9 @@ typedef struct
 } SCSIData;
 
 
-static void SCSI_Log(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
+static void scsi_log(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
 
-static void SCSI_Log(const char *fmt, ...)
+static void scsi_log(const char *fmt, ...)
 {
     if (!Log_IsEnabled(LOG_CAT_SCSI, LOG_DEBUG))
     {
@@ -96,14 +96,14 @@ static void SCSI_Log(const char *fmt, ...)
 
 
 /* MAR is a 24-bit WORD address. */
-static uint32_t SCSI_GetMAR(SCSIData *data)
+static uint32_t scsi_get_mar(SCSIData *data)
 {
     return ((uint32_t)data->memoryAddressMSB << 16) | data->memoryAddressLSB;
 }
 
-static void SCSI_IncrementMAR(SCSIData *data)
+static void scsi_increment_mar(SCSIData *data)
 {
-    uint32_t m = SCSI_GetMAR(data) + 1;
+    uint32_t m = scsi_get_mar(data) + 1;
     data->memoryAddressLSB = (uint16_t)(m & 0xFFFF);
     data->memoryAddressMSB = (uint16_t)((m >> 16) & 0xFF);
 }
@@ -185,7 +185,7 @@ bool SCSI_SetUnitType(Device *dev, int unit, SCSIUnitType type)
         SCSIHDD_Init(&data->disks[unit], &data->bus, (uint8_t)unit, dev, unit,
                      SCSI_DISK_MICROPOLIS_1375_ND);
         data->diskPresent[unit] = true;
-        SCSI_Log("unit %d attached as hdd (Micropolis 1375-ND)", unit);
+        scsi_log("unit %d attached as hdd (Micropolis 1375-ND)", unit);
     }
 
     return true;
@@ -195,7 +195,7 @@ bool SCSI_SetUnitType(Device *dev, int unit, SCSIUnitType type)
 /* ------------------------------------------------------------------ */
 /* NCR callbacks                                                       */
 /* ------------------------------------------------------------------ */
-static void SCSI_OnNCRInterrupt(void *context, uint8_t state)
+static void scsi_on_ncr_interrupt(void *context, uint8_t state)
 {
     Device *self = (Device *)context;
     SCSIData *data = (SCSIData *)self->deviceData;
@@ -205,13 +205,13 @@ static void SCSI_OnNCRInterrupt(void *context, uint8_t state)
         /* Only latch. The flag is consumed in SCSI_StepGoState, and cleared
          * when the ND reads RITRG - never by reading RSTAU. */
         data->interruptFromNCR = true;
-        SCSI_Log("NCR interrupt raised active=%d intEnabled=%d", data->active,
+        scsi_log("NCR interrupt raised active=%d intEnabled=%d", data->active,
                  data->interruptEnabled);
     }
 }
 
 
-static void SCSI_OnNCRDataRequest(void *context, uint8_t state)
+static void scsi_on_ncr_data_request(void *context, uint8_t state)
 {
     Device *self = (Device *)context;
     SCSIData *data = (SCSIData *)self->deviceData;
@@ -240,15 +240,15 @@ static void SCSI_OnNCRDataRequest(void *context, uint8_t state)
  * addressed; nd100x's physical memory is word-addressed, so shifting here would
  * put every transfer at twice the right address.
  */
-static uint8_t SCSI_ReadNextByteDMA(SCSIData *data)
+static uint8_t scsi_read_next_byte_dma(SCSIData *data)
 {
     uint8_t byteval;
 
     if ((data->dma_bytes_read % 2) == 0)
     {
-        data->dma_read_data = Device_DMARead(SCSI_GetMAR(data));
+        data->dma_read_data = Device_DMARead(scsi_get_mar(data));
         byteval = (uint8_t)((data->dma_read_data >> 8) & 0xFF);
-        SCSI_IncrementMAR(data);
+        scsi_increment_mar(data);
     }
     else
     {
@@ -260,24 +260,24 @@ static uint8_t SCSI_ReadNextByteDMA(SCSIData *data)
 }
 
 
-static void SCSI_WriteNextByteDMA(SCSIData *data, uint8_t byteval)
+static void scsi_write_next_byte_dma(SCSIData *data, uint8_t byteval)
 {
-    uint32_t mar = SCSI_GetMAR(data);
-    int32_t memData = Device_DMARead(mar);
-    uint16_t writeData;
+    uint32_t mar = scsi_get_mar(data);
+    int32_t mem_data = Device_DMARead(mar);
+    uint16_t write_data;
 
     if ((data->dma_bytes_written % 2) == 0)
     {
         /* even byte -> HIGH byte, preserve the low byte */
-        writeData = (uint16_t)((memData & 0x00FF) | ((byteval & 0xFF) << 8));
-        Device_DMAWrite(mar, writeData);
+        write_data = (uint16_t)((mem_data & 0x00FF) | ((byteval & 0xFF) << 8));
+        Device_DMAWrite(mar, write_data);
     }
     else
     {
         /* odd byte -> LOW byte, preserve the high byte, then advance */
-        writeData = (uint16_t)((memData & 0xFF00) | (byteval & 0xFF));
-        Device_DMAWrite(mar, writeData);
-        SCSI_IncrementMAR(data);
+        write_data = (uint16_t)((mem_data & 0xFF00) | (byteval & 0xFF));
+        Device_DMAWrite(mar, write_data);
+        scsi_increment_mar(data);
     }
 
     data->dma_bytes_written++;
@@ -295,7 +295,7 @@ static void SCSI_WriteNextByteDMA(SCSIData *data, uint8_t byteval)
  * enabled. Then any pending DMA bytes are drained - ALL of them, not one per
  * tick, matching RetroCore's inner while loop.
  */
-static void SCSI_StepGoState(Device *self)
+static void scsi_step_go_state(Device *self)
 {
     SCSIData *data = (SCSIData *)self->deviceData;
 
@@ -309,7 +309,7 @@ static void SCSI_StepGoState(Device *self)
         data->active = false;
         data->readyForTransfer = true;
 
-        SCSI_Log("completion: active->false rft->true intEnabled=%d -> %s", data->interruptEnabled,
+        scsi_log("completion: active->false rft->true intEnabled=%d -> %s", data->interruptEnabled,
                  data->interruptEnabled ? "INTERRUPT" : "no IRQ (int disabled)");
 
         if (data->interruptEnabled)
@@ -323,7 +323,7 @@ static void SCSI_StepGoState(Device *self)
         return;
     }
 
-    uint32_t startWritten = data->dma_bytes_written;
+    uint32_t start_written = data->dma_bytes_written;
 
     /* Transfer ALL pending DMA bytes immediately (not one per clock). */
     while (data->dataRequestFromNCR && data->active)
@@ -332,26 +332,26 @@ static void SCSI_StepGoState(Device *self)
         {
             /* SCSI -> ND memory */
             uint8_t byteval = NCR5386_DMARead(&data->ncr);
-            SCSI_WriteNextByteDMA(data, byteval);
+            scsi_write_next_byte_dma(data, byteval);
         }
         else
         {
             /* ND memory -> SCSI */
-            uint8_t byteval = SCSI_ReadNextByteDMA(data);
+            uint8_t byteval = scsi_read_next_byte_dma(data);
             NCR5386_DMAWrite(&data->ncr, byteval);
         }
     }
 
-    if (Log_IsEnabled(LOG_CAT_SCSI, LOG_DEBUG) && data->dma_bytes_written > startWritten)
+    if (Log_IsEnabled(LOG_CAT_SCSI, LOG_DEBUG) && data->dma_bytes_written > start_written)
     {
-        SCSI_Log("DMA->ND xfer bytes=%u totalWritten=%u MAR=0x%06X",
-                 data->dma_bytes_written - startWritten, data->dma_bytes_written,
-                 SCSI_GetMAR(data));
+        scsi_log("DMA->ND xfer bytes=%u totalWritten=%u MAR=0x%06X",
+                 data->dma_bytes_written - start_written, data->dma_bytes_written,
+                 scsi_get_mar(data));
     }
 }
 
 
-static void SCSI_Reset(Device *self)
+static void scsi_reset(Device *self)
 {
     SCSIData *data = (SCSIData *)self->deviceData;
     if (!data)
@@ -493,7 +493,7 @@ static uint16_t scsi_status_word(SCSIData *data)
     return rval;
 }
 
-static uint16_t SCSI_Read(Device *self, uint32_t address)
+static uint16_t scsi_read(Device *self, uint32_t address)
 {
     SCSIData *data = (SCSIData *)self->deviceData;
     uint32_t reg = Device_RegisterAddress(self, address);
@@ -512,7 +512,7 @@ static uint16_t SCSI_Read(Device *self, uint32_t address)
          * sectors (all transfers even-length), but matches the hardware. */
         if (data->testMode)
         {
-            SCSI_IncrementMAR(data);
+            scsi_increment_mar(data);
         }
         break;
 
@@ -585,7 +585,7 @@ static void scsi_write_control(Device *self, SCSIData *data, uint16_t value)
 
     if (Log_IsEnabled(LOG_CAT_SCSI, LOG_DEBUG))
     {
-        SCSI_Log("CONTROL WORD=%o (0x%04X) IntEn=%d Active=%d Test=%d DMA=%d WriteND=%d", value,
+        scsi_log("CONTROL WORD=%o (0x%04X) IntEn=%d Active=%d Test=%d DMA=%d WriteND=%d", value,
                  value, data->interruptEnabled, data->active, data->testMode, data->dmaEnable,
                  data->writeNDMemory);
     }
@@ -593,7 +593,7 @@ static void scsi_write_control(Device *self, SCSIData *data, uint16_t value)
     /* Test mode does a single PIO word through the DMA path. */
     if (data->testMode)
     {
-        uint32_t dma_address = SCSI_GetMAR(data);
+        uint32_t dma_address = scsi_get_mar(data);
         if (data->writeNDMemory)
         {
             Device_DMAWrite(dma_address, data->readWriteData);
@@ -650,7 +650,7 @@ static void scsi_write_control(Device *self, SCSIData *data, uint16_t value)
     }
 }
 
-static void SCSI_Write(Device *self, uint32_t address, uint16_t value)
+static void scsi_write(Device *self, uint32_t address, uint16_t value)
 {
     SCSIData *data = (SCSIData *)self->deviceData;
     uint32_t reg = Device_RegisterAddress(self, address);
@@ -722,7 +722,7 @@ static void SCSI_Write(Device *self, uint32_t address, uint16_t value)
  *     scsi_bus.Clock(); if (regs.active) StepGoState();
  * IO_Tick() runs once per CPU instruction (cpu.c), which is our clock.
  */
-static uint16_t SCSI_Tick(Device *self)
+static uint16_t scsi_tick(Device *self)
 {
     if (!self)
     {
@@ -741,14 +741,14 @@ static uint16_t SCSI_Tick(Device *self)
 
     if (data->active)
     {
-        SCSI_StepGoState(self);
+        scsi_step_go_state(self);
     }
 
     return self->interruptBits;
 }
 
 
-static uint16_t SCSI_Ident(Device *self, uint16_t level)
+static uint16_t scsi_ident(Device *self, uint16_t level)
 {
     if (!self)
     {
@@ -784,7 +784,7 @@ static uint16_t SCSI_Ident(Device *self, uint16_t level)
  * bootstrap, which the CPU then executes - and that bootstrap is a real SCSI
  * driver that will drive this card's registers for real.
  */
-static int SCSI_Boot(Device *self, int unit)
+static int scsi_boot(Device *self, int unit)
 {
     if (!self)
     {
@@ -822,36 +822,36 @@ static int SCSI_Boot(Device *self, int unit)
     /* 4 blocks of 1024 bytes = 4096 bytes = 2048 ND words, loaded to address 0.
      * TODO(phase 6): confirm the real ND SCSI boot load length against the
      * bootstrap on SCSI-K.image - this currently mirrors SMD_Boot's 4 blocks. */
-    const uint32_t blockCounter = 4;
-    const int wordCounter = 2048;
+    const uint32_t block_counter = 4;
+    const int word_counter = 2048;
 
-    uint8_t *buffer = (uint8_t *)malloc(blockCounter * self->blockSizeBytes);
+    uint8_t *buffer = (uint8_t *)malloc(block_counter * self->blockSizeBytes);
     if (!buffer)
     {
         return -1;
     }
 
-    int blocksRead = self->blockCallbacks.readFunc(self, buffer, blockCounter, 0, unit);
-    if ((blocksRead < 0) || (blocksRead != (int)blockCounter))
+    int blocks_read = self->blockCallbacks.readFunc(self, buffer, block_counter, 0, unit);
+    if ((blocks_read < 0) || (blocks_read != (int)block_counter))
     {
         LOG(LOG_CAT_SCSI, LOG_ERROR, "[SCSI Boot] Block read failed: got %d blocks, expected %d\n",
-            blocksRead, blockCounter);
+            blocks_read, block_counter);
         free(buffer);
         return -1;
     }
 
     /* Reject a blank/unformatted disk rather than executing zeros. */
     {
-        int allZero = 1;
-        for (uint32_t i = 0; i < blockCounter * self->blockSizeBytes; i++)
+        int all_zero = 1;
+        for (uint32_t i = 0; i < block_counter * self->blockSizeBytes; i++)
         {
             if (buffer[i] != 0)
             {
-                allZero = 0;
+                all_zero = 0;
                 break;
             }
         }
-        if (allZero)
+        if (all_zero)
         {
             LOG(LOG_CAT_SCSI, LOG_ERROR,
                 "Error: SCSI boot sector is all zeros (blank or unformatted disk)\n");
@@ -864,10 +864,10 @@ static int SCSI_Boot(Device *self, int unit)
      * N*2, MSB first. Device_IO_BufferReadWord does that unpacking, and it is
      * the same convention the DMA pump uses when it packs SCSI bytes into ND
      * words (even byte -> high). */
-    for (int i = 0; i < wordCounter; i++)
+    for (int i = 0; i < word_counter; i++)
     {
-        uint32_t readData = Device_IO_BufferReadWord(self, buffer, i);
-        Device_DMAWrite(i, (uint16_t)readData);
+        uint32_t read_data = Device_IO_BufferReadWord(self, buffer, i);
+        Device_DMAWrite(i, (uint16_t)read_data);
     }
 
     free(buffer);
@@ -875,7 +875,7 @@ static int SCSI_Boot(Device *self, int unit)
     if (Log_IsEnabled(LOG_CAT_SCSI, LOG_DEBUG))
     {
         Log_Write(LOG_CAT_SCSI, LOG_DEBUG, "Boot loaded %d words from unit %d to address 0\n",
-                  wordCounter, unit);
+                  word_counter, unit);
     }
 
     /* Return boot address. */
@@ -919,12 +919,12 @@ Device *CreateSCSIDevice(uint8_t thumbwheel)
 
     dev->deviceData = data;
 
-    dev->Read = SCSI_Read;
-    dev->Write = SCSI_Write;
-    dev->Tick = SCSI_Tick;
-    dev->Reset = SCSI_Reset;
-    dev->Ident = SCSI_Ident;
-    dev->Boot = SCSI_Boot;
+    dev->Read = scsi_read;
+    dev->Write = scsi_write;
+    dev->Tick = scsi_tick;
+    dev->Reset = scsi_reset;
+    dev->Ident = scsi_ident;
+    dev->Boot = scsi_boot;
     dev->Destroy = scsi_destroy;
 
     /*
@@ -980,10 +980,10 @@ Device *CreateSCSIDevice(uint8_t thumbwheel)
      * targets are attached later by SCSI_SetUnitType, once the command line
      * has said which units exist. */
     SCSIBus_Init(&data->bus);
-    NCR5386_Init(&data->ncr, &data->bus, SCSI_CONTROLLER_ID, SCSI_OnNCRInterrupt,
-                 SCSI_OnNCRDataRequest, dev);
+    NCR5386_Init(&data->ncr, &data->bus, SCSI_CONTROLLER_ID, scsi_on_ncr_interrupt,
+                 scsi_on_ncr_data_request, dev);
 
-    SCSI_Reset(dev);
+    scsi_reset(dev);
 
     LOG(LOG_CAT_SCSI, LOG_INFO, "SCSI Device object created at IOX %o (ident %o).\n",
         dev->startAddress, dev->identCode);

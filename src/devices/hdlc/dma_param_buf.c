@@ -32,198 +32,198 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-void ParameterBuffer_Init(ParameterBuffer *paramBuf)
+void ParameterBuffer_Init(ParameterBuffer *param_buf)
 {
-    if (!paramBuf)
+    if (!param_buf)
     {
         return;
     }
 
-    memset(paramBuf, 0, sizeof(ParameterBuffer));
+    memset(param_buf, 0, sizeof(ParameterBuffer));
 }
 
-void ParameterBuffer_Clear(ParameterBuffer *paramBuf)
+void ParameterBuffer_Clear(ParameterBuffer *param_buf)
 {
-    if (!paramBuf)
+    if (!param_buf)
     {
         return;
     }
 
-    paramBuf->parameterControlRegister = 0;
-    paramBuf->syncAddressRegister = 0;
-    paramBuf->characterLength = 0;
-    paramBuf->displacement1 = 0;
-    paramBuf->displacement2 = 0;
-    paramBuf->maxReceiverBlockLength = 0;
-    paramBuf->receiverStatusReg = 0;
-    paramBuf->transmitterStatusReg = 0;
-    paramBuf->dmaBankBits = 0;
+    param_buf->parameterControlRegister = 0;
+    param_buf->syncAddressRegister = 0;
+    param_buf->characterLength = 0;
+    param_buf->displacement1 = 0;
+    param_buf->displacement2 = 0;
+    param_buf->maxReceiverBlockLength = 0;
+    param_buf->receiverStatusReg = 0;
+    param_buf->transmitterStatusReg = 0;
+    param_buf->dmaBankBits = 0;
 }
 
 // Getter functions
 
-int ParameterBuffer_GetParameterControlRegister(const ParameterBuffer *paramBuf)
+int ParameterBuffer_GetParameterControlRegister(const ParameterBuffer *param_buf)
 {
-    if (!paramBuf)
+    if (!param_buf)
     {
         return 0;
     }
-    return paramBuf->parameterControlRegister;
+    return param_buf->parameterControlRegister;
 }
 
-int ParameterBuffer_GetSyncAddressRegister(const ParameterBuffer *paramBuf)
+int ParameterBuffer_GetSyncAddressRegister(const ParameterBuffer *param_buf)
 {
-    if (!paramBuf)
+    if (!param_buf)
     {
         return 0;
     }
-    return paramBuf->syncAddressRegister;
+    return param_buf->syncAddressRegister;
 }
 
-int ParameterBuffer_GetCharacterLength(const ParameterBuffer *paramBuf)
+int ParameterBuffer_GetCharacterLength(const ParameterBuffer *param_buf)
 {
-    if (!paramBuf)
+    if (!param_buf)
     {
         return 0;
     }
-    return paramBuf->characterLength;
+    return param_buf->characterLength;
 }
 
-int ParameterBuffer_GetDisplacement1(const ParameterBuffer *paramBuf)
+int ParameterBuffer_GetDisplacement1(const ParameterBuffer *param_buf)
 {
-    if (!paramBuf)
+    if (!param_buf)
     {
         return 0;
     }
-    return paramBuf->displacement1;
+    return param_buf->displacement1;
 }
 
-int ParameterBuffer_GetDisplacement2(const ParameterBuffer *paramBuf)
+int ParameterBuffer_GetDisplacement2(const ParameterBuffer *param_buf)
 {
-    if (!paramBuf)
+    if (!param_buf)
     {
         return 0;
     }
-    return paramBuf->displacement2;
+    return param_buf->displacement2;
 }
 
-int ParameterBuffer_GetMaxReceiverBlockLength(const ParameterBuffer *paramBuf)
+int ParameterBuffer_GetMaxReceiverBlockLength(const ParameterBuffer *param_buf)
 {
-    if (!paramBuf)
+    if (!param_buf)
     {
         return 0;
     }
-    return paramBuf->maxReceiverBlockLength;
+    return param_buf->maxReceiverBlockLength;
 }
 
-int ParameterBuffer_GetReceiverStatusReg(const ParameterBuffer *paramBuf)
+int ParameterBuffer_GetReceiverStatusReg(const ParameterBuffer *param_buf)
 {
-    if (!paramBuf)
+    if (!param_buf)
     {
         return 0;
     }
-    return paramBuf->receiverStatusReg;
+    return param_buf->receiverStatusReg;
 }
 
-int ParameterBuffer_GetTransmitterStatusReg(const ParameterBuffer *paramBuf)
+int ParameterBuffer_GetTransmitterStatusReg(const ParameterBuffer *param_buf)
 {
-    if (!paramBuf)
+    if (!param_buf)
     {
         return 0;
     }
-    return paramBuf->transmitterStatusReg;
+    return param_buf->transmitterStatusReg;
 }
 
-int ParameterBuffer_GetDmaBankBits(const ParameterBuffer *paramBuf)
+int ParameterBuffer_GetDmaBankBits(const ParameterBuffer *param_buf)
 {
-    if (!paramBuf)
+    if (!param_buf)
     {
         return 0;
     }
-    return paramBuf->dmaBankBits;
+    return param_buf->dmaBankBits;
 }
 
 // Setter functions
 
-void ParameterBuffer_SetParameterControlRegister(ParameterBuffer *paramBuf, int value)
+void ParameterBuffer_SetParameterControlRegister(ParameterBuffer *param_buf, int value)
 {
-    if (!paramBuf)
+    if (!param_buf)
     {
         return;
     }
-    paramBuf->parameterControlRegister = value;
+    param_buf->parameterControlRegister = value;
 }
 
-void ParameterBuffer_SetSyncAddressRegister(ParameterBuffer *paramBuf, int value)
+void ParameterBuffer_SetSyncAddressRegister(ParameterBuffer *param_buf, int value)
 {
-    if (!paramBuf)
+    if (!param_buf)
     {
         return;
     }
-    paramBuf->syncAddressRegister = value;
+    param_buf->syncAddressRegister = value;
 }
 
-void ParameterBuffer_SetCharacterLength(ParameterBuffer *paramBuf, int value)
+void ParameterBuffer_SetCharacterLength(ParameterBuffer *param_buf, int value)
 {
-    if (!paramBuf)
+    if (!param_buf)
     {
         return;
     }
-    paramBuf->characterLength = value;
+    param_buf->characterLength = value;
 }
 
-void ParameterBuffer_SetDisplacement1(ParameterBuffer *paramBuf, int value)
+void ParameterBuffer_SetDisplacement1(ParameterBuffer *param_buf, int value)
 {
-    if (!paramBuf)
+    if (!param_buf)
     {
         return;
     }
-    paramBuf->displacement1 = value;
+    param_buf->displacement1 = value;
 }
 
-void ParameterBuffer_SetDisplacement2(ParameterBuffer *paramBuf, int value)
+void ParameterBuffer_SetDisplacement2(ParameterBuffer *param_buf, int value)
 {
-    if (!paramBuf)
+    if (!param_buf)
     {
         return;
     }
-    paramBuf->displacement2 = value;
+    param_buf->displacement2 = value;
 }
 
-void ParameterBuffer_SetMaxReceiverBlockLength(ParameterBuffer *paramBuf, int value)
+void ParameterBuffer_SetMaxReceiverBlockLength(ParameterBuffer *param_buf, int value)
 {
-    if (!paramBuf)
+    if (!param_buf)
     {
         return;
     }
-    paramBuf->maxReceiverBlockLength = value;
+    param_buf->maxReceiverBlockLength = value;
 }
 
-void ParameterBuffer_SetReceiverStatusReg(ParameterBuffer *paramBuf, int value)
+void ParameterBuffer_SetReceiverStatusReg(ParameterBuffer *param_buf, int value)
 {
-    if (!paramBuf)
+    if (!param_buf)
     {
         return;
     }
-    paramBuf->receiverStatusReg = value;
+    param_buf->receiverStatusReg = value;
 }
 
-void ParameterBuffer_SetTransmitterStatusReg(ParameterBuffer *paramBuf, int value)
+void ParameterBuffer_SetTransmitterStatusReg(ParameterBuffer *param_buf, int value)
 {
-    if (!paramBuf)
+    if (!param_buf)
     {
         return;
     }
-    paramBuf->transmitterStatusReg = value;
+    param_buf->transmitterStatusReg = value;
 }
 
-void ParameterBuffer_SetDmaBankBits(ParameterBuffer *paramBuf, int value)
+void ParameterBuffer_SetDmaBankBits(ParameterBuffer *param_buf, int value)
 {
-    if (!paramBuf)
+    if (!param_buf)
     {
         return;
     }
-    paramBuf->dmaBankBits = value;
+    param_buf->dmaBankBits = value;
 }
 
 // Debug functions

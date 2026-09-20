@@ -20,13 +20,13 @@
 #include "../devices_types.h"
 #include "../devices_protos.h"
 
-static const char *scsiPhaseDescription[8] = {"DATA OUT", "DATA IN", "COMMAND",     "STATUS",
-                                              "*",        "*",       "MESSAGE OUT", "MESSAGE IN"};
+static const char *scsi_phase_description[8] = {"DATA OUT", "DATA IN", "COMMAND",     "STATUS",
+                                                "*",        "*",       "MESSAGE OUT", "MESSAGE IN"};
 
 
 const char *SCSIBus_PhaseName(uint32_t phase)
 {
-    return scsiPhaseDescription[phase & S_PHASE_MASK];
+    return scsi_phase_description[phase & S_PHASE_MASK];
 }
 
 
@@ -83,7 +83,7 @@ void SCSIBus_Clock(SCSIBus *bus)
 
 
 /* Recompute the OR of every device's data lines. */
-static void SCSIBus_RegenData(SCSIBus *bus)
+static void scsi_bus_regen_data(SCSIBus *bus)
 {
     uint8_t data = 0;
     for (int i = 0; i < bus->devCnt; i++)
@@ -99,7 +99,7 @@ static void SCSIBus_RegenData(SCSIBus *bus)
  * care. refid is the device that caused the change - it is NOT notified about
  * its own write (matching SCSIBus.cs regen_ctrl).
  */
-static void SCSIBus_RegenCtrl(SCSIBus *bus, int refid)
+static void scsi_bus_regen_ctrl(SCSIBus *bus, int refid)
 {
     uint32_t octrl = bus->ctrl;
     uint32_t ctrl = 0;
@@ -178,7 +178,7 @@ void SCSIBus_ControlWrite(SCSIBus *bus, int refid, uint32_t lines, uint32_t mask
 
     /* NOTE: RegenCtrl runs even when the slot is empty - SCSIBus.cs calls
      * regen_ctrl(scsi_refid) outside the null check. Kept identical. */
-    SCSIBus_RegenCtrl(bus, refid);
+    scsi_bus_regen_ctrl(bus, refid);
 }
 
 
@@ -204,5 +204,5 @@ void SCSIBus_DataWrite(SCSIBus *bus, int refid, uint8_t data)
     }
 
     bus->devices[refid].data = data;
-    SCSIBus_RegenData(bus);
+    scsi_bus_regen_data(bus);
 }

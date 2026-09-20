@@ -52,7 +52,7 @@ uint32_t DiskSCSI_LastLBA(const SCSIDiskInfo *disk)
 
 /* Copy src into a fixed-width field, space-padded (no NUL padding) - SCSI
  * INQUIRY identity fields are blank-filled ASCII. */
-static void DiskSCSI_SetField(char *field, size_t width, const char *src)
+static void disk_scsi_set_field(char *field, size_t width, const char *src)
 {
     memset(field, ' ', width);
     field[width] = '\0';
@@ -85,9 +85,9 @@ void DiskSCSI_SetDiskType(SCSIDiskInfo *disk, SCSIDiskType dt)
         disk->heads = 8;
         disk->sectors = 18;
         disk->sectorbytes = 1024;
-        DiskSCSI_SetField(disk->vendor, 8, "NDMICROP");
-        DiskSCSI_SetField(disk->product, 16, "1375");
-        DiskSCSI_SetField(disk->revision, 4, "B0C");
+        disk_scsi_set_field(disk->vendor, 8, "NDMICROP");
+        disk_scsi_set_field(disk->product, 16, "1375");
+        disk_scsi_set_field(disk->revision, 4, "B0C");
         {
             /* Drive params: {0, 153, 4, 0, 128, 0, 64, 11} */
             static const uint8_t nd_params[8] = {0, 153, 4, 0, 128, 0, 64, 11};
@@ -101,9 +101,9 @@ void DiskSCSI_SetDiskType(SCSIDiskInfo *disk, SCSIDiskType dt)
         disk->heads = 8;
         disk->sectors = 36;
         disk->sectorbytes = 512;
-        DiskSCSI_SetField(disk->vendor, 8, "MICROPOL");
-        DiskSCSI_SetField(disk->product, 16, "1375");
-        DiskSCSI_SetField(disk->revision, 4, "B0C");
+        disk_scsi_set_field(disk->vendor, 8, "MICROPOL");
+        disk_scsi_set_field(disk->product, 16, "1375");
+        disk_scsi_set_field(disk->revision, 4, "B0C");
         break;
 
     case SCSI_DISK_MICROPOLIS_1355:
@@ -113,9 +113,9 @@ void DiskSCSI_SetDiskType(SCSIDiskInfo *disk, SCSIDiskType dt)
         disk->heads = 8;
         disk->sectors = 34;
         disk->sectorbytes = 512;
-        DiskSCSI_SetField(disk->vendor, 8, "MICROPOL");
-        DiskSCSI_SetField(disk->product, 16, "1355");
-        DiskSCSI_SetField(disk->revision, 4, "");
+        disk_scsi_set_field(disk->vendor, 8, "MICROPOL");
+        disk_scsi_set_field(disk->product, 16, "1355");
+        disk_scsi_set_field(disk->revision, 4, "");
         break;
 
     case SCSI_DISK_UNKNOWN:
@@ -126,9 +126,9 @@ void DiskSCSI_SetDiskType(SCSIDiskInfo *disk, SCSIDiskType dt)
         disk->heads = 8;
         disk->sectors = 18;
         disk->sectorbytes = 1024;
-        DiskSCSI_SetField(disk->vendor, 8, "NDMICROP");
-        DiskSCSI_SetField(disk->product, 16, "1375");
-        DiskSCSI_SetField(disk->revision, 4, "B0C");
+        disk_scsi_set_field(disk->vendor, 8, "NDMICROP");
+        disk_scsi_set_field(disk->product, 16, "1375");
+        disk_scsi_set_field(disk->revision, 4, "B0C");
         break;
     }
 }

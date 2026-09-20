@@ -59,7 +59,7 @@ typedef struct {
 
 // Modem signal callback function types
 typedef void (*ModemDataCallback)(Device *device, const uint8_t *data, int length);
-typedef void (*ModemSignalCallback)(Device *device, bool pinValue);
+typedef void (*ModemSignalCallback)(Device *device, bool pin_value);
 
 // Modem state structure
 // clang-format off
@@ -134,7 +134,7 @@ typedef struct ModemState {
  * @param hdlcDevice Owning HDLC device, passed back to callbacks.
  * @return void.
  */
-void Modem_Init(ModemState *modem, Device *hdlcDevice);
+void Modem_Init(ModemState *modem, Device *hdlc_device);
 
 /**
  * @brief Signal the worker thread to shut down, join it, and (when
@@ -155,7 +155,7 @@ void Modem_Destroy(ModemState *modem);
  * @param port TCP port to listen on or connect to.
  * @return void.
  */
-void Modem_StartModem(ModemState *modem, bool isServer, const char *address, int port);
+void Modem_StartModem(ModemState *modem, bool is_server, const char *address, int port);
 
 /**
  * @brief Called once per CPU loop iteration: drain any bytes the worker

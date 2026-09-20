@@ -172,14 +172,14 @@ uint16_t DCB_GetOffsetFromLP(const HdlcDCB *dcb)
     return dcb->offsetFromLP;
 }
 
-void DCB_SetKeyValue(HdlcDCB *dcb, uint16_t keyValue)
+void DCB_SetKeyValue(HdlcDCB *dcb, uint16_t key_value)
 {
     if (!dcb)
     {
         return;
     }
 
-    dcb->keyValue = keyValue;
+    dcb->keyValue = key_value;
 }
 
 uint16_t DCB_GetKeyValue(const HdlcDCB *dcb)
@@ -192,14 +192,14 @@ uint16_t DCB_GetKeyValue(const HdlcDCB *dcb)
     return dcb->keyValue;
 }
 
-void DCB_SetByteCount(HdlcDCB *dcb, uint16_t byteCount)
+void DCB_SetByteCount(HdlcDCB *dcb, uint16_t byte_count)
 {
     if (!dcb)
     {
         return;
     }
 
-    dcb->byteCount = byteCount;
+    dcb->byteCount = byte_count;
 }
 
 uint16_t DCB_GetByteCount(const HdlcDCB *dcb)
@@ -232,14 +232,14 @@ uint16_t DCB_GetDisplacement(const HdlcDCB *dcb)
     return dcb->displacement;
 }
 
-void DCB_SetListPointer(HdlcDCB *dcb, uint32_t listPointer)
+void DCB_SetListPointer(HdlcDCB *dcb, uint32_t list_pointer)
 {
     if (!dcb)
     {
         return;
     }
 
-    dcb->listPointer = listPointer;
+    dcb->listPointer = list_pointer;
 }
 
 uint32_t DCB_GetListPointer(const HdlcDCB *dcb)
@@ -274,14 +274,14 @@ uint32_t DCB_GetDMAAddress(const HdlcDCB *dcb)
     return dcb->dmaAddress;
 }
 
-void DCB_SetDMABytesRead(HdlcDCB *dcb, int bytesRead)
+void DCB_SetDMABytesRead(HdlcDCB *dcb, int bytes_read)
 {
     if (!dcb)
     {
         return;
     }
 
-    dcb->dmaBytesRead = bytesRead;
+    dcb->dmaBytesRead = bytes_read;
 }
 
 int DCB_GetDMABytesRead(const HdlcDCB *dcb)
@@ -294,14 +294,14 @@ int DCB_GetDMABytesRead(const HdlcDCB *dcb)
     return dcb->dmaBytesRead;
 }
 
-void DCB_SetDMABytesWritten(HdlcDCB *dcb, int bytesWritten)
+void DCB_SetDMABytesWritten(HdlcDCB *dcb, int bytes_written)
 {
     if (!dcb)
     {
         return;
     }
 
-    dcb->dmaBytesWritten = bytesWritten;
+    dcb->dmaBytesWritten = bytes_written;
 }
 
 int DCB_GetDMABytesWritten(const HdlcDCB *dcb)

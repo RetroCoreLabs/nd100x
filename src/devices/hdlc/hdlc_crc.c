@@ -61,23 +61,23 @@ static const uint16_t crc16_nibble[16] = {0x0000, 0xCC01, 0xD801, 0x1400, 0xF001
                                           0x5000, 0x9C01, 0x8801, 0x4400};
 
 // Precalculated parity lookup tables
-static uint8_t oddParityTable[256];
-static uint8_t evenParityTable[256];
-static bool parityTablesInitialized = false;
+static uint8_t odd_parity_table[256];
+static uint8_t even_parity_table[256];
+static bool parity_tables_initialized = false;
 
-static void initializeParityTables(void)
+static void initialize_parity_tables(void)
 {
-    if (parityTablesInitialized)
+    if (parity_tables_initialized)
     {
         return;
     }
 
     for (int i = 0; i < 256; i++)
     {
-        oddParityTable[i] = hdlc_crc_calculate_parity_bit((uint8_t)i, HDLC_PARITY_ODD);
-        evenParityTable[i] = hdlc_crc_calculate_parity_bit((uint8_t)i, HDLC_PARITY_EVEN);
+        odd_parity_table[i] = hdlc_crc_calculate_parity_bit((uint8_t)i, HDLC_PARITY_ODD);
+        even_parity_table[i] = hdlc_crc_calculate_parity_bit((uint8_t)i, HDLC_PARITY_EVEN);
     }
-    parityTablesInitialized = true;
+    parity_tables_initialized = true;
 }
 
 uint16_t HDLC_CRC_CalculateCRC16Buffer(uint16_t crc, const uint8_t *buf, int length)
@@ -139,17 +139,18 @@ static uint8_t hdlc_crc_calculate_parity_bit(uint8_t data, HDLCParityMode mode)
 
 uint8_t HDLC_CRC_AddParityBit(uint8_t data, HDLCParityMode mode)
 {
-    initializeParityTables();
+    initialize_parity_tables();
 
-    uint8_t parityBit = (mode == HDLC_PARITY_ODD) ? oddParityTable[data] : evenParityTable[data];
-    return (uint8_t)(data | (parityBit << 7)); // OR operation to set the parity bit in MSB
+    uint8_t parity_bit =
+        (mode == HDLC_PARITY_ODD) ? odd_parity_table[data] : even_parity_table[data];
+    return (uint8_t)(data | (parity_bit << 7)); // OR operation to set the parity bit in MSB
 }
 
 bool HDLC_CRC_CheckParity(uint8_t data, HDLCParityMode mode)
 {
-    initializeParityTables();
+    initialize_parity_tables();
 
-    uint8_t calculatedParity =
-        (mode == HDLC_PARITY_ODD) ? oddParityTable[data] : evenParityTable[data];
-    return (calculatedParity == 1);
+    uint8_t calculated_parity =
+        (mode == HDLC_PARITY_ODD) ? odd_parity_table[data] : even_parity_table[data];
+    return (calculated_parity == 1);
 }
