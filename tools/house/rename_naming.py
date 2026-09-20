@@ -286,6 +286,38 @@ def update_review(inside):
     return changed
 
 
+def stale_refs(inside):
+    """Old names still written anywhere in the tree after a rename.
+
+    An AST rename reaches declarations and uses, never text: a comment in
+    another module, a log string or a document keeps the old name and quietly
+    becomes wrong. Reported, not rewritten - a log string is a deliberate
+    decision (changing one alters .rodata and costs the G9 proof).
+    """
+    names = [old for _, old, _, _ in inside]
+    if not names:
+        return []
+    pattern = re.compile(r"\b(" + "|".join(map(re.escape, names)) + r")\b")
+    hits = []
+    for top in ("src", "tests", "docs", "tools"):
+        root = os.path.join(REPO, top)
+        for base, dirs, files in os.walk(root):
+            dirs[:] = [d for d in dirs if d not in ("__pycache__", "external")]
+            for name in files:
+                if not name.endswith((".c", ".h", ".md", ".py", ".sh")):
+                    continue
+                path = os.path.join(base, name)
+                try:
+                    with open(path, encoding="utf-8", errors="replace") as handle:
+                        for no, line in enumerate(handle, 1):
+                            if pattern.search(line):
+                                hits.append((os.path.relpath(path, REPO), no,
+                                             line.strip()))
+                except OSError:
+                    continue
+    return hits
+
+
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     apply_it = "--apply" in sys.argv[1:]
@@ -342,7 +374,13 @@ def main():
         print(f"\napplied {count} replacement(s) in {module_dir}")
         print(f"wrote {symbols} symbol rename(s) to "
               f"{os.path.relpath(RENAME_TSV, REPO)}")
-        print("now run the gate, then tools/house/objcompare.sh <base> "
+        left = stale_refs(inside)
+        if left:
+            print(f"\nold names still written in {len(left)} place(s) - "
+                  "comments, log strings or documents, decide each:")
+            for path, no, line in left:
+                print(f"  {path}:{no}: {line[:100]}")
+        print("\nnow run the gate, then tools/house/objcompare.sh <base> "
               f"{os.path.relpath(RENAME_TSV, REPO)}")
     finally:
         shutil.rmtree(work, ignore_errors=True)
