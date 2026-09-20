@@ -172,7 +172,6 @@
     "src/devices/lineprinter/device_line_printer.c": 5,
     "src/devices/papertape/device_paper_tape.c": 6,
     "src/devices/papertapewriter/device_paper_tape_writer.c": 8,
-    "src/devices/rtc/device_rtc.c": 6,
     "src/devices/scsi/device_scsi.c": 14,
     "src/devices/scsi/disk_scsi.c": 1,
     "src/devices/scsi/scsi_bus.c": 2,
@@ -186,7 +185,7 @@
     "src/ndlib/download.c": 1,
     "src/ndlib/log.h": 1
    },
-   "total": 222
+   "total": 216
   },
   "3.3": {
    "files": {

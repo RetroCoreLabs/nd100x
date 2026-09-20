@@ -9,9 +9,9 @@
  *
  * Unit tests for the RTC time base in src/devices/rtc/device_rtc.c:
  *
- *   - ticks mode (default): exactly one clock pulse per 10550 RTC_Tick calls
+ *   - ticks mode (default): exactly one clock pulse per 10550 rtc_tick calls
  *   - wall mode: pulses follow host monotonic time at 20 ms (50 Hz),
- *     independent of how fast RTC_Tick is called
+ *     independent of how fast rtc_tick is called
  *
  * device_rtc.c is linked in DIRECTLY; the four Device_* helpers it uses are
  * stubbed below so the device manager does not have to be linked in.
@@ -106,7 +106,7 @@ static uint64_t now_ns(void)
 
 #define TICKS_20MS 10550 /* must match device_rtc.c */
 
-/* Count pulses (rising edges of readyForTransfer) over n RTC_Tick calls,
+/* Count pulses (rising edges of readyForTransfer) over n rtc_tick calls,
  * clearing the flag after each detected pulse. */
 static long pulses_over_ticks(Device *rtc, RTCData *data, long n)
 {

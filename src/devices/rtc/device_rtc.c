@@ -43,7 +43,7 @@
 #define TICKS_20MS 10550 // Ticks for 20ms timer (real-time at 0.5275 MIPS, the --throttle default)
 
 // RTC time base. Default (false) counts instruction ticks: one clock pulse per
-// TICKS_20MS calls to RTC_Tick, so the clock runs in emulated instruction time
+// TICKS_20MS calls to rtc_tick, so the clock runs in emulated instruction time
 // and its wall rate follows the effective instruction rate. When enabled via
 // [machine] rtc = wall, the pulse fires every 20 ms of host monotonic time
 // instead, giving a real-time 50 Hz clock regardless of emulation speed.
@@ -73,7 +73,7 @@ static uint64_t rtc_now_ns(void)
 #endif
 }
 
-static void RTC_Reset(Device *self)
+static void rtc_reset(Device *self)
 {
     RTCData *data = (RTCData *)self->deviceData;
     if (!data)
@@ -91,7 +91,7 @@ static void RTC_Reset(Device *self)
     data->nextPulseNs = 0;
 }
 
-static void RTC_ClearClockTicks(Device *self)
+static void rtc_clear_clock_ticks(Device *self)
 {
     RTCData *data = (RTCData *)self->deviceData;
     if (!data)
@@ -106,12 +106,12 @@ static void RTC_ClearClockTicks(Device *self)
      * the period 20 ms PLUS the guest's service latency, which wrecks the rate
      * whenever emulation runs slower than real time (measured: 9.5 Hz instead
      * of 50 Hz on a debugger-loaded TSS boot). The wall-mode pulse train free-
-     * runs in RTC_Tick instead. This knowingly deviates from the documented
+     * runs in rtc_tick instead. This knowingly deviates from the documented
      * IOX 011 "next pulse exactly 20 ms later" phase reset - wall mode trades
      * that fidelity for a clock that keeps real time. */
 }
 
-static uint16_t RTC_Tick(Device *self)
+static uint16_t rtc_tick(Device *self)
 {
     if (!self)
     {
@@ -152,7 +152,7 @@ static uint16_t RTC_Tick(Device *self)
             {
                 Device_SetInterruptStatus(self, true, self->interruptLevel);
             }
-            RTC_ClearClockTicks(self); // reload the countdown register only
+            rtc_clear_clock_ticks(self); // reload the countdown register only
 
             /* Free-running phase: advance by exactly one period so guest
              * service latency never stretches the train. If we have fallen
@@ -174,13 +174,13 @@ static uint16_t RTC_Tick(Device *self)
         {
             Device_SetInterruptStatus(self, true, self->interruptLevel);
         }
-        RTC_ClearClockTicks(self);
+        rtc_clear_clock_ticks(self);
     }
 
     return self->interruptBits;
 }
 
-static uint16_t RTC_Read(Device *self, uint32_t address)
+static uint16_t rtc_read(Device *self, uint32_t address)
 {
     if (!self)
     {
@@ -215,7 +215,7 @@ static uint16_t RTC_Read(Device *self, uint32_t address)
     return value;
 }
 
-static void RTC_Write(Device *self, uint32_t address, uint16_t value)
+static void rtc_write(Device *self, uint32_t address, uint16_t value)
 {
     if (!self)
     {
@@ -233,7 +233,7 @@ static void RTC_Write(Device *self, uint32_t address, uint16_t value)
     switch (reg)
     {
     case RTC_CLEAR_COUNTER:
-        RTC_ClearClockTicks(self);
+        rtc_clear_clock_ticks(self);
         data->statusRegister.bits.readyForTransfer = false;
         Device_SetInterruptStatus(self, false, self->interruptLevel);
         break;
@@ -267,7 +267,7 @@ static void RTC_Write(Device *self, uint32_t address, uint16_t value)
         // Restart clock if requested
         if (data->controlRegister.bits.restartClock)
         {
-            RTC_ClearClockTicks(self); // reset countdown (and re-arm wall-clock pulse)
+            rtc_clear_clock_ticks(self); // reset countdown (and re-arm wall-clock pulse)
             data->clockCountingStarted = true;
         }
         break;
@@ -277,7 +277,7 @@ static void RTC_Write(Device *self, uint32_t address, uint16_t value)
     }
 }
 
-static uint16_t RTC_Ident(Device *self, uint16_t level)
+static uint16_t rtc_ident(Device *self, uint16_t level)
 {
     if (!self)
     {
@@ -292,7 +292,7 @@ static uint16_t RTC_Ident(Device *self, uint16_t level)
 
     if ((self->interruptBits & (1 << level)) != 0)
     {
-        RTC_ClearClockTicks(self);
+        rtc_clear_clock_ticks(self);
         data->statusRegister.bits.interruptEnabled = false;
 
         if (Log_IsEnabled(LOG_CAT_RTC, LOG_DEBUG))
@@ -360,11 +360,11 @@ Device *CreateRTCDevice(uint8_t thumbwheel)
     }
 
     // Set up device function pointers
-    dev->Reset = RTC_Reset;
-    dev->Tick = RTC_Tick;
-    dev->Read = RTC_Read;
-    dev->Write = RTC_Write;
-    dev->Ident = RTC_Ident;
+    dev->Reset = rtc_reset;
+    dev->Tick = rtc_tick;
+    dev->Read = rtc_read;
+    dev->Write = rtc_write;
+    dev->Ident = rtc_ident;
     dev->deviceData = data;
 
     LOG(LOG_CAT_RTC, LOG_INFO, "RTC device created: %s\n", dev->memoryName);
