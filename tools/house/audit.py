@@ -121,7 +121,7 @@ WHAT = {
     "2.2": "missing braces (clang-tidy)",
     "2.4": "more than one declaration per statement",
     "2.7": "switch without default / unmarked fall-through",
-    "3.1": "non-static function not Module_PascalVerb / mixed prefix in file",
+    "3.1": "non-static function not module_verb (lower snake) / mixed prefix in file",
     "3.2": "static function not snake_case",
     "3.3": "non-static global not g_snake_case, or extern in a .c file",
     "3.4-3.7": "identifier naming (locals, statics, macros, enums, types)",
@@ -561,7 +561,11 @@ def nm(obj):
     return syms
 
 
-PASCAL_VERB = re.compile(r"[A-Z][A-Za-z0-9]*_[A-Z][A-Za-z0-9]*")
+# Rule 3.1 (changed by Ronny 20-SEP-2026): non-static functions are lower
+# snake_case with the module/device prefix - smd_read, cpu_do_op.
+MODULE_VERB = re.compile(r"[a-z][a-z0-9]*(_[a-z0-9]+)+")
+# Exempt: names JavaScript calls by name (profile A.5).
+JS_EXPORT = re.compile(r"^(Dbg_|Nd500_)")
 SNAKE = re.compile(r"[a-z][a-z0-9_]*")
 G_SNAKE = re.compile(r"g_[a-z0-9_]+")
 
@@ -608,8 +612,8 @@ def check_symbols(objmap, files, f):
     for rel, syms in per_file.items():
         prefixes = collections.Counter()
         for t, name in syms:
-            if t == "T" and name not in KEEP_NAMES:
-                if not PASCAL_VERB.fullmatch(name):
+            if t == "T" and name not in KEEP_NAMES and not JS_EXPORT.match(name):
+                if not MODULE_VERB.fullmatch(name):
                     f.add("3.1", rel, find_def_line(rel, name), name)
                 else:
                     prefixes[name.split("_", 1)[0]] += 1
@@ -635,8 +639,8 @@ def check_symbols(objmap, files, f):
         if len(prefixes) > 1:
             main_prefix = prefixes.most_common(1)[0][0]
             for t, name in syms:
-                if t == "T" and PASCAL_VERB.fullmatch(name) and not name.startswith(main_prefix + "_") \
-                        and not name.startswith("Dbg_"):
+                if t == "T" and MODULE_VERB.fullmatch(name) and not name.startswith(main_prefix + "_") \
+                        and not JS_EXPORT.match(name):
                     f.add("3.1", rel, find_def_line(rel, name), name + " (prefix differs from " + main_prefix + "_)")
     return per_file
 

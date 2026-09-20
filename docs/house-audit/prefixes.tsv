@@ -1,0 +1,66 @@
+# Rule 3.1 prefixes, decided by Claude 20-SEP-2026 (Ronny: "you fix the tsv").
+# Non-static functions in <file> are renamed to <prefix>_<verb> in lower snake_case.
+# Exempt (profile A.5): Dbg_*, Nd500_*, Init, Boot, SendKeyToTerminal - JS calls them.
+# Test files are not listed: their stand-in functions take the real function's new name.
+# file	functions	prefix	example now
+src/cpu/cpu.c	20	cpu	ring_dump (prefix differs from cpu_)
+src/cpu/cpu_bkpt.c	14	bkpt	check_for_breakpoint (prefix differs from breakpoint_)
+src/cpu/cpu_disasm.c	2	disasm	OpToStr
+src/cpu/cpu_instr.c	12	cpu	cpu_set_ring_at_clpt (prefix differs from ndfunc_)
+src/cpu/cpu_mms.c	26	mms	CreatePagingTables
+src/cpu/cpu_model.c	5	cpumodel	CpuModel_FromName
+src/cpu/cpu_regs.c	10	cpu	setPIL
+src/cpu/float.c	12	float	NDFloat_Div
+src/debugger/debugger.c	12	debugger	ndx_server_init (prefix differs from debugger_)
+src/devices/cdc/device_cdc.c	2	cdc	CdcDevice_SetBackingFile
+src/devices/device.c	31	dev	Device_GetOddParity
+src/devices/devicemanager.c	16	devmgr	DeviceManager_Init
+src/devices/drum/device_drum.c	2	drum	DrumDevice_SetBackingFile
+src/devices/floppy/device_floppy_dma.c	1	floppy_dma	CreateFloppyDMADevice
+src/devices/floppy/device_floppy_pio.c	1	floppy_pio	CreateFloppyPIODevice
+src/devices/hdlc/chip_com5025.c	16	com5025	COM5025_Init
+src/devices/hdlc/chip_com5025_registers.c	21	com5025_reg	COM5025Registers_Init
+src/devices/hdlc/device_hdlc.c	3	hdlc	CreateHDLCDevice
+src/devices/hdlc/dma_control_blocks.c	20	dmacb	DMAControlBlocks_Init
+src/devices/hdlc/dma_dcb.c	30	dcb	DCB_Init
+src/devices/hdlc/dma_engine.c	23	dma_engine	DMAEngine_Init
+src/devices/hdlc/dma_param_buf.c	20	dma_params	ParameterBuffer_Init
+src/devices/hdlc/dma_receiver.c	7	dma_rx	DMAReceiver_Init
+src/devices/hdlc/dma_transmitter.c	7	dma_tx	DMATransmitter_Init
+src/devices/hdlc/hdlc_crc.c	5	hdlc_crc	HDLC_CRC_CalculateCRC16Buffer
+src/devices/hdlc/hdlc_frame.c	13	hdlc_frame	HDLCFrame_Init
+src/devices/hdlc/modem.c	17	modem	Modem_Init
+src/devices/hdlc/tcp_receive_buffer.c	6	rxbuf	TcpReceiveBuffer_Init
+src/devices/lineprinter/device_line_printer.c	1	lp	CreateLinePrinterDevice
+src/devices/panel/panel.c	2	panel	ProcessTerminalPanc
+src/devices/papertape/device_paper_tape.c	2	ptr	PaperTape_LoadTape
+src/devices/papertapewriter/device_paper_tape_writer.c	2	ptp	PaperTapeWriter_GetTapeData
+src/devices/rtc/device_rtc.c	2	rtc	RTC_SetWallClockMode
+src/devices/scsi/device_scsi.c	4	scsi	SCSI_ParseUnitType
+src/devices/scsi/disk_scsi.c	2	scsi_disk	DiskSCSI_LastLBA
+src/devices/scsi/scsi_bus.c	9	scsi_bus	SCSIBus_PhaseName
+src/devices/scsi/scsi_device.c	10	scsi_device	SCSITarget_DefaultGetData
+src/devices/scsi/scsi_hdd.c	1	scsi_hdd	SCSIHDD_Init
+src/devices/smd/device_smd.c	1	smd	CreateSMDDevice
+src/devices/smd/disk_smd.c	1	smd_disk	DiskSMD_SetDiskType
+src/devices/terminal/device_terminal.c	2	terminal	Terminal_QueueKeyCode
+src/devices/winchester/device_winchester.c	1	wd	CreateWinchesterDevice
+src/devices/winchester/disk_winchester.c	2	wd_disk	DiskWinchester_SetDiskType
+src/frontend/nd100x/config.c	3	config	Config_PrintHelp
+src/frontend/nd100x/nd100x.c	2	nd100x	initialize
+src/frontend/nd100x/vscreen.c	4	vscreen	VScreen_Init
+src/machine/io.c	4	io	IO_Init
+src/machine/machine.c	16	machine	init_drive_arrays (prefix differs from machine_)
+src/machine/machine_config.c	10	mc	MC_DescriptorForType
+src/machine/machine_config_apply.c	2	mc	MachineConfig_ApplyCpu
+src/machine/machine_config_json.c	1	mc	MachineConfig_ToJson
+src/ndlib/download.c	1	dl	get_downloaded_size (prefix differs from download_)
+src/ndlib/escp.c	7	escp	Escp_Create
+src/ndlib/keyboard.c	1	kbd	read_key_event (prefix differs from keyboard_)
+src/ndlib/load_bpun.c	2	bpun	GetLastBPUNHeader
+src/ndlib/load_prog.c	2	prog	GetLastPROGHeader
+src/ndlib/log.c	5	log	Log_SetLevel
+src/ndlib/ndlib.c	2	ndlib	unsetcbreak
+src/ndlib/pdfwriter.c	5	pdf	Pdf_Create
+src/ndlib/printjob.c	5	pj	PrintJob_Create
+src/ndlib/telnetserver.c	19	telnet	TelnetServer_Create
