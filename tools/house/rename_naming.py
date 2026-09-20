@@ -293,6 +293,42 @@ def update_review(inside):
     return changed
 
 
+def reformat(module_dir):
+    """Re-format only the lines a rename left non-conforming.
+
+    A new name is rarely the same length as the old one, so a rename can break
+    clang-format compliance - renaming PANEL_STATUS_FUNCTIONS to
+    PanelStatusFunctions shortened a line by one character and left the
+    trailing comments of a bitfield misaligned, which the gate counts under
+    rule 2.x.
+
+    Only the offending lines are formatted. Several headers in src/devices
+    hold hand-aligned register tables (see tools/house/protect_tables.py) that
+    a whole-file format would disturb.
+    """
+    fmt = tool("CLANG_FORMAT", "clang-format")
+    fixed = []
+    root = os.path.join(REPO, module_dir)
+    for base, _, files in os.walk(root):
+        for name in sorted(files):
+            if not name.endswith((".c", ".h")) or generated(name):
+                continue
+            path = os.path.join(base, name)
+            result = subprocess.run([fmt, "--dry-run", "--style=file", path],
+                                    capture_output=True, text=True, check=False)
+            lines = sorted({int(m) for m in re.findall(
+                r"^" + re.escape(path) + r":(\d+):", result.stderr, re.M)})
+            if not lines:
+                continue
+            args = [fmt, "--style=file", "-i"]
+            for no in lines:
+                args.append(f"--lines={no}:{no}")
+            subprocess.run(args + [path], capture_output=True, text=True,
+                           check=False)
+            fixed.append((os.path.relpath(path, REPO), len(lines)))
+    return fixed
+
+
 def stale_refs(inside):
     """Old names still written anywhere in the tree after a rename.
 
@@ -301,7 +337,11 @@ def stale_refs(inside):
     becomes wrong. Reported, not rewritten - a log string is a deliberate
     decision (changing one alters .rodata and costs the G9 proof).
     """
-    names = [old for _, old, _, _ in inside]
+    # Only names that are visible outside their function can go stale
+    # elsewhere. A local or a parameter called newCapacity recurs in unrelated
+    # files, and reporting those is noise, not a finding.
+    local = ("local variable", "parameter")
+    names = [old for kind, old, _, _ in inside if kind not in local]
     if not names:
         return []
     pattern = re.compile(r"\b(" + "|".join(map(re.escape, names)) + r")\b")
@@ -381,6 +421,8 @@ def main():
         print(f"\napplied {count} replacement(s) in {module_dir}")
         print(f"wrote {symbols} symbol rename(s) to "
               f"{os.path.relpath(RENAME_TSV, REPO)}")
+        for path, count in reformat(module_dir):
+            print(f"re-formatted {count} line(s) in {path}")
         left = stale_refs(inside)
         if left:
             print(f"\nold names still written in {len(left)} place(s) - "
