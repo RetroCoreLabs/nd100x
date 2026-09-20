@@ -160,7 +160,6 @@
     "src/cpu/cpu_mms.c": 4,
     "src/devices/cdc/device_cdc.c": 12,
     "src/devices/devicemanager.c": 1,
-    "src/devices/drum/device_drum.c": 9,
     "src/devices/floppy/device_floppy_dma.c": 14,
     "src/devices/floppy/device_floppy_pio.c": 11,
     "src/devices/hdlc/chip_com5025.c": 11,
@@ -181,7 +180,7 @@
     "src/ndlib/download.c": 1,
     "src/ndlib/log.h": 1
    },
-   "total": 190
+   "total": 181
   },
   "3.3": {
    "files": {
@@ -205,7 +204,6 @@
     "src/devices/device.c": 16,
     "src/devices/devicemanager.c": 7,
     "src/devices/devices_types.h": 5,
-    "src/devices/drum/device_drum.c": 3,
     "src/devices/floppy/device_floppy_dma.c": 18,
     "src/devices/floppy/device_floppy_pio.c": 6,
     "src/devices/hdlc/chip_com5025.c": 9,
@@ -285,7 +283,7 @@
     "tools/reth-tap/test-framing.c": 1,
     "tools/reth-tap/test-gateway.c": 1
    },
-   "total": 1027
+   "total": 1024
   },
   "3.8": {
    "files": {
