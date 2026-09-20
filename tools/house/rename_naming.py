@@ -257,6 +257,35 @@ def write_rename_tsv(inside):
     return len(rows)
 
 
+def update_review(inside):
+    """Follow the renames in the review tables.
+
+    docs/house-audit/review/*.md has one row per function, keyed by name. The
+    audit counts a function with no row, so a rename that leaves the table
+    alone turns every renamed function into a fresh finding.
+    """
+    rdir = os.path.join(REPO, "docs", "house-audit", "review")
+    if not os.path.isdir(rdir):
+        return 0
+    pairs = [(old, new) for _, old, new, _ in inside]
+    changed = 0
+    for name in sorted(os.listdir(rdir)):
+        if not name.endswith(".md"):
+            continue
+        path = os.path.join(rdir, name)
+        with open(path, encoding="utf-8") as handle:
+            text = handle.read()
+        before = text
+        for old, new in pairs:
+            text = re.sub(r"^\| " + re.escape(old) + r" \|",
+                          "| " + new + " |", text, flags=re.M)
+        if text != before:
+            with open(path, "w", encoding="utf-8") as handle:
+                handle.write(text)
+            changed += 1
+    return changed
+
+
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     apply_it = "--apply" in sys.argv[1:]
@@ -307,6 +336,9 @@ def main():
             sys.stderr.write(result.stderr)
             sys.exit("rename_naming: clang-apply-replacements failed")
         symbols = write_rename_tsv(inside)
+        tables = update_review(inside)
+        if tables:
+            print(f"updated {tables} review table(s) in docs/house-audit/review")
         print(f"\napplied {count} replacement(s) in {module_dir}")
         print(f"wrote {symbols} symbol rename(s) to "
               f"{os.path.relpath(RENAME_TSV, REPO)}")
