@@ -1,82 +1,38 @@
-AdjustSTS
-COM5025IOTimer_SetCallback
-COM5025Registers_AdjustTimer
-COM5025Registers_CalcFinalTxCrc
-COM5025Registers_CalcRXCrc
-COM5025Registers_DataReceived
-COM5025Registers_Destroy
-COM5025Registers_GetReceiverCharacterLen
-COM5025Registers_GetTransmitterCharacterLen
-COM5025Registers_IsNextByteSync
-COM5025Registers_IsRxCrcEqual
-COM5025Registers_IsTxCrcEqual
-COM5025Registers_MarkDataAsReceived
-COM5025Registers_SetClockSpeed
-COM5025_GetInputPin
-COM5025_GetOutputPin
-COM5025_ReadWord
-COM5025_ReceiveData
-COM5025_TransmitData
-COM5025_WriteWord
-DCB_Clear
-DCB_ClearDMAReadData
-DCB_GetOffsetFromLP
-DCB_IsDMAReadDataValid
-DMAControlBlocks_SetInterruptCallback
-DMAControlBlocks_SetSendHDLCFrameCallback
-DMAEngine_ExecuteCommand
-DMAEngine_GetBufferKeyVault
-DMAEngine_OnReadDMA
-DMAEngine_OnWriteDMA
-DMAEngine_ScanNextTXBuffer
-DeviceManager_MasterClear
-Device_IO_Seek
-Device_ReadBlock
-Device_WriteBlock
-GetBCD
-GetPageTableMemoryRange
-HDLCFrame_AddBytes
-HDLCFrame_IsFrameComplete
-HDLC_CRC_AddParityBit
-HDLC_CRC_CalculateCRC16Buffer
-HDLC_CRC_CheckParity
-Modem_SendByte
-ParameterBuffer_Clear
-ParameterBuffer_GetCharacterLength
-ParameterBuffer_GetDisplacement1
-ParameterBuffer_GetDisplacement2
-ParameterBuffer_GetDmaBankBits
-ParameterBuffer_GetMaxReceiverBlockLength
-ParameterBuffer_GetParameterControlRegister
-ParameterBuffer_GetReceiverStatusReg
-ParameterBuffer_GetSyncAddressRegister
-ParameterBuffer_GetTransmitterStatusReg
-ParameterBuffer_SetDmaBankBits
-ParameterBuffer_SetReceiverStatusReg
-ParameterBuffer_SetTransmitterStatusReg
-PhysMemRead
-PhysMemWrite
-SCSIBus_PhaseName
-StoreBCD
-TelnetServer_SetTerminalLocallyActive
-add_A_mem
-breakpoint_manager_cleanup
-breakpoint_manager_get_last_hit
-clrbit
-find_stack_return_address
-floppydb_get
-ndfunc_bfill_new
-ndfunc_movb
-ndfunc_movbf
-ndx_server_stop
-ndx_server_terminate
-phys_watchpoint_get
-phys_watchpoint_get_count
-phys_watchpoint_remove
-rdiv_org
-rmpy_org
-setdefaultconfig
-sub_A_mem
-update_stack_frame
-watchpoint_check
-charset_short
+# Non-static functions in src/ that nothing references, regenerated 21-SEP-2026
+# after the rule 3.1 renames. The previous version of this file listed 82
+# pre-rename names, none of which still exist.
+#
+# Excluded from the list, because they ARE called, just not from C:
+#   - the 168 names in EXPORTED_FUNCTIONS (src/frontend/nd100wasm/CMakeLists.txt)
+#   - Dbg_* and Nd500_*, called from JavaScript by name
+#   - anything template-glass/js calls through EMSCRIPTEN_KEEPALIVE
+#
+# KEPT ON PURPOSE (17): the WASM printer and paper-tape API in nd100wasm.c.
+# This is an interface built ahead of the UI that will use it, not dead code.
+GetPaperTapeWriterDataLength	src/frontend/nd100wasm/nd100wasm.c	keep: WASM API
+GetPaperTapeWriterDataPtr	src/frontend/nd100wasm/nd100wasm.c	keep: WASM API
+PollPaperTapeWriterOutput	src/frontend/nd100wasm/nd100wasm.c	keep: WASM API
+PollPrinterOutput	src/frontend/nd100wasm/nd100wasm.c	keep: WASM API
+PrinterCheckTimeout	src/frontend/nd100wasm/nd100wasm.c	keep: WASM API
+PrinterFlushJob	src/frontend/nd100wasm/nd100wasm.c	keep: WASM API
+PrinterGetActiveJobBytes	src/frontend/nd100wasm/nd100wasm.c	keep: WASM API
+PrinterGetActiveJobLines	src/frontend/nd100wasm/nd100wasm.c	keep: WASM API
+PrinterGetJobNumber	src/frontend/nd100wasm/nd100wasm.c	keep: WASM API
+PrinterGetLastCompletedJob	src/frontend/nd100wasm/nd100wasm.c	keep: WASM API
+PrinterGetLastJobBytes	src/frontend/nd100wasm/nd100wasm.c	keep: WASM API
+PrinterGetLastJobEndTime	src/frontend/nd100wasm/nd100wasm.c	keep: WASM API
+PrinterGetLastJobLines	src/frontend/nd100wasm/nd100wasm.c	keep: WASM API
+PrinterGetLastJobStartTime	src/frontend/nd100wasm/nd100wasm.c	keep: WASM API
+PrinterGetType	src/frontend/nd100wasm/nd100wasm.c	keep: WASM API
+PrinterIsJobActive	src/frontend/nd100wasm/nd100wasm.c	keep: WASM API
+PrinterSetType	src/frontend/nd100wasm/nd100wasm.c	keep: WASM API
+#
+# NEED A DECISION (8): Ronny rules on these one at a time (21-SEP-2026).
+WORK	src/devices/smd/device_smd.c	undecided
+charset_short	src/frontend/nd100x/charset.c	undecided
+dap_server_send_stopped_event_ex	src/debugger/debugger.c	undecided
+debugger_dbg_get_server	src/debugger/debugger.c	undecided
+floppydb_get	src/ndlib/floppydb.c	undecided
+hdlc_frame_add_bytes	src/devices/hdlc/hdlc_frame.c	undecided
+hdlc_frame_is_frame_complete	src/devices/hdlc/hdlc_frame.c	undecided
+telnet_set_terminal_locally_active	src/ndlib/telnetserver.c	undecided
