@@ -27,8 +27,7 @@ PrinterGetType	src/frontend/nd100wasm/nd100wasm.c	keep: WASM API
 PrinterIsJobActive	src/frontend/nd100wasm/nd100wasm.c	keep: WASM API
 PrinterSetType	src/frontend/nd100wasm/nd100wasm.c	keep: WASM API
 #
-# NEED A DECISION (8): Ronny rules on these one at a time (21-SEP-2026).
-WORK	src/devices/smd/device_smd.c	undecided
+# NEED A DECISION (7): Ronny rules on these one at a time (21-SEP-2026).
 charset_short	src/frontend/nd100x/charset.c	undecided
 dap_server_send_stopped_event_ex	src/debugger/debugger.c	undecided
 debugger_dbg_get_server	src/debugger/debugger.c	undecided
