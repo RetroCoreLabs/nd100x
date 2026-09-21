@@ -19,7 +19,7 @@
  * @param address Memory address to look up.
  * @return The symbol name, or NULL when the table is NULL or nothing matches.
  */
-const char *find_symbol_by_address(symbol_table_t *symtab, uint16_t address);
+const char *debugger_find_symbol_by_address(symbol_table_t *symtab, uint16_t address);
 
 // Helper functions for common symbol operations
 
@@ -28,7 +28,7 @@ const char *find_symbol_by_address(symbol_table_t *symtab, uint16_t address);
  * @param address Memory address to look up.
  * @return The symbol name, or NULL when nothing matches.
  */
-const char *get_symbol_for_address(uint16_t address);
+const char *debugger_get_symbol_for_address(uint16_t address);
 
 /**
  * @brief Look up the source file and line for an address in the loaded .map/.srcmap
@@ -38,7 +38,7 @@ const char *get_symbol_for_address(uint16_t address);
  * @return The source file name, or NULL when no map table is loaded, line is NULL,
  *         or the address has no source entry.
  */
-const char *get_source_location(uint16_t address, int *line);
+const char *debugger_get_source_location(uint16_t address, int *line);
 
 
 #endif // SYMBOLS_SUPPORT_H

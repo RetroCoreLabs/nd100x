@@ -76,13 +76,13 @@ typedef struct {
  *        gives the block count.
  * @return cylinders * heads * sectors - 1, or 0 if disk is NULL.
  */
-uint32_t DiskSCSI_LastLBA(const SCSIDiskInfo *disk);
+uint32_t scsi_disk_last_lba(const SCSIDiskInfo *disk);
 
 /**
  * @brief Fill in geometry and INQUIRY identity fields for a drive type.
  * @param disk Geometry/identity block to reset and populate; ignored if NULL.
  * @param dt Drive type selecting the geometry/identity table entry.
  */
-void DiskSCSI_SetDiskType(SCSIDiskInfo *disk, SCSIDiskType dt);
+void scsi_disk_set_type(SCSIDiskInfo *disk, SCSIDiskType dt);
 
 #endif // DISK_SCSI_H

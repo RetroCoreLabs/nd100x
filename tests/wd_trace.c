@@ -76,7 +76,7 @@ static int pending_set;
 #define FAKE_BLOCK_BYTES 1024u
 static uint8_t fake_disk[FAKE_DISK_BLOCKS * FAKE_BLOCK_BYTES];
 
-void Device_Init(Device *dev, uint8_t thumbwheel, DeviceClass device_class, size_t block_size)
+void dev_init(Device *dev, uint8_t thumbwheel, DeviceClass device_class, size_t block_size)
 {
     (void)thumbwheel;
     memset(dev, 0, sizeof(Device));
@@ -84,7 +84,7 @@ void Device_Init(Device *dev, uint8_t thumbwheel, DeviceClass device_class, size
     dev->blockSizeBytes = block_size;
 }
 
-void Device_DMAWrite(uint32_t core_address, uint16_t data)
+void dev_dma_write(uint32_t core_address, uint16_t data)
 {
     if (core_address < FAKE_MEM_WORDS)
     {
@@ -92,7 +92,7 @@ void Device_DMAWrite(uint32_t core_address, uint16_t data)
     }
 }
 
-int32_t Device_DMARead(uint32_t core_address)
+int32_t dev_dma_read(uint32_t core_address)
 {
     if (core_address < FAKE_MEM_WORDS)
     {
@@ -101,8 +101,8 @@ int32_t Device_DMARead(uint32_t core_address)
     return 0;
 }
 
-void Device_QueueIODelay(Device *dev, uint16_t ticks, IODelayedCallback cb, int param,
-                         uint8_t irqlevel)
+void dev_queue_io_delay(Device *dev, uint16_t ticks, IODelayedCallback cb, int param,
+                        uint8_t irqlevel)
 {
     (void)ticks;
     pending_cb = cb;
@@ -112,7 +112,7 @@ void Device_QueueIODelay(Device *dev, uint16_t ticks, IODelayedCallback cb, int 
     pending_set = 1;
 }
 
-void Device_TickIODelay(Device *dev)
+void dev_tick_io_delay(Device *dev)
 {
     if (!pending_set)
     {
@@ -125,7 +125,7 @@ void Device_TickIODelay(Device *dev)
     }
 }
 
-void Device_SetInterruptStatus(Device *dev, bool active, uint16_t level)
+void dev_set_interrupt_status(Device *dev, bool active, uint16_t level)
 {
     if (active)
     {
@@ -137,18 +137,18 @@ void Device_SetInterruptStatus(Device *dev, bool active, uint16_t level)
     }
 }
 
-uint32_t Device_RegisterAddress(Device *dev, uint32_t address)
+uint32_t dev_register_address(Device *dev, uint32_t address)
 {
     return address - dev->startAddress;
 }
 
-int32_t Device_IO_BufferReadWord(Device *dev, uint8_t *buf, int32_t word_offset)
+int32_t dev_io_buffer_read_word(Device *dev, uint8_t *buf, int32_t word_offset)
 {
     (void)dev;
     return (int32_t)(((uint16_t)buf[word_offset * 2] << 8) | buf[word_offset * 2 + 1]);
 }
 
-int32_t Device_IO_BufferWriteWord(Device *dev, uint8_t *buf, int32_t word_offset, uint16_t data)
+int32_t dev_io_buffer_write_word(Device *dev, uint8_t *buf, int32_t word_offset, uint16_t data)
 {
     (void)dev;
     buf[word_offset * 2] = (uint8_t)(data >> 8);
@@ -206,7 +206,7 @@ int main(void)
     memset(fake_mem, 0, sizeof(fake_mem));
     memset(fake_disk, 0, sizeof(fake_disk));
 
-    dev = CreateWinchesterDevice(0);
+    dev = wd_create_winchester_device(0);
     if (dev == NULL)
     {
         printf("INIT FAILED\n");
@@ -256,7 +256,7 @@ int main(void)
             /* This model completes an operation on the queued IO delay. The
              * Pico counterpart pumps its DMA/storage engines here instead;
              * both print nothing, so the traces stay aligned. */
-            Device_TickIODelay(dev);
+            dev_tick_io_delay(dev);
             break;
         default:
             break;

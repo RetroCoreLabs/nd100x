@@ -50,7 +50,7 @@
 #define RTC_WALL_PERIOD_NS 20000000ULL /* 20 ms */
 static bool rtc_wall_clock_mode = false;
 
-void RTC_SetWallClockMode(bool enable)
+void rtc_set_wall_clock_mode(bool enable)
 {
     rtc_wall_clock_mode = enable;
 }
@@ -125,7 +125,7 @@ static uint16_t rtc_tick(Device *self)
     }
 
     // Process I/O delays
-    Device_TickIODelay(self);
+    dev_tick_io_delay(self);
 
     // Count down the timer
     data->rtcCounter--;
@@ -150,7 +150,7 @@ static uint16_t rtc_tick(Device *self)
             data->statusRegister.bits.readyForTransfer = true;
             if (data->statusRegister.bits.interruptEnabled)
             {
-                Device_SetInterruptStatus(self, true, self->interruptLevel);
+                dev_set_interrupt_status(self, true, self->interruptLevel);
             }
             rtc_clear_clock_ticks(self); // reload the countdown register only
 
@@ -172,7 +172,7 @@ static uint16_t rtc_tick(Device *self)
         data->statusRegister.bits.readyForTransfer = true;
         if (data->statusRegister.bits.interruptEnabled)
         {
-            Device_SetInterruptStatus(self, true, self->interruptLevel);
+            dev_set_interrupt_status(self, true, self->interruptLevel);
         }
         rtc_clear_clock_ticks(self);
     }
@@ -189,7 +189,7 @@ static uint16_t rtc_read(Device *self, uint32_t address)
 
     RTCData *data = (RTCData *)self->deviceData;
     uint16_t value = 0;
-    uint32_t reg = Device_RegisterAddress(self, address);
+    uint32_t reg = dev_register_address(self, address);
 
     switch (reg)
     {
@@ -207,7 +207,7 @@ static uint16_t rtc_read(Device *self, uint32_t address)
 
     if (Log_IsEnabled(LOG_CAT_RTC, LOG_DEBUG))
     {
-        Log_Write(LOG_CAT_RTC, LOG_DEBUG, "RTC Reading from address: %o value: %o\n", address,
+        log_write(LOG_CAT_RTC, LOG_DEBUG, "RTC Reading from address: %o value: %o\n", address,
                   value);
     }
 
@@ -223,11 +223,11 @@ static void rtc_write(Device *self, uint32_t address, uint16_t value)
     }
 
     RTCData *data = (RTCData *)self->deviceData;
-    uint32_t reg = Device_RegisterAddress(self, address);
+    uint32_t reg = dev_register_address(self, address);
 
     if (Log_IsEnabled(LOG_CAT_RTC, LOG_DEBUG))
     {
-        Log_Write(LOG_CAT_RTC, LOG_DEBUG, "RTC Writing value: %o to address: %o\n", value, address);
+        log_write(LOG_CAT_RTC, LOG_DEBUG, "RTC Writing value: %o to address: %o\n", value, address);
     }
 
     switch (reg)
@@ -235,7 +235,7 @@ static void rtc_write(Device *self, uint32_t address, uint16_t value)
     case RTC_CLEAR_COUNTER:
         rtc_clear_clock_ticks(self);
         data->statusRegister.bits.readyForTransfer = false;
-        Device_SetInterruptStatus(self, false, self->interruptLevel);
+        dev_set_interrupt_status(self, false, self->interruptLevel);
         break;
 
     case RTC_WRITE_CONTROL:
@@ -247,7 +247,7 @@ static void rtc_write(Device *self, uint32_t address, uint16_t value)
         // Handle interrupt enable/disable
         if (!data->statusRegister.bits.interruptEnabled)
         {
-            Device_SetInterruptStatus(self, false, self->interruptLevel);
+            dev_set_interrupt_status(self, false, self->interruptLevel);
         }
 
 
@@ -297,9 +297,9 @@ static uint16_t rtc_ident(Device *self, uint16_t level)
 
         if (Log_IsEnabled(LOG_CAT_RTC, LOG_DEBUG))
         {
-            Log_Write(LOG_CAT_RTC, LOG_DEBUG, "RTC_Ident: %d\n", self->identCode);
+            log_write(LOG_CAT_RTC, LOG_DEBUG, "RTC_Ident: %d\n", self->identCode);
         }
-        Device_SetInterruptStatus(self, false, level);
+        dev_set_interrupt_status(self, false, level);
         return self->identCode;
     }
     /* The branch above returns, so reaching here means the level was not set. */
@@ -307,7 +307,7 @@ static uint16_t rtc_ident(Device *self, uint16_t level)
     return 0;
 }
 
-Device *CreateRTCDevice(uint8_t thumbwheel)
+Device *rtc_create_device(uint8_t thumbwheel)
 {
     Device *dev = malloc(sizeof(Device));
     if (!dev)
@@ -323,7 +323,7 @@ Device *CreateRTCDevice(uint8_t thumbwheel)
     }
 
     // Initialize device base structure
-    Device_Init(dev, thumbwheel, DEVICE_CLASS_RTC, 0);
+    dev_init(dev, thumbwheel, DEVICE_CLASS_RTC, 0);
 
     // Set up device-specific data
     memset(data, 0, sizeof(RTCData));

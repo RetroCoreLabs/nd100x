@@ -148,7 +148,7 @@ typedef enum {
  * @return The matching SCSIUnitType, or SCSI_UNIT_NONE if name is NULL or
  *         unknown.
  */
-SCSIUnitType SCSI_ParseUnitType(const char *name);
+SCSIUnitType scsi_parse_unit_type(const char *name);
 
 /**
  * @brief Human-readable name for a unit type, for help text and logging.
@@ -156,7 +156,7 @@ SCSIUnitType SCSI_ParseUnitType(const char *name);
  * @return Static string naming the type; "none" for SCSI_UNIT_NONE or any
  *         unrecognized value.
  */
-const char *SCSI_UnitTypeName(SCSIUnitType type);
+const char *scsi_unit_type_name(SCSIUnitType type);
 
 /**
  * @brief Allocate and initialize one ND-3201/3204 SCSI controller device.
@@ -165,7 +165,7 @@ const char *SCSI_UnitTypeName(SCSIUnitType type);
  * @return Newly allocated Device with SCSI vtable and state, or NULL on
  *         allocation failure.
  */
-Device *CreateSCSIDevice(uint8_t thumbwheel);
+Device *scsi_create_device(uint8_t thumbwheel);
 
 /**
  * @brief Set the target class for one SCSI ID on a controller device.
@@ -175,6 +175,6 @@ Device *CreateSCSIDevice(uint8_t thumbwheel);
  * @return true on success; false if dev/deviceData is NULL, unit is out of
  *         range, or type is not SCSI_UNIT_HDD/SCSI_UNIT_NONE (unimplemented).
  */
-bool SCSI_SetUnitType(Device *dev, int unit, SCSIUnitType type);
+bool scsi_set_unit_type(Device *dev, int unit, SCSIUnitType type);
 
 #endif // DEVICE_SCSI_H

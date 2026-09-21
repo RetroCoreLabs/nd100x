@@ -114,7 +114,7 @@ struct DAPServer;
  * @brief Start the debugger thread, which creates the DAP server and runs its
  *        message loop until stop_debugger_thread() or CPU shutdown.
  */
-void start_debugger(void);
+void debugger_start(void);
 
 /**
  * @brief Create the DAP server on a TCP transport, register every request
@@ -124,24 +124,24 @@ void start_debugger(void);
  * @return 0 on success, non-zero on error (-1 when the server cannot be created,
  *         otherwise the dap_server_start() error code).
  */
-int ndx_server_init(int port);
+int debugger_ndx_server_init(int port);
 
 /**
  * @brief Send a DAP "terminated" event to the client and terminate the server.
  * @param sig Signal number that triggered the termination; ignored.
  */
-void ndx_server_terminate(int);
+void debugger_ndx_server_terminate(int);
 
 /**
  * @brief Ask the debugger thread to leave its message loop and join it.
  */
-void stop_debugger_thread(void);
+void debugger_stop_thread(void);
 
 /**
  * @brief Return the return address recorded for the current stack frame.
  * @return The return address of the current frame, or -1 when no frame is tracked.
  */
-int32_t find_stack_return_address(void);
+int32_t debugger_find_stack_return_address(void);
 
 /**
  * @brief Record the entry point reached by a JPL call in the current stack frame.
@@ -163,7 +163,7 @@ void debugger_build_stack_trace(uint16_t, uint16_t);
  * @param step_type Which step to perform: STEP_OVER, STEP_IN or STEP_OUT.
  * @return 0 on success, -1 on failure (including a NULL server).
  */
-int step_cpu(struct DAPServer *, StepType);
+int debugger_step_cpu(struct DAPServer *, StepType);
 
 /**
  * @brief Format the memory range covered by a page table entry for the DAP
@@ -172,7 +172,7 @@ int step_cpu(struct DAPServer *, StepType);
  * @param PTe Page table entry; ignored.
  * @return Pointer to a static empty string buffer.
  */
-char *GetPageTableMemoryRange(uint32_t);
+char *debugger_get_page_table_memory_range(uint32_t);
 
 /**
  * @brief Fill one frame of the DAP stackTrace response: id, name, source file and
@@ -183,14 +183,14 @@ char *GetPageTableMemoryRange(uint32_t);
  * @param memory_reference Address used as the frame's code location.
  * @param entry_point Entry point address of the routine owning the frame.
  */
-void update_stack_frame(struct DAPServer *server, int frame_index, int frame_id,
-                        uint16_t memory_reference, uint16_t entry_point);
+void debugger_update_stack_frame(struct DAPServer *server, int frame_index, int frame_id,
+                                 uint16_t memory_reference, uint16_t entry_point);
 
 /**
  * @brief Stop the DAP server and free it.
  * @return 0 on success, -1 when no server is running.
  */
-int ndx_server_stop(void);
+int debugger_ndx_server_stop(void);
 
 /**
  * @brief Handle one key typed on the emulator console while the debugger is
@@ -203,13 +203,13 @@ void debugger_kbd_input(char c);
 #ifdef __EMSCRIPTEN__
 /* In-process debugger API for the WASM frontend (debugger.c). The JSON
  * strings are owned by the debugger and valid until the next call. */
-const char *dbg_get_scopes_json(void);
-const char *dbg_get_variables_json(int scope_id);
-const char *dbg_get_stack_trace_json(void);
-const char *dbg_get_threads_json(void);
-int dbg_step_in(void);
-int dbg_step_over(void);
-int dbg_step_out(void);
+const char *debugger_dbg_get_scopes_json(void);
+const char *debugger_dbg_get_variables_json(int scope_id);
+const char *debugger_dbg_get_stack_trace_json(void);
+const char *debugger_dbg_get_threads_json(void);
+int debugger_dbg_step_in(void);
+int debugger_dbg_step_over(void);
+int debugger_dbg_step_out(void);
 #endif
 
 #endif

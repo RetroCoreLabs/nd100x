@@ -40,7 +40,7 @@ static void com5025_registers_clear_rxcrc(COM5025Registers *);
 static void com5025_registers_clear_txcrc(COM5025Registers *);
 
 
-void COM5025Registers_Init(COM5025Registers *regs)
+void com5025_reg_init(COM5025Registers *regs)
 {
     if (!regs)
     {
@@ -48,13 +48,13 @@ void COM5025Registers_Init(COM5025Registers *regs)
     }
 
     memset(regs, 0, sizeof(COM5025Registers));
-    COM5025Registers_Clear(regs);
+    com5025_reg_clear(regs);
 
     com5025_io_timer_init(&regs->txTimer);
     com5025_io_timer_init(&regs->rxTimer);
 }
 
-void COM5025Registers_Clear(COM5025Registers *regs)
+void com5025_reg_clear(COM5025Registers *regs)
 {
     if (!regs)
     {
@@ -101,7 +101,7 @@ void COM5025Registers_Clear(COM5025Registers *regs)
     regs->byteStuffingDetected = false;
 }
 
-void COM5025Registers_Destroy(COM5025Registers *regs)
+void com5025_reg_destroy(COM5025Registers *regs)
 {
     if (!regs)
     {
@@ -117,7 +117,7 @@ void COM5025Registers_Destroy(COM5025Registers *regs)
     }
 }
 
-void COM5025Registers_SetReceiverStatus(COM5025Registers *regs, uint16_t status)
+void com5025_reg_set_receiver_status(COM5025Registers *regs, uint16_t status)
 {
     if (!regs)
     {
@@ -126,7 +126,7 @@ void COM5025Registers_SetReceiverStatus(COM5025Registers *regs, uint16_t status)
     regs->receiverStatus = status;
 }
 
-uint8_t COM5025Registers_GetReceiverCharacterLen(COM5025Registers *regs)
+uint8_t com5025_reg_get_receiver_character_len(COM5025Registers *regs)
 {
     if (!regs)
     {
@@ -135,7 +135,7 @@ uint8_t COM5025Registers_GetReceiverCharacterLen(COM5025Registers *regs)
     return (uint8_t)(regs->dataLengthSelect & 0x07);
 }
 
-uint8_t COM5025Registers_GetTransmitterCharacterLen(COM5025Registers *regs)
+uint8_t com5025_reg_get_transmitter_character_len(COM5025Registers *regs)
 {
     if (!regs)
     {
@@ -144,7 +144,7 @@ uint8_t COM5025Registers_GetTransmitterCharacterLen(COM5025Registers *regs)
     return (uint8_t)((regs->dataLengthSelect >> 5) & 0x07);
 }
 
-void COM5025Registers_SetModeControl(COM5025Registers *regs, uint16_t mode_control)
+void com5025_reg_set_mode_control(COM5025Registers *regs, uint16_t mode_control)
 {
     if (!regs)
     {
@@ -166,7 +166,7 @@ void COM5025Registers_SetModeControl(COM5025Registers *regs, uint16_t mode_contr
     regs->crcMode = (COM5025CrcMode)mode;
 }
 
-bool COM5025Registers_IsProtocolModeCCP(COM5025Registers *regs)
+bool com5025_reg_is_protocol_mode_ccp(COM5025Registers *regs)
 {
     if (!regs)
     {
@@ -175,7 +175,7 @@ bool COM5025Registers_IsProtocolModeCCP(COM5025Registers *regs)
     return (regs->modeControl & COM5025_MODE_CONTROL_PROTO) != 0;
 }
 
-void COM5025Registers_SetClockSpeed(COM5025Registers *regs, int speed)
+void com5025_reg_set_clock_speed(COM5025Registers *regs, int speed)
 {
     if (!regs)
     {
@@ -185,7 +185,7 @@ void COM5025Registers_SetClockSpeed(COM5025Registers *regs, int speed)
     com5025_io_timer_set_clock_speed(&regs->rxTimer, speed);
 }
 
-void COM5025Registers_Clock(COM5025Registers *regs)
+void com5025_reg_clock(COM5025Registers *regs)
 {
     if (!regs)
     {
@@ -195,8 +195,7 @@ void COM5025Registers_Clock(COM5025Registers *regs)
     com5025_io_timer_clock(&regs->rxTimer);
 }
 
-void COM5025Registers_AdjustTimer(COM5025Registers *regs, int ticks, int param,
-                                  COM5025TimerFlags timer)
+void com5025_reg_adjust_timer(COM5025Registers *regs, int ticks, int param, COM5025TimerFlags timer)
 {
     if (!regs)
     {
@@ -214,7 +213,7 @@ void COM5025Registers_AdjustTimer(COM5025Registers *regs, int ticks, int param,
     }
 }
 
-bool COM5025Registers_QueueReceivedData(COM5025Registers *regs, uint16_t data)
+bool com5025_reg_queue_received_data(COM5025Registers *regs, uint16_t data)
 {
     if (!regs)
     {
@@ -270,7 +269,7 @@ bool COM5025Registers_QueueReceivedData(COM5025Registers *regs, uint16_t data)
     return true;
 }
 
-bool COM5025Registers_DataReceived(COM5025Registers *regs)
+bool com5025_reg_data_received(COM5025Registers *regs)
 {
     if (!regs)
     {
@@ -290,7 +289,7 @@ bool COM5025Registers_DataReceived(COM5025Registers *regs)
     }
 }
 
-bool COM5025Registers_IsNextByteSync(COM5025Registers *regs)
+bool com5025_reg_is_next_byte_sync(COM5025Registers *regs)
 {
     if (!regs || regs->receiveQueue.count == 0)
     {
@@ -305,7 +304,7 @@ bool COM5025Registers_IsNextByteSync(COM5025Registers *regs)
         return false;
     }
 
-    if (COM5025Registers_IsProtocolModeCCP(regs))
+    if (com5025_reg_is_protocol_mode_ccp(regs))
     {
         // Byte protocol - check for SYNC character or frame delimiter
         if ((next_data == (uint8_t)regs->syncSecondaryAddress) ||
@@ -326,7 +325,7 @@ bool COM5025Registers_IsNextByteSync(COM5025Registers *regs)
     return false;
 }
 
-void COM5025Registers_MarkDataAsReceived(COM5025Registers *regs)
+void com5025_reg_mark_data_as_received(COM5025Registers *regs)
 {
     if (!regs || regs->receiveQueue.count == 0)
     {
@@ -354,11 +353,11 @@ static uint16_t com5025_registers_calc_crc(COM5025Registers *regs, uint16_t crc,
     {
     case COM5025_CRC_MODE_CCITT_INIT_TO_1:
     case COM5025_CRC_MODE_CCITT_INIT_TO_0:
-        crc = HDLC_CRC_CalcCCITT(crc, data);
+        crc = hdlc_crc_crc_calc_ccitt(crc, data);
         break;
 
     case COM5025_CRC_MODE_CRC16:
-        crc = HDLC_CRC_CalcCrc16(crc, data);
+        crc = hdlc_crc_crc_calc_crc_16(crc, data);
         break;
 
     case COM5025_CRC_MODE_ODD_PARITY:
@@ -379,7 +378,7 @@ static uint16_t com5025_registers_calc_crc(COM5025Registers *regs, uint16_t crc,
     return crc;
 }
 
-void COM5025Registers_CalcRXCrc(COM5025Registers *regs, uint8_t data)
+void com5025_reg_calc_rx_crc(COM5025Registers *regs, uint8_t data)
 {
     if (!regs)
     {
@@ -405,7 +404,7 @@ static void com5025_registers_clear_rxcrc(COM5025Registers *regs)
     }
 }
 
-bool COM5025Registers_IsRxCrcEqual(COM5025Registers *regs, uint16_t crc)
+bool com5025_reg_is_rx_crc_equal(COM5025Registers *regs, uint16_t crc)
 {
     if (!regs)
     {
@@ -414,7 +413,7 @@ bool COM5025Registers_IsRxCrcEqual(COM5025Registers *regs, uint16_t crc)
     return (regs->rxCrc == crc);
 }
 
-void COM5025Registers_AggregateTXCrc(COM5025Registers *regs, uint8_t data)
+void com5025_reg_aggregate_tx_crc(COM5025Registers *regs, uint8_t data)
 {
     if (!regs || regs->crcMode == COM5025_CRC_MODE_INHIBIT_ERROR_DETECTION)
     {
@@ -440,7 +439,7 @@ static void com5025_registers_clear_txcrc(COM5025Registers *regs)
     }
 }
 
-uint16_t COM5025Registers_CalcFinalTxCrc(COM5025Registers *regs)
+uint16_t com5025_reg_calc_final_tx_crc(COM5025Registers *regs)
 {
     if (!regs || regs->crcMode == COM5025_CRC_MODE_INHIBIT_ERROR_DETECTION)
     {
@@ -450,7 +449,7 @@ uint16_t COM5025Registers_CalcFinalTxCrc(COM5025Registers *regs)
     return (uint16_t)(regs->txCrc ^ 0xFFFF);
 }
 
-bool COM5025Registers_IsTxCrcEqual(COM5025Registers *regs, uint16_t crc)
+bool com5025_reg_is_tx_crc_equal(COM5025Registers *regs, uint16_t crc)
 {
     if (!regs)
     {
@@ -480,8 +479,8 @@ static void com5025_io_timer_clear(COM5025IOTimer *timer)
     timer->active = false;
 }
 
-void COM5025IOTimer_SetCallback(COM5025IOTimer *timer, void (*callback)(void *context, int param),
-                                void *context)
+void com5025_reg_set_callback(COM5025IOTimer *timer, void (*callback)(void *context, int param),
+                              void *context)
 {
     if (!timer)
     {

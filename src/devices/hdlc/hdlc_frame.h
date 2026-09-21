@@ -64,7 +64,7 @@ typedef struct HDLCFrame
  * @param length Number of bytes in data.
  * @return Final CRC value, or HDLC_FCS_INIT if data is NULL.
  */
-uint16_t HDLCFrame_CalculateCRC(const uint8_t *data, int length);
+uint16_t hdlc_frame_calculate_crc(const uint8_t *data, int length);
 
 /**
  * @brief Fold one more byte into a running CRC-16-CCITT FCS.
@@ -72,7 +72,7 @@ uint16_t HDLCFrame_CalculateCRC(const uint8_t *data, int length);
  * @param data Next byte to fold in.
  * @return Updated CRC value.
  */
-uint16_t HDLCFrame_UpdateCRC(uint16_t crc, uint8_t data);
+uint16_t hdlc_frame_update_crc(uint16_t crc, uint8_t data);
 
 // Frame management
 
@@ -81,7 +81,7 @@ uint16_t HDLCFrame_UpdateCRC(uint16_t crc, uint8_t data);
  * @param frame Frame to initialize.
  * @return void.
  */
-void HDLCFrame_Init(HDLCFrame *frame);
+void hdlc_frame_init(HDLCFrame *frame);
 
 /**
  * @brief Return a frame to the idle state: clear its length, CRC
@@ -89,7 +89,7 @@ void HDLCFrame_Init(HDLCFrame *frame);
  * @param frame Frame to reset.
  * @return void.
  */
-void HDLCFrame_Reset(HDLCFrame *frame);
+void hdlc_frame_reset(HDLCFrame *frame);
 
 /**
  * @brief Feed one already de-stuffed byte into the frame assembler,
@@ -101,35 +101,35 @@ void HDLCFrame_Reset(HDLCFrame *frame);
  *         assembled, false otherwise; unverified for the exact return value
  *         on error paths.
  */
-bool HDLCFrame_AddByte(HDLCFrame *frame, uint8_t data);
+bool hdlc_frame_add_byte(HDLCFrame *frame, uint8_t data);
 
 /**
  * @brief Test whether frame assembly finished (closing FLAG and FCS seen).
  * @param frame Frame to query.
  * @return Current frameComplete flag, or false if frame is NULL.
  */
-bool HDLCFrame_IsFrameComplete(HDLCFrame *frame);
+bool hdlc_frame_is_frame_complete(HDLCFrame *frame);
 
 /**
  * @brief Test whether the last assembled frame's FCS matched.
  * @param frame Frame to query.
  * @return Current crcValid flag, or false if frame is NULL.
  */
-bool HDLCFrame_IsCRCValid(HDLCFrame *frame);
+bool hdlc_frame_is_crc_valid(HDLCFrame *frame);
 
 /**
  * @brief Read the number of bytes accumulated in the frame buffer.
  * @param frame Frame to query.
  * @return Current frameLength, or 0 if frame is NULL.
  */
-int HDLCFrame_GetFrameLength(HDLCFrame *frame);
+int hdlc_frame_get_frame_length(HDLCFrame *frame);
 
 /**
  * @brief Get a pointer to the frame's internal data buffer.
  * @param frame Frame to query.
  * @return Pointer to frameBuffer, or NULL if frame is NULL.
  */
-const uint8_t *HDLCFrame_GetFrameData(HDLCFrame *frame);
+const uint8_t *hdlc_frame_get_frame_data(HDLCFrame *frame);
 
 /**
  * @brief Feed a whole block of bytes into the frame assembler one at a time
@@ -139,7 +139,7 @@ const uint8_t *HDLCFrame_GetFrameData(HDLCFrame *frame);
  * @param length Number of bytes in data.
  * @return void.
  */
-void HDLCFrame_AddBytes(HDLCFrame *frame, const uint8_t *data, int length); // for unit testing
+void hdlc_frame_add_bytes(HDLCFrame *frame, const uint8_t *data, int length); // for unit testing
 
 // Frame building
 
@@ -153,8 +153,8 @@ void HDLCFrame_AddBytes(HDLCFrame *frame, const uint8_t *data, int length); // f
  * @return Number of bytes written to outputBuffer, or -1 on invalid
  *         arguments or if outputBuffer is too small.
  */
-int HDLCFrame_BuildFrame(const uint8_t *data, int data_length, uint8_t *output_buffer,
-                         int buffer_size);
+int hdlc_frame_build_frame(const uint8_t *data, int data_length, uint8_t *output_buffer,
+                           int buffer_size);
 
 /**
  * @brief Append one byte to outputBuffer, escaping it (ESCAPE + byte XOR
@@ -166,7 +166,7 @@ int HDLCFrame_BuildFrame(const uint8_t *data, int data_length, uint8_t *output_b
  * @return Number of bytes written (1 or 2), or -1 if there is no room or an
  *         argument is NULL.
  */
-int HDLCFrame_StuffByte(uint8_t data, uint8_t *output_buffer, int buffer_size, int *output_index);
+int hdlc_frame_stuff_byte(uint8_t data, uint8_t *output_buffer, int buffer_size, int *output_index);
 
 /**
  * @brief Reverse byte stuffing on a single escaped byte (XOR with
@@ -174,6 +174,6 @@ int HDLCFrame_StuffByte(uint8_t data, uint8_t *output_buffer, int buffer_size, i
  * @param data Escaped byte that followed an HDLC_ESCAPE octet.
  * @return De-stuffed byte value.
  */
-uint8_t HDLCFrame_DestuffByte(uint8_t data);
+uint8_t hdlc_frame_destuff_byte(uint8_t data);
 
 #endif // HDLC_FRAME_H

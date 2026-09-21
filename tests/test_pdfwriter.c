@@ -65,66 +65,66 @@ static int count_occurrences(const char *haystack, const char *needle)
 
 static int test_pdf_create(void)
 {
-    PdfDocument *doc = Pdf_Create();
+    PdfDocument *doc = pdf_create();
     assert(doc != NULL);
     assert(doc->pageCount == 0);
     assert(doc->pageWidth > 500);  /* A4 = 595.28 */
     assert(doc->pageHeight > 800); /* A4 = 841.89 */
-    Pdf_Destroy(doc);
+    pdf_destroy(doc);
     return 0;
 }
 
 static int test_pdf_add_pages(void)
 {
-    PdfDocument *doc = Pdf_Create();
+    PdfDocument *doc = pdf_create();
 
-    int p0 = Pdf_AddPage(doc);
+    int p0 = pdf_add_page(doc);
     assert(p0 == 0);
     assert(doc->pageCount == 1);
 
-    int p1 = Pdf_AddPage(doc);
+    int p1 = pdf_add_page(doc);
     assert(p1 == 1);
     assert(doc->pageCount == 2);
 
-    int p2 = Pdf_AddPage(doc);
+    int p2 = pdf_add_page(doc);
     assert(p2 == 2);
     assert(doc->pageCount == 3);
 
-    Pdf_Destroy(doc);
+    pdf_destroy(doc);
     return 0;
 }
 
 static int test_pdf_add_text_spans(void)
 {
-    PdfDocument *doc = Pdf_Create();
-    int page = Pdf_AddPage(doc);
+    PdfDocument *doc = pdf_create();
+    int page = pdf_add_page(doc);
 
-    Pdf_AddTextSpan(doc, page, 50.0f, 700.0f, PDF_STYLE_NORMAL, 10.0f, "Hello");
+    pdf_add_text_span(doc, page, 50.0f, 700.0f, PDF_STYLE_NORMAL, 10.0f, "Hello");
     assert(doc->pages[page].spanCount == 1);
     assert(doc->pages[page].spans[0].style == PDF_STYLE_NORMAL);
     assert(strcmp(doc->pages[page].spans[0].text, "Hello") == 0);
 
-    Pdf_AddTextSpan(doc, page, 50.0f, 688.0f, PDF_STYLE_BOLD | PDF_STYLE_ITALIC, 12.0f, "World");
+    pdf_add_text_span(doc, page, 50.0f, 688.0f, PDF_STYLE_BOLD | PDF_STYLE_ITALIC, 12.0f, "World");
     assert(doc->pages[page].spanCount == 2);
     assert(doc->pages[page].spans[1].style == (PDF_STYLE_BOLD | PDF_STYLE_ITALIC));
     assert(doc->pages[page].spans[1].fontSize == 12.0f);
 
-    Pdf_Destroy(doc);
+    pdf_destroy(doc);
     return 0;
 }
 
 static int test_pdf_empty_document(void)
 {
-    PdfDocument *doc = Pdf_Create();
-    bool ok = Pdf_WriteToFile(doc, "/tmp/should_not_exist.pdf");
+    PdfDocument *doc = pdf_create();
+    bool ok = pdf_write_to_file(doc, "/tmp/should_not_exist.pdf");
     assert(!ok);
-    Pdf_Destroy(doc);
+    pdf_destroy(doc);
     return 0;
 }
 
 static int test_pdf_destroy_null(void)
 {
-    Pdf_Destroy(NULL);
+    pdf_destroy(NULL);
     return 0;
 }
 
@@ -136,15 +136,15 @@ static int test_pdf_structure(const char *tmpdir)
      * Verify the PDF file structure: header, trailer, catalog, pages
      * object with correct kid count, font declarations.
      */
-    PdfDocument *doc = Pdf_Create();
-    int p0 = Pdf_AddPage(doc);
-    Pdf_AddTextSpan(doc, p0, 50, 700, PDF_STYLE_NORMAL, 10, "Test");
-    int p1 = Pdf_AddPage(doc);
-    Pdf_AddTextSpan(doc, p1, 50, 700, PDF_STYLE_NORMAL, 10, "Page2");
+    PdfDocument *doc = pdf_create();
+    int p0 = pdf_add_page(doc);
+    pdf_add_text_span(doc, p0, 50, 700, PDF_STYLE_NORMAL, 10, "Test");
+    int p1 = pdf_add_page(doc);
+    pdf_add_text_span(doc, p1, 50, 700, PDF_STYLE_NORMAL, 10, "Page2");
 
     char path[512];
     snprintf(path, sizeof(path), "%s/test_structure.pdf", tmpdir);
-    assert(Pdf_WriteToFile(doc, path));
+    assert(pdf_write_to_file(doc, path));
 
     size_t sz;
     char *raw = read_file(path, &sz);
@@ -175,7 +175,7 @@ static int test_pdf_structure(const char *tmpdir)
     assert(strstr(raw, "startxref\n") != NULL);
 
     free(raw);
-    Pdf_Destroy(doc);
+    pdf_destroy(doc);
     return 0;
 }
 
@@ -188,16 +188,16 @@ static int test_pdf_font_selection(const char *tmpdir)
      *   Italic     -> /F3 (Courier-Oblique)
      *   Bold+Ital  -> /F4 (Courier-BoldOblique)
      */
-    PdfDocument *doc = Pdf_Create();
-    int page = Pdf_AddPage(doc);
-    Pdf_AddTextSpan(doc, page, 50, 700, PDF_STYLE_NORMAL, 10, "normal");
-    Pdf_AddTextSpan(doc, page, 50, 688, PDF_STYLE_BOLD, 10, "bold");
-    Pdf_AddTextSpan(doc, page, 50, 676, PDF_STYLE_ITALIC, 10, "italic");
-    Pdf_AddTextSpan(doc, page, 50, 664, PDF_STYLE_BOLD | PDF_STYLE_ITALIC, 10, "bolditalic");
+    PdfDocument *doc = pdf_create();
+    int page = pdf_add_page(doc);
+    pdf_add_text_span(doc, page, 50, 700, PDF_STYLE_NORMAL, 10, "normal");
+    pdf_add_text_span(doc, page, 50, 688, PDF_STYLE_BOLD, 10, "bold");
+    pdf_add_text_span(doc, page, 50, 676, PDF_STYLE_ITALIC, 10, "italic");
+    pdf_add_text_span(doc, page, 50, 664, PDF_STYLE_BOLD | PDF_STYLE_ITALIC, 10, "bolditalic");
 
     char path[512];
     snprintf(path, sizeof(path), "%s/test_fonts.pdf", tmpdir);
-    assert(Pdf_WriteToFile(doc, path));
+    assert(pdf_write_to_file(doc, path));
 
     size_t sz;
     char *raw = read_file(path, &sz);
@@ -217,7 +217,7 @@ static int test_pdf_font_selection(const char *tmpdir)
     assert(strstr(raw, "(bolditalic) Tj") != NULL);
 
     free(raw);
-    Pdf_Destroy(doc);
+    pdf_destroy(doc);
     return 0;
 }
 
@@ -228,15 +228,15 @@ static int test_pdf_absolute_positioning(const char *tmpdir)
      * Multiple spans on one page ended up off-screen because coordinates
      * accumulated. Verify each span gets its own absolute Tm operator.
      */
-    PdfDocument *doc = Pdf_Create();
-    int page = Pdf_AddPage(doc);
-    Pdf_AddTextSpan(doc, page, 50.0f, 700.0f, PDF_STYLE_NORMAL, 10, "Line1");
-    Pdf_AddTextSpan(doc, page, 50.0f, 680.0f, PDF_STYLE_NORMAL, 10, "Line2");
-    Pdf_AddTextSpan(doc, page, 100.0f, 660.0f, PDF_STYLE_NORMAL, 10, "Indented");
+    PdfDocument *doc = pdf_create();
+    int page = pdf_add_page(doc);
+    pdf_add_text_span(doc, page, 50.0f, 700.0f, PDF_STYLE_NORMAL, 10, "Line1");
+    pdf_add_text_span(doc, page, 50.0f, 680.0f, PDF_STYLE_NORMAL, 10, "Line2");
+    pdf_add_text_span(doc, page, 100.0f, 660.0f, PDF_STYLE_NORMAL, 10, "Indented");
 
     char path[512];
     snprintf(path, sizeof(path), "%s/test_positioning.pdf", tmpdir);
-    assert(Pdf_WriteToFile(doc, path));
+    assert(pdf_write_to_file(doc, path));
 
     size_t sz;
     char *raw = read_file(path, &sz);
@@ -254,7 +254,7 @@ static int test_pdf_absolute_positioning(const char *tmpdir)
     assert(count_occurrences(raw, " Tm\n") == 3);
 
     free(raw);
-    Pdf_Destroy(doc);
+    pdf_destroy(doc);
     return 0;
 }
 
@@ -264,14 +264,14 @@ static int test_pdf_text_rendering(const char *tmpdir)
      * Verify text appears in the content stream as Tj operators with
      * correct content and the right font size.
      */
-    PdfDocument *doc = Pdf_Create();
-    int page = Pdf_AddPage(doc);
-    Pdf_AddTextSpan(doc, page, 50, 700, PDF_STYLE_NORMAL, 12, "Hello World");
-    Pdf_AddTextSpan(doc, page, 50, 680, PDF_STYLE_BOLD, 14, "Big Bold");
+    PdfDocument *doc = pdf_create();
+    int page = pdf_add_page(doc);
+    pdf_add_text_span(doc, page, 50, 700, PDF_STYLE_NORMAL, 12, "Hello World");
+    pdf_add_text_span(doc, page, 50, 680, PDF_STYLE_BOLD, 14, "Big Bold");
 
     char path[512];
     snprintf(path, sizeof(path), "%s/test_text.pdf", tmpdir);
-    assert(Pdf_WriteToFile(doc, path));
+    assert(pdf_write_to_file(doc, path));
 
     size_t sz;
     char *raw = read_file(path, &sz);
@@ -290,7 +290,7 @@ static int test_pdf_text_rendering(const char *tmpdir)
     assert(strstr(raw, "ET\n") != NULL);
 
     free(raw);
-    Pdf_Destroy(doc);
+    pdf_destroy(doc);
     return 0;
 }
 
@@ -300,13 +300,13 @@ static int test_pdf_text_escaping(const char *tmpdir)
      * PDF string special chars: ( ) \ must be escaped in the content
      * stream. Verify they appear as \( \) \\ in the Tj operand.
      */
-    PdfDocument *doc = Pdf_Create();
-    int page = Pdf_AddPage(doc);
-    Pdf_AddTextSpan(doc, page, 50, 700, PDF_STYLE_NORMAL, 10, "a(b)c\\d");
+    PdfDocument *doc = pdf_create();
+    int page = pdf_add_page(doc);
+    pdf_add_text_span(doc, page, 50, 700, PDF_STYLE_NORMAL, 10, "a(b)c\\d");
 
     char path[512];
     snprintf(path, sizeof(path), "%s/test_escape.pdf", tmpdir);
-    assert(Pdf_WriteToFile(doc, path));
+    assert(pdf_write_to_file(doc, path));
 
     size_t sz;
     char *raw = read_file(path, &sz);
@@ -316,7 +316,7 @@ static int test_pdf_text_escaping(const char *tmpdir)
     assert(strstr(raw, "(a\\(b\\)c\\\\d) Tj") != NULL);
 
     free(raw);
-    Pdf_Destroy(doc);
+    pdf_destroy(doc);
     return 0;
 }
 
@@ -329,13 +329,13 @@ static int test_pdf_underline_rendering(const char *tmpdir)
      *   3. Line width + moveto + lineto + stroke (the underline)
      *   4. BT (re-enter text mode)
      */
-    PdfDocument *doc = Pdf_Create();
-    int page = Pdf_AddPage(doc);
-    Pdf_AddTextSpan(doc, page, 50.0f, 700.0f, PDF_STYLE_UNDERLINE, 10.0f, "Underlined");
+    PdfDocument *doc = pdf_create();
+    int page = pdf_add_page(doc);
+    pdf_add_text_span(doc, page, 50.0f, 700.0f, PDF_STYLE_UNDERLINE, 10.0f, "Underlined");
 
     char path[512];
     snprintf(path, sizeof(path), "%s/test_underline.pdf", tmpdir);
-    assert(Pdf_WriteToFile(doc, path));
+    assert(pdf_write_to_file(doc, path));
 
     size_t sz;
     char *raw = read_file(path, &sz);
@@ -364,7 +364,7 @@ static int test_pdf_underline_rendering(const char *tmpdir)
     assert(bt_pos != NULL);
 
     free(raw);
-    Pdf_Destroy(doc);
+    pdf_destroy(doc);
     return 0;
 }
 
@@ -373,14 +373,14 @@ static int test_pdf_non_underlined_no_stroke(const char *tmpdir)
     /*
      * Non-underlined text must NOT produce stroke operators.
      */
-    PdfDocument *doc = Pdf_Create();
-    int page = Pdf_AddPage(doc);
-    Pdf_AddTextSpan(doc, page, 50, 700, PDF_STYLE_NORMAL, 10, "Plain");
-    Pdf_AddTextSpan(doc, page, 50, 688, PDF_STYLE_BOLD, 10, "Bold");
+    PdfDocument *doc = pdf_create();
+    int page = pdf_add_page(doc);
+    pdf_add_text_span(doc, page, 50, 700, PDF_STYLE_NORMAL, 10, "Plain");
+    pdf_add_text_span(doc, page, 50, 688, PDF_STYLE_BOLD, 10, "Bold");
 
     char path[512];
     snprintf(path, sizeof(path), "%s/test_no_stroke.pdf", tmpdir);
-    assert(Pdf_WriteToFile(doc, path));
+    assert(pdf_write_to_file(doc, path));
 
     size_t sz;
     char *raw = read_file(path, &sz);
@@ -395,7 +395,7 @@ static int test_pdf_non_underlined_no_stroke(const char *tmpdir)
     assert(count_occurrences(raw, "ET\n") == 1);
 
     free(raw);
-    Pdf_Destroy(doc);
+    pdf_destroy(doc);
     return 0;
 }
 
@@ -406,15 +406,15 @@ static int test_pdf_multipage_content(const char *tmpdir)
      * Verify both pages' text appears in the file and each page
      * references its own content stream object.
      */
-    PdfDocument *doc = Pdf_Create();
-    int p0 = Pdf_AddPage(doc);
-    Pdf_AddTextSpan(doc, p0, 50, 700, PDF_STYLE_NORMAL, 10, "FirstPage");
-    int p1 = Pdf_AddPage(doc);
-    Pdf_AddTextSpan(doc, p1, 50, 700, PDF_STYLE_BOLD, 10, "SecondPage");
+    PdfDocument *doc = pdf_create();
+    int p0 = pdf_add_page(doc);
+    pdf_add_text_span(doc, p0, 50, 700, PDF_STYLE_NORMAL, 10, "FirstPage");
+    int p1 = pdf_add_page(doc);
+    pdf_add_text_span(doc, p1, 50, 700, PDF_STYLE_BOLD, 10, "SecondPage");
 
     char path[512];
     snprintf(path, sizeof(path), "%s/test_multipage.pdf", tmpdir);
-    assert(Pdf_WriteToFile(doc, path));
+    assert(pdf_write_to_file(doc, path));
 
     size_t sz;
     char *raw = read_file(path, &sz);
@@ -439,7 +439,7 @@ static int test_pdf_multipage_content(const char *tmpdir)
     assert(strstr(raw, "/Count 2") != NULL);
 
     free(raw);
-    Pdf_Destroy(doc);
+    pdf_destroy(doc);
     return 0;
 }
 
@@ -448,15 +448,15 @@ static int test_pdf_font_size_in_stream(const char *tmpdir)
     /*
      * Verify different font sizes appear correctly in the Tf operator.
      */
-    PdfDocument *doc = Pdf_Create();
-    int page = Pdf_AddPage(doc);
-    Pdf_AddTextSpan(doc, page, 50, 780, PDF_STYLE_NORMAL, 8, "Small");
-    Pdf_AddTextSpan(doc, page, 50, 760, PDF_STYLE_NORMAL, 14, "Large");
-    Pdf_AddTextSpan(doc, page, 50, 730, PDF_STYLE_BOLD, 20, "Huge");
+    PdfDocument *doc = pdf_create();
+    int page = pdf_add_page(doc);
+    pdf_add_text_span(doc, page, 50, 780, PDF_STYLE_NORMAL, 8, "Small");
+    pdf_add_text_span(doc, page, 50, 760, PDF_STYLE_NORMAL, 14, "Large");
+    pdf_add_text_span(doc, page, 50, 730, PDF_STYLE_BOLD, 20, "Huge");
 
     char path[512];
     snprintf(path, sizeof(path), "%s/test_fontsizes.pdf", tmpdir);
-    assert(Pdf_WriteToFile(doc, path));
+    assert(pdf_write_to_file(doc, path));
 
     size_t sz;
     char *raw = read_file(path, &sz);
@@ -467,7 +467,7 @@ static int test_pdf_font_size_in_stream(const char *tmpdir)
     assert(strstr(raw, "/F2 20.0 Tf") != NULL);
 
     free(raw);
-    Pdf_Destroy(doc);
+    pdf_destroy(doc);
     return 0;
 }
 
@@ -476,13 +476,13 @@ static int test_pdf_page_mediabox(const char *tmpdir)
     /*
      * Verify each page object declares A4 MediaBox.
      */
-    PdfDocument *doc = Pdf_Create();
-    Pdf_AddPage(doc);
-    Pdf_AddTextSpan(doc, 0, 50, 700, PDF_STYLE_NORMAL, 10, "A4");
+    PdfDocument *doc = pdf_create();
+    pdf_add_page(doc);
+    pdf_add_text_span(doc, 0, 50, 700, PDF_STYLE_NORMAL, 10, "A4");
 
     char path[512];
     snprintf(path, sizeof(path), "%s/test_mediabox.pdf", tmpdir);
-    assert(Pdf_WriteToFile(doc, path));
+    assert(pdf_write_to_file(doc, path));
 
     size_t sz;
     char *raw = read_file(path, &sz);
@@ -491,7 +491,7 @@ static int test_pdf_page_mediabox(const char *tmpdir)
     assert(strstr(raw, "/MediaBox [0 0 595.28 841.89]") != NULL);
 
     free(raw);
-    Pdf_Destroy(doc);
+    pdf_destroy(doc);
     return 0;
 }
 

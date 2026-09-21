@@ -16,7 +16,7 @@
 #include "../devices/devices_types.h"
 #include "../devices/devices_protos.h"
 
-void MachineConfig_ApplyCpu(const MachineConfig *mc, const MachineConfigApplyOpts *opts)
+void mc_apply_cpu(const MachineConfig *mc, const MachineConfigApplyOpts *opts)
 {
     MachineConfigApplyOpts none = {0, 0};
     int ct;
@@ -37,7 +37,7 @@ void MachineConfig_ApplyCpu(const MachineConfig *mc, const MachineConfigApplyOpt
     {
         g_current_cpu_type = (CpuType)mc->cpu_model;
     }
-    else if (MachineConfig_CpuTypeForNumber(mc->cpu_type, &ct))
+    else if (mc_cpu_type_for_number(mc->cpu_type, &ct))
     {
         g_current_cpu_type = (CpuType)ct;
     }
@@ -54,11 +54,11 @@ void MachineConfig_ApplyCpu(const MachineConfig *mc, const MachineConfigApplyOpt
     // A --rtc CLI flag wins (same precedence rule as --fpp).
     if (!opts->rtc_already_set)
     {
-        RTC_SetWallClockMode(mc->rtc_wall);
+        rtc_set_wall_clock_mode(mc->rtc_wall);
     }
 }
 
-void MachineConfig_ApplyDevices(const MachineConfig *mc)
+void mc_apply_devices(const MachineConfig *mc)
 {
     if (!mc)
     {
@@ -67,7 +67,7 @@ void MachineConfig_ApplyDevices(const MachineConfig *mc)
 
     for (int i = 0; i < mc->terminalCount; i++)
     {
-        DeviceManager_AddDevice(DEVICE_TYPE_TERMINAL, (uint8_t)mc->terminals[i]);
+        devmgr_add_device(DEVICE_TYPE_TERMINAL, (uint8_t)mc->terminals[i]);
     }
 
     for (int i = 0; i < mc->controllerCount; i++)
@@ -84,7 +84,7 @@ void MachineConfig_ApplyDevices(const MachineConfig *mc)
             {
                 if (c->disks[s].present)
                 {
-                    mount_smd(c->disks[s].image, s);
+                    machine_mount_smd(c->disks[s].image, s);
                 }
             }
         }
@@ -94,7 +94,7 @@ void MachineConfig_ApplyDevices(const MachineConfig *mc)
             {
                 if (c->disks[s].present)
                 {
-                    mount_floppy(c->disks[s].image, s);
+                    machine_mount_floppy(c->disks[s].image, s);
                 }
             }
         }
@@ -102,12 +102,12 @@ void MachineConfig_ApplyDevices(const MachineConfig *mc)
         {
             /* Opt-in card at IOX 500-507 (same block as the CDC system disc);
              * not added by DeviceManager_AddAllDevices, so add it here. */
-            DeviceManager_AddDevice(DEVICE_TYPE_DISC_WINCHESTER, (uint8_t)c->wheel);
+            devmgr_add_device(DEVICE_TYPE_DISC_WINCHESTER, (uint8_t)c->wheel);
             for (int s = 0; s < 2 && s < MC_MAX_DISK_SLOTS; s++)
             {
                 if (c->disks[s].present)
                 {
-                    mount_winchester(c->disks[s].image, s);
+                    machine_mount_winchester(c->disks[s].image, s);
                 }
             }
         }
@@ -123,10 +123,10 @@ void MachineConfig_ApplyDevices(const MachineConfig *mc)
                 if (c->disks[s].present)
                 {
                     types[s] = c->disks[s].media;
-                    mount_scsi(c->disks[s].image, s);
+                    machine_mount_scsi(c->disks[s].image, s);
                 }
             }
-            DeviceManager_AddSCSIDevice_WithConfig(c->wheel, types);
+            devmgr_add_scsi_device_with_config(c->wheel, types);
         }
         else if (c->type == CTRL_HDLC)
         {

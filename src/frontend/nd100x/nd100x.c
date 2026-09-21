@@ -68,7 +68,7 @@
 #include "../../devices/devices_protos.h"
 
 #ifdef WITH_DEBUGGER
-void stop_debugger_thread(void);
+void debugger_stop_thread(void);
 #endif
 
 #include "nd100x_types.h"
@@ -147,7 +147,7 @@ static void set_terminal_carrier(Device *dev, bool missing)
     if (missing)
     {
         // Queue a space character to wake SINTRAN
-        Terminal_QueueKeyCode(dev, ' ');
+        terminal_queue_key_code(dev, ' ');
     }
 }
 #endif
@@ -266,22 +266,22 @@ static void handle_sigint(int sig)
 #if !defined(__EMSCRIPTEN__)
     if (telnet_server)
     {
-        TelnetServer_Stop(telnet_server);
-        TelnetServer_Destroy(telnet_server);
+        telnet_stop(telnet_server);
+        telnet_destroy(telnet_server);
         telnet_server = NULL;
     }
 #endif
 
 #ifdef WITH_DEBUGGER
     // Stop the debugger server gracefully
-    stop_debugger_thread();
+    debugger_stop_thread();
 #endif
 
     // Stop the machine
     machine_stop();
 
     // Restore terminal settings before exit
-    unsetcbreak();
+    ndlib_unsetcbreak();
 
     // Exit the program
     exit(0);
@@ -368,7 +368,7 @@ static void apply_cputype_override(const char *name)
         return;
     }
     CpuType t;
-    if (!CpuModel_FromName(name, &t))
+    if (!cpumodel_from_name(name, &t))
     {
         fprintf(stderr,
                 "Invalid --cputype '%s'. Valid values: ND1, ND4, ND10, ND100, ND100CE, "
@@ -400,7 +400,7 @@ void initialize(void)
     // the RISC-V target has no host console/pipe, so the whole block is compiled out there.
     if (config.pipeMode)
     {
-        keyboard_set_pipe_mode(true);
+        kbd_set_pipe_mode(true);
         setvbuf(stdout, NULL, _IONBF, 0);
     }
 #endif
@@ -448,7 +448,7 @@ void initialize(void)
 
     // RTC time base. The CLI flag wins over the .ini [machine] rtc= key (applied
     // in apply_machine_config below only when --rtc was not given). Default: ticks.
-    RTC_SetWallClockMode(config.rtcWall);
+    rtc_set_wall_clock_mode(config.rtcWall);
 
     // Boot banner: LEAD the output with a clean, standalone CPU + memory line (NOT
     // [INFO]-prefixed), printed BEFORE the first device is created (device creation
@@ -466,10 +466,10 @@ void initialize(void)
         MachineConfigApplyOpts mc_opts;
         mc_opts.fpp_already_set = config.fppSet ? 1 : 0;
         mc_opts.rtc_already_set = config.rtcSet ? 1 : 0;
-        MachineConfig_ApplyCpu(&machine_config, &mc_opts);
+        mc_apply_cpu(&machine_config, &mc_opts);
     }
 
-    printf("CPU: %s   Memory: %.3f Mbytes (%u words)\n", CpuModel_DisplayName(g_current_cpu_type),
+    printf("CPU: %s   Memory: %.3f Mbytes (%u words)\n", cpumodel_display_name(g_current_cpu_type),
            (double)g_nd_memsize * 2.0 / (1024.0 * 1024.0), (unsigned)g_nd_memsize);
 
     if (machine_init(config.debuggerEnabled, config.debuggerPort) != 0)
@@ -484,8 +484,8 @@ void initialize(void)
     // runs, hence the setter call immediately before AddDevice.
     if (config.cdcFile)
     {
-        CdcDevice_SetBackingFile(config.cdcFile);
-        DeviceManager_AddDevice(DEVICE_TYPE_CDC, 0);
+        cdc_set_backing_file(config.cdcFile);
+        devmgr_add_device(DEVICE_TYPE_CDC, 0);
     }
 
     // Add the NORD TSS swapping drum @ IOX 540-547 ONLY when a --drum image (or the .ini
@@ -494,8 +494,8 @@ void initialize(void)
     // on level 11D ... Device number 000540B" error. Backing file set before AddDevice.
     if (config.drumFile)
     {
-        DrumDevice_SetBackingFile(config.drumFile);
-        DeviceManager_AddDevice(DEVICE_TYPE_DRUM, 0);
+        drum_set_backing_file(config.drumFile);
+        devmgr_add_device(DEVICE_TYPE_DRUM, 0);
     }
 
     if (use_machine_config)
@@ -504,30 +504,30 @@ void initialize(void)
         // controllers, HDLC and CPU type from the resolved MachineConfig.
         // Devices only. The CPU/FPP/RTC half ran before machine_init() - see
         // the call above the boot banner and the note in machine_config_apply.h.
-        MachineConfig_ApplyDevices(&machine_config);
+        mc_apply_devices(&machine_config);
     }
     else
     {
         //     {0340, 044, 044, "TERMINAL 5/ TET12"},
-        DeviceManager_AddDevice(DEVICE_TYPE_TERMINAL, 5);
+        devmgr_add_device(DEVICE_TYPE_TERMINAL, 5);
 
         // {0350, 045, 045, "TERMINAL 6/ TET11"},
-        DeviceManager_AddDevice(DEVICE_TYPE_TERMINAL, 6);
+        devmgr_add_device(DEVICE_TYPE_TERMINAL, 6);
 
         // {0360, 046, 046, "TERMINAL 7/ TET10"},
-        DeviceManager_AddDevice(DEVICE_TYPE_TERMINAL, 7);
+        devmgr_add_device(DEVICE_TYPE_TERMINAL, 7);
 
         // {0370, 047, 047, "TERMINAL 8/ TET9"},
-        DeviceManager_AddDevice(DEVICE_TYPE_TERMINAL, 8);
+        devmgr_add_device(DEVICE_TYPE_TERMINAL, 8);
 
         // {01300, 050, 060, "TERMINAL 9"},
-        DeviceManager_AddDevice(DEVICE_TYPE_TERMINAL, 9);
+        devmgr_add_device(DEVICE_TYPE_TERMINAL, 9);
 
         // {01310, 051, 061, "TERMINAL 10"},
-        DeviceManager_AddDevice(DEVICE_TYPE_TERMINAL, 10);
+        devmgr_add_device(DEVICE_TYPE_TERMINAL, 10);
 
         // {01320, 052, 062, "TERMINAL 11"},
-        DeviceManager_AddDevice(DEVICE_TYPE_TERMINAL, 11);
+        devmgr_add_device(DEVICE_TYPE_TERMINAL, 11);
 
         // Mount explicitly specified SMD images before program_load
         // (autoMountDrives will skip already-mounted units)
@@ -535,7 +535,7 @@ void initialize(void)
         {
             if (config.smdFile[i])
             {
-                mount_smd(config.smdFile[i], i);
+                machine_mount_smd(config.smdFile[i], i);
             }
         }
 
@@ -545,12 +545,12 @@ void initialize(void)
         // of every existing machine configuration.
         if (config.wdEnabled)
         {
-            DeviceManager_AddDevice(DEVICE_TYPE_DISC_WINCHESTER, 0);
+            devmgr_add_device(DEVICE_TYPE_DISC_WINCHESTER, 0);
             for (int i = 0; i < 2; i++)
             {
                 if (config.wdFile[i])
                 {
-                    mount_winchester(config.wdFile[i], i);
+                    machine_mount_winchester(config.wdFile[i], i);
                 }
             }
         }
@@ -564,16 +564,17 @@ void initialize(void)
             {
                 if (config.scsiFile[i])
                 {
-                    mount_scsi(config.scsiFile[i], i);
+                    machine_mount_scsi(config.scsiFile[i], i);
                 }
             }
             // Thumbwheel 0 -> IOX 0144300, ident 0140440, logical device 2202.
-            DeviceManager_AddSCSIDevice_WithConfig(0, config.scsiType);
+            devmgr_add_scsi_device_with_config(0, config.scsiType);
         }
     }
 
-    int load_rc = program_load(config.bootType, config.bootUnit, config.imageFile, config.verbose,
-                               (uint16_t)config.textStart, config.overlayDeposit);
+    int load_rc =
+        machine_program_load(config.bootType, config.bootUnit, config.imageFile, config.verbose,
+                             (uint16_t)config.textStart, config.overlayDeposit);
     // Same exit codes the library used to produce itself (1 = load, 10 = boot).
     if (load_rc == PROGRAM_LOAD_ERR_LOAD)
     {
@@ -608,15 +609,15 @@ void initialize(void)
     }
 
     /* Direct input/output enabled */
-    setcbreak();
+    ndlib_setcbreak();
     setvbuf(stdout, NULL, _IONBF, 0);
 }
 
 
-void cleanup(void)
+void nd100x_cleanup(void)
 {
-    cleanup_machine();
-    unsetcbreak();
+    machine_cleanup();
+    ndlib_unsetcbreak();
 }
 
 
@@ -678,7 +679,7 @@ static void v_screen_output_handler(Device *device, char c)
     {
         if (screens[i].device == device)
         {
-            VScreen_Write(&screens[i], c);
+            vscreen_write(&screens[i], c);
             if (i == active_screen && !menu_is_active(&menu_state))
             {
                 charset_emit_host(c);
@@ -705,7 +706,7 @@ static void printer_output_handler(Device *device, char c)
     // Feed character to PrintJob manager
     if (print_job)
     {
-        PrintJob_PutChar(print_job, c);
+        pj_put_char(print_job, c);
     }
 
     // Also write to VScreen if printer has one
@@ -713,7 +714,7 @@ static void printer_output_handler(Device *device, char c)
     {
         if (screens[i].device == device)
         {
-            VScreen_Write(&screens[i], c);
+            vscreen_write(&screens[i], c);
             if (i == active_screen && !menu_is_active(&menu_state))
             {
                 printf("%c", c);
@@ -749,7 +750,7 @@ static void flush_tape_writer(Device *ptw)
     }
 
     size_t length = 0;
-    const uint8_t *data = PaperTapeWriter_GetTapeData(ptw, &length);
+    const uint8_t *data = ptp_get_tape_data(ptw, &length);
     if (!data || length == 0)
     {
         return;
@@ -785,7 +786,7 @@ static void log_screen_handler(LogCategory cat, LogLevel lvl, const char *msg, v
     pthread_mutex_lock(&log_screen_mutex);
     for (const char *p = msg; *p; p++)
     {
-        VScreen_Write(&screens[log_screen_index], *p);
+        vscreen_write(&screens[log_screen_index], *p);
     }
     if (log_screen_index == active_screen && !menu_is_active(&menu_state))
     {
@@ -859,7 +860,7 @@ static void load_paper_tape_file(Device *ptr, const char *filename)
     }
     fclose(f);
 
-    PaperTape_LoadTape(ptr, data, (size_t)size);
+    ptr_load_tape(ptr, data, (size_t)size);
     free(data);
 }
 
@@ -868,19 +869,19 @@ int main(int argc, char *argv[])
 {
 
     // Initialize the configuration
-    Config_Init(&config);
+    config_init(&config);
 
     // Parse command line arguments
-    if (!Config_ParseCommandLine(&config, argc, argv))
+    if (!config_parse_command_line(&config, argc, argv))
     {
-        Config_PrintHelp(argv[0]);
+        config_print_help(argv[0]);
         return EXIT_FAILURE;
     }
 
     // Show help if requested
     if (config.showHelp)
     {
-        Config_PrintHelp(argv[0]);
+        config_print_help(argv[0]);
         return EXIT_SUCCESS;
     }
 
@@ -897,7 +898,7 @@ int main(int argc, char *argv[])
         const char *ini_path = config.iniFile;
         if (!ini_path)
         {
-            MachineConfig_DefaultIniName(argv[0], ini_name, sizeof(ini_name));
+            mc_default_ini_name(argv[0], ini_name, sizeof(ini_name));
             FILE *probe = fopen(ini_name, "r");
             if (probe)
             {
@@ -910,8 +911,8 @@ int main(int argc, char *argv[])
         {
             /* An INI fully specifies the controllers, so start from the
              * controller-less baseline before loading. */
-            MachineConfig_InitBaseline(&mc);
-            if (!MachineConfig_LoadFile(&mc, ini_path, mc_err, sizeof(mc_err)))
+            mc_init_baseline(&mc);
+            if (!mc_load_file(&mc, ini_path, mc_err, sizeof(mc_err)))
             {
                 fprintf(stderr, "Config error: %s\n", mc_err);
                 return EXIT_FAILURE;
@@ -923,10 +924,10 @@ int main(int argc, char *argv[])
             {
                 printf("(no INI file found; showing built-in defaults)\n");
             }
-            MachineConfig_SetDefaults(&mc);
+            mc_set_defaults(&mc);
         }
 
-        if (!MachineConfig_Validate(&mc, mc_err, sizeof(mc_err)))
+        if (!mc_validate(&mc, mc_err, sizeof(mc_err)))
         {
             fprintf(stderr, "Config error: %s\n", mc_err);
             return EXIT_FAILURE;
@@ -934,7 +935,7 @@ int main(int argc, char *argv[])
 
         if (config.writeConfig)
         {
-            if (!MachineConfig_WriteFile(&mc, config.writeConfig, mc_err, sizeof(mc_err)))
+            if (!mc_write_file(&mc, config.writeConfig, mc_err, sizeof(mc_err)))
             {
                 fprintf(stderr, "Config error: %s\n", mc_err);
                 return EXIT_FAILURE;
@@ -943,7 +944,7 @@ int main(int argc, char *argv[])
         }
         if (config.showConfig)
         {
-            MachineConfig_Print(&mc, stdout);
+            mc_print(&mc, stdout);
         }
         return EXIT_SUCCESS;
     }
@@ -955,13 +956,13 @@ int main(int argc, char *argv[])
     if (config.iniFile)
     {
         char mc_err[MC_ERR_LEN];
-        MachineConfig_InitBaseline(&machine_config);
-        if (!MachineConfig_LoadFile(&machine_config, config.iniFile, mc_err, sizeof(mc_err)))
+        mc_init_baseline(&machine_config);
+        if (!mc_load_file(&machine_config, config.iniFile, mc_err, sizeof(mc_err)))
         {
             fprintf(stderr, "Config error: %s\n", mc_err);
             return EXIT_FAILURE;
         }
-        if (!MachineConfig_Validate(&machine_config, mc_err, sizeof(mc_err)))
+        if (!mc_validate(&machine_config, mc_err, sizeof(mc_err)))
         {
             fprintf(stderr, "Config error: %s\n", mc_err);
             return EXIT_FAILURE;
@@ -1006,7 +1007,7 @@ int main(int argc, char *argv[])
         {
             config.traceEnabled = true;
         }
-        if (rt->log_spec[0] && Log_ParseSpec(rt->log_spec) != 0)
+        if (rt->log_spec[0] && log_parse_spec(rt->log_spec) != 0)
         {
             fprintf(stderr, "nd100x: invalid [runtime] log = %s in the .ini\n", rt->log_spec);
             exit(1);
@@ -1130,15 +1131,15 @@ int main(int argc, char *argv[])
     // applied first, so an explicit --log still decides.
     if (config.smdDebug)
     {
-        Log_SetLevel(LOG_CAT_SMD, LOG_DEBUG);
+        log_set_level(LOG_CAT_SMD, LOG_DEBUG);
     }
     if (config.scsiDebug)
     {
-        Log_SetLevel(LOG_CAT_SCSI, LOG_DEBUG);
+        log_set_level(LOG_CAT_SCSI, LOG_DEBUG);
     }
     if (config.logSpec)
     {
-        (void)Log_ParseSpec(config.logSpec);
+        (void)log_parse_spec(config.logSpec);
     }
     // The vendored NCR 5386 port reads its own switch.
     scsi_debug_enabled = Log_IsEnabled(LOG_CAT_SCSI, LOG_DEBUG) ? 1 : 0;
@@ -1151,7 +1152,7 @@ int main(int argc, char *argv[])
     }
     if (config.ringAtPf > 0)
     {
-        cpu_set_ring_at_pf(config.ringAtPf);
+        mms_cpu_set_ring_at_pf(config.ringAtPf);
     }
     if (config.ringAtClpt > 0)
     {
@@ -1179,12 +1180,12 @@ int main(int argc, char *argv[])
         int rc;
         if (config.watch[i].isPhysical)
         {
-            rc = phys_watchpoint_add(config.watch[i].address, wt, -1);
+            rc = bkpt_phys_watchpoint_add(config.watch[i].address, wt, -1);
         }
         else
         {
-            rc = watchpoint_add((uint16_t)(config.watch[i].address & 0xFFFF), wt, WATCH_SPACE_ANY,
-                                -1);
+            rc = bkpt_watchpoint_add((uint16_t)(config.watch[i].address & 0xFFFF), wt,
+                                     WATCH_SPACE_ANY, -1);
         }
         if (rc != 0)
         {
@@ -1226,7 +1227,7 @@ int main(int argc, char *argv[])
     // =========================================================
     // Set up terminal devices with VScreen output handlers
     // =========================================================
-    Device *terminal = DeviceManager_GetDeviceByAddress(0300);
+    Device *terminal = devmgr_get_device_by_address(0300);
     if (!terminal)
     {
         printf("Terminal device not found\n");
@@ -1237,8 +1238,8 @@ int main(int argc, char *argv[])
     screen_count = 0;
 
     // Screen 0: Console terminal
-    VScreen_Init(&screens[screen_count], "Console", terminal, 80, true);
-    Device_SetCharacterOutput(terminal, v_screen_output_handler);
+    vscreen_init(&screens[screen_count], "Console", terminal, 80, true);
+    dev_set_character_output(terminal, v_screen_output_handler);
     screen_count++;
 
     // Additional terminals - names derived from logicalDevice (same algorithm as glass UI)
@@ -1248,12 +1249,12 @@ int main(int argc, char *argv[])
 
     for (int i = 0; i < 7; i++)
     {
-        extra_terminals[i] = DeviceManager_GetDeviceByAddress(term_addresses[i]);
+        extra_terminals[i] = devmgr_get_device_by_address(term_addresses[i]);
         if (extra_terminals[i])
         {
             make_terminal_name(tname, sizeof(tname), extra_terminals[i]);
-            VScreen_Init(&screens[screen_count], tname, extra_terminals[i], 80, true);
-            Device_SetCharacterOutput(extra_terminals[i], v_screen_output_handler);
+            vscreen_init(&screens[screen_count], tname, extra_terminals[i], 80, true);
+            dev_set_character_output(extra_terminals[i], v_screen_output_handler);
             screen_count++;
         }
     }
@@ -1265,29 +1266,29 @@ int main(int argc, char *argv[])
         PjOutputFormat pfmt =
             (config.printFormat == PRINT_FORMAT_PDF) ? PJ_FORMAT_PDF : PJ_FORMAT_TXT;
         const char *print_dir = config.printDir ? config.printDir : "./prints";
-        print_job = PrintJob_Create(ptype, pfmt, print_dir);
+        print_job = pj_create(ptype, pfmt, print_dir);
     }
 
     // Screen: Line Printer (output only, file-based)
-    Device *printer = DeviceManager_GetDeviceByAddress(0430);
+    Device *printer = devmgr_get_device_by_address(0430);
     if (printer)
     {
-        VScreen_Init(&screens[screen_count], "Line Printer", printer, 132, false);
-        Device_SetCharacterOutput(printer, printer_output_handler);
+        vscreen_init(&screens[screen_count], "Line Printer", printer, 132, false);
+        dev_set_character_output(printer, printer_output_handler);
         screen_count++;
     }
 
     // Screen: Paper Tape Punch (output only, file-based)
-    Device *ptw = DeviceManager_GetDeviceByAddress(0410);
+    Device *ptw = devmgr_get_device_by_address(0410);
     if (ptw)
     {
-        VScreen_Init(&screens[screen_count], "Paper Tape Punch", ptw, 80, false);
-        Device_SetCharacterOutput(ptw, paper_tape_writer_output_handler);
+        vscreen_init(&screens[screen_count], "Paper Tape Punch", ptw, 80, false);
+        dev_set_character_output(ptw, paper_tape_writer_output_handler);
         screen_count++;
     }
 
     // Screen: Log messages (output only, no device)
-    VScreen_Init(&screens[screen_count], "Log", NULL, 120, false);
+    vscreen_init(&screens[screen_count], "Log", NULL, 120, false);
     log_screen_index = screen_count;
     screen_count++;
     // Interactive: log lines go to the Log screen (Alt+N), never over a guest
@@ -1295,11 +1296,11 @@ int main(int argc, char *argv[])
     // gets them on stderr as it did the old --smd-debug / --scsi-debug output.
     if (!config.pipeMode)
     {
-        Log_SetSink(log_screen_handler, NULL);
+        log_set_sink(log_screen_handler, NULL);
     }
 
     // Load paper tape file if specified on command line
-    Device *ptr = DeviceManager_GetDeviceByAddress(0400);
+    Device *ptr = devmgr_get_device_by_address(0400);
     if (ptr && config.tapeFile)
     {
         load_paper_tape_file(ptr, config.tapeFile);
@@ -1311,7 +1312,7 @@ int main(int argc, char *argv[])
     {
         TelnetServerConfig tc = {
             .port = config.telnetPort, .maxConnections = 8, .transport = TRANSPORT_TELNET};
-        telnet_server = TelnetServer_Create(&tc);
+        telnet_server = telnet_create(&tc);
         if (telnet_server)
         {
             // Register terminals 5-11 (not console)
@@ -1330,14 +1331,14 @@ int main(int argc, char *argv[])
                     .identCode = dev->identCode,
                     .ioAddress = dev->startAddress,
                     .name = (si >= 0) ? screens[si].name : dev->memoryName,
-                    .inputFunc = Terminal_QueueKeyCode,
+                    .inputFunc = terminal_queue_key_code,
                     .origOutput = dev->charCallbacks.outputFunc,
                     .carrierFunc = set_terminal_carrier,
                 };
-                TelnetServer_RegisterTerminal(telnet_server, &info);
+                telnet_register_terminal(telnet_server, &info);
 
                 // Replace output handler with telnet-aware version
-                Device_SetCharacterOutput(dev, telnet_output_handler);
+                dev_set_character_output(dev, telnet_output_handler);
             }
 
             // Set initial localActive state: terminals 8-11 (indices 3-6) start released for telnet
@@ -1359,19 +1360,19 @@ int main(int argc, char *argv[])
             {
                 if (screens[si].device)
                 {
-                    TelnetServer_SetDeviceLocallyActive(telnet_server, screens[si].device,
-                                                        screens[si].localActive);
+                    telnet_set_device_locally_active(telnet_server, screens[si].device,
+                                                     screens[si].localActive);
                 }
             }
 
-            TelnetServer_Start(telnet_server);
+            telnet_start(telnet_server);
         }
     }
 #endif
 
     if (config.debuggerEnabled)
     {
-        set_cpu_run_mode(CPU_PAUSED);
+        cpu_set_run_mode(CPU_PAUSED);
     }
 
     // Initialize the menu state machine
@@ -1386,7 +1387,7 @@ int main(int argc, char *argv[])
         // The shell is a line-oriented REPL, so run it in cooked/canonical mode
         // (echo + line editing), the same way the nd500x monitor does. Restore
         // cbreak afterwards is unnecessary because we exit right after.
-        unsetcbreak();
+        ndlib_unsetcbreak();
         setvbuf(stdout, NULL, _IOLBF, 0);
         printf("\n=== ND-100 Interactive Shell Mode ===\n");
         int shell_result = nd100x_shell_run(config.nd100Root, config.scriptPath);
@@ -1398,7 +1399,7 @@ int main(int argc, char *argv[])
             // loop below so the program executes with the full terminal I/O,
             // menu and telnet plumbing. When it halts the emulator exits, the
             // same as a normal --image boot.
-            setcbreak();
+            ndlib_setcbreak();
             setvbuf(stdout, NULL, _IONBF, 0);
             // (fall through - do NOT return)
         }
@@ -1414,19 +1415,19 @@ int main(int argc, char *argv[])
     }
 
     // Run the machine until it stops
-    CPURunMode run_mode = get_cpu_run_mode();
+    CPURunMode run_mode = cpu_get_run_mode();
 
     while (run_mode != CPU_SHUTDOWN)
     {
-        run_mode = get_cpu_run_mode();
+        run_mode = cpu_get_run_mode();
         machine_run(5000);
 
-        run_mode = get_cpu_run_mode();
+        run_mode = cpu_get_run_mode();
 
         // Check for print job timeout
         if (print_job)
         {
-            PrintJob_CheckTimeout(print_job);
+            pj_check_timeout(print_job);
         }
 
         // Check for paper tape writer timeout (flush to file)
@@ -1443,7 +1444,7 @@ int main(int argc, char *argv[])
         // Handle keyboard input
         if (run_mode != CPU_SHUTDOWN)
         {
-            KeyEvent key = read_key_event();
+            KeyEvent key = kbd_read_key_event();
 
             // If menu is active, route keys to menu and check timeouts
             if (menu_is_active(&menu_state))
@@ -1471,7 +1472,7 @@ int main(int argc, char *argv[])
 #if !defined(__EMSCRIPTEN__)
                     // Block switching to telnet-connected terminal
                     if (telnet_server &&
-                        TelnetServer_IsDeviceConnected(telnet_server, screens[target].device))
+                        telnet_is_device_connected(telnet_server, screens[target].device))
                     {
                         // Terminal in use by telnet - ignore
                     }
@@ -1484,13 +1485,13 @@ int main(int argc, char *argv[])
                             !screens[target].localActive)
                         {
                             screens[target].localActive = true;
-                            TelnetServer_SetDeviceLocallyActive(telnet_server,
-                                                                screens[target].device, true);
+                            telnet_set_device_locally_active(telnet_server, screens[target].device,
+                                                             true);
                             set_terminal_carrier(screens[target].device, false);
                         }
 #endif
                         active_screen = target;
-                        VScreen_Redraw(&screens[active_screen]);
+                        vscreen_redraw(&screens[active_screen]);
                     }
                 }
             }
@@ -1543,7 +1544,7 @@ int main(int argc, char *argv[])
                         if (screens[active_screen].isInputCapable &&
                             screens[active_screen].localActive && screens[active_screen].device)
                         {
-                            Terminal_QueueKeyCode(screens[active_screen].device, ch);
+                            terminal_queue_key_code(screens[active_screen].device, ch);
                         }
                     }
                 }
@@ -1554,7 +1555,7 @@ int main(int argc, char *argv[])
     // Flush any pending output before shutdown
     if (print_job)
     {
-        PrintJob_Destroy(print_job);
+        pj_destroy(print_job);
         print_job = NULL;
     }
     if (ptw)
@@ -1566,8 +1567,8 @@ int main(int argc, char *argv[])
 #if !defined(__EMSCRIPTEN__)
     if (telnet_server)
     {
-        TelnetServer_Stop(telnet_server);
-        TelnetServer_Destroy(telnet_server);
+        telnet_stop(telnet_server);
+        telnet_destroy(telnet_server);
         telnet_server = NULL;
     }
 #endif
@@ -1575,12 +1576,12 @@ int main(int argc, char *argv[])
     // Cleanup VScreens
     for (int i = 0; i < screen_count; i++)
     {
-        VScreen_Destroy(&screens[i]);
+        vscreen_destroy(&screens[i]);
     }
 
 #ifdef WITH_DEBUGGER
     // Stop the debugger server gracefully (if its still running)
-    stop_debugger_thread();
+    debugger_stop_thread();
 #endif
 
     if (g_disasm)
@@ -1589,7 +1590,7 @@ int main(int argc, char *argv[])
     }
 
     dump_stats();
-    cleanup();
+    nd100x_cleanup();
 
     // exit with A register value from WAIT instruction
     return (g_cpu_exit_code);

@@ -62,7 +62,7 @@ static uint16_t paper_tape_tick(Device *self)
     {
         return 0;
     }
-    Device_TickIODelay(self);
+    dev_tick_io_delay(self);
     return self->interruptBits;
 }
 
@@ -75,7 +75,7 @@ static uint16_t paper_tape_read(Device *self, uint32_t address)
 
     PaperTapeData *data = (PaperTapeData *)self->deviceData;
     uint16_t value = 0;
-    uint32_t reg = Device_RegisterAddress(self, address);
+    uint32_t reg = dev_register_address(self, address);
 
     switch (reg)
     {
@@ -102,7 +102,7 @@ static void paper_tape_write(Device *self, uint32_t address, uint16_t value)
     }
 
     PaperTapeData *data = (PaperTapeData *)self->deviceData;
-    uint32_t reg = Device_RegisterAddress(self, address);
+    uint32_t reg = dev_register_address(self, address);
 
     switch (reg)
     {
@@ -150,10 +150,10 @@ static void paper_tape_write(Device *self, uint32_t address, uint16_t value)
         data->statusRegister.bits.readyForTransfer = 1;
 
         // Update interrupt status
-        Device_SetInterruptStatus(self,
-                                  data->statusRegister.bits.interruptEnabled &&
-                                      data->statusRegister.bits.readyForTransfer,
-                                  self->interruptLevel);
+        dev_set_interrupt_status(self,
+                                 data->statusRegister.bits.interruptEnabled &&
+                                     data->statusRegister.bits.readyForTransfer,
+                                 self->interruptLevel);
 
         // Read next byte from tape when ReadActive is set
         if (data->statusRegister.bits.readActive)
@@ -176,10 +176,10 @@ static void paper_tape_write(Device *self, uint32_t address, uint16_t value)
         }
 
         // Final interrupt status update after read
-        Device_SetInterruptStatus(self,
-                                  data->statusRegister.bits.interruptEnabled &&
-                                      data->statusRegister.bits.readyForTransfer,
-                                  self->interruptLevel);
+        dev_set_interrupt_status(self,
+                                 data->statusRegister.bits.interruptEnabled &&
+                                     data->statusRegister.bits.readyForTransfer,
+                                 self->interruptLevel);
         break;
     }
     break;
@@ -199,7 +199,7 @@ static uint16_t paper_tape_ident(Device *self, uint16_t level)
     {
         PaperTapeData *data = (PaperTapeData *)self->deviceData;
         data->statusRegister.bits.interruptEnabled = 0;
-        Device_SetInterruptStatus(self, false, level);
+        dev_set_interrupt_status(self, false, level);
         return self->identCode;
     }
     return 0;
@@ -220,7 +220,7 @@ static void paper_tape_destroy(Device *self)
 }
 
 // Load tape data into the reader's memory buffer
-void PaperTape_LoadTape(Device *self, const uint8_t *data, size_t length)
+void ptr_load_tape(Device *self, const uint8_t *data, size_t length)
 {
     if (!self || !data || length == 0)
     {
@@ -257,7 +257,7 @@ void PaperTape_LoadTape(Device *self, const uint8_t *data, size_t length)
     }
 }
 
-Device *CreatePaperTapeDevice(uint8_t thumbwheel)
+Device *ptr_create_paper_tape_device(uint8_t thumbwheel)
 {
     Device *dev = malloc(sizeof(Device));
     if (!dev)
@@ -273,7 +273,7 @@ Device *CreatePaperTapeDevice(uint8_t thumbwheel)
     }
 
     // Initialize device base structure as character device
-    Device_Init(dev, thumbwheel, DEVICE_CLASS_CHARACTER, 0);
+    dev_init(dev, thumbwheel, DEVICE_CLASS_CHARACTER, 0);
 
     // Initialize device-specific data
     memset(data, 0, sizeof(PaperTapeData));

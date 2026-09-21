@@ -192,14 +192,14 @@ static uint16_t smd_read(Device *self, uint32_t address)
     // that GO raises could not be seen: DISC-TEMA reports "Read (from NOT
     // specified unit), Status Bit 7b is 0 !". The no-disk case is handled per
     // register below (see the status register's else-branch: b14=0, b13=1).
-    uint32_t reg = Device_RegisterAddress(self, address);
+    uint32_t reg = dev_register_address(self, address);
     uint16_t value = 0;
 
     if (Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG))
     {
         SMDData *dbg_data = (SMDData *)self->deviceData;
         int cwr_bit = dbg_data ? dbg_data->controlRegister.bits.registerMultiplexBit : 0;
-        Log_Write(LOG_CAT_SMD, LOG_DEBUG, "IOX READ  addr=%o reg=%o (%s)\n", address, reg,
+        log_write(LOG_CAT_SMD, LOG_DEBUG, "IOX READ  addr=%o reg=%o (%s)\n", address, reg,
                   smd_reg_read_name(reg, cwr_bit));
     }
 
@@ -419,7 +419,7 @@ static uint16_t smd_read(Device *self, uint32_t address)
 
     if (Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG))
     {
-        Log_Write(LOG_CAT_SMD, LOG_DEBUG, "IOX READ  addr=%o reg=%o -> value=%o (0x%04X)\n",
+        log_write(LOG_CAT_SMD, LOG_DEBUG, "IOX READ  addr=%o reg=%o -> value=%o (0x%04X)\n",
                   address, reg, value, value);
     }
 
@@ -428,13 +428,13 @@ static uint16_t smd_read(Device *self, uint32_t address)
 
 static void smd_write(Device *self, uint32_t address, uint16_t value)
 {
-    uint32_t reg = Device_RegisterAddress(self, address);
+    uint32_t reg = dev_register_address(self, address);
 
     if (Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG))
     {
         SMDData *dbg_data = (SMDData *)self->deviceData;
         int cwr_bit = dbg_data ? dbg_data->controlRegister.bits.registerMultiplexBit : 0;
-        Log_Write(LOG_CAT_SMD, LOG_DEBUG, "IOX WRITE addr=%o reg=%o (%s) value=%o (0x%04X)\n",
+        log_write(LOG_CAT_SMD, LOG_DEBUG, "IOX WRITE addr=%o reg=%o (%s) value=%o (0x%04X)\n",
                   address, reg, smd_reg_write_name(reg, cwr_bit), value, value);
     }
 
@@ -557,7 +557,7 @@ static void smd_write(Device *self, uint32_t address, uint16_t value)
 
         if (Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG))
         {
-            Log_Write(
+            log_write(
                 LOG_CAT_SMD, LOG_DEBUG,
                 "CONTROL WORD=%o (0x%04X) Unit=%d Op=%s IntEn=%d ErrIntEn=%d Active=%d CWR15=%d\n",
                 value, value, (value >> 7) & 0x07,
@@ -579,7 +579,7 @@ static void smd_write(Device *self, uint32_t address, uint16_t value)
         // Clear interrupt if not enabled
         if (!data->statusRegister.bits.interruptEnabled)
         {
-            Device_SetInterruptStatus(self, false, self->interruptLevel);
+            dev_set_interrupt_status(self, false, self->interruptLevel);
         }
 
         // Old device didn't load the HI bits through writing to the address-register twice, but had a few bits in the ControlWord
@@ -662,15 +662,15 @@ static void smd_write(Device *self, uint32_t address, uint16_t value)
         {
             if (data->controlRegister.bits.testMode)
             {
-                Device_SetInterruptStatus(self, data->statusRegister.bits.interruptEnabled,
-                                          self->interruptLevel);
+                dev_set_interrupt_status(self, data->statusRegister.bits.interruptEnabled,
+                                         self->interruptLevel);
             }
             else
             {
-                Device_SetInterruptStatus(self,
-                                          data->statusRegister.bits.interruptEnabled &
-                                              data->statusRegister.bits.readyForTransfer,
-                                          self->interruptLevel);
+                dev_set_interrupt_status(self,
+                                         data->statusRegister.bits.interruptEnabled &
+                                             data->statusRegister.bits.readyForTransfer,
+                                         self->interruptLevel);
             }
         }
         break;
@@ -806,7 +806,7 @@ static uint16_t smd_tick(Device *self)
         return 0;
     }
 
-    Device_TickIODelay(self);
+    dev_tick_io_delay(self);
 
     return self->interruptBits;
 }
@@ -820,14 +820,14 @@ static uint16_t smd_ident(Device *self, uint16_t level)
 
     if (Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG))
     {
-        Log_Write(LOG_CAT_SMD, LOG_DEBUG, "IDENT level=%d identCode=%o\n", level, self->identCode);
+        log_write(LOG_CAT_SMD, LOG_DEBUG, "IDENT level=%d identCode=%o\n", level, self->identCode);
     }
 
     if ((self->interruptBits & (1 << level)) != 0)
     {
         SMDData *data = (SMDData *)self->deviceData;
         data->statusRegister.bits.interruptEnabled = 0;
-        Device_SetInterruptStatus(self, false, level);
+        dev_set_interrupt_status(self, false, level);
         return self->identCode;
     }
     return 0;
@@ -871,7 +871,7 @@ static int smd_boot(Device *self, int unit)
         {
             dt = DISK_150_MB;
         }
-        DiskSMD_SetDiskType(regs->selectedDisk, dt);
+        smd_disk_set_type(regs->selectedDisk, dt);
     }
     self->blockSizeBytes = regs->selectedDisk->bytesPrSector;
 
@@ -920,10 +920,10 @@ static int smd_boot(Device *self, int unit)
     for (int i = 0; i < word_counter; i++)
     {
         // Read word from disk buffer
-        uint32_t read_data = Device_IO_BufferReadWord(self, buffer, i);
+        uint32_t read_data = dev_io_buffer_read_word(self, buffer, i);
 
         // Write to memory (DMA)
-        Device_DMAWrite(i, (uint16_t)read_data);
+        dev_dma_write(i, (uint16_t)read_data);
     }
 
     free(buffer);
@@ -941,7 +941,7 @@ static void execute_go(Device *self)
 
     if (Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG))
     {
-        Log_Write(LOG_CAT_SMD, LOG_DEBUG, "ExecuteGO called\n");
+        log_write(LOG_CAT_SMD, LOG_DEBUG, "ExecuteGO called\n");
     }
 
     if (!self)
@@ -1018,7 +1018,7 @@ static void execute_go(Device *self)
             // Assume 825 MB disk
             dt = DISK_825_MB;
         }
-        DiskSMD_SetDiskType(data->regs.selectedDisk, dt);
+        smd_disk_set_type(data->regs.selectedDisk, dt);
     }
 
 
@@ -1103,7 +1103,7 @@ static void execute_go(Device *self)
 
         if (Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG))
         {
-            Log_Write(LOG_CAT_SMD, LOG_DEBUG,
+            log_write(LOG_CAT_SMD, LOG_DEBUG,
                       "GO Op=%s Unit=%d C/H/S=%d/%d/%d LBA=%" PRId64 " WC=%d CoreAddr=%o\n",
                       smd_op_name(DEVICE_OP_READ_TRANSFER), data->regs.selectedUnit, cylinder, head,
                       sector, lba, word_counter, core_address);
@@ -1132,25 +1132,25 @@ static void execute_go(Device *self)
         while (word_counter > 0)
         {
             // Read word from disk
-            uint32_t read_data = Device_IO_BufferReadWord(self, buffer, buffer_ptr++);
+            uint32_t read_data = dev_io_buffer_read_word(self, buffer, buffer_ptr++);
 
             // Write to memory (DMA)
-            Device_DMAWrite(core_address, (uint16_t)read_data);
+            dev_dma_write(core_address, (uint16_t)read_data);
 
             core_address = increment_core_address(regs);
             word_counter = decrement_word_counter(regs);
         }
 
         free(buffer);
-        Device_QueueIODelay(self, IODELAY_HDD_SMD, (IODelayedCallback)smd_read_end,
-                            data->regs.selectedDisk->unit, self->interruptLevel);
+        dev_queue_io_delay(self, IODELAY_HDD_SMD, (IODelayedCallback)smd_read_end,
+                           data->regs.selectedDisk->unit, self->interruptLevel);
         break;
 
     case DEVICE_OP_WRITE_TRANSFER:
 
         if (Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG))
         {
-            Log_Write(LOG_CAT_SMD, LOG_DEBUG,
+            log_write(LOG_CAT_SMD, LOG_DEBUG,
                       "GO Op=%s Unit=%d C/H/S=%d/%d/%d LBA=%" PRId64 " WC=%d CoreAddr=%o\n",
                       smd_op_name(DEVICE_OP_WRITE_TRANSFER), data->regs.selectedUnit, cylinder,
                       head, sector, lba, word_counter, core_address);
@@ -1167,7 +1167,7 @@ static void execute_go(Device *self)
         while (word_counter > 0)
         {
             // Read from memory (DMA)
-            int32_t read_data = Device_DMARead(core_address);
+            int32_t read_data = dev_dma_read(core_address);
 
             if (read_data < 0)
             {
@@ -1178,7 +1178,7 @@ static void execute_go(Device *self)
                 return;
             }
             // Write word to disk buffer
-            if (Device_IO_BufferWriteWord(self, buffer, buffer_ptr++, (uint16_t)read_data) < 0)
+            if (dev_io_buffer_write_word(self, buffer, buffer_ptr++, (uint16_t)read_data) < 0)
             {
                 handle_error(self, DISK_ERR_READ_ERROR); // WRITE_ERROR
                 free(buffer);
@@ -1204,15 +1204,15 @@ static void execute_go(Device *self)
 
         free(buffer);
 
-        Device_QueueIODelay(self, IODELAY_HDD_SMD, (IODelayedCallback)smd_read_end,
-                            data->regs.selectedDisk->unit, self->interruptLevel);
+        dev_queue_io_delay(self, IODELAY_HDD_SMD, (IODelayedCallback)smd_read_end,
+                           data->regs.selectedDisk->unit, self->interruptLevel);
         break;
 
     case DEVICE_OP_READ_PARITY_TRANSFER:
 
         if (Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG))
         {
-            Log_Write(LOG_CAT_SMD, LOG_DEBUG,
+            log_write(LOG_CAT_SMD, LOG_DEBUG,
                       "GO Op=%s Unit=%d C/H/S=%d/%d/%d LBA=%" PRId64 " WC=%d CoreAddr=%o\n",
                       smd_op_name(DEVICE_OP_READ_PARITY_TRANSFER), data->regs.selectedUnit,
                       cylinder, head, sector, lba, word_counter, core_address);
@@ -1240,7 +1240,7 @@ static void execute_go(Device *self)
         while (word_counter > 0)
         {
             // Read word from disk
-            (void)Device_IO_BufferReadWord(self, buffer, buffer_ptr++);
+            (void)dev_io_buffer_read_word(self, buffer, buffer_ptr++);
 
             //if (readData != WHAT??) then ERROR ?
 
@@ -1250,15 +1250,15 @@ static void execute_go(Device *self)
 
         free(buffer);
 
-        Device_QueueIODelay(self, IODELAY_HDD_SMD, (IODelayedCallback)smd_read_end,
-                            data->regs.selectedDisk->unit, self->interruptLevel);
+        dev_queue_io_delay(self, IODELAY_HDD_SMD, (IODelayedCallback)smd_read_end,
+                           data->regs.selectedDisk->unit, self->interruptLevel);
         break;
 
     case DEVICE_OP_COMPARE_TRANSFER:
 
         if (Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG))
         {
-            Log_Write(LOG_CAT_SMD, LOG_DEBUG,
+            log_write(LOG_CAT_SMD, LOG_DEBUG,
                       "GO Op=%s Unit=%d C/H/S=%d/%d/%d LBA=%" PRId64 " WC=%d CoreAddr=%o\n",
                       smd_op_name(DEVICE_OP_COMPARE_TRANSFER), data->regs.selectedUnit, cylinder,
                       head, sector, lba, word_counter, core_address);
@@ -1286,11 +1286,11 @@ static void execute_go(Device *self)
         while (word_counter > 0)
         {
             // Read from disk
-            uint32_t disk_data = Device_IO_BufferReadWord(self, buffer, buffer_ptr++);
+            uint32_t disk_data = dev_io_buffer_read_word(self, buffer, buffer_ptr++);
 
             // Read from memory (DMA)
             int32_t mem_data;
-            mem_data = Device_DMARead(core_address);
+            mem_data = dev_dma_read(core_address);
 
             // Compare data
             if (mem_data < 0 || disk_data != (uint32_t)mem_data)
@@ -1307,14 +1307,14 @@ static void execute_go(Device *self)
         }
         free(buffer);
 
-        Device_QueueIODelay(self, IODELAY_HDD_SMD, (IODelayedCallback)smd_read_end,
-                            data->regs.selectedDisk->unit, self->interruptLevel);
+        dev_queue_io_delay(self, IODELAY_HDD_SMD, (IODelayedCallback)smd_read_end,
+                           data->regs.selectedDisk->unit, self->interruptLevel);
         break;
 
     case DEVICE_OP_INITIATE_SEEK:
         if (Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG))
         {
-            Log_Write(LOG_CAT_SMD, LOG_DEBUG, "GO Op=%s Unit=%d C/H/S=%d/%d/%d pos=%" PRId64 "\n",
+            log_write(LOG_CAT_SMD, LOG_DEBUG, "GO Op=%s Unit=%d C/H/S=%d/%d/%d pos=%" PRId64 "\n",
                       smd_op_name(DEVICE_OP_INITIATE_SEEK), data->regs.selectedUnit, cylinder, head,
                       sector, position);
         }
@@ -1351,8 +1351,8 @@ static void execute_go(Device *self)
         // that control word was refused as an illegal load and SINTRAN
         // reported "Parallel seek disabled". Known cost: DISC-TEMA's check that
         // on-cylinder (status b14) is 0 right after Initiate Seek likely fails.
-        Device_QueueIODelay(self, IODELAY_HDD_SMD, (IODelayedCallback)smd_read_end,
-                            data->regs.selectedDisk->unit, self->interruptLevel);
+        dev_queue_io_delay(self, IODELAY_HDD_SMD, (IODelayedCallback)smd_read_end,
+                           data->regs.selectedDisk->unit, self->interruptLevel);
         break;
 
     case DEVICE_OP_WRITE_FORMAT:
@@ -1375,7 +1375,7 @@ static void execute_go(Device *self)
             {
                 if (Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG))
                 {
-                    Log_Write(LOG_CAT_SMD, LOG_DEBUG,
+                    log_write(LOG_CAT_SMD, LOG_DEBUG,
                               "GO Op=%s Unit=%d WC=%u not k x %u format words -> TIMEOUT\n",
                               smd_op_name(DEVICE_OP_WRITE_FORMAT), data->regs.selectedUnit,
                               word_counter, fmt_words_pr_track);
@@ -1388,17 +1388,17 @@ static void execute_go(Device *self)
 
         if (Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG))
         {
-            Log_Write(LOG_CAT_SMD, LOG_DEBUG, "GO Op=%s Unit=%d (media format not modelled)\n",
+            log_write(LOG_CAT_SMD, LOG_DEBUG, "GO Op=%s Unit=%d (media format not modelled)\n",
                       smd_op_name(DEVICE_OP_WRITE_FORMAT), data->regs.selectedUnit);
         }
-        Device_QueueIODelay(self, IODELAY_HDD_SMD, (IODelayedCallback)smd_read_end,
-                            data->regs.selectedDisk->unit, self->interruptLevel);
+        dev_queue_io_delay(self, IODELAY_HDD_SMD, (IODelayedCallback)smd_read_end,
+                           data->regs.selectedDisk->unit, self->interruptLevel);
         break;
 
     case DEVICE_OP_SEEK_COMPLETE_SEARCH:
         if (Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG))
         {
-            Log_Write(LOG_CAT_SMD, LOG_DEBUG, "GO Op=%s Unit=%d seekIssued=%d\n",
+            log_write(LOG_CAT_SMD, LOG_DEBUG, "GO Op=%s Unit=%d seekIssued=%d\n",
                       smd_op_name(DEVICE_OP_SEEK_COMPLETE_SEARCH), data->regs.selectedUnit,
                       (data->regs.seekIssuedMask >> data->regs.selectedUnit) & 1);
         }
@@ -1412,22 +1412,22 @@ static void execute_go(Device *self)
         // immediately !!".
         if (!(data->regs.seekIssuedMask & (1 << data->regs.selectedUnit)))
         {
-            Device_QueueIODelay(self, SMD_TIMEOUT_TICKS, (IODelayedCallback)smd_timeout_end,
-                                data->regs.selectedDisk->unit, self->interruptLevel);
+            dev_queue_io_delay(self, SMD_TIMEOUT_TICKS, (IODelayedCallback)smd_timeout_end,
+                               data->regs.selectedDisk->unit, self->interruptLevel);
             break;
         }
         regs->selectedDisk->onCylinder = true;
         data->seekCondition.bits.seekError = 0;
         data->seekCondition.bits.seekComplete |= (uint16_t)(1 << regs->selectedUnit);
 
-        Device_QueueIODelay(self, IODELAY_HDD_SMD, (IODelayedCallback)smd_read_end,
-                            data->regs.selectedDisk->unit, self->interruptLevel);
+        dev_queue_io_delay(self, IODELAY_HDD_SMD, (IODelayedCallback)smd_read_end,
+                           data->regs.selectedDisk->unit, self->interruptLevel);
         break;
 
     case DEVICE_OP_RETURN_TO_ZERO_SEEK:
         if (Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG))
         {
-            Log_Write(LOG_CAT_SMD, LOG_DEBUG, "GO Op=%s Unit=%d\n",
+            log_write(LOG_CAT_SMD, LOG_DEBUG, "GO Op=%s Unit=%d\n",
                       smd_op_name(DEVICE_OP_RETURN_TO_ZERO_SEEK), data->regs.selectedUnit);
         }
         // RTZ is a seek to cylinder 0: heads move, so on-cylinder DROPS now and
@@ -1439,14 +1439,14 @@ static void execute_go(Device *self)
         data->regs.seekIssuedMask |= (uint8_t)(1 << data->regs.selectedUnit);
 
         // IODELAY_HDD_SMD as in RetroCore; see the Initiate Seek case.
-        Device_QueueIODelay(self, IODELAY_HDD_SMD, (IODelayedCallback)smd_read_end,
-                            data->regs.selectedDisk->unit, self->interruptLevel);
+        dev_queue_io_delay(self, IODELAY_HDD_SMD, (IODelayedCallback)smd_read_end,
+                           data->regs.selectedDisk->unit, self->interruptLevel);
         break;
 
     case DEVICE_OP_RUN_ECC_OPERATION:
         if (Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG))
         {
-            Log_Write(LOG_CAT_SMD, LOG_DEBUG, "GO Op=%s (NOT IMPLEMENTED)\n",
+            log_write(LOG_CAT_SMD, LOG_DEBUG, "GO Op=%s (NOT IMPLEMENTED)\n",
                       smd_op_name(DEVICE_OP_RUN_ECC_OPERATION));
         }
         // Run ECC operation
@@ -1459,7 +1459,7 @@ static void execute_go(Device *self)
     case DEVICE_OP_SELECT_RELEASE:
         if (Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG))
         {
-            Log_Write(LOG_CAT_SMD, LOG_DEBUG, "GO Op=%s Unit=%d\n",
+            log_write(LOG_CAT_SMD, LOG_DEBUG, "GO Op=%s Unit=%d\n",
                       smd_op_name(DEVICE_OP_SELECT_RELEASE), data->regs.selectedUnit);
         }
         // Release disk selection
@@ -1485,7 +1485,7 @@ static bool smd_read_end(Device *self, int drive)
 
     if (Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG))
     {
-        Log_Write(LOG_CAT_SMD, LOG_DEBUG, "IO Complete drive=%d intEnabled=%d -> %s\n", drive,
+        log_write(LOG_CAT_SMD, LOG_DEBUG, "IO Complete drive=%d intEnabled=%d -> %s\n", drive,
                   data->statusRegister.bits.interruptEnabled,
                   data->statusRegister.bits.interruptEnabled ? "INTERRUPT" : "no interrupt");
     }
@@ -1554,7 +1554,7 @@ static bool smd_timeout_end(Device *self, int drive)
 
     if (Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG))
     {
-        Log_Write(LOG_CAT_SMD, LOG_DEBUG, "TIMEOUT drive=%d (seek-complete search found no seek)\n",
+        log_write(LOG_CAT_SMD, LOG_DEBUG, "TIMEOUT drive=%d (seek-complete search found no seek)\n",
                   drive);
     }
 
@@ -1667,7 +1667,7 @@ static void finish_operation(Device *self)
     // controller has just gone not-active.
     if (data->statusRegister.bits.interruptEnabled)
     {
-        Device_SetInterruptStatus(self, true, self->interruptLevel);
+        dev_set_interrupt_status(self, true, self->interruptLevel);
     }
 }
 
@@ -1751,7 +1751,7 @@ static void handle_error(Device *self, DiskError error)
 
     if (Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG))
     {
-        Log_Write(LOG_CAT_SMD, LOG_DEBUG, "ERROR %s (%d)\n", smd_error_name(error), error);
+        log_write(LOG_CAT_SMD, LOG_DEBUG, "ERROR %s (%d)\n", smd_error_name(error), error);
     }
 
     // Every error termination is an ABNORMAL COMPLETION (status b12,
@@ -1832,7 +1832,7 @@ static uint32_t decrement_word_counter(ControllerRegs *regs)
     return counter;
 }
 
-Device *CreateSMDDevice(uint8_t thumbwheel)
+Device *smd_create_device(uint8_t thumbwheel)
 {
     Device *dev = (Device *)malloc(sizeof(Device));
     if (!dev)
@@ -1851,7 +1851,7 @@ Device *CreateSMDDevice(uint8_t thumbwheel)
     memset(data, 0, sizeof(SMDData));
 
     // Initialize device base structure
-    Device_Init(dev, thumbwheel, DEVICE_CLASS_BLOCK, 2048);
+    dev_init(dev, thumbwheel, DEVICE_CLASS_BLOCK, 2048);
 
     dev->deviceData = data;
 

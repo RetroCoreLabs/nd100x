@@ -40,16 +40,16 @@
 #define HDLC_FCS_GOOD  0xF0B8
 // clang-format on
 
-void HDLCFrame_Init(HDLCFrame *frame)
+void hdlc_frame_init(HDLCFrame *frame)
 {
     if (!frame)
     {
         return;
     }
-    HDLCFrame_Reset(frame);
+    hdlc_frame_reset(frame);
 }
 
-void HDLCFrame_Reset(HDLCFrame *frame)
+void hdlc_frame_reset(HDLCFrame *frame)
 {
     if (!frame)
     {
@@ -64,12 +64,12 @@ void HDLCFrame_Reset(HDLCFrame *frame)
     memset(frame->frameBuffer, 0, sizeof(frame->frameBuffer));
 }
 
-uint16_t HDLCFrame_UpdateCRC(uint16_t crc, uint8_t data)
+uint16_t hdlc_frame_update_crc(uint16_t crc, uint8_t data)
 {
-    return HDLC_CRC_CalcCCITT(crc, data);
+    return hdlc_crc_crc_calc_ccitt(crc, data);
 }
 
-uint16_t HDLCFrame_CalculateCRC(const uint8_t *data, int length)
+uint16_t hdlc_frame_calculate_crc(const uint8_t *data, int length)
 {
     uint16_t crc = HDLC_FCS_INIT;
     if (!data)
@@ -78,17 +78,17 @@ uint16_t HDLCFrame_CalculateCRC(const uint8_t *data, int length)
     }
     for (int i = 0; i < length; i++)
     {
-        crc = HDLC_CRC_CalcCCITT(crc, data[i]);
+        crc = hdlc_crc_crc_calc_ccitt(crc, data[i]);
     }
     return crc;
 }
 
 
-void HDLCFrame_AddBytes(HDLCFrame *frame, const uint8_t *data, int length)
+void hdlc_frame_add_bytes(HDLCFrame *frame, const uint8_t *data, int length)
 {
     for (int i = 0; i < length; i++)
     {
-        HDLCFrame_AddByte(frame, data[i]);
+        hdlc_frame_add_byte(frame, data[i]);
     }
 }
 
@@ -99,7 +99,7 @@ void HDLCFrame_AddBytes(HDLCFrame *frame, const uint8_t *data, int length)
 // Expects to receive the FCS bytes at the end of the frame.
 // Returns true if a complete frame was received (FLAG + data + FCS + FLAG), false otherwise.
 // -----------------------------------------------------------------------
-bool HDLCFrame_AddByte(HDLCFrame *frame, uint8_t data)
+bool hdlc_frame_add_byte(HDLCFrame *frame, uint8_t data)
 {
     if (!frame)
     {
@@ -111,7 +111,7 @@ bool HDLCFrame_AddByte(HDLCFrame *frame, uint8_t data)
     case HDLC_STATE_IDLE:
         if (data == HDLC_FLAG)
         {
-            HDLCFrame_Reset(frame);
+            hdlc_frame_reset(frame);
             frame->state = HDLC_STATE_RECEIVING;
         }
         break;
@@ -136,7 +136,7 @@ bool HDLCFrame_AddByte(HDLCFrame *frame, uint8_t data)
             else
             {
                 // Too short or back-to-back flags, start new frame
-                HDLCFrame_Reset(frame);
+                hdlc_frame_reset(frame);
                 frame->state = HDLC_STATE_RECEIVING;
             }
         }
@@ -149,7 +149,7 @@ bool HDLCFrame_AddByte(HDLCFrame *frame, uint8_t data)
             if (frame->frameLength < HDLC_MAX_FRAME_SIZE)
             {
                 frame->frameBuffer[frame->frameLength++] = data;
-                frame->crc = HDLC_CRC_CalcCCITT(frame->crc, data);
+                frame->crc = hdlc_crc_crc_calc_ccitt(frame->crc, data);
             }
             else
             {
@@ -162,7 +162,7 @@ bool HDLCFrame_AddByte(HDLCFrame *frame, uint8_t data)
         if (data == HDLC_FLAG)
         {
             // Abort current frame and start new one
-            HDLCFrame_Reset(frame);
+            hdlc_frame_reset(frame);
             frame->state = HDLC_STATE_RECEIVING;
         }
         else
@@ -171,7 +171,7 @@ bool HDLCFrame_AddByte(HDLCFrame *frame, uint8_t data)
             if (frame->frameLength < HDLC_MAX_FRAME_SIZE)
             {
                 frame->frameBuffer[frame->frameLength++] = destuffed;
-                frame->crc = HDLC_CRC_CalcCCITT(frame->crc, destuffed);
+                frame->crc = hdlc_crc_crc_calc_ccitt(frame->crc, destuffed);
                 frame->state = HDLC_STATE_RECEIVING;
             }
             else
@@ -184,7 +184,7 @@ bool HDLCFrame_AddByte(HDLCFrame *frame, uint8_t data)
     case HDLC_STATE_ERROR:
         if (data == HDLC_FLAG)
         {
-            HDLCFrame_Reset(frame);
+            hdlc_frame_reset(frame);
             frame->state = HDLC_STATE_RECEIVING;
         }
         break;
@@ -197,27 +197,27 @@ bool HDLCFrame_AddByte(HDLCFrame *frame, uint8_t data)
     return false;
 }
 
-bool HDLCFrame_IsFrameComplete(HDLCFrame *frame)
+bool hdlc_frame_is_frame_complete(HDLCFrame *frame)
 {
     return frame ? frame->frameComplete : false;
 }
 
-bool HDLCFrame_IsCRCValid(HDLCFrame *frame)
+bool hdlc_frame_is_crc_valid(HDLCFrame *frame)
 {
     return frame ? frame->crcValid : false;
 }
 
-int HDLCFrame_GetFrameLength(HDLCFrame *frame)
+int hdlc_frame_get_frame_length(HDLCFrame *frame)
 {
     return frame ? frame->frameLength : 0;
 }
 
-const uint8_t *HDLCFrame_GetFrameData(HDLCFrame *frame)
+const uint8_t *hdlc_frame_get_frame_data(HDLCFrame *frame)
 {
     return frame ? frame->frameBuffer : NULL;
 }
 
-int HDLCFrame_StuffByte(uint8_t data, uint8_t *output_buffer, int buffer_size, int *output_index)
+int hdlc_frame_stuff_byte(uint8_t data, uint8_t *output_buffer, int buffer_size, int *output_index)
 {
     if (!output_buffer || !output_index || *output_index >= buffer_size)
     {
@@ -241,14 +241,14 @@ int HDLCFrame_StuffByte(uint8_t data, uint8_t *output_buffer, int buffer_size, i
     }
 }
 
-uint8_t HDLCFrame_DestuffByte(uint8_t data)
+uint8_t hdlc_frame_destuff_byte(uint8_t data)
 {
     return data ^ HDLC_ESCAPE_MASK;
 }
 
 // Build a byte-stuffed HDLC frame: FLAG + stuffed(data + FCS) + FLAG
-int HDLCFrame_BuildFrame(const uint8_t *data, int data_length, uint8_t *output_buffer,
-                         int buffer_size)
+int hdlc_frame_build_frame(const uint8_t *data, int data_length, uint8_t *output_buffer,
+                           int buffer_size)
 {
     if (!data || !output_buffer || data_length <= 0 || buffer_size < 4)
     {
@@ -268,14 +268,14 @@ int HDLCFrame_BuildFrame(const uint8_t *data, int data_length, uint8_t *output_b
     uint16_t fcs = HDLC_FCS_INIT;
     for (int i = 0; i < data_length; i++)
     {
-        fcs = HDLC_CRC_CalcCCITT(fcs, data[i]);
+        fcs = hdlc_crc_crc_calc_ccitt(fcs, data[i]);
     }
     fcs ^= HDLC_FCS_INIT; // Complement (same as C#: crc16 ^ 0xFFFF)
 
     // Stuff data bytes
     for (int i = 0; i < data_length; i++)
     {
-        int stuffed = HDLCFrame_StuffByte(data[i], output_buffer, buffer_size, &output_index);
+        int stuffed = hdlc_frame_stuff_byte(data[i], output_buffer, buffer_size, &output_index);
         if (stuffed < 0)
         {
             return -1;
@@ -283,13 +283,13 @@ int HDLCFrame_BuildFrame(const uint8_t *data, int data_length, uint8_t *output_b
     }
 
     // Stuff FCS bytes (low byte first, matching C#)
-    int stuffed = HDLCFrame_StuffByte(fcs & 0xFF, output_buffer, buffer_size, &output_index);
+    int stuffed = hdlc_frame_stuff_byte(fcs & 0xFF, output_buffer, buffer_size, &output_index);
     if (stuffed < 0)
     {
         return -1;
     }
 
-    stuffed = HDLCFrame_StuffByte((fcs >> 8) & 0xFF, output_buffer, buffer_size, &output_index);
+    stuffed = hdlc_frame_stuff_byte((fcs >> 8) & 0xFF, output_buffer, buffer_size, &output_index);
     if (stuffed < 0)
     {
         return -1;

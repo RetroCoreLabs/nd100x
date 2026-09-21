@@ -194,7 +194,7 @@ typedef struct
  * @param type Controller type to look up.
  * @return Pointer to the descriptor, or NULL if the type has no row.
  */
-const ControllerDescriptor *MC_DescriptorForType(CtrlType type);
+const ControllerDescriptor *mc_descriptor_for_type(CtrlType type);
 
 
 /**
@@ -203,7 +203,7 @@ const ControllerDescriptor *MC_DescriptorForType(CtrlType type);
  * @param type Controller type to name.
  * @return The descriptor's name, or "none" if the type has no registry row.
  */
-const char *MC_CtrlTypeName(CtrlType type);
+const char *mc_ctrl_type_name(CtrlType type);
 
 /**
  * @brief Baseline machine with NO disc/network controllers.
@@ -213,7 +213,7 @@ const char *MC_CtrlTypeName(CtrlType type);
  *
  * @param cfg Configuration to overwrite with the baseline machine.
  */
-void MachineConfig_InitBaseline(MachineConfig *cfg);
+void mc_init_baseline(MachineConfig *cfg);
 
 /**
  * @brief Build the built-in default machine.
@@ -223,7 +223,7 @@ void MachineConfig_InitBaseline(MachineConfig *cfg);
  *
  * @param cfg Configuration to overwrite with the default machine.
  */
-void MachineConfig_SetDefaults(MachineConfig *cfg);
+void mc_set_defaults(MachineConfig *cfg);
 
 /**
  * @brief Parse an INI file into cfg (cfg should be default-initialized first).
@@ -235,7 +235,7 @@ void MachineConfig_SetDefaults(MachineConfig *cfg);
  * @return true on success; false on a syntax/semantic error, with the message
  *         written into err.
  */
-bool MachineConfig_LoadFile(MachineConfig *cfg, const char *path, char *err, size_t errlen);
+bool mc_load_file(MachineConfig *cfg, const char *path, char *err, size_t errlen);
 
 /**
  * @brief Validate a populated config.
@@ -248,7 +248,7 @@ bool MachineConfig_LoadFile(MachineConfig *cfg, const char *path, char *err, siz
  * @param errlen Size of err in bytes.
  * @return true if the configuration is usable; false on the first problem.
  */
-bool MachineConfig_Validate(const MachineConfig *cfg, char *err, size_t errlen);
+bool mc_validate(const MachineConfig *cfg, char *err, size_t errlen);
 
 /**
  * @brief Print the resolved machine (for --show-config).
@@ -258,7 +258,7 @@ bool MachineConfig_Validate(const MachineConfig *cfg, char *err, size_t errlen);
  * @param cfg Configuration to print.
  * @param out Stream to print to.
  */
-void MachineConfig_Print(const MachineConfig *cfg, FILE *out);
+void mc_print(const MachineConfig *cfg, FILE *out);
 
 /**
  * @brief Serialize the machine to INI text (the native twin of Download-.ini).
@@ -271,7 +271,7 @@ void MachineConfig_Print(const MachineConfig *cfg, FILE *out);
  * @param errlen Size of err in bytes.
  * @return true on success; false on a write error, message in err.
  */
-bool MachineConfig_WriteFile(const MachineConfig *cfg, const char *path, char *err, size_t errlen);
+bool mc_write_file(const MachineConfig *cfg, const char *path, char *err, size_t errlen);
 
 /**
  * @brief Map the INI cpu number (100/110) to the CPU emulator's CpuType.
@@ -283,7 +283,7 @@ bool MachineConfig_WriteFile(const MachineConfig *cfg, const char *path, char *e
  * @return true and *outType set on success; false if the number has no CpuType
  *         yet (e.g. 120).
  */
-bool MachineConfig_CpuTypeForNumber(int cpu_number, int *out_type);
+bool mc_cpu_type_for_number(int cpu_number, int *out_type);
 
 /**
  * @brief Derive the autoload INI filename from argv[0].
@@ -295,6 +295,6 @@ bool MachineConfig_CpuTypeForNumber(int cpu_number, int *out_type);
  * @param outbuf Buffer receiving the filename; nothing is written if NULL.
  * @param outlen Size of outbuf in bytes; nothing is written if 0.
  */
-void MachineConfig_DefaultIniName(const char *argv0, char *outbuf, size_t outlen);
+void mc_default_ini_name(const char *argv0, char *outbuf, size_t outlen);
 
 #endif /* MACHINE_CONFIG_H */

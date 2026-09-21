@@ -57,7 +57,7 @@ static HANDLE get_stdin_handle(void)
 // instead of the interactive console. The POSIX build below already polls STDIN_FILENO, so this only
 // changes the Windows path (ReadConsoleInputW cannot read a pipe). Set by keyboard_set_pipe_mode().
 static bool s_pipe_mode = false;
-void keyboard_set_pipe_mode(bool on)
+void kbd_set_pipe_mode(bool on)
 {
     s_pipe_mode = on;
 }
@@ -73,7 +73,7 @@ static KeyEvent pipe_char_event(char ch)
     return evt;
 }
 
-KeyEvent read_key_event(void)
+KeyEvent kbd_read_key_event(void)
 {
     KeyEvent evt;
     memset(&evt, 0, sizeof(evt));
@@ -283,7 +283,7 @@ static int utf8_seq_len(unsigned char b)
 // POSIX no-op: read_raw_sequence() already poll()s STDIN_FILENO, so a redirected stdin (pipe or file)
 // is read here regardless of --pipe. The flag exists only so the Windows path can switch off the
 // console API; nothing to do on POSIX.
-void keyboard_set_pipe_mode(bool on)
+void kbd_set_pipe_mode(bool on)
 {
     (void)on;
 }
@@ -362,7 +362,7 @@ static int read_raw_sequence(char *buf, size_t bufsize)
     return keylen;
 }
 
-KeyEvent read_key_event(void)
+KeyEvent kbd_read_key_event(void)
 {
     KeyEvent evt;
     memset(&evt, 0, sizeof(evt));

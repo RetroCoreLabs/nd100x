@@ -43,7 +43,7 @@ static void update_machine_time(void);
 static struct DisplayPanel *s_pap;
 
 
-void setup_pap(void)
+void panel_setup_pap(void)
 {
 
     gPANS =
@@ -92,7 +92,7 @@ static void process_message_control(PancRegister panc)
 /// Called from TRR logic when "TRR PANC" has been executed
 /// Process the command in gPANC
 /// </summary>
-void ProcessTerminalPanc(void)
+void panel_process_terminal_panc(void)
 {
     if (!s_pap)
     {
@@ -237,7 +237,7 @@ void ProcessTerminalPanc(void)
 }
 
 // respond to TRR LMP
-void ProcessTerminalLamp(void)
+void panel_process_terminal_lamp(void)
 {
     // read gLMP
     gPANS = 0x0000;

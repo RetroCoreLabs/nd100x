@@ -49,7 +49,7 @@ static uint8_t com5025_map_bits_to_character_length(uint8_t bits);
 // Global state for the chip (could be per-device instance)
 static COM5025Registers registers;
 
-void COM5025_Init(COM5025State *chip)
+void com5025_init(COM5025State *chip)
 {
     if (!chip)
     {
@@ -57,7 +57,7 @@ void COM5025_Init(COM5025State *chip)
     }
 
     memset(chip, 0, sizeof(COM5025State));
-    COM5025Registers_Init(&registers);
+    com5025_reg_init(&registers);
 
     chip->mode = COM5025_MODE_BOP;
     chip->characterLength = 8;
@@ -67,7 +67,7 @@ void COM5025_Init(COM5025State *chip)
     chip->registers = &registers;
 }
 
-void COM5025_Reset(COM5025State *chip)
+void com5025_reset(COM5025State *chip)
 {
     if (!chip)
     {
@@ -79,7 +79,7 @@ void COM5025_Reset(COM5025State *chip)
     // status conditions, set TBMT = 1, TSO = 1 and place the device in the primary
     // BOP mode with 8 bit TX/ RX data length, CRC CCITT initialized to all 1's.
 
-    COM5025Registers_Clear(&registers);
+    com5025_reg_clear(&registers);
 
     // Clear input pins
     com5025_clear_all_input_pins(chip);
@@ -100,7 +100,7 @@ static void com5025_master_reset(COM5025State *chip)
         return;
     }
 
-    COM5025_Reset(chip);
+    com5025_reset(chip);
 
     chip->inputPins[COM5025_PIN_IN_MR] = false;
     chip->inputPins[COM5025_PIN_IN_RXENA] = false;
@@ -108,7 +108,7 @@ static void com5025_master_reset(COM5025State *chip)
     chip->inputPins[COM5025_PIN_IN_MSEL] = false;
 }
 
-uint8_t COM5025_ReadByte(COM5025State *chip, COM5025RegistersByte reg)
+uint8_t com5025_read_byte(COM5025State *chip, COM5025RegistersByte reg)
 {
     if (!chip)
     {
@@ -127,8 +127,8 @@ uint8_t COM5025_ReadByte(COM5025State *chip, COM5025RegistersByte reg)
 
     case COM5025_REG_BYTE_RECEIVER_STATUS:
         data = (uint8_t)(registers.receiverStatus >> 8);
-        COM5025_SetReceiverStatus(chip,
-                                  registers.receiverStatus & COM5025_RX_STATUS_MASK_CLEAR_ON_RSR);
+        com5025_set_receiver_status(chip,
+                                    registers.receiverStatus & COM5025_RX_STATUS_MASK_CLEAR_ON_RSR);
         com5025_set_output_pin(chip, COM5025_PIN_OUT_RSA, false);
         break;
 
@@ -163,7 +163,7 @@ uint8_t COM5025_ReadByte(COM5025State *chip, COM5025RegistersByte reg)
     return data;
 }
 
-void COM5025_WriteByte(COM5025State *chip, COM5025RegistersByte reg, uint8_t value)
+void com5025_write_byte(COM5025State *chip, COM5025RegistersByte reg, uint8_t value)
 {
     if (!chip)
     {
@@ -206,7 +206,7 @@ void COM5025_WriteByte(COM5025State *chip, COM5025RegistersByte reg, uint8_t val
         break;
 
     case COM5025_REG_BYTE_MODE_CONTROL:
-        COM5025Registers_SetModeControl(&registers, (uint16_t)value << 8);
+        com5025_reg_set_mode_control(&registers, (uint16_t)value << 8);
         break;
 
     case COM5025_REG_BYTE_NOT_USED:
@@ -223,7 +223,7 @@ void COM5025_WriteByte(COM5025State *chip, COM5025RegistersByte reg, uint8_t val
     }
 }
 
-uint16_t COM5025_ReadWord(COM5025State *chip, COM5025RegistersWord reg)
+uint16_t com5025_read_word(COM5025State *chip, COM5025RegistersWord reg)
 {
     if (!chip)
     {
@@ -261,7 +261,7 @@ uint16_t COM5025_ReadWord(COM5025State *chip, COM5025RegistersWord reg)
     return data;
 }
 
-void COM5025_WriteWord(COM5025State *chip, COM5025RegistersWord reg, uint16_t value)
+void com5025_write_word(COM5025State *chip, COM5025RegistersWord reg, uint16_t value)
 {
     if (!chip)
     {
@@ -296,7 +296,7 @@ void COM5025_WriteWord(COM5025State *chip, COM5025RegistersWord reg, uint16_t va
 
     case COM5025_REG_WORD_MODE_CONTROL_SYNC_ADDRESS:
         registers.syncSecondaryAddress = lo;
-        COM5025Registers_SetModeControl(&registers, hi);
+        com5025_reg_set_mode_control(&registers, hi);
         break;
 
     case COM5025_REG_WORD_DATA_LENGTH_SELECT:
@@ -307,7 +307,7 @@ void COM5025_WriteWord(COM5025State *chip, COM5025RegistersWord reg, uint16_t va
     }
 }
 
-void COM5025_SetInputPin(COM5025State *chip, COM5025SignalPinIn pin, bool value)
+void com5025_set_input_pin(COM5025State *chip, COM5025SignalPinIn pin, bool value)
 {
     if (!chip || pin >= COM5025_MAX_IN_PINS)
     {
@@ -335,8 +335,8 @@ void COM5025_SetInputPin(COM5025State *chip, COM5025SignalPinIn pin, bool value)
             com5025_set_output_pin(chip, COM5025_PIN_OUT_RSA, false);
             com5025_set_output_pin(chip, COM5025_PIN_OUT_RXACT, false);
 
-            COM5025_SetReceiverStatus(chip, registers.receiverStatus &
-                                                COM5025_RX_STATUS_MASK_CLEAR_ON_RECEIVER_DISABLE);
+            com5025_set_receiver_status(chip, registers.receiverStatus &
+                                                  COM5025_RX_STATUS_MASK_CLEAR_ON_RECEIVER_DISABLE);
         }
         break;
 
@@ -363,7 +363,7 @@ void COM5025_SetInputPin(COM5025State *chip, COM5025SignalPinIn pin, bool value)
     }
 }
 
-bool COM5025_GetInputPin(COM5025State *chip, COM5025SignalPinIn pin)
+bool com5025_get_input_pin(COM5025State *chip, COM5025SignalPinIn pin)
 {
     if (!chip || pin >= COM5025_MAX_IN_PINS)
     {
@@ -372,7 +372,7 @@ bool COM5025_GetInputPin(COM5025State *chip, COM5025SignalPinIn pin)
     return chip->inputPins[pin];
 }
 
-bool COM5025_GetOutputPin(COM5025State *chip, COM5025SignalPinOut pin)
+bool com5025_get_output_pin(COM5025State *chip, COM5025SignalPinOut pin)
 {
     if (!chip || pin >= COM5025_MAX_OUT_PINS)
     {
@@ -381,7 +381,7 @@ bool COM5025_GetOutputPin(COM5025State *chip, COM5025SignalPinOut pin)
     return chip->outputPins[pin];
 }
 
-void COM5025_ClockReceiver(COM5025State *chip)
+void com5025_clock_receiver(COM5025State *chip)
 {
     if (!chip || !chip->inputPins[COM5025_PIN_IN_RXENA])
     {
@@ -392,7 +392,7 @@ void COM5025_ClockReceiver(COM5025State *chip)
     com5025_process_bit(chip, bit);
 }
 
-void COM5025_ClockTransmitter(COM5025State *chip)
+void com5025_clock_transmitter(COM5025State *chip)
 {
     if (!chip || !chip->inputPins[COM5025_PIN_IN_TXENA])
     {
@@ -525,7 +525,7 @@ static void com5025_process_bit(COM5025State *chip, bool bit)
     }
 }
 
-void COM5025_ReceiveData(COM5025State *chip, const uint8_t *data, int length)
+void com5025_receive_data(COM5025State *chip, const uint8_t *data, int length)
 {
     if (!chip || !data || length <= 0)
     {
@@ -535,11 +535,11 @@ void COM5025_ReceiveData(COM5025State *chip, const uint8_t *data, int length)
     for (int i = 0; i < length; i++)
     {
         uint8_t byte = data[i];
-        COM5025Registers_QueueReceivedData(&registers, byte);
+        com5025_reg_queue_received_data(&registers, byte);
     }
 }
 
-void COM5025_TransmitData(COM5025State *chip, uint8_t data)
+void com5025_transmit_data(COM5025State *chip, uint8_t data)
 {
     if (!chip)
     {
@@ -658,14 +658,14 @@ static void com5025_transmit_byte_output(COM5025State *chip, uint8_t data, bool 
 
     if (is_data)
     {
-        COM5025Registers_AggregateTXCrc(&registers, data);
+        com5025_reg_aggregate_tx_crc(&registers, data);
     }
 
     // if we are sending data, we might need to do byte stuffing
     if (is_data)
     {
         // If the byte is a control octet (Frame Boundary or Escape Octet), it needs to be escaped
-        if ((COM5025Registers_IsProtocolModeCCP(&registers) == false) &&
+        if ((com5025_reg_is_protocol_mode_ccp(&registers) == false) &&
             (data == HDLC_FRAME_DELIMITER || data == HDLC_ASYNC_ESCAPE_OCTET))
         {
             // Send Escape Octet
@@ -696,7 +696,7 @@ static void com5025_send_one_byte(COM5025State *chip, uint8_t data)
     // Loopback?
     if (chip->inputPins[COM5025_PIN_IN_MSEL])
     { // maintenance mode?
-        COM5025Registers_QueueReceivedData(&registers, data);
+        com5025_reg_queue_received_data(&registers, data);
     }
 
     // Send it! (even if maintenance mode is enabled, we want to know the output)
@@ -727,7 +727,7 @@ static uint8_t com5025_map_bits_to_character_length(uint8_t bits)
     }
 }
 
-void COM5025_SetReceiverStatus(COM5025State *chip, uint16_t new_rx_status)
+void com5025_set_receiver_status(COM5025State *chip, uint16_t new_rx_status)
 {
     if (!chip)
     {
@@ -741,7 +741,7 @@ void COM5025_SetReceiverStatus(COM5025State *chip, uint16_t new_rx_status)
     // Find bits that were 0 and are now 1, excluding RSOM
     uint16_t bits_from0_to1 = (~masked_original_status & masked_new_status);
 
-    COM5025Registers_SetReceiverStatus(&registers, new_rx_status);
+    com5025_reg_set_receiver_status(&registers, new_rx_status);
 
     // Do we have bits going to 1?
     if (bits_from0_to1 != 0)

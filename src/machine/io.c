@@ -37,44 +37,44 @@
 
 
 // Returns 0, or -1 if the device manager could not be set up.
-int IO_Init(void)
+int io_init(void)
 {
-    if (DeviceManager_Init() != 0)
+    if (devmgr_init() != 0)
     {
         return -1;
     }
-    DeviceManager_AddAllDevices();
+    devmgr_add_all_devices();
     return 0;
 }
 
-void IO_Destroy(void)
+void io_destroy(void)
 {
-    DeviceManager_Destroy();
+    devmgr_destroy();
 }
 
 static uint16_t io_read(uint32_t address)
 {
-    return DeviceManager_Read(address);
+    return devmgr_read(address);
 }
 
 static void io_write(uint32_t address, uint16_t value)
 {
-    DeviceManager_Write(address, value);
+    devmgr_write(address, value);
 }
 
-int IO_Ident(uint16_t level)
+int io_ident(uint16_t level)
 {
-    return DeviceManager_Ident(level);
+    return devmgr_ident(level);
 }
 
 void IO_Tick(void)
 {
     // Tick all devices, and check for interrupts
-    uint16_t interrupt_bits = DeviceManager_Tick();
+    uint16_t interrupt_bits = devmgr_tick();
 
     if (interrupt_bits)
     {
-        device_interrupt(interrupt_bits);
+        cpu_device_interrupt(interrupt_bits);
     }
 }
 

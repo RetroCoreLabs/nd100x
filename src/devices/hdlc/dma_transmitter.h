@@ -69,22 +69,22 @@ typedef struct DMATransmitter
  * @param hdlcDevice Owning HDLC device.
  * @return void.
  */
-void DMATransmitter_Init(DMATransmitter *transmitter, void *com5025, DMAControlBlocks *dma_cb,
-                         struct Device *hdlc_device);
+void dma_tx_init(DMATransmitter *transmitter, void *com5025, DMAControlBlocks *dma_cb,
+                 struct Device *hdlc_device);
 
 /**
  * @brief Clear the transmitter's callback pointers.
  * @param transmitter Transmitter state to destroy.
  * @return void.
  */
-void DMATransmitter_Destroy(DMATransmitter *transmitter);
+void dma_tx_destroy(DMATransmitter *transmitter);
 
 /**
  * @brief Reset the transmitter to inactive with zero bytes sent.
  * @param transmitter Transmitter state to clear.
  * @return void.
  */
-void DMATransmitter_Clear(DMATransmitter *transmitter);
+void dma_tx_clear(DMATransmitter *transmitter);
 
 /**
  * @brief Burst-mode transmit state machine tick: while DMA and TX are
@@ -93,7 +93,7 @@ void DMATransmitter_Clear(DMATransmitter *transmitter);
  * @param transmitter Transmitter state to advance.
  * @return void.
  */
-void DMATransmitter_Tick(DMATransmitter *transmitter);
+void dma_tx_tick(DMATransmitter *transmitter);
 
 // State management
 
@@ -104,7 +104,7 @@ void DMATransmitter_Tick(DMATransmitter *transmitter);
  * @param senderState New DmaEngineSenderState value.
  * @return void.
  */
-void DMATransmitter_SetSenderState(DMATransmitter *transmitter, int sender_state);
+void dma_tx_set_sender_state(DMATransmitter *transmitter, int sender_state);
 
 
 // Data transmission (burst mode)
@@ -119,8 +119,8 @@ void DMATransmitter_SetSenderState(DMATransmitter *transmitter, int sender_state
  * @param callback Function to call with the frame to send.
  * @return void.
  */
-void DMATransmitter_SetSendFrameCallback(DMATransmitter *transmitter,
-                                         DMATransmitterSendFrameCallback callback);
+void dma_tx_set_send_frame_callback(DMATransmitter *transmitter,
+                                    DMATransmitterSendFrameCallback callback);
 
 /**
  * @brief Register the callback invoked to raise or clear a transmitter
@@ -129,7 +129,7 @@ void DMATransmitter_SetSendFrameCallback(DMATransmitter *transmitter,
  * @param callback Function to call with the interrupt bit to set.
  * @return void.
  */
-void DMATransmitter_SetInterruptCallback(DMATransmitter *transmitter,
-                                         DMATransmitterSetInterruptCallback callback);
+void dma_tx_set_interrupt_callback(DMATransmitter *transmitter,
+                                   DMATransmitterSetInterruptCallback callback);
 
 #endif // DMA_TRANSMITTER_H

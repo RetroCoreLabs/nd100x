@@ -69,7 +69,7 @@ static int hash_address(uint16_t address)
 /// @brief Initialize the breakpoint manager
 /// @return void
 /// @note Initialize the breakpoint manager
-void breakpoint_manager_init(void)
+void bkpt_manager_init(void)
 {
     /* Static storage: one manager for the process lifetime, so nothing can
      * fail here and cleanup has nothing to free. */
@@ -83,11 +83,11 @@ void breakpoint_manager_init(void)
 /// @brief Cleanup the breakpoint manager
 /// @return void
 /// @note Clean up and free the breakpoint manager memory
-void breakpoint_manager_cleanup(void)
+void bkpt_manager_cleanup(void)
 {
     if (g_breakpoint_mgr)
     {
-        breakpoint_manager_clear();
+        bkpt_manager_clear();
         g_breakpoint_mgr = NULL; /* the lazy "if (mgr == NULL) init" callers re-create it */
     }
 }
@@ -95,7 +95,7 @@ void breakpoint_manager_cleanup(void)
 /// @brief Set the step count to 1
 /// @return void
 /// @note Used by the debugger to single step
-void breakpoint_manager_step_one(void)
+void bkpt_manager_step_one(void)
 {
     g_breakpoint_mgr->step_count = 1;
     g_breakpoint_step_pending = 1;
@@ -107,13 +107,13 @@ void breakpoint_manager_step_one(void)
 /// @param condition Condition expression (optional - not yet supported)
 /// @param hitCondition Hit condition expression (optional)
 /// @param logMessage Log message (optional)
-void breakpoint_manager_add(uint16_t address, BreakpointType type, const char *condition,
-                            const char *hit_condition, const char *log_message)
+void bkpt_manager_add(uint16_t address, BreakpointType type, const char *condition,
+                      const char *hit_condition, const char *log_message)
 {
 
     if (g_breakpoint_mgr == NULL)
     {
-        breakpoint_manager_init();
+        bkpt_manager_init();
     }
 
     int h = hash_address(address);
@@ -151,7 +151,7 @@ void breakpoint_manager_add(uint16_t address, BreakpointType type, const char *c
 /// @brief Remove entries at address matching type (or all if type == -1)
 /// @param address Memory address to remove breakpoints from
 /// @param type Breakpoint type to remove (or all if type == -1)
-void breakpoint_manager_remove(uint16_t address, int type)
+void bkpt_manager_remove(uint16_t address, int type)
 {
     int h = hash_address(address);
     BreakpointEntry *prev = NULL;
@@ -189,7 +189,7 @@ void breakpoint_manager_remove(uint16_t address, int type)
 /// @brief Clear all breakpoints
 /// @return void
 /// @note Clear all breakpoints
-void breakpoint_manager_clear(void)
+void bkpt_manager_clear(void)
 {
     for (int h = 0; h < HASH_SIZE; h++)
     {
@@ -211,7 +211,7 @@ void breakpoint_manager_clear(void)
 
 /// @brief Clear only breakpoints of a specific type
 /// @param type Breakpoint type to clear (BP_TYPE_USER, BP_TYPE_FUNCTION, etc.)
-void breakpoint_manager_clear_type(BreakpointType type)
+void bkpt_manager_clear_type(BreakpointType type)
 {
     if (!g_breakpoint_mgr)
     {
@@ -323,13 +323,13 @@ static int breakpoint_manager_check(uint16_t address, BreakpointEntry **matches[
 /// @brief Check if the current program counter (PC) matches any breakpoints.
 /// @return BreakpointType
 /// @note Check if the current program counter (PC) matches any breakpoints.
-int check_for_breakpoint(void)
+int bkpt_check_hit(void)
 {
 
     // Auto-initialize the breakpoint manager if it is not initialized
     if (g_breakpoint_mgr == NULL)
     {
-        breakpoint_manager_init();
+        bkpt_manager_init();
     }
 
     BreakpointEntry **hits;
@@ -344,8 +344,8 @@ int check_for_breakpoint(void)
         if (g_breakpoint_mgr->step_count == 0)
         {
             g_breakpoint_step_pending = 0;
-            set_cpu_stop_reason(STOP_REASON_STEP);
-            set_cpu_run_mode(CPU_BREAKPOINT);
+            cpu_set_stop_reason(STOP_REASON_STEP);
+            cpu_set_run_mode(CPU_BREAKPOINT);
             return STOP_REASON_STEP;
         }
     }
@@ -392,8 +392,8 @@ int check_for_breakpoint(void)
                     CpuStopReason sr = (bp->type == BP_TYPE_TEMPORARY)
                                            ? STOP_REASON_STEP
                                            : stop_reason_from_breakpoint(bp->type);
-                    set_cpu_stop_reason(sr);
-                    set_cpu_run_mode(CPU_BREAKPOINT);
+                    cpu_set_stop_reason(sr);
+                    cpu_set_run_mode(CPU_BREAKPOINT);
                     // Record hit address for DAP hitBreakpointIds
                     g_breakpoint_mgr->last_hit_address = pc;
                     g_breakpoint_mgr->last_hit_valid = true;
@@ -402,7 +402,7 @@ int check_for_breakpoint(void)
                 if (bp->type == BP_TYPE_TEMPORARY)
                 {
                     // Auto-remove temp breakpoint
-                    breakpoint_manager_remove(bp->address, BP_TYPE_TEMPORARY);
+                    bkpt_manager_remove(bp->address, BP_TYPE_TEMPORARY);
                 }
             }
         }
@@ -435,7 +435,7 @@ static CpuStopReason stop_reason_from_breakpoint(BreakpointType t)
 /// @brief Get the address of the last breakpoint hit
 /// @param address Pointer to store the hit address
 /// @return true if a breakpoint was recently hit, false otherwise
-bool breakpoint_manager_get_last_hit(uint16_t *address)
+bool bkpt_manager_get_last_hit(uint16_t *address)
 {
     if (g_breakpoint_mgr && g_breakpoint_mgr->last_hit_valid)
     {
@@ -498,7 +498,7 @@ static void watchpoint_bitmap_rebuild(void)
 /// @param space WATCH_SPACE_ANY, WATCH_SPACE_ISPACE, or WATCH_SPACE_DSPACE
 /// @param pil -1 for any PIL, 0-15 for specific PIL
 /// @return 0 on success, -1 if full
-int watchpoint_add(uint16_t address, WatchpointType type, WatchpointSpace space, int8_t pil)
+int bkpt_watchpoint_add(uint16_t address, WatchpointType type, WatchpointSpace space, int8_t pil)
 {
     /* Update existing watchpoint at same address+space+pil */
     for (int i = 0; i < g_watchpoint_count; i++)
@@ -526,7 +526,7 @@ int watchpoint_add(uint16_t address, WatchpointType type, WatchpointSpace space,
 }
 
 /// @brief Remove watchpoint at address
-void watchpoint_remove(uint16_t address)
+void bkpt_watchpoint_remove(uint16_t address)
 {
     for (int i = 0; i < g_watchpoint_count; i++)
     {
@@ -546,7 +546,7 @@ void watchpoint_remove(uint16_t address)
 /// @param isWrite true if write, false if read
 /// @param useAPT true if D-space access, false if I-space
 /// @return 1 if watchpoint hit, 0 otherwise
-int watchpoint_check_slow(uint16_t address, bool is_write, bool use_apt)
+int bkpt_watchpoint_check_slow(uint16_t address, bool is_write, bool use_apt)
 {
     int8_t cur_pil = (int8_t)CURR_LEVEL;
     for (int i = 0; i < g_watchpoint_count; i++)
@@ -590,13 +590,13 @@ int watchpoint_check_slow(uint16_t address, bool is_write, bool use_apt)
 }
 
 /// @brief Legacy check (backward compat, no UseAPT)
-int watchpoint_check(uint16_t address, bool is_write)
+int bkpt_watchpoint_check(uint16_t address, bool is_write)
 {
-    return watchpoint_check_slow(address, is_write, false);
+    return bkpt_watchpoint_check_slow(address, is_write, false);
 }
 
 /// @brief Clear all watchpoints
-void watchpoint_clear(void)
+void bkpt_watchpoint_clear(void)
 {
     for (int i = 0; i < MAX_WATCHPOINTS; i++)
     {
@@ -607,13 +607,13 @@ void watchpoint_clear(void)
 }
 
 /// @brief Get number of active watchpoints
-int watchpoint_get_count(void)
+int bkpt_watchpoint_get_count(void)
 {
     return g_watchpoint_count;
 }
 
 /// @brief Get watchpoint at index
-int watchpoint_get(int index, uint16_t *out_addr, int *out_type)
+int bkpt_watchpoint_get(int index, uint16_t *out_addr, int *out_type)
 {
     if (index < 0 || index >= g_watchpoint_count)
     {
@@ -650,7 +650,7 @@ static void phys_watchpoint_pagemap_rebuild(void)
 }
 
 /// @brief Add a physical memory watchpoint
-int phys_watchpoint_add(uint32_t address, WatchpointType type, int8_t pil)
+int bkpt_phys_watchpoint_add(uint32_t address, WatchpointType type, int8_t pil)
 {
     for (int i = 0; i < g_phys_watchpoint_count; i++)
     {
@@ -677,7 +677,7 @@ int phys_watchpoint_add(uint32_t address, WatchpointType type, int8_t pil)
 }
 
 /// @brief Remove physical watchpoint at address
-void phys_watchpoint_remove(uint32_t address)
+void bkpt_phys_watchpoint_remove(uint32_t address)
 {
     for (int i = 0; i < g_phys_watchpoint_count; i++)
     {
@@ -693,7 +693,7 @@ void phys_watchpoint_remove(uint32_t address)
 }
 
 /// @brief Check if a physical memory access hits a watchpoint (with PIL check)
-int phys_watchpoint_check(uint32_t address, bool is_write)
+int bkpt_phys_watchpoint_check(uint32_t address, bool is_write)
 {
     int8_t cur_pil = (int8_t)CURR_LEVEL;
     for (int i = 0; i < g_phys_watchpoint_count; i++)
@@ -728,7 +728,7 @@ int phys_watchpoint_check(uint32_t address, bool is_write)
 }
 
 /// @brief Clear all physical watchpoints
-void phys_watchpoint_clear(void)
+void bkpt_phys_watchpoint_clear(void)
 {
     for (int i = 0; i < MAX_WATCHPOINTS; i++)
     {
@@ -739,13 +739,13 @@ void phys_watchpoint_clear(void)
 }
 
 /// @brief Get number of active physical watchpoints
-int phys_watchpoint_get_count(void)
+int bkpt_phys_watchpoint_get_count(void)
 {
     return g_phys_watchpoint_count;
 }
 
 /// @brief Get physical watchpoint at index
-int phys_watchpoint_get(int index, uint32_t *out_addr, int *out_type)
+int bkpt_phys_watchpoint_get(int index, uint32_t *out_addr, int *out_type)
 {
     if (index < 0 || index >= g_phys_watchpoint_count)
     {

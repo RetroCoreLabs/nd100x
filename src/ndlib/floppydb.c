@@ -215,7 +215,7 @@ static char *fdb_get_json(bool force_refresh)
         }
     }
 
-    char *net = download_file(FDB_JSON_URL); /* stub (NULL) on no-curl builds */
+    char *net = dl_download_file(FDB_JSON_URL); /* stub (NULL) on no-curl builds */
     if (net)
     {
         if (path)

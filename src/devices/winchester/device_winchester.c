@@ -148,7 +148,7 @@ static void wd_finish_operation(Device *self)
 
     if (data->statusRegister.bits.interruptEnabled)
     {
-        Device_SetInterruptStatus(self, true, self->interruptLevel);
+        dev_set_interrupt_status(self, true, self->interruptLevel);
     }
 }
 
@@ -178,7 +178,7 @@ static void wd_device_clear(Device *self)
     data->regs.blockAddress = 0;
     data->regs.sectorCounter = 0;
 
-    Device_SetInterruptStatus(self, false, self->interruptLevel);
+    dev_set_interrupt_status(self, false, self->interruptLevel);
 }
 
 static uint16_t wd_read_status(Device *self)
@@ -226,7 +226,7 @@ static uint16_t wd_read(Device *self, uint32_t address)
         return 0;
     }
 
-    uint32_t reg = Device_RegisterAddress(self, address);
+    uint32_t reg = dev_register_address(self, address);
     uint16_t value = 0;
 
     switch (reg)
@@ -272,7 +272,7 @@ static uint16_t wd_read(Device *self, uint32_t address)
 
     if (Log_IsEnabled(LOG_CAT_WD, LOG_DEBUG))
     {
-        Log_Write(LOG_CAT_WD, LOG_DEBUG, "IOX READ  addr=%o reg=%o -> %o\n", address, reg, value);
+        log_write(LOG_CAT_WD, LOG_DEBUG, "IOX READ  addr=%o reg=%o -> %o\n", address, reg, value);
     }
 
     return value;
@@ -286,11 +286,11 @@ static void wd_write(Device *self, uint32_t address, uint16_t value)
         return;
     }
 
-    uint32_t reg = Device_RegisterAddress(self, address);
+    uint32_t reg = dev_register_address(self, address);
 
     if (Log_IsEnabled(LOG_CAT_WD, LOG_DEBUG))
     {
-        Log_Write(LOG_CAT_WD, LOG_DEBUG, "IOX WRITE addr=%o reg=%o value=%o\n", address, reg,
+        log_write(LOG_CAT_WD, LOG_DEBUG, "IOX WRITE addr=%o reg=%o value=%o\n", address, reg,
                   value);
     }
 
@@ -394,7 +394,7 @@ static void wd_write(Device *self, uint32_t address, uint16_t value)
              * Same shape as the paper-tape reader, which drops
              * readyForTransfer for the duration of the read and updates the
              * interrupt on both sides of it (device_paper_tape.c:130-149). */
-            Device_SetInterruptStatus(self, false, self->interruptLevel);
+            dev_set_interrupt_status(self, false, self->interruptLevel);
 
             wd_execute_go(self);
             break;
@@ -415,10 +415,10 @@ static void wd_write(Device *self, uint32_t address, uint16_t value)
          * "No identcode found on level 11D, expected identcode: 1B".
          * The SMD card does the same thing (device_smd.c LOAD_CONTROL_WORD). */
         data->statusRegister.bits.readyForTransfer = 1;
-        Device_SetInterruptStatus(self,
-                                  data->statusRegister.bits.interruptEnabled &&
-                                      data->statusRegister.bits.readyForTransfer,
-                                  self->interruptLevel);
+        dev_set_interrupt_status(self,
+                                 data->statusRegister.bits.interruptEnabled &&
+                                     data->statusRegister.bits.readyForTransfer,
+                                 self->interruptLevel);
         break;
 
     default:
@@ -446,7 +446,7 @@ static bool wd_transfer_end(Device *self, int drive)
 
     if (Log_IsEnabled(LOG_CAT_WD, LOG_DEBUG))
     {
-        Log_Write(LOG_CAT_WD, LOG_DEBUG, "IO complete drive=%d intEnabled=%d\n", drive,
+        log_write(LOG_CAT_WD, LOG_DEBUG, "IO complete drive=%d intEnabled=%d\n", drive,
                   data->statusRegister.bits.interruptEnabled);
     }
 
@@ -484,7 +484,7 @@ static void wd_execute_go(Device *self)
 
     if (disk->diskType == WD_DISK_TYPE_UNKNOWN)
     {
-        DiskWinchester_SetDiskType(disk, WD_DISK_MICROPOLIS_1325);
+        wd_disk_set_type(disk, WD_DISK_MICROPOLIS_1325);
     }
 
     self->blockSizeBytes = disk->bytesPrSector;
@@ -514,20 +514,20 @@ static void wd_execute_go(Device *self)
         disk->onCylinder = true;
         if (Log_IsEnabled(LOG_CAT_WD, LOG_DEBUG))
         {
-            Log_Write(LOG_CAT_WD, LOG_DEBUG, "%s unit=%d dir=%s count=%d -> cylinder %d\n",
+            log_write(LOG_CAT_WD, LOG_DEBUG, "%s unit=%d dir=%s count=%d -> cylinder %d\n",
                       wd_op_name(regs->deviceOperation), regs->selectedUnit,
                       regs->seekDirection == WD_SEEK_IN ? "in" : "out", regs->wordCounter,
                       disk->cylinder);
         }
-        Device_QueueIODelay(self, IODELAY_HDD, (IODelayedCallback)wd_transfer_end, disk->unit,
-                            self->interruptLevel);
+        dev_queue_io_delay(self, IODELAY_HDD, (IODelayedCallback)wd_transfer_end, disk->unit,
+                           self->interruptLevel);
         break;
 
     case WD_OP_RETURN_TO_ZERO:
         disk->cylinder = 0;
         disk->onCylinder = true;
-        Device_QueueIODelay(self, IODELAY_HDD, (IODelayedCallback)wd_transfer_end, disk->unit,
-                            self->interruptLevel);
+        dev_queue_io_delay(self, IODELAY_HDD, (IODelayedCallback)wd_transfer_end, disk->unit,
+                           self->interruptLevel);
         break;
 
     case WD_OP_READ_TRANSFER:
@@ -536,7 +536,7 @@ static void wd_execute_go(Device *self)
     case WD_OP_COMPARE:
     case WD_OP_WRITE_FORMAT:
     {
-        long lba = DiskWinchester_ChsToLba(disk, regs->cylinder, regs->head, regs->sector);
+        long lba = wd_disk_chs_to_lba(disk, regs->cylinder, regs->head, regs->sector);
         if (lba < 0)
         {
             data->statusRegister.bits.addressMismatch = 1;
@@ -569,7 +569,7 @@ static void wd_execute_go(Device *self)
 
         if (Log_IsEnabled(LOG_CAT_WD, LOG_DEBUG))
         {
-            Log_Write(LOG_CAT_WD, LOG_DEBUG, "GO %s unit=%d C/H/S=%d/%d/%d LBA=%ld WC=%u core=%o\n",
+            log_write(LOG_CAT_WD, LOG_DEBUG, "GO %s unit=%d C/H/S=%d/%d/%d LBA=%ld WC=%u core=%o\n",
                       wd_op_name(regs->deviceOperation), regs->selectedUnit, regs->cylinder,
                       regs->head, regs->sector, lba, word_counter, core_address);
         }
@@ -578,8 +578,8 @@ static void wd_execute_go(Device *self)
         {
             /* Nothing to move, or no backing store hooked up: complete
              * cleanly rather than transferring garbage. */
-            Device_QueueIODelay(self, IODELAY_HDD, (IODelayedCallback)wd_transfer_end, disk->unit,
-                                self->interruptLevel);
+            dev_queue_io_delay(self, IODELAY_HDD, (IODelayedCallback)wd_transfer_end, disk->unit,
+                               self->interruptLevel);
             break;
         }
 
@@ -597,8 +597,8 @@ static void wd_execute_go(Device *self)
             /* Pull the words out of ND memory, then commit whole blocks. */
             while (word_counter > 0)
             {
-                uint16_t w = Device_DMARead(core_address);
-                Device_IO_BufferWriteWord(self, buffer, buffer_ptr++, w);
+                uint16_t w = dev_dma_read(core_address);
+                dev_io_buffer_write_word(self, buffer, buffer_ptr++, w);
                 core_address++;
                 word_counter--;
             }
@@ -631,8 +631,8 @@ static void wd_execute_go(Device *self)
             {
                 while (word_counter > 0)
                 {
-                    uint32_t w = Device_IO_BufferReadWord(self, buffer, buffer_ptr++);
-                    Device_DMAWrite(core_address, (uint16_t)w);
+                    uint32_t w = dev_io_buffer_read_word(self, buffer, buffer_ptr++);
+                    dev_dma_write(core_address, (uint16_t)w);
                     core_address++;
                     word_counter--;
                 }
@@ -641,8 +641,8 @@ static void wd_execute_go(Device *self)
             {
                 while (word_counter > 0)
                 {
-                    uint32_t w = Device_IO_BufferReadWord(self, buffer, buffer_ptr++);
-                    uint16_t m = Device_DMARead(core_address);
+                    uint32_t w = dev_io_buffer_read_word(self, buffer, buffer_ptr++);
+                    uint16_t m = dev_dma_read(core_address);
                     if ((uint16_t)w != m)
                     {
                         data->statusRegister.bits.compareError = 1;
@@ -662,8 +662,8 @@ static void wd_execute_go(Device *self)
         regs->memoryAddressHiBits = (uint8_t)((core_address >> 16) & 0xFF);
         regs->wordCounter = (uint16_t)word_counter;
 
-        Device_QueueIODelay(self, IODELAY_HDD, (IODelayedCallback)wd_transfer_end, disk->unit,
-                            self->interruptLevel);
+        dev_queue_io_delay(self, IODELAY_HDD, (IODelayedCallback)wd_transfer_end, disk->unit,
+                           self->interruptLevel);
         break;
     }
 
@@ -680,7 +680,7 @@ static void wd_execute_go(Device *self)
 
 static uint16_t wd_tick(Device *self)
 {
-    Device_TickIODelay(self);
+    dev_tick_io_delay(self);
     return self->interruptBits;
 }
 
@@ -705,10 +705,10 @@ static uint16_t wd_ident(Device *self, uint16_t level)
     /* Identing clears the interrupt and the enable, as on the other ND disc
      * controllers. */
     data->statusRegister.bits.interruptEnabled = 0;
-    Device_SetInterruptStatus(self, false, self->interruptLevel);
+    dev_set_interrupt_status(self, false, self->interruptLevel);
     if (Log_IsEnabled(LOG_CAT_WD, LOG_DEBUG))
     {
-        Log_Write(LOG_CAT_WD, LOG_DEBUG, "IDENT answered level=%u code=%o\n", level,
+        log_write(LOG_CAT_WD, LOG_DEBUG, "IDENT answered level=%u code=%o\n", level,
                   self->identCode);
     }
     return self->identCode;
@@ -743,7 +743,7 @@ static void wd_reset(Device *self)
     /* Master clear is one of the four flip-flop reset conditions (sec 3.2). */
     wd_clear_flip_flops(&data->regs);
 
-    Device_SetInterruptStatus(self, false, self->interruptLevel);
+    dev_set_interrupt_status(self, false, self->interruptLevel);
 }
 
 /*
@@ -787,7 +787,7 @@ static int wd_boot(Device *self, int unit)
 
     if (disk->diskType == WD_DISK_TYPE_UNKNOWN)
     {
-        DiskWinchester_SetDiskType(disk, WD_DISK_MICROPOLIS_1325);
+        wd_disk_set_type(disk, WD_DISK_MICROPOLIS_1325);
     }
     self->blockSizeBytes = disk->bytesPrSector;
 
@@ -835,8 +835,8 @@ static int wd_boot(Device *self, int unit)
 
     for (int i = 0; i < word_counter; i++)
     {
-        uint32_t read_data = Device_IO_BufferReadWord(self, buffer, i);
-        Device_DMAWrite((uint32_t)i, (uint16_t)read_data);
+        uint32_t read_data = dev_io_buffer_read_word(self, buffer, i);
+        dev_dma_write((uint32_t)i, (uint16_t)read_data);
     }
 
     free(buffer);
@@ -863,7 +863,7 @@ static void wd_destroy(Device *self)
     }
 }
 
-Device *CreateWinchesterDevice(uint8_t thumbwheel)
+Device *wd_create_winchester_device(uint8_t thumbwheel)
 {
     Device *dev = (Device *)malloc(sizeof(Device));
     if (!dev)
@@ -881,7 +881,7 @@ Device *CreateWinchesterDevice(uint8_t thumbwheel)
 
     /* Block class with a 1024-byte sector, like the SMD and floppy DMA
      * controllers, so the machine's mount plumbing can serve it images. */
-    Device_Init(dev, thumbwheel, DEVICE_CLASS_BLOCK, 1024);
+    dev_init(dev, thumbwheel, DEVICE_CLASS_BLOCK, 1024);
     dev->deviceData = data;
     dev->type = DEVICE_TYPE_DISC_WINCHESTER;
 
@@ -899,7 +899,7 @@ Device *CreateWinchesterDevice(uint8_t thumbwheel)
     for (int i = 0; i < data->regs.maxUnits; i++)
     {
         data->regs.disks[i].unit = (uint8_t)i;
-        DiskWinchester_SetDiskType(&data->regs.disks[i], WD_DISK_MICROPOLIS_1325);
+        wd_disk_set_type(&data->regs.disks[i], WD_DISK_MICROPOLIS_1325);
     }
 
     dev->Read = wd_read;

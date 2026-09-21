@@ -43,7 +43,7 @@ static long s_ring_at_pf = 0;
  * @brief Set the page fault at which to dump the instruction ring (--ring-at-pf).
  * @param n Page-fault number counted from 1; 0 turns the dump off.
  */
-void cpu_set_ring_at_pf(int64_t n)
+void mms_cpu_set_ring_at_pf(int64_t n)
 {
     s_ring_at_pf = n > 0 ? n : 0;
 }
@@ -51,7 +51,7 @@ void cpu_set_ring_at_pf(int64_t n)
 
 // Create and initialize PagingTables
 // MUST!!!! to be called before using the PagingTables
-bool CreatePagingTables(void)
+bool mms_create_paging_tables(void)
 {
     g_paging_tables.mmsType = g_mms_type;
 
@@ -121,7 +121,7 @@ static uint32_t calc_page_table_address(uint32_t address)
 }
 
 // Clean up PagingTables
-void DestroyPagingTables(void)
+void mms_destroy_paging_tables(void)
 {
     if (g_paging_tables.shadowRam)
     {
@@ -131,7 +131,7 @@ void DestroyPagingTables(void)
 
 
 // Calculate offset into ShadowRam array
-uint16_t GetPTShadowAddress(uint32_t page_table, uint32_t vpn, PageTableMode ptm)
+uint16_t mms_get_pt_shadow_address(uint32_t page_table, uint32_t vpn, PageTableMode ptm)
 {
     uint32_t offset = 0;
 
@@ -168,7 +168,7 @@ uint16_t GetPTShadowAddress(uint32_t page_table, uint32_t vpn, PageTableMode ptm
 }
 
 // Write to page tables
-void PT_Write(uint32_t address, uint16_t value)
+void mms_write(uint32_t address, uint16_t value)
 {
     if (!g_paging_tables.shadowRam)
     {
@@ -207,14 +207,14 @@ void PT_Write(uint32_t address, uint16_t value)
                 page_table_entry = ((uint32_t)g_paging_tables.shadowRam[offset - 1] << 16) | value;
             }
         }
-        Log_Write(LOG_CAT_MMS, LOG_TRACE, "PT W A=%o PT=%d VPN=%d SEXI=%d V=%o => 0x%08X (%s)\n",
+        log_write(LOG_CAT_MMS, LOG_TRACE, "PT W A=%o PT=%d VPN=%d SEXI=%d V=%o => 0x%08X (%s)\n",
                   address, page_table, page_table_address & 0x3F, STS_EXTENDED_ADDRESSING_IS_SET,
-                  value, page_table_entry, GetPageTableEntryDebugInfo(page_table_entry));
+                  value, page_table_entry, mms_get_page_table_entry_debug_info(page_table_entry));
     }
 }
 
 // Read from shadow mem/pagetables
-uint16_t PT_Read(uint32_t address)
+uint16_t mms_read(uint32_t address)
 {
     if (!g_paging_tables.shadowRam)
     {
@@ -232,7 +232,7 @@ uint16_t PT_Read(uint32_t address)
 }
 
 // Get page table entry
-uint32_t GetPageTableEntry(uint32_t page_table, uint32_t vpn, PageTableMode ptm)
+uint32_t mms_get_page_table_entry(uint32_t page_table, uint32_t vpn, PageTableMode ptm)
 {
     if (!g_paging_tables.shadowRam)
     {
@@ -244,7 +244,7 @@ uint32_t GetPageTableEntry(uint32_t page_table, uint32_t vpn, PageTableMode ptm)
     }
 
     uint32_t p_te = 0;
-    int page_table_address = GetPTShadowAddress(page_table, vpn, ptm);
+    int page_table_address = mms_get_pt_shadow_address(page_table, vpn, ptm);
 
     if (STS_EXTENDED_ADDRESSING_IS_SET)
     {
@@ -277,7 +277,7 @@ uint32_t GetPageTableEntry(uint32_t page_table, uint32_t vpn, PageTableMode ptm)
 //
 // This function uses mmsType instead of STS_EXTENDED_ADDRESSING_IS_SET so the debugger can always
 // read all page tables regardless of which level happens to be active.
-uint32_t GetPageTableEntryForDebugger(uint32_t page_table, uint32_t vpn, PageTableMode ptm)
+uint32_t mms_get_page_table_entry_for_debugger(uint32_t page_table, uint32_t vpn, PageTableMode ptm)
 {
     (void)ptm;
     if (!g_paging_tables.shadowRam)
@@ -316,7 +316,8 @@ uint32_t GetPageTableEntryForDebugger(uint32_t page_table, uint32_t vpn, PageTab
 }
 
 // Update page table entry
-bool UpdatePageTableEntry(uint32_t page_table, uint32_t vpn, PageTableMode ptm, uint32_t p_te)
+bool mms_update_page_table_entry(uint32_t page_table, uint32_t vpn, PageTableMode ptm,
+                                 uint32_t p_te)
 {
     if (!g_paging_tables.shadowRam)
     {
@@ -327,7 +328,7 @@ bool UpdatePageTableEntry(uint32_t page_table, uint32_t vpn, PageTableMode ptm, 
         return false;
     }
 
-    int page_table_address = GetPTShadowAddress(page_table, vpn, ptm);
+    int page_table_address = mms_get_pt_shadow_address(page_table, vpn, ptm);
 
     if (STS_EXTENDED_ADDRESSING_IS_SET)
     {
@@ -343,24 +344,24 @@ bool UpdatePageTableEntry(uint32_t page_table, uint32_t vpn, PageTableMode ptm, 
 }
 
 // Set page used flag
-uint32_t SetPageUsed(uint32_t page_table, uint32_t vpn, PageTableMode ptm, uint32_t p_te)
+uint32_t mms_set_page_used(uint32_t page_table, uint32_t vpn, PageTableMode ptm, uint32_t p_te)
 {
     if ((p_te & PGU_FLAG) == 0)
     {
         p_te |= PGU_FLAG;
-        UpdatePageTableEntry(page_table, vpn, ptm, p_te);
+        mms_update_page_table_entry(page_table, vpn, ptm, p_te);
 
         if (ND100X_HOT_TRACE && Log_IsEnabled(LOG_CAT_MMS, LOG_TRACE))
         {
-            Log_Write(LOG_CAT_MMS, LOG_TRACE, "PageTable PGU - PT=%d VPN=%d => Entry=0x%08X (%s)",
-                      page_table, vpn, p_te, GetPageTableEntryDebugInfo(p_te));
+            log_write(LOG_CAT_MMS, LOG_TRACE, "PageTable PGU - PT=%d VPN=%d => Entry=0x%08X (%s)",
+                      page_table, vpn, p_te, mms_get_page_table_entry_debug_info(p_te));
         }
     }
     return p_te;
 }
 
 // Set page written flag
-uint32_t SetPageWritten(uint32_t page_table, uint32_t vpn, PageTableMode ptm, uint32_t p_te)
+uint32_t mms_set_page_written(uint32_t page_table, uint32_t vpn, PageTableMode ptm, uint32_t p_te)
 {
     if (!g_paging_tables.shadowRam)
     {
@@ -375,12 +376,12 @@ uint32_t SetPageWritten(uint32_t page_table, uint32_t vpn, PageTableMode ptm, ui
     if ((p_te & WIP_FLAG) == 0)
     {
         p_te |= WIP_FLAG;
-        UpdatePageTableEntry(page_table, vpn, ptm, p_te);
+        mms_update_page_table_entry(page_table, vpn, ptm, p_te);
 
         if (ND100X_HOT_TRACE && Log_IsEnabled(LOG_CAT_MMS, LOG_TRACE))
         {
-            Log_Write(LOG_CAT_MMS, LOG_TRACE, "PageTable WIP - PT=%d VPN=%d => Entry=0x%08X (%s)",
-                      page_table, vpn, p_te, GetPageTableEntryDebugInfo(p_te));
+            log_write(LOG_CAT_MMS, LOG_TRACE, "PageTable WIP - PT=%d VPN=%d => Entry=0x%08X (%s)",
+                      page_table, vpn, p_te, mms_get_page_table_entry_debug_info(p_te));
         }
     }
     return p_te;
@@ -388,7 +389,7 @@ uint32_t SetPageWritten(uint32_t page_table, uint32_t vpn, PageTableMode ptm, ui
 
 
 // Get debug info for page table entry
-const char *GetPageTableEntryDebugInfo(uint32_t p_te)
+const char *mms_get_page_table_entry_debug_info(uint32_t p_te)
 {
     static char debug_info[256];
     debug_info[0] = '\0';
@@ -450,7 +451,7 @@ const char *GetPageTableEntryDebugInfo(uint32_t p_te)
 
 
 // Map virtual address to physical address
-int mapVirtualToPhysical(uint32_t virtual_address, AccessMode am, bool use_apt)
+int mms_map_virtual_to_physical(uint32_t virtual_address, AccessMode am, bool use_apt)
 {
 
 
@@ -471,7 +472,7 @@ int mapVirtualToPhysical(uint32_t virtual_address, AccessMode am, bool use_apt)
     uint8_t ring = pcr & 0x03; // 2 lower bits of the PCR is the Ring the current level is using
 
     // Ring 3 is the most powerful, and for Ring 3 RAM will always be in the shadow of PageTable RAM
-    if ((ring == 3) && (IsAddressShadowMemory(virtual_address, false)))
+    if ((ring == 3) && (mms_is_address_shadow_memory(virtual_address, false)))
     {
         return (int)
             virtual_address; // Read/WritePhysical will handle the actual access to shadow memory
@@ -524,19 +525,19 @@ int mapVirtualToPhysical(uint32_t virtual_address, AccessMode am, bool use_apt)
     /* no debug trace */
 
     // Find the PageTableEntry, PTe
-    uint32_t page_table_entry = GetPageTableEntry(page_table, vpn, ptm);
+    uint32_t page_table_entry = mms_get_page_table_entry(page_table, vpn, ptm);
 
     /* DEBUG VPN25 tracing removed - was temporary overlay debugging */
 
     if (ND100X_HOT_TRACE && Log_IsEnabled(LOG_CAT_MMSMAP, LOG_TRACE))
     {
-        Log_Write(LOG_CAT_MMSMAP, LOG_TRACE,
+        log_write(LOG_CAT_MMSMAP, LOG_TRACE,
                   "mapVirtualToPhysical - PT=%d VPN=%d => Entry=0x%08X (%s)", page_table, vpn,
-                  page_table_entry, GetPageTableEntryDebugInfo(page_table_entry));
+                  page_table_entry, mms_get_page_table_entry_debug_info(page_table_entry));
     }
 
     // Check for page protection
-    if (!checkPageProtection(vpn, page_table, page_table_entry, am, virtual_address))
+    if (!mms_check_page_protection(vpn, page_table, page_table_entry, am, virtual_address))
     {
         // We should never get here, but added a return statement anyway! (Will end up here if interrupts are disabled?)
         return -1;
@@ -552,7 +553,7 @@ int mapVirtualToPhysical(uint32_t virtual_address, AccessMode am, bool use_apt)
             static int degrade_count = 0;
             if (degrade_count < 10)
             {
-                Log_Write(LOG_CAT_MMS, LOG_TRACE,
+                log_write(LOG_CAT_MMS, LOG_TRACE,
                           "DEGRADE: PIL=%d PC=%06o PT=%d VPN=%d ptRing=%d ring=%d->%d PTe=0x%08X",
                           CURR_LEVEL, gPC, page_table, vpn, page_table_ring, ring, page_table_ring,
                           page_table_entry);
@@ -579,7 +580,7 @@ int mapVirtualToPhysical(uint32_t virtual_address, AccessMode am, bool use_apt)
             if (ring_mpv < 5)
             {
                 uint16_t pcr_now = g_reg->reg_PCR[CURR_LEVEL];
-                Log_Write(LOG_CAT_MMS, LOG_TRACE,
+                log_write(LOG_CAT_MMS, LOG_TRACE,
                           "RING_MPV: PT=%d VPN=%d ring=%d ptRing=%d PCR=0%06o PCR_ring=%d PIL=%d "
                           "VA=%06o am=%d",
                           page_table, vpn, ring, page_table_ring, pcr_now, pcr_now & 3, CURR_LEVEL,
@@ -587,16 +588,16 @@ int mapVirtualToPhysical(uint32_t virtual_address, AccessMode am, bool use_apt)
             }
             ring_mpv++;
         }
-        UpdatePGS(page_table, vpn, am, false);
+        mms_update_pgs(page_table, vpn, am, false);
         if (ND100X_HOT_TRACE && Log_IsEnabled(LOG_CAT_MMS, LOG_TRACE))
         {
-            Log_Write(LOG_CAT_MMS, LOG_TRACE,
+            log_write(LOG_CAT_MMS, LOG_TRACE,
                       "[%d] Ring Protection Violation. Ring=%d PTRing=%d Accessmode=%d PGS=%06o "
                       "PT=%d VPN=%d PTe=0x%08X",
                       CURR_LEVEL, ring, page_table_ring, am, g_reg->reg_PGS, page_table, vpn,
                       page_table_entry);
         }
-        HandleMPV(virtual_address);
+        mms_handle_mpv(virtual_address);
         return -1;
     }
 
@@ -619,17 +620,17 @@ int mapVirtualToPhysical(uint32_t virtual_address, AccessMode am, bool use_apt)
     // Check if memory is out of range
     if ((uint32_t)physical_address >= g_nd_memsize)
     {
-        UpdatePGS(page_table, vpn, am, false);
-        HandleMemoryOutOfRange(physical_address);
+        mms_update_pgs(page_table, vpn, am, false);
+        mms_handle_memory_out_of_range(physical_address);
         return -1;
     }
 
     // Mark page used
-    page_table_entry = SetPageUsed(page_table, vpn, ptm, page_table_entry);
+    page_table_entry = mms_set_page_used(page_table, vpn, ptm, page_table_entry);
     if (am == WRITE)
     {
         // Mark page as "written to"
-        page_table_entry = SetPageWritten(page_table, vpn, ptm, page_table_entry);
+        page_table_entry = mms_set_page_written(page_table, vpn, ptm, page_table_entry);
     }
 
     // ECC Memory Parity is checked on the PHYSICAL read/write path
@@ -639,15 +640,15 @@ int mapVirtualToPhysical(uint32_t virtual_address, AccessMode am, bool use_apt)
 
     if (ND100X_HOT_TRACE && Log_IsEnabled(LOG_CAT_MMS, LOG_TRACE) && physical_address == 0)
     {
-        Log_Write(LOG_CAT_MMS, LOG_TRACE,
+        log_write(LOG_CAT_MMS, LOG_TRACE,
                   "mapVirtualToPhysical - PT=%d VPN=%d => Entry=0x%08X (%s)", page_table, vpn,
-                  page_table_entry, GetPageTableEntryDebugInfo(page_table_entry));
+                  page_table_entry, mms_get_page_table_entry_debug_info(page_table_entry));
     }
     return (int)physical_address;
 }
 
 // Update PGS (Page Status) register
-void UpdatePGS(uint32_t page_table, uint32_t vpn, AccessMode am, bool permit_violation)
+void mms_update_pgs(uint32_t page_table, uint32_t vpn, AccessMode am, bool permit_violation)
 {
     uint16_t tmp_pgs = (page_table << 6) | vpn;
 
@@ -670,7 +671,7 @@ void UpdatePGS(uint32_t page_table, uint32_t vpn, AccessMode am, bool permit_vio
         }
     }
 
-    setPGS(tmp_pgs);
+    cpu_set_pgs(tmp_pgs);
 }
 
 // Check page protection
@@ -690,7 +691,7 @@ static void page_fault_diag(uint32_t vpn, uint32_t page_table, uint32_t page_tab
         pf_calls++;
         if (s_ring_at_pf > 0 && pf_calls == s_ring_at_pf)
         {
-            ring_dump();
+            cpu_ring_dump();
         }
     }
 
@@ -705,8 +706,8 @@ static void page_fault_diag(uint32_t vpn, uint32_t page_table, uint32_t page_tab
     }
 }
 
-bool checkPageProtection(uint32_t vpn, uint32_t page_table, uint32_t page_table_entry,
-                         AccessMode am, uint32_t virtual_address)
+bool mms_check_page_protection(uint32_t vpn, uint32_t page_table, uint32_t page_table_entry,
+                               AccessMode am, uint32_t virtual_address)
 {
     // Unsigned 32-bit: a PTE is 32 bits, and 1L << 31 overflowed a 32-bit long on wasm.
     uint32_t access_bits = 0;
@@ -757,8 +758,8 @@ bool checkPageProtection(uint32_t vpn, uint32_t page_table, uint32_t page_table_
 
         page_fault_diag(vpn, page_table, page_table_entry, am, virtual_address);
 
-        UpdatePGS(page_table, vpn, am, true);
-        HandlePF(virtual_address);
+        mms_update_pgs(page_table, vpn, am, true);
+        mms_handle_pf(virtual_address);
         return false;
     }
 
@@ -779,8 +780,8 @@ bool checkPageProtection(uint32_t vpn, uint32_t page_table, uint32_t page_table_
                 (unsigned long)access_bits, am, gUseAPT ? 1 : 0, CURR_LEVEL, gPC);
             fflush(g_nd110_trace_fp);
         }
-        UpdatePGS(page_table, vpn, am, true);
-        HandleMPV(virtual_address);
+        mms_update_pgs(page_table, vpn, am, true);
+        mms_handle_mpv(virtual_address);
         return false;
     }
 
@@ -791,7 +792,7 @@ bool checkPageProtection(uint32_t vpn, uint32_t page_table, uint32_t page_table_
 // Flag set by Device_DMARead/Write to bypass shadow memory for DMA bus transfers
 bool g_dma_access = false;
 
-bool IsAddressShadowMemory(uint32_t addr, bool privileged)
+bool mms_is_address_shadow_memory(uint32_t addr, bool privileged)
 {
     // DMA transfers go directly to physical RAM - never shadow memory
     if (g_dma_access)
@@ -844,58 +845,58 @@ bool IsAddressShadowMemory(uint32_t addr, bool privileged)
 }
 
 // Read from virtual memory
-int ReadVirtualMemory(uint32_t virtual_address, bool use_apt)
+int mms_read_virtual_memory(uint32_t virtual_address, bool use_apt)
 {
     if (g_disasm)
     {
         disasm_set_isdata(virtual_address);
     }
 
-    int pa = mapVirtualToPhysical(virtual_address, READ, use_apt);
+    int pa = mms_map_virtual_to_physical(virtual_address, READ, use_apt);
     if (pa == -1)
     {
         return 0;
     }
-    return ReadPhysicalMemory(pa, false);
+    return mms_read_physical_memory(pa, false);
 }
 
 // Read indirect from virtual memory (used only for effective address calculation)
-int ReadIndirectVirtualMemory(uint32_t virtual_address, bool use_apt)
+int mms_read_indirect_virtual_memory(uint32_t virtual_address, bool use_apt)
 {
-    int pa = mapVirtualToPhysical(virtual_address, READ_FETCH, use_apt);
+    int pa = mms_map_virtual_to_physical(virtual_address, READ_FETCH, use_apt);
     if (pa == -1)
     {
         return 0;
     }
-    return ReadPhysicalMemory(pa, false);
+    return mms_read_physical_memory(pa, false);
 }
 
 // Fetch from virtual memory
-int FetchVirtualMemory(uint32_t virtual_address, bool use_apt)
+int mms_fetch_virtual_memory(uint32_t virtual_address, bool use_apt)
 {
-    int pa = mapVirtualToPhysical(virtual_address, FETCH, use_apt);
+    int pa = mms_map_virtual_to_physical(virtual_address, FETCH, use_apt);
     if (pa == -1)
     {
         return 0;
     }
-    return ReadPhysicalMemory(pa, false);
+    return mms_read_physical_memory(pa, false);
 }
 
 // Write to virtual memory
-void WriteVirtualMemory(uint32_t virtual_address, uint16_t value, bool use_apt, WriteMode wm)
+void mms_write_virtual_memory(uint32_t virtual_address, uint16_t value, bool use_apt, WriteMode wm)
 {
     if (g_disasm)
     {
         disasm_set_isdata(virtual_address);
     }
 
-    int pa = mapVirtualToPhysical(virtual_address, WRITE, use_apt);
+    int pa = mms_map_virtual_to_physical(virtual_address, WRITE, use_apt);
     /* TRACE: detect writes to VA 0x2F9D (_ov_saved_l_bss) - disabled */
     if (pa == -1)
     {
         return;
     }
-    WritePhysicalMemoryWM(pa, value, false, wm);
+    mms_write_physical_memory_wm(pa, value, false, wm);
 }
 
 
@@ -906,7 +907,7 @@ void WriteVirtualMemory(uint32_t virtual_address, uint16_t value, bool use_apt, 
 // documented STUB at ND_MPM5_WINDOW_*, above installed RAM at the default size),
 // then plain local ND-100 RAM. Only LOCAL RAM (KMECCR) is ECC/parity checked, so
 // this gates the parity path exactly like RetroCore's CheckECCR.
-NDMemoryType GetPhysicalMemoryType(uint32_t physical_word_address)
+NDMemoryType mms_get_physical_memory_type(uint32_t physical_word_address)
 {
     // ND-500 MPM5 shared-memory window (3022/5015 Port-A). Highest priority.
     if ((physical_word_address >= ND_MPM5_WINDOW_START_WORD) &&
@@ -967,7 +968,7 @@ static void nd_ecc_write_latch(int physical_address)
     {
         return;
     }
-    if (GetPhysicalMemoryType((uint32_t)physical_address) != ND_MEM_LOCAL)
+    if (mms_get_physical_memory_type((uint32_t)physical_address) != ND_MEM_LOCAL)
     {
         return;
     }
@@ -1007,7 +1008,7 @@ static void nd_ecc_read_detect(int physical_address)
         return; // DisableECC gates DETECTION only
     }
 
-    if (GetPhysicalMemoryType((uint32_t)physical_address) != ND_MEM_LOCAL)
+    if (mms_get_physical_memory_type((uint32_t)physical_address) != ND_MEM_LOCAL)
     {
         return;
     }
@@ -1072,18 +1073,18 @@ static void nd_ecc_read_detect(int physical_address)
     {
         tmp_pes |= 1 << 13; // FATAL ERROR (multiple bits)
     }
-    setPEA(tmp_pea);
-    setPES(tmp_pes);
+    cpu_set_pea(tmp_pea);
+    cpu_set_pes(tmp_pes);
     // Consume the per-address latch (the read corrects/clears that word's bad ECC).
     if (latched != 0)
     {
         g_ecc_latch[physical_address] = 0;
     }
-    interrupt(14, 1 << 8); // PTY - MEMORY_PARITY_ERROR bit 8
+    cpu_interrupt(14, 1 << 8); // PTY - MEMORY_PARITY_ERROR bit 8
 }
 
 // Read from physical memory
-int ReadPhysicalMemory(int physical_address, bool privileged)
+int mms_read_physical_memory(int physical_address, bool privileged)
 {
     if (physical_address < 0)
     {
@@ -1092,22 +1093,22 @@ int ReadPhysicalMemory(int physical_address, bool privileged)
 
 #ifdef WITH_DEBUGGER
     if (g_phys_watchpoint_count > 0 && phys_watchpoint_page_armed((uint32_t)physical_address) &&
-        phys_watchpoint_check((uint32_t)physical_address, false))
+        bkpt_phys_watchpoint_check((uint32_t)physical_address, false))
     {
         cpu_watchpoint_triggered((uint32_t)physical_address, false);
     }
 #endif
 
-    if (IsAddressShadowMemory(physical_address, privileged))
+    if (mms_is_address_shadow_memory(physical_address, privileged))
     {
-        int tmp = PT_Read(physical_address);
+        int tmp = mms_read(physical_address);
         return tmp;
     }
 
     // Check memory bounds
     if (((uint32_t)physical_address >= g_nd_memsize) || (physical_address < 0))
     {
-        HandleMemoryOutOfRange(physical_address);
+        mms_handle_memory_out_of_range(physical_address);
         return 0x00;
     }
 
@@ -1116,42 +1117,43 @@ int ReadPhysicalMemory(int physical_address, bool privileged)
 }
 
 // Wrapper for WritePhysicalMemoryWM to write a word (16 bits)
-void WritePhysicalMemory(int physical_address, uint16_t value, bool privileged)
+void mms_write_physical_memory(int physical_address, uint16_t value, bool privileged)
 {
-    WritePhysicalMemoryWM(physical_address, value, privileged, WRITEMODE_WORD);
+    mms_write_physical_memory_wm(physical_address, value, privileged, WRITEMODE_WORD);
 }
 
 
 // Write to physical memory (with writemode to handle MSB/LSB/WORD)
-void WritePhysicalMemoryWM(int physical_address, uint16_t value, bool privileged, WriteMode wm)
+void mms_write_physical_memory_wm(int physical_address, uint16_t value, bool privileged,
+                                  WriteMode wm)
 {
 #ifdef WITH_DEBUGGER
     if (g_phys_watchpoint_count > 0 && phys_watchpoint_page_armed((uint32_t)physical_address) &&
-        phys_watchpoint_check((uint32_t)physical_address, true))
+        bkpt_phys_watchpoint_check((uint32_t)physical_address, true))
     {
         cpu_watchpoint_triggered((uint32_t)physical_address, true);
     }
 #endif
 
-    if (IsAddressShadowMemory(physical_address, privileged))
+    if (mms_is_address_shadow_memory(physical_address, privileged))
     {
         switch (wm)
         {
         case WRITEMODE_MSB:
         {
-            uint16_t cur = PT_Read(physical_address);
-            PT_Write(physical_address, (cur & 0xFF) | (value << 8));
+            uint16_t cur = mms_read(physical_address);
+            mms_write(physical_address, (cur & 0xFF) | (value << 8));
         }
         break;
         case WRITEMODE_LSB:
         {
-            uint16_t cur = PT_Read(physical_address);
-            PT_Write(physical_address, (cur & 0xFF00) | (value & 0xFF));
+            uint16_t cur = mms_read(physical_address);
+            mms_write(physical_address, (cur & 0xFF00) | (value & 0xFF));
         }
         break;
         case WRITEMODE_WORD:
         default:
-            PT_Write(physical_address, value);
+            mms_write(physical_address, value);
             break;
         }
         return;
@@ -1160,7 +1162,7 @@ void WritePhysicalMemoryWM(int physical_address, uint16_t value, bool privileged
     // Check memory bounds
     if (((uint32_t)physical_address >= g_nd_memsize) || (physical_address < 0))
     {
-        HandleMemoryOutOfRange(physical_address);
+        mms_handle_memory_out_of_range(physical_address);
         return;
     }
 
@@ -1193,17 +1195,17 @@ void WritePhysicalMemoryWM(int physical_address, uint16_t value, bool privileged
 
 // Handle memory out of range error
 
-void HandleMemoryOutOfRange(uint32_t physical_address)
+void mms_handle_memory_out_of_range(uint32_t physical_address)
 {
-    setPEA(physical_address & 0xFFFF);
-    setPES((physical_address >> 16) & 0xFF);
+    cpu_set_pea(physical_address & 0xFFFF);
+    cpu_set_pes((physical_address >> 16) & 0xFF);
 
-    interrupt(14, 1 << 9); // Memory out of range
+    cpu_interrupt(14, 1 << 9); // Memory out of range
 }
 
 /// @brief Handle memory protection violation. Will TRAP the instruction
 /// @param virtualAddress
-void HandleMPV(uint32_t virtual_address)
+void mms_handle_mpv(uint32_t virtual_address)
 {
     if (ND100X_HOT_TRACE && Log_IsEnabled(LOG_CAT_MMS, LOG_TRACE))
     {
@@ -1225,22 +1227,22 @@ void HandleMPV(uint32_t virtual_address)
                 pt = ((pcr & (1 << 2)) && (g_mms_type == MMS2)) ? (pcr >> 11) & 0xF
                                                                 : (pcr >> 9) & 0x3;
             }
-            uint32_t pte = GetPageTableEntry(pt, vpn, Sixteen);
-            Log_Write(LOG_CAT_MMS, LOG_TRACE,
+            uint32_t pte = mms_get_page_table_entry(pt, vpn, Sixteen);
+            log_write(LOG_CAT_MMS, LOG_TRACE,
                       "HandleMPV: VA=%06o VPN=%d PT=%d PTe=0x%08X PIL=%d PC=%06o", virtual_address,
                       vpn, pt, pte, CURR_LEVEL, gPC);
         }
         mpv_count++;
     }
-    interrupt(14, 1 << 2);
+    cpu_interrupt(14, 1 << 2);
 }
 
 /// @brief Handle page fault. Will TRAP the instruction
 /// @param virtualAddress
-void HandlePF(uint32_t virtual_address)
+void mms_handle_pf(uint32_t virtual_address)
 {
     (void)virtual_address;
-    interrupt(14, 1 << 3); // PF - PAGE_FAULT bit 3
+    cpu_interrupt(14, 1 << 3); // PF - PAGE_FAULT bit 3
 }
 
 // ---------------------------------------------------------------------------
@@ -1301,7 +1303,7 @@ static int dbg_map_virtual_to_physical(uint32_t virtual_address, bool use_apt, i
     uint8_t ring = pcr & 0x03;
 
     // Ring 3 shadow RAM access (same check as mapVirtualToPhysical)
-    if ((ring == 3) && (IsAddressShadowMemory(virtual_address, false)))
+    if ((ring == 3) && (mms_is_address_shadow_memory(virtual_address, false)))
     {
         return (int)virtual_address;
     }
@@ -1346,7 +1348,7 @@ static int dbg_map_virtual_to_physical(uint32_t virtual_address, bool use_apt, i
         }
     }
 
-    uint32_t page_table_entry = GetPageTableEntry(page_table, vpn, ptm);
+    uint32_t page_table_entry = mms_get_page_table_entry(page_table, vpn, ptm);
 
     // Check if page is present (any permission bit set)
     if ((page_table_entry & (7L << 29)) == 0)

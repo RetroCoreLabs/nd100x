@@ -363,7 +363,7 @@ static void *debugger_thread(void *arg)
 #endif
 
     int port = gDebuggerPort > 0 ? gDebuggerPort : 4711;
-    int ret = ndx_server_init(port);
+    int ret = debugger_ndx_server_init(port);
     if (ret != 0)
     {
         LOG(LOG_CAT_DAP, LOG_ERROR, "Failed to initialize DAP server\n");
@@ -391,7 +391,7 @@ static void *debugger_thread(void *arg)
     }
 
     // Make sure CPU exits
-    set_cpu_run_mode(CPU_SHUTDOWN);
+    cpu_set_run_mode(CPU_SHUTDOWN);
 
     // Stop the server and transport
     dap_server_stop(g_dap_server);
@@ -402,7 +402,7 @@ static void *debugger_thread(void *arg)
     THREAD_RETURN(0);
 }
 
-void start_debugger(void)
+void debugger_start(void)
 {
     // Start the debugger thread via pthreads (libpthread on POSIX,
     // winpthreads on MinGW-w64 under Windows).
@@ -411,7 +411,7 @@ void start_debugger(void)
 
 /// @brief Terminate the DAP server
 /// @param exit_code
-void ndx_server_terminate(int sig)
+void debugger_ndx_server_terminate(int sig)
 {
     (void)sig;
 
@@ -420,7 +420,7 @@ void ndx_server_terminate(int sig)
 }
 
 /// @brief Stop the DAP server thread
-void stop_debugger_thread(void)
+void debugger_stop_thread(void)
 {
     // Signal the thread to exit
     atomic_store(&debugger_thread_should_exit, true);
@@ -438,17 +438,17 @@ void stop_debugger_thread(void)
 /* WASM: Initialize DAP server struct in-process, no thread/transport */
 static int ndx_server_init_wasm(void);
 
-void start_debugger(void)
+void debugger_start(void)
 {
     ndx_server_init_wasm();
 }
 
-void ndx_server_terminate(int sig)
+void debugger_ndx_server_terminate(int sig)
 {
     (void)sig;
 }
 
-void stop_debugger_thread(void)
+void debugger_stop_thread(void)
 {
     /* no thread to stop */
 }
@@ -488,22 +488,22 @@ static int cmd_wait_for_debugger(DAPServer *server)
 #ifdef __EMSCRIPTEN__
     /* WASM: single-threaded, just request pause */
     (void)server;
-    set_debugger_request_pause(true);
-    set_debugger_control_granted(true);
+    cpu_set_debugger_request_pause(true);
+    cpu_set_debugger_control_granted(true);
     return 0;
 #else
     int cnt = 0;
     int max_cnt = 10000; // 10000 * 1ms = 10s
     // Tell CPU thread we want it to pause
-    if (get_cpu_run_mode() == CPU_SHUTDOWN)
+    if (cpu_get_run_mode() == CPU_SHUTDOWN)
     {
         return -1; // CPU is shutting down, no need to pause
     }
 
-    set_debugger_request_pause(true);
+    cpu_set_debugger_request_pause(true);
 
     // Now wait until CPU acknowledges and grants control
-    while (!get_debugger_control_granted())
+    while (!cpu_get_debugger_control_granted())
     {
         sleep_ms(1); // small sleep to avoid busy spin (1ms)
         cnt++;
@@ -522,10 +522,10 @@ static int cmd_release_debugger(DAPServer *server)
 {
     (void)server;
     // Release debugger's request to pause (let CPU decide to run/step)
-    set_debugger_request_pause(false);
+    cpu_set_debugger_request_pause(false);
 
     // Notify CPU thread that debugger control is released
-    set_debugger_control_granted(false);
+    cpu_set_debugger_control_granted(false);
 
     return 0;
 }
@@ -535,7 +535,7 @@ static int cmd_check_cpu_events(DAPServer *server)
     // Flush any buffered console output (from CPU thread ring buffers)
     flush_console_output();
 
-    CpuStopReason reason = get_cpu_stop_reason();
+    CpuStopReason reason = cpu_get_stop_reason();
     if (reason != STOP_REASON_NONE)
     {
         const char *dap_reason_str = cpu_stop_reason_to_string(reason);
@@ -577,7 +577,7 @@ static int cmd_check_cpu_events(DAPServer *server)
         {
             server->debugger_state.has_stopped = true;
             // Message sent successfully, now clear the stop reason
-            set_cpu_stop_reason(STOP_REASON_NONE);
+            cpu_set_stop_reason(STOP_REASON_NONE);
             // Log to console with detailed info
             dap_server_send_output_category(server, DAP_OUTPUT_CONSOLE, description);
         }
@@ -588,11 +588,11 @@ static int cmd_check_cpu_events(DAPServer *server)
 
 static void ensure_cpu_running(void)
 {
-    CPURunMode run_mode = get_cpu_run_mode();
+    CPURunMode run_mode = cpu_get_run_mode();
     if ((run_mode == CPU_PAUSED) || (run_mode == CPU_BREAKPOINT))
     {
         // CPU is paused, so we need to resume it
-        set_cpu_run_mode(CPU_RUNNING);
+        cpu_set_run_mode(CPU_RUNNING);
 #ifndef __EMSCRIPTEN__
         dap_server_send_output_category(g_dap_server, DAP_OUTPUT_CONSOLE,
                                         "Switched CPU to running mode\n");
@@ -709,7 +709,7 @@ static uint16_t get_jpl_target_address(uint16_t pc, uint16_t operand)
 
 /// @brief Find the memory address of the return address of the current stack frame.
 /// @return The memory address of the return address of the current stack frame. -1 if no return address is found.
-int32_t find_stack_return_address(void)
+int32_t debugger_find_stack_return_address(void)
 {
     // Check if we have any frames at all
     if (s_stack_trace.frame_count == 0)
@@ -819,7 +819,7 @@ void debugger_build_stack_trace(uint16_t pc, uint16_t operand)
 /// @param server The DAP server instance
 /// @param step_type The type of step to take
 /// @return 0 on success, -1 on failure
-int step_cpu(DAPServer *server, StepType step_type)
+int debugger_step_cpu(DAPServer *server, StepType step_type)
 {
     if (!server)
     {
@@ -849,7 +849,7 @@ int step_cpu(DAPServer *server, StepType step_type)
                 return -1;
             }
 
-            breakpoint_manager_add(return_address, BP_TYPE_TEMPORARY, NULL, NULL, NULL);
+            bkpt_manager_add(return_address, BP_TYPE_TEMPORARY, NULL, NULL, NULL);
             ensure_cpu_running();
             return 0;
         }
@@ -858,7 +858,7 @@ int step_cpu(DAPServer *server, StepType step_type)
         if (cpu_instruction_is_jump())
         {
             // Tell breakpoint manager to step one instruction
-            breakpoint_manager_step_one();
+            bkpt_manager_step_one();
             ensure_cpu_running();
             return 0;
         }
@@ -894,7 +894,7 @@ int step_cpu(DAPServer *server, StepType step_type)
                      "Stepping over function call, return at %06o\n", return_addr);
             dap_server_send_output_category(server, DAP_OUTPUT_CONSOLE, log_message);
 
-            breakpoint_manager_add(return_addr, BP_TYPE_TEMPORARY, NULL, NULL, NULL);
+            bkpt_manager_add(return_addr, BP_TYPE_TEMPORARY, NULL, NULL, NULL);
             ensure_cpu_running();
             return 0;
         }
@@ -968,12 +968,12 @@ int step_cpu(DAPServer *server, StepType step_type)
 
             // Use the CPU's breakpoint system to set a temporary breakpoint
             // This breakpoint will be automatically removed when hit
-            breakpoint_manager_add(target_pc, BP_TYPE_TEMPORARY, NULL, NULL, NULL);
+            bkpt_manager_add(target_pc, BP_TYPE_TEMPORARY, NULL, NULL, NULL);
         }
         else
         {
             // Tell breakpoint manager to step one instruction
-            breakpoint_manager_step_one();
+            bkpt_manager_step_one();
         }
 
         ensure_cpu_running();
@@ -1069,7 +1069,7 @@ int step_cpu(DAPServer *server, StepType step_type)
                         dap_server_send_output_category(server, DAP_OUTPUT_CONSOLE, log_message);
 
                         // Set temporary breakpoint at function entry
-                        breakpoint_manager_add(call_target, BP_TYPE_TEMPORARY, NULL, NULL, NULL);
+                        bkpt_manager_add(call_target, BP_TYPE_TEMPORARY, NULL, NULL, NULL);
                         ensure_cpu_running();
                         return 0;
                     }
@@ -1079,7 +1079,7 @@ int step_cpu(DAPServer *server, StepType step_type)
                              "Stepping into function at %06o (no source info)\n", call_target);
                     dap_server_send_output_category(server, DAP_OUTPUT_CONSOLE, log_message);
 
-                    breakpoint_manager_add(call_target, BP_TYPE_TEMPORARY, NULL, NULL, NULL);
+                    bkpt_manager_add(call_target, BP_TYPE_TEMPORARY, NULL, NULL, NULL);
                     ensure_cpu_running();
                     return 0;
                 }
@@ -1093,7 +1093,7 @@ int step_cpu(DAPServer *server, StepType step_type)
                          next_line_addr);
                 dap_server_send_output_category(server, DAP_OUTPUT_CONSOLE, log_message);
 
-                breakpoint_manager_add(next_line_addr, BP_TYPE_TEMPORARY, NULL, NULL, NULL);
+                bkpt_manager_add(next_line_addr, BP_TYPE_TEMPORARY, NULL, NULL, NULL);
                 ensure_cpu_running();
                 return 0;
             }
@@ -1104,7 +1104,7 @@ int step_cpu(DAPServer *server, StepType step_type)
                  current_pc);
         dap_server_send_output_category(server, DAP_OUTPUT_CONSOLE, log_message);
 
-        breakpoint_manager_step_one();
+        bkpt_manager_step_one();
         ensure_cpu_running();
         return 0;
     }
@@ -1141,7 +1141,7 @@ int step_cpu(DAPServer *server, StepType step_type)
             snprintf(log_message, sizeof(log_message),
                      "Stepping out of csav to function body at %06o\n", return_addr);
             dap_server_send_output_category(server, DAP_OUTPUT_CONSOLE, log_message);
-            breakpoint_manager_add(return_addr, BP_TYPE_TEMPORARY, NULL, NULL, NULL);
+            bkpt_manager_add(return_addr, BP_TYPE_TEMPORARY, NULL, NULL, NULL);
             ensure_cpu_running();
             return 0;
         }
@@ -1155,7 +1155,7 @@ int step_cpu(DAPServer *server, StepType step_type)
             snprintf(log_message, sizeof(log_message), "Stepping out of cret to caller at %06o\n",
                      return_addr);
             dap_server_send_output_category(server, DAP_OUTPUT_CONSOLE, log_message);
-            breakpoint_manager_add(return_addr, BP_TYPE_TEMPORARY, NULL, NULL, NULL);
+            bkpt_manager_add(return_addr, BP_TYPE_TEMPORARY, NULL, NULL, NULL);
             ensure_cpu_running();
             return 0;
         }
@@ -1248,7 +1248,7 @@ int step_cpu(DAPServer *server, StepType step_type)
         {
             snprintf(log_message, sizeof(log_message), "Stepping out to %06o\n", return_addr);
             dap_server_send_output_category(server, DAP_OUTPUT_CONSOLE, log_message);
-            breakpoint_manager_add(return_addr, BP_TYPE_TEMPORARY, NULL, NULL, NULL);
+            bkpt_manager_add(return_addr, BP_TYPE_TEMPORARY, NULL, NULL, NULL);
             ensure_cpu_running();
             return 0;
         }
@@ -1316,7 +1316,7 @@ static void free_source_references(void)
  */
 static int cmd_next(DAPServer *server)
 {
-    return step_cpu(server, STEP_OVER);
+    return debugger_step_cpu(server, STEP_OVER);
 }
 
 /**
@@ -1330,7 +1330,7 @@ static int cmd_next(DAPServer *server)
  */
 static int cmd_step_in(DAPServer *server)
 {
-    return step_cpu(server, STEP_IN);
+    return debugger_step_cpu(server, STEP_IN);
 }
 
 /**
@@ -1343,17 +1343,17 @@ static int cmd_step_in(DAPServer *server)
  */
 static int cmd_step_out(DAPServer *server)
 {
-    return step_cpu(server, STEP_OUT);
+    return debugger_step_cpu(server, STEP_OUT);
 }
 
 static int cmd_continue(DAPServer *server)
 {
     (void)server;
 
-    CPURunMode run_mode = get_cpu_run_mode();
+    CPURunMode run_mode = cpu_get_run_mode();
     if ((run_mode == CPU_PAUSED) || (run_mode == CPU_BREAKPOINT))
     {
-        set_cpu_run_mode(CPU_RUNNING);
+        cpu_set_run_mode(CPU_RUNNING);
         return 0;
     }
 
@@ -2159,7 +2159,7 @@ static char *get_page_table_entry_info(uint32_t p_te)
     return debug_info;
 }
 
-char *GetPageTableMemoryRange(uint32_t p_te)
+char *debugger_get_page_table_memory_range(uint32_t p_te)
 {
     static char debug_info[256];
     debug_info[0] = '\0';
@@ -2278,7 +2278,7 @@ static void add_page_table_entries(DAPServer *server, char *info_message, size_t
 
     for (int vpn = 0; vpn < 64; vpn++)
     {
-        uint32_t page_table_entry = GetPageTableEntry(pt, vpn, ptm);
+        uint32_t page_table_entry = mms_get_page_table_entry(pt, vpn, ptm);
 
         char vpn_str[32];
         snprintf(vpn_str, sizeof(vpn_str), "%d", vpn);
@@ -2419,8 +2419,8 @@ static int cmd_variables(DAPServer *server)
 /// @param memory_reference Memory reference of the frame
 /// @param entry_point Entry point of the frame
 /// @return 0 on success, -1 on failure
-void update_stack_frame(DAPServer *server, int frame_index, int frame_id, uint16_t memory_reference,
-                        uint16_t entry_point)
+void debugger_update_stack_frame(DAPServer *server, int frame_index, int frame_id,
+                                 uint16_t memory_reference, uint16_t entry_point)
 {
     // Initialize the frame
     DAPStackFrame *frame = &server->current_command.context.stack_trace.frames[frame_index];
@@ -2988,7 +2988,7 @@ static int cmd_set_breakpoints(DAPServer *server)
     LOG(LOG_CAT_DAP, LOG_DEBUG, "Setting %d breakpoints in %s\n", breakpoint_count, source_path);
 
     // Clear existing source (user) breakpoints only, preserve instruction/function/data BPs
-    breakpoint_manager_clear_type(BP_TYPE_USER);
+    bkpt_manager_clear_type(BP_TYPE_USER);
 
     // Process each breakpoint
     for (int i = 0; i < breakpoint_count; i++)
@@ -3067,11 +3067,11 @@ static int cmd_set_breakpoints(DAPServer *server)
         bp->verified = true;
 
         // Add the breakpoint to the manager
-        breakpoint_manager_add(address,           // Memory address
-                               BP_TYPE_USER,      // Type of breakpoint
-                               bp->condition,     // Optional condition expression
-                               bp->hit_condition, // Optional hit condition
-                               bp->log_message    // Optional log message
+        bkpt_manager_add(address,           // Memory address
+                         BP_TYPE_USER,      // Type of breakpoint
+                         bp->condition,     // Optional condition expression
+                         bp->hit_condition, // Optional hit condition
+                         bp->log_message    // Optional log message
         );
 
         // Log the breakpoint addition
@@ -3104,23 +3104,22 @@ static int cmd_set_instruction_breakpoints(DAPServer *server)
     if (count <= 0)
     {
         // Clear instruction breakpoints only, preserve source/function/data BPs
-        breakpoint_manager_clear_type(BP_TYPE_INSTRUCTION);
+        bkpt_manager_clear_type(BP_TYPE_INSTRUCTION);
         dap_server_send_output_category(server, DAP_OUTPUT_CONSOLE,
                                         "Cleared all instruction breakpoints\n");
         return 0;
     }
 
     // Clear existing instruction breakpoints and set new ones
-    breakpoint_manager_clear_type(BP_TYPE_INSTRUCTION);
+    bkpt_manager_clear_type(BP_TYPE_INSTRUCTION);
 
     for (int i = 0; i < count; i++)
     {
         uint16_t address = (uint16_t)(ctx->addresses[i] + (ctx->offsets ? ctx->offsets[i] : 0));
 
-        breakpoint_manager_add(address, BP_TYPE_INSTRUCTION,
-                               ctx->conditions ? ctx->conditions[i] : NULL,
-                               NULL, // hit condition
-                               NULL  // log message
+        bkpt_manager_add(address, BP_TYPE_INSTRUCTION, ctx->conditions ? ctx->conditions[i] : NULL,
+                         NULL, // hit condition
+                         NULL  // log message
         );
 
         ctx->breakpoints[i].verified = true;
@@ -3302,8 +3301,8 @@ static int cmd_set_data_breakpoints(DAPServer *server)
     int count = ctx->breakpoint_count;
 
     // Always clear existing watchpoints first (DAP spec: setDataBreakpoints replaces all)
-    watchpoint_clear();
-    phys_watchpoint_clear();
+    bkpt_watchpoint_clear();
+    bkpt_phys_watchpoint_clear();
 
     if (count <= 0)
     {
@@ -3384,11 +3383,11 @@ static int cmd_set_data_breakpoints(DAPServer *server)
         int result;
         if (is_physical)
         {
-            result = phys_watchpoint_add((uint32_t)val, wp_type, wp_pil);
+            result = bkpt_phys_watchpoint_add((uint32_t)val, wp_type, wp_pil);
         }
         else
         {
-            result = watchpoint_add((uint16_t)(val & 0xFFFF), wp_type, wp_space, wp_pil);
+            result = bkpt_watchpoint_add((uint16_t)(val & 0xFFFF), wp_type, wp_space, wp_pil);
         }
 
         if (result < 0)
@@ -3646,8 +3645,8 @@ static int cmd_launch_callback(DAPServer *server)
             LOG(LOG_CAT_DAP, LOG_DEBUG, "Attempting to load a.out program: %s\n", program_path);
             dap_server_send_output_category(server, DAP_OUTPUT_CONSOLE,
                                             "Loading a.out program...\n");
-            if (program_load(BOOT_AOUT, 0, program_path, true,
-                             (uint16_t)server->debugger_state.text_start, false) < 0)
+            if (machine_program_load(BOOT_AOUT, 0, program_path, true,
+                                     (uint16_t)server->debugger_state.text_start, false) < 0)
             {
                 dap_server_send_output_category(server, DAP_OUTPUT_CONSOLE,
                                                 "Loading the a.out program failed.\n");
@@ -3838,14 +3837,14 @@ static int cmd_launch_callback(DAPServer *server)
     {
         dap_server_send_stopped_event(server, "entry", "Stopped at program entry");
         LOG(LOG_CAT_DAP, LOG_DEBUG, "Stopped at entry point\n");
-        set_cpu_run_mode(CPU_PAUSED);
-        set_cpu_stop_reason(STOP_REASON_ENTRY);
+        cpu_set_run_mode(CPU_PAUSED);
+        cpu_set_stop_reason(STOP_REASON_ENTRY);
     }
     else
     {
         // Send thread started event
         dap_server_send_thread_event(server, "started", 1);
-        set_cpu_run_mode(CPU_RUNNING);
+        cpu_set_run_mode(CPU_RUNNING);
         // Keep libdap's view in sync with the CPU: attach set has_stopped=true,
         // and only 'continue' clears it. Launching without stop-on-entry leaves
         // the CPU genuinely running, so clear it here too -- otherwise a later
@@ -3905,7 +3904,7 @@ static int cmd_restart(DAPServer *server)
     cJSON_Delete(body);
 
     // Clear breakpoints
-    breakpoint_manager_clear();
+    bkpt_manager_clear();
 
     // Reset CPU state
     cpu_reset();
@@ -3938,7 +3937,7 @@ static int cmd_disconnect(DAPServer *server)
     if (server->current_command.context.disconnect.terminate_debuggee)
     {
         // Kill your process/emulator/thread safely
-        set_cpu_run_mode(CPU_SHUTDOWN);
+        cpu_set_run_mode(CPU_SHUTDOWN);
     }
     else
     {
@@ -3948,7 +3947,7 @@ static int cmd_disconnect(DAPServer *server)
         // DOWN"), so every client disconnect killed the emulator even when
         // the client asked terminateDebuggee=false. Resume instead; a new
         // client can re-attach later.
-        set_cpu_run_mode(CPU_RUNNING);
+        cpu_set_run_mode(CPU_RUNNING);
     }
 
     return 0;
@@ -3980,7 +3979,7 @@ static int cmd_terminate(DAPServer *server)
     // 2. Free any target-specific resources (RAM, CPU, threads, memory mappings, file handles...)
     // Here we do:
     // Set the CPU run mode to paused
-    set_cpu_run_mode(CPU_PAUSED);
+    cpu_set_run_mode(CPU_PAUSED);
     return 0;
 }
 
@@ -4131,7 +4130,7 @@ static int cmd_set_function_breakpoints(DAPServer *server)
     int count = server->current_command.context.function_breakpoint.count;
 
     /* Clear existing function breakpoints only, preserve source/instruction/data BPs */
-    breakpoint_manager_clear_type(BP_TYPE_FUNCTION);
+    bkpt_manager_clear_type(BP_TYPE_FUNCTION);
 
     /* Allocate result array */
     DAPBreakpoint *results = calloc(count, sizeof(DAPBreakpoint));
@@ -4172,7 +4171,7 @@ static int cmd_set_function_breakpoints(DAPServer *server)
                         server->current_command.context.function_breakpoint.hit_conditions
                             ? server->current_command.context.function_breakpoint.hit_conditions[i]
                             : NULL;
-                    breakpoint_manager_add(addr, BP_TYPE_FUNCTION, cond, hit_cond, NULL);
+                    bkpt_manager_add(addr, BP_TYPE_FUNCTION, cond, hit_cond, NULL);
                     results[i].verified = true;
                     results[i].line = addr;
                     break;
@@ -4204,7 +4203,7 @@ static int cmd_set_function_breakpoints(DAPServer *server)
                         server->current_command.context.function_breakpoint.hit_conditions
                             ? server->current_command.context.function_breakpoint.hit_conditions[i]
                             : NULL;
-                    breakpoint_manager_add(addr, BP_TYPE_FUNCTION, cond, hit_cond, NULL);
+                    bkpt_manager_add(addr, BP_TYPE_FUNCTION, cond, hit_cond, NULL);
                     results[i].verified = true;
                     results[i].line = addr;
                 }
@@ -4473,7 +4472,7 @@ static int cmd_source(DAPServer *server)
 }
 
 // cpu/cpu_disasm.c
-void OpToStr(char *return_string, uint16_t max_len, uint16_t operand);
+void disasm_op_to_str(char *return_string, uint16_t max_len, uint16_t operand);
 
 /// @brief DAP command to disassemble
 /// @param server
@@ -4518,7 +4517,7 @@ static void format_disasm_text(char *text, size_t text_size, int word)
         // Disassemble the instruction
         uint16_t operand = (uint16_t)word;
         char operand_str[50];
-        OpToStr(operand_str, sizeof(operand_str), operand);
+        disasm_op_to_str(operand_str, sizeof(operand_str), operand);
         snprintf(text, text_size, "%06o %s", operand, operand_str);
     }
 }
@@ -4584,7 +4583,7 @@ static int cmd_disassemble(DAPServer *server)
             instruction->symbol = NULL;
             if (resolve_symbols)
             {
-                const char *sym = get_symbol_for_address(virtual_address);
+                const char *sym = debugger_get_symbol_for_address(virtual_address);
                 if (sym)
                 {
                     instruction->symbol = strdup(sym);
@@ -4717,7 +4716,7 @@ static int cmd_console_enable(DAPServer *server)
             return -1;
         }
 
-        Device *dev = DeviceManager_GetDeviceByAddress(addr);
+        Device *dev = devmgr_get_device_by_address(addr);
         if (!dev)
         {
             return -1;
@@ -4732,7 +4731,7 @@ static int cmd_console_enable(DAPServer *server)
         cap->ring_head = 0;
         cap->ring_tail = 0;
 
-        Device_SetCharacterOutput(dev, debugger_console_output);
+        dev_set_character_output(dev, debugger_console_output);
     }
     else
     {
@@ -4741,8 +4740,8 @@ static int cmd_console_enable(DAPServer *server)
         {
             if (console_captures[i].terminal_address == addr)
             {
-                Device_SetCharacterOutput(console_captures[i].device,
-                                          console_captures[i].original_output);
+                dev_set_character_output(console_captures[i].device,
+                                         console_captures[i].original_output);
                 // Remove from array by shifting
                 for (int j = i; j < console_capture_count - 1; j++)
                 {
@@ -4768,7 +4767,7 @@ static int cmd_console_write(DAPServer *server)
     ConsoleWriteContext *ctx = &server->current_command.context.console_write;
     int addr = ctx->terminal;
 
-    Device *dev = DeviceManager_GetDeviceByAddress(addr);
+    Device *dev = devmgr_get_device_by_address(addr);
     if (!dev)
     {
         return -1;
@@ -4786,7 +4785,7 @@ static int cmd_console_write(DAPServer *server)
                 unsigned int byte_val;
                 if (sscanf(hex, "%02x", &byte_val) == 1)
                 {
-                    Terminal_QueueKeyCode(dev, (uint8_t)byte_val);
+                    terminal_queue_key_code(dev, (uint8_t)byte_val);
                 }
                 p += 2;
             }
@@ -4802,7 +4801,7 @@ static int cmd_console_write(DAPServer *server)
         const char *p = ctx->input;
         while (*p)
         {
-            Terminal_QueueKeyCode(dev, (uint8_t)*p);
+            terminal_queue_key_code(dev, (uint8_t)*p);
             p++;
         }
     }
@@ -4959,7 +4958,7 @@ static int cmd_symbol_list(DAPServer *server)
 /// @details This function initializes the DAP server.
 /// It creates a new DAP server instance and registers the necessary callbacks.
 /// It then starts the server and returns the result.
-int ndx_server_init(int port)
+int debugger_ndx_server_init(int port)
 {
     // Initialize DAP server
     DAPServerConfig config = {
@@ -5074,7 +5073,7 @@ int ndx_server_init(int port)
     return 0;
 }
 
-int ndx_server_stop(void)
+int debugger_ndx_server_stop(void)
 {
     if (!g_dap_server)
     {
@@ -5092,13 +5091,13 @@ void debugger_kbd_input(char c)
 
     if (c == 'q')
     {
-        set_cpu_run_mode(CPU_SHUTDOWN);
+        cpu_set_run_mode(CPU_SHUTDOWN);
     }
 
     // Print the current PC and run mode
     if (c == '.')
     {
-        int run_mode = get_cpu_run_mode();
+        int run_mode = cpu_get_run_mode();
 
         printf("P=%6o  RunMode=%d\n", gPC, run_mode);
     }
@@ -5113,7 +5112,7 @@ void debugger_kbd_input(char c)
     // Disassemble the instruction at the current PC
     if (c == 'd')
     {
-        int run_mode = get_cpu_run_mode();
+        int run_mode = cpu_get_run_mode();
         printf("P=%6o  RunMode=%d\n\n", gPC, run_mode);
 
         int virtual_address = gPC;
@@ -5129,11 +5128,11 @@ void debugger_kbd_input(char c)
 
             // Disassemble the instruction
             char operand_str[50];
-            OpToStr(operand_str, sizeof(operand_str), operand);
+            disasm_op_to_str(operand_str, sizeof(operand_str), operand);
 
             printf("%06o %s", operand, operand_str);
 
-            const char *sym = get_symbol_for_address(virtual_address);
+            const char *sym = debugger_get_symbol_for_address(virtual_address);
             if (sym)
             {
                 printf("    (%s)", sym);
@@ -5187,7 +5186,7 @@ static int ndx_server_init_wasm(void)
 }
 
 /// @brief Get the DAP server pointer for direct struct access
-DAPServer *dbg_get_server(void)
+DAPServer *debugger_dbg_get_server(void)
 {
     return g_dap_server;
 }
@@ -5233,7 +5232,7 @@ static char dbg_json_buf[32768];
 
 /// @brief Get scopes as JSON string
 /// @return JSON array of scope objects
-const char *dbg_get_scopes_json(void)
+const char *debugger_dbg_get_scopes_json(void)
 {
     if (!g_dap_server)
     {
@@ -5288,7 +5287,7 @@ const char *dbg_get_scopes_json(void)
 /// @brief Get variables for a scope as JSON string
 /// @param scope_id The scope/variables reference ID
 /// @return JSON array of variable objects
-const char *dbg_get_variables_json(int scope_id)
+const char *debugger_dbg_get_variables_json(int scope_id)
 {
     if (!g_dap_server)
     {
@@ -5331,7 +5330,7 @@ const char *dbg_get_variables_json(int scope_id)
 
 /// @brief Get stack trace as JSON string
 /// @return JSON array of stack frame objects
-const char *dbg_get_stack_trace_json(void)
+const char *debugger_dbg_get_stack_trace_json(void)
 {
     if (!g_dap_server)
     {
@@ -5398,7 +5397,7 @@ const char *dbg_get_stack_trace_json(void)
 
 /// @brief Get thread/runlevel info as JSON string
 /// @return JSON array of thread objects (16 runlevels)
-const char *dbg_get_threads_json(void)
+const char *debugger_dbg_get_threads_json(void)
 {
     int pos = 0;
     pos += snprintf(dbg_json_buf + pos, sizeof(dbg_json_buf) - pos, "[");
@@ -5437,35 +5436,35 @@ const char *dbg_get_threads_json(void)
 }
 
 /// @brief Step in (single instruction into calls)
-int dbg_step_in(void)
+int debugger_dbg_step_in(void)
 {
     if (!g_dap_server)
     {
         return -1;
     }
     g_dap_server->current_command.context.step.granularity = DAP_STEP_GRANULARITY_INSTRUCTION;
-    return step_cpu(g_dap_server, STEP_IN);
+    return debugger_step_cpu(g_dap_server, STEP_IN);
 }
 
 /// @brief Step over (step past calls)
-int dbg_step_over(void)
+int debugger_dbg_step_over(void)
 {
     if (!g_dap_server)
     {
         return -1;
     }
     g_dap_server->current_command.context.step.granularity = DAP_STEP_GRANULARITY_INSTRUCTION;
-    return step_cpu(g_dap_server, STEP_OVER);
+    return debugger_step_cpu(g_dap_server, STEP_OVER);
 }
 
 /// @brief Step out (run until return)
-int dbg_step_out(void)
+int debugger_dbg_step_out(void)
 {
     if (!g_dap_server)
     {
         return -1;
     }
-    return step_cpu(g_dap_server, STEP_OUT);
+    return debugger_step_cpu(g_dap_server, STEP_OUT);
 }
 
 #endif /* __EMSCRIPTEN__ */
@@ -5479,7 +5478,7 @@ int dbg_step_out(void)
  * @param address Memory address to look up
  * @return const char* Symbol name or NULL if not found
  */
-const char *find_symbol_by_address(symbol_table_t *symtab, uint16_t address)
+const char *debugger_find_symbol_by_address(symbol_table_t *symtab, uint16_t address)
 {
     if (!symtab)
     {
@@ -5501,9 +5500,9 @@ const char *find_symbol_by_address(symbol_table_t *symtab, uint16_t address)
  * @param address Memory address to look up
  * @return const char* Symbol name or NULL if not found
  */
-const char *get_symbol_for_address(uint16_t address)
+const char *debugger_get_symbol_for_address(uint16_t address)
 {
-    return find_symbol_by_address(s_symbol_tables.symbol_table_aout, address);
+    return debugger_find_symbol_by_address(s_symbol_tables.symbol_table_aout, address);
 }
 
 /**
@@ -5513,7 +5512,7 @@ const char *get_symbol_for_address(uint16_t address)
  * @param line Pointer to store the line number
  * @return const char* Source filename or NULL if not found
  */
-const char *get_source_location(uint16_t address, int *line)
+const char *debugger_get_source_location(uint16_t address, int *line)
 {
     if (!s_symbol_tables.symbol_table_map || !line)
     {
@@ -5571,18 +5570,18 @@ static int set_default_dap_capabilities(DAPServer *server)
 // Empty implementations when debugger is not enabled
 #ifndef WITH_DEBUGGER
 
-void start_debugger(void)
+void debugger_start(void)
 {
     // Do nothing when debugger is not enabled
 }
 
-int ndx_server_init(int port)
+int debugger_ndx_server_init(int port)
 {
     (void)port;
     return -1; // Not implemented
 }
 
-int ndx_server_stop(void)
+int debugger_ndx_server_stop(void)
 {
     return -1; // Not implemented
 }

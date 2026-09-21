@@ -158,7 +158,7 @@ typedef struct
  * @param regs Register file to initialize.
  * @return void.
  */
-void COM5025Registers_Init(COM5025Registers *regs);
+void com5025_reg_init(COM5025Registers *regs);
 
 /**
  * @brief Reset the register file fields (status/control registers, CRC
@@ -166,14 +166,14 @@ void COM5025Registers_Init(COM5025Registers *regs);
  * @param regs Register file to clear.
  * @return void.
  */
-void COM5025Registers_Clear(COM5025Registers *regs);
+void com5025_reg_clear(COM5025Registers *regs);
 
 /**
  * @brief Free every node still queued in the receive queue.
  * @param regs Register file to destroy the receive queue of.
  * @return void.
  */
-void COM5025Registers_Destroy(COM5025Registers *regs);
+void com5025_reg_destroy(COM5025Registers *regs);
 
 // Register access
 
@@ -183,7 +183,7 @@ void COM5025Registers_Destroy(COM5025Registers *regs);
  * @param status New receiver status register value.
  * @return void.
  */
-void COM5025Registers_SetReceiverStatus(COM5025Registers *regs, uint16_t status);
+void com5025_reg_set_receiver_status(COM5025Registers *regs, uint16_t status);
 
 /**
  * @brief Read the receiver data length select field (RXDL, bits 0-2 of the
@@ -191,7 +191,7 @@ void COM5025Registers_SetReceiverStatus(COM5025Registers *regs, uint16_t status)
  * @param regs Register file to read from.
  * @return 3-bit RXDL field, or 0 if regs is NULL.
  */
-uint8_t COM5025Registers_GetReceiverCharacterLen(COM5025Registers *regs);
+uint8_t com5025_reg_get_receiver_character_len(COM5025Registers *regs);
 
 /**
  * @brief Read the transmitter data length select field (TXDL, bits 5-7 of
@@ -199,7 +199,7 @@ uint8_t COM5025Registers_GetReceiverCharacterLen(COM5025Registers *regs);
  * @param regs Register file to read from.
  * @return 3-bit TXDL field, or 0 if regs is NULL.
  */
-uint8_t COM5025Registers_GetTransmitterCharacterLen(COM5025Registers *regs);
+uint8_t com5025_reg_get_transmitter_character_len(COM5025Registers *regs);
 
 /**
  * @brief Store a new Mode Control register value, reset both the receiver
@@ -209,7 +209,7 @@ uint8_t COM5025Registers_GetTransmitterCharacterLen(COM5025Registers *regs);
  * @param modeControl New Mode Control register value.
  * @return void.
  */
-void COM5025Registers_SetModeControl(COM5025Registers *regs, uint16_t mode_control);
+void com5025_reg_set_mode_control(COM5025Registers *regs, uint16_t mode_control);
 
 /**
  * @brief Test the PROTO bit of the Mode Control register.
@@ -217,7 +217,7 @@ void COM5025Registers_SetModeControl(COM5025Registers *regs, uint16_t mode_contr
  * @return true if protocol mode is CCP (character-oriented), false for BOP
  *         or if regs is NULL.
  */
-bool COM5025Registers_IsProtocolModeCCP(COM5025Registers *regs);
+bool com5025_reg_is_protocol_mode_ccp(COM5025Registers *regs);
 
 // Timer functions
 
@@ -227,14 +227,14 @@ bool COM5025Registers_IsProtocolModeCCP(COM5025Registers *regs);
  * @param speed Clock speed value passed through to each timer.
  * @return void.
  */
-void COM5025Registers_SetClockSpeed(COM5025Registers *regs, int speed);
+void com5025_reg_set_clock_speed(COM5025Registers *regs, int speed);
 
 /**
  * @brief Advance both the TX and RX IO timers by one clock tick.
  * @param regs Register file whose timers to clock.
  * @return void.
  */
-void COM5025Registers_Clock(COM5025Registers *regs);
+void com5025_reg_clock(COM5025Registers *regs);
 
 /**
  * @brief Adjust the tick count and parameter of the TX and/or RX IO timer,
@@ -245,8 +245,8 @@ void COM5025Registers_Clock(COM5025Registers *regs);
  * @param timer Which timer(s) to adjust (COM5025TimerFlags: TX, RX or both).
  * @return void.
  */
-void COM5025Registers_AdjustTimer(COM5025Registers *regs, int ticks, int param,
-                                  COM5025TimerFlags timer);
+void com5025_reg_adjust_timer(COM5025Registers *regs, int ticks, int param,
+                              COM5025TimerFlags timer);
 
 // Receive queue functions
 
@@ -259,7 +259,7 @@ void COM5025Registers_AdjustTimer(COM5025Registers *regs, int ticks, int param,
  * @return true if the byte was queued (or consumed as an escape marker),
  *         false if regs is NULL or the queue node allocation failed.
  */
-bool COM5025Registers_QueueReceivedData(COM5025Registers *regs, uint16_t data);
+bool com5025_reg_queue_received_data(COM5025Registers *regs, uint16_t data);
 
 /**
  * @brief Test whether data is available at the head of the receive queue and
@@ -268,7 +268,7 @@ bool COM5025Registers_QueueReceivedData(COM5025Registers *regs, uint16_t data);
  * @param regs Register file to inspect.
  * @return true if data was available, false otherwise or if regs is NULL.
  */
-bool COM5025Registers_DataReceived(COM5025Registers *regs);
+bool com5025_reg_data_received(COM5025Registers *regs);
 
 /**
  * @brief Test whether the head of the receive queue is a non-stuffed sync or
@@ -278,14 +278,14 @@ bool COM5025Registers_DataReceived(COM5025Registers *regs);
  * @return true if the next queued byte is a sync/flag character, false
  *         otherwise, if the queue is empty, or if regs is NULL.
  */
-bool COM5025Registers_IsNextByteSync(COM5025Registers *regs);
+bool com5025_reg_is_next_byte_sync(COM5025Registers *regs);
 
 /**
  * @brief Pop and free the node at the head of the receive queue.
  * @param regs Register file whose receive queue to pop from.
  * @return void.
  */
-void COM5025Registers_MarkDataAsReceived(COM5025Registers *regs);
+void com5025_reg_mark_data_as_received(COM5025Registers *regs);
 
 // CRC functions
 
@@ -296,7 +296,7 @@ void COM5025Registers_MarkDataAsReceived(COM5025Registers *regs);
  * @param data Byte to accumulate.
  * @return void.
  */
-void COM5025Registers_CalcRXCrc(COM5025Registers *regs, uint8_t data);
+void com5025_reg_calc_rx_crc(COM5025Registers *regs, uint8_t data);
 
 /**
  * @brief Compare the accumulated RX CRC against an expected value.
@@ -305,7 +305,7 @@ void COM5025Registers_CalcRXCrc(COM5025Registers *regs, uint8_t data);
  * @return true if the accumulated RX CRC equals crc, false otherwise or if
  *         regs is NULL.
  */
-bool COM5025Registers_IsRxCrcEqual(COM5025Registers *regs, uint16_t crc);
+bool com5025_reg_is_rx_crc_equal(COM5025Registers *regs, uint16_t crc);
 
 /**
  * @brief Accumulate one transmitted byte into the running TX CRC, per the
@@ -315,7 +315,7 @@ bool COM5025Registers_IsRxCrcEqual(COM5025Registers *regs, uint16_t crc);
  * @param data Byte to accumulate.
  * @return void.
  */
-void COM5025Registers_AggregateTXCrc(COM5025Registers *regs, uint8_t data);
+void com5025_reg_aggregate_tx_crc(COM5025Registers *regs, uint8_t data);
 
 /**
  * @brief Finalize the accumulated TX CRC by inverting it (one's complement),
@@ -324,7 +324,7 @@ void COM5025Registers_AggregateTXCrc(COM5025Registers *regs, uint8_t data);
  * @return Final TX CRC value, or 0x0000 if regs is NULL or CRC checking is
  *         inhibited.
  */
-uint16_t COM5025Registers_CalcFinalTxCrc(COM5025Registers *regs);
+uint16_t com5025_reg_calc_final_tx_crc(COM5025Registers *regs);
 
 /**
  * @brief Compare the accumulated (non-finalized) TX CRC against an expected
@@ -334,7 +334,7 @@ uint16_t COM5025Registers_CalcFinalTxCrc(COM5025Registers *regs);
  * @return true if the accumulated TX CRC equals crc, false otherwise or if
  *         regs is NULL.
  */
-bool COM5025Registers_IsTxCrcEqual(COM5025Registers *regs, uint16_t crc);
+bool com5025_reg_is_tx_crc_equal(COM5025Registers *regs, uint16_t crc);
 
 // Internal helper functions
 
@@ -348,8 +348,8 @@ bool COM5025Registers_IsTxCrcEqual(COM5025Registers *regs, uint16_t crc);
  * @param context Opaque pointer passed back to callback.
  * @return void.
  */
-void COM5025IOTimer_SetCallback(COM5025IOTimer *timer, void (*callback)(void *context, int param),
-                                void *context);
+void com5025_reg_set_callback(COM5025IOTimer *timer, void (*callback)(void *context, int param),
+                              void *context);
 
 
 #endif // CHIP_COM5025_REGISTERS_H

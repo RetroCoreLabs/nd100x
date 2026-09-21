@@ -98,8 +98,7 @@ typedef struct PrintJob
  * @return New manager the caller frees with PrintJob_Destroy(), or NULL if an
  *         allocation failed.
  */
-PrintJob *PrintJob_Create(PjPrinterType printer_type, PjOutputFormat format,
-                          const char *output_dir);
+PrintJob *pj_create(PjPrinterType printer_type, PjOutputFormat format, const char *output_dir);
 
 /**
  * @brief Feed one character from the printer device into the current job.
@@ -111,7 +110,7 @@ PrintJob *PrintJob_Create(PjPrinterType printer_type, PjOutputFormat format,
  * @param pj The manager; NULL is ignored.
  * @param c  The character received from the device.
  */
-void PrintJob_PutChar(PrintJob *pj, char c);
+void pj_put_char(PrintJob *pj, char c);
 
 /**
  * @brief End the open job if no character has arrived for jobTimeout seconds.
@@ -119,20 +118,20 @@ void PrintJob_PutChar(PrintJob *pj, char c);
  * @param pj The manager; NULL is ignored.
  * @return true if a job was written out and closed, false otherwise.
  */
-bool PrintJob_CheckTimeout(PrintJob *pj);
+bool pj_check_timeout(PrintJob *pj);
 
 /**
  * @brief Write out and close the open job immediately, regardless of the
  *        timeout. Call this on shutdown.
  * @param pj The manager; NULL is ignored.
  */
-void PrintJob_Flush(PrintJob *pj);
+void pj_flush(PrintJob *pj);
 
 /**
  * @brief Flush the open job, destroy the ESC/P interpreter if present, and
  *        free the output directory string and the manager.
  * @param pj The manager; NULL is ignored.
  */
-void PrintJob_Destroy(PrintJob *pj);
+void pj_destroy(PrintJob *pj);
 
 #endif /* PRINTJOB_H */

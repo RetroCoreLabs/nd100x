@@ -62,7 +62,7 @@ static uint16_t paper_tape_writer_tick(Device *self)
     {
         return 0;
     }
-    Device_TickIODelay(self);
+    dev_tick_io_delay(self);
     return self->interruptBits;
 }
 
@@ -75,7 +75,7 @@ static uint16_t paper_tape_writer_read(Device *self, uint32_t address)
 
     PaperTapeWriterData *data = (PaperTapeWriterData *)self->deviceData;
     uint16_t value = 0;
-    uint32_t reg = Device_RegisterAddress(self, address);
+    uint32_t reg = dev_register_address(self, address);
 
     switch (reg)
     {
@@ -136,7 +136,7 @@ static void paper_tape_writer_write(Device *self, uint32_t address, uint16_t val
     }
 
     PaperTapeWriterData *data = (PaperTapeWriterData *)self->deviceData;
-    uint32_t reg = Device_RegisterAddress(self, address);
+    uint32_t reg = dev_register_address(self, address);
 
     switch (reg)
     {
@@ -180,10 +180,10 @@ static void paper_tape_writer_write(Device *self, uint32_t address, uint16_t val
         // Ready for transfer
         data->statusRegister.bits.readyForTransfer = 1;
 
-        Device_SetInterruptStatus(self,
-                                  data->statusRegister.bits.interruptEnabled &&
-                                      data->statusRegister.bits.readyForTransfer,
-                                  self->interruptLevel);
+        dev_set_interrupt_status(self,
+                                 data->statusRegister.bits.interruptEnabled &&
+                                     data->statusRegister.bits.readyForTransfer,
+                                 self->interruptLevel);
 
         // Punch the byte if device is active
         if (data->statusRegister.bits.active)
@@ -201,12 +201,12 @@ static void paper_tape_writer_write(Device *self, uint32_t address, uint16_t val
             }
 
             // Output the byte via callback
-            Device_OutputCharacter(self, (char)data->characterBuffer);
+            dev_output_character(self, (char)data->characterBuffer);
 
             // Queue IO delay for punch timing
             if (data->statusRegister.bits.interruptEnabled)
             {
-                Device_QueueIODelay(self, IODELAY_PAPERTAPE, punch_end, 0, self->interruptLevel);
+                dev_queue_io_delay(self, IODELAY_PAPERTAPE, punch_end, 0, self->interruptLevel);
             }
         }
         break;
@@ -228,7 +228,7 @@ static uint16_t paper_tape_writer_ident(Device *self, uint16_t level)
     {
         PaperTapeWriterData *data = (PaperTapeWriterData *)self->deviceData;
         data->statusRegister.bits.interruptEnabled = 0;
-        Device_SetInterruptStatus(self, false, level);
+        dev_set_interrupt_status(self, false, level);
         return self->identCode;
     }
     return 0;
@@ -268,7 +268,7 @@ static void paper_tape_writer_destroy(Device *self)
 }
 
 // Get the accumulated tape output data
-const uint8_t *PaperTapeWriter_GetTapeData(Device *self, size_t *length)
+const uint8_t *ptp_get_tape_data(Device *self, size_t *length)
 {
     if (!self || !length)
     {
@@ -286,7 +286,7 @@ const uint8_t *PaperTapeWriter_GetTapeData(Device *self, size_t *length)
     return data->tapeBuffer;
 }
 
-Device *CreatePaperTapeWriterDevice(uint8_t thumbwheel)
+Device *ptp_create_paper_tape_writer_device(uint8_t thumbwheel)
 {
     Device *dev = malloc(sizeof(Device));
     if (!dev)
@@ -302,7 +302,7 @@ Device *CreatePaperTapeWriterDevice(uint8_t thumbwheel)
     }
 
     // Initialize device base structure as character device
-    Device_Init(dev, thumbwheel, DEVICE_CLASS_CHARACTER, 0);
+    dev_init(dev, thumbwheel, DEVICE_CLASS_CHARACTER, 0);
 
     // Initialize device-specific data
     memset(data, 0, sizeof(PaperTapeWriterData));

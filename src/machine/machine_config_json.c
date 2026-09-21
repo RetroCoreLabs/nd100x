@@ -127,7 +127,7 @@ static const char *media_name(SCSIUnitType m)
     }
 }
 
-bool MachineConfig_ToJson(const MachineConfig *cfg, char *out, size_t outlen)
+bool mc_to_json(const MachineConfig *cfg, char *out, size_t outlen)
 {
     Sink s;
     int i;
@@ -145,8 +145,8 @@ bool MachineConfig_ToJson(const MachineConfig *cfg, char *out, size_t outlen)
 
     /* ---- machine ---- */
     put(&s, "\"machine\":{");
-    kv_str(&s, "cpu", CpuModel_Name((CpuType)cfg->cpu_model), 1);
-    kv_str(&s, "cpuDisplay", CpuModel_DisplayName((CpuType)cfg->cpu_model), 1);
+    kv_str(&s, "cpu", cpumodel_name((CpuType)cfg->cpu_model), 1);
+    kv_str(&s, "cpuDisplay", cpumodel_display_name((CpuType)cfg->cpu_model), 1);
     put(&s, "\"cpuNumber\":%d,", cfg->cpu_type);
     put(&s, "\"fpp\":%d,", cfg->fpp_bits);
     kv_str(&s, "rtc", cfg->rtc_wall ? "wall" : "ticks", 0);
@@ -155,9 +155,9 @@ bool MachineConfig_ToJson(const MachineConfig *cfg, char *out, size_t outlen)
     /* ---- the models a picker may offer, straight from the CPU's own table so
      * the list cannot go stale ---- */
     put(&s, "\"cpuModels\":[");
-    for (i = 0; i < CpuModel_Count(); i++)
+    for (i = 0; i < cpumodel_count(); i++)
     {
-        put(&s, "%s\"%s\"", i ? "," : "", CpuModel_NameByIndex(i));
+        put(&s, "%s\"%s\"", i ? "," : "", cpumodel_name_by_index(i));
     }
     put(&s, "],");
 
@@ -175,7 +175,7 @@ bool MachineConfig_ToJson(const MachineConfig *cfg, char *out, size_t outlen)
         int first = 1;
         for (k = 0; k < (int)(sizeof(kinds) / sizeof(kinds[0])); k++)
         {
-            const ControllerDescriptor *d = MC_DescriptorForType(kinds[k]);
+            const ControllerDescriptor *d = mc_descriptor_for_type(kinds[k]);
             if (!d)
             {
                 continue;
@@ -198,9 +198,9 @@ bool MachineConfig_ToJson(const MachineConfig *cfg, char *out, size_t outlen)
     for (i = 0; i < cfg->controllerCount; i++)
     {
         const McController *c = &cfg->controllers[i];
-        const ControllerDescriptor *d = MC_DescriptorForType(c->type);
+        const ControllerDescriptor *d = mc_descriptor_for_type(c->type);
         put(&s, "%s{", i ? "," : "");
-        kv_str(&s, "type", MC_CtrlTypeName(c->type), 1);
+        kv_str(&s, "type", mc_ctrl_type_name(c->type), 1);
         put(&s, "\"wheel\":%d,", c->wheel);
         put(&s, "\"enabled\":%s,", c->enabled ? "true" : "false");
         put(&s, "\"isDisc\":%s,", (d && d->is_disc) ? "true" : "false");
@@ -244,7 +244,7 @@ bool MachineConfig_ToJson(const MachineConfig *cfg, char *out, size_t outlen)
     /* ---- boot ---- */
     put(&s, "\"boot\":{");
     put(&s, "\"isDisc\":%s,", cfg->boot.is_disc ? "true" : "false");
-    kv_str(&s, "type", MC_CtrlTypeName(cfg->boot.type), 1);
+    kv_str(&s, "type", mc_ctrl_type_name(cfg->boot.type), 1);
     put(&s, "\"wheel\":%d,", cfg->boot.wheel);
     put(&s, "\"unit\":%d,", cfg->boot.unit);
     kv_str(&s, "file", cfg->boot.file, 0);

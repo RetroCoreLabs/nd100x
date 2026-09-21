@@ -95,7 +95,7 @@ static inline bool Log_IsEnabled(LogCategory cat, LogLevel lvl)
  * @param fmt printf-style format; a trailing newline is optional.
  * @param ... Arguments consumed by the conversions in fmt.
  */
-void Log_Write(LogCategory cat, LogLevel lvl, const char *fmt, ...)
+void log_write(LogCategory cat, LogLevel lvl, const char *fmt, ...)
     __attribute__((format(printf, 3, 4)));
 
 /**
@@ -103,7 +103,7 @@ void Log_Write(LogCategory cat, LogLevel lvl, const char *fmt, ...)
  * @param cat Category to change; out-of-range values are ignored.
  * @param lvl New minimum level for that category.
  */
-void Log_SetLevel(LogCategory cat, LogLevel lvl);
+void log_set_level(LogCategory cat, LogLevel lvl);
 
 /**
  * @brief Set the minimum level of every category.
@@ -119,7 +119,7 @@ void Log_SetLevel(LogCategory cat, LogLevel lvl);
  * @return 0 on success; -1 on the first unknown category or level, in which
  *         case the pairs before it have already been applied.
  */
-int Log_ParseSpec(const char *spec);
+int log_parse_spec(const char *spec);
 
 /**
  * @brief Route finished lines to a sink instead of the default stream
@@ -128,14 +128,14 @@ int Log_ParseSpec(const char *spec);
  * @param sink Function called with each finished line, or NULL.
  * @param ctx  Opaque pointer passed back to sink as its last argument.
  */
-void Log_SetSink(LogSinkFunc sink, void *ctx);
+void log_set_sink(LogSinkFunc sink, void *ctx);
 
 /**
  * @brief Name of a category as used in a level specification ("smd").
  * @param cat Category to name.
  * @return Static string with the category name, or "?" if cat is out of range.
  */
-const char *Log_CategoryName(LogCategory cat);
+const char *log_category_name(LogCategory cat);
 
 /**
  * @brief Name of a level ("DEBUG").
@@ -149,7 +149,7 @@ const char *Log_CategoryName(LogCategory cat);
     {                                                                                              \
         if (Log_IsEnabled((cat), (lvl)))                                                           \
         {                                                                                          \
-            Log_Write((cat), (lvl), __VA_ARGS__);                                                  \
+            log_write((cat), (lvl), __VA_ARGS__);                                                  \
         }                                                                                          \
     } while (0)
 

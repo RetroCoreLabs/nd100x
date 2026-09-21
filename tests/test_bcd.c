@@ -45,16 +45,16 @@ static struct CpuRegs bcdtest_regs;
 struct CpuRegs *g_reg = &bcdtest_regs;
 
 /* Stubs for the real functions in src/cpu/cpu_mms.c (cpu_protos.h). */
-uint16_t MemoryRead(uint16_t addr, bool use_apt);
-void MemoryWrite(uint16_t value, uint16_t addr, bool use_apt, unsigned char byte_select);
+uint16_t cpu_memory_read(uint16_t addr, bool use_apt);
+void cpu_memory_write(uint16_t value, uint16_t addr, bool use_apt, unsigned char byte_select);
 
-uint16_t MemoryRead(uint16_t addr, bool use_apt)
+uint16_t cpu_memory_read(uint16_t addr, bool use_apt)
 {
     (void)use_apt;
     return bcdtest_mem[addr];
 }
 
-void MemoryWrite(uint16_t value, uint16_t addr, bool use_apt, unsigned char byte_select)
+void cpu_memory_write(uint16_t value, uint16_t addr, bool use_apt, unsigned char byte_select)
 {
     (void)use_apt;
     (void)byte_select;

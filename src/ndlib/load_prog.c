@@ -58,7 +58,7 @@
 static PROG_Header s_last_prog_header;
 static bool s_last_prog_valid = false;
 
-bool GetLastPROGHeader(PROG_Header *out)
+bool prog_get_last_header(PROG_Header *out)
 {
     if (!s_last_prog_valid || !out)
     {
@@ -119,7 +119,7 @@ static int load_bank(FILE *f, uint16_t first, uint16_t last, bool verbose, const
         {
             disasm_addword(addr, (uint16_t)w);
         }
-        WritePhysicalMemory(addr, (uint16_t)w, false);
+        mms_write_physical_memory(addr, (uint16_t)w, false);
     }
     return count;
 }
@@ -128,7 +128,7 @@ static int load_bank(FILE *f, uint16_t first, uint16_t last, bool verbose, const
  * Load a :PROG file. On success returns the program start address (>= 0);
  * returns -1 on any error. Fills the last-header cache (GetLastPROGHeader()).
  */
-int LoadPROG(const char *filename, bool verbose)
+int prog_load(const char *filename, bool verbose)
 {
     FILE *f = fopen(filename, "rb");
     if (!f)

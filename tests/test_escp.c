@@ -24,7 +24,7 @@ static void feed_string(EscpContext *ctx, const char *s)
 {
     for (const char *p = s; *p; p++)
     {
-        Escp_PutChar(ctx, (uint8_t)*p);
+        escp_put_char(ctx, (uint8_t)*p);
     }
 }
 
@@ -32,13 +32,13 @@ static void feed_string(EscpContext *ctx, const char *s)
 
 static int test_escp_plain_text(void)
 {
-    EscpContext *ctx = Escp_Create();
+    EscpContext *ctx = escp_create();
     assert(ctx != NULL);
 
     feed_string(ctx, "Hello");
 
     int count = 0;
-    const EscpSpan *spans = Escp_GetSpans(ctx, &count);
+    const EscpSpan *spans = escp_get_spans(ctx, &count);
     assert(count == 1);
     assert(strcmp(spans[0].text, "Hello") == 0);
     assert(spans[0].column == 0);
@@ -46,264 +46,264 @@ static int test_escp_plain_text(void)
     assert(spans[0].page == 0);
     assert(spans[0].attrs == 0);
 
-    Escp_Destroy(ctx);
+    escp_destroy(ctx);
     return 0;
 }
 
 static int test_escp_cr_lf_ff(void)
 {
-    EscpContext *ctx = Escp_Create();
+    EscpContext *ctx = escp_create();
 
     /* Feed text, CR, more text - CR resets column */
     feed_string(ctx, "ABC");
-    Escp_PutChar(ctx, 0x0D); /* CR */
+    escp_put_char(ctx, 0x0D); /* CR */
     assert(ctx->column == 0);
 
     /* LF advances line */
-    Escp_PutChar(ctx, 0x0A); /* LF */
+    escp_put_char(ctx, 0x0A); /* LF */
     assert(ctx->line == 1);
     assert(ctx->column == 0);
 
     /* FF advances page */
     feed_string(ctx, "X");
-    Escp_PutChar(ctx, 0x0C); /* FF */
+    escp_put_char(ctx, 0x0C); /* FF */
     assert(ctx->page == 1);
     assert(ctx->line == 0);
     assert(ctx->column == 0);
 
-    Escp_Destroy(ctx);
+    escp_destroy(ctx);
     return 0;
 }
 
 static int test_escp_bold(void)
 {
-    EscpContext *ctx = Escp_Create();
+    EscpContext *ctx = escp_create();
 
     /* ESC E = bold on */
-    Escp_PutChar(ctx, 0x1B);
-    Escp_PutChar(ctx, 'E');
+    escp_put_char(ctx, 0x1B);
+    escp_put_char(ctx, 'E');
     feed_string(ctx, "Bold");
     /* ESC F = bold off */
-    Escp_PutChar(ctx, 0x1B);
-    Escp_PutChar(ctx, 'F');
+    escp_put_char(ctx, 0x1B);
+    escp_put_char(ctx, 'F');
     feed_string(ctx, "Normal");
 
     int count = 0;
-    const EscpSpan *spans = Escp_GetSpans(ctx, &count);
+    const EscpSpan *spans = escp_get_spans(ctx, &count);
     assert(count >= 2);
     assert(spans[0].attrs & ESCP_ATTR_BOLD);
     assert(strcmp(spans[0].text, "Bold") == 0);
     assert(!(spans[1].attrs & ESCP_ATTR_BOLD));
     assert(strcmp(spans[1].text, "Normal") == 0);
 
-    Escp_Destroy(ctx);
+    escp_destroy(ctx);
     return 0;
 }
 
 static int test_escp_italic(void)
 {
-    EscpContext *ctx = Escp_Create();
+    EscpContext *ctx = escp_create();
 
     /* ESC 4 = italic on */
-    Escp_PutChar(ctx, 0x1B);
-    Escp_PutChar(ctx, '4');
+    escp_put_char(ctx, 0x1B);
+    escp_put_char(ctx, '4');
     feed_string(ctx, "Italic");
     /* ESC 5 = italic off */
-    Escp_PutChar(ctx, 0x1B);
-    Escp_PutChar(ctx, '5');
+    escp_put_char(ctx, 0x1B);
+    escp_put_char(ctx, '5');
     feed_string(ctx, "Normal");
 
     int count = 0;
-    const EscpSpan *spans = Escp_GetSpans(ctx, &count);
+    const EscpSpan *spans = escp_get_spans(ctx, &count);
     assert(count >= 2);
     assert(spans[0].attrs & ESCP_ATTR_ITALIC);
     assert(!(spans[1].attrs & ESCP_ATTR_ITALIC));
 
-    Escp_Destroy(ctx);
+    escp_destroy(ctx);
     return 0;
 }
 
 static int test_escp_underline(void)
 {
-    EscpContext *ctx = Escp_Create();
+    EscpContext *ctx = escp_create();
 
     /* ESC - 1 = underline on */
-    Escp_PutChar(ctx, 0x1B);
-    Escp_PutChar(ctx, '-');
-    Escp_PutChar(ctx, 1);
+    escp_put_char(ctx, 0x1B);
+    escp_put_char(ctx, '-');
+    escp_put_char(ctx, 1);
     feed_string(ctx, "Under");
     /* ESC - 0 = underline off */
-    Escp_PutChar(ctx, 0x1B);
-    Escp_PutChar(ctx, '-');
-    Escp_PutChar(ctx, 0);
+    escp_put_char(ctx, 0x1B);
+    escp_put_char(ctx, '-');
+    escp_put_char(ctx, 0);
     feed_string(ctx, "Normal");
 
     int count = 0;
-    const EscpSpan *spans = Escp_GetSpans(ctx, &count);
+    const EscpSpan *spans = escp_get_spans(ctx, &count);
     assert(count >= 2);
     assert(spans[0].attrs & ESCP_ATTR_UNDERLINE);
     assert(!(spans[1].attrs & ESCP_ATTR_UNDERLINE));
 
-    Escp_Destroy(ctx);
+    escp_destroy(ctx);
     return 0;
 }
 
 static int test_escp_pitch_elite(void)
 {
-    EscpContext *ctx = Escp_Create();
+    EscpContext *ctx = escp_create();
 
     /* Default is 10 cpi = 7.2 pt char width */
     float default_width = POINTS_PER_INCH / 10.0f;
 
     /* ESC M = 12 cpi (Elite) */
-    Escp_PutChar(ctx, 0x1B);
-    Escp_PutChar(ctx, 'M');
+    escp_put_char(ctx, 0x1B);
+    escp_put_char(ctx, 'M');
     feed_string(ctx, "Elite");
 
     int count = 0;
-    const EscpSpan *spans = Escp_GetSpans(ctx, &count);
+    const EscpSpan *spans = escp_get_spans(ctx, &count);
     assert(count == 1);
     float expected = POINTS_PER_INCH / 12.0f;
     assert(fabsf(spans[0].charWidth - expected) < 0.01f);
     /* Verify it's different from default */
     assert(fabsf(spans[0].charWidth - default_width) > 0.1f);
 
-    Escp_Destroy(ctx);
+    escp_destroy(ctx);
     return 0;
 }
 
 static int test_escp_condensed(void)
 {
-    EscpContext *ctx = Escp_Create();
+    EscpContext *ctx = escp_create();
 
     /* SI (0x0F) = condensed on.  10 cpi -> 17 cpi effective */
-    Escp_PutChar(ctx, 0x0F);
+    escp_put_char(ctx, 0x0F);
     feed_string(ctx, "Tiny");
 
     int count = 0;
-    const EscpSpan *spans = Escp_GetSpans(ctx, &count);
+    const EscpSpan *spans = escp_get_spans(ctx, &count);
     assert(count == 1);
     float expected = POINTS_PER_INCH / 17.0f;
     assert(fabsf(spans[0].charWidth - expected) < 0.01f);
 
-    Escp_Reset(ctx);
+    escp_reset(ctx);
 
     /* DC2 (0x12) = condensed off after condensed on */
-    Escp_PutChar(ctx, 0x0F); /* condensed on */
-    Escp_PutChar(ctx, 0x12); /* condensed off */
+    escp_put_char(ctx, 0x0F); /* condensed on */
+    escp_put_char(ctx, 0x12); /* condensed off */
     feed_string(ctx, "Normal");
 
-    spans = Escp_GetSpans(ctx, &count);
+    spans = escp_get_spans(ctx, &count);
     assert(count == 1);
     float normal = POINTS_PER_INCH / 10.0f;
     assert(fabsf(spans[0].charWidth - normal) < 0.01f);
 
-    Escp_Destroy(ctx);
+    escp_destroy(ctx);
     return 0;
 }
 
 static int test_escp_expanded(void)
 {
-    EscpContext *ctx = Escp_Create();
+    EscpContext *ctx = escp_create();
 
     /* ESC W 1 = expanded on (double width) */
-    Escp_PutChar(ctx, 0x1B);
-    Escp_PutChar(ctx, 'W');
-    Escp_PutChar(ctx, 1);
+    escp_put_char(ctx, 0x1B);
+    escp_put_char(ctx, 'W');
+    escp_put_char(ctx, 1);
     feed_string(ctx, "Wide");
 
     int count = 0;
-    const EscpSpan *spans = Escp_GetSpans(ctx, &count);
+    const EscpSpan *spans = escp_get_spans(ctx, &count);
     assert(count == 1);
     float expected = (POINTS_PER_INCH / 10.0f) * 2.0f;
     assert(fabsf(spans[0].charWidth - expected) < 0.01f);
 
-    Escp_Reset(ctx);
+    escp_reset(ctx);
 
     /* ESC W 0 = expanded off */
-    Escp_PutChar(ctx, 0x1B);
-    Escp_PutChar(ctx, 'W');
-    Escp_PutChar(ctx, 1);
-    Escp_PutChar(ctx, 0x1B);
-    Escp_PutChar(ctx, 'W');
-    Escp_PutChar(ctx, 0);
+    escp_put_char(ctx, 0x1B);
+    escp_put_char(ctx, 'W');
+    escp_put_char(ctx, 1);
+    escp_put_char(ctx, 0x1B);
+    escp_put_char(ctx, 'W');
+    escp_put_char(ctx, 0);
     feed_string(ctx, "Norm");
 
-    spans = Escp_GetSpans(ctx, &count);
+    spans = escp_get_spans(ctx, &count);
     assert(count == 1);
     float normal = POINTS_PER_INCH / 10.0f;
     assert(fabsf(spans[0].charWidth - normal) < 0.01f);
 
-    Escp_Destroy(ctx);
+    escp_destroy(ctx);
     return 0;
 }
 
 static int test_escp_line_spacing(void)
 {
-    EscpContext *ctx = Escp_Create();
+    EscpContext *ctx = escp_create();
 
     /* Default: 1/6" = 36/216" */
     float default_lh = (36.0f / 216.0f) * POINTS_PER_INCH;
 
     /* ESC 0 = 1/8" spacing */
-    Escp_PutChar(ctx, 0x1B);
-    Escp_PutChar(ctx, '0');
+    escp_put_char(ctx, 0x1B);
+    escp_put_char(ctx, '0');
     feed_string(ctx, "A");
 
     int count = 0;
-    const EscpSpan *spans = Escp_GetSpans(ctx, &count);
+    const EscpSpan *spans = escp_get_spans(ctx, &count);
     assert(count == 1);
     float eighth_lh = (27.0f / 216.0f) * POINTS_PER_INCH;
     assert(fabsf(spans[0].lineHeight - eighth_lh) < 0.01f);
 
-    Escp_Reset(ctx);
+    escp_reset(ctx);
 
     /* ESC 2 = 1/6" spacing (back to default) */
-    Escp_PutChar(ctx, 0x1B);
-    Escp_PutChar(ctx, '2');
+    escp_put_char(ctx, 0x1B);
+    escp_put_char(ctx, '2');
     feed_string(ctx, "B");
 
-    spans = Escp_GetSpans(ctx, &count);
+    spans = escp_get_spans(ctx, &count);
     assert(count == 1);
     assert(fabsf(spans[0].lineHeight - default_lh) < 0.01f);
 
-    Escp_Reset(ctx);
+    escp_reset(ctx);
 
     /* ESC 3 n = n/216" spacing.  n=24 -> 24/216" */
-    Escp_PutChar(ctx, 0x1B);
-    Escp_PutChar(ctx, '3');
-    Escp_PutChar(ctx, 24);
+    escp_put_char(ctx, 0x1B);
+    escp_put_char(ctx, '3');
+    escp_put_char(ctx, 24);
     feed_string(ctx, "C");
 
-    spans = Escp_GetSpans(ctx, &count);
+    spans = escp_get_spans(ctx, &count);
     assert(count == 1);
     float custom_lh = (24.0f / 216.0f) * POINTS_PER_INCH;
     assert(fabsf(spans[0].lineHeight - custom_lh) < 0.01f);
 
-    Escp_Destroy(ctx);
+    escp_destroy(ctx);
     return 0;
 }
 
 static int test_escp_reset(void)
 {
-    EscpContext *ctx = Escp_Create();
+    EscpContext *ctx = escp_create();
 
     /* Set various attributes */
-    Escp_PutChar(ctx, 0x1B);
-    Escp_PutChar(ctx, 'E'); /* bold on */
-    Escp_PutChar(ctx, 0x1B);
-    Escp_PutChar(ctx, '4'); /* italic on */
-    Escp_PutChar(ctx, 0x1B);
-    Escp_PutChar(ctx, 'M'); /* 12 cpi */
+    escp_put_char(ctx, 0x1B);
+    escp_put_char(ctx, 'E'); /* bold on */
+    escp_put_char(ctx, 0x1B);
+    escp_put_char(ctx, '4'); /* italic on */
+    escp_put_char(ctx, 0x1B);
+    escp_put_char(ctx, 'M'); /* 12 cpi */
     feed_string(ctx, "Styled");
 
     /* ESC @ = reset */
-    Escp_PutChar(ctx, 0x1B);
-    Escp_PutChar(ctx, '@');
+    escp_put_char(ctx, 0x1B);
+    escp_put_char(ctx, '@');
     feed_string(ctx, "Reset");
 
     int count = 0;
-    const EscpSpan *spans = Escp_GetSpans(ctx, &count);
+    const EscpSpan *spans = escp_get_spans(ctx, &count);
     assert(count >= 2);
 
     /* First span should have bold+italic */
@@ -316,88 +316,88 @@ static int test_escp_reset(void)
     float default_width = POINTS_PER_INCH / 10.0f;
     assert(fabsf(last->charWidth - default_width) < 0.01f);
 
-    Escp_Destroy(ctx);
+    escp_destroy(ctx);
     return 0;
 }
 
 static int test_escp_strip_mode(void)
 {
-    EscpContext *ctx = Escp_Create();
+    EscpContext *ctx = escp_create();
 
     /* Printable chars pass through */
-    assert(Escp_StripToPlainChar(ctx, 'A') == 'A');
-    assert(Escp_StripToPlainChar(ctx, ' ') == ' ');
-    assert(Escp_StripToPlainChar(ctx, '~') == '~');
+    assert(escp_strip_to_plain_char(ctx, 'A') == 'A');
+    assert(escp_strip_to_plain_char(ctx, ' ') == ' ');
+    assert(escp_strip_to_plain_char(ctx, '~') == '~');
 
     /* CR, LF, FF pass through */
-    assert(Escp_StripToPlainChar(ctx, 0x0D) == '\r');
-    assert(Escp_StripToPlainChar(ctx, 0x0A) == '\n');
-    assert(Escp_StripToPlainChar(ctx, 0x0C) == '\f');
+    assert(escp_strip_to_plain_char(ctx, 0x0D) == '\r');
+    assert(escp_strip_to_plain_char(ctx, 0x0A) == '\n');
+    assert(escp_strip_to_plain_char(ctx, 0x0C) == '\f');
 
     /* ESC sequence is swallowed: ESC E (bold on) */
-    assert(Escp_StripToPlainChar(ctx, 0x1B) == 0);
-    assert(Escp_StripToPlainChar(ctx, 'E') == 0);
+    assert(escp_strip_to_plain_char(ctx, 0x1B) == 0);
+    assert(escp_strip_to_plain_char(ctx, 'E') == 0);
 
     /* After ESC sequence, printable chars pass through again */
-    assert(Escp_StripToPlainChar(ctx, 'B') == 'B');
+    assert(escp_strip_to_plain_char(ctx, 'B') == 'B');
 
     /* ESC with param: ESC - 1 (underline on) */
-    assert(Escp_StripToPlainChar(ctx, 0x1B) == 0);
-    assert(Escp_StripToPlainChar(ctx, '-') == 0);
-    assert(Escp_StripToPlainChar(ctx, 1) == 0);
+    assert(escp_strip_to_plain_char(ctx, 0x1B) == 0);
+    assert(escp_strip_to_plain_char(ctx, '-') == 0);
+    assert(escp_strip_to_plain_char(ctx, 1) == 0);
 
     /* Still works after */
-    assert(Escp_StripToPlainChar(ctx, 'C') == 'C');
+    assert(escp_strip_to_plain_char(ctx, 'C') == 'C');
 
-    Escp_Destroy(ctx);
+    escp_destroy(ctx);
     return 0;
 }
 
 static int test_escp_page_count(void)
 {
-    EscpContext *ctx = Escp_Create();
+    EscpContext *ctx = escp_create();
 
     /* No content = 0 pages */
-    assert(Escp_GetPageCount(ctx) == 0);
+    assert(escp_get_page_count(ctx) == 0);
 
     /* Some content = 1 page */
     feed_string(ctx, "Hello");
-    assert(Escp_GetPageCount(ctx) == 1);
+    assert(escp_get_page_count(ctx) == 1);
 
     /* Form feed = 2 pages */
-    Escp_PutChar(ctx, 0x0C);
+    escp_put_char(ctx, 0x0C);
     feed_string(ctx, "World");
-    assert(Escp_GetPageCount(ctx) == 2);
+    assert(escp_get_page_count(ctx) == 2);
 
     /* Another form feed = 3 pages */
-    Escp_PutChar(ctx, 0x0C);
+    escp_put_char(ctx, 0x0C);
     feed_string(ctx, "!");
-    assert(Escp_GetPageCount(ctx) == 3);
+    assert(escp_get_page_count(ctx) == 3);
 
-    Escp_Destroy(ctx);
+    escp_destroy(ctx);
     return 0;
 }
 
 static int test_escp_backspace(void)
 {
-    EscpContext *ctx = Escp_Create();
+    EscpContext *ctx = escp_create();
 
     feed_string(ctx, "AB");
     assert(ctx->column == 2);
 
     /* Backspace */
-    Escp_PutChar(ctx, 0x08);
+    escp_put_char(ctx, 0x08);
     assert(ctx->column == 1);
 
     /* Another backspace */
-    Escp_PutChar(ctx, 0x08);
+    escp_put_char(ctx, 0x08);
     assert(ctx->column == 0);
 
     /* Backspace at column 0 stays at 0 */
-    Escp_PutChar(ctx, 0x08);
+    escp_put_char(ctx, 0x08);
     assert(ctx->column == 0);
 
-    Escp_Destroy(ctx);
+    escp_destroy(ctx);
     return 0;
 }
 

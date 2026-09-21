@@ -77,7 +77,7 @@ static void menu_set_mode(MenuState *state, MenuMode mode, void *telnet_server)
     switch (mode)
     {
     case MENU_NONE:
-        VScreen_Redraw(&state->screens[*state->activeScreen]);
+        vscreen_redraw(&state->screens[*state->activeScreen]);
         break;
     case MENU_F12:
         draw_f12();
@@ -355,12 +355,12 @@ static void draw_hdlc_status(void)
     printf("\033[H\033[J");
     printf("=== HDLC Device Status ===\n\n");
 
-    int count = DeviceManager_GetDeviceCount();
+    int count = devmgr_get_device_count();
     int found = 0;
 
     for (int i = 0; i < count; i++)
     {
-        Device *dev = DeviceManager_GetDeviceByIndex(i);
+        Device *dev = devmgr_get_device_by_index(i);
         if (!dev || dev->type != DEVICE_TYPE_HDLC)
         {
             continue;
@@ -385,7 +385,7 @@ static void draw_hdlc_status(void)
         format_bytes(data->modem ? data->modem->bytesRx : 0, rx_bytes_str, sizeof(rx_bytes_str));
 
         HDLCRxFrameStatus st;
-        bool has_status = HDLC_GetRxFrameStatus(data, &st);
+        bool has_status = hdlc_get_rx_frame_status(data, &st);
 
         // Device header
         printf("  HDLC #%d  [%s]  Connected: %s\n", data->thumbwheel, addr_str,
@@ -545,7 +545,7 @@ static void draw_hdlc_status(void)
 // are left unchanged if no connected terminal has that name.
 static void telnet_screen_stats(TelnetServer *ts, const char *name, uint64_t *rx, uint64_t *tx)
 {
-    int tcount = TelnetServer_GetTerminalCount(ts);
+    int tcount = telnet_get_terminal_count(ts);
     for (int t = 0; t < tcount; t++)
     {
         const char *tname = NULL;
@@ -553,7 +553,7 @@ static void telnet_screen_stats(TelnetServer *ts, const char *name, uint64_t *rx
         TelnetServer_GetTerminalStatus(ts, t, &tname, NULL, &conn, NULL, NULL, 0);
         if (conn && tname && strcmp(tname, name) == 0)
         {
-            TelnetServer_GetTerminalStats(ts, t, rx, tx);
+            telnet_get_terminal_stats(ts, t, rx, tx);
             break;
         }
     }
@@ -581,9 +581,9 @@ static const char *screen_status_text(MenuState *state, int i, void *telnet_serv
     else if (has_telnet)
     {
         TelnetServer *ts = (TelnetServer *)telnet_server;
-        if (TelnetServer_IsDeviceConnected(ts, state->screens[i].device))
+        if (telnet_is_device_connected(ts, state->screens[i].device))
         {
-            const char *addr = TelnetServer_GetDeviceClientAddr(ts, state->screens[i].device);
+            const char *addr = telnet_get_device_client_addr(ts, state->screens[i].device);
 
             // Find terminal index in server for byte stats
             uint64_t rx = 0;
@@ -639,15 +639,15 @@ static void draw_screen_select(MenuState *state, void *telnet_server)
     if (has_telnet)
     {
         TelnetServer *ts = (TelnetServer *)telnet_server;
-        int pending = TelnetServer_GetPendingCount(ts);
+        int pending = telnet_get_pending_count(ts);
         if (pending > 0)
         {
-            printf("=== Virtual Screens (telnet port %d, %d pending) ===\n\n",
-                   TelnetServer_GetPort(ts), pending);
+            printf("=== Virtual Screens (telnet port %d, %d pending) ===\n\n", telnet_get_port(ts),
+                   pending);
         }
         else
         {
-            printf("=== Virtual Screens (telnet port %d) ===\n\n", TelnetServer_GetPort(ts));
+            printf("=== Virtual Screens (telnet port %d) ===\n\n", telnet_get_port(ts));
         }
     }
     else
@@ -699,10 +699,10 @@ static void draw_release_prompt(MenuState *state)
 static void draw_pending_list(void *telnet_server)
 {
     TelnetServer *ts = (TelnetServer *)telnet_server;
-    int count = TelnetServer_GetPendingCount(ts);
+    int count = telnet_get_pending_count(ts);
 
     printf("\033[2J\033[H");
-    printf("=== Pending Telnet Connections (live, port %d) ===\n\n", TelnetServer_GetPort(ts));
+    printf("=== Pending Telnet Connections (live, port %d) ===\n\n", telnet_get_port(ts));
 
     if (count == 0)
     {
@@ -718,7 +718,7 @@ static void draw_pending_list(void *telnet_server)
             int age = 0;
             uint64_t rx = 0;
             uint64_t tx = 0;
-            if (TelnetServer_GetPendingInfo(ts, i, addr, sizeof(addr), &age, &rx, &tx))
+            if (telnet_get_pending_info(ts, i, addr, sizeof(addr), &age, &rx, &tx))
             {
                 char rx_str[16];
                 char tx_str[16];
@@ -904,7 +904,7 @@ void menu_process_key(MenuState *state, const KeyEvent *key, void *telnetServer)
             {
 #if !defined(__EMSCRIPTEN__)
                 if (telnet_server &&
-                    TelnetServer_IsDeviceConnected(telnet_server, state->screens[choice].device))
+                    telnet_is_device_connected(telnet_server, state->screens[choice].device))
                 {
                     menu_show_message(state, "Terminal is in use by telnet client.",
                                       MENU_SCREEN_SELECT);
@@ -916,9 +916,9 @@ void menu_process_key(MenuState *state, const KeyEvent *key, void *telnetServer)
                     !state->screens[choice].localActive)
                 {
                     state->screens[choice].localActive = true;
-                    TelnetServer_SetDeviceLocallyActive(telnet_server,
-                                                        state->screens[choice].device, true);
-                    TelnetServer_ClearDeviceCarrier(telnet_server, state->screens[choice].device);
+                    telnet_set_device_locally_active(telnet_server, state->screens[choice].device,
+                                                     true);
+                    telnet_clear_device_carrier(telnet_server, state->screens[choice].device);
                 }
 #endif
                 *state->activeScreen = choice;
@@ -965,9 +965,9 @@ void menu_process_key(MenuState *state, const KeyEvent *key, void *telnetServer)
             if (telnet_server)
             {
                 // If telnet-connected: disconnect the client
-                if (TelnetServer_IsDeviceConnected(telnet_server, state->screens[choice].device))
+                if (telnet_is_device_connected(telnet_server, state->screens[choice].device))
                 {
-                    TelnetServer_DisconnectDevice(telnet_server, state->screens[choice].device);
+                    telnet_disconnect_device(telnet_server, state->screens[choice].device);
                     char msg[64];
                     snprintf(msg, sizeof(msg), "%s telnet client disconnected.",
                              state->screens[choice].name);
@@ -985,8 +985,8 @@ void menu_process_key(MenuState *state, const KeyEvent *key, void *telnetServer)
                         return;
                     }
                     state->screens[choice].localActive = false;
-                    TelnetServer_SetDeviceLocallyActive(telnet_server,
-                                                        state->screens[choice].device, false);
+                    telnet_set_device_locally_active(telnet_server, state->screens[choice].device,
+                                                     false);
                     char msg[64];
                     snprintf(msg, sizeof(msg), "%s released for telnet.",
                              state->screens[choice].name);
@@ -1013,14 +1013,14 @@ void menu_process_key(MenuState *state, const KeyEvent *key, void *telnetServer)
         {
             if (ch == 'd' || ch == 'D')
             {
-                int count = TelnetServer_GetPendingCount(telnet_server);
+                int count = telnet_get_pending_count(telnet_server);
                 if (count == 0)
                 {
                     menu_show_message(state, "No pending connections to drop.", MENU_PENDING_LIST);
                 }
                 else if (count == 1)
                 {
-                    TelnetServer_DropPending(telnet_server, 0);
+                    telnet_drop_pending(telnet_server, 0);
                     menu_show_message(state, "Dropped pending connection.", MENU_PENDING_LIST);
                 }
                 else
@@ -1034,7 +1034,7 @@ void menu_process_key(MenuState *state, const KeyEvent *key, void *telnetServer)
             else if (ch >= '1' && ch <= '9')
             {
                 int idx = ch - '1';
-                if (TelnetServer_DropPending(telnet_server, idx))
+                if (telnet_drop_pending(telnet_server, idx))
                 {
                     draw_pending_list(telnet_server);
                     state->lastRefresh = time(NULL);
@@ -1042,7 +1042,7 @@ void menu_process_key(MenuState *state, const KeyEvent *key, void *telnetServer)
             }
             else if (ch == 'a' || ch == 'A')
             {
-                TelnetServer_DropAllPending(telnet_server);
+                telnet_drop_all_pending(telnet_server);
                 menu_show_message(state, "All pending connections dropped.", MENU_PENDING_LIST);
             }
         }

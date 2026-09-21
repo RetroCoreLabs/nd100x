@@ -39,13 +39,13 @@
 // (e.g. w64devkit without libcurl).
 
 // Get the actual size of downloaded data (not supported in WASM)
-size_t get_downloaded_size(void)
+size_t dl_get_downloaded_size(void)
 {
     return 0;
 }
 
 // Unified download function stub for WASM build
-char *download_file(const char *url)
+char *dl_download_file(const char *url)
 {
     (void)url;
     LOG(LOG_CAT_NET, LOG_WARN, "Download not supported in WASM build (CURL disabled)\n");
@@ -167,13 +167,13 @@ static size_t write_callback(void *contents, size_t size, size_t nmemb, void *us
 }
 
 // Get the actual size of downloaded data
-size_t get_downloaded_size(void)
+size_t dl_get_downloaded_size(void)
 {
     return g_downloaded_size;
 }
 
 // Unified download function that can handle both JSON and binary files
-char *download_file(const char *url)
+char *dl_download_file(const char *url)
 {
     if (!url)
     {

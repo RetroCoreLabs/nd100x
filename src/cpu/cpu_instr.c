@@ -87,12 +87,12 @@ static bool check_priv(void)
 
     // Failed, not allowed to execute
     // Generate a privileged instruction interrupt
-    interrupt(14, 1 << 6); // Privileged instruction
+    cpu_interrupt(14, 1 << 6); // Privileged instruction
     return false;
 }
 
 
-int16_t signExtend(uint16_t x)
+int16_t cpu_sign_extend(uint16_t x)
 {
     short res = (uint16_t)x;
 
@@ -114,23 +114,23 @@ static uint16_t do_add(uint16_t a, uint16_t b, uint16_t k)
     /* C (carry) */
     if (tmp & 0xffff0000)
     {
-        setbit(_STS, STS_CARRY, 1);
+        cpu_setbit(_STS, STS_CARRY, 1);
     }
     else
     {
-        setbit(_STS, STS_CARRY, 0);
+        cpu_setbit(_STS, STS_CARRY, 0);
     }
     /* O(static overflow), Q (dynamic overflow) */
     is_diff = (((1 << 15) & a) ^ ((1 << 15) & b)); /* is bit 15 of the two operands different? */
     if (!(is_diff) && (((1 << 15) & a) ^ ((1 << 15) & tmp)))
-    {                                         /* if equal and result is different... */
-        setbit(_STS, STS_STATIC_OVERFLOW, 1); // Static overflow
-        setbit(_STS, STS_DYNAMIC_OVERFLOW,
-               1); // Dynamic overflow (Instruction test shows Q must be set)
+    {                                             /* if equal and result is different... */
+        cpu_setbit(_STS, STS_STATIC_OVERFLOW, 1); // Static overflow
+        cpu_setbit(_STS, STS_DYNAMIC_OVERFLOW,
+                   1); // Dynamic overflow (Instruction test shows Q must be set)
     }
     else
     {
-        setbit(_STS, STS_DYNAMIC_OVERFLOW, 0);
+        cpu_setbit(_STS, STS_DYNAMIC_OVERFLOW, 0);
         //setbit(_STS, STS_STATIC_OVERFLOW, 0); NO!
     }
     return (uint16_t)tmp;
@@ -151,19 +151,19 @@ static unsigned int calc_el(uint8_t displacement)
 // read el value from memory
 static unsigned int read_el(unsigned el)
 {
-    return ReadPhysicalMemory(el, true);
+    return mms_read_physical_memory(el, true);
 }
 
 // write el to memory
 static void write_el(uint32_t el, uint16_t value)
 {
-    WritePhysicalMemory(el, value, true);
+    mms_write_physical_memory(el, value, true);
 }
 
 
 /***************** HELPER INSTRUCTIONS *****************/
 
-void illegal_instr(uint16_t operand)
+void cpu_illegal_instr(uint16_t operand)
 {
     /*
      * --log=cpu:debug logs every illegal-instruction trap.  This is how a guest's
@@ -172,7 +172,7 @@ void illegal_instr(uint16_t operand)
      */
     LOG(LOG_CAT_CPU, LOG_DEBUG, "ILLEGAL %06o at %06o", operand, gPC);
 
-    interrupt(14, 1 << 4); /* Illegal Instruction <= WILL TRAP! */
+    cpu_interrupt(14, 1 << 4); /* Illegal Instruction <= WILL TRAP! */
 }
 
 static void unimplemented_instr(uint16_t operand)
@@ -208,7 +208,7 @@ static void cjp(bool jmp_flag, uint16_t operand)
     {
         uint16_t old_g_pc = gPC - 1;
 
-        uint16_t temp = signExtend(operand & 0xff);
+        uint16_t temp = cpu_sign_extend(operand & 0xff);
 
         /* MICROCODE-VALIDATED 2026-07-20: the address arithmetic must NOT touch STS.
          * do_add() writes STS C (and O/Q) as a side effect, but the whole cjp family
@@ -824,7 +824,7 @@ static bool update_memory_io(void)
  */
 /* NORD-1 IOT dispatch, implemented in the device manager. Declared locally so
  * the CPU does not have to pull in the whole device-model header. */
-bool DeviceManager_IotOp(uint8_t devno, uint8_t func, uint16_t *reg_a, bool *skip);
+bool devmgr_iot_op(uint8_t devno, uint8_t func, uint16_t *reg_a, bool *skip);
 
 
 /********************SYSTEM FUNCTIONS  *******************/
@@ -918,10 +918,10 @@ static void clepu_mark_working_set(uint32_t idx)
     uint32_t word = page >> 4;    /* word number (0..7) */
     int bit = (int)(page & 0x0F); /* bit within the word */
     uint32_t table_addr = (uint32_t)((gL + word) & 0xFFFF);
-    uint16_t tw = (uint16_t)ReadPhysicalMemory((int)table_addr, true); /* 004107 EXRQ */
+    uint16_t tw = (uint16_t)mms_read_physical_memory((int)table_addr, true); /* 004107 EXRQ */
 
-    tw |= (uint16_t)(1 << bit);                     /* 004112 set bit */
-    WritePhysicalMemory((int)table_addr, tw, true); /* 004114 DERQ */
+    tw |= (uint16_t)(1 << bit);                           /* 004112 set bit */
+    mms_write_physical_memory((int)table_addr, tw, true); /* 004114 DERQ */
 }
 
 
@@ -974,18 +974,20 @@ static void nd110_enter_page_table(uint16_t r4_mask)
         uint16_t b_reg;
 
         /* 004563-004564: descriptor word0 at [X+2] (physical, CMBUK segment); A := word0 & mask. */
-        word0 = (uint16_t)ReadPhysicalMemory((int)(cmbnk | (uint32_t)((x_reg + 2) & 0xFFFF)), true);
+        word0 = (uint16_t)mms_read_physical_memory((int)(cmbnk | (uint32_t)((x_reg + 2) & 0xFFFF)),
+                                                   true);
         gA = (uint16_t)(word0 & r4_mask);
 
         /* 004566: descriptor word1 at [X+3].  004571: B register := (word1 | 0176000) << 1. */
-        word1 = (uint16_t)ReadPhysicalMemory((int)(cmbnk | (uint32_t)((x_reg + 3) & 0xFFFF)), true);
+        word1 = (uint16_t)mms_read_physical_memory((int)(cmbnk | (uint32_t)((x_reg + 3) & 0xFFFF)),
+                                                   true);
         b_reg = (uint16_t)(((word1 | 0xFC00) << 1) & 0xFFFF);
         gB = b_reg;
 
         /* 004573: APT[B] := A (masked word0).  004575: APT[B+1] := X >> 2 (physical page frame). */
-        WriteVirtualMemory(b_reg, gA, true, WRITEMODE_WORD);
-        WriteVirtualMemory((uint16_t)((b_reg + 1) & 0xFFFF), (uint16_t)(x_reg >> 2), true,
-                           WRITEMODE_WORD);
+        mms_write_virtual_memory(b_reg, gA, true, WRITEMODE_WORD);
+        mms_write_virtual_memory((uint16_t)((b_reg + 1) & 0xFFFF), (uint16_t)(x_reg >> 2), true,
+                                 WRITEMODE_WORD);
 
         /* DIAG (--trace-nd110): per-node dump of the page-table entry actually written. */
         if (g_nd110_trace_fp != NULL)
@@ -994,13 +996,13 @@ static void nd110_enter_page_table(uint16_t r4_mask)
                     "  ENPT node X=%06o w0=%06o w1=%06o -> B=%06o APT[B]=%06o APT[B+1]=%06o "
                     "shadow=%d PCR=%06o PONI=%d\n",
                     x_reg, word0, word1, b_reg, gA, (uint16_t)(x_reg >> 2),
-                    IsAddressShadowMemory(b_reg, false) ? 1 : 0, g_reg->reg_PCR[CURR_LEVEL],
+                    mms_is_address_shadow_memory(b_reg, false) ? 1 : 0, g_reg->reg_PCR[CURR_LEVEL],
                     STS_PAGING_ON_IS_SET ? 1 : 0);
             fflush(g_nd110_trace_fp);
         }
 
         /* 004577-004600: advance X := [X] (forward link, physical CMBUK segment). */
-        gX = (uint16_t)ReadPhysicalMemory((int)(cmbnk | x_reg), true);
+        gX = (uint16_t)mms_read_physical_memory((int)(cmbnk | x_reg), true);
     }
 }
 
@@ -1098,10 +1100,10 @@ static inline void regop_arith(uint16_t operand, uint16_t dr, uint16_t source, u
         tmp = do_add(destination, ~source, 1);
         break; /* RADD AD1 CM1 */
     case 4:
-        tmp = do_add(destination, source, getbit(_STS, STS_CARRY));
+        tmp = do_add(destination, source, cpu_getbit(_STS, STS_CARRY));
         break; /* RADD ADC */
     case 5:
-        tmp = do_add(destination, ~source, getbit(_STS, STS_CARRY));
+        tmp = do_add(destination, ~source, cpu_getbit(_STS, STS_CARRY));
         break; /* RADD ADC CM1 */
     case 6:    /* NOOP */
         break;
@@ -1283,7 +1285,7 @@ static void do_tra(uint16_t instr)
         /* Manuals says(2.2.4.3) that this should be a number equal to the highest bit set in (IID & IIE) - Roger */
         /* Only bit 1-10 is used, so we only return a value between 1 and 10  or else  zero */
 
-        gIIC = calcIIC();
+        gIIC = cpu_calc_iic();
 
         gA = gIIC;
 
@@ -1366,9 +1368,9 @@ static void do_exr(uint16_t instr)
         exr_instr = 0;
     }
 
-    if (0140600 == extract_opcode(exr_instr))
-    {                                         /* ILLEGAL:: EXR of EXR */
-        setbit(_STS, STS_ERROR_INDICATOR, 1); //: TODO: activate CPU trap on level 14!!!
+    if (0140600 == disasm_extract_opcode(exr_instr))
+    {                                             /* ILLEGAL:: EXR of EXR */
+        cpu_setbit(_STS, STS_ERROR_INDICATOR, 1); //: TODO: activate CPU trap on level 14!!!
         return;
     }
     if (g_disasm)
@@ -1377,7 +1379,7 @@ static void do_exr(uint16_t instr)
     }
 
     // Execute opcode but do not touch Program Counter
-    do_op(exr_instr, true);
+    cpu_do_op(exr_instr, true);
 }
 
 /*
@@ -1405,7 +1407,7 @@ static void do_wait(uint16_t instr)
                gPIL, gPC, gPID, gPIE, STS_INTERRUPT_ON_IS_SET, STS_PAGING_ON_IS_SET, g_reg->reg_STS,
                g_reg->reg[gPIL][_STS], gA);
         g_cpu_exit_code = (int)(short)gA;
-        set_cpu_run_mode(CPU_STOPPED);
+        cpu_set_run_mode(CPU_STOPPED);
         return;
     }
 
@@ -1446,7 +1448,7 @@ static void do_trr(uint16_t instr)
     {
     case 00: // TRR PANC
         gPANC = gA;
-        ProcessTerminalPanc();
+        panel_process_terminal_panc();
 
         break;
     case 01: // TRR STS
@@ -1456,7 +1458,7 @@ static void do_trr(uint16_t instr)
         break;
     case 02: // TRR LMP
         gLMP = gA;
-        ProcessTerminalLamp();
+        panel_process_terminal_lamp();
 
         break;
     case 03: /* PGC/PCR - Paging Control Register */
@@ -1535,14 +1537,14 @@ static void do_srb(uint16_t operand)
     sts_temp = g_reg->reg[lvl][_STS] & 0x00ff;
 
     // If the current program level is specified, the stored P register points to the instruction following SRB.
-    MemoryWrite(g_reg->reg[lvl][_P], addr, true, 2);
-    MemoryWrite(g_reg->reg[lvl][_X], addr + 1, true, 2);
-    MemoryWrite(g_reg->reg[lvl][_T], addr + 2, true, 2);
-    MemoryWrite(g_reg->reg[lvl][_A], addr + 3, true, 2);
-    MemoryWrite(g_reg->reg[lvl][_D], addr + 4, true, 2);
-    MemoryWrite(g_reg->reg[lvl][_L], addr + 5, true, 2);
-    MemoryWrite(sts_temp, addr + 6, true, 2); /* Only write LSB of STS */
-    MemoryWrite(g_reg->reg[lvl][_B], addr + 7, true, 2);
+    cpu_memory_write(g_reg->reg[lvl][_P], addr, true, 2);
+    cpu_memory_write(g_reg->reg[lvl][_X], addr + 1, true, 2);
+    cpu_memory_write(g_reg->reg[lvl][_T], addr + 2, true, 2);
+    cpu_memory_write(g_reg->reg[lvl][_A], addr + 3, true, 2);
+    cpu_memory_write(g_reg->reg[lvl][_D], addr + 4, true, 2);
+    cpu_memory_write(g_reg->reg[lvl][_L], addr + 5, true, 2);
+    cpu_memory_write(sts_temp, addr + 6, true, 2); /* Only write LSB of STS */
+    cpu_memory_write(g_reg->reg[lvl][_B], addr + 7, true, 2);
 }
 
 /*
@@ -1584,16 +1586,16 @@ static void do_lrb(uint16_t operand)
 
     if (lvl != CURR_LEVEL)
     { /* Dont change P on current level if this happens to be specified */
-        g_reg->reg[lvl][_P] = MemoryRead(addr, true);
+        g_reg->reg[lvl][_P] = cpu_memory_read(addr, true);
     }
-    g_reg->reg[lvl][_X] = MemoryRead(addr + 1, true);
-    g_reg->reg[lvl][_T] = MemoryRead(addr + 2, true);
-    g_reg->reg[lvl][_A] = MemoryRead(addr + 3, true);
-    g_reg->reg[lvl][_D] = MemoryRead(addr + 4, true);
-    g_reg->reg[lvl][_L] = MemoryRead(addr + 5, true);
+    g_reg->reg[lvl][_X] = cpu_memory_read(addr + 1, true);
+    g_reg->reg[lvl][_T] = cpu_memory_read(addr + 2, true);
+    g_reg->reg[lvl][_A] = cpu_memory_read(addr + 3, true);
+    g_reg->reg[lvl][_D] = cpu_memory_read(addr + 4, true);
+    g_reg->reg[lvl][_L] = cpu_memory_read(addr + 5, true);
     g_reg->reg[lvl][_STS] = (g_reg->reg[lvl][_STS] & 0xff00) |
-                            (MemoryRead(addr + 6, true) & 0x00ff); /* Only load LSB STS */
-    g_reg->reg[lvl][_B] = MemoryRead(addr + 7, true);
+                            (cpu_memory_read(addr + 6, true) & 0x00ff); /* Only load LSB STS */
+    g_reg->reg[lvl][_B] = cpu_memory_read(addr + 7, true);
 }
 
 static bool is_skip(uint16_t instr)
@@ -1684,70 +1686,72 @@ static void do_bops(uint16_t operand)
     switch ((operand & 0x0780) >> 7)
     {
     case 0: /* BSET ZRO */
-        setbit(dr, bn, 0);
+        cpu_setbit(dr, bn, 0);
         break;
     case 1: /* BSET ONE */
-        setbit(dr, bn, 1);
+        cpu_setbit(dr, bn, 1);
         break;
     case 2: /* BSET BCM */
-        desti = getbit(dr, bn);
+        desti = cpu_getbit(dr, bn);
         desti ^= 1; /* XOR with one to invert bit */
-        setbit(dr, bn, desti);
+        cpu_setbit(dr, bn, desti);
         break;
     case 3: /* BSET BAC */
-        setbit(dr, bn, getbit(_STS, STS_BIT_ACCUMULATOR));
+        cpu_setbit(dr, bn, cpu_getbit(_STS, STS_BIT_ACCUMULATOR));
         break;
     case 4: /* BSKP ZRO */
-        if (!getbit(dr, bn))
+        if (!cpu_getbit(dr, bn))
         {
             gPC++; /* Skip next instruction if zero */
         }
         break;
     case 5: /* BSKP ONE */
-        if (getbit(dr, bn))
+        if (cpu_getbit(dr, bn))
         {
             gPC++; /* Skip next instruction if one */
         }
         break;
     case 6: /* BSKP BCM */
-        if ((getbit(dr, bn) ^ 1) == getbit(_STS, STS_BIT_ACCUMULATOR))
+        if ((cpu_getbit(dr, bn) ^ 1) == cpu_getbit(_STS, STS_BIT_ACCUMULATOR))
         {
             gPC++; /* Skip next instruction if bit complement */
         }
         break;
     case 7: /* BSKP BAC */
-        if (getbit(dr, bn) == getbit(_STS, STS_BIT_ACCUMULATOR))
+        if (cpu_getbit(dr, bn) == cpu_getbit(_STS, STS_BIT_ACCUMULATOR))
         {
             gPC++; /* Skip next instruction if equal */
         }
         break;
     case 8: /* BSTC */
-        setbit(dr, bn, (getbit(_STS, STS_BIT_ACCUMULATOR) ^ 1));
-        setbit(_STS, STS_BIT_ACCUMULATOR, 1);
+        cpu_setbit(dr, bn, (cpu_getbit(_STS, STS_BIT_ACCUMULATOR) ^ 1));
+        cpu_setbit(_STS, STS_BIT_ACCUMULATOR, 1);
         break;
     case 9: /* BSTA */
-        setbit(dr, bn, getbit(_STS, STS_BIT_ACCUMULATOR));
-        setbit(_STS, STS_BIT_ACCUMULATOR, 0);
+        cpu_setbit(dr, bn, cpu_getbit(_STS, STS_BIT_ACCUMULATOR));
+        cpu_setbit(_STS, STS_BIT_ACCUMULATOR, 0);
         break;
     case 10: /* BLDC */
-        setbit(_STS, STS_BIT_ACCUMULATOR, getbit(dr, bn) ^ 1);
+        cpu_setbit(_STS, STS_BIT_ACCUMULATOR, cpu_getbit(dr, bn) ^ 1);
         break;
     case 11: /* BLDA */
-        setbit(_STS, STS_BIT_ACCUMULATOR, getbit(dr, bn));
+        cpu_setbit(_STS, STS_BIT_ACCUMULATOR, cpu_getbit(dr, bn));
         break;
     case 12: /* BANC */
-        setbit(_STS, STS_BIT_ACCUMULATOR,
-               ((getbit(dr, bn) ^ 1) & getbit(_STS, STS_BIT_ACCUMULATOR)));
+        cpu_setbit(_STS, STS_BIT_ACCUMULATOR,
+                   ((cpu_getbit(dr, bn) ^ 1) & cpu_getbit(_STS, STS_BIT_ACCUMULATOR)));
         break;
     case 13: /* BAND */
-        setbit(_STS, STS_BIT_ACCUMULATOR, (getbit(dr, bn) & getbit(_STS, STS_BIT_ACCUMULATOR)));
+        cpu_setbit(_STS, STS_BIT_ACCUMULATOR,
+                   (cpu_getbit(dr, bn) & cpu_getbit(_STS, STS_BIT_ACCUMULATOR)));
         break;
     case 14: /* BORC */
-        setbit(_STS, STS_BIT_ACCUMULATOR,
-               ((getbit(dr, bn) ^ 1) | getbit(_STS, STS_BIT_ACCUMULATOR)));
+        cpu_setbit(_STS, STS_BIT_ACCUMULATOR,
+                   ((cpu_getbit(dr, bn) ^ 1) | cpu_getbit(_STS, STS_BIT_ACCUMULATOR)));
         break;
     case 15: /* BORA */
-        setbit(_STS, STS_BIT_ACCUMULATOR, (getbit(dr, bn) | getbit(_STS, STS_BIT_ACCUMULATOR)));
+        cpu_setbit(_STS, STS_BIT_ACCUMULATOR,
+                   (cpu_getbit(dr, bn) | cpu_getbit(_STS, STS_BIT_ACCUMULATOR)));
         break;
     default:
         break;
@@ -1765,7 +1769,7 @@ static uint16_t shift_reg(uint16_t reg, uint16_t instr)
         (isneg) ? (uint16_t)((~((instr & 0x003F) | 0xFFC0) + 1) & 0x1F) : (instr & 0x003F);
     uint16_t shifttype = ((instr >> 9) & 0x03);
     int i, tmp, msb;
-    int m = getbit(_STS, STS_SHIFT_OUT);
+    int m = cpu_getbit(_STS, STS_SHIFT_OUT);
     tmp = m; /* just in case.. */
     for (i = 1; i <= offset; i++)
     {
@@ -1790,7 +1794,7 @@ static uint16_t shift_reg(uint16_t reg, uint16_t instr)
             break;
         }
     }
-    setbit(_STS, STS_SHIFT_OUT, tmp);
+    cpu_setbit(_STS, STS_SHIFT_OUT, tmp);
     return reg;
 }
 
@@ -1807,7 +1811,7 @@ static uint32_t shift_double_reg(uint32_t reg, uint16_t instr)
     uint16_t shifttype = ((instr >> 9) & 0x03);
     int i;
     uint32_t tmp, msb;
-    uint32_t m = (uint32_t)getbit(_STS, STS_SHIFT_OUT);
+    uint32_t m = (uint32_t)cpu_getbit(_STS, STS_SHIFT_OUT);
     tmp = m; /* just in case.. */
     for (i = 1; i <= offset; i++)
     {
@@ -1832,7 +1836,7 @@ static uint32_t shift_double_reg(uint32_t reg, uint16_t instr)
             break;
         }
     }
-    setbit(_STS, STS_SHIFT_OUT, (char)tmp);
+    cpu_setbit(_STS, STS_SHIFT_OUT, (char)tmp);
     return reg;
 }
 
@@ -1843,7 +1847,7 @@ static uint32_t shift_double_reg(uint32_t reg, uint16_t instr)
 static void do_ident(uint16_t priolevel)
 {
 
-    int id = IO_Ident(priolevel);
+    int id = io_ident(priolevel);
 
     // IDENT is the ND-100 interrupt ACKNOWLEDGE for this level. IO_Ident /
     // terminal_ident already clears the identified device's own request, and the
@@ -1869,7 +1873,7 @@ static void do_ident(uint16_t priolevel)
 
         if (priolevel != 13) // ignore RTC
         {
-            interrupt(14, 1 << 7); /* IOX Error if no IDENT code found */
+            cpu_interrupt(14, 1 << 7); /* IOX Error if no IDENT code found */
         }
     }
     return;
@@ -1888,7 +1892,7 @@ static void do_ident(uint16_t priolevel)
 static void do_rdus(uint16_t instr)
 {
     (void)instr;
-    gA = MemoryRead(gT, true);
+    gA = cpu_memory_read(gT, true);
 }
 
 /// <summary>
@@ -1911,8 +1915,8 @@ static void do_tset(uint16_t instr)
     (void)instr;
     // cpu.WriteVirtualMemory(regs.currentRegisters.T, 0xFFFF, PageTable.AlternativePageTable); // Write -1
 
-    gA = MemoryRead(gT, true);
-    MemoryWrite(0xFFFF, gT, true, 2);
+    gA = cpu_memory_read(gT, true);
+    cpu_memory_write(0xFFFF, gT, true, 2);
 }
 
 /// <summary>
@@ -1991,41 +1995,41 @@ static void do_movew(uint16_t instr)
         switch (displacement)
         {
         case 0: // move from PT to PT
-            temp = MemoryRead(source_address, false);
-            MemoryWrite(temp, destination_address, false, 2);
+            temp = cpu_memory_read(source_address, false);
+            cpu_memory_write(temp, destination_address, false, 2);
             break;
         case 1: // move from PT to APT
-            temp = MemoryRead(source_address, false);
-            MemoryWrite(temp, destination_address, true, 2);
+            temp = cpu_memory_read(source_address, false);
+            cpu_memory_write(temp, destination_address, true, 2);
             break;
         case 2: // move from PT to physical memory
-            temp = MemoryRead(source_address, false);
-            WritePhysicalMemory(destination_address, temp, true);
+            temp = cpu_memory_read(source_address, false);
+            mms_write_physical_memory(destination_address, temp, true);
             break;
         case 3: // move from APT to PT
-            temp = (uint16_t)MemoryRead(source_address, true);
-            MemoryWrite(temp, destination_address, false, 2);
+            temp = (uint16_t)cpu_memory_read(source_address, true);
+            cpu_memory_write(temp, destination_address, false, 2);
             break;
         case 4: // move from APT to APT
-            temp = (uint16_t)MemoryRead(source_address, true);
-            MemoryWrite(temp, destination_address, true, 2);
+            temp = (uint16_t)cpu_memory_read(source_address, true);
+            cpu_memory_write(temp, destination_address, true, 2);
             break;
         case 5: // move from APT to physical memory
-            temp = (uint16_t)MemoryRead(source_address, true);
-            WritePhysicalMemory(destination_address, temp, true);
+            temp = (uint16_t)cpu_memory_read(source_address, true);
+            mms_write_physical_memory(destination_address, temp, true);
             break;
         case 6: // move from physical memory to PT
-            temp = ReadPhysicalMemory(source_address, true);
-            MemoryWrite(temp, destination_address, false, 2);
+            temp = mms_read_physical_memory(source_address, true);
+            cpu_memory_write(temp, destination_address, false, 2);
             break;
         case 7: // move from physical memory to APT
-            temp = ReadPhysicalMemory(source_address, true);
-            MemoryWrite(temp, destination_address, true, 2);
+            temp = mms_read_physical_memory(source_address, true);
+            cpu_memory_write(temp, destination_address, true, 2);
             break;
 
         case 8: // move from physical memory to physical memory
-            temp = ReadPhysicalMemory(source_address, true);
-            WritePhysicalMemory(destination_address, temp, true);
+            temp = mms_read_physical_memory(source_address, true);
+            mms_write_physical_memory(destination_address, temp, true);
             break;
 
         default:
@@ -2076,37 +2080,37 @@ static void do_movew(uint16_t instr)
 #endif
 
 
-void add_A_mem(uint16_t eff_addr, bool use_apt)
+void cpu_add_a_mem(uint16_t eff_addr, bool use_apt)
 {
     int temp, data, oldreg;
     oldreg = gA;
-    data = MemoryRead(eff_addr, use_apt);
+    data = cpu_memory_read(eff_addr, use_apt);
     temp = gA + data;
 
     // FIXME - ADD FLAG HANDLING CORRECTLY FOR C,O,Q FLAGS (CHECK AGAIN THINK WE MIGHT HAVE SUBTLE BUGS)
 
     if ((temp > 0xFFFF) || (temp < 0))
     {
-        setbit(_STS, STS_CARRY, 1);
+        cpu_setbit(_STS, STS_CARRY, 1);
         if ((oldreg & 0x8000) && (data & 0x8000) && !(temp & 0x8000))
         {
-            setbit(_STS, STS_DYNAMIC_OVERFLOW, 1);
+            cpu_setbit(_STS, STS_DYNAMIC_OVERFLOW, 1);
         }
         else
         {
-            setbit(_STS, STS_DYNAMIC_OVERFLOW, 0);
+            cpu_setbit(_STS, STS_DYNAMIC_OVERFLOW, 0);
         }
     }
     else
     {
-        setbit(_STS, STS_CARRY, 0);
+        cpu_setbit(_STS, STS_CARRY, 0);
         if (!(oldreg & 0x8000) && !(data & 0x8000) && (temp & 0x8000))
         {
-            setbit(_STS, STS_DYNAMIC_OVERFLOW, 1);
+            cpu_setbit(_STS, STS_DYNAMIC_OVERFLOW, 1);
         }
         else
         {
-            setbit(_STS, STS_DYNAMIC_OVERFLOW, 0);
+            cpu_setbit(_STS, STS_DYNAMIC_OVERFLOW, 0);
         }
     }
 
@@ -2173,7 +2177,7 @@ static void do_move_bytes(bool check_overlapping)
         {
             // Bit 15: 0=>MSB, 1=> LSB
             read_mode = (gD & (1 << 15)) ? WRITEMODE_LSB : WRITEMODE_MSB;
-            read_value = MemoryRead(gA, use_apt);
+            read_value = cpu_memory_read(gA, use_apt);
 
             if (read_mode == WRITEMODE_MSB)
             {
@@ -2185,7 +2189,7 @@ static void do_move_bytes(bool check_overlapping)
             }
 
             write_mode = (gT & (1 << 15)) ? WRITEMODE_LSB : WRITEMODE_MSB;
-            MemoryWrite(read_value, gX, use_apt, write_mode);
+            cpu_memory_write(read_value, gX, use_apt, write_mode);
 
             gD ^= (1 << 15); // Flip D bit 15
             if (!(gD & (1 << 15)))
@@ -2207,7 +2211,7 @@ static void do_move_bytes(bool check_overlapping)
         {
             // Bit 15: 0=>MSB, 1=> LSB
             read_mode = (gD & (1 << 15)) ? WRITEMODE_LSB : WRITEMODE_MSB;
-            read_value = MemoryRead(gA, use_apt);
+            read_value = cpu_memory_read(gA, use_apt);
 
             if (read_mode == WRITEMODE_MSB)
             {
@@ -2219,7 +2223,7 @@ static void do_move_bytes(bool check_overlapping)
             }
 
             write_mode = (gT & (1 << 15)) ? WRITEMODE_LSB : WRITEMODE_MSB;
-            MemoryWrite(read_value, gX, use_apt, write_mode);
+            cpu_memory_write(read_value, gX, use_apt, write_mode);
 
             gD ^= (1 << 15); // Flip D bit 15
             if (!(gD & (1 << 15)))
@@ -2304,7 +2308,7 @@ static void opcode_mix3_multiply_index_by_three(uint16_t operand)
  */
 static void opcode_sab_set_argument_to_b(uint16_t operand)
 {
-    setreg(_B, signExtend(operand & 0xFF));
+    cpu_setreg(_B, cpu_sign_extend(operand & 0xFF));
 }
 
 /**
@@ -2326,7 +2330,7 @@ static void opcode_sab_set_argument_to_b(uint16_t operand)
  */
 static void opcode_saa_set_argument_to_a(uint16_t operand)
 {
-    setreg(_A, signExtend(operand & 0xFF));
+    cpu_setreg(_A, cpu_sign_extend(operand & 0xFF));
 }
 
 /**
@@ -2348,7 +2352,7 @@ static void opcode_saa_set_argument_to_a(uint16_t operand)
  */
 static void opcode_sat_set_argument_to_t(uint16_t operand)
 {
-    setreg(_T, signExtend(operand & 0xFF));
+    cpu_setreg(_T, cpu_sign_extend(operand & 0xFF));
 }
 
 /**
@@ -2370,7 +2374,7 @@ static void opcode_sat_set_argument_to_t(uint16_t operand)
  */
 static void opcode_sax_set_argument_to_x(uint16_t operand)
 {
-    setreg(_X, signExtend(operand & 0xFF));
+    cpu_setreg(_X, cpu_sign_extend(operand & 0xFF));
 }
 
 /**
@@ -2394,7 +2398,7 @@ static void opcode_aab_add_argument_to_b(uint16_t operand)
 {
     uint16_t temp;
 
-    temp = signExtend(operand & 0xFF);
+    temp = cpu_sign_extend(operand & 0xFF);
     gB = do_add(gB, temp, 0);
 }
 
@@ -2419,7 +2423,7 @@ static void opcode_aaa_add_argument_to_a(uint16_t operand)
 {
     short temp;
 
-    temp = signExtend(operand & 0xFF);
+    temp = cpu_sign_extend(operand & 0xFF);
     gA = do_add(gA, temp, 0);
 }
 
@@ -2444,7 +2448,7 @@ static void opcode_aat_add_argument_to_t(uint16_t operand)
 {
     uint16_t temp;
 
-    temp = signExtend(operand & 0xFF);
+    temp = cpu_sign_extend(operand & 0xFF);
     gT = do_add(gT, temp, 0);
 }
 
@@ -2469,7 +2473,7 @@ static void opcode_aax_add_argument_to_x(uint16_t operand)
 {
     uint16_t temp;
 
-    temp = signExtend(operand & 0xFF);
+    temp = cpu_sign_extend(operand & 0xFF);
 
     gX = do_add(gX, temp, 0);
 }
@@ -2504,9 +2508,9 @@ static void opcode_aax_add_argument_to_x(uint16_t operand)
  */
 static void opcode_std_store_double_word(uint16_t operand)
 {
-    gEA = New_GetEffectiveAddr(operand, &gUseAPT);
-    MemoryWrite(gA, gEA + 0, gUseAPT, 2);
-    MemoryWrite(gD, gEA + 1, gUseAPT, 2);
+    gEA = cpu_get_effective_addr(operand, &gUseAPT);
+    cpu_memory_write(gA, gEA + 0, gUseAPT, 2);
+    cpu_memory_write(gD, gEA + 1, gUseAPT, 2);
 }
 
 /**
@@ -2536,10 +2540,10 @@ static void opcode_std_store_double_word(uint16_t operand)
  */
 static void opcode_ldd_load_double_word(uint16_t operand)
 {
-    gEA = New_GetEffectiveAddr(operand, &gUseAPT);
+    gEA = cpu_get_effective_addr(operand, &gUseAPT);
 
-    gA = MemoryRead(gEA + 0, gUseAPT);
-    gD = MemoryRead(gEA + 1, gUseAPT);
+    gA = cpu_memory_read(gEA + 0, gUseAPT);
+    gD = cpu_memory_read(gEA + 1, gUseAPT);
 }
 
 /**
@@ -2567,8 +2571,8 @@ static void opcode_ldd_load_double_word(uint16_t operand)
  */
 static void opcode_lda_load_a_register(uint16_t operand)
 {
-    gEA = New_GetEffectiveAddr(operand, &gUseAPT);
-    gA = MemoryRead(gEA, gUseAPT);
+    gEA = cpu_get_effective_addr(operand, &gUseAPT);
+    gA = cpu_memory_read(gEA, gUseAPT);
 }
 
 /**
@@ -2596,8 +2600,8 @@ static void opcode_lda_load_a_register(uint16_t operand)
  */
 static void opcode_ldt_load_t_register(uint16_t operand)
 {
-    gEA = New_GetEffectiveAddr(operand, &gUseAPT);
-    gT = MemoryRead(gEA, gUseAPT);
+    gEA = cpu_get_effective_addr(operand, &gUseAPT);
+    gT = cpu_memory_read(gEA, gUseAPT);
 }
 
 /**
@@ -2625,8 +2629,8 @@ static void opcode_ldt_load_t_register(uint16_t operand)
  */
 static void opcode_ldx_load_x_register(uint16_t operand)
 {
-    gEA = New_GetEffectiveAddr(operand, &gUseAPT);
-    gX = MemoryRead(gEA, gUseAPT);
+    gEA = cpu_get_effective_addr(operand, &gUseAPT);
+    gX = cpu_memory_read(gEA, gUseAPT);
 }
 
 
@@ -2657,8 +2661,8 @@ static void opcode_ldx_load_x_register(uint16_t operand)
  */
 static void opcode_stz_store_zero(uint16_t operand)
 {
-    gEA = New_GetEffectiveAddr(operand, &gUseAPT);
-    MemoryWrite(0, gEA, gUseAPT, 2);
+    gEA = cpu_get_effective_addr(operand, &gUseAPT);
+    cpu_memory_write(0, gEA, gUseAPT, 2);
 }
 
 /**
@@ -2686,9 +2690,9 @@ static void opcode_stz_store_zero(uint16_t operand)
  */
 static void opcode_sta_store_a_register(uint16_t operand)
 {
-    gEA = New_GetEffectiveAddr(operand, &gUseAPT);
+    gEA = cpu_get_effective_addr(operand, &gUseAPT);
 
-    MemoryWrite(gA, gEA, gUseAPT, 2);
+    cpu_memory_write(gA, gEA, gUseAPT, 2);
 }
 
 /**
@@ -2716,8 +2720,8 @@ static void opcode_sta_store_a_register(uint16_t operand)
  */
 static void opcode_stt_store_t_register(uint16_t operand)
 {
-    gEA = New_GetEffectiveAddr(operand, &gUseAPT);
-    MemoryWrite(gT, gEA, gUseAPT, 2);
+    gEA = cpu_get_effective_addr(operand, &gUseAPT);
+    cpu_memory_write(gT, gEA, gUseAPT, 2);
 }
 
 /**
@@ -2745,8 +2749,8 @@ static void opcode_stt_store_t_register(uint16_t operand)
  */
 static void opcode_stx_store_x_register(uint16_t operand)
 {
-    gEA = New_GetEffectiveAddr(operand, &gUseAPT);
-    MemoryWrite(gX, gEA, gUseAPT, 2);
+    gEA = cpu_get_effective_addr(operand, &gUseAPT);
+    cpu_memory_write(gX, gEA, gUseAPT, 2);
 }
 
 /**
@@ -2779,11 +2783,11 @@ static void opcode_stx_store_x_register(uint16_t operand)
  */
 static void opcode_min_memory_increment_and_skip_if_zero(uint16_t operand)
 {
-    gEA = New_GetEffectiveAddr(operand, &gUseAPT);
+    gEA = cpu_get_effective_addr(operand, &gUseAPT);
 
-    uint16_t temp = MemoryRead(gEA, gUseAPT);
+    uint16_t temp = cpu_memory_read(gEA, gUseAPT);
     temp++;
-    MemoryWrite(temp, gEA, gUseAPT, 2);
+    cpu_memory_write(temp, gEA, gUseAPT, 2);
 
     if (temp == 0)
     {
@@ -3032,9 +3036,9 @@ static void opcode_stdtx_store_double_word_t_x_relative(uint16_t operand)
  */
 static void opcode_add_add_to_a_register(uint16_t operand)
 {
-    gEA = New_GetEffectiveAddr(operand, &gUseAPT);
+    gEA = cpu_get_effective_addr(operand, &gUseAPT);
 
-    uint16_t eff_word = MemoryRead(gEA, gUseAPT);
+    uint16_t eff_word = cpu_memory_read(gEA, gUseAPT);
     gA = do_add(gA, eff_word, 0);
 }
 
@@ -3063,8 +3067,8 @@ static void opcode_add_add_to_a_register(uint16_t operand)
  */
 static void opcode_sub_subtract_from_a_register(uint16_t operand)
 {
-    gEA = New_GetEffectiveAddr(operand, &gUseAPT);
-    uint16_t eff_word = MemoryRead(gEA, gUseAPT);
+    gEA = cpu_get_effective_addr(operand, &gUseAPT);
+    uint16_t eff_word = cpu_memory_read(gEA, gUseAPT);
     gA = do_add(gA, ~eff_word, 1);
 }
 
@@ -3094,8 +3098,8 @@ static void opcode_sub_subtract_from_a_register(uint16_t operand)
  */
 static void opcode_and_logical_and_to_a_register(uint16_t operand)
 {
-    gEA = New_GetEffectiveAddr(operand, &gUseAPT);
-    gA = gA & MemoryRead(gEA, gUseAPT);
+    gEA = cpu_get_effective_addr(operand, &gUseAPT);
+    gA = gA & cpu_memory_read(gEA, gUseAPT);
 }
 
 /**
@@ -3124,8 +3128,8 @@ static void opcode_and_logical_and_to_a_register(uint16_t operand)
  */
 static void opcode_ora_logical_or_to_a_register(uint16_t operand)
 {
-    gEA = New_GetEffectiveAddr(operand, &gUseAPT);
-    gA = gA | MemoryRead(gEA, gUseAPT);
+    gEA = cpu_get_effective_addr(operand, &gUseAPT);
+    gA = gA | cpu_memory_read(gEA, gUseAPT);
 }
 
 
@@ -3157,10 +3161,10 @@ static void opcode_ora_logical_or_to_a_register(uint16_t operand)
  */
 static void opcode_stf_store_floating_accumulator(uint16_t operand)
 {
-    gEA = New_GetEffectiveAddr(operand, &gUseAPT);
-    MemoryWrite(gT, gEA + 0, gUseAPT, 2);
-    MemoryWrite(gA, gEA + 1, gUseAPT, 2);
-    MemoryWrite(gD, gEA + 2, gUseAPT, 2);
+    gEA = cpu_get_effective_addr(operand, &gUseAPT);
+    cpu_memory_write(gT, gEA + 0, gUseAPT, 2);
+    cpu_memory_write(gA, gEA + 1, gUseAPT, 2);
+    cpu_memory_write(gD, gEA + 2, gUseAPT, 2);
 }
 
 /**
@@ -3191,11 +3195,11 @@ static void opcode_stf_store_floating_accumulator(uint16_t operand)
  */
 static void opcode_ldf_load_floating_accumulator(uint16_t operand)
 {
-    gEA = New_GetEffectiveAddr(operand, &gUseAPT);
+    gEA = cpu_get_effective_addr(operand, &gUseAPT);
 
-    gT = MemoryRead(gEA + 0, gUseAPT);
-    gA = MemoryRead(gEA + 1, gUseAPT);
-    gD = MemoryRead(gEA + 2, gUseAPT);
+    gT = cpu_memory_read(gEA + 0, gUseAPT);
+    gA = cpu_memory_read(gEA + 1, gUseAPT);
+    gD = cpu_memory_read(gEA + 2, gUseAPT);
 }
 
 /**
@@ -3225,7 +3229,7 @@ static void opcode_ldf_load_floating_accumulator(uint16_t operand)
  */
 static void opcode_fad_add_to_floating_accumulator(uint16_t operand)
 {
-    gEA = New_GetEffectiveAddr(operand, &gUseAPT);
+    gEA = cpu_get_effective_addr(operand, &gUseAPT);
 
     if (g_current_fpp_type == FPP48)
     {
@@ -3234,10 +3238,10 @@ static void opcode_fad_add_to_floating_accumulator(uint16_t operand)
         a[0] = gT;
         a[1] = gA;
         a[2] = gD;
-        b[0] = MemoryRead(gEA + 0, gUseAPT);
-        b[1] = MemoryRead(gEA + 1, gUseAPT);
-        b[2] = MemoryRead(gEA + 2, gUseAPT);
-        NDFloat_Add(a, b, r);
+        b[0] = cpu_memory_read(gEA + 0, gUseAPT);
+        b[1] = cpu_memory_read(gEA + 1, gUseAPT);
+        b[2] = cpu_memory_read(gEA + 2, gUseAPT);
+        float_add(a, b, r);
         gT = r[0];
         gA = r[1];
         gD = r[2];
@@ -3248,9 +3252,9 @@ static void opcode_fad_add_to_floating_accumulator(uint16_t operand)
 
         a[0] = gA;
         a[1] = gD;
-        b[0] = MemoryRead(gEA + 0, gUseAPT); /* only TWO words */
-        b[1] = MemoryRead(gEA + 1, gUseAPT);
-        NDFloat_Add32(a, b, r);
+        b[0] = cpu_memory_read(gEA + 0, gUseAPT); /* only TWO words */
+        b[1] = cpu_memory_read(gEA + 1, gUseAPT);
+        float_add_32(a, b, r);
         gA = r[0];
         gD = r[1]; /* gT untouched */
     }
@@ -3282,7 +3286,7 @@ static void opcode_fad_add_to_floating_accumulator(uint16_t operand)
  */
 static void opcode_fsb_subtract_from_floating_accumulator(uint16_t operand)
 {
-    gEA = New_GetEffectiveAddr(operand, &gUseAPT);
+    gEA = cpu_get_effective_addr(operand, &gUseAPT);
 
     if (g_current_fpp_type == FPP48)
     {
@@ -3291,10 +3295,10 @@ static void opcode_fsb_subtract_from_floating_accumulator(uint16_t operand)
         a[0] = gT;
         a[1] = gA;
         a[2] = gD;
-        b[0] = MemoryRead(gEA + 0, gUseAPT);
-        b[1] = MemoryRead(gEA + 1, gUseAPT);
-        b[2] = MemoryRead(gEA + 2, gUseAPT);
-        NDFloat_Sub(a, b, r);
+        b[0] = cpu_memory_read(gEA + 0, gUseAPT);
+        b[1] = cpu_memory_read(gEA + 1, gUseAPT);
+        b[2] = cpu_memory_read(gEA + 2, gUseAPT);
+        float_sub(a, b, r);
         gT = r[0];
         gA = r[1];
         gD = r[2];
@@ -3305,9 +3309,9 @@ static void opcode_fsb_subtract_from_floating_accumulator(uint16_t operand)
 
         a[0] = gA;
         a[1] = gD;
-        b[0] = MemoryRead(gEA + 0, gUseAPT); /* only TWO words */
-        b[1] = MemoryRead(gEA + 1, gUseAPT);
-        NDFloat_Sub32(a, b, r);
+        b[0] = cpu_memory_read(gEA + 0, gUseAPT); /* only TWO words */
+        b[1] = cpu_memory_read(gEA + 1, gUseAPT);
+        float_sub_32(a, b, r);
         gA = r[0];
         gD = r[1]; /* gT untouched */
     }
@@ -3339,7 +3343,7 @@ static void opcode_fsb_subtract_from_floating_accumulator(uint16_t operand)
  */
 static void opcode_fmu_multiply_floating_accumulator(uint16_t operand)
 {
-    gEA = New_GetEffectiveAddr(operand, &gUseAPT);
+    gEA = cpu_get_effective_addr(operand, &gUseAPT);
 
     if (g_current_fpp_type == FPP48)
     {
@@ -3348,10 +3352,10 @@ static void opcode_fmu_multiply_floating_accumulator(uint16_t operand)
         a[0] = gT;
         a[1] = gA;
         a[2] = gD;
-        b[0] = MemoryRead(gEA + 0, gUseAPT);
-        b[1] = MemoryRead(gEA + 1, gUseAPT);
-        b[2] = MemoryRead(gEA + 2, gUseAPT);
-        NDFloat_Mul(a, b, r);
+        b[0] = cpu_memory_read(gEA + 0, gUseAPT);
+        b[1] = cpu_memory_read(gEA + 1, gUseAPT);
+        b[2] = cpu_memory_read(gEA + 2, gUseAPT);
+        float_mul(a, b, r);
         gT = r[0];
         gA = r[1];
         gD = r[2];
@@ -3362,9 +3366,9 @@ static void opcode_fmu_multiply_floating_accumulator(uint16_t operand)
 
         a[0] = gA;
         a[1] = gD;
-        b[0] = MemoryRead(gEA + 0, gUseAPT); /* only TWO words */
-        b[1] = MemoryRead(gEA + 1, gUseAPT);
-        NDFloat_Mul32(a, b, r);
+        b[0] = cpu_memory_read(gEA + 0, gUseAPT); /* only TWO words */
+        b[1] = cpu_memory_read(gEA + 1, gUseAPT);
+        float_mul_32(a, b, r);
         gA = r[0];
         gD = r[1]; /* gT untouched */
     }
@@ -3396,7 +3400,7 @@ static void opcode_fmu_multiply_floating_accumulator(uint16_t operand)
  */
 static void opcode_fdv_divide_floating_accumulator(uint16_t operand)
 {
-    gEA = New_GetEffectiveAddr(operand, &gUseAPT);
+    gEA = cpu_get_effective_addr(operand, &gUseAPT);
 
     if (g_current_fpp_type == FPP48)
     {
@@ -3405,13 +3409,13 @@ static void opcode_fdv_divide_floating_accumulator(uint16_t operand)
         a[0] = gT;
         a[1] = gA;
         a[2] = gD;
-        b[0] = MemoryRead(gEA + 0, gUseAPT);
-        b[1] = MemoryRead(gEA + 1, gUseAPT);
-        b[2] = MemoryRead(gEA + 2, gUseAPT);
-        if (NDFloat_Div(a, b, r))
+        b[0] = cpu_memory_read(gEA + 0, gUseAPT);
+        b[1] = cpu_memory_read(gEA + 1, gUseAPT);
+        b[2] = cpu_memory_read(gEA + 2, gUseAPT);
+        if (float_div(a, b, r))
         {
             /* Division by zero - set error indicator Z */
-            setbit(_STS, STS_ERROR_INDICATOR, 1);
+            cpu_setbit(_STS, STS_ERROR_INDICATOR, 1);
         }
         gT = r[0];
         gA = r[1];
@@ -3423,12 +3427,12 @@ static void opcode_fdv_divide_floating_accumulator(uint16_t operand)
 
         a[0] = gA;
         a[1] = gD;
-        b[0] = MemoryRead(gEA + 0, gUseAPT); /* only TWO words */
-        b[1] = MemoryRead(gEA + 1, gUseAPT);
-        if (NDFloat_Div32(a, b, r))
+        b[0] = cpu_memory_read(gEA + 0, gUseAPT); /* only TWO words */
+        b[1] = cpu_memory_read(gEA + 1, gUseAPT);
+        if (float_div_32(a, b, r))
         {
             /* Division by zero - set error indicator Z */
-            setbit(_STS, STS_ERROR_INDICATOR, 1);
+            cpu_setbit(_STS, STS_ERROR_INDICATOR, 1);
         }
         gA = r[0];
         gD = r[1]; /* gT untouched */
@@ -3457,11 +3461,11 @@ static void opcode_nlz_normalize_floating_accumulator(uint16_t operand)
 {
     if (g_current_fpp_type == FPP48)
     {
-        DoNLZ(operand & 0xFF);
+        float_do_nlz(operand & 0xFF);
     }
     else
     {
-        DoNLZ32(operand & 0xFF); /* 32-bit FPP: gT is not touched */
+        float_do_nlz32(operand & 0xFF); /* 32-bit FPP: gT is not touched */
     }
 }
 
@@ -3487,11 +3491,11 @@ static void opcode_dnz_denormalize_to_fixed_point(uint16_t operand)
 {
     if (g_current_fpp_type == FPP48)
     {
-        DoDNZ(operand & 0xFF);
+        float_do_dnz(operand & 0xFF);
     }
     else
     {
-        DoDNZ32(operand & 0xFF); /* 32-bit FPP: gT is not touched */
+        float_do_dnz32(operand & 0xFF); /* 32-bit FPP: gT is not touched */
     }
 }
 
@@ -3533,7 +3537,7 @@ static void opcode_bfill_byte_fill(uint16_t operand)
     for (i = 0; i < len; i++)
     {
         addr = d1 + ((i + right) >> 1); /* Word adress of byte to write */
-        MemoryWrite(thebyte, addr, is_apt, ((i + right) & 1));
+        cpu_memory_write(thebyte, addr, is_apt, ((i + right) & 1));
     }
     gT &= 0x7000;                  /* Null number of bytes, as per manual, also null bit 15 */
     gT |= ((i + right) & 1) << 15; /* set bit 15 to point to next free byte */
@@ -3605,11 +3609,11 @@ static void opcode_movb_move_byte(uint16_t instr)
         for (i = len - 1; i >= 0; i--)
         {
             addr_s = source + ((i + s_lr) >> 1); /* Word adress of byte to read */
-            thebyte = MemoryRead(addr_s, s_apt);
+            thebyte = cpu_memory_read(addr_s, s_apt);
             thebyte =
                 ((i + d_lr) & 1) ? thebyte : (thebyte >> 8) & 0xff; /* right, LSB : left, MSB */
             addr_d = dest + ((i + d_lr) >> 1); /* Word adress of byte to write */
-            MemoryWrite(thebyte, addr_d, d_apt, ((i + d_lr) & 1));
+            cpu_memory_write(thebyte, addr_d, d_apt, ((i + d_lr) & 1));
         }
         /* NOTE: resetting i to 0 here used to leak into the end-state "next free byte"
          * parity below. That was WRONG - see the end_half computation after the loop,
@@ -3622,11 +3626,11 @@ static void opcode_movb_move_byte(uint16_t instr)
         for (i = 0; i < len; i++)
         {
             addr_s = source + ((i + s_lr) >> 1); /* Word adress of byte to read */
-            thebyte = MemoryRead(addr_s, s_apt);
+            thebyte = cpu_memory_read(addr_s, s_apt);
             thebyte =
                 ((i + d_lr) & 1) ? thebyte : (thebyte >> 8) & 0xff; /* right, LSB : left, MSB */
             addr_d = dest + ((i + d_lr) >> 1); /* Word adress of byte to write */
-            MemoryWrite(thebyte, addr_d, d_apt, ((i + d_lr) & 1));
+            cpu_memory_write(thebyte, addr_d, d_apt, ((i + d_lr) & 1));
         }
     }
 
@@ -3724,10 +3728,10 @@ static void opcode_movbf_move_bytes_forward(uint16_t instr)
     for (i = 0; i < len; i++)
     {
         addr_s = source + ((i + s_lr) >> 1); /* Word adress of byte to read */
-        thebyte = MemoryRead(addr_s, s_apt);
+        thebyte = cpu_memory_read(addr_s, s_apt);
         thebyte = ((i + d_lr) & 1) ? thebyte : (thebyte >> 8) & 0xff; /* right, LSB : left, MSB */
         addr_d = dest + ((i + d_lr) >> 1); /* Word adress of byte to write */
-        MemoryWrite(thebyte, addr_d, d_apt, ((i + d_lr) & 1));
+        cpu_memory_write(thebyte, addr_d, d_apt, ((i + d_lr) & 1));
         lens--;
         lend--;
     }
@@ -3803,7 +3807,7 @@ static void opcode_lbyt_load_byte_to_a_register(uint16_t operand)
     (void)operand;
 
     uint16_t offset = gX >> 1;
-    uint16_t memval = MemoryRead(gT + offset, true);
+    uint16_t memval = cpu_memory_read(gT + offset, true);
 
     if ((gX & 1) != 0)
     { /* ODD BYTE = LOW */
@@ -3849,12 +3853,12 @@ static void opcode_sbyt_store_byte_from_a_register(uint16_t operand)
 
     {
         // Odd byte, write LSB value
-        WriteVirtualMemory((uint32_t)(gT + offset), gA, true, WRITEMODE_LSB);
+        mms_write_virtual_memory((uint32_t)(gT + offset), gA, true, WRITEMODE_LSB);
     }
     else
     {
         // Even byte, write MSB value
-        WriteVirtualMemory((uint32_t)(gT + offset), gA, true, WRITEMODE_MSB);
+        mms_write_virtual_memory((uint32_t)(gT + offset), gA, true, WRITEMODE_MSB);
     }
 }
 
@@ -3879,7 +3883,7 @@ void opcode_bfill_new_byte_fill(uint16_t operand)
     {
         // Bit 15:  0=>MSB, 1=> LSB
         wm = (gT & (1 << 15)) ? WRITEMODE_LSB : WRITEMODE_MSB;
-        WriteVirtualMemory(gX, gA & 0xFF, use_apt, wm);
+        mms_write_virtual_memory(gX, gA & 0xFF, use_apt, wm);
 
         gT--;
 
@@ -3956,7 +3960,7 @@ static void opcode_jmp_jump_unconditional(uint16_t operand)
 {
     uint16_t old_g_pc = gPC - 1;
 
-    gEA = New_GetEffectiveAddr(operand, &gUseAPT);
+    gEA = cpu_get_effective_addr(operand, &gUseAPT);
     gPC = gEA;
 
     if (g_disasm)
@@ -4218,7 +4222,7 @@ static void opcode_jpl_jump_if_last_result_positive(uint16_t operand)
 {
     uint16_t old_g_pc = gPC - 1;
 
-    gEA = New_GetEffectiveAddr(operand, &gUseAPT);
+    gEA = cpu_get_effective_addr(operand, &gUseAPT);
 
     /* MICROCODE-VALIDATED 2026-07-20: addressing mode 5 (",X ,B" - X=1 I=0 B=1, i.e.
      * (B)+disp+(X)) does NOT update L on real ND-110/ND-120 silicon.
@@ -4322,10 +4326,10 @@ static void opcode_init_initialize_stack(uint16_t operand)
     (void)operand;
     uint16_t demand, start, maxsize, flag;
 
-    demand = MemoryRead(gPC + 0, 0);
-    start = MemoryRead(gPC + 1, 0);
-    maxsize = MemoryRead(gPC + 2, 0);
-    flag = MemoryRead(gPC + 3, 0);
+    demand = cpu_memory_read(gPC + 0, 0);
+    start = cpu_memory_read(gPC + 1, 0);
+    maxsize = cpu_memory_read(gPC + 2, 0);
+    flag = cpu_memory_read(gPC + 3, 0);
     if ((start + 128 + demand - 122) > (start + maxsize))
     { /* stack overflow */
         gPC += 5;
@@ -4336,12 +4340,12 @@ static void opcode_init_initialize_stack(uint16_t operand)
         gPC += 5;
         return;
     }
-    MemoryWrite(gL + 1, start, 1, 2);              /* L+1 ==> LINK */
-    MemoryWrite(gB, start + 1, 1, 2);              /* B   ==> PREVB */
-    MemoryWrite(start + maxsize, start + 3, 1, 2); /* SMAX */
-    gB = start + 128;                              /* + 200 oct. */
+    cpu_memory_write(gL + 1, start, 1, 2);              /* L+1 ==> LINK */
+    cpu_memory_write(gB, start + 1, 1, 2);              /* B   ==> PREVB */
+    cpu_memory_write(start + maxsize, start + 3, 1, 2); /* SMAX */
+    gB = start + 128;                                   /* + 200 oct. */
     /*:TODO:  Flag */
-    MemoryWrite(gB + demand - 122, start + 2, 1, 2); /* STP */
+    cpu_memory_write(gB + demand - 122, start + 2, 1, 2); /* STP */
     gPC += 6;
     return;
 }
@@ -4377,20 +4381,20 @@ static void opcode_entr_enter_stack(uint16_t operand)
 {
     (void)operand;
     uint16_t old_b, demand, smax, stp;
-    demand = MemoryRead(gPC + 0, 0);
-    smax = MemoryRead(gB - 125, 1); /* SMAX */
+    demand = cpu_memory_read(gPC + 0, 0);
+    smax = cpu_memory_read(gB - 125, 1); /* SMAX */
     if ((gB + demand - 122) > (smax))
     { /* stack overflow */
         gPC += 1;
         return;
     }
-    stp = MemoryRead(gB - 126, 1); /* STP */
+    stp = cpu_memory_read(gB - 126, 1); /* STP */
     old_b = gB;
-    gB = stp + 128;                                 /* Advance stack frame */
-    MemoryWrite(gL + 1, gB - 128, 1, 2);            /* L+1 ==> LINK */
-    MemoryWrite(old_b, gB - 127, 1, 2);             /* B   ==> PREVB */
-    MemoryWrite(smax, gB - 125, 1, 2);              /* SMAX */
-    MemoryWrite(gB + demand - 122, gB - 126, 1, 2); /* STP */
+    gB = stp + 128;                                      /* Advance stack frame */
+    cpu_memory_write(gL + 1, gB - 128, 1, 2);            /* L+1 ==> LINK */
+    cpu_memory_write(old_b, gB - 127, 1, 2);             /* B   ==> PREVB */
+    cpu_memory_write(smax, gB - 125, 1, 2);              /* SMAX */
+    cpu_memory_write(gB + demand - 122, gB - 126, 1, 2); /* STP */
     gPC += 2;
 }
 
@@ -4417,8 +4421,8 @@ static void opcode_entr_enter_stack(uint16_t operand)
 static void opcode_leave_leave_stack(uint16_t operand)
 {
     (void)operand;
-    gPC = MemoryRead(gB - 128, 1);
-    gB = MemoryRead(gB - 127, 1);
+    gPC = cpu_memory_read(gB - 128, 1);
+    gB = cpu_memory_read(gB - 127, 1);
 }
 
 /**
@@ -4449,11 +4453,11 @@ static void opcode_eleav_error_leave_stack(uint16_t operand)
 {
     (void)operand;
     uint16_t tmp;
-    tmp = MemoryRead(gB - 128, 1) - 1;
-    MemoryWrite(tmp, gB - 128, 1, 2); /* LINK */
-    MemoryWrite(gA, gB - 123, 1, 2);  /* A ==> ERRCODE */
-    gPC = MemoryRead(gB - 128, 1);
-    gB = MemoryRead(gB - 127, 1);
+    tmp = cpu_memory_read(gB - 128, 1) - 1;
+    cpu_memory_write(tmp, gB - 128, 1, 2); /* LINK */
+    cpu_memory_write(gA, gB - 123, 1, 2);  /* A ==> ERRCODE */
+    gPC = cpu_memory_read(gB - 128, 1);
+    gB = cpu_memory_read(gB - 127, 1);
 }
 
 
@@ -4535,7 +4539,7 @@ static void opcode_iot_nord_1_legacy_do_not_use(uint16_t operand)
         uint16_t a = gA;
         bool skip = false;
 
-        if (DeviceManager_IotOp(devno, func, &a, &skip))
+        if (devmgr_iot_op(devno, func, &a, &skip))
         {
             gA = a;
             if (skip)
@@ -4629,7 +4633,7 @@ static void opcode_ident_identify_interrupting_device(uint16_t operand)
         do_ident(13);
         break;
     default:
-        illegal_instr(operand); /* Assume this is how we should hanle it.. TODO: Check!!! */
+        cpu_illegal_instr(operand); /* Assume this is how we should hanle it.. TODO: Check!!! */
     }
 }
 
@@ -4663,7 +4667,7 @@ static void opcode_opcom_operator_communication(uint16_t operand)
         return;
     }
     printf("\r\nOPCOM at PIL[%d] PC[%6o] A[%6o]\r\n", gPIL, gPC, gA);
-    set_cpu_run_mode(CPU_STOPPED);
+    cpu_set_run_mode(CPU_STOPPED);
 }
 
 /**
@@ -4692,7 +4696,7 @@ static void opcode_iof_interrupt_off(uint16_t operand)
         return;
     }
 
-    setbit_STS_MSB(STS_INTERRUPT_ON, 0);
+    cpu_setbit_sts_msb(STS_INTERRUPT_ON, 0);
 }
 
 /**
@@ -4716,7 +4720,7 @@ static void opcode_iof_interrupt_off(uint16_t operand)
 static void opcode_ion_interrupt_on(uint16_t operand)
 {
     (void)operand;
-    setbit_STS_MSB(STS_INTERRUPT_ON, 1);
+    cpu_setbit_sts_msb(STS_INTERRUPT_ON, 1);
     gCHKIT = true; // recalc PK
 }
 
@@ -4749,7 +4753,7 @@ static void opcode_pof_paging_off(uint16_t operand)
     {
         return;
     }
-    setbit_STS_MSB(STS_PAGING_ON, 0);
+    cpu_setbit_sts_msb(STS_PAGING_ON, 0);
 }
 
 /**
@@ -4953,8 +4957,8 @@ static void opcode_piof_paging_and_interrupt_off(uint16_t operand)
         return;
     }
 
-    setbit_STS_MSB(STS_INTERRUPT_ON, 0);
-    setbit_STS_MSB(STS_PAGING_ON, 0);
+    cpu_setbit_sts_msb(STS_INTERRUPT_ON, 0);
+    cpu_setbit_sts_msb(STS_PAGING_ON, 0);
 }
 
 /**
@@ -4980,7 +4984,7 @@ static void opcode_sex_set_extended_address_mode(uint16_t operand)
         return;
     }
 
-    setbit_STS_MSB(STS_EXTENDED_ADDRESSING, 1);
+    cpu_setbit_sts_msb(STS_EXTENDED_ADDRESSING, 1);
 }
 
 /**
@@ -5006,7 +5010,7 @@ static void opcode_rex_reset_extended_address_mode(uint16_t operand)
         return;
     }
 
-    setbit_STS_MSB(STS_EXTENDED_ADDRESSING, 0);
+    cpu_setbit_sts_msb(STS_EXTENDED_ADDRESSING, 0);
 }
 
 /**
@@ -5032,7 +5036,7 @@ static void opcode_rex_reset_extended_address_mode(uint16_t operand)
 static void opcode_pon_paging_on(uint16_t operand)
 {
     (void)operand;
-    setbit_STS_MSB(STS_PAGING_ON, 1);
+    cpu_setbit_sts_msb(STS_PAGING_ON, 1);
 }
 
 /**
@@ -5056,8 +5060,8 @@ static void opcode_pon_paging_on(uint16_t operand)
 static void opcode_pion_paging_and_interrupt_on(uint16_t operand)
 {
     (void)operand;
-    setbit_STS_MSB(STS_INTERRUPT_ON, 1);
-    setbit_STS_MSB(STS_PAGING_ON, 1);
+    cpu_setbit_sts_msb(STS_INTERRUPT_ON, 1);
+    cpu_setbit_sts_msb(STS_PAGING_ON, 1);
     gCHKIT = true; // recalc PK
 }
 
@@ -5126,8 +5130,8 @@ static void opcode_setpt_set_page_tables(uint16_t operand)
 
         // STD ,B
         effective_address = (uint32_t)(gB & 0xFFFF); // (+displacement, which is 0 here)
-        WriteVirtualMemory(effective_address, gA, true, WRITEMODE_WORD);
-        WriteVirtualMemory(effective_address + 1, gD, true, WRITEMODE_WORD);
+        mms_write_virtual_memory(effective_address, gA, true, WRITEMODE_WORD);
+        mms_write_virtual_memory(effective_address + 1, gD, true, WRITEMODE_WORD);
 
         //  LDXTX 00 <=  X:= (EL)
         gX = (uint16_t)read_el(calc_el(0)); // Calculates using X, T and mriDisplacement
@@ -5252,7 +5256,7 @@ static void opcode_clept_clear_page_tables(uint16_t operand)
         gB = (uint16_t)(((elval + elval) & 0xFFFF) | 0xFE00); /* 177000 */
 
         /* 004074 / PATA4 (LDA ,B): read the page-table entry via the ALTERNATIVE page table. */
-        gA = (uint16_t)ReadVirtualMemory(gB, true);
+        gA = (uint16_t)mms_read_virtual_memory(gB, true);
 
         /* 004075 (JAZ *3): a zero (unused) entry is skipped; a used entry is saved then cleared. */
         if (gA != 0)
@@ -5261,7 +5265,7 @@ static void opcode_clept_clear_page_tables(uint16_t operand)
             write_el(calc_el(2), (uint16_t)gA);
 
             /* 004116 (STZ ,B): clear the page-table entry via the ALTERNATIVE page table. */
-            WriteVirtualMemory(gB, 0, true, WRITEMODE_WORD);
+            mms_write_virtual_memory(gB, 0, true, WRITEMODE_WORD);
         }
 
         /* Advance to the next node (X := [X], already read at the top of this iteration). */
@@ -5341,7 +5345,7 @@ static void opcode_clnreent_clear_non_reentrant_pages(uint16_t operand)
      * but the rest of CLNR1 uses the fixed APT base 0177000 instead, so this read is a side
      * effect only - it is kept so the memory-access trace matches the microcode oracle.
      */
-    (void)ReadVirtualMemory((uint16_t)(a_reg + 2), true);
+    (void)mms_read_virtual_memory((uint16_t)(a_reg + 2), true);
 
     /*
      * 004135-004141: R1 = 0177000 (octal) APT-relative page-table base; R2 = X + 25 (octal)
@@ -5359,7 +5363,7 @@ static void opcode_clnreent_clear_non_reentrant_pages(uint16_t operand)
         int bit;
 
         r2 = (uint16_t)(r2 + 1);
-        word = (uint16_t)ReadVirtualMemory(addr, true); /* 004143 */
+        word = (uint16_t)mms_read_virtual_memory(addr, true); /* 004143 */
 
         if (word == 0)
         {
@@ -5381,7 +5385,7 @@ static void opcode_clnreent_clear_non_reentrant_pages(uint16_t operand)
         {
             if ((word & (1 << bit)) != 0)
             {
-                WriteVirtualMemory(r1, 0, true, WRITEMODE_WORD); /* 004155 */
+                mms_write_virtual_memory(r1, 0, true, WRITEMODE_WORD); /* 004155 */
             }
             r1 = (uint16_t)(r1 + 2); /* 004153: 2-word stride per entry */
         }
@@ -5477,7 +5481,7 @@ static void opcode_clepu_clear_page_tables_and_collect_page_used(uint16_t operan
         gB = (uint16_t)(((idx + idx) & 0xFFFF) | 0xFE00); /* 177000 */
 
         /* 004074 / PATA4: read the page-table entry via the alternative page table. */
-        gA = (uint16_t)ReadVirtualMemory(gB, true);
+        gA = (uint16_t)mms_read_virtual_memory(gB, true);
 
         /* 004075 (JAZ *3): skip unused (zero) entries. */
         if (gA != 0)
@@ -5496,7 +5500,7 @@ static void opcode_clepu_clear_page_tables_and_collect_page_used(uint16_t operan
             }
 
             /* 004116 (STZ ,B): clear the page-table entry via the alternative page table. */
-            WriteVirtualMemory(gB, 0, true, WRITEMODE_WORD);
+            mms_write_virtual_memory(gB, 0, true, WRITEMODE_WORD);
         }
 
         /* Advance to the next node. */
@@ -5564,7 +5568,7 @@ static void opcode_chreent_pages(uint16_t operand)
         uint16_t status;
 
         /* CHRE2 004161: read the link word at segment:offset. */
-        link = (uint16_t)ReadPhysicalMemory((int)nd110_seg_phys(seg, off), true);
+        link = (uint16_t)mms_read_physical_memory((int)nd110_seg_phys(seg, off), true);
 
         /*
          * 004162-004163 / CHRE4 004200: a zero link ends the chain -> SKIP return
@@ -5579,8 +5583,8 @@ static void opcode_chreent_pages(uint16_t operand)
         seg = prog_t; /* 004163: the status/link reads use the descriptor segment T */
 
         /* 004164-004166: read the status word at T:(link+2) and test WIP (bit 12). */
-        status =
-            (uint16_t)ReadPhysicalMemory((int)nd110_seg_phys(prog_t, (uint16_t)(link + 2)), true);
+        status = (uint16_t)mms_read_physical_memory(
+            (int)nd110_seg_phys(prog_t, (uint16_t)(link + 2)), true);
 
         if ((status & ND110_WIP_BIT) != 0)
         {
@@ -5590,9 +5594,9 @@ static void opcode_chreent_pages(uint16_t operand)
              * normal return.
              */
             uint16_t successor =
-                (uint16_t)ReadPhysicalMemory((int)nd110_seg_phys(prog_t, link), true);
+                (uint16_t)mms_read_physical_memory((int)nd110_seg_phys(prog_t, link), true);
 
-            WritePhysicalMemory((int)nd110_seg_phys(prev_seg, prev_off), successor, true);
+            mms_write_physical_memory((int)nd110_seg_phys(prev_seg, prev_off), successor, true);
             gD = prev_seg;
             gA = prev_off;
             gX = link;
@@ -5710,11 +5714,12 @@ static void opcode_inspl_insert_page_in_page_list(uint16_t operand)
     t_reg = gT;
 
     /* 004454-004457: R1 := old page-list head at STBNK[B+7]. */
-    old_head = (uint16_t)ReadPhysicalMemory((int)(stbnk | (uint32_t)((b_reg + 7) & 0xFFFF)), true);
+    old_head =
+        (uint16_t)mms_read_physical_memory((int)(stbnk | (uint32_t)((b_reg + 7) & 0xFFFF)), true);
     /* 004460-004461: new head := X. */
-    WritePhysicalMemory((int)(stbnk | (uint32_t)((b_reg + 7) & 0xFFFF)), x_reg, true);
+    mms_write_physical_memory((int)(stbnk | (uint32_t)((b_reg + 7) & 0xFFFF)), x_reg, true);
     /* 004462-004464: X's forward link (CMBUK[X]) := old head. */
-    WritePhysicalMemory((int)(cmbnk | x_reg), old_head, true);
+    mms_write_physical_memory((int)(cmbnk | x_reg), old_head, true);
 
     if (old_head == 0)
     {
@@ -5729,15 +5734,15 @@ static void opcode_inspl_insert_page_in_page_list(uint16_t operand)
     else
     {
         /* 004466-004472 (non-empty): X inherits the old head's back link; old head.prev := X. */
-        marker =
-            (uint16_t)ReadPhysicalMemory((int)(cmbnk | (uint32_t)((old_head + 1) & 0xFFFF)), true);
-        WritePhysicalMemory((int)(cmbnk | (uint32_t)((old_head + 1) & 0xFFFF)), x_reg, true);
+        marker = (uint16_t)mms_read_physical_memory(
+            (int)(cmbnk | (uint32_t)((old_head + 1) & 0xFFFF)), true);
+        mms_write_physical_memory((int)(cmbnk | (uint32_t)((old_head + 1) & 0xFFFF)), x_reg, true);
     }
 
     /* 004475-004476 (INSP3): X's back link (CMBUK[X+1]) := marker. */
-    WritePhysicalMemory((int)(cmbnk | (uint32_t)((x_reg + 1) & 0xFFFF)), marker, true);
+    mms_write_physical_memory((int)(cmbnk | (uint32_t)((x_reg + 1) & 0xFFFF)), marker, true);
     /* 004477-004501: X's tag word (CMBUK[X+3]) := T. */
-    WritePhysicalMemory((int)(cmbnk | (uint32_t)((x_reg + 3) & 0xFFFF)), t_reg, true);
+    mms_write_physical_memory((int)(cmbnk | (uint32_t)((x_reg + 3) & 0xFFFF)), t_reg, true);
 }
 
 /**
@@ -5776,8 +5781,8 @@ static void opcode_rempl_remove_page_from_page_list(uint16_t operand)
     x_reg = gX;
 
     /* 004502-004507: R1 := successor (CMBUK[X]); R2 := back link / anchor marker (CMBUK[X+1]). */
-    r1 = (uint16_t)ReadPhysicalMemory((int)(cmbnk | x_reg), true);
-    r2 = (uint16_t)ReadPhysicalMemory((int)(cmbnk | (uint32_t)((x_reg + 1) & 0xFFFF)), true);
+    r1 = (uint16_t)mms_read_physical_memory((int)(cmbnk | x_reg), true);
+    r2 = (uint16_t)mms_read_physical_memory((int)(cmbnk | (uint32_t)((x_reg + 1) & 0xFFFF)), true);
 
     tail = ((r2 & 3) != 0);
     if (tail)
@@ -5789,25 +5794,25 @@ static void opcode_rempl_remove_page_from_page_list(uint16_t operand)
          */
         uint32_t head_off = (uint32_t)(((gSTSRT + 2 * r2) | 7) & 0xFFFF);
 
-        WritePhysicalMemory((int)(stbnk | head_off), r1, true);
+        mms_write_physical_memory((int)(stbnk | head_off), r1, true);
         skip_inherit = (r1 == 0);
     }
     else
     {
         /* 004512-004513 (middle page): predecessor.next := successor (executes even if R2==0). */
-        WritePhysicalMemory((int)(cmbnk | r2), r1, true);
+        mms_write_physical_memory((int)(cmbnk | r2), r1, true);
         skip_inherit = (r2 == 0);
     }
 
     /* 004521-004523 (REMP3): unless the successor is nil, successor.prev := R2 (predecessor/marker). */
     if (!skip_inherit)
     {
-        WritePhysicalMemory((int)(cmbnk | (uint32_t)((r1 + 1) & 0xFFFF)), r2, true);
+        mms_write_physical_memory((int)(cmbnk | (uint32_t)((r1 + 1) & 0xFFFF)), r2, true);
     }
 
     /* 004524-004527 (REMP4): zero the removed entry's forward and back links. */
-    WritePhysicalMemory((int)(cmbnk | x_reg), 0, true);
-    WritePhysicalMemory((int)(cmbnk | (uint32_t)((x_reg + 1) & 0xFFFF)), 0, true);
+    mms_write_physical_memory((int)(cmbnk | x_reg), 0, true);
+    mms_write_physical_memory((int)(cmbnk | (uint32_t)((x_reg + 1) & 0xFFFF)), 0, true);
 }
 
 /**
@@ -5849,7 +5854,7 @@ static void opcode_cnrek_clear_non_reentrant_pages_sintran_k(uint16_t operand)
     tseg = (uint32_t)(t_reg & 0xFF) << 16;
 
     /* 004530-004531: examine the descriptor at STBNK[A+2] (value unused in this path). */
-    (void)ReadPhysicalMemory((int)(stbnk | (uint32_t)((a_reg + 2) & 0xFFFF)), true);
+    (void)mms_read_physical_memory((int)(stbnk | (uint32_t)((a_reg + 2) & 0xFFFF)), true);
 
     /* 004532: A+2 == 0 -> no-op.  004536/004540: X == 0 -> no-op. */
     if ((uint16_t)(a_reg + 2) == 0)
@@ -5871,7 +5876,7 @@ static void opcode_cnrek_clear_non_reentrant_pages_sintran_k(uint16_t operand)
         int bit;
 
         /* 004541: examine the bitmap word physically in segment T. */
-        word = (uint16_t)ReadPhysicalMemory((int)(tseg | r2), true);
+        word = (uint16_t)mms_read_physical_memory((int)(tseg | r2), true);
         r2 = (uint16_t)(r2 + 1);
 
         if (word == 0)
@@ -5884,7 +5889,7 @@ static void opcode_cnrek_clear_non_reentrant_pages_sintran_k(uint16_t operand)
         {
             if ((word & (1 << bit)) != 0)
             {
-                WriteVirtualMemory(r1, 0, true, WRITEMODE_WORD); /* 004155 clear via APT */
+                mms_write_virtual_memory(r1, 0, true, WRITEMODE_WORD); /* 004155 clear via APT */
             }
             r1 = (uint16_t)(r1 + 2);
         }
@@ -5928,7 +5933,8 @@ static void opcode_clpt_clear_segment_from_page_tables(uint16_t operand)
         uint16_t b_reg;
 
         /* 004545: examine the segment descriptor at (CMBUK : X+3). */
-        entry = (uint16_t)ReadPhysicalMemory((int)(cmbnk | (uint32_t)((x_reg + 3) & 0xFFFF)), true);
+        entry = (uint16_t)mms_read_physical_memory((int)(cmbnk | (uint32_t)((x_reg + 3) & 0xFFFF)),
+                                                   true);
         /* 004546: B := (entry | 0176000) << 1. */
         b_reg = (uint16_t)(((entry | 0xFC00) << 1) & 0xFFFF);
         gB = b_reg;
@@ -5936,16 +5942,17 @@ static void opcode_clpt_clear_segment_from_page_tables(uint16_t operand)
         if (clear_mode)
         {
             /* CLPK4 004554-004555 (bit 15 of A set): clear the page-table entry to 0. */
-            WriteVirtualMemory(b_reg, 0, true, WRITEMODE_WORD);
+            mms_write_virtual_memory(b_reg, 0, true, WRITEMODE_WORD);
         }
         else
         {
             /* 004550-004553 (bit 15 clear): read APT[B]; if non-zero, deposit it physically to [X+2]. */
-            uint16_t r3 = (uint16_t)ReadVirtualMemory(b_reg, true);
+            uint16_t r3 = (uint16_t)mms_read_virtual_memory(b_reg, true);
 
             if (r3 != 0)
             {
-                WritePhysicalMemory((int)(cmbnk | (uint32_t)((x_reg + 2) & 0xFFFF)), r3, true);
+                mms_write_physical_memory((int)(cmbnk | (uint32_t)((x_reg + 2) & 0xFFFF)), r3,
+                                          true);
 
                 /*
                  * 004553 falls through into CLPK4 (004554) whose CONDENABL routes the TRUE
@@ -5970,7 +5977,7 @@ static void opcode_clpt_clear_segment_from_page_tables(uint16_t operand)
                  * ND110CX run performed ZERO.  With it, RetroCore's ND110CX harness reaches
                  * "SINTRAN III RUNNING -" in 23 s.
                  */
-                WriteVirtualMemory(b_reg, 0, true, WRITEMODE_WORD);
+                mms_write_virtual_memory(b_reg, 0, true, WRITEMODE_WORD);
             }
 
             /*
@@ -5985,7 +5992,7 @@ static void opcode_clpt_clear_segment_from_page_tables(uint16_t operand)
                 clpt_calls++;
                 if (s_ring_at_clpt > 0 && clpt_calls == s_ring_at_clpt)
                 {
-                    ring_dump();
+                    cpu_ring_dump();
                 }
             }
 
@@ -5995,14 +6002,14 @@ static void opcode_clpt_clear_segment_from_page_tables(uint16_t operand)
                 fprintf(
                     g_nd110_trace_fp,
                     "  CLPT node X=%06o e=%06o -> B=%06o APT[B]=%06o shadow=%d PCR=%06o PONI=%d\n",
-                    x_reg, entry, b_reg, r3, IsAddressShadowMemory(b_reg, false) ? 1 : 0,
+                    x_reg, entry, b_reg, r3, mms_is_address_shadow_memory(b_reg, false) ? 1 : 0,
                     g_reg->reg_PCR[CURR_LEVEL], STS_PAGING_ON_IS_SET ? 1 : 0);
                 fflush(g_nd110_trace_fp);
             }
         }
 
         /* 004577-004600: advance X := [X] (forward link, physical CMBUK segment). */
-        gX = (uint16_t)ReadPhysicalMemory((int)(cmbnk | x_reg), true);
+        gX = (uint16_t)mms_read_physical_memory((int)(cmbnk | x_reg), true);
     }
 }
 
@@ -6095,8 +6102,8 @@ static void opcode_lbit_load_bit_accumulator_from_logical_memory(uint16_t operan
     bit_index = gA;
     word_addr = (uint32_t)((gX + (bit_index >> 4)) & 0xFFFF);
     bit_in_word = (int)(bit_index & 0x0F);
-    word = (uint16_t)ReadVirtualMemory(word_addr, true);
-    setbit(_STS, STS_BIT_ACCUMULATOR, (char)((word >> bit_in_word) & 1));
+    word = (uint16_t)mms_read_virtual_memory(word_addr, true);
+    cpu_setbit(_STS, STS_BIT_ACCUMULATOR, (char)((word >> bit_in_word) & 1));
 }
 
 /**
@@ -6137,8 +6144,8 @@ static void opcode_lbitp_load_bit_accumulator_from_physical_memory(uint16_t oper
     word_offset = (uint32_t)((gX + (bit_index >> 4)) & 0xFFFF);
     phys_addr = (bank << 16) | word_offset;
     bit_in_word = (int)(bit_index & 0x0F);
-    word = (uint16_t)ReadPhysicalMemory((int)phys_addr, true);
-    setbit(_STS, STS_BIT_ACCUMULATOR, (char)((word >> bit_in_word) & 1));
+    word = (uint16_t)mms_read_physical_memory((int)phys_addr, true);
+    cpu_setbit(_STS, STS_BIT_ACCUMULATOR, (char)((word >> bit_in_word) & 1));
 }
 
 /**
@@ -6175,7 +6182,7 @@ static void opcode_sbit_store_bit_accumulator_to_logical_memory(uint16_t operand
     bit_index = gA;
     word_addr = (uint32_t)((gX + (bit_index >> 4)) & 0xFFFF);
     bit_in_word = (int)(bit_index & 0x0F);
-    word = (uint16_t)ReadVirtualMemory(word_addr, true);
+    word = (uint16_t)mms_read_virtual_memory(word_addr, true);
     if (STS_BIT_ACCUMULATOR_IS_SET)
     {
         word |= (uint16_t)(1 << bit_in_word);
@@ -6184,7 +6191,7 @@ static void opcode_sbit_store_bit_accumulator_to_logical_memory(uint16_t operand
     {
         word &= (uint16_t)(~(1 << bit_in_word));
     }
-    WriteVirtualMemory(word_addr, word, true, WRITEMODE_WORD);
+    mms_write_virtual_memory(word_addr, word, true, WRITEMODE_WORD);
 }
 
 /**
@@ -6225,7 +6232,7 @@ static void opcode_sbitp_store_bit_accumulator_to_physical_memory(uint16_t opera
     word_offset = (uint32_t)((gX + (bit_index >> 4)) & 0xFFFF);
     phys_addr = (bank << 16) | word_offset;
     bit_in_word = (int)(bit_index & 0x0F);
-    word = (uint16_t)ReadPhysicalMemory((int)phys_addr, true);
+    word = (uint16_t)mms_read_physical_memory((int)phys_addr, true);
     if (STS_BIT_ACCUMULATOR_IS_SET)
     {
         word |= (uint16_t)(1 << bit_in_word);
@@ -6234,7 +6241,7 @@ static void opcode_sbitp_store_bit_accumulator_to_physical_memory(uint16_t opera
     {
         word &= (uint16_t)(~(1 << bit_in_word));
     }
-    WritePhysicalMemory((int)phys_addr, word, true);
+    mms_write_physical_memory((int)phys_addr, word, true);
 }
 
 /**
@@ -6271,7 +6278,7 @@ static void opcode_lbytp_load_byte_from_physical_memory(uint16_t operand)
     bank = (uint32_t)(gD & 0xFF);
     word_offset = (uint32_t)((gT + (gX >> 1)) & 0xFFFF);
     phys_addr = (bank << 16) | word_offset;
-    memval = (uint16_t)ReadPhysicalMemory((int)phys_addr, true);
+    memval = (uint16_t)mms_read_physical_memory((int)phys_addr, true);
     if ((gX & 1) != 0)
     {
         gA = (uint16_t)(memval & 0xFF); /* odd byte  -> low  */
@@ -6317,7 +6324,7 @@ static void opcode_sbytp_store_byte_in_physical_memory(uint16_t operand)
     bank = (uint32_t)(gD & 0xFF);
     word_offset = (uint32_t)((gT + (gX >> 1)) & 0xFFFF);
     phys_addr = (bank << 16) | word_offset;
-    memval = (uint16_t)ReadPhysicalMemory((int)phys_addr, true);
+    memval = (uint16_t)mms_read_physical_memory((int)phys_addr, true);
     b = (unsigned char)(gA & 0xFF);
     if ((gX & 1) != 0)
     {
@@ -6327,7 +6334,7 @@ static void opcode_sbytp_store_byte_in_physical_memory(uint16_t operand)
     {
         memval = (uint16_t)((memval & 0x00FF) | (b << 8)); /* even byte -> high */
     }
-    WritePhysicalMemory((int)phys_addr, memval, true);
+    mms_write_physical_memory((int)phys_addr, memval, true);
 }
 
 /**
@@ -6360,8 +6367,8 @@ static void opcode_tsetp_test_and_set_physical_word(uint16_t operand)
     bank = (uint32_t)(gT & 0xFF);
     offset = (uint32_t)(gX & 0xFFFF);
     phys_addr = (bank << 16) | offset;
-    gA = (uint16_t)ReadPhysicalMemory((int)phys_addr, true);
-    WritePhysicalMemory((int)phys_addr, 0xFFFF, true);
+    gA = (uint16_t)mms_read_physical_memory((int)phys_addr, true);
+    mms_write_physical_memory((int)phys_addr, 0xFFFF, true);
 }
 
 /**
@@ -6399,7 +6406,7 @@ static void opcode_rdusp_read_physical_word_bypassing_cache(uint16_t operand)
 
     bank = (uint32_t)(gT & 0xFF);
     offset = (uint32_t)(gX & 0xFFFF);
-    gA = (uint16_t)ReadPhysicalMemory((int)((bank << 16) | offset), true);
+    gA = (uint16_t)mms_read_physical_memory((int)((bank << 16) | offset), true);
 }
 
 
@@ -6426,7 +6433,7 @@ static void opcode_lasb_load_a_from_segment_table_bank(uint16_t operand)
         return;
     }
 
-    gA = (uint16_t)ReadPhysicalMemory((int)nd110_bankgroup_phys(gSTBNK, gB, operand), true);
+    gA = (uint16_t)mms_read_physical_memory((int)nd110_bankgroup_phys(gSTBNK, gB, operand), true);
 }
 
 /**
@@ -6450,7 +6457,7 @@ static void opcode_sasb_store_a_in_segment_table_bank(uint16_t operand)
         return;
     }
 
-    WritePhysicalMemory((int)nd110_bankgroup_phys(gSTBNK, gB, operand), gA, true);
+    mms_write_physical_memory((int)nd110_bankgroup_phys(gSTBNK, gB, operand), gA, true);
 }
 
 /**
@@ -6474,7 +6481,7 @@ static void opcode_lacb_load_a_from_core_map_bank(uint16_t operand)
         return;
     }
 
-    gA = (uint16_t)ReadPhysicalMemory((int)nd110_bankgroup_phys(gCMBUK, gX, operand), true);
+    gA = (uint16_t)mms_read_physical_memory((int)nd110_bankgroup_phys(gCMBUK, gX, operand), true);
 }
 
 /**
@@ -6498,7 +6505,7 @@ static void opcode_sacb_store_a_in_core_map_bank(uint16_t operand)
         return;
     }
 
-    WritePhysicalMemory((int)nd110_bankgroup_phys(gCMBUK, gX, operand), gA, true);
+    mms_write_physical_memory((int)nd110_bankgroup_phys(gCMBUK, gX, operand), gA, true);
 }
 
 /**
@@ -6522,7 +6529,7 @@ static void opcode_lxsb_load_x_from_segment_table_bank(uint16_t operand)
         return;
     }
 
-    gX = (uint16_t)ReadPhysicalMemory((int)nd110_bankgroup_phys(gSTBNK, gB, operand), true);
+    gX = (uint16_t)mms_read_physical_memory((int)nd110_bankgroup_phys(gSTBNK, gB, operand), true);
 }
 
 /**
@@ -6546,7 +6553,7 @@ static void opcode_lxcb_load_x_from_core_map_bank(uint16_t operand)
         return;
     }
 
-    gX = (uint16_t)ReadPhysicalMemory((int)nd110_bankgroup_phys(gCMBUK, gX, operand), true);
+    gX = (uint16_t)mms_read_physical_memory((int)nd110_bankgroup_phys(gCMBUK, gX, operand), true);
 }
 
 /**
@@ -6570,7 +6577,7 @@ static void opcode_szsb_store_zero_in_segment_table_bank(uint16_t operand)
         return;
     }
 
-    WritePhysicalMemory((int)nd110_bankgroup_phys(gSTBNK, gB, operand), 0, true);
+    mms_write_physical_memory((int)nd110_bankgroup_phys(gSTBNK, gB, operand), 0, true);
 }
 
 /**
@@ -6594,7 +6601,7 @@ static void opcode_szcb_store_zero_in_core_map_bank(uint16_t operand)
         return;
     }
 
-    WritePhysicalMemory((int)nd110_bankgroup_phys(gCMBUK, gX, operand), 0, true);
+    mms_write_physical_memory((int)nd110_bankgroup_phys(gCMBUK, gX, operand), 0, true);
 }
 
 
@@ -6783,7 +6790,7 @@ static void opcode_exam_examine_memory(uint16_t operand)
 
     // int fulladdress = (((unsigned int)gA) << 16) | (ushort)gD;
     unsigned int fulladdress = ((gA & 0xFF) << 16) | gD;
-    gT = ReadPhysicalMemory(fulladdress, true);
+    gT = mms_read_physical_memory(fulladdress, true);
 }
 
 /**
@@ -6813,7 +6820,7 @@ static void opcode_depo_deposit_memory(uint16_t operand)
     }
 
     unsigned int fulladdress = ((gA & 0xFF) << 16) | gD;
-    WritePhysicalMemory(fulladdress, gT, true);
+    mms_write_physical_memory(fulladdress, gT, true);
 }
 
 /**
@@ -6855,7 +6862,7 @@ static void opcode_mon_monitor_call(uint16_t operand)
             }
 
             g_reg->reg[14][_T] = monitor_number;
-            interrupt(14, 1 << 1); /* Monitor Call */
+            cpu_interrupt(14, 1 << 1); /* Monitor Call */
             gCHKIT = true;
         }
     }
@@ -6871,7 +6878,7 @@ static void opcode_halt(uint16_t operand)
     (void)operand;
     printf("\r\nHALT opcode at PIL[%d] PC[%6o] A[%6o]\r\n", gPIL, gPC, gA);
     g_cpu_exit_code = (int)(short)gA;
-    set_cpu_run_mode(CPU_STOPPED);
+    cpu_set_run_mode(CPU_STOPPED);
 }
 
 
@@ -6934,37 +6941,37 @@ void opcode_movbf_move_bytes_forward_buggy(uint16_t instr)
 }
 
 
-void sub_A_mem(uint16_t eff_addr, bool use_apt)
+void cpu_sub_a_mem(uint16_t eff_addr, bool use_apt)
 {
     int temp, data, oldreg;
     oldreg = gA;
-    data = MemoryRead(eff_addr, use_apt);
+    data = cpu_memory_read(eff_addr, use_apt);
     temp = gA - data;
     /*
      * FIXME - ADD FLAG HANDLING CORRECTLY FOR C,O,Q FLAGS (CHECK AGAIN THINK WE MIGHT HAVE SUBTLE BUGS)
      */
     if ((temp > 0xFFFF) || (temp < 0))
     {
-        setbit(_STS, STS_CARRY, 0);
+        cpu_setbit(_STS, STS_CARRY, 0);
         if ((oldreg & 0x8000) && (data & 0x8000) && !(temp & 0x8000))
         {
-            setbit(_STS, STS_DYNAMIC_OVERFLOW, 1);
+            cpu_setbit(_STS, STS_DYNAMIC_OVERFLOW, 1);
         }
         else
         {
-            setbit(_STS, STS_DYNAMIC_OVERFLOW, 0);
+            cpu_setbit(_STS, STS_DYNAMIC_OVERFLOW, 0);
         }
     }
     else
     {
-        setbit(_STS, STS_CARRY, 1);
+        cpu_setbit(_STS, STS_CARRY, 1);
         if (!(oldreg & 0x8000) && !(data & 0x8000) && (temp & 0x8000))
         {
-            setbit(_STS, STS_DYNAMIC_OVERFLOW, 1);
+            cpu_setbit(_STS, STS_DYNAMIC_OVERFLOW, 1);
         }
         else
         {
-            setbit(_STS, STS_DYNAMIC_OVERFLOW, 0);
+            cpu_setbit(_STS, STS_DYNAMIC_OVERFLOW, 0);
         }
     }
 
@@ -6974,7 +6981,7 @@ void sub_A_mem(uint16_t eff_addr, bool use_apt)
 /*
  * RDIV
  */
-void rdiv_org(uint16_t instr)
+void cpu_rdiv_org(uint16_t instr)
 {
     int16_t divider;
     int dividend;
@@ -6987,7 +6994,7 @@ void rdiv_org(uint16_t instr)
     if (divider == 0)
     {
         // Division by zero
-        setbit(_STS, STS_ERROR_INDICATOR, 1);
+        cpu_setbit(_STS, STS_ERROR_INDICATOR, 1);
         return;
     }
 
@@ -7038,11 +7045,11 @@ static void rdiv(uint16_t instr)
     {
         int neg_ovf =
             (orig_low == 0x8000); /* only 0x8000 overflows a 16-bit two's-complement negate */
-        setbit(_STS, STS_CARRY, (orig_low == 0)); /* carry-out of -Dlow set iff Dlow == 0 */
-        setbit(_STS, STS_DYNAMIC_OVERFLOW, neg_ovf);
+        cpu_setbit(_STS, STS_CARRY, (orig_low == 0)); /* carry-out of -Dlow set iff Dlow == 0 */
+        cpu_setbit(_STS, STS_DYNAMIC_OVERFLOW, neg_ovf);
         if (neg_ovf)
         {
-            setbit(_STS, STS_STATIC_OVERFLOW, 1); /* static overflow is sticky */
+            cpu_setbit(_STS, STS_STATIC_OVERFLOW, 1); /* static overflow is sticky */
         }
     }
 
@@ -7061,7 +7068,7 @@ static void rdiv(uint16_t instr)
     {
         gA = (uint16_t)(dividend_mag_high - divisor_mag);
         gD = (uint16_t)(dividend_mag & 0xFFFF);
-        setbit(_STS, STS_ERROR_INDICATOR, 1);
+        cpu_setbit(_STS, STS_ERROR_INDICATOR, 1);
         return;
     }
 
@@ -7078,14 +7085,14 @@ static void rdiv(uint16_t instr)
      * -32768 quotient is VALID and does NOT set Z, unlike a naive |q| >= 32768 test). */
     if (quotient_negative ? (quotient_mag > 0x8000u) : (quotient_mag > 0x7FFFu))
     {
-        setbit(_STS, STS_ERROR_INDICATOR, 1);
+        cpu_setbit(_STS, STS_ERROR_INDICATOR, 1);
     }
 }
 
 /*
  * RMPY
  */
-void rmpy_org(uint16_t instr)
+void cpu_rmpy_org(uint16_t instr)
 {
     /* :TODO: Apparently Carry can be set too. CHECK that... Might be RAD=1??? */
     int a, b, result;
@@ -7094,14 +7101,14 @@ void rmpy_org(uint16_t instr)
     result = a * b;
     if (abs(result) > INT_MAX)
     { /* Set O and Q */
-        setbit(_STS, STS_DYNAMIC_OVERFLOW, 1);
-        setbit(_STS, STS_STATIC_OVERFLOW, 1);
+        cpu_setbit(_STS, STS_DYNAMIC_OVERFLOW, 1);
+        cpu_setbit(_STS, STS_STATIC_OVERFLOW, 1);
     }
     else
     {
         ; //: TODO: Carry???;
-        setbit(_STS, STS_DYNAMIC_OVERFLOW, 0);
-        setbit(_STS, STS_STATIC_OVERFLOW, 0);
+        cpu_setbit(_STS, STS_DYNAMIC_OVERFLOW, 0);
+        cpu_setbit(_STS, STS_STATIC_OVERFLOW, 0);
     }
     gA = (int16_t)((result & 0xffff0000) >> 16);
     gD = (int16_t)(result & 0x0000ffff);
@@ -7157,11 +7164,11 @@ static void rmpy(uint16_t instr)
     {
         int low_word = result & 0xFFFF; /* low word of the positive magnitude (what -Q negates) */
         int ovf = (low_word == 0x8000); /* only 0x8000 overflows a 16-bit two's-complement negate */
-        setbit(_STS, STS_CARRY, (low_word == 0)); /* carry-out of -Q is set iff Q == 0 */
-        setbit(_STS, STS_DYNAMIC_OVERFLOW, ovf);
+        cpu_setbit(_STS, STS_CARRY, (low_word == 0)); /* carry-out of -Q is set iff Q == 0 */
+        cpu_setbit(_STS, STS_DYNAMIC_OVERFLOW, ovf);
         if (ovf)
         {
-            setbit(_STS, STS_STATIC_OVERFLOW, 1); /* static overflow is sticky (OVF | O) */
+            cpu_setbit(_STS, STS_STATIC_OVERFLOW, 1); /* static overflow is sticky (OVF | O) */
         }
         result = -result; /* sign-correct the product */
     }
@@ -7180,18 +7187,18 @@ static void mpy(uint16_t operand)
     int a, b, result;
     a = (int16_t)gA;
 
-    gEA = New_GetEffectiveAddr(operand, &gUseAPT);
-    uint16_t mem = MemoryRead(gEA, gUseAPT);
+    gEA = cpu_get_effective_addr(operand, &gUseAPT);
+    uint16_t mem = cpu_memory_read(gEA, gUseAPT);
     b = (int16_t)mem;
 
-    setbit(_STS, STS_DYNAMIC_OVERFLOW, 0);
+    cpu_setbit(_STS, STS_DYNAMIC_OVERFLOW, 0);
 
     result = a * b;
 
     if (abs(result) > 32767)
     { /* Set O and Q */
-        setbit(_STS, STS_DYNAMIC_OVERFLOW, 1);
-        setbit(_STS, STS_STATIC_OVERFLOW, 1);
+        cpu_setbit(_STS, STS_DYNAMIC_OVERFLOW, 1);
+        cpu_setbit(_STS, STS_STATIC_OVERFLOW, 1);
     }
     gA = (int16_t)result;
 }
@@ -7203,16 +7210,16 @@ static void mpy(uint16_t operand)
 static uint16_t s_bcd_d1 = 0;
 static uint16_t s_bcd_d2 = 0;
 
-void GetBCD(uint16_t address)
+void cpu_get_bcd(uint16_t address)
 {
-    s_bcd_d1 = MemoryRead(address, true);
-    s_bcd_d2 = MemoryRead((address + 1) & 0xFFFF, true);
+    s_bcd_d1 = cpu_memory_read(address, true);
+    s_bcd_d2 = cpu_memory_read((address + 1) & 0xFFFF, true);
 }
 
-void StoreBCD(uint16_t address)
+void cpu_store_bcd(uint16_t address)
 {
-    MemoryWrite(address, s_bcd_d1, true, WRITEMODE_WORD);
-    MemoryWrite((address + 1) & 0xFFFF, s_bcd_d2, true, WRITEMODE_WORD);
+    cpu_memory_write(address, s_bcd_d1, true, WRITEMODE_WORD);
+    cpu_memory_write((address + 1) & 0xFFFF, s_bcd_d2, true, WRITEMODE_WORD);
 }
 
 /* ADDD, SUBD, COMD, PACK, UPACK, SHDE are in bcd.c */
@@ -7271,7 +7278,7 @@ static void instruction_add_mask(int opcode, int mask, void *funcpointer)
  * This also thus actually acts as the new instruction parser also.
  */
 /* size exemption: opcode table (house rule 7.1) - one instruction_add per opcode group */
-void Setup_Instructions(void) // NOLINT(readability-function-size)
+void cpu_instructions(void) // NOLINT(readability-function-size)
 {
     //instruction_add_range(0000000, 0177777, &illegal_instr); /* First make all instructions by default point to illegal_instr  */
 

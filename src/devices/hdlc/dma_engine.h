@@ -101,14 +101,14 @@ typedef struct DMAEngine
  * @param modem Modem state, stored as struct ModemState * (opaque here).
  * @param com5025 COM5025 chip state, stored as COM5025State * (opaque here).
  */
-void DMAEngine_Init(DMAEngine *dma, bool burst_mode, struct Device *hdlc_device, void *modem,
-                    void *com5025);
+void dma_engine_init(DMAEngine *dma, bool burst_mode, struct Device *hdlc_device, void *modem,
+                     void *com5025);
 
 /**
  * @brief Destroy the transmitter, receiver and DMA control blocks and free them.
  * @param dma Engine structure to tear down.
  */
-void DMAEngine_Destroy(DMAEngine *dma);
+void dma_engine_destroy(DMAEngine *dma);
 
 /**
  * @brief Advance one tick: ticks the receiver before the transmitter so an
@@ -116,7 +116,7 @@ void DMAEngine_Destroy(DMAEngine *dma);
  * retransmission.
  * @param dma Engine structure.
  */
-void DMAEngine_Tick(DMAEngine *dma);
+void dma_engine_tick(DMAEngine *dma);
 
 // DMA Command execution
 
@@ -125,7 +125,7 @@ void DMAEngine_Tick(DMAEngine *dma);
  * device_hdlc.c, not here. Only logs at LOG_TRACE.
  * @param dma Engine structure.
  */
-void DMAEngine_ExecuteCommand(DMAEngine *dma);
+void dma_engine_execute_command(DMAEngine *dma);
 
 // DMA Command implementations (8 commands total)
 
@@ -134,7 +134,7 @@ void DMAEngine_ExecuteCommand(DMAEngine *dma);
  * transmitter and receiver, disable the engine, and reset the COM5025 chip.
  * @param dma Engine structure.
  */
-void DMAEngine_CommandDeviceClear(DMAEngine *dma);
+void dma_engine_command_device_clear(DMAEngine *dma);
 
 /**
  * @brief Execute the DMA Initialize command: read the 7-word parameter
@@ -144,21 +144,21 @@ void DMAEngine_CommandDeviceClear(DMAEngine *dma);
  * 0102164 (octal) if it was zero.
  * @param dma Engine structure.
  */
-void DMAEngine_CommandInitialize(DMAEngine *dma);
+void dma_engine_command_initialize(DMAEngine *dma);
 
 /**
  * @brief Execute the DMA Receiver Start command: set the RX list pointer to
  * currentDMAAddress and put the receiver into its receiving state.
  * @param dma Engine structure.
  */
-void DMAEngine_CommandReceiverStart(DMAEngine *dma);
+void dma_engine_command_receiver_start(DMAEngine *dma);
 
 /**
  * @brief Execute the DMA Receiver Continue command: same as Receiver Start -
  * set the RX list pointer to currentDMAAddress and resume the receiver.
  * @param dma Engine structure.
  */
-void DMAEngine_CommandReceiverContinue(DMAEngine *dma);
+void dma_engine_command_receiver_continue(DMAEngine *dma);
 
 /**
  * @brief Execute the DMA Transmitter Start command: set the TX list pointer
@@ -166,7 +166,7 @@ void DMAEngine_CommandReceiverContinue(DMAEngine *dma);
  * DMA_SENDER_BLOCK_READY_TO_SEND.
  * @param dma Engine structure.
  */
-void DMAEngine_CommandTransmitterStart(DMAEngine *dma);
+void dma_engine_command_transmitter_start(DMAEngine *dma);
 
 /**
  * @brief Execute the DMA Dump Data Module command: write the COM5025 mode
@@ -174,7 +174,7 @@ void DMAEngine_CommandTransmitterStart(DMAEngine *dma);
  * status/control bytes to the 5 memory words at currentDMAAddress.
  * @param dma Engine structure.
  */
-void DMAEngine_CommandDumpDataModule(DMAEngine *dma);
+void dma_engine_command_dump_data_module(DMAEngine *dma);
 
 /**
  * @brief Execute the DMA Dump Registers command: read a (firstReg, numreg)
@@ -182,7 +182,7 @@ void DMAEngine_CommandDumpDataModule(DMAEngine *dma);
  * memory, or the 16 bit-slice register indices if both are zero.
  * @param dma Engine structure.
  */
-void DMAEngine_CommandDumpRegisters(DMAEngine *dma);
+void dma_engine_command_dump_registers(DMAEngine *dma);
 
 /**
  * @brief Execute the DMA Load Registers command: read a (firstReg, numreg)
@@ -190,7 +190,7 @@ void DMAEngine_CommandDumpRegisters(DMAEngine *dma);
  * the following memory words.
  * @param dma Engine structure.
  */
-void DMAEngine_CommandLoadRegisters(DMAEngine *dma);
+void dma_engine_command_load_registers(DMAEngine *dma);
 
 // Memory access functions
 
@@ -202,7 +202,7 @@ void DMAEngine_CommandLoadRegisters(DMAEngine *dma);
  * @param dma Engine structure.
  * @param address Memory address to store in currentDMAAddress.
  */
-void DMAEngine_SetDMAAddress(DMAEngine *dma, uint32_t address);
+void dma_engine_set_dma_address(DMAEngine *dma, uint32_t address);
 
 /**
  * @brief Read the raw key value of the list entry at listPointer + offset*4.
@@ -211,7 +211,7 @@ void DMAEngine_SetDMAAddress(DMAEngine *dma, uint32_t address);
  * @param offset Offset (in 4-word blocks) of the entry to read.
  * @return Key value read from memory, or 0 if dma is NULL.
  */
-uint16_t DMAEngine_GetBufferKeyVault(DMAEngine *dma, uint32_t list_pointer, uint16_t offset);
+uint16_t dma_engine_get_buffer_key_vault(DMAEngine *dma, uint32_t list_pointer, uint16_t offset);
 
 /**
  * @brief Scan forward from start in 4-word steps for the next TX list entry
@@ -221,7 +221,7 @@ uint16_t DMAEngine_GetBufferKeyVault(DMAEngine *dma, uint32_t list_pointer, uint
  * @return Address of the matching entry, or 0 if dma is NULL or an empty
  * key (end of list) is reached first.
  */
-uint32_t DMAEngine_ScanNextTXBuffer(DMAEngine *dma, uint32_t start);
+uint32_t dma_engine_scan_next_tx_buffer(DMAEngine *dma, uint32_t start);
 
 // Event handling functions
 
@@ -231,7 +231,7 @@ uint32_t DMAEngine_ScanNextTXBuffer(DMAEngine *dma, uint32_t start);
  * @param address Memory address to write.
  * @param data 16-bit value to write.
  */
-void DMAEngine_OnWriteDMA(DMAEngine *dma, uint32_t address, uint16_t data);
+void dma_engine_on_write_dma(DMAEngine *dma, uint32_t address, uint16_t data);
 
 /**
  * @brief Forward a DMA memory read to the engine's onReadDMA callback.
@@ -239,7 +239,7 @@ void DMAEngine_OnWriteDMA(DMAEngine *dma, uint32_t address, uint16_t data);
  * @param address Memory address to read.
  * @param data Out parameter receiving the read value, or -1 on failure or if dma/onReadDMA is NULL.
  */
-void DMAEngine_OnReadDMA(DMAEngine *dma, uint32_t address, int *data);
+void dma_engine_on_read_dma(DMAEngine *dma, uint32_t address, int *data);
 
 // Callback setup functions
 
@@ -248,28 +248,28 @@ void DMAEngine_OnReadDMA(DMAEngine *dma, uint32_t address, int *data);
  * @param dma Engine structure.
  * @param callback Function to call for a DMA memory write.
  */
-void DMAEngine_SetWriteDMACallback(DMAEngine *dma, DMAWriteCallback callback);
+void dma_engine_set_write_dma_callback(DMAEngine *dma, DMAWriteCallback callback);
 
 /**
  * @brief Install the DMA memory-read callback.
  * @param dma Engine structure.
  * @param callback Function to call for a DMA memory read.
  */
-void DMAEngine_SetReadDMACallback(DMAEngine *dma, DMAReadCallback callback);
+void dma_engine_set_read_dma_callback(DMAEngine *dma, DMAReadCallback callback);
 
 /**
  * @brief Install the callback used to raise an interrupt bit.
  * @param dma Engine structure.
  * @param callback Function to call with the interrupt bit number.
  */
-void DMAEngine_SetInterruptCallback(DMAEngine *dma, DMASetInterruptCallback callback);
+void dma_engine_set_interrupt_callback(DMAEngine *dma, DMASetInterruptCallback callback);
 
 /**
  * @brief Install the callback used to hand a completed HDLC frame onward.
  * @param dma Engine structure.
  * @param callback Function to call with the assembled frame.
  */
-void DMAEngine_SetSendFrameCallback(DMAEngine *dma, DMASendFrameCallback callback);
+void dma_engine_set_send_frame_callback(DMAEngine *dma, DMASendFrameCallback callback);
 
 /**
  * @brief Install the callback used to OR receiver status bits into the
@@ -277,15 +277,15 @@ void DMAEngine_SetSendFrameCallback(DMAEngine *dma, DMASendFrameCallback callbac
  * @param dma Engine structure.
  * @param callback Function to call with the receiver status byte.
  */
-void DMAEngine_SetUpdateReceiverStatusCallback(DMAEngine *dma,
-                                               DMAUpdateReceiverStatusCallback callback);
+void dma_engine_set_update_receiver_status_callback(DMAEngine *dma,
+                                                    DMAUpdateReceiverStatusCallback callback);
 
 /**
  * @brief Install the callback used to clear the device's pending DMA command.
  * @param dma Engine structure.
  * @param callback Function to call to clear the command.
  */
-void DMAEngine_SetClearCommandCallback(DMAEngine *dma, DMAClearCommandCallback callback);
+void dma_engine_set_clear_command_callback(DMAEngine *dma, DMAClearCommandCallback callback);
 
 // Debug functions
 

@@ -177,7 +177,7 @@ static void NCR_UpdateInt(NCR5386 *ncr)
         ncr->command_reg_flags = 0;
 
         /* latch current phase */
-        uint32_t ctrl = SCSIBus_ControlRead(ncr->bus);
+        uint32_t ctrl = scsi_bus_control_read(ncr->bus);
         if (ctrl & S_MSG)
             ncr->aux_status_reg |= NCR_AUX_MSG;
         if (ctrl & S_CTL)
@@ -231,7 +231,7 @@ static void NCR_ExecuteLoadedCommand(NCR5386 *ncr)
         if (ncr->chipState == NCR_CHIP_INITIATOR)
         {
             NCR_Log("Set ATN");
-            SCSIBus_ControlWrite(ncr->bus, ncr->dev.refid, S_ATN, S_ATN);
+            scsi_bus_control_write(ncr->bus, ncr->dev.refid, S_ATN, S_ATN);
         }
         else
             NCR_HandleError(ncr, "Set ATN in wrong state");
@@ -241,7 +241,7 @@ static void NCR_ExecuteLoadedCommand(NCR5386 *ncr)
         if (ncr->chipState == NCR_CHIP_INITIATOR)
         {
             NCR_Log("Message accepted");
-            SCSIBus_ControlWrite(ncr->bus, ncr->dev.refid, 0, S_ACK);
+            scsi_bus_control_write(ncr->bus, ncr->dev.refid, 0, S_ACK);
         }
         else
             NCR_HandleError(ncr, "Message accepted in wrong state");
@@ -438,7 +438,7 @@ static int NCR_StepState(NCR5386 *ncr)
      */
     uint8_t oid = (uint8_t)(1 << (ncr->sourceID & NCR_SOURCE_ID_MASK));
     uint8_t tid = (uint8_t)(1 << ncr->destinationID);
-    uint32_t ctrl = SCSIBus_ControlRead(ncr->bus);
+    uint32_t ctrl = scsi_bus_control_read(ncr->bus);
 
     /* Execute a loaded (interrupting) command before stepping the machine. */
     if (ncr->commandCodeLoaded)
@@ -470,21 +470,21 @@ static int NCR_StepState(NCR5386 *ncr)
     case NCR_STATE_ARBITRATE_STARTED:
         ncr->currentState = NCR_STATE_ARBITRATE_EVALUATE;
         /* assert own ID and BSY */
-        SCSIBus_DataWrite(ncr->bus, ncr->dev.refid, oid);
-        SCSIBus_ControlWrite(ncr->bus, ncr->dev.refid, S_BSY, S_BSY);
+        scsi_bus_data_write(ncr->bus, ncr->dev.refid, oid);
+        scsi_bus_control_write(ncr->bus, ncr->dev.refid, S_BSY, S_BSY);
         break;
 
     case NCR_STATE_ARBITRATE_EVALUATE:
     {
         /* check if SEL asserted, or if there is a higher ID on the bus */
-        uint8_t bus_id = SCSIBus_DataRead(ncr->bus);
+        uint8_t bus_id = scsi_bus_data_read(ncr->bus);
         uint8_t id_mask = (uint8_t)~((oid - 1) | oid);
         if ((ctrl & S_SEL) || (bus_id & id_mask) != 0)
         {
             NCR_Log("arbitration: lost");
             ncr->currentState = NCR_STATE_ARBITRATE_BUS_FREE;
-            SCSIBus_DataWrite(ncr->bus, ncr->dev.refid, 0);
-            SCSIBus_ControlWrite(ncr->bus, ncr->dev.refid, 0, S_BSY);
+            scsi_bus_data_write(ncr->bus, ncr->dev.refid, 0);
+            scsi_bus_control_write(ncr->bus, ncr->dev.refid, 0, S_BSY);
         }
         else
         {
@@ -502,8 +502,8 @@ static int NCR_StepState(NCR5386 *ncr)
         NCR_Log("selection: SEL asserted");
         ncr->currentState = NCR_STATE_SELECTION_DELAY;
         /* assert own and target ID and SEL */
-        SCSIBus_DataWrite(ncr->bus, ncr->dev.refid, (uint8_t)(oid | tid));
-        SCSIBus_ControlWrite(ncr->bus, ncr->dev.refid, S_SEL, S_SEL);
+        scsi_bus_data_write(ncr->bus, ncr->dev.refid, (uint8_t)(oid | tid));
+        scsi_bus_control_write(ncr->bus, ncr->dev.refid, S_SEL, S_SEL);
         break;
 
     case NCR_STATE_SELECTION_DELAY:
@@ -513,9 +513,9 @@ static int NCR_StepState(NCR5386 *ncr)
          * Select w/ATN is code 8 (bit0=0) and Select w/o ATN is code 9
          * (bit0=1), so bit 0 of the command code selects ATN. */
         if ((ncr->command_code & 0x01) == 0)
-            SCSIBus_ControlWrite(ncr->bus, ncr->dev.refid, S_ATN, S_BSY | S_ATN);
+            scsi_bus_control_write(ncr->bus, ncr->dev.refid, S_ATN, S_BSY | S_ATN);
         else
-            SCSIBus_ControlWrite(ncr->bus, ncr->dev.refid, 0, S_BSY);
+            scsi_bus_control_write(ncr->bus, ncr->dev.refid, 0, S_BSY);
         break;
 
     case NCR_STATE_SELECTION_WAIT_BSY:
@@ -528,7 +528,7 @@ static int NCR_StepState(NCR5386 *ncr)
         {
             NCR_Log("selection: timed out");
             ncr->currentState = NCR_STATE_IDLE;
-            SCSIBus_ControlWrite(ncr->bus, ncr->dev.refid, 0, S_ATN | S_SEL);
+            scsi_bus_control_write(ncr->bus, ncr->dev.refid, 0, S_ATN | S_SEL);
             ncr->int_reg |= NCR_INT_DISCONNECTED;
             NCR_UpdateInt(ncr);
         }
@@ -539,8 +539,8 @@ static int NCR_StepState(NCR5386 *ncr)
         ncr->chipState = NCR_CHIP_INITIATOR;
         ncr->currentState = NCR_STATE_SELECTION_WAIT_REQ;
         delay = NCR_DELAY_STALL;
-        SCSIBus_DataWrite(ncr->bus, ncr->dev.refid, 0);
-        SCSIBus_ControlWrite(ncr->bus, ncr->dev.refid, 0, S_SEL);
+        scsi_bus_data_write(ncr->bus, ncr->dev.refid, 0);
+        scsi_bus_control_write(ncr->bus, ncr->dev.refid, 0, S_SEL);
         ncr->int_reg |= NCR_INT_FUNCTION_COMPLETE;
         NCR_UpdateInt(ncr);
         break;
@@ -586,7 +586,7 @@ static int NCR_StepState(NCR5386 *ncr)
                 if ((ncr->command_code & 0x01) == 0)
                 {
                     ncr->aux_status_reg |= NCR_AUX_DATA_REGISTER_FULL;
-                    ncr->m_dat = SCSIBus_DataRead(ncr->bus);
+                    ncr->m_dat = scsi_bus_data_read(ncr->bus);
                     if (ncr->command_reg_flags & NCR_CMD_FLAG_DMA_MODE)
                         NCR_SetDreq(ncr, true);
                     delay = NCR_DELAY_STALL;
@@ -606,7 +606,7 @@ static int NCR_StepState(NCR5386 *ncr)
 
     case NCR_STATE_XFI_IN_DRQ:
         ncr->currentState = NCR_STATE_XFI_IN_ACK;
-        SCSIBus_ControlWrite(ncr->bus, ncr->dev.refid, S_ACK, S_ACK);
+        scsi_bus_control_write(ncr->bus, ncr->dev.refid, S_ACK, S_ACK);
         break;
 
     case NCR_STATE_XFI_IN_ACK:
@@ -630,7 +630,7 @@ static int NCR_StepState(NCR5386 *ncr)
                 NCR_UpdateInt(ncr);
             }
             else
-                SCSIBus_ControlWrite(ncr->bus, ncr->dev.refid, 0, S_ACK);
+                scsi_bus_control_write(ncr->bus, ncr->dev.refid, 0, S_ACK);
         }
         else
             delay = NCR_DELAY_STALL;
@@ -665,11 +665,11 @@ static int NCR_StepState(NCR5386 *ncr)
         ncr->currentState = NCR_STATE_XFI_OUT_ACK;
         ncr->aux_status_reg &= ~NCR_AUX_DATA_REGISTER_FULL;
         /* assert data and ACK; drop ATN on the last byte of message out */
-        SCSIBus_DataWrite(ncr->bus, ncr->dev.refid, ncr->m_dat);
+        scsi_bus_data_write(ncr->bus, ncr->dev.refid, ncr->m_dat);
         if (NCR_Remaining(ncr, 1) && (ctrl & S_PHASE_MASK) == S_PHASE_MSG_OUT)
-            SCSIBus_ControlWrite(ncr->bus, ncr->dev.refid, S_ACK, S_ACK | S_ATN);
+            scsi_bus_control_write(ncr->bus, ncr->dev.refid, S_ACK, S_ACK | S_ATN);
         else
-            SCSIBus_ControlWrite(ncr->bus, ncr->dev.refid, S_ACK, S_ACK);
+            scsi_bus_control_write(ncr->bus, ncr->dev.refid, S_ACK, S_ACK);
         break;
 
     case NCR_STATE_XFI_OUT_ACK:
@@ -689,8 +689,8 @@ static int NCR_StepState(NCR5386 *ncr)
             else
                 ncr->sbx = false;
 
-            SCSIBus_DataWrite(ncr->bus, ncr->dev.refid, 0);
-            SCSIBus_ControlWrite(ncr->bus, ncr->dev.refid, 0, S_ACK);
+            scsi_bus_data_write(ncr->bus, ncr->dev.refid, 0);
+            scsi_bus_control_write(ncr->bus, ncr->dev.refid, 0, S_ACK);
         }
         else
             delay = NCR_DELAY_STALL;
@@ -757,7 +757,7 @@ static void NCR_CtrlChanged(SCSIDevice *self)
     if (!ncr || !ncr->bus)
         return;
 
-    uint32_t ctrl = SCSIBus_ControlRead(ncr->bus);
+    uint32_t ctrl = scsi_bus_control_read(ncr->bus);
 
     if ((ctrl & S_BSY) && !(ctrl & S_SEL))
     {
@@ -801,7 +801,7 @@ void NCR5386_Init(NCR5386 *ncr, SCSIBus *bus, uint8_t own_id,
     ncr->onDataRequest = onDataRequest;
     ncr->callbackContext = callbackContext;
 
-    SCSIBus_AddDevice(bus, &ncr->dev);
+    scsi_bus_add_device(bus, &ncr->dev);
     ncr->bus = bus;
 
     NCR_CommandChipReset(ncr);
@@ -820,7 +820,7 @@ void NCR5386_DeviceReset(NCR5386 *ncr)
     {
         /* monitor all control lines (this device has no RST line) */
         uint32_t p = S_ALL & ~S_RST;
-        SCSIBus_ControlWait(ncr->bus, ncr->dev.refid, p, p);
+        scsi_bus_control_wait(ncr->bus, ncr->dev.refid, p, p);
     }
 
     NCR_UpdateInt(ncr);
@@ -836,17 +836,17 @@ bool NCR5386_ChipDisabled(NCR5386 *ncr)
 /* Raw bus signals for the ND card's status word. */
 bool NCR5386_SCSI_BSY(NCR5386 *ncr)
 {
-    return ncr && ncr->bus && (SCSIBus_ControlRead(ncr->bus) & S_BSY) != 0;
+    return ncr && ncr->bus && (scsi_bus_control_read(ncr->bus) & S_BSY) != 0;
 }
 
 bool NCR5386_SCSI_REQ(NCR5386 *ncr)
 {
-    return ncr && ncr->bus && (SCSIBus_ControlRead(ncr->bus) & S_REQ) != 0;
+    return ncr && ncr->bus && (scsi_bus_control_read(ncr->bus) & S_REQ) != 0;
 }
 
 bool NCR5386_SCSI_ACK(NCR5386 *ncr)
 {
-    return ncr && ncr->bus && (SCSIBus_ControlRead(ncr->bus) & S_ACK) != 0;
+    return ncr && ncr->bus && (scsi_bus_control_read(ncr->bus) & S_ACK) != 0;
 }
 
 
@@ -855,9 +855,9 @@ void NCR5386_InitiateResetSCSIBus(NCR5386 *ncr)
     if (!ncr || !ncr->bus)
         return;
 
-    SCSIBus_ControlWrite(ncr->bus, ncr->dev.refid, 0, S_ALL);      /* clear all */
-    SCSIBus_ControlWrite(ncr->bus, ncr->dev.refid, S_RST, S_RST);
-    SCSIBus_ControlWrite(ncr->bus, ncr->dev.refid, 0, S_ALL);      /* clear all */
+    scsi_bus_control_write(ncr->bus, ncr->dev.refid, 0, S_ALL);      /* clear all */
+    scsi_bus_control_write(ncr->bus, ncr->dev.refid, S_RST, S_RST);
+    scsi_bus_control_write(ncr->bus, ncr->dev.refid, 0, S_ALL);      /* clear all */
 }
 
 
@@ -1066,7 +1066,7 @@ uint8_t NCR5386_Read(NCR5386 *ncr, uint8_t address)
          * every read, not just while an interrupt is pending - "if not ND
          * SINTRAN and tools doesnt work". This is a deliberate divergence from
          * MAME. Do not gate it on int_reg. */
-        uint32_t ctrl = SCSIBus_ControlRead(ncr->bus);
+        uint32_t ctrl = scsi_bus_control_read(ncr->bus);
         if (ctrl & S_MSG)
             aux |= NCR_AUX_MSG;
         if (ctrl & S_CTL)

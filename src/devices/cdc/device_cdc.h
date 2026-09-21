@@ -281,14 +281,14 @@ typedef struct {
  *        big-endian 16-bit words (ND word order), sector S at byte offset S*512.
  * @param path Path to the backing image, or NULL/empty for an in-memory-only disc.
  */
-void CdcDevice_SetBackingFile(const char *path);
+void cdc_set_backing_file(const char *path);
 
 /**
  * @brief Create and initialize a CDC/NCR cartridge disc device.
  * @param thumbwheel Card thumbwheel; selects the IOX address block (0 -> 500).
  * @return The new Device, or NULL on allocation failure.
  */
-Device *CreateCdcDevice(uint8_t thumbwheel);
+Device *cdc_create_device(uint8_t thumbwheel);
 
 /*
  * ------------------------------------------------------------------------------

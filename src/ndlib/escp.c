@@ -297,7 +297,7 @@ static int params_for_command(uint8_t cmd)
     }
 }
 
-EscpContext *Escp_Create(void)
+EscpContext *escp_create(void)
 {
     EscpContext *ctx = calloc(1, sizeof(EscpContext));
     if (!ctx)
@@ -326,7 +326,7 @@ EscpContext *Escp_Create(void)
     return ctx;
 }
 
-void Escp_PutChar(EscpContext *ctx, uint8_t c)
+void escp_put_char(EscpContext *ctx, uint8_t c)
 {
     if (!ctx)
     {
@@ -422,7 +422,7 @@ void Escp_PutChar(EscpContext *ctx, uint8_t c)
     }
 }
 
-const EscpSpan *Escp_GetSpans(EscpContext *ctx, int *count)
+const EscpSpan *escp_get_spans(EscpContext *ctx, int *count)
 {
     if (!ctx)
     {
@@ -443,7 +443,7 @@ const EscpSpan *Escp_GetSpans(EscpContext *ctx, int *count)
     return ctx->spans;
 }
 
-int Escp_GetPageCount(EscpContext *ctx)
+int escp_get_page_count(EscpContext *ctx)
 {
     if (!ctx)
     {
@@ -457,7 +457,7 @@ int Escp_GetPageCount(EscpContext *ctx)
     return ctx->page + 1;
 }
 
-void Escp_Reset(EscpContext *ctx)
+void escp_reset(EscpContext *ctx)
 {
     if (!ctx)
     {
@@ -480,7 +480,7 @@ void Escp_Reset(EscpContext *ctx)
     reset_printer(ctx);
 }
 
-void Escp_Destroy(EscpContext *ctx)
+void escp_destroy(EscpContext *ctx)
 {
     if (!ctx)
     {
@@ -496,7 +496,7 @@ void Escp_Destroy(EscpContext *ctx)
     free(ctx);
 }
 
-char Escp_StripToPlainChar(EscpContext *ctx, uint8_t c)
+char escp_strip_to_plain_char(EscpContext *ctx, uint8_t c)
 {
     if (!ctx)
     {

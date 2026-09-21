@@ -249,14 +249,14 @@ static int parse_machine_ini(const char *iniText, MachineConfig *mc, char *err, 
 static void wasm_bind_terminals(void)
 {
     int termIdx = 0;
-    int devCount = DeviceManager_GetDeviceCount();
+    int devCount = devmgr_get_device_count();
     for (int i = 0; i < MAX_TERMINALS; i++)
     {
         terminals[i] = NULL;
     }
     for (int i = 0; i < devCount && termIdx < MAX_TERMINALS; i++)
     {
-        Device *dev = DeviceManager_GetDeviceByIndex(i);
+        Device *dev = devmgr_get_device_by_index(i);
         if (dev && dev->type == DEVICE_TYPE_TERMINAL)
         {
             terminals[termIdx++] = dev;
@@ -266,7 +266,7 @@ static void wasm_bind_terminals(void)
     {
         if (terminals[i])
         {
-            Device_SetCharacterOutput(terminals[i], WasmTerminalOutputHandler);
+            dev_set_character_output(terminals[i], WasmTerminalOutputHandler);
         }
     }
 }
@@ -277,13 +277,13 @@ static void wasm_bind_hdlc(void)
 {
     for (int ch = 0; ch < HDLC_CHANNEL_COUNT; ch++)
     {
-        hdlc_devices[ch] = DeviceManager_GetDeviceByAddress(hdlc_base_addrs_oct[ch]);
+        hdlc_devices[ch] = devmgr_get_device_by_address(hdlc_base_addrs_oct[ch]);
         if (hdlc_devices[ch] && hdlc_devices[ch]->deviceData)
         {
             HDLCData *hd = (HDLCData *)hdlc_devices[ch]->deviceData;
             if (hd && hd->modem)
             {
-                Modem_StartWasmBridge(hd->modem);
+                modem_start_wasm_bridge(hd->modem);
             }
         }
     }
@@ -337,11 +337,11 @@ EMSCRIPTEN_EXPORT const char *InitWithConfig(const char *iniText)
     // to register, so a model chosen after this point never reaches the guest.
     if (useConfig)
     {
-        MachineConfig_ApplyCpu(&mc, NULL);
+        mc_apply_cpu(&mc, NULL);
     }
 
     // [runtime] log = SPEC: per-category log levels (see log.h).
-    if (useConfig && mc.runtime.log_spec[0] && Log_ParseSpec(mc.runtime.log_spec) != 0)
+    if (useConfig && mc.runtime.log_spec[0] && log_parse_spec(mc.runtime.log_spec) != 0)
     {
         snprintf(result, sizeof(result), "[runtime] log = %s: unknown category or level",
                  mc.runtime.log_spec);
@@ -360,7 +360,7 @@ EMSCRIPTEN_EXPORT const char *InitWithConfig(const char *iniText)
         }
         if (mc.runtime.ring_at_pf > 0)
         {
-            cpu_set_ring_at_pf(mc.runtime.ring_at_pf);
+            mms_cpu_set_ring_at_pf(mc.runtime.ring_at_pf);
         }
         if (mc.runtime.ring_at_clpt > 0)
         {
@@ -385,7 +385,7 @@ EMSCRIPTEN_EXPORT const char *InitWithConfig(const char *iniText)
     {
         // The devices half: terminals, controllers with their images, and
         // HDLC. The CPU half already ran, before machine_init above.
-        MachineConfig_ApplyDevices(&mc);
+        mc_apply_devices(&mc);
     }
     else
     {
@@ -394,27 +394,27 @@ EMSCRIPTEN_EXPORT const char *InitWithConfig(const char *iniText)
         // Total: 8 terminals (console + 7)
         for (uint8_t tw = 5; tw <= 11; tw++)
         {
-            DeviceManager_AddDevice(DEVICE_TYPE_TERMINAL, tw);
+            devmgr_add_device(DEVICE_TYPE_TERMINAL, tw);
         }
     }
 
     wasm_bind_terminals();
 
     // Set up character device output handler for the line printer
-    Device *printer = DeviceManager_GetDeviceByAddress(0430);
+    Device *printer = devmgr_get_device_by_address(0430);
     if (printer)
     {
-        Device_SetCharacterOutput(printer, WasmPrinterOutputHandler);
+        dev_set_character_output(printer, WasmPrinterOutputHandler);
     }
 
     // Create print job manager for PDF generation
-    wasmPrintJob = PrintJob_Create(PJ_PRINTER_TEXT, PJ_FORMAT_PDF, "/prints");
+    wasmPrintJob = pj_create(PJ_PRINTER_TEXT, PJ_FORMAT_PDF, "/prints");
 
     // Set up character device output handler for the paper tape writer
-    Device *ptw = DeviceManager_GetDeviceByAddress(0410);
+    Device *ptw = devmgr_get_device_by_address(0410);
     if (ptw)
     {
-        Device_SetCharacterOutput(ptw, WasmPaperTapeWriterOutputHandler);
+        dev_set_character_output(ptw, WasmPaperTapeWriterOutputHandler);
     }
 
     // HDLC 1-4: WebSocket/gateway bridge (no host TCP in WASM). With a config,
@@ -424,7 +424,7 @@ EMSCRIPTEN_EXPORT const char *InitWithConfig(const char *iniText)
     {
         for (uint8_t tw = 1; tw <= HDLC_CHANNEL_COUNT; tw++)
         {
-            DeviceManager_AddDevice(DEVICE_TYPE_HDLC, tw);
+            devmgr_add_device(DEVICE_TYPE_HDLC, tw);
         }
     }
     // Either way every channel that now exists has to reach the browser: there
@@ -457,27 +457,27 @@ EMSCRIPTEN_EXPORT int Boot(int boot_type)
     // autoMountDrives() inside program_load() will skip already-mounted drives.
 
     // Mount floppy unit 0 - try both MEMFS paths
-    if (!isMounted(DRIVE_FLOPPY, 0))
+    if (!machine_is_mounted(DRIVE_FLOPPY, 0))
     {
-        mount_floppy("/FLOPPY0.IMG", 0);
+        machine_mount_floppy("/FLOPPY0.IMG", 0);
     }
-    if (!isMounted(DRIVE_FLOPPY, 0))
+    if (!machine_is_mounted(DRIVE_FLOPPY, 0))
     {
-        mount_floppy("FLOPPY0.IMG", 0);
+        machine_mount_floppy("FLOPPY0.IMG", 0);
     }
 
     // Mount SMD drives
-    if (!isMounted(DRIVE_SMD, 0))
+    if (!machine_is_mounted(DRIVE_SMD, 0))
     {
-        mount_smd("SMD0.IMG", 0);
+        machine_mount_smd("SMD0.IMG", 0);
     }
-    mount_smd(NULL, 1);
-    mount_smd(NULL, 2);
-    mount_smd(NULL, 3);
+    machine_mount_smd(NULL, 1);
+    machine_mount_smd(NULL, 2);
+    machine_mount_smd(NULL, 3);
 
     // Log which drives are actually mounted (C-side truth)
     {
-        MountedDriveInfo_t *smd_list = list_mount(DRIVE_SMD);
+        MountedDriveInfo_t *smd_list = machine_list_mount(DRIVE_SMD);
         if (smd_list)
         {
             for (int i = 0; i < 4; i++)
@@ -493,16 +493,16 @@ EMSCRIPTEN_EXPORT int Boot(int boot_type)
     switch (boot_type)
     {
     case 1: // SMD
-        rc = program_load(BOOT_SMD, 0, "SMD0.IMG", 1, 0, false);
+        rc = machine_program_load(BOOT_SMD, 0, "SMD0.IMG", 1, 0, false);
         break;
     case 2: // BPUN
-        rc = program_load(BOOT_BPUN, 0, "BPUN_UPLOAD.IMG", 1, 0, false);
+        rc = machine_program_load(BOOT_BPUN, 0, "BPUN_UPLOAD.IMG", 1, 0, false);
         break;
     case 3: // SCSI (ID 0)
-        rc = program_load(BOOT_SCSI, 0, "SCSI0.IMG", 1, 0, false);
+        rc = machine_program_load(BOOT_SCSI, 0, "SCSI0.IMG", 1, 0, false);
         break;
     default: // FLOPPY (0)
-        rc = program_load(BOOT_FLOPPY, 0, "FLOPPY0.IMG", 1, 0, false);
+        rc = machine_program_load(BOOT_FLOPPY, 0, "FLOPPY0.IMG", 1, 0, false);
         break;
     }
 
@@ -539,7 +539,7 @@ EMSCRIPTEN_EXPORT int SendKeyToTerminal(int identCode, int keyCode)
     // If device is a character device, use the character input function
     if (terminal->deviceClass == DEVICE_CLASS_CHARACTER && terminal->charCallbacks.inputFunc)
     {
-        Device_InputCharacter(terminal, (char)keyCode);
+        dev_input_character(terminal, (char)keyCode);
     }
 
     return 1; // Success
@@ -617,13 +617,13 @@ EMSCRIPTEN_EXPORT int SetTerminalCarrier(int flag, int identCode)
         data->noCarrier = true;
         data->inputStatus.bits.carrierMissing = 1;
         // Enqueue a space so SINTRAN will poll the status and notice carrier loss
-        Terminal_QueueKeyCode(terminal, ' ');
+        terminal_queue_key_code(terminal, ' ');
         // Force an interrupt so SINTRAN wakes up and reads the status register
         if (data->inputStatus.bits.interruptEnabled)
         {
             data->inputStatus.bits.deviceReadyForTransfer = true;
             data->uartInputBuf = ' ';
-            Device_SetInterruptStatus(terminal, true, 12);
+            dev_set_interrupt_status(terminal, true, 12);
         }
         // carrier missing signaled to SINTRAN via interrupt
     }
@@ -659,15 +659,15 @@ EMSCRIPTEN_EXPORT int EnableRemoteTerminals(void)
     int added = 0;
     for (uint8_t tw = 12; tw <= 19; tw++)
     {
-        DeviceManager_AddDevice(DEVICE_TYPE_TERMINAL, tw);
+        devmgr_add_device(DEVICE_TYPE_TERMINAL, tw);
     }
 
     // Re-scan device manager to populate any new terminal slots
     int termIdx = 0;
-    int devCount = DeviceManager_GetDeviceCount();
+    int devCount = devmgr_get_device_count();
     for (int i = 0; i < devCount && termIdx < MAX_TERMINALS; i++)
     {
-        Device *dev = DeviceManager_GetDeviceByIndex(i);
+        Device *dev = devmgr_get_device_by_index(i);
         if (dev && dev->type == DEVICE_TYPE_TERMINAL)
         {
             if (terminals[termIdx] != dev)
@@ -688,7 +688,7 @@ EMSCRIPTEN_EXPORT int EnableRemoteTerminals(void)
     {
         if (terminals[i])
         {
-            Device_SetCharacterOutput(terminals[i], WasmTerminalOutputHandler);
+            dev_set_character_output(terminals[i], WasmTerminalOutputHandler);
         }
     }
 
@@ -725,7 +725,7 @@ EMSCRIPTEN_EXPORT void Setup(const char *config)
 // intended between Init() and Boot() like the other machine settings.
 EMSCRIPTEN_EXPORT void SetRTCMode(int wall)
 {
-    RTC_SetWallClockMode(wall != 0);
+    rtc_set_wall_clock_mode(wall != 0);
 }
 
 // Execute a specific number of steps
@@ -772,15 +772,16 @@ EMSCRIPTEN_EXPORT int RemountFloppy(int unit)
     fclose(ftmp);
 
     // Unmount existing if mounted
-    if (isMounted(DRIVE_FLOPPY, unit))
+    if (machine_is_mounted(DRIVE_FLOPPY, unit))
     {
-        unmount_drive(DRIVE_FLOPPY, unit);
+        machine_unmount_drive(DRIVE_FLOPPY, unit);
     }
 
     // Mount from the (possibly updated) MEMFS file
-    mount_drive(DRIVE_FLOPPY, unit, "md5-unknown", "Floppy", "Mounted floppy image", filename);
+    machine_mount_drive(DRIVE_FLOPPY, unit, "md5-unknown", "Floppy", "Mounted floppy image",
+                        filename);
 
-    return isMounted(DRIVE_FLOPPY, unit) ? 0 : -1;
+    return machine_is_mounted(DRIVE_FLOPPY, unit) ? 0 : -1;
 }
 
 // Mount an SMD drive from OPFS (Worker mode - no FILE*, block I/O via JS)
@@ -793,17 +794,17 @@ EMSCRIPTEN_EXPORT int MountSMDFromOPFS(int unit, int imageSize)
     }
 
     // Unmount existing if mounted
-    if (isMounted(DRIVE_SMD, unit))
+    if (machine_is_mounted(DRIVE_SMD, unit))
     {
-        unmount_drive(DRIVE_SMD, unit);
+        machine_unmount_drive(DRIVE_SMD, unit);
     }
 
     const char *name = (unit == 0) ? "Boot SMD (OPFS)" : "Data SMD (OPFS)";
     const char *desc =
         (unit == 0) ? "Boot SMD from persistent storage" : "Data SMD from persistent storage";
-    mount_drive_opfs(DRIVE_SMD, unit, name, desc, (size_t)imageSize);
+    machine_mount_drive_opfs(DRIVE_SMD, unit, name, desc, (size_t)imageSize);
 
-    return isMounted(DRIVE_SMD, unit) ? 0 : -1;
+    return machine_is_mounted(DRIVE_SMD, unit) ? 0 : -1;
 }
 
 // Mount an SMD drive from a JS buffer (Direct mode - data in malloc'd buffer)
@@ -816,9 +817,9 @@ EMSCRIPTEN_EXPORT int MountSMDFromBuffer(int unit, const uint8_t *data, int size
     }
 
     // Unmount existing if mounted
-    if (isMounted(DRIVE_SMD, unit))
+    if (machine_is_mounted(DRIVE_SMD, unit))
     {
-        unmount_drive(DRIVE_SMD, unit);
+        machine_unmount_drive(DRIVE_SMD, unit);
     }
 
     // Allocate and copy data
@@ -830,11 +831,11 @@ EMSCRIPTEN_EXPORT int MountSMDFromBuffer(int unit, const uint8_t *data, int size
     memcpy(buf, data, (size_t)size);
 
     // Ensure drive arrays exist, then get the array via API
-    if (init_drive_arrays() != 0)
+    if (machine_init_drive_arrays() != 0)
     {
         return -1;
     }
-    MountedDriveInfo_t *drives = list_mount(DRIVE_SMD);
+    MountedDriveInfo_t *drives = machine_list_mount(DRIVE_SMD);
     if (!drives)
     {
         free(buf);
@@ -868,7 +869,7 @@ EMSCRIPTEN_EXPORT int GetSMDBuffer(int unit)
     {
         return 0;
     }
-    MountedDriveInfo_t *drives = list_mount(DRIVE_SMD);
+    MountedDriveInfo_t *drives = machine_list_mount(DRIVE_SMD);
     if (!drives)
     {
         return 0;
@@ -888,7 +889,7 @@ EMSCRIPTEN_EXPORT int GetSMDBufferSize(int unit)
     {
         return 0;
     }
-    MountedDriveInfo_t *drives = list_mount(DRIVE_SMD);
+    MountedDriveInfo_t *drives = machine_list_mount(DRIVE_SMD);
     if (!drives)
     {
         return 0;
@@ -919,7 +920,7 @@ EMSCRIPTEN_EXPORT int Dbg_ReadSMDSectors(int unit, int lba, int count)
     {
         return 0;
     }
-    MountedDriveInfo_t *drives = list_mount(DRIVE_SMD);
+    MountedDriveInfo_t *drives = machine_list_mount(DRIVE_SMD);
     if (!drives)
     {
         return 0;
@@ -1012,15 +1013,15 @@ EMSCRIPTEN_EXPORT int RemountSMD(int unit)
     snprintf(filename, sizeof(filename), "/SMD%d.IMG", unit);
 
     // Unmount existing if mounted
-    if (isMounted(DRIVE_SMD, unit))
+    if (machine_is_mounted(DRIVE_SMD, unit))
     {
-        unmount_drive(DRIVE_SMD, unit);
+        machine_unmount_drive(DRIVE_SMD, unit);
     }
 
     // Mount from the (possibly updated) MEMFS file
-    mount_drive(DRIVE_SMD, unit, "md5-unknown", "SMD", "Mounted SMD image", filename);
+    machine_mount_drive(DRIVE_SMD, unit, "md5-unknown", "SMD", "Mounted SMD image", filename);
 
-    return isMounted(DRIVE_SMD, unit) ? 0 : -1;
+    return machine_is_mounted(DRIVE_SMD, unit) ? 0 : -1;
 }
 
 // Unmount a floppy drive (close FILE*, mark as not mounted)
@@ -1031,9 +1032,9 @@ EMSCRIPTEN_EXPORT int UnmountFloppy(int unit)
         return -1;
     }
 
-    if (isMounted(DRIVE_FLOPPY, unit))
+    if (machine_is_mounted(DRIVE_FLOPPY, unit))
     {
-        unmount_drive(DRIVE_FLOPPY, unit);
+        machine_unmount_drive(DRIVE_FLOPPY, unit);
         return 0;
     }
 
@@ -1048,9 +1049,9 @@ EMSCRIPTEN_EXPORT int UnmountSMD(int unit)
         return -1;
     }
 
-    if (isMounted(DRIVE_SMD, unit))
+    if (machine_is_mounted(DRIVE_SMD, unit))
     {
-        unmount_drive(DRIVE_SMD, unit);
+        machine_unmount_drive(DRIVE_SMD, unit);
         return 0;
     }
 
@@ -1067,17 +1068,17 @@ EMSCRIPTEN_EXPORT int MountSMDFromGateway(int unit, int imageSize)
     }
 
     // Unmount existing if mounted
-    if (isMounted(DRIVE_SMD, unit))
+    if (machine_is_mounted(DRIVE_SMD, unit))
     {
-        unmount_drive(DRIVE_SMD, unit);
+        machine_unmount_drive(DRIVE_SMD, unit);
     }
 
     const char *name = (unit == 0) ? "Boot SMD (Gateway)" : "Data SMD (Gateway)";
     const char *desc =
         (unit == 0) ? "Boot SMD from gateway server" : "Data SMD from gateway server";
-    mount_drive_gateway(DRIVE_SMD, unit, name, desc, (size_t)imageSize);
+    machine_mount_drive_gateway(DRIVE_SMD, unit, name, desc, (size_t)imageSize);
 
-    return isMounted(DRIVE_SMD, unit) ? 0 : -1;
+    return machine_is_mounted(DRIVE_SMD, unit) ? 0 : -1;
 }
 
 // Mount a floppy drive from gateway (Worker mode - block I/O via WebSocket sub-worker)
@@ -1089,16 +1090,16 @@ EMSCRIPTEN_EXPORT int MountFloppyFromGateway(int unit, int imageSize)
     }
 
     // Unmount existing if mounted
-    if (isMounted(DRIVE_FLOPPY, unit))
+    if (machine_is_mounted(DRIVE_FLOPPY, unit))
     {
-        unmount_drive(DRIVE_FLOPPY, unit);
+        machine_unmount_drive(DRIVE_FLOPPY, unit);
     }
 
     const char *name = "Floppy (Gateway)";
     const char *desc = "Floppy from gateway server";
-    mount_drive_gateway(DRIVE_FLOPPY, unit, name, desc, (size_t)imageSize);
+    machine_mount_drive_gateway(DRIVE_FLOPPY, unit, name, desc, (size_t)imageSize);
 
-    return isMounted(DRIVE_FLOPPY, unit) ? 0 : -1;
+    return machine_is_mounted(DRIVE_FLOPPY, unit) ? 0 : -1;
 }
 
 // =========================================================
@@ -1117,7 +1118,7 @@ EMSCRIPTEN_EXPORT int MountFloppyFromGateway(int unit, int imageSize)
 // given unit as an HDD target so it answers transfers. Returns the Device* or NULL.
 static Device *ensure_scsi_controller(int unit)
 {
-    Device *dev = DeviceManager_GetDeviceByAddress(SCSI_TW0_IOX_BASE);
+    Device *dev = devmgr_get_device_by_address(SCSI_TW0_IOX_BASE);
     if (!dev)
     {
         SCSIUnitType types[SCSI_MAX_UNITS];
@@ -1125,12 +1126,12 @@ static Device *ensure_scsi_controller(int unit)
         {
             types[i] = SCSI_UNIT_NONE;
         }
-        DeviceManager_AddSCSIDevice_WithConfig(0, types);
-        dev = DeviceManager_GetDeviceByAddress(SCSI_TW0_IOX_BASE);
+        devmgr_add_scsi_device_with_config(0, types);
+        dev = devmgr_get_device_by_address(SCSI_TW0_IOX_BASE);
     }
     if (dev && unit >= 0 && unit < SCSI_MAX_UNITS)
     {
-        SCSI_SetUnitType(dev, unit, SCSI_UNIT_HDD);
+        scsi_set_unit_type(dev, unit, SCSI_UNIT_HDD);
     }
     return dev;
 }
@@ -1146,16 +1147,16 @@ EMSCRIPTEN_EXPORT int MountSCSIFromOPFS(int unit, int imageSize)
     {
         return -1;
     }
-    if (isMounted(DRIVE_SCSI, unit))
+    if (machine_is_mounted(DRIVE_SCSI, unit))
     {
-        unmount_drive(DRIVE_SCSI, unit);
+        machine_unmount_drive(DRIVE_SCSI, unit);
     }
 
     const char *name = (unit == 0) ? "Boot SCSI (OPFS)" : "Data SCSI (OPFS)";
     const char *desc =
         (unit == 0) ? "Boot SCSI from persistent storage" : "Data SCSI from persistent storage";
-    mount_drive_opfs(DRIVE_SCSI, unit, name, desc, (size_t)imageSize);
-    return isMounted(DRIVE_SCSI, unit) ? 0 : -1;
+    machine_mount_drive_opfs(DRIVE_SCSI, unit, name, desc, (size_t)imageSize);
+    return machine_is_mounted(DRIVE_SCSI, unit) ? 0 : -1;
 }
 
 // Mount a SCSI drive from gateway (Worker mode, block I/O via WebSocket sub-worker)
@@ -1169,16 +1170,16 @@ EMSCRIPTEN_EXPORT int MountSCSIFromGateway(int unit, int imageSize)
     {
         return -1;
     }
-    if (isMounted(DRIVE_SCSI, unit))
+    if (machine_is_mounted(DRIVE_SCSI, unit))
     {
-        unmount_drive(DRIVE_SCSI, unit);
+        machine_unmount_drive(DRIVE_SCSI, unit);
     }
 
     const char *name = (unit == 0) ? "Boot SCSI (Gateway)" : "Data SCSI (Gateway)";
     const char *desc =
         (unit == 0) ? "Boot SCSI from gateway server" : "Data SCSI from gateway server";
-    mount_drive_gateway(DRIVE_SCSI, unit, name, desc, (size_t)imageSize);
-    return isMounted(DRIVE_SCSI, unit) ? 0 : -1;
+    machine_mount_drive_gateway(DRIVE_SCSI, unit, name, desc, (size_t)imageSize);
+    return machine_is_mounted(DRIVE_SCSI, unit) ? 0 : -1;
 }
 
 // Mount a SCSI drive from a JS buffer (Direct mode, in-memory writable image)
@@ -1192,9 +1193,9 @@ EMSCRIPTEN_EXPORT int MountSCSIFromBuffer(int unit, const uint8_t *data, int siz
     {
         return -1;
     }
-    if (isMounted(DRIVE_SCSI, unit))
+    if (machine_is_mounted(DRIVE_SCSI, unit))
     {
-        unmount_drive(DRIVE_SCSI, unit);
+        machine_unmount_drive(DRIVE_SCSI, unit);
     }
 
     char *buf = malloc((size_t)size);
@@ -1204,11 +1205,11 @@ EMSCRIPTEN_EXPORT int MountSCSIFromBuffer(int unit, const uint8_t *data, int siz
     }
     memcpy(buf, data, (size_t)size);
 
-    if (init_drive_arrays() != 0)
+    if (machine_init_drive_arrays() != 0)
     {
         return -1;
     }
-    MountedDriveInfo_t *drives = list_mount(DRIVE_SCSI);
+    MountedDriveInfo_t *drives = machine_list_mount(DRIVE_SCSI);
     if (!drives)
     {
         free(buf);
@@ -1240,7 +1241,7 @@ EMSCRIPTEN_EXPORT int GetSCSIBuffer(int unit)
     {
         return 0;
     }
-    MountedDriveInfo_t *drives = list_mount(DRIVE_SCSI);
+    MountedDriveInfo_t *drives = machine_list_mount(DRIVE_SCSI);
     if (!drives)
     {
         return 0;
@@ -1259,7 +1260,7 @@ EMSCRIPTEN_EXPORT int GetSCSIBufferSize(int unit)
     {
         return 0;
     }
-    MountedDriveInfo_t *drives = list_mount(DRIVE_SCSI);
+    MountedDriveInfo_t *drives = machine_list_mount(DRIVE_SCSI);
     if (!drives)
     {
         return 0;
@@ -1286,12 +1287,12 @@ EMSCRIPTEN_EXPORT int RemountSCSI(int unit)
 
     char filename[32];
     snprintf(filename, sizeof(filename), "/SCSI%d.IMG", unit);
-    if (isMounted(DRIVE_SCSI, unit))
+    if (machine_is_mounted(DRIVE_SCSI, unit))
     {
-        unmount_drive(DRIVE_SCSI, unit);
+        machine_unmount_drive(DRIVE_SCSI, unit);
     }
-    mount_drive(DRIVE_SCSI, unit, "md5-unknown", "SCSI", "Mounted SCSI image", filename);
-    return isMounted(DRIVE_SCSI, unit) ? 0 : -1;
+    machine_mount_drive(DRIVE_SCSI, unit, "md5-unknown", "SCSI", "Mounted SCSI image", filename);
+    return machine_is_mounted(DRIVE_SCSI, unit) ? 0 : -1;
 }
 
 // Unmount a SCSI drive
@@ -1301,9 +1302,9 @@ EMSCRIPTEN_EXPORT int UnmountSCSI(int unit)
     {
         return -1;
     }
-    if (isMounted(DRIVE_SCSI, unit))
+    if (machine_is_mounted(DRIVE_SCSI, unit))
     {
-        unmount_drive(DRIVE_SCSI, unit);
+        machine_unmount_drive(DRIVE_SCSI, unit);
     }
     return 0;
 }
@@ -1332,11 +1333,11 @@ EMSCRIPTEN_EXPORT int UnmountSCSI(int unit)
 // Add the Winchester controller at thumbwheel 0 if it is not already there.
 static Device *ensure_winchester_controller(void)
 {
-    Device *dev = DeviceManager_GetDeviceByAddress(WD_TW0_IOX_BASE);
+    Device *dev = devmgr_get_device_by_address(WD_TW0_IOX_BASE);
     if (!dev)
     {
-        DeviceManager_AddDevice(DEVICE_TYPE_DISC_WINCHESTER, 0);
-        dev = DeviceManager_GetDeviceByAddress(WD_TW0_IOX_BASE);
+        devmgr_add_device(DEVICE_TYPE_DISC_WINCHESTER, 0);
+        dev = devmgr_get_device_by_address(WD_TW0_IOX_BASE);
     }
     return dev;
 }
@@ -1352,16 +1353,16 @@ EMSCRIPTEN_EXPORT int MountWinchesterFromOPFS(int unit, int imageSize)
     {
         return -1;
     }
-    if (isMounted(DRIVE_WINCHESTER, unit))
+    if (machine_is_mounted(DRIVE_WINCHESTER, unit))
     {
-        unmount_drive(DRIVE_WINCHESTER, unit);
+        machine_unmount_drive(DRIVE_WINCHESTER, unit);
     }
 
     const char *name = (unit == 0) ? "Boot Winchester (OPFS)" : "Data Winchester (OPFS)";
     const char *desc = (unit == 0) ? "Boot Winchester from persistent storage"
                                    : "Data Winchester from persistent storage";
-    mount_drive_opfs(DRIVE_WINCHESTER, unit, name, desc, (size_t)imageSize);
-    return isMounted(DRIVE_WINCHESTER, unit) ? 0 : -1;
+    machine_mount_drive_opfs(DRIVE_WINCHESTER, unit, name, desc, (size_t)imageSize);
+    return machine_is_mounted(DRIVE_WINCHESTER, unit) ? 0 : -1;
 }
 
 // Mount a Winchester drive from the gateway (Worker mode, block I/O via WebSocket)
@@ -1375,16 +1376,16 @@ EMSCRIPTEN_EXPORT int MountWinchesterFromGateway(int unit, int imageSize)
     {
         return -1;
     }
-    if (isMounted(DRIVE_WINCHESTER, unit))
+    if (machine_is_mounted(DRIVE_WINCHESTER, unit))
     {
-        unmount_drive(DRIVE_WINCHESTER, unit);
+        machine_unmount_drive(DRIVE_WINCHESTER, unit);
     }
 
     const char *name = (unit == 0) ? "Boot Winchester (Gateway)" : "Data Winchester (Gateway)";
     const char *desc =
         (unit == 0) ? "Boot Winchester from gateway server" : "Data Winchester from gateway server";
-    mount_drive_gateway(DRIVE_WINCHESTER, unit, name, desc, (size_t)imageSize);
-    return isMounted(DRIVE_WINCHESTER, unit) ? 0 : -1;
+    machine_mount_drive_gateway(DRIVE_WINCHESTER, unit, name, desc, (size_t)imageSize);
+    return machine_is_mounted(DRIVE_WINCHESTER, unit) ? 0 : -1;
 }
 
 // Mount a Winchester drive from a JS buffer (Direct mode, in-memory writable)
@@ -1398,9 +1399,9 @@ EMSCRIPTEN_EXPORT int MountWinchesterFromBuffer(int unit, const uint8_t *data, i
     {
         return -1;
     }
-    if (isMounted(DRIVE_WINCHESTER, unit))
+    if (machine_is_mounted(DRIVE_WINCHESTER, unit))
     {
-        unmount_drive(DRIVE_WINCHESTER, unit);
+        machine_unmount_drive(DRIVE_WINCHESTER, unit);
     }
 
     char *buf = malloc((size_t)size);
@@ -1410,11 +1411,11 @@ EMSCRIPTEN_EXPORT int MountWinchesterFromBuffer(int unit, const uint8_t *data, i
     }
     memcpy(buf, data, (size_t)size);
 
-    if (init_drive_arrays() != 0)
+    if (machine_init_drive_arrays() != 0)
     {
         return -1;
     }
-    MountedDriveInfo_t *drives = list_mount(DRIVE_WINCHESTER);
+    MountedDriveInfo_t *drives = machine_list_mount(DRIVE_WINCHESTER);
     if (!drives)
     {
         free(buf);
@@ -1446,7 +1447,7 @@ EMSCRIPTEN_EXPORT int GetWinchesterBuffer(int unit)
     {
         return 0;
     }
-    MountedDriveInfo_t *drives = list_mount(DRIVE_WINCHESTER);
+    MountedDriveInfo_t *drives = machine_list_mount(DRIVE_WINCHESTER);
     if (!drives)
     {
         return 0;
@@ -1465,7 +1466,7 @@ EMSCRIPTEN_EXPORT int GetWinchesterBufferSize(int unit)
     {
         return 0;
     }
-    MountedDriveInfo_t *drives = list_mount(DRIVE_WINCHESTER);
+    MountedDriveInfo_t *drives = machine_list_mount(DRIVE_WINCHESTER);
     if (!drives)
     {
         return 0;
@@ -1492,13 +1493,13 @@ EMSCRIPTEN_EXPORT int RemountWinchester(int unit)
 
     char filename[32];
     snprintf(filename, sizeof(filename), "/WD%d.IMG", unit);
-    if (isMounted(DRIVE_WINCHESTER, unit))
+    if (machine_is_mounted(DRIVE_WINCHESTER, unit))
     {
-        unmount_drive(DRIVE_WINCHESTER, unit);
+        machine_unmount_drive(DRIVE_WINCHESTER, unit);
     }
-    mount_drive(DRIVE_WINCHESTER, unit, "md5-unknown", "Winchester", "Mounted Winchester image",
-                filename);
-    return isMounted(DRIVE_WINCHESTER, unit) ? 0 : -1;
+    machine_mount_drive(DRIVE_WINCHESTER, unit, "md5-unknown", "Winchester",
+                        "Mounted Winchester image", filename);
+    return machine_is_mounted(DRIVE_WINCHESTER, unit) ? 0 : -1;
 }
 
 EMSCRIPTEN_EXPORT int UnmountWinchester(int unit)
@@ -1507,9 +1508,9 @@ EMSCRIPTEN_EXPORT int UnmountWinchester(int unit)
     {
         return -1;
     }
-    if (isMounted(DRIVE_WINCHESTER, unit))
+    if (machine_is_mounted(DRIVE_WINCHESTER, unit))
     {
-        unmount_drive(DRIVE_WINCHESTER, unit);
+        machine_unmount_drive(DRIVE_WINCHESTER, unit);
     }
     return 0;
 }
@@ -1537,14 +1538,14 @@ EMSCRIPTEN_EXPORT int MountFloppyFromOPFS(int unit, int imageSize)
     {
         return -1;
     }
-    if (isMounted(DRIVE_FLOPPY, unit))
+    if (machine_is_mounted(DRIVE_FLOPPY, unit))
     {
-        unmount_drive(DRIVE_FLOPPY, unit);
+        machine_unmount_drive(DRIVE_FLOPPY, unit);
     }
 
-    mount_drive_opfs(DRIVE_FLOPPY, unit, "Floppy (OPFS)", "Floppy from persistent storage",
-                     (size_t)imageSize);
-    return isMounted(DRIVE_FLOPPY, unit) ? 0 : -1;
+    machine_mount_drive_opfs(DRIVE_FLOPPY, unit, "Floppy (OPFS)", "Floppy from persistent storage",
+                             (size_t)imageSize);
+    return machine_is_mounted(DRIVE_FLOPPY, unit) ? 0 : -1;
 }
 
 EMSCRIPTEN_EXPORT int MountFloppyFromBuffer(int unit, const uint8_t *data, int size)
@@ -1553,9 +1554,9 @@ EMSCRIPTEN_EXPORT int MountFloppyFromBuffer(int unit, const uint8_t *data, int s
     {
         return -1;
     }
-    if (isMounted(DRIVE_FLOPPY, unit))
+    if (machine_is_mounted(DRIVE_FLOPPY, unit))
     {
-        unmount_drive(DRIVE_FLOPPY, unit);
+        machine_unmount_drive(DRIVE_FLOPPY, unit);
     }
 
     char *buf = malloc((size_t)size);
@@ -1565,11 +1566,11 @@ EMSCRIPTEN_EXPORT int MountFloppyFromBuffer(int unit, const uint8_t *data, int s
     }
     memcpy(buf, data, (size_t)size);
 
-    if (init_drive_arrays() != 0)
+    if (machine_init_drive_arrays() != 0)
     {
         return -1;
     }
-    MountedDriveInfo_t *drives = list_mount(DRIVE_FLOPPY);
+    MountedDriveInfo_t *drives = machine_list_mount(DRIVE_FLOPPY);
     if (!drives)
     {
         free(buf);
@@ -1599,7 +1600,7 @@ EMSCRIPTEN_EXPORT int GetFloppyBuffer(int unit)
     {
         return 0;
     }
-    MountedDriveInfo_t *drives = list_mount(DRIVE_FLOPPY);
+    MountedDriveInfo_t *drives = machine_list_mount(DRIVE_FLOPPY);
     if (!drives)
     {
         return 0;
@@ -1618,7 +1619,7 @@ EMSCRIPTEN_EXPORT int GetFloppyBufferSize(int unit)
     {
         return 0;
     }
-    MountedDriveInfo_t *drives = list_mount(DRIVE_FLOPPY);
+    MountedDriveInfo_t *drives = machine_list_mount(DRIVE_FLOPPY);
     if (!drives)
     {
         return 0;
@@ -1656,12 +1657,12 @@ static int parse_machine_ini(const char *iniText, MachineConfig *mc, char *err, 
     fputs(iniText ? iniText : "", f);
     fclose(f);
 
-    MachineConfig_InitBaseline(mc);
-    if (!MachineConfig_LoadFile(mc, tmp, err, errlen))
+    mc_init_baseline(mc);
+    if (!mc_load_file(mc, tmp, err, errlen))
     {
         return 0;
     }
-    if (!MachineConfig_Validate(mc, err, errlen))
+    if (!mc_validate(mc, err, errlen))
     {
         return 0;
     }
@@ -1703,7 +1704,7 @@ EMSCRIPTEN_EXPORT const char *DescribeMachineINI(const char *iniText)
         return result;
     }
 
-    MachineConfig_ToJson(&mc, result, sizeof(result));
+    mc_to_json(&mc, result, sizeof(result));
     return result;
 }
 
@@ -1755,7 +1756,7 @@ EMSCRIPTEN_EXPORT void HDLC_InjectRxFrame(int channel, const uint8_t *data, int 
     {
         return;
     }
-    HDLC_BridgeInjectRx(hdlc_devices[channel], data, length);
+    hdlc_bridge_inject_rx(hdlc_devices[channel], data, length);
 }
 
 // Poll for a transmitted HDLC frame from the emulator
@@ -1799,7 +1800,7 @@ EMSCRIPTEN_EXPORT void HDLC_SetCarrier(int channel, int present)
     {
         return;
     }
-    Modem_SetCarrierPresent(hd->modem, present != 0);
+    modem_set_carrier_present(hd->modem, present != 0);
 }
 
 // Called from modem.c (Emscripten) when the HDLC DMA path sends a frame to the wire
@@ -1885,7 +1886,7 @@ static void WasmPrinterOutputHandler(Device *device, char c)
     // Feed into PDF pipeline
     if (wasmPrintJob)
     {
-        PrintJob_PutChar(wasmPrintJob, c);
+        pj_put_char(wasmPrintJob, c);
     }
 }
 
@@ -1936,7 +1937,7 @@ EMSCRIPTEN_EXPORT int PrinterCheckTimeout(void)
     {
         return 0;
     }
-    return PrintJob_CheckTimeout(wasmPrintJob) ? 1 : 0;
+    return pj_check_timeout(wasmPrintJob) ? 1 : 0;
 }
 
 // Force flush the current job
@@ -1944,7 +1945,7 @@ EMSCRIPTEN_EXPORT void PrinterFlushJob(void)
 {
     if (wasmPrintJob)
     {
-        PrintJob_Flush(wasmPrintJob);
+        pj_flush(wasmPrintJob);
     }
 }
 
@@ -2023,8 +2024,8 @@ EMSCRIPTEN_EXPORT void PrinterSetType(int type)
     {
         return; /* keep the current job rather than lose its directory */
     }
-    PrintJob_Destroy(wasmPrintJob);
-    wasmPrintJob = PrintJob_Create((PjPrinterType)type, PJ_FORMAT_PDF, savedDir);
+    pj_destroy(wasmPrintJob);
+    wasmPrintJob = pj_create((PjPrinterType)type, PJ_FORMAT_PDF, savedDir);
     if (wasmPrintJob)
     {
         wasmPrintJob->jobNumber = savedJobNumber;
@@ -2037,10 +2038,10 @@ EMSCRIPTEN_EXPORT void PrinterSetType(int type)
 // =========================================================
 EMSCRIPTEN_EXPORT void LoadPaperTape(uint8_t *data, int length)
 {
-    Device *ptr = DeviceManager_GetDeviceByAddress(0400);
+    Device *ptr = devmgr_get_device_by_address(0400);
     if (ptr && data && length > 0)
     {
-        PaperTape_LoadTape(ptr, data, (size_t)length);
+        ptr_load_tape(ptr, data, (size_t)length);
     }
 }
 
@@ -2049,25 +2050,25 @@ EMSCRIPTEN_EXPORT void LoadPaperTape(uint8_t *data, int length)
 // =========================================================
 EMSCRIPTEN_EXPORT int GetPaperTapeWriterDataLength(void)
 {
-    Device *ptw = DeviceManager_GetDeviceByAddress(0410);
+    Device *ptw = devmgr_get_device_by_address(0410);
     if (!ptw)
     {
         return 0;
     }
     size_t length = 0;
-    PaperTapeWriter_GetTapeData(ptw, &length);
+    ptp_get_tape_data(ptw, &length);
     return (int)length;
 }
 
 EMSCRIPTEN_EXPORT uint8_t *GetPaperTapeWriterDataPtr(void)
 {
-    Device *ptw = DeviceManager_GetDeviceByAddress(0410);
+    Device *ptw = devmgr_get_device_by_address(0410);
     if (!ptw)
     {
         return NULL;
     }
     size_t length = 0;
-    return (uint8_t *)PaperTapeWriter_GetTapeData(ptw, &length);
+    return (uint8_t *)ptp_get_tape_data(ptw, &length);
 }
 
 /* =========================================================
@@ -2084,16 +2085,16 @@ EMSCRIPTEN_EXPORT void Dbg_SetPaused(int paused)
     if (paused)
     {
         /* Request pause - set mode directly for single-threaded WASM */
-        set_cpu_run_mode(CPU_PAUSED);
-        set_debugger_request_pause(false);
-        set_debugger_control_granted(false);
+        cpu_set_run_mode(CPU_PAUSED);
+        cpu_set_debugger_request_pause(false);
+        cpu_set_debugger_control_granted(false);
     }
     else
     {
         /* Resume - clear all debugger flags and set running */
-        set_debugger_request_pause(false);
-        set_debugger_control_granted(false);
-        set_cpu_run_mode(CPU_RUNNING);
+        cpu_set_debugger_request_pause(false);
+        cpu_set_debugger_control_granted(false);
+        cpu_set_run_mode(CPU_RUNNING);
     }
 #endif
 }
@@ -2101,7 +2102,7 @@ EMSCRIPTEN_EXPORT void Dbg_SetPaused(int paused)
 EMSCRIPTEN_EXPORT int Dbg_IsPaused(void)
 {
 #ifdef WITH_DEBUGGER
-    CPURunMode mode = get_cpu_run_mode();
+    CPURunMode mode = cpu_get_run_mode();
     return (mode == CPU_PAUSED || mode == CPU_BREAKPOINT) ? 1 : 0;
 #else
     return dbg_paused;
@@ -2116,18 +2117,18 @@ EMSCRIPTEN_EXPORT int Dbg_StepOne(void)
     }
 #ifdef WITH_DEBUGGER
     /* Clear debugger pause flags so machine_run won't get stuck */
-    set_debugger_request_pause(false);
-    set_debugger_control_granted(false);
-    set_cpu_run_mode(CPU_RUNNING);
+    cpu_set_debugger_request_pause(false);
+    cpu_set_debugger_control_granted(false);
+    cpu_set_run_mode(CPU_RUNNING);
 
-    dbg_step_in();
+    debugger_dbg_step_in();
     /* step_cpu sets up step breakpoint and calls ensure_cpu_running */
     machine_run(1);
 
     /* Ensure we end in a paused state after stepping */
-    if (get_cpu_run_mode() == CPU_RUNNING)
+    if (cpu_get_run_mode() == CPU_RUNNING)
     {
-        set_cpu_run_mode(CPU_PAUSED);
+        cpu_set_run_mode(CPU_PAUSED);
     }
     return (int)gPC;
 #else
@@ -2145,18 +2146,18 @@ EMSCRIPTEN_EXPORT int Dbg_StepOver(void)
     }
 #ifdef WITH_DEBUGGER
     /* Clear debugger pause flags so machine_run won't get stuck */
-    set_debugger_request_pause(false);
-    set_debugger_control_granted(false);
-    set_cpu_run_mode(CPU_RUNNING);
+    cpu_set_debugger_request_pause(false);
+    cpu_set_debugger_control_granted(false);
+    cpu_set_run_mode(CPU_RUNNING);
 
-    dbg_step_over();
+    debugger_dbg_step_over();
     /* step_cpu sets temp breakpoint at return addr for calls, or step_one for simple instr */
     machine_run(1000);
 
     /* Ensure we end in a paused state after stepping */
-    if (get_cpu_run_mode() == CPU_RUNNING)
+    if (cpu_get_run_mode() == CPU_RUNNING)
     {
-        set_cpu_run_mode(CPU_PAUSED);
+        cpu_set_run_mode(CPU_PAUSED);
     }
     return (int)gPC;
 #else
@@ -2173,18 +2174,18 @@ EMSCRIPTEN_EXPORT int Dbg_StepOut(void)
     }
 #ifdef WITH_DEBUGGER
     /* Clear debugger pause flags so machine_run won't get stuck */
-    set_debugger_request_pause(false);
-    set_debugger_control_granted(false);
-    set_cpu_run_mode(CPU_RUNNING);
+    cpu_set_debugger_request_pause(false);
+    cpu_set_debugger_control_granted(false);
+    cpu_set_run_mode(CPU_RUNNING);
 
-    dbg_step_out();
+    debugger_dbg_step_out();
     /* step_cpu sets breakpoint at return address from stack trace */
     machine_run(10000);
 
     /* Ensure we end in a paused state after stepping */
-    if (get_cpu_run_mode() == CPU_RUNNING)
+    if (cpu_get_run_mode() == CPU_RUNNING)
     {
-        set_cpu_run_mode(CPU_PAUSED);
+        cpu_set_run_mode(CPU_PAUSED);
     }
     return (int)gPC;
 #else
@@ -2201,12 +2202,12 @@ EMSCRIPTEN_EXPORT int Dbg_RunWithBreakpoints(int maxSteps)
     }
 
     /* Ensure clean state for running */
-    set_debugger_request_pause(false);
-    set_debugger_control_granted(false);
+    cpu_set_debugger_request_pause(false);
+    cpu_set_debugger_control_granted(false);
 
-    if (get_cpu_run_mode() != CPU_RUNNING)
+    if (cpu_get_run_mode() != CPU_RUNNING)
     {
-        set_cpu_run_mode(CPU_RUNNING);
+        cpu_set_run_mode(CPU_RUNNING);
     }
 
     for (int i = 0; i < maxSteps; i++)
@@ -2214,7 +2215,7 @@ EMSCRIPTEN_EXPORT int Dbg_RunWithBreakpoints(int maxSteps)
         machine_run(1);
         /* machine_run(1)->cpu_run(1) already checks breakpoints internally
            and sets cpu_run_mode to CPU_BREAKPOINT if hit */
-        CPURunMode mode = get_cpu_run_mode();
+        CPURunMode mode = cpu_get_run_mode();
         if (mode != CPU_RUNNING)
         {
             return maxSteps - i;
@@ -2425,19 +2426,19 @@ EMSCRIPTEN_EXPORT double Dbg_GetInstrCount(void)
 
 EMSCRIPTEN_EXPORT int Dbg_GetRunMode(void)
 {
-    return (int)get_cpu_run_mode();
+    return (int)cpu_get_run_mode();
 }
 
 EMSCRIPTEN_EXPORT int Dbg_GetStopReason(void)
 {
-    return (int)get_cpu_stop_reason();
+    return (int)cpu_get_stop_reason();
 }
 
 // --- Memory Access ---
 
 EMSCRIPTEN_EXPORT int Dbg_ReadMemory(int addr)
 {
-    return (int)MemoryRead((uint16_t)(addr & 0xFFFF), false);
+    return (int)cpu_memory_read((uint16_t)(addr & 0xFFFF), false);
 }
 
 // --- Bulk Memory Read (for SINTRAN data structure inspection) ---
@@ -2452,14 +2453,14 @@ EMSCRIPTEN_EXPORT int Dbg_ReadMemoryBlock(int startAddr, int count)
     }
     for (int i = 0; i < count; i++)
     {
-        mem_block_buffer[i] = MemoryRead((uint16_t)((startAddr + i) & 0xFFFF), false);
+        mem_block_buffer[i] = cpu_memory_read((uint16_t)((startAddr + i) & 0xFFFF), false);
     }
     return (int)(uintptr_t)mem_block_buffer;
 }
 
 EMSCRIPTEN_EXPORT void Dbg_WriteMemory(int addr, int val)
 {
-    MemoryWrite((uint16_t)val, (uint16_t)(addr & 0xFFFF), false, 2);
+    cpu_memory_write((uint16_t)val, (uint16_t)(addr & 0xFFFF), false, 2);
 }
 
 // --- Physical Memory Dump (raw physical memory, bypasses MMS) ---
@@ -2498,17 +2499,17 @@ EMSCRIPTEN_EXPORT int Dbg_GetPhysMemWords(void)
 
 EMSCRIPTEN_EXPORT void Dbg_AddBreakpoint(int addr)
 {
-    breakpoint_manager_add((uint16_t)(addr & 0xFFFF), BP_TYPE_USER, NULL, NULL, NULL);
+    bkpt_manager_add((uint16_t)(addr & 0xFFFF), BP_TYPE_USER, NULL, NULL, NULL);
 }
 
 EMSCRIPTEN_EXPORT void Dbg_RemoveBreakpoint(int addr)
 {
-    breakpoint_manager_remove((uint16_t)(addr & 0xFFFF), BP_TYPE_USER);
+    bkpt_manager_remove((uint16_t)(addr & 0xFFFF), BP_TYPE_USER);
 }
 
 EMSCRIPTEN_EXPORT void Dbg_ClearBreakpoints(void)
 {
-    breakpoint_manager_clear();
+    bkpt_manager_clear();
 }
 
 // --- Breakpoint Listing ---
@@ -2548,29 +2549,30 @@ EMSCRIPTEN_EXPORT const char *Dbg_GetBreakpointList(void)
 
 EMSCRIPTEN_EXPORT int Dbg_AddWatchpoint(int addr, int type)
 {
-    return watchpoint_add((uint16_t)(addr & 0xFFFF), (WatchpointType)type, WATCH_SPACE_ANY, -1);
+    return bkpt_watchpoint_add((uint16_t)(addr & 0xFFFF), (WatchpointType)type, WATCH_SPACE_ANY,
+                               -1);
 }
 
 EMSCRIPTEN_EXPORT void Dbg_RemoveWatchpoint(int addr)
 {
-    watchpoint_remove((uint16_t)(addr & 0xFFFF));
+    bkpt_watchpoint_remove((uint16_t)(addr & 0xFFFF));
 }
 
 EMSCRIPTEN_EXPORT void Dbg_ClearWatchpoints(void)
 {
-    watchpoint_clear();
+    bkpt_watchpoint_clear();
 }
 
 EMSCRIPTEN_EXPORT int Dbg_GetWatchpointCount(void)
 {
-    return watchpoint_get_count();
+    return bkpt_watchpoint_get_count();
 }
 
 EMSCRIPTEN_EXPORT int Dbg_GetWatchpointAddr(int index)
 {
     uint16_t addr;
     int type;
-    if (watchpoint_get(index, &addr, &type) == 0)
+    if (bkpt_watchpoint_get(index, &addr, &type) == 0)
     {
         return (int)addr;
     }
@@ -2581,7 +2583,7 @@ EMSCRIPTEN_EXPORT int Dbg_GetWatchpointType(int index)
 {
     uint16_t addr;
     int type;
-    if (watchpoint_get(index, &addr, &type) == 0)
+    if (bkpt_watchpoint_get(index, &addr, &type) == 0)
     {
         return type;
     }
@@ -2603,9 +2605,9 @@ EMSCRIPTEN_EXPORT const char *Dbg_Disassemble(int startAddr, int count)
     for (int i = 0; i < count && pos < (int)sizeof(disasm_buffer) - 128; i++)
     {
         uint16_t addr = (uint16_t)((startAddr + i) & 0xFFFF);
-        uint16_t word = MemoryRead(addr, false);
+        uint16_t word = cpu_memory_read(addr, false);
 
-        OpToStr(mnemonic, sizeof(mnemonic), word);
+        disasm_op_to_str(mnemonic, sizeof(mnemonic), word);
 
         int n = snprintf(line, sizeof(line), "%06o %06o %s\n", addr, word, mnemonic);
         if (n > 0 && pos + n < (int)sizeof(disasm_buffer))
@@ -2670,7 +2672,7 @@ EMSCRIPTEN_EXPORT const char *Dbg_DisassembleFromBuffer(int startWord, int count
         uint16_t word = s_inspectBuf[idx];
         int addr = s_inspectBase + idx;
 
-        OpToStr(mnemonic, sizeof(mnemonic), word);
+        disasm_op_to_str(mnemonic, sizeof(mnemonic), word);
 
         int n = snprintf(line, sizeof(line), "%06o %06o %s\n", addr & 0xFFFF, word, mnemonic);
         if (n > 0 && pos + n < (int)sizeof(s_inspectOut))
@@ -2720,22 +2722,22 @@ EMSCRIPTEN_EXPORT const char *Dbg_GetLevelInfo(void)
 #ifdef WITH_DEBUGGER
 EMSCRIPTEN_EXPORT const char *Dbg_GetScopes(void)
 {
-    return dbg_get_scopes_json();
+    return debugger_dbg_get_scopes_json();
 }
 
 EMSCRIPTEN_EXPORT const char *Dbg_GetVariables(int scopeId)
 {
-    return dbg_get_variables_json(scopeId);
+    return debugger_dbg_get_variables_json(scopeId);
 }
 
 EMSCRIPTEN_EXPORT const char *Dbg_GetThreads(void)
 {
-    return dbg_get_threads_json();
+    return debugger_dbg_get_threads_json();
 }
 
 EMSCRIPTEN_EXPORT const char *Dbg_GetStackTrace(void)
 {
-    return dbg_get_stack_trace_json();
+    return debugger_dbg_get_stack_trace_json();
 }
 #else
 EMSCRIPTEN_EXPORT const char *Dbg_GetScopes(void)
@@ -2806,7 +2808,7 @@ EMSCRIPTEN_EXPORT int Dbg_GetPageTableEntryRaw(int pageTable, int vpn)
     /* Use debugger reader which checks mmsType instead of STS_EXTENDED_ADDRESSING_IS_SET,
        so we can read all 16 page tables even when paused at a level without SEXI. */
     PageTableMode ptm = (g_mms_type == MMS2) ? Sixteen : Four;
-    uint32_t pte = GetPageTableEntryForDebugger((uint32_t)pageTable, (uint32_t)vpn, ptm);
+    uint32_t pte = mms_get_page_table_entry_for_debugger((uint32_t)pageTable, (uint32_t)vpn, ptm);
     return (int)pte;
 }
 
@@ -2822,12 +2824,12 @@ EMSCRIPTEN_EXPORT const char *GetDriveInfo(void)
     static char buf[4096];
     int pos = 0;
 
-    (void)init_drive_arrays(); /* a NULL table is handled below */
+    (void)machine_init_drive_arrays(); /* a NULL table is handled below */
 
-    MountedDriveInfo_t *smd = list_mount(DRIVE_SMD);
-    MountedDriveInfo_t *floppy = list_mount(DRIVE_FLOPPY);
-    MountedDriveInfo_t *scsi = list_mount(DRIVE_SCSI);
-    MountedDriveInfo_t *wd = list_mount(DRIVE_WINCHESTER);
+    MountedDriveInfo_t *smd = machine_list_mount(DRIVE_SMD);
+    MountedDriveInfo_t *floppy = machine_list_mount(DRIVE_FLOPPY);
+    MountedDriveInfo_t *scsi = machine_list_mount(DRIVE_SCSI);
+    MountedDriveInfo_t *wd = machine_list_mount(DRIVE_WINCHESTER);
 
     pos += snprintf(buf + pos, sizeof(buf) - pos, "[");
 

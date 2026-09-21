@@ -69,7 +69,7 @@ typedef struct PdfDocument
  * @return New document the caller frees with Pdf_Destroy(), or NULL if
  *         allocation failed.
  */
-PdfDocument *Pdf_Create(void);
+PdfDocument *pdf_create(void);
 
 /**
  * @brief Append an empty page to the document, growing the page array when
@@ -78,7 +78,7 @@ PdfDocument *Pdf_Create(void);
  * @return 0-based index of the new page, or -1 if doc is NULL or an
  *         allocation failed.
  */
-int Pdf_AddPage(PdfDocument *doc);
+int pdf_add_page(PdfDocument *doc);
 
 /**
  * @brief Append one styled text span to a page. The text is copied into the
@@ -92,8 +92,8 @@ int Pdf_AddPage(PdfDocument *doc);
  * @param fontSize  Font size in points.
  * @param text      NUL-terminated text; NULL is ignored.
  */
-void Pdf_AddTextSpan(PdfDocument *doc, int page_index, float x, float y, uint8_t style,
-                     float font_size, const char *text);
+void pdf_add_text_span(PdfDocument *doc, int page_index, float x, float y, uint8_t style,
+                       float font_size, const char *text);
 
 /**
  * @brief Write the whole document as a PDF file: catalog, page tree, the four
@@ -105,13 +105,13 @@ void Pdf_AddTextSpan(PdfDocument *doc, int page_index, float x, float y, uint8_t
  *         no pages, the file could not be opened, or a buffer allocation
  *         failed.
  */
-bool Pdf_WriteToFile(PdfDocument *doc, const char *filename);
+bool pdf_write_to_file(PdfDocument *doc, const char *filename);
 
 /**
  * @brief Free every span's text, the span arrays, the page array and the
  *        document.
  * @param doc The document; NULL is ignored.
  */
-void Pdf_Destroy(PdfDocument *doc);
+void pdf_destroy(PdfDocument *doc);
 
 #endif /* PDFWRITER_H */

@@ -210,7 +210,7 @@ static RegisteredTerminal *find_by_device(TelnetServer *server, struct Device *d
     return NULL;
 }
 
-TelnetServer *TelnetServer_Create(const TelnetServerConfig *config)
+TelnetServer *telnet_create(const TelnetServerConfig *config)
 {
     TelnetServer *server = calloc(1, sizeof(TelnetServer));
     if (!server)
@@ -249,7 +249,7 @@ TelnetServer *TelnetServer_Create(const TelnetServerConfig *config)
     return server;
 }
 
-bool TelnetServer_RegisterTerminal(TelnetServer *server, const TelnetTerminalInfo *info)
+bool telnet_register_terminal(TelnetServer *server, const TelnetTerminalInfo *info)
 {
     if (!server || !info)
     {
@@ -273,7 +273,7 @@ bool TelnetServer_RegisterTerminal(TelnetServer *server, const TelnetTerminalInf
     return true;
 }
 
-bool TelnetServer_Start(TelnetServer *server)
+bool telnet_start(TelnetServer *server)
 {
     if (!server || server->running)
     {
@@ -375,7 +375,7 @@ bool TelnetServer_Start(TelnetServer *server)
     return true;
 }
 
-void TelnetServer_Stop(TelnetServer *server)
+void telnet_stop(TelnetServer *server)
 {
     if (!server || !server->running)
     {
@@ -436,7 +436,7 @@ void TelnetServer_Stop(TelnetServer *server)
     nd_net_shutdown();
 }
 
-void TelnetServer_Destroy(TelnetServer *server)
+void telnet_destroy(TelnetServer *server)
 {
     if (!server)
     {
@@ -445,7 +445,7 @@ void TelnetServer_Destroy(TelnetServer *server)
 
     if (server->running)
     {
-        TelnetServer_Stop(server);
+        telnet_stop(server);
     }
 
     for (int i = 0; i < TELNET_MAX_TERMINALS; i++)
@@ -467,7 +467,7 @@ void TelnetServer_Destroy(TelnetServer *server)
     free(server);
 }
 
-int TelnetServer_GetTerminalCount(TelnetServer *server)
+int telnet_get_terminal_count(TelnetServer *server)
 {
     return server ? server->terminalCount : 0;
 }
@@ -540,7 +540,7 @@ static bool telnet_server_disconnect_terminal(TelnetServer *server, int index)
     return true;
 }
 
-bool TelnetServer_DisconnectDevice(TelnetServer *server, struct Device *device)
+bool telnet_disconnect_device(TelnetServer *server, struct Device *device)
 {
     if (!server || !device)
     {
@@ -556,12 +556,12 @@ bool TelnetServer_DisconnectDevice(TelnetServer *server, struct Device *device)
     return false;
 }
 
-int TelnetServer_GetPort(TelnetServer *server)
+int telnet_get_port(TelnetServer *server)
 {
     return server ? server->config.port : 0;
 }
 
-bool TelnetServer_SetTerminalLocallyActive(TelnetServer *server, int index, bool active)
+bool telnet_set_terminal_locally_active(TelnetServer *server, int index, bool active)
 {
     if (!server || index < 0 || index >= server->terminalCount)
     {
@@ -571,7 +571,7 @@ bool TelnetServer_SetTerminalLocallyActive(TelnetServer *server, int index, bool
     return true;
 }
 
-bool TelnetServer_SetDeviceLocallyActive(TelnetServer *server, struct Device *device, bool active)
+bool telnet_set_device_locally_active(TelnetServer *server, struct Device *device, bool active)
 {
     if (!server || !device)
     {
@@ -586,7 +586,7 @@ bool TelnetServer_SetDeviceLocallyActive(TelnetServer *server, struct Device *de
     return true;
 }
 
-bool TelnetServer_IsDeviceConnected(TelnetServer *server, struct Device *device)
+bool telnet_is_device_connected(TelnetServer *server, struct Device *device)
 {
     if (!server || !device)
     {
@@ -596,7 +596,7 @@ bool TelnetServer_IsDeviceConnected(TelnetServer *server, struct Device *device)
     return (rt && rt->clientFd != ND_INVALID_SOCKET);
 }
 
-void TelnetServer_ClearDeviceCarrier(TelnetServer *server, struct Device *device)
+void telnet_clear_device_carrier(TelnetServer *server, struct Device *device)
 {
     if (!server || !device)
     {
@@ -609,8 +609,8 @@ void TelnetServer_ClearDeviceCarrier(TelnetServer *server, struct Device *device
     }
 }
 
-bool TelnetServer_GetTerminalStats(TelnetServer *server, int index, uint64_t *bytes_rx,
-                                   uint64_t *bytes_tx)
+bool telnet_get_terminal_stats(TelnetServer *server, int index, uint64_t *bytes_rx,
+                               uint64_t *bytes_tx)
 {
     if (!server || index < 0 || index >= server->terminalCount)
     {
@@ -628,7 +628,7 @@ bool TelnetServer_GetTerminalStats(TelnetServer *server, int index, uint64_t *by
     return true;
 }
 
-const char *TelnetServer_GetDeviceClientAddr(TelnetServer *server, struct Device *device)
+const char *telnet_get_device_client_addr(TelnetServer *server, struct Device *device)
 {
     if (!server || !device)
     {
@@ -642,7 +642,7 @@ const char *TelnetServer_GetDeviceClientAddr(TelnetServer *server, struct Device
     return rt->clientAddrStr;
 }
 
-int TelnetServer_GetPendingCount(TelnetServer *server)
+int telnet_get_pending_count(TelnetServer *server)
 {
     if (!server)
     {
@@ -654,8 +654,8 @@ int TelnetServer_GetPendingCount(TelnetServer *server)
     return count;
 }
 
-bool TelnetServer_GetPendingInfo(TelnetServer *server, int index, char *addr_buf, int addr_buf_len,
-                                 int *age_secs, uint64_t *bytes_rx, uint64_t *bytes_tx)
+bool telnet_get_pending_info(TelnetServer *server, int index, char *addr_buf, int addr_buf_len,
+                             int *age_secs, uint64_t *bytes_rx, uint64_t *bytes_tx)
 {
     if (!server)
     {
@@ -688,7 +688,7 @@ bool TelnetServer_GetPendingInfo(TelnetServer *server, int index, char *addr_buf
     return true;
 }
 
-bool TelnetServer_DropPending(TelnetServer *server, int index)
+bool telnet_drop_pending(TelnetServer *server, int index)
 {
     if (!server)
     {
@@ -709,7 +709,7 @@ bool TelnetServer_DropPending(TelnetServer *server, int index)
     return true;
 }
 
-void TelnetServer_DropAllPending(TelnetServer *server)
+void telnet_drop_all_pending(TelnetServer *server)
 {
     if (!server)
     {

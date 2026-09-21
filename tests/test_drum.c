@@ -36,7 +36,7 @@ static int pending_param;
 static uint8_t pending_level;
 static int pending_set;
 
-void Device_Init(Device *dev, uint8_t thumbwheel, DeviceClass device_class, size_t block_size)
+void dev_init(Device *dev, uint8_t thumbwheel, DeviceClass device_class, size_t block_size)
 {
     (void)thumbwheel;
     (void)block_size;
@@ -44,7 +44,7 @@ void Device_Init(Device *dev, uint8_t thumbwheel, DeviceClass device_class, size
     dev->deviceClass = device_class;
 }
 
-void Device_DMAWrite(uint32_t core_address, uint16_t data)
+void dev_dma_write(uint32_t core_address, uint16_t data)
 {
     if (core_address < FAKE_MEM_WORDS)
     {
@@ -52,7 +52,7 @@ void Device_DMAWrite(uint32_t core_address, uint16_t data)
     }
 }
 
-int32_t Device_DMARead(uint32_t core_address)
+int32_t dev_dma_read(uint32_t core_address)
 {
     if (core_address < FAKE_MEM_WORDS)
     {
@@ -61,8 +61,8 @@ int32_t Device_DMARead(uint32_t core_address)
     return 0;
 }
 
-void Device_QueueIODelay(Device *dev, uint16_t ticks, IODelayedCallback cb, int param,
-                         uint8_t irqlevel)
+void dev_queue_io_delay(Device *dev, uint16_t ticks, IODelayedCallback cb, int param,
+                        uint8_t irqlevel)
 {
     (void)dev;
     (void)ticks;
@@ -76,7 +76,7 @@ void Device_QueueIODelay(Device *dev, uint16_t ticks, IODelayedCallback cb, int 
 /* Mimics the real Device_TickIODelay: fire the queued callback and, if it
  * returns true, raise the interrupt bit for its level (what the real IO-delay
  * machinery + Device_GenerateInterrupt do). */
-void Device_TickIODelay(Device *dev)
+void dev_tick_io_delay(Device *dev)
 {
     if (!pending_set)
     {
@@ -89,7 +89,7 @@ void Device_TickIODelay(Device *dev)
     }
 }
 
-void Device_SetInterruptStatus(Device *dev, bool active, uint16_t level)
+void dev_set_interrupt_status(Device *dev, bool active, uint16_t level)
 {
     if (active)
     {
@@ -139,7 +139,7 @@ static uint16_t status(Device *dev)
 int main(void)
 {
     printf("=== drum device tests ===\n");
-    Device *dev = CreateDrumDevice(0);
+    Device *dev = drum_create_device(0);
     CHECK(dev != NULL, "device created");
     if (!dev)
     {

@@ -37,7 +37,7 @@
  *          modifiers - no synthetic escape sequences.
  * @return The event; its type is KEY_NONE when no input is available.
  */
-KeyEvent read_key_event(void);
+KeyEvent kbd_read_key_event(void);
 
 /**
  * @brief Enable --pipe mode: read keyboard bytes from a redirected stdin (a
@@ -48,6 +48,6 @@ KeyEvent read_key_event(void);
  *          non-blocking one-byte-per-call read of the stdin pipe or file.
  * @param on true selects pipe mode, false the interactive console.
  */
-void keyboard_set_pipe_mode(bool on);
+void kbd_set_pipe_mode(bool on);
 
 #endif // KEYBOARD_H

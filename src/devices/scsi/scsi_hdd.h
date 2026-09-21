@@ -97,8 +97,8 @@ typedef struct {
  * @param unit Unit number on owner to read/write sectors from.
  * @param diskType Drive geometry/identity to report (see disk_scsi.h).
  */
-void SCSIHDD_Init(SCSIHDDDevice *hdd, SCSIBus *bus, uint8_t scsi_id, struct Device *owner, int unit,
-                  SCSIDiskType disk_type);
+void scsi_hdd_init(SCSIHDDDevice *hdd, SCSIBus *bus, uint8_t scsi_id, struct Device *owner,
+                   int unit, SCSIDiskType disk_type);
 
 
 #endif // SCSI_HDD_H

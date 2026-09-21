@@ -577,7 +577,7 @@ static void *client_worker(void *arg)
 // Public API - called from emulation thread
 // ============================================================================
 
-void Modem_Init(ModemState *modem, Device *hdlc_device)
+void modem_init(ModemState *modem, Device *hdlc_device)
 {
     if (!modem)
     {
@@ -598,7 +598,7 @@ void Modem_Init(ModemState *modem, Device *hdlc_device)
 #endif
 }
 
-void Modem_Destroy(ModemState *modem)
+void modem_destroy(ModemState *modem)
 {
     if (!modem)
     {
@@ -622,7 +622,7 @@ void Modem_Destroy(ModemState *modem)
     atomic_store(&modem->networkStarted, false);
 }
 
-void Modem_StartModem(ModemState *modem, bool is_server, const char *address, int port)
+void modem_start(ModemState *modem, bool is_server, const char *address, int port)
 {
     if (!modem)
     {
@@ -684,7 +684,7 @@ void Modem_StartModem(ModemState *modem, bool is_server, const char *address, in
 }
 
 // Called from CPU loop. Never touches a socket. Just drains RX queue.
-void Modem_Tick(ModemState *modem)
+void modem_tick(ModemState *modem)
 {
     if (!modem || !atomic_load(&modem->networkStarted))
     {
@@ -707,7 +707,7 @@ void Modem_Tick(ModemState *modem)
 }
 
 // Called from emulation. Enqueues to TX queue, worker sends it.
-void Modem_SendByte(ModemState *modem, uint8_t data)
+void modem_send_byte(ModemState *modem, uint8_t data)
 {
     if (!modem)
     {
@@ -728,7 +728,7 @@ void Modem_SendByte(ModemState *modem, uint8_t data)
 #endif
 }
 
-void Modem_SendBytes(ModemState *modem, const uint8_t *data, int length)
+void modem_send_bytes(ModemState *modem, const uint8_t *data, int length)
 {
     if (!modem || !data || length <= 0 || !atomic_load(&modem->connected))
     {
@@ -748,35 +748,35 @@ void Modem_SendBytes(ModemState *modem, const uint8_t *data, int length)
 // Modem signal functions - called from emulation thread
 // ============================================================================
 
-void Modem_SetDTR(ModemState *modem, bool value)
+void modem_set_dtr(ModemState *modem, bool value)
 {
     if (!modem || modem->dataTerminalReady == value)
     {
         return;
     }
     modem->dataTerminalReady = value;
-    Modem_SetDSR(modem, value);
+    modem_set_dsr(modem, value);
     if (modem->onDataTerminalReady)
     {
         modem->onDataTerminalReady(modem->hdlcDevice, value);
     }
 }
 
-void Modem_SetRTS(ModemState *modem, bool value)
+void modem_set_rts(ModemState *modem, bool value)
 {
     if (!modem || modem->requestToSend == value)
     {
         return;
     }
     modem->requestToSend = value;
-    Modem_SetCTS(modem, value);
+    modem_set_cts(modem, value);
     if (modem->onRequestToSend)
     {
         modem->onRequestToSend(modem->hdlcDevice, value);
     }
 }
 
-void Modem_SetDSR(ModemState *modem, bool value)
+void modem_set_dsr(ModemState *modem, bool value)
 {
     if (!modem || modem->dataSetReady == value)
     {
@@ -789,7 +789,7 @@ void Modem_SetDSR(ModemState *modem, bool value)
     }
 }
 
-void Modem_SetCTS(ModemState *modem, bool value)
+void modem_set_cts(ModemState *modem, bool value)
 {
     if (!modem || modem->clearToSend == value)
     {
@@ -806,49 +806,49 @@ void Modem_SetCTS(ModemState *modem, bool value)
 // Callback setup
 // ============================================================================
 
-void Modem_SetReceivedDataCallback(ModemState *modem, ModemDataCallback callback)
+void modem_set_received_data_callback(ModemState *modem, ModemDataCallback callback)
 {
     if (modem)
     {
         modem->onReceivedData = callback;
     }
 }
-void Modem_SetRingIndicatorCallback(ModemState *modem, ModemSignalCallback callback)
+void modem_set_ring_indicator_callback(ModemState *modem, ModemSignalCallback callback)
 {
     if (modem)
     {
         modem->onRingIndicator = callback;
     }
 }
-void Modem_SetDataSetReadyCallback(ModemState *modem, ModemSignalCallback callback)
+void modem_set_data_set_ready_callback(ModemState *modem, ModemSignalCallback callback)
 {
     if (modem)
     {
         modem->onDataSetReady = callback;
     }
 }
-void Modem_SetSignalDetectorCallback(ModemState *modem, ModemSignalCallback callback)
+void modem_set_signal_detector_callback(ModemState *modem, ModemSignalCallback callback)
 {
     if (modem)
     {
         modem->onSignalDetector = callback;
     }
 }
-void Modem_SetClearToSendCallback(ModemState *modem, ModemSignalCallback callback)
+void modem_set_clear_to_send_callback(ModemState *modem, ModemSignalCallback callback)
 {
     if (modem)
     {
         modem->onClearToSend = callback;
     }
 }
-void Modem_SetRequestToSendCallback(ModemState *modem, ModemSignalCallback callback)
+void modem_set_request_to_send_callback(ModemState *modem, ModemSignalCallback callback)
 {
     if (modem)
     {
         modem->onRequestToSend = callback;
     }
 }
-void Modem_SetDataTerminalReadyCallback(ModemState *modem, ModemSignalCallback callback)
+void modem_set_data_terminal_ready_callback(ModemState *modem, ModemSignalCallback callback)
 {
     if (modem)
     {
@@ -857,7 +857,7 @@ void Modem_SetDataTerminalReadyCallback(ModemState *modem, ModemSignalCallback c
 }
 
 #if defined(__EMSCRIPTEN__)
-void Modem_SetWasmBridgeChannel(ModemState *modem, int channel)
+void modem_set_wasm_bridge_channel(ModemState *modem, int channel)
 {
     if (!modem)
     {
@@ -866,7 +866,7 @@ void Modem_SetWasmBridgeChannel(ModemState *modem, int channel)
     modem->wasmBridgeChannel = channel;
 }
 
-void Modem_StartWasmBridge(ModemState *modem)
+void modem_start_wasm_bridge(ModemState *modem)
 {
     if (!modem)
     {
@@ -878,7 +878,7 @@ void Modem_StartWasmBridge(ModemState *modem)
     modem->signalDetector = false;
 }
 
-void Modem_SetCarrierPresent(ModemState *modem, bool present)
+void modem_set_carrier_present(ModemState *modem, bool present)
 {
     if (!modem)
     {

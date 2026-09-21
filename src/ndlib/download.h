@@ -40,7 +40,7 @@
  * @param url Absolute URL to fetch; NULL is an error.
  * @return Pointer to the NUL-terminated body on success, NULL on any error.
  */
-char *download_file(const char *url);
+char *dl_download_file(const char *url);
 
 /**
  * @brief Body size in bytes of the last successful download_file() call.
@@ -49,6 +49,6 @@ char *download_file(const char *url);
  *          useless. The stub build always returns 0.
  * @return Number of body bytes, not counting the added NUL terminator.
  */
-size_t get_downloaded_size(void);
+size_t dl_get_downloaded_size(void);
 
 #endif // DOWNLOAD_H

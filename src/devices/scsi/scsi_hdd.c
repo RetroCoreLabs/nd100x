@@ -39,7 +39,7 @@ static void scsihdd_log(SCSIHDDDevice *hdd, const char *fmt, ...)
     va_start(args, fmt);
     vsnprintf(msg, sizeof(msg), fmt, args);
     va_end(args);
-    Log_Write(LOG_CAT_SCSI, LOG_DEBUG, "HDD%d: %s", hdd->unit, msg);
+    log_write(LOG_CAT_SCSI, LOG_DEBUG, "HDD%d: %s", hdd->unit, msg);
 }
 
 
@@ -88,10 +88,10 @@ static bool scsihdd_read_block(SCSIHDDDevice *hdd, int read_lba)
         return false;
     }
 
-    if (read_lba < 0 || (uint32_t)read_lba > DiskSCSI_LastLBA(&hdd->hdinfo))
+    if (read_lba < 0 || (uint32_t)read_lba > scsi_disk_last_lba(&hdd->hdinfo))
     {
         scsihdd_log(hdd, "HD READ ERROR! LBA=%d out of range (last=%u)", read_lba,
-                    DiskSCSI_LastLBA(&hdd->hdinfo));
+                    scsi_disk_last_lba(&hdd->hdinfo));
         return false;
     }
 
@@ -114,7 +114,7 @@ static bool scsihdd_write_block(SCSIHDDDevice *hdd, int write_lba)
         return false;
     }
 
-    if (write_lba < 0 || (uint32_t)write_lba > DiskSCSI_LastLBA(&hdd->hdinfo))
+    if (write_lba < 0 || (uint32_t)write_lba > scsi_disk_last_lba(&hdd->hdinfo))
     {
         scsihdd_log(hdd, "HD SEEK ERROR! LBA=%d", write_lba);
         return false;
@@ -153,7 +153,7 @@ static uint8_t scsihdd_get_data(SCSITarget *t, SBUF id, int pos)
 
     if (id != SBUF_DATA)
     {
-        return SCSITarget_DefaultGetData(t, id, pos);
+        return scsi_device_default_get_data(t, id, pos);
     }
 
     int clba = hdd->lba + pos / hdd->hdinfo.sectorbytes;
@@ -207,7 +207,7 @@ static void scsihdd_put_data(SCSITarget *t, SBUF id, int pos, uint8_t data)
 
     if (id != SBUF_DATA)
     {
-        SCSITarget_DefaultPutData(t, id, pos, data);
+        scsi_device_default_put_data(t, id, pos, data);
         return;
     }
 
@@ -248,10 +248,10 @@ static void scsihdd_put_data(SCSITarget *t, SBUF id, int pos, uint8_t data)
 static void scsihdd_command_read_capacity(SCSIHDDDevice *hdd)
 {
     SCSITarget *t = &hdd->target;
-    uint32_t last_lba = DiskSCSI_LastLBA(&hdd->hdinfo);
+    uint32_t last_lba = scsi_disk_last_lba(&hdd->hdinfo);
 
-    scsi_put_u32be(&t->scsi_cmdbuf[0], last_lba);
-    scsi_put_u32be(&t->scsi_cmdbuf[4], hdd->hdinfo.sectorbytes);
+    scsi_device_scsi_put_u32_be(&t->scsi_cmdbuf[0], last_lba);
+    scsi_device_scsi_put_u32_be(&t->scsi_cmdbuf[4], hdd->hdinfo.sectorbytes);
 
     scsihdd_log(hdd, "READ CAPACITY -> blockSize=%u lastLBA=%u capacityBytes=%lld",
                 hdd->hdinfo.sectorbytes, last_lba,
@@ -259,8 +259,8 @@ static void scsihdd_command_read_capacity(SCSIHDDDevice *hdd)
 
     /* NOTE: buffer id 0 = SBUF_MAIN - the payload was just written into the
      * command buffer, not the data buffer. */
-    SCSITarget_DataIn(t, SBUF_MAIN, 8);
-    SCSITarget_StatusComplete(t, SS_GOOD);
+    scsi_device_data_in(t, SBUF_MAIN, 8);
+    scsi_device_status_complete(t, SS_GOOD);
 }
 
 
@@ -305,16 +305,16 @@ static void scsihdd_command_inquiry(SCSIHDDDevice *hdd)
             size = SCSI_HDD_INQUIRY_SIZE;
         }
 
-        SCSITarget_DataIn(t, SBUF_MAIN, size);
+        scsi_device_data_in(t, SBUF_MAIN, size);
     }
 
     if (scsihdd_has_media(hdd))
     {
-        SCSITarget_StatusComplete(t, SS_GOOD);
+        scsi_device_status_complete(t, SS_GOOD);
     }
     else
     {
-        SCSITarget_StatusComplete(t, SS_CHECK_CONDITION);
+        scsi_device_status_complete(t, SS_CHECK_CONDITION);
     }
 }
 
@@ -325,11 +325,11 @@ static void scsihdd_command_test_unit_ready(SCSIHDDDevice *hdd)
 
     if (scsihdd_has_media(hdd))
     {
-        SCSITarget_StatusComplete(&hdd->target, SS_GOOD);
+        scsi_device_status_complete(&hdd->target, SS_GOOD);
     }
     else
     {
-        SCSITarget_StatusComplete(&hdd->target, SS_CHECK_CONDITION);
+        scsi_device_status_complete(&hdd->target, SS_CHECK_CONDITION);
     }
 }
 
@@ -369,13 +369,13 @@ static void scsihdd_command_mode_sense(SCSIHDDDevice *hdd)
      * DiskSCSI_LastLBA() because the C# uses hdinfo.DiskSizeInBlocks here and
      * that field actually holds the LAST LBA (count-1) - copied verbatim, do
      * not "correct" without changing both sides. */
-    dsize = DiskSCSI_LastLBA(&hdd->hdinfo);
+    dsize = scsi_disk_last_lba(&hdd->hdinfo);
     t->scsi_cmdbuf[pos++] = 0x08; /* block descriptor length */
     t->scsi_cmdbuf[pos++] = 0x00;
-    scsi_put_u24be(&t->scsi_cmdbuf[pos], dsize);
+    scsi_device_scsi_put_u24_be(&t->scsi_cmdbuf[pos], dsize);
     pos += 3;
     t->scsi_cmdbuf[pos++] = 0x00;
-    scsi_put_u24be(&t->scsi_cmdbuf[pos], hdd->hdinfo.sectorbytes);
+    scsi_device_scsi_put_u24_be(&t->scsi_cmdbuf[pos], hdd->hdinfo.sectorbytes);
     pos += 3;
 
     pmax = (page == 0x3f) ? 0x3e : page;
@@ -429,18 +429,21 @@ static void scsihdd_command_mode_sense(SCSIHDDDevice *hdd)
         case 0x03:                        /* Format parameters page */
             t->scsi_cmdbuf[pos++] = 0x83; /* PS, page id */
             t->scsi_cmdbuf[pos++] = 0x16; /* Page length */
-            scsi_put_u16be(&t->scsi_cmdbuf[pos],
-                           (uint16_t)(hdd->hdinfo.cylinders * hdd->hdinfo.heads)); /* Track/zone */
+            scsi_device_scsi_put_u16_be(
+                &t->scsi_cmdbuf[pos],
+                (uint16_t)(hdd->hdinfo.cylinders * hdd->hdinfo.heads)); /* Track/zone */
             pos += 2;
-            t->scsi_cmdbuf[pos++] = 0x00;                              /* Alt sect/zone */
-            t->scsi_cmdbuf[pos++] = 0x00;                              /* Alt sect/zone */
-            t->scsi_cmdbuf[pos++] = 0x00;                              /* Alt track/zone */
-            t->scsi_cmdbuf[pos++] = 0x00;                              /* Alt track/zone */
-            t->scsi_cmdbuf[pos++] = 0x00;                              /* Alt track/volume */
-            t->scsi_cmdbuf[pos++] = 0x00;                              /* Alt track/volume */
-            scsi_put_u16be(&t->scsi_cmdbuf[pos], hdd->hdinfo.sectors); /* Sectors/track */
+            t->scsi_cmdbuf[pos++] = 0x00; /* Alt sect/zone */
+            t->scsi_cmdbuf[pos++] = 0x00; /* Alt sect/zone */
+            t->scsi_cmdbuf[pos++] = 0x00; /* Alt track/zone */
+            t->scsi_cmdbuf[pos++] = 0x00; /* Alt track/zone */
+            t->scsi_cmdbuf[pos++] = 0x00; /* Alt track/volume */
+            t->scsi_cmdbuf[pos++] = 0x00; /* Alt track/volume */
+            scsi_device_scsi_put_u16_be(&t->scsi_cmdbuf[pos],
+                                        hdd->hdinfo.sectors); /* Sectors/track */
             pos += 2;
-            scsi_put_u16be(&t->scsi_cmdbuf[pos], hdd->hdinfo.sectorbytes); /* Bytes/sector */
+            scsi_device_scsi_put_u16_be(&t->scsi_cmdbuf[pos],
+                                        hdd->hdinfo.sectorbytes); /* Bytes/sector */
             pos += 2;
             t->scsi_cmdbuf[pos++] = 0x00; /* Interleave */
             t->scsi_cmdbuf[pos++] = 0x00; /* Interleave */
@@ -457,7 +460,8 @@ static void scsihdd_command_mode_sense(SCSIHDDDevice *hdd)
         case 0x04:                        /* Rigid drive geometry page */
             t->scsi_cmdbuf[pos++] = 0x84; /* PS, page id */
             t->scsi_cmdbuf[pos++] = 0x16; /* Page length */
-            scsi_put_u24be(&t->scsi_cmdbuf[pos], hdd->hdinfo.cylinders); /* Cylinders */
+            scsi_device_scsi_put_u24_be(&t->scsi_cmdbuf[pos],
+                                        hdd->hdinfo.cylinders); /* Cylinders */
             pos += 3;
             t->scsi_cmdbuf[pos++] = hdd->hdinfo.heads; /* Heads */
             t->scsi_cmdbuf[pos++] = 0x00;              /* Starting cylinder - write precomp */
@@ -474,7 +478,7 @@ static void scsihdd_command_mode_sense(SCSIHDDDevice *hdd)
             t->scsi_cmdbuf[pos++] = 0x00; /* RPL */
             t->scsi_cmdbuf[pos++] = 0x00; /* Rotational offset */
             t->scsi_cmdbuf[pos++] = 0x00; /* Reserved */
-            scsi_put_u16be(&t->scsi_cmdbuf[pos], 10000); /* Medium rotation rate */
+            scsi_device_scsi_put_u16_be(&t->scsi_cmdbuf[pos], 10000); /* Medium rotation rate */
             pos += 2;
             t->scsi_cmdbuf[pos++] = 0x00; /* Reserved */
             t->scsi_cmdbuf[pos++] = 0x00; /* Reserved */
@@ -520,13 +524,13 @@ static void scsihdd_command_mode_sense(SCSIHDDDevice *hdd)
             pos = size;
         }
 
-        SCSITarget_DataIn(t, SBUF_MAIN, pos);
-        SCSITarget_StatusComplete(t, SS_GOOD);
+        scsi_device_data_in(t, SBUF_MAIN, pos);
+        scsi_device_status_complete(t, SS_GOOD);
     }
     else
     {
-        SCSITarget_StatusComplete(t, SS_CHECK_CONDITION);
-        SCSITarget_Sense(t, false, SK_ILLEGAL_REQUEST, 0x24, 0x00);
+        scsi_device_status_complete(t, SS_CHECK_CONDITION);
+        scsi_device_sense(t, false, SK_ILLEGAL_REQUEST, 0x24, 0x00);
     }
 }
 
@@ -553,7 +557,7 @@ static void scsihdd_command(SCSITarget *t)
     {
         if (lun != 0)
         {
-            SCSITarget_ReportBadLun(t, cmd, (uint8_t)lun);
+            scsi_device_report_bad_lun(t, cmd, (uint8_t)lun);
             return;
         }
     }
@@ -570,8 +574,8 @@ static void scsihdd_command(SCSITarget *t)
          * in the captured trace. This is what RetroCore's ND path does and what
          * SINTRAN is known to work against - do not "correct" it to 18 without
          * re-validating the mount. */
-        SCSITarget_DataIn(t, SBUF_SENSE, 4);
-        SCSITarget_StatusComplete(t, SS_GOOD);
+        scsi_device_data_in(t, SBUF_SENSE, 4);
+        scsi_device_status_complete(t, SS_GOOD);
         break;
 
     case SC_INQUIRY:
@@ -584,7 +588,7 @@ static void scsihdd_command(SCSITarget *t)
 
     case SC_READ_6:
         /* 21-bit LBA, and a transfer length where 0 means 256. */
-        hdd->lba = (int)(scsi_get_u24be(&t->scsi_cmdbuf[1]) & 0x1fffff);
+        hdd->lba = (int)(scsi_device_scsi_get_u24_be(&t->scsi_cmdbuf[1]) & 0x1fffff);
         hdd->blocks = t->scsi_cmdbuf[4];
         if (hdd->blocks == 0)
         {
@@ -593,7 +597,7 @@ static void scsihdd_command(SCSITarget *t)
 
         scsihdd_log(hdd, "command READ(6) lba=%d blocks=%d", hdd->lba, hdd->blocks);
 
-        if ((uint32_t)hdd->lba > DiskSCSI_LastLBA(&hdd->hdinfo))
+        if ((uint32_t)hdd->lba > scsi_disk_last_lba(&hdd->hdinfo))
         {
             hdd->sectorDataValid = false;
         }
@@ -605,18 +609,18 @@ static void scsihdd_command(SCSITarget *t)
 
         if (hdd->sectorDataValid)
         {
-            SCSITarget_DataIn(t, SBUF_DATA, hdd->blocks * hdd->hdinfo.sectorbytes);
-            SCSITarget_StatusComplete(t, SS_GOOD);
+            scsi_device_data_in(t, SBUF_DATA, hdd->blocks * hdd->hdinfo.sectorbytes);
+            scsi_device_status_complete(t, SS_GOOD);
         }
         else
         {
-            SCSITarget_StatusComplete(t, SS_CHECK_CONDITION);
-            SCSITarget_Sense(t, false, SK_ILLEGAL_REQUEST, 0x24, 0x00);
+            scsi_device_status_complete(t, SS_CHECK_CONDITION);
+            scsi_device_sense(t, false, SK_ILLEGAL_REQUEST, 0x24, 0x00);
         }
         break;
 
     case SC_WRITE_6:
-        hdd->lba = (int)(scsi_get_u24be(&t->scsi_cmdbuf[1]) & 0x1fffff);
+        hdd->lba = (int)(scsi_device_scsi_get_u24_be(&t->scsi_cmdbuf[1]) & 0x1fffff);
         hdd->blocks = t->scsi_cmdbuf[4];
         if (hdd->blocks == 0)
         {
@@ -625,13 +629,13 @@ static void scsihdd_command(SCSITarget *t)
 
         scsihdd_log(hdd, "command WRITE(6) lba=%d blocks=%d", hdd->lba, hdd->blocks);
 
-        SCSITarget_DataOut(t, SBUF_DATA, hdd->blocks * hdd->hdinfo.sectorbytes);
-        SCSITarget_StatusComplete(t, SS_GOOD);
+        scsi_device_data_out(t, SBUF_DATA, hdd->blocks * hdd->hdinfo.sectorbytes);
+        scsi_device_status_complete(t, SS_GOOD);
         break;
 
     case SC_READ_10:
-        hdd->lba = (int)scsi_get_u32be(&t->scsi_cmdbuf[2]);
-        hdd->blocks = scsi_get_u16be(&t->scsi_cmdbuf[7]);
+        hdd->lba = (int)scsi_device_scsi_get_u32_be(&t->scsi_cmdbuf[2]);
+        hdd->blocks = scsi_device_scsi_get_u16_be(&t->scsi_cmdbuf[7]);
 
         scsihdd_log(hdd, "command READ(10) lba=%d blocks=%d", hdd->lba, hdd->blocks);
 
@@ -640,51 +644,51 @@ static void scsihdd_command(SCSITarget *t)
 
         if (hdd->sectorDataValid)
         {
-            SCSITarget_DataIn(t, SBUF_DATA, hdd->blocks * hdd->hdinfo.sectorbytes);
-            SCSITarget_StatusComplete(t, SS_GOOD);
+            scsi_device_data_in(t, SBUF_DATA, hdd->blocks * hdd->hdinfo.sectorbytes);
+            scsi_device_status_complete(t, SS_GOOD);
         }
         else
         {
-            SCSITarget_StatusComplete(t, SS_CHECK_CONDITION);
-            SCSITarget_Sense(t, false, SK_ILLEGAL_REQUEST, 0x24, 0x00);
+            scsi_device_status_complete(t, SS_CHECK_CONDITION);
+            scsi_device_sense(t, false, SK_ILLEGAL_REQUEST, 0x24, 0x00);
         }
         break;
 
     case SC_WRITE_10:
-        hdd->lba = (int)scsi_get_u32be(&t->scsi_cmdbuf[2]);
-        hdd->blocks = scsi_get_u16be(&t->scsi_cmdbuf[7]);
+        hdd->lba = (int)scsi_device_scsi_get_u32_be(&t->scsi_cmdbuf[2]);
+        hdd->blocks = scsi_device_scsi_get_u16_be(&t->scsi_cmdbuf[7]);
 
         scsihdd_log(hdd, "command WRITE(10) lba=%d blocks=%d", hdd->lba, hdd->blocks);
 
-        SCSITarget_DataOut(t, SBUF_DATA, hdd->blocks * hdd->hdinfo.sectorbytes);
-        SCSITarget_StatusComplete(t, SS_GOOD);
+        scsi_device_data_out(t, SBUF_DATA, hdd->blocks * hdd->hdinfo.sectorbytes);
+        scsi_device_status_complete(t, SS_GOOD);
         break;
 
     case SC_SEEK_6:
-        hdd->lba = (int)(scsi_get_u24be(&t->scsi_cmdbuf[1]) & 0x1fffff);
+        hdd->lba = (int)(scsi_device_scsi_get_u24_be(&t->scsi_cmdbuf[1]) & 0x1fffff);
         if (((t->scsi_cmdbuf[1] >> 5) != 0) ||
-            ((uint32_t)hdd->lba > DiskSCSI_LastLBA(&hdd->hdinfo)))
+            ((uint32_t)hdd->lba > scsi_disk_last_lba(&hdd->hdinfo)))
         {
             /* NOTE: RetroCore reports SS_CONDITION_MET (not CHECK CONDITION) and
              * writes the sense KEY straight into sense byte 0, where the
              * response code (0x70) belongs. Both look wrong; both are copied
              * verbatim because this is the behaviour SINTRAN sees. */
-            SCSITarget_StatusComplete(t, SS_CONDITION_MET);
+            scsi_device_status_complete(t, SS_CONDITION_MET);
             t->scsi_sense_buffer[0] = SK_HARDWARE_ERROR;
         }
         else
         {
-            SCSITarget_StatusComplete(t, SS_GOOD);
+            scsi_device_status_complete(t, SS_GOOD);
         }
         break;
 
     case SC_RESERVE_6:
-        SCSITarget_StatusComplete(t, SS_GOOD);
+        scsi_device_status_complete(t, SS_GOOD);
         break;
 
     case SC_INIT_DRIVE_PARAMS: /* Micropolis vendor 0x0C */
-        SCSITarget_DataOut(t, SBUF_DATA, 8);
-        SCSITarget_StatusComplete(t, SS_GOOD);
+        scsi_device_data_out(t, SBUF_DATA, 8);
+        scsi_device_status_complete(t, SS_GOOD);
         break;
 
     case SC_MODE_SELECT_6:
@@ -696,9 +700,9 @@ static void scsihdd_command(SCSITarget *t)
                     t->scsi_cmdbuf[4], hdd->hdinfo.sectorbytes);
         if (t->scsi_cmdbuf[4] != 0)
         {
-            SCSITarget_DataOut(t, SBUF_DATA, t->scsi_cmdbuf[4]);
+            scsi_device_data_out(t, SBUF_DATA, t->scsi_cmdbuf[4]);
         }
-        SCSITarget_StatusComplete(t, SS_GOOD);
+        scsi_device_status_complete(t, SS_GOOD);
         break;
 
     case SC_MODE_SENSE_6:
@@ -709,17 +713,17 @@ static void scsihdd_command(SCSITarget *t)
 
     case SC_START_STOP_UNIT:
         scsihdd_log(hdd, "command %s UNIT", (t->scsi_cmdbuf[4] & 0x01) ? "START" : "STOP");
-        SCSITarget_StatusComplete(t, SS_GOOD);
+        scsi_device_status_complete(t, SS_GOOD);
         break;
 
     case SC_VERIFY_10:
         if ((t->scsi_cmdbuf[1] & 0x02) == 0)
         {
-            SCSITarget_StatusComplete(t, SS_GOOD);
+            scsi_device_status_complete(t, SS_GOOD);
         }
         else
         {
-            SCSITarget_ReportBadCmd(t, cmd);
+            scsi_device_report_bad_cmd(t, cmd);
         }
         break;
 
@@ -738,18 +742,18 @@ static void scsihdd_command(SCSITarget *t)
          * calls for; a real format is not needed to mount or boot.
          */
         scsihdd_log(hdd, "command FORMAT UNIT (accepted, image NOT modified)");
-        SCSITarget_StatusComplete(t, SS_GOOD);
+        scsi_device_status_complete(t, SS_GOOD);
         break;
 
     case SC_RECEIVE_DIAGNOSTIC_RESULTS:
     case SC_SEND_DIAGNOSTIC:
     {
-        int size = scsi_get_u16be(&t->scsi_cmdbuf[3]);
+        int size = scsi_device_scsi_get_u16_be(&t->scsi_cmdbuf[3]);
         int pos = 0;
 
         if (cmd == SC_SEND_DIAGNOSTIC && (t->scsi_cmdbuf[1] & 4))
         {
-            SCSITarget_StatusComplete(t, SS_GOOD);
+            scsi_device_status_complete(t, SS_GOOD);
             break;
         }
 
@@ -769,18 +773,18 @@ static void scsihdd_command(SCSITarget *t)
         {
             size = pos;
         }
-        SCSITarget_DataIn(t, SBUF_MAIN, size);
-        SCSITarget_StatusComplete(t, SS_GOOD);
+        scsi_device_data_in(t, SBUF_MAIN, size);
+        scsi_device_status_complete(t, SS_GOOD);
         break;
     }
 
     case SC_READ_BUFFER:
-        SCSITarget_ReportBadCmd(t, cmd);
+        scsi_device_report_bad_cmd(t, cmd);
         break;
 
     default:
         scsihdd_log(hdd, "command 0x%02X *** UNKNOWN ***", cmd);
-        SCSITarget_ReportBadCmd(t, cmd);
+        scsi_device_report_bad_cmd(t, cmd);
         break;
     }
 }
@@ -793,19 +797,19 @@ static void scsihdd_device_reset(SCSIHDDDevice *hdd)
         return;
     }
 
-    SCSITarget_DeviceReset(&hdd->target);
+    scsi_device_device_reset(&hdd->target);
 
     hdd->cur_lba = -1;
     hdd->sectorDataValid = false;
 
     /* After a reset the drive posts UNIT ATTENTION / power-on-or-reset.
      * Verified trace: 70 00 06 00 00 00 00 0A 00 00 00 00 29 00 00 00 00 00 */
-    SCSITarget_Sense(&hdd->target, false, SK_UNIT_ATTENTION, 0x29, 0x00);
+    scsi_device_sense(&hdd->target, false, SK_UNIT_ATTENTION, 0x29, 0x00);
 }
 
 
-void SCSIHDD_Init(SCSIHDDDevice *hdd, SCSIBus *bus, uint8_t scsi_id, struct Device *owner, int unit,
-                  SCSIDiskType disk_type)
+void scsi_hdd_init(SCSIHDDDevice *hdd, SCSIBus *bus, uint8_t scsi_id, struct Device *owner,
+                   int unit, SCSIDiskType disk_type)
 {
     memset(hdd, 0, sizeof(SCSIHDDDevice));
 
@@ -813,7 +817,7 @@ void SCSIHDD_Init(SCSIHDDDevice *hdd, SCSIBus *bus, uint8_t scsi_id, struct Devi
     hdd->unit = unit;
     hdd->cur_lba = -1;
 
-    DiskSCSI_SetDiskType(&hdd->hdinfo, disk_type);
+    scsi_disk_set_type(&hdd->hdinfo, disk_type);
 
     /* Hooks must be set before SCSITarget_Init - it calls DeviceReset, which
      * touches the sense buffer through them. */
@@ -822,7 +826,7 @@ void SCSIHDD_Init(SCSIHDDDevice *hdd, SCSIBus *bus, uint8_t scsi_id, struct Devi
     hdd->target.scsi_get_data = scsihdd_get_data;
     hdd->target.scsi_put_data = scsihdd_put_data;
 
-    SCSITarget_Init(&hdd->target, bus, scsi_id, "SCSI-HDD");
+    scsi_device_init(&hdd->target, bus, scsi_id, "SCSI-HDD");
 
     scsihdd_device_reset(hdd);
 }

@@ -130,7 +130,7 @@ typedef struct {
  * @param disk The DiskInfo to fill in.
  * @param dt Disk type selecting heads/cylinder, sectors/track and cylinder count.
  */
-void DiskSMD_SetDiskType(DiskInfo *disk, DiskType dt);
+void smd_disk_set_type(DiskInfo *disk, DiskType dt);
 
 
 #endif /* DISK_SMD_H */

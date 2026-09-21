@@ -212,6 +212,6 @@ typedef struct
  * @param thumbwheel Card thumbwheel; selects the IOX address block.
  * @return The new Device, or NULL on allocation failure.
  */
-Device *CreateWinchesterDevice(uint8_t thumbwheel);
+Device *wd_create_winchester_device(uint8_t thumbwheel);
 
 #endif /* DEVICE_WINCHESTER_H */

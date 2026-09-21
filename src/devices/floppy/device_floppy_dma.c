@@ -155,7 +155,7 @@ static uint16_t floppy_dma_read(Device *self, uint32_t address)
         return 0;
     }
 
-    uint32_t reg = Device_RegisterAddress(self, address);
+    uint32_t reg = dev_register_address(self, address);
     uint16_t value = 0;
 
     switch (reg)
@@ -179,7 +179,7 @@ static uint16_t floppy_dma_read(Device *self, uint32_t address)
 
     if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_DEBUG))
     {
-        Log_Write(LOG_CAT_FLOPPY, LOG_DEBUG, "FloppyDMA_Read: reg=%d, value=%o\n", reg, value);
+        log_write(LOG_CAT_FLOPPY, LOG_DEBUG, "FloppyDMA_Read: reg=%d, value=%o\n", reg, value);
     }
 
     return value;
@@ -193,11 +193,11 @@ static void floppy_dma_write(Device *self, uint32_t address, uint16_t value)
         return;
     }
 
-    uint32_t reg = Device_RegisterAddress(self, address);
+    uint32_t reg = dev_register_address(self, address);
 
     if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_DEBUG))
     {
-        Log_Write(LOG_CAT_FLOPPY, LOG_DEBUG, "FloppyDMA_Write: reg=%d, value=%o\n", reg, value);
+        log_write(LOG_CAT_FLOPPY, LOG_DEBUG, "FloppyDMA_Write: reg=%d, value=%o\n", reg, value);
     }
 
     switch (reg)
@@ -214,7 +214,7 @@ static void floppy_dma_write(Device *self, uint32_t address, uint16_t value)
             data->status1.bits.readyForTransfer = true;
         }
 
-        Device_SetInterruptStatus(
+        dev_set_interrupt_status(
             self, data->status1.bits.interruptEnabled && data->status1.bits.readyForTransfer,
             self->interruptLevel);
 
@@ -262,7 +262,7 @@ static uint16_t floppy_dma_tick(Device *self)
         return 0;
     }
 
-    Device_TickIODelay(self);
+    dev_tick_io_delay(self);
     return self->interruptBits;
 }
 
@@ -277,7 +277,7 @@ static uint16_t floppy_dma_ident(Device *self, uint16_t level)
     {
         FloppyDMAData *data = (FloppyDMAData *)self->deviceData;
         data->status1.bits.interruptEnabled = false;
-        Device_SetInterruptStatus(self, false, level);
+        dev_set_interrupt_status(self, false, level);
         return self->identCode;
     }
     return 0;
@@ -349,7 +349,7 @@ static int dma_autoload_error_image(int error_code_octal6bit)
     for (int i = 0; i < len; i += 2)
     {
         uint16_t w = (uint16_t)((buf[i] << 8) | ((i + 1 < len) ? buf[i + 1] : 0));
-        Device_DMAWrite((uint32_t)(i >> 1), w);
+        dev_dma_write((uint32_t)(i >> 1), w);
     }
 
     return 0;
@@ -367,7 +367,7 @@ static void execute_autoload(Device *self, int drive)
 
     if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_DEBUG))
     {
-        Log_Write(LOG_CAT_FLOPPY, LOG_DEBUG, "FloppyDMA: Executing Autoload\n");
+        log_write(LOG_CAT_FLOPPY, LOG_DEBUG, "FloppyDMA: Executing Autoload\n");
     }
 
     /*
@@ -382,8 +382,8 @@ static void execute_autoload(Device *self, int drive)
     data->status1.bits.hardError = true;
     dma_autoload_error_image(FLOPPY_ERR_NO_BOOTSTRAP);
 
-    Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)auto_load_end, 0,
-                        self->interruptLevel);
+    dev_queue_io_delay(self, IODELAY_FLOPPY, (IODelayedCallback)auto_load_end, 0,
+                       self->interruptLevel);
 }
 
 // Execute test mode
@@ -396,7 +396,7 @@ static void execute_test(Device *self, int test_data)
 
     if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_DEBUG))
     {
-        Log_Write(LOG_CAT_FLOPPY, LOG_DEBUG, "FloppyDMA: Executing test %d\n", test_data);
+        log_write(LOG_CAT_FLOPPY, LOG_DEBUG, "FloppyDMA: Executing test %d\n", test_data);
     }
 }
 
@@ -410,7 +410,7 @@ static void execute_floppy_go(Device *self)
             if (floppy_go_log < 5)
             {
                 floppy_go_log++;
-                Log_Write(LOG_CAT_FLOPPY, LOG_DEBUG,
+                log_write(LOG_CAT_FLOPPY, LOG_DEBUG,
                           "[FLOPPY-DIAG] ExecuteFloppyGo called (readFunc=%s writeFunc=%s)\n",
                           self && self->blockCallbacks.readFunc ? "ok" : "NULL",
                           self && self->blockCallbacks.writeFunc ? "ok" : "NULL");
@@ -441,26 +441,26 @@ static void execute_floppy_go(Device *self)
     data->commandBlockAddress = data->pointerLO | (data->pointerHI << 16);
 
     // Read command block
-    data->commandBlock.fields.commandWord = Device_DMARead(data->commandBlockAddress);
-    data->commandBlock.fields.diskAddress = Device_DMARead(data->commandBlockAddress + 1);
+    data->commandBlock.fields.commandWord = dev_dma_read(data->commandBlockAddress);
+    data->commandBlock.fields.diskAddress = dev_dma_read(data->commandBlockAddress + 1);
     data->commandBlock.fields.memoryAddressHi =
-        Device_DMARead(data->commandBlockAddress + 2) & 0xFF; // Bits 23-16
+        dev_dma_read(data->commandBlockAddress + 2) & 0xFF; // Bits 23-16
     data->commandBlock.fields.memoryAddressLo =
-        Device_DMARead(data->commandBlockAddress + 3); // Bits 15-0
+        dev_dma_read(data->commandBlockAddress + 3); // Bits 15-0
 
     uint32_t mem_address = data->commandBlock.fields.memoryAddressLo |
                            (data->commandBlock.fields.memoryAddressHi
                             << 16); // Calculate memory address for read/write IO
 
     data->commandBlock.fields.optionsWordCountHi =
-        Device_DMARead(data->commandBlockAddress +
-                       4); // Bit 15 = 1 => WordCount, 0=SectorCount. Bit 7-0 WordCountHi
+        dev_dma_read(data->commandBlockAddress +
+                     4); // Bit 15 = 1 => WordCount, 0=SectorCount. Bit 7-0 WordCountHi
     bool is_wc = (data->commandBlock.fields.optionsWordCountHi & (1 << 15)) != 0;
 
     data->commandBlock.fields.wordSectorCount =
-        Device_DMARead(data->commandBlockAddress + 5); // Word count / Sector count
+        dev_dma_read(data->commandBlockAddress + 5); // Word count / Sector count
 
-    data->commandBlock.fields.status1 = Device_DMARead(data->commandBlockAddress + 6);
+    data->commandBlock.fields.status1 = dev_dma_read(data->commandBlockAddress + 6);
     uint32_t word_count = data->commandBlock.fields.wordSectorCount |
                           (data->commandBlock.fields.optionsWordCountHi & 0xFF) << 16;
 
@@ -511,26 +511,26 @@ static void execute_floppy_go(Device *self)
 
     data->status1.bits.errorCode = FLOPPY_ERR_OK;
     data->status1.bits.readyForTransfer = false;
-    Device_SetInterruptStatus(
+    dev_set_interrupt_status(
         self, data->status1.bits.interruptEnabled && data->status1.bits.readyForTransfer,
         self->interruptLevel);
 
     data->status1.bits.readyForTransfer = false;
-    Device_SetInterruptStatus(
+    dev_set_interrupt_status(
         self, data->status1.bits.interruptEnabled && data->status1.bits.readyForTransfer,
         self->interruptLevel);
 
     if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_DEBUG))
     {
-        Log_Write(LOG_CAT_FLOPPY, LOG_DEBUG, "Command block received from memory at 0x%08X\n",
+        log_write(LOG_CAT_FLOPPY, LOG_DEBUG, "Command block received from memory at 0x%08X\n",
                   data->commandBlockAddress);
-        Log_Write(LOG_CAT_FLOPPY, LOG_DEBUG, "------------------------------------------------\n");
+        log_write(LOG_CAT_FLOPPY, LOG_DEBUG, "------------------------------------------------\n");
         for (int i = 0; i < 12; i++)
         {
-            Log_Write(LOG_CAT_FLOPPY, LOG_DEBUG, "Command block %d: 0x%4X\n", i,
+            log_write(LOG_CAT_FLOPPY, LOG_DEBUG, "Command block %d: 0x%4X\n", i,
                       data->commandBlock.raw[i]);
         }
-        Log_Write(LOG_CAT_FLOPPY, LOG_DEBUG, "------------------------------------------------\n");
+        log_write(LOG_CAT_FLOPPY, LOG_DEBUG, "------------------------------------------------\n");
     }
 
     data->commandBlock.fields.status1 = 0;
@@ -554,7 +554,7 @@ static void execute_floppy_go(Device *self)
             data->status1.bits.errorCode = RAM_ERROR;
             data->status1.bits.deviceActive = false;
             data->status1.bits.readyForTransfer = true;
-            Device_SetInterruptStatus(
+            dev_set_interrupt_status(
                 self, data->status1.bits.interruptEnabled && data->status1.bits.readyForTransfer,
                 self->interruptLevel);
         }
@@ -562,7 +562,7 @@ static void execute_floppy_go(Device *self)
 
     if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_DEBUG))
     {
-        Log_Write(LOG_CAT_FLOPPY, LOG_DEBUG, "FloppyDMA: Command: %d\n", data->command);
+        log_write(LOG_CAT_FLOPPY, LOG_DEBUG, "FloppyDMA: Command: %d\n", data->command);
     }
 
     switch (data->command)
@@ -575,7 +575,7 @@ static void execute_floppy_go(Device *self)
 
         if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_TRACE))
         {
-            Log_Write(LOG_CAT_FLOPPY, LOG_TRACE,
+            log_write(LOG_CAT_FLOPPY, LOG_TRACE,
                       "Starting ReadData on drive position %d, wordsToRead: %d\r\n", position,
                       words_to_read);
         }
@@ -598,26 +598,26 @@ static void execute_floppy_go(Device *self)
                 uint32_t read_data = 0;
                 if (blocks_read > 0)
                 {
-                    read_data = Device_IO_BufferReadWord(self, buffer, buffer_ptr++);
+                    read_data = dev_io_buffer_read_word(self, buffer, buffer_ptr++);
                 }
 
                 // DMA Write to RAM memory
-                Device_DMAWrite(mem_address, (uint16_t)read_data);
+                dev_dma_write(mem_address, (uint16_t)read_data);
 
                 mem_address++;
                 words_to_read--;
                 words_transfered++;
             }
         }
-        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)read_end, data->drive,
-                            self->interruptLevel);
+        dev_queue_io_delay(self, IODELAY_FLOPPY, (IODelayedCallback)read_end, data->drive,
+                           self->interruptLevel);
         break;
 
     case FLOPPY_FUNC_WRITE_DATA:
         // Same procedure as READ DATA, except that transfer is now from the ND - 100 to the diskette.
         if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_TRACE))
         {
-            Log_Write(LOG_CAT_FLOPPY, LOG_TRACE, "Starting WriteData on drive position %d\r\n",
+            log_write(LOG_CAT_FLOPPY, LOG_TRACE, "Starting WriteData on drive position %d\r\n",
                       position);
         }
 
@@ -627,7 +627,7 @@ static void execute_floppy_go(Device *self)
             data->status1.bits.errorCode = WRITE_PROTECTED;
             data->status1.bits.deviceActive = false;
             data->status1.bits.readyForTransfer = true;
-            Device_SetInterruptStatus(
+            dev_set_interrupt_status(
                 self, data->status1.bits.interruptEnabled && data->status1.bits.readyForTransfer,
                 self->interruptLevel);
         }
@@ -637,18 +637,18 @@ static void execute_floppy_go(Device *self)
             {
                 while (words_to_read > 0)
                 {
-                    uint16_t word = Device_DMARead(mem_address);
+                    uint16_t word = dev_dma_read(mem_address);
 
                     // Write word to disk buffer
-                    if (Device_IO_BufferWriteWord(self, buffer, buffer_ptr++, (uint16_t)word) < 0)
+                    if (dev_io_buffer_write_word(self, buffer, buffer_ptr++, (uint16_t)word) < 0)
                     {
                         data->status1.bits.errorCode = DRIVE_NOT_READY;
                         data->status1.bits.deviceActive = false;
                         data->status1.bits.readyForTransfer = true;
-                        Device_SetInterruptStatus(self,
-                                                  data->status1.bits.interruptEnabled &&
-                                                      data->status1.bits.readyForTransfer,
-                                                  self->interruptLevel);
+                        dev_set_interrupt_status(self,
+                                                 data->status1.bits.interruptEnabled &&
+                                                     data->status1.bits.readyForTransfer,
+                                                 self->interruptLevel);
                         break;
                     }
 
@@ -666,39 +666,39 @@ static void execute_floppy_go(Device *self)
                     data->status1.bits.errorCode = DRIVE_NOT_READY;
                     data->status1.bits.deviceActive = false;
                     data->status1.bits.readyForTransfer = true;
-                    Device_SetInterruptStatus(self,
-                                              data->status1.bits.interruptEnabled &&
-                                                  data->status1.bits.readyForTransfer,
-                                              self->interruptLevel);
+                    dev_set_interrupt_status(self,
+                                             data->status1.bits.interruptEnabled &&
+                                                 data->status1.bits.readyForTransfer,
+                                             self->interruptLevel);
                 }
             }
         }
-        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)read_end, data->drive,
-                            self->interruptLevel);
+        dev_queue_io_delay(self, IODELAY_FLOPPY, (IODelayedCallback)read_end, data->drive,
+                           self->interruptLevel);
         break;
 
     case FLOPPY_FUNC_FIND_EOF:
         LOG(LOG_CAT_FLOPPY, LOG_DEBUG, "Starting FindEOF on drive position %d\r\n", position);
-        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)read_end, data->drive,
-                            self->interruptLevel);
+        dev_queue_io_delay(self, IODELAY_FLOPPY, (IODelayedCallback)read_end, data->drive,
+                           self->interruptLevel);
         break;
 
     case FLOPPY_FUNC_WRITE_EOF:
         LOG(LOG_CAT_FLOPPY, LOG_DEBUG, "Starting WriteEOF on drive position %d\r\n", position);
-        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)read_end, data->drive,
-                            self->interruptLevel);
+        dev_queue_io_delay(self, IODELAY_FLOPPY, (IODelayedCallback)read_end, data->drive,
+                           self->interruptLevel);
         break;
 
     case FLOPPY_FUNC_FORMAT_FLOPPY:
         LOG(LOG_CAT_FLOPPY, LOG_DEBUG, "Starting FormatFloppy on drive position %d\r\n", position);
-        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)read_end, data->drive,
-                            self->interruptLevel);
+        dev_queue_io_delay(self, IODELAY_FLOPPY, (IODelayedCallback)read_end, data->drive,
+                           self->interruptLevel);
         break;
 
     case FLOPPY_FUNC_READ_FORMAT:
         if (Log_IsEnabled(LOG_CAT_FLOPPY, LOG_TRACE))
         {
-            Log_Write(LOG_CAT_FLOPPY, LOG_TRACE, "Starting ReadFormat on drive position %d\r\n",
+            log_write(LOG_CAT_FLOPPY, LOG_TRACE, "Starting ReadFormat on drive position %d\r\n",
                       position);
         }
         //*"Read format" returns format in Status word 2
@@ -715,7 +715,7 @@ static void execute_floppy_go(Device *self)
             data->status1.bits.errorCode = DRIVE_NOT_READY;
             data->status1.bits.deviceActive = false;
             data->status1.bits.readyForTransfer = true;
-            Device_SetInterruptStatus(
+            dev_set_interrupt_status(
                 self, data->status1.bits.interruptEnabled && data->status1.bits.readyForTransfer,
                 self->interruptLevel);
             break;
@@ -734,34 +734,34 @@ static void execute_floppy_go(Device *self)
             data->commandBlock.fields.status2 |= (1 << 2); // Double sided
             data->commandBlock.fields.status2 |= (1 << 3); // Double density
         }
-        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)read_end, data->drive,
-                            self->interruptLevel);
+        dev_queue_io_delay(self, IODELAY_FLOPPY, (IODelayedCallback)read_end, data->drive,
+                           self->interruptLevel);
         break;
 
     case FLOPPY_FUNC_READ_DELETED:
         LOG(LOG_CAT_FLOPPY, LOG_DEBUG, "Starting ReadDeletedRecord on drive position %d\r\n",
             position);
-        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)read_end, data->drive,
-                            self->interruptLevel);
+        dev_queue_io_delay(self, IODELAY_FLOPPY, (IODelayedCallback)read_end, data->drive,
+                           self->interruptLevel);
         break;
 
     case FLOPPY_FUNC_WRITE_DELETED:
         LOG(LOG_CAT_FLOPPY, LOG_DEBUG, "Starting WriteDeletedRecord on drive position %d\r\n",
             position);
-        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)read_end, data->drive,
-                            self->interruptLevel);
+        dev_queue_io_delay(self, IODELAY_FLOPPY, (IODelayedCallback)read_end, data->drive,
+                           self->interruptLevel);
         break;
 
     case FLOPPY_FUNC_COPY_FLOPPY:
         LOG(LOG_CAT_FLOPPY, LOG_DEBUG, "Starting CopyFloppy on drive position %d\r\n", position);
-        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)read_end, data->drive,
-                            self->interruptLevel);
+        dev_queue_io_delay(self, IODELAY_FLOPPY, (IODelayedCallback)read_end, data->drive,
+                           self->interruptLevel);
         break;
 
     case FLOPPY_FUNC_FORMAT_TRACK:
         LOG(LOG_CAT_FLOPPY, LOG_DEBUG, "Starting FormatTrack on drive position %d\r\n", position);
-        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)read_end, data->drive,
-                            self->interruptLevel);
+        dev_queue_io_delay(self, IODELAY_FLOPPY, (IODelayedCallback)read_end, data->drive,
+                           self->interruptLevel);
         break;
 
     case FLOPPY_FUNC_CHECK_FLOPPY:
@@ -780,20 +780,20 @@ static void execute_floppy_go(Device *self)
 
          */
         LOG(LOG_CAT_FLOPPY, LOG_DEBUG, "Starting CheckFloppy on drive position %d\r\n", position);
-        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)read_end, data->drive,
-                            self->interruptLevel);
+        dev_queue_io_delay(self, IODELAY_FLOPPY, (IODelayedCallback)read_end, data->drive,
+                           self->interruptLevel);
         break;
 
     case FLOPPY_FUNC_IDENTIFY:
         LOG(LOG_CAT_FLOPPY, LOG_DEBUG, "Starting Identify on drive position %d\r\n", position);
-        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)read_end, data->drive,
-                            self->interruptLevel);
+        dev_queue_io_delay(self, IODELAY_FLOPPY, (IODelayedCallback)read_end, data->drive,
+                           self->interruptLevel);
         break;
 
     default:
         LOG(LOG_CAT_FLOPPY, LOG_WARN, "FloppyDMA: Unknown command: %d\n", data->command);
-        Device_QueueIODelay(self, IODELAY_FLOPPY, (IODelayedCallback)read_end, data->drive,
-                            self->interruptLevel);
+        dev_queue_io_delay(self, IODELAY_FLOPPY, (IODelayedCallback)read_end, data->drive,
+                           self->interruptLevel);
         break;
     }
 
@@ -809,19 +809,19 @@ static void execute_floppy_go(Device *self)
 
     // Status 1 (memory writeback: error code in bits 9-14, bit 15 clear)
     data->commandBlock.fields.status1 = calculate_status_word1(self);
-    Device_DMAWrite(data->commandBlockAddress + 6, data->commandBlock.fields.status1);
+    dev_dma_write(data->commandBlockAddress + 6, data->commandBlock.fields.status1);
 
     // Status 2
-    Device_DMAWrite(data->commandBlockAddress + 7, data->commandBlock.fields.status2);
+    dev_dma_write(data->commandBlockAddress + 7, data->commandBlock.fields.status2);
 
     // Send back last mem address
-    Device_DMAWrite(data->commandBlockAddress + 8, (uint16_t)((mem_address >> 16) & 0xFF)); // HI
-    Device_DMAWrite(data->commandBlockAddress + 9, (uint16_t)(mem_address & 0xFFFF));       // LO
+    dev_dma_write(data->commandBlockAddress + 8, (uint16_t)((mem_address >> 16) & 0xFF)); // HI
+    dev_dma_write(data->commandBlockAddress + 9, (uint16_t)(mem_address & 0xFFFF));       // LO
 
     // Update words to read
-    Device_DMAWrite(data->commandBlockAddress + 10,
-                    (uint16_t)((words_transfered >> 16) & 0xFF));                           // HI
-    Device_DMAWrite(data->commandBlockAddress + 11, (uint16_t)(words_transfered & 0xFFFF)); // LO
+    dev_dma_write(data->commandBlockAddress + 10,
+                  (uint16_t)((words_transfered >> 16) & 0xFF));                           // HI
+    dev_dma_write(data->commandBlockAddress + 11, (uint16_t)(words_transfered & 0xFFFF)); // LO
 
     // For now, just simulate completion
 }
@@ -839,9 +839,9 @@ static bool read_end(Device *self, int drive)
     data->status1.bits.readyForTransfer = true;
 
     data->commandBlock.fields.status1 = calculate_status_word1(self);
-    Device_DMAWrite(data->commandBlockAddress + 6, data->commandBlock.fields.status1);
+    dev_dma_write(data->commandBlockAddress + 6, data->commandBlock.fields.status1);
 
-    Device_SetInterruptStatus(
+    dev_set_interrupt_status(
         self, data->status1.bits.interruptEnabled && data->status1.bits.readyForTransfer,
         self->interruptLevel);
     return false;
@@ -858,13 +858,13 @@ static bool auto_load_end(Device *self, int drive)
 
     data->status1.bits.deviceActive = false;
     data->status1.bits.readyForTransfer = true;
-    Device_SetInterruptStatus(
+    dev_set_interrupt_status(
         self, data->status1.bits.interruptEnabled && data->status1.bits.readyForTransfer,
         self->interruptLevel);
     return false;
 }
 
-Device *CreateFloppyDMADevice(uint8_t thumbwheel)
+Device *floppy_dma_create_device(uint8_t thumbwheel)
 {
     Device *dev = (Device *)malloc(sizeof(Device));
     if (!dev)
@@ -883,7 +883,7 @@ Device *CreateFloppyDMADevice(uint8_t thumbwheel)
     memset(data, 0, sizeof(FloppyDMAData));
 
     // Initialize device base structure
-    Device_Init(dev, thumbwheel, DEVICE_CLASS_BLOCK, 1024);
+    dev_init(dev, thumbwheel, DEVICE_CLASS_BLOCK, 1024);
 
     // Initialize device state
     floppy_dma_reset(dev);

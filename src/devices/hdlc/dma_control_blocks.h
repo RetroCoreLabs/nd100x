@@ -95,21 +95,21 @@ typedef struct DMAControlBlocks
  * @param dcbs Control block structure to initialize.
  * @param hdlcDevice Owning HDLC device, stored for status counters and logging.
  */
-void DMAControlBlocks_Init(DMAControlBlocks *dcbs, struct Device *hdlc_device);
+void dmacb_init(DMAControlBlocks *dcbs, struct Device *hdlc_device);
 
 /**
  * @brief Free the outbound buffer, TX/RX DCBs and receive HDLCFrame, then
  * zero the whole structure.
  * @param dmaCB Control block structure to tear down.
  */
-void DMAControlBlocks_Destroy(DMAControlBlocks *dma_cb);
+void dmacb_destroy(DMAControlBlocks *dma_cb);
 
 /**
  * @brief Free the TX/RX DCBs, reset the list pointers and the outbound
  * buffer size, without freeing the outbound buffer itself.
  * @param dmaCB Control block structure to reset.
  */
-void DMAControlBlocks_Clear(DMAControlBlocks *dma_cb);
+void dmacb_clear(DMAControlBlocks *dma_cb);
 
 /**
  * @brief Set the transmit list pointer, reset its offset to 0 and load the
@@ -118,21 +118,21 @@ void DMAControlBlocks_Clear(DMAControlBlocks *dma_cb);
  * @param listPointer Memory address of the start of the TX buffer list.
  * @param offset Unused (kept for interface symmetry with the RX pointer setter); unverified.
  */
-void DMAControlBlocks_SetTXPointer(DMAControlBlocks *dma_cb, uint32_t list_pointer, int offset);
+void dmacb_set_tx_pointer(DMAControlBlocks *dma_cb, uint32_t list_pointer, int offset);
 
 /**
  * @brief Log up to 100 TX list entries (key value per 4-word block) at
  * LOG_DEBUG until an empty key or a new-list-pointer key is seen.
  * @param dmaCB Control block structure.
  */
-void DMAControlBlocks_DebugTXFrames(DMAControlBlocks *dma_cb);
+void dmacb_debug_tx_frames(DMAControlBlocks *dma_cb);
 
 /**
  * @brief Free the current TX DCB and reload it from the current TX list
  * pointer and offset.
  * @param dmaCB Control block structure.
  */
-void DMAControlBlocks_LoadTXBuffer(DMAControlBlocks *dma_cb);
+void dmacb_load_tx_buffer(DMAControlBlocks *dma_cb);
 
 /**
  * @brief Advance the TX list offset by one and reload the TX buffer.
@@ -140,7 +140,7 @@ void DMAControlBlocks_LoadTXBuffer(DMAControlBlocks *dma_cb);
  * @return true if the newly loaded buffer's key is
  * KEYFLAG_BLOCK_TO_BE_TRANSMITTED, false otherwise (including on NULL dmaCB).
  */
-bool DMAControlBlocks_LoadNextTXBuffer(DMAControlBlocks *dma_cb);
+bool dmacb_load_next_tx_buffer(DMAControlBlocks *dma_cb);
 
 /**
  * @brief Mark the current TX DCB as sent by OR-ing in
@@ -148,7 +148,7 @@ bool DMAControlBlocks_LoadNextTXBuffer(DMAControlBlocks *dma_cb);
  * memory, bumping the device's dcbTxMarked counter.
  * @param dmaCB Control block structure.
  */
-void DMAControlBlocks_MarkBufferSent(DMAControlBlocks *dma_cb);
+void dmacb_mark_buffer_sent(DMAControlBlocks *dma_cb);
 
 /**
  * @brief Set the receive list pointer and offset and load the buffer
@@ -157,14 +157,14 @@ void DMAControlBlocks_MarkBufferSent(DMAControlBlocks *dma_cb);
  * @param listPointer Memory address of the start of the RX buffer list.
  * @param offset Offset (in 4-word blocks) of the first RX buffer to load.
  */
-void DMAControlBlocks_SetRXPointer(DMAControlBlocks *dma_cb, uint32_t list_pointer, int offset);
+void dmacb_set_rx_pointer(DMAControlBlocks *dma_cb, uint32_t list_pointer, int offset);
 
 /**
  * @brief Free the current RX DCB and reload it from the current RX list
  * pointer and offset.
  * @param dmaCB Control block structure.
  */
-void DMAControlBlocks_LoadRXBuffer(DMAControlBlocks *dma_cb);
+void dmacb_load_rx_buffer(DMAControlBlocks *dma_cb);
 
 /**
  * @brief Advance the RX list offset by one (wrapping at 128), reload the RX
@@ -173,7 +173,7 @@ void DMAControlBlocks_LoadRXBuffer(DMAControlBlocks *dma_cb);
  * @return true if the resulting buffer's key is KEYFLAG_EMPTY_RECEIVER_BLOCK,
  * false if the list is exhausted or dmaCB/its DCB is NULL.
  */
-bool DMAControlBlocks_LoadNextRXBuffer(DMAControlBlocks *dma_cb);
+bool dmacb_load_next_rx_buffer(DMAControlBlocks *dma_cb);
 
 /**
  * @brief Peek at the RX list entry one slot past the current RX offset
@@ -182,7 +182,7 @@ bool DMAControlBlocks_LoadNextRXBuffer(DMAControlBlocks *dma_cb);
  * @return true if that entry's key is KEYFLAG_EMPTY_RECEIVER_BLOCK, false
  * otherwise (including on NULL dmaCB).
  */
-bool DMAControlBlocks_IsNextRXbufValid(DMAControlBlocks *dma_cb);
+bool dmacb_is_next_r_xbuf_valid(DMAControlBlocks *dma_cb);
 
 /**
  * @brief Mark the current RX DCB as filled: OR the caller-supplied status
@@ -192,7 +192,7 @@ bool DMAControlBlocks_IsNextRXbufValid(DMAControlBlocks *dma_cb);
  * @param dmaCB Control block structure.
  * @param rxStatus Receiver status byte (RCOST) to store in the key value's low 8 bits.
  */
-void DMAControlBlocks_MarkBufferReceived(DMAControlBlocks *dma_cb, uint8_t rx_status);
+void dmacb_mark_buffer_received(DMAControlBlocks *dma_cb, uint8_t rx_status);
 
 /**
  * @brief Allocate and fill a HdlcDCB by reading the key value and, if
@@ -205,8 +205,8 @@ void DMAControlBlocks_MarkBufferReceived(DMAControlBlocks *dma_cb, uint8_t rx_st
  * @return Newly allocated HdlcDCB (caller-owned), or NULL if dmaCB is NULL,
  * listPointer is 0, or allocation fails.
  */
-HdlcDCB *DMAControlBlocks_LoadBufferDescription(DMAControlBlocks *dma_cb, uint32_t list_pointer,
-                                                uint16_t offset, bool is_rx);
+HdlcDCB *dmacb_load_buffer_description(DMAControlBlocks *dma_cb, uint32_t list_pointer,
+                                       uint16_t offset, bool is_rx);
 
 /**
  * @brief Read the next data byte of the active TX or RX DCB, skipping the
@@ -216,7 +216,7 @@ HdlcDCB *DMAControlBlocks_LoadBufferDescription(DMAControlBlocks *dma_cb, uint32
  * @param isRx true to read from the RX DCB, false for the TX DCB.
  * @return Next data byte, or 0 if dmaCB or the selected DCB is NULL.
  */
-uint8_t DMAControlBlocks_ReadNextByteDMA(DMAControlBlocks *dma_cb, bool is_rx);
+uint8_t dmacb_read_next_byte_dma(DMAControlBlocks *dma_cb, bool is_rx);
 
 /**
  * @brief Write the next data byte into the active TX or RX DCB's buffer,
@@ -226,7 +226,7 @@ uint8_t DMAControlBlocks_ReadNextByteDMA(DMAControlBlocks *dma_cb, bool is_rx);
  * @param data Byte to write.
  * @param isRx true to write into the RX DCB, false for the TX DCB.
  */
-void DMAControlBlocks_WriteNextByteDMA(DMAControlBlocks *dma_cb, uint8_t data, bool is_rx);
+void dmacb_write_next_byte_dma(DMAControlBlocks *dma_cb, uint8_t data, bool is_rx);
 
 /**
  * @brief Install the DMA memory-read callback and its context.
@@ -234,8 +234,8 @@ void DMAControlBlocks_WriteNextByteDMA(DMAControlBlocks *dma_cb, uint8_t data, b
  * @param callback Function to call for a DMA memory read.
  * @param context Opaque context passed back to the callback.
  */
-void DMAControlBlocks_SetReadDMACallback(DMAControlBlocks *dma_cb,
-                                         DmaControlBlocksReadCallback callback, void *context);
+void dmacb_set_read_dma_callback(DMAControlBlocks *dma_cb, DmaControlBlocksReadCallback callback,
+                                 void *context);
 
 /**
  * @brief Install the DMA memory-write callback and its context.
@@ -243,8 +243,8 @@ void DMAControlBlocks_SetReadDMACallback(DMAControlBlocks *dma_cb,
  * @param callback Function to call for a DMA memory write.
  * @param context Opaque context passed back to the callback.
  */
-void DMAControlBlocks_SetWriteDMACallback(DMAControlBlocks *dma_cb,
-                                          DmaControlBlocksWriteCallback callback, void *context);
+void dmacb_set_write_dma_callback(DMAControlBlocks *dma_cb, DmaControlBlocksWriteCallback callback,
+                                  void *context);
 
 /**
  * @brief Install the callback used to hand a completed HDLC frame onward.

@@ -37,7 +37,7 @@
  * Geometry table. Sources per entry are in disk_winchester.h; all Winchester
  * drives use 1024-byte (512-word) sectors per ND-11.015.01 sec 2.1.
  */
-void DiskWinchester_SetDiskType(WDDiskInfo *disk, WDDiskType dt)
+void wd_disk_set_type(WDDiskInfo *disk, WDDiskType dt)
 {
     if (!disk)
     {
@@ -106,7 +106,7 @@ void DiskWinchester_SetDiskType(WDDiskInfo *disk, WDDiskType dt)
  *
  * Returns -1 when the drive has no geometry set.
  */
-long DiskWinchester_ChsToLba(const WDDiskInfo *disk, int cylinder, int head, int sector)
+long wd_disk_chs_to_lba(const WDDiskInfo *disk, int cylinder, int head, int sector)
 {
     if (!disk || disk->headsPrCylinder <= 0 || disk->sectorsPrTrack <= 0)
     {

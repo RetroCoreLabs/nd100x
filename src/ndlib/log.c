@@ -69,7 +69,7 @@ static pthread_mutex_t s_log_lock = PTHREAD_MUTEX_INITIALIZER;
 #endif
 
 
-void Log_SetLevel(LogCategory cat, LogLevel lvl)
+void log_set_level(LogCategory cat, LogLevel lvl)
 {
     if ((unsigned)cat < (unsigned)LOG_CAT_COUNT)
     {
@@ -85,7 +85,7 @@ static void log_set_all_levels(LogLevel lvl)
     }
 }
 
-void Log_SetSink(LogSinkFunc sink, void *ctx)
+void log_set_sink(LogSinkFunc sink, void *ctx)
 {
 #ifndef __EMSCRIPTEN__
     pthread_mutex_lock(&s_log_lock);
@@ -97,7 +97,7 @@ void Log_SetSink(LogSinkFunc sink, void *ctx)
 #endif
 }
 
-const char *Log_CategoryName(LogCategory cat)
+const char *log_category_name(LogCategory cat)
 {
     if ((unsigned)cat >= (unsigned)LOG_CAT_COUNT)
     {
@@ -115,11 +115,11 @@ static const char *log_level_name(LogLevel lvl)
     return s_level_names[lvl];
 }
 
-void Log_Write(LogCategory cat, LogLevel lvl, const char *fmt, ...)
+void log_write(LogCategory cat, LogLevel lvl, const char *fmt, ...)
 {
     char line[1024];
     int head =
-        snprintf(line, sizeof(line), "[%s] %s: ", log_level_name(lvl), Log_CategoryName(cat));
+        snprintf(line, sizeof(line), "[%s] %s: ", log_level_name(lvl), log_category_name(cat));
     if (head < 0)
     {
         return;
@@ -184,7 +184,7 @@ static bool name_matches(const char *name, const char *s, size_t n)
     return true;
 }
 
-int Log_ParseSpec(const char *spec)
+int log_parse_spec(const char *spec)
 {
     if (!spec)
     {
@@ -239,7 +239,7 @@ int Log_ParseSpec(const char *spec)
             {
                 return -1;
             }
-            Log_SetLevel((LogCategory)cat, (LogLevel)lvl);
+            log_set_level((LogCategory)cat, (LogLevel)lvl);
         }
 
         p = end ? end + 1 : p + item_len;

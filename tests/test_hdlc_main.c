@@ -16,22 +16,22 @@
 
 /* Linker stubs - HDLC tests don't need CPU memory access. Prototypes match
  * the real functions in src/cpu (normally declared in cpu_protos.h). */
-int ReadPhysicalMemory(int physical_address, bool privileged);
-void WritePhysicalMemory(int physical_address, uint16_t value, bool privileged);
-void interrupt(uint16_t lvl, uint16_t sub);
-int ReadPhysicalMemory(int physical_address, bool privileged)
+int mms_read_physical_memory(int physical_address, bool privileged);
+void mms_write_physical_memory(int physical_address, uint16_t value, bool privileged);
+void cpu_interrupt(uint16_t lvl, uint16_t sub);
+int mms_read_physical_memory(int physical_address, bool privileged)
 {
     (void)physical_address;
     (void)privileged;
     return 0;
 }
-void WritePhysicalMemory(int physical_address, uint16_t value, bool privileged)
+void mms_write_physical_memory(int physical_address, uint16_t value, bool privileged)
 {
     (void)physical_address;
     (void)value;
     (void)privileged;
 }
-void interrupt(uint16_t lvl, uint16_t sub)
+void cpu_interrupt(uint16_t lvl, uint16_t sub)
 {
     (void)lvl;
     (void)sub;

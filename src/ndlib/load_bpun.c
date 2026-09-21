@@ -44,7 +44,7 @@ static bool s_last_bpun_valid = false;
 
 /* Copy the last successfully parsed BPUN header into *out.
  * Returns false (and leaves *out untouched) if no BPUN has loaded yet. */
-bool GetLastBPUNHeader(BPUN_Header *out)
+bool bpun_get_last_header(BPUN_Header *out)
 {
     if (!s_last_bpun_valid || !out)
     {
@@ -54,7 +54,7 @@ bool GetLastBPUNHeader(BPUN_Header *out)
     return true;
 }
 
-int LoadBPUN(const char *filename, bool verbose)
+int bpun_load(const char *filename, bool verbose)
 {
     BPUN_Header bpun = {0};
 
@@ -259,7 +259,7 @@ static bool load_bpun_stream(FILE *bpun_stream, BPUN_Header *header)
                 disasm_addword(data_load_address, data_word);
             }
 
-            WritePhysicalMemory(data_load_address++, data_word, false);
+            mms_write_physical_memory(data_load_address++, data_word, false);
 
             if (data_counter == 0)
             {
@@ -345,7 +345,7 @@ static bool load_bpun_stream(FILE *bpun_stream, BPUN_Header *header)
                     return false;
                 }
 
-                WritePhysicalMemory(header->address + flo_words, data_word, false);
+                mms_write_physical_memory(header->address + flo_words, data_word, false);
 
                 if (g_disasm)
                 {
@@ -367,7 +367,7 @@ static bool load_bpun_stream(FILE *bpun_stream, BPUN_Header *header)
 }
 
 
-int bp_load(const char *bpfile)
+int bpun_bp_load(const char *bpfile)
 {
     (void)bpfile;
     // do binary load of device

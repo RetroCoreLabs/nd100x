@@ -107,7 +107,7 @@ typedef struct
  * @param dt Drive type selecting heads/cylinder, sectors/track, cylinder count
  *        and bad-track count; WD_DISK_TYPE_UNKNOWN zeroes the geometry.
  */
-void DiskWinchester_SetDiskType(WDDiskInfo *disk, WDDiskType dt);
+void wd_disk_set_type(WDDiskInfo *disk, WDDiskType dt);
 
 /**
  * @brief Convert a cylinder/head/sector address to a linear block address using
@@ -118,6 +118,6 @@ void DiskWinchester_SetDiskType(WDDiskInfo *disk, WDDiskType dt);
  * @param sector Sector number (0-based).
  * @return The linear block address, or -1 if disk has no geometry set.
  */
-long DiskWinchester_ChsToLba(const WDDiskInfo *disk, int cylinder, int head, int sector);
+long wd_disk_chs_to_lba(const WDDiskInfo *disk, int cylinder, int head, int sector);
 
 #endif /* DISK_WINCHESTER_H */

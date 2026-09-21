@@ -142,13 +142,13 @@ typedef struct {
  *        format is raw big-endian 16-bit words (ND word order).
  * @param path Path to the backing image, or NULL/empty for an in-memory-only drum.
  */
-void DrumDevice_SetBackingFile(const char *path);
+void drum_set_backing_file(const char *path);
 
 /**
  * @brief Create and initialize the NORD TSS swapping drum device.
  * @param thumbwheel Card thumbwheel; selects the IOX address block (0 -> 540).
  * @return The new Device, or NULL on allocation failure.
  */
-Device *CreateDrumDevice(uint8_t thumbwheel);
+Device *drum_create_device(uint8_t thumbwheel);
 
 #endif /* DEVICE_DRUM_H */

@@ -389,7 +389,7 @@ typedef struct {
  * @return Newly allocated Device, or NULL if thumbwheel is out of range or
  *         allocation failed.
  */
-Device *CreateHDLCDevice(uint8_t thumbwheel);
+Device *hdlc_create_device(uint8_t thumbwheel);
 
 /**
  * @brief Fill in an HDLCRxFrameStatus snapshot (RX/TX enable, DMA state,
@@ -400,7 +400,7 @@ Device *CreateHDLCDevice(uint8_t thumbwheel);
  * @return true if the status was filled in, false if data, status or the
  *         device's DMA engine/control blocks are NULL.
  */
-bool HDLC_GetRxFrameStatus(const HDLCData *data, HDLCRxFrameStatus *status);
+bool hdlc_get_rx_frame_status(const HDLCData *data, HDLCRxFrameStatus *status);
 
 /**
  * @brief Inject externally-sourced bytes into the HDLC receiver as if they
@@ -411,6 +411,6 @@ bool HDLC_GetRxFrameStatus(const HDLCData *data, HDLCRxFrameStatus *status);
  * @param length Number of bytes in data.
  * @return void.
  */
-void HDLC_BridgeInjectRx(Device *device, const uint8_t *data, int length);
+void hdlc_bridge_inject_rx(Device *device, const uint8_t *data, int length);
 
 #endif // DEVICE_HDLC_H

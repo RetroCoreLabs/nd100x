@@ -54,14 +54,14 @@ typedef struct {
  * @param capacity Number of bytes to allocate for the ring.
  * @return void.
  */
-void TcpReceiveBuffer_Init(TcpReceiveBuffer *buf, int capacity);
+void rxbuf_init(TcpReceiveBuffer *buf, int capacity);
 
 /**
  * @brief Free the ring buffer's backing storage and reset head/tail/count.
  * @param buf Buffer to destroy.
  * @return void.
  */
-void TcpReceiveBuffer_Destroy(TcpReceiveBuffer *buf);
+void rxbuf_destroy(TcpReceiveBuffer *buf);
 
 /**
  * @brief Copy as much of data as fits into the free space of the ring
@@ -73,7 +73,7 @@ void TcpReceiveBuffer_Destroy(TcpReceiveBuffer *buf);
  *         did not have enough free space), or 0 if buf, buf->buffer or data
  *         is NULL or length <= 0.
  */
-int TcpReceiveBuffer_Enqueue(TcpReceiveBuffer *buf, const uint8_t *data, int length);
+int rxbuf_enqueue(TcpReceiveBuffer *buf, const uint8_t *data, int length);
 
 // Dequeue a single byte (pull-based). Returns true if byte was read.
 
@@ -85,7 +85,7 @@ int TcpReceiveBuffer_Enqueue(TcpReceiveBuffer *buf, const uint8_t *data, int len
  * @return true if a byte was read, false if buf, buf->buffer is NULL or the
  *         buffer is empty.
  */
-bool TcpReceiveBuffer_DequeueByte(TcpReceiveBuffer *buf, uint8_t *out);
+bool rxbuf_dequeue_byte(TcpReceiveBuffer *buf, uint8_t *out);
 
 // Number of bytes available to read
 
@@ -94,7 +94,7 @@ bool TcpReceiveBuffer_DequeueByte(TcpReceiveBuffer *buf, uint8_t *out);
  * @param buf Buffer to query.
  * @return Current byte count, or 0 if buf is NULL.
  */
-int TcpReceiveBuffer_Available(TcpReceiveBuffer *buf);
+int rxbuf_available(TcpReceiveBuffer *buf);
 
 // Clear all data
 
@@ -104,6 +104,6 @@ int TcpReceiveBuffer_Available(TcpReceiveBuffer *buf);
  * @param buf Buffer to clear.
  * @return void.
  */
-void TcpReceiveBuffer_Clear(TcpReceiveBuffer *buf);
+void rxbuf_clear(TcpReceiveBuffer *buf);
 
 #endif // TCP_RECEIVE_BUFFER_H

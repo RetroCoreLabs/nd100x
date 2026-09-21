@@ -47,7 +47,7 @@ static bool cdc_end(void *context, int param);
 static char cdc_backing_path[1024];
 static int cdc_has_backing_path = 0;
 
-void CdcDevice_SetBackingFile(const char *path)
+void cdc_set_backing_file(const char *path)
 {
     if (path && path[0])
     {
@@ -341,7 +341,7 @@ static void cdc_execute_go(Device *self)
             for (uint32_t i = 0; i < count; i++)
             {
                 uint16_t w = (i & 1u) ? (uint16_t)CDC_TESTMODE_ODD : (uint16_t)CDC_TESTMODE_EVEN;
-                Device_DMAWrite(core + i, w);
+                dev_dma_write(core + i, w);
             }
         }
         else
@@ -351,8 +351,8 @@ static void cdc_execute_go(Device *self)
             d->status.bits.addressMismatch = 1;
             d->status.bits.errorOr = 1;
         }
-        Device_QueueIODelay(self, IODELAY_HDD_SMD, (IODelayedCallback)cdc_end, 0,
-                            self->interruptLevel);
+        dev_queue_io_delay(self, IODELAY_HDD_SMD, (IODelayedCallback)cdc_end, 0,
+                           self->interruptLevel);
         return;
     }
 
@@ -363,8 +363,8 @@ static void cdc_execute_go(Device *self)
         d->status.bits.errorOr = 1;
         d->status.bits.addressMismatch = 1; /* seek/address out of range */
         /* Still raise completion so the driver takes its error exit. */
-        Device_QueueIODelay(self, IODELAY_HDD_SMD, (IODelayedCallback)cdc_end, 0,
-                            self->interruptLevel);
+        dev_queue_io_delay(self, IODELAY_HDD_SMD, (IODelayedCallback)cdc_end, 0,
+                           self->interruptLevel);
         return;
     }
 
@@ -374,14 +374,14 @@ static void cdc_execute_go(Device *self)
     case CDC_OP_READ: /* disc -> core (the overlay load path; control word 000004) */
         for (uint32_t i = 0; i < count; i++)
         {
-            Device_DMAWrite(core + i, d->surface[word_off + i]);
+            dev_dma_write(core + i, d->surface[word_off + i]);
         }
         break;
 
     case CDC_OP_WRITE: /* 01: core -> disc */
         for (uint32_t i = 0; i < count; i++)
         {
-            int32_t w = Device_DMARead(core + i);
+            int32_t w = dev_dma_read(core + i);
             d->surface[word_off + i] = (uint16_t)(w & 0xFFFF);
         }
         /* WRITE-THROUGH: persist the just-written sector(s) to the backing
@@ -411,7 +411,7 @@ static void cdc_execute_go(Device *self)
     case CDC_OP_COMPARE: /* 11: compare disc vs core bit-by-bit [MANUAL-N10 p.15] */
         for (uint32_t i = 0; i < count; i++)
         {
-            int32_t mem = Device_DMARead(core + i);
+            int32_t mem = dev_dma_read(core + i);
             if ((uint16_t)(mem & 0xFFFF) != d->surface[word_off + i])
             {
                 d->status.bits.compareError = 1; /* bit 10 */
@@ -427,7 +427,7 @@ static void cdc_execute_go(Device *self)
 
     /* Queue the delayed completion, exactly like the drum/SMD. The callback
      * clears BUSY and (returning true) raises the level-11 interrupt. */
-    Device_QueueIODelay(self, IODELAY_HDD_SMD, (IODelayedCallback)cdc_end, 0, self->interruptLevel);
+    dev_queue_io_delay(self, IODELAY_HDD_SMD, (IODelayedCallback)cdc_end, 0, self->interruptLevel);
 }
 
 /* ----- delayed completion: clears busy, requests the interrupt ---------- */
@@ -472,7 +472,7 @@ static bool cdc_end(void *context, int param)
      * returning true would make Device_TickIODelay raise it a SECOND time
      * (device.c:228-231). This is precisely the floppy/SMD idiom (both return
      * false after calling Device_SetInterruptStatus). */
-    Device_SetInterruptStatus(self, true, self->interruptLevel);
+    dev_set_interrupt_status(self, true, self->interruptLevel);
     (void)d; /* d->interruptEnabled no longer gates completion (kept for clear) */
     return false;
 }
@@ -484,7 +484,7 @@ static uint16_t cdc_tick(Device *self)
     {
         return 0;
     }
-    Device_TickIODelay(self);
+    dev_tick_io_delay(self);
     return self->interruptBits;
 }
 
@@ -508,7 +508,7 @@ static uint16_t cdc_ident(Device *self, uint16_t level)
         {
             d->interruptEnabled = false;
         }
-        Device_SetInterruptStatus(self, false, level);
+        dev_set_interrupt_status(self, false, level);
         return self->identCode;
     }
     return 0;
@@ -606,7 +606,7 @@ static int cdc_boot(Device *self, int unit)
 
     for (uint32_t i = 0; i < CDC_WORDS_PER_SECTOR; i++)
     {
-        Device_DMAWrite(i, d->surface[i]);
+        dev_dma_write(i, d->surface[i]);
     }
 
     return 0; /* start address: core 0 */
@@ -732,7 +732,7 @@ static bool cdc_iot_op(Device *self, uint8_t devno, uint8_t func, uint16_t *reg_
     return true;
 }
 
-Device *CreateCdcDevice(uint8_t thumbwheel)
+Device *cdc_create_device(uint8_t thumbwheel)
 {
     Device *dev = (Device *)malloc(sizeof(Device));
     if (!dev)
@@ -751,7 +751,7 @@ Device *CreateCdcDevice(uint8_t thumbwheel)
     /* Standard (non-block) class: the disc DMAs directly from its own surface,
      * so it needs no machine block callbacks and avoids the type-keyed mount
      * plumbing (which only knows DRIVE_SMD/DRIVE_FLOPPY). */
-    Device_Init(dev, thumbwheel, DEVICE_CLASS_STANDARD, 0);
+    dev_init(dev, thumbwheel, DEVICE_CLASS_STANDARD, 0);
     dev->deviceData = d;
     dev->type = DEVICE_TYPE_CDC;
     dev->Boot = cdc_boot;

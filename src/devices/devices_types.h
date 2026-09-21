@@ -37,11 +37,11 @@
 
 // External function declaration
 
-void interrupt(uint16_t lvl, uint16_t sub); // cpu.c
+void cpu_interrupt(uint16_t lvl, uint16_t sub); // cpu.c
 
 // Physical memory functions in cpu_mms.c
-extern int ReadPhysicalMemory(int physical_address, bool privileged);
-extern void WritePhysicalMemory(int physical_address, uint16_t value, bool privileged);
+extern int mms_read_physical_memory(int physical_address, bool privileged);
+extern void mms_write_physical_memory(int physical_address, uint16_t value, bool privileged);
 
 // ** Device **
 
@@ -233,7 +233,7 @@ typedef struct
  * @param value The byte to check.
  * @return 1 if value has odd parity, 0 if even.
  */
-uint8_t Device_GetOddParity(uint8_t);
+uint8_t dev_get_odd_parity(uint8_t);
 
 /**
  * @brief Zero a Device and set up its class-specific fields and IO delay array.
@@ -243,27 +243,27 @@ uint8_t Device_GetOddParity(uint8_t);
  * @param blockSize Block size in bytes for a DEVICE_CLASS_BLOCK device; clamped to
  *        MAX_BLOCK_SIZE, defaults to 1024 if 0 or out of range.
  */
-void Device_Init(Device *, uint8_t, DeviceClass, size_t);
+void dev_init(Device *, uint8_t, DeviceClass, size_t);
 
 /**
  * @brief Call the device's own Destroy callback, then free its IO delay array and
  *        deviceData block.
  * @param dev The device to tear down.
  */
-void Device_Destroy(Device *);
+void dev_destroy(Device *);
 
 /**
  * @brief Call the device's Reset callback, if it has one.
  * @param dev The device to reset.
  */
-void Device_Reset(Device *);
+void dev_reset(Device *);
 
 /**
  * @brief Call the device's Tick callback, if it has one.
  * @param dev The device to tick.
  * @return The interrupt bits returned by the device's Tick callback, or 0 if none.
  */
-uint16_t Device_Tick(Device *);
+uint16_t dev_tick(Device *);
 
 /**
  * @brief Load boot code from the given unit on this controller into memory.
@@ -271,7 +271,7 @@ uint16_t Device_Tick(Device *);
  * @param unit Unit number on the controller to boot from.
  * @return The boot address, or -1 on error or if the device has no Boot callback.
  */
-int32_t Device_Boot(Device *, int);
+int32_t dev_boot(Device *, int);
 
 /**
  * @brief Check whether an IOX address falls inside a device's registered range.
@@ -279,7 +279,7 @@ int32_t Device_Boot(Device *, int);
  * @param address The IOX address to test.
  * @return true if startAddress <= address <= endAddress, false otherwise.
  */
-bool Device_IsInAddress(Device *, uint32_t);
+bool dev_is_in_address(Device *, uint32_t);
 
 /**
  * @brief Convert an absolute IOX address into an offset relative to the device's
@@ -288,7 +288,7 @@ bool Device_IsInAddress(Device *, uint32_t);
  * @param address The absolute IOX address.
  * @return address - dev->startAddress, or 0 if dev is NULL.
  */
-uint32_t Device_RegisterAddress(Device *, uint32_t);
+uint32_t dev_register_address(Device *, uint32_t);
 
 /**
  * @brief Call the device's Read callback, if it has one.
@@ -296,7 +296,7 @@ uint32_t Device_RegisterAddress(Device *, uint32_t);
  * @param address The IOX address being read.
  * @return The value returned by the device's Read callback, or 0 if none.
  */
-uint16_t Device_Read(Device *, uint32_t);
+uint16_t dev_read(Device *, uint32_t);
 
 /**
  * @brief Call the device's Write callback, if it has one.
@@ -304,7 +304,7 @@ uint16_t Device_Read(Device *, uint32_t);
  * @param address The IOX address being written.
  * @param value The value to write.
  */
-void Device_Write(Device *, uint32_t, uint16_t);
+void dev_write(Device *, uint32_t, uint16_t);
 
 /**
  * @brief Call the device's Ident callback, if it has one.
@@ -312,7 +312,7 @@ void Device_Write(Device *, uint32_t, uint16_t);
  * @param level Interrupt level being identified.
  * @return The IDENT code returned by the device's Ident callback, or 0 if none.
  */
-uint16_t Device_Ident(Device *, uint16_t);
+uint16_t dev_ident(Device *, uint16_t);
 
 /**
  * @brief Queue a delayed IO callback on a device, growing the delay array if full.
@@ -322,22 +322,22 @@ uint16_t Device_Ident(Device *, uint16_t);
  * @param param Parameter passed to the callback.
  * @param irqlevel Interrupt level to raise if the callback returns true (0 = none).
  */
-void Device_QueueIODelay(Device *dev, uint16_t ticks, IODelayedCallback cb, int param,
-                         uint8_t irqlevel);
+void dev_queue_io_delay(Device *dev, uint16_t ticks, IODelayedCallback cb, int param,
+                        uint8_t irqlevel);
 
 /**
  * @brief Advance all of a device's queued IO delays by one tick, firing and
  *        removing any that reach zero, and raising an interrupt if requested.
  * @param dev The device whose delay queue is ticked.
  */
-void Device_TickIODelay(Device *);
+void dev_tick_io_delay(Device *);
 
 /**
  * @brief Set a device's interrupt request bit for a level in the range 10-13.
  * @param dev The device raising the interrupt.
  * @param level Interrupt level (10-13); other levels are ignored.
  */
-void Device_GenerateInterrupt(Device *, uint16_t);
+void dev_generate_interrupt(Device *, uint16_t);
 
 /**
  * @brief Set or clear a device's interrupt request bit for a given level.
@@ -345,7 +345,7 @@ void Device_GenerateInterrupt(Device *, uint16_t);
  * @param active true to raise the interrupt, false to clear it.
  * @param level Interrupt level (10-13 apply; see Device_GenerateInterrupt).
  */
-void Device_SetInterruptStatus(Device *, bool, uint16_t);
+void dev_set_interrupt_status(Device *, bool, uint16_t);
 
 /**
  * @brief Seek an open device backing file to an absolute byte offset.
@@ -354,7 +354,7 @@ void Device_SetInterruptStatus(Device *, bool, uint16_t);
  * @param offset Absolute byte offset to seek to (SEEK_SET).
  * @return 0 on success, -1 if f is NULL or fseek fails.
  */
-int32_t Device_IO_Seek(Device *, FILE *, int64_t);
+int32_t dev_io_seek(Device *, FILE *, int64_t);
 
 /**
  * @brief Read one big-endian 16-bit word from an open device backing file.
@@ -362,7 +362,7 @@ int32_t Device_IO_Seek(Device *, FILE *, int64_t);
  * @param f The open file to read from.
  * @return The word read, or -1 on EOF/error or if f is NULL.
  */
-int32_t Device_IO_ReadWord(Device *, FILE *);
+int32_t dev_io_read_word(Device *, FILE *);
 
 /**
  * @brief Read one big-endian 16-bit word from an in-memory buffer at a word offset.
@@ -371,7 +371,7 @@ int32_t Device_IO_ReadWord(Device *, FILE *);
  * @param word_offset Offset in 16-bit words (byte offset = word_offset * 2).
  * @return The word read, or -1 if buf is NULL.
  */
-int32_t Device_IO_BufferReadWord(Device *, uint8_t *, int32_t);
+int32_t dev_io_buffer_read_word(Device *, uint8_t *, int32_t);
 
 /**
  * @brief Write one big-endian 16-bit word to an open device backing file.
@@ -380,7 +380,7 @@ int32_t Device_IO_BufferReadWord(Device *, uint8_t *, int32_t);
  * @param data The word to write.
  * @return 0 on success, -1 if f is NULL or the write fails.
  */
-int32_t Device_IO_WriteWord(Device *, FILE *, uint16_t);
+int32_t dev_io_write_word(Device *, FILE *, uint16_t);
 
 /**
  * @brief Write one big-endian 16-bit word into an in-memory buffer at a word offset.
@@ -390,7 +390,7 @@ int32_t Device_IO_WriteWord(Device *, FILE *, uint16_t);
  * @param data The word to write.
  * @return 0 always.
  */
-int32_t Device_IO_BufferWriteWord(Device *, uint8_t *, int32_t, uint16_t);
+int32_t dev_io_buffer_write_word(Device *, uint8_t *, int32_t, uint16_t);
 
 /**
  * @brief Write a 16-bit word directly to physical memory as a DMA bus transfer,
@@ -398,7 +398,7 @@ int32_t Device_IO_BufferWriteWord(Device *, uint8_t *, int32_t, uint16_t);
  * @param coreAddress Physical core address (masked to 24 bits).
  * @param data The word to write.
  */
-void Device_DMAWrite(uint32_t, uint16_t);
+void dev_dma_write(uint32_t, uint16_t);
 
 /**
  * @brief Read a word directly from physical memory as a DMA bus transfer,
@@ -406,35 +406,35 @@ void Device_DMAWrite(uint32_t, uint16_t);
  * @param coreAddress Physical core address (masked to 24 bits).
  * @return The word read from physical memory.
  */
-int32_t Device_DMARead(uint32_t);
+int32_t dev_dma_read(uint32_t);
 
 /**
  * @brief Install the output-character callback for a DEVICE_CLASS_CHARACTER device.
  * @param dev The device to configure.
  * @param outputFunc Callback invoked when the device outputs a character.
  */
-void Device_SetCharacterOutput(Device *, CharacterDeviceOutputFunc);
+void dev_set_character_output(Device *, CharacterDeviceOutputFunc);
 
 /**
  * @brief Install the input-character callback for a DEVICE_CLASS_CHARACTER device.
  * @param dev The device to configure.
  * @param inputFunc Callback invoked when the device receives input.
  */
-void Device_SetCharacterInput(Device *, CharacterDeviceInputFunc);
+void dev_set_character_input(Device *, CharacterDeviceInputFunc);
 
 /**
  * @brief Invoke a character device's output callback with one character.
  * @param dev The device outputting the character.
  * @param c The character being output.
  */
-void Device_OutputCharacter(Device *, char);
+void dev_output_character(Device *, char);
 
 /**
  * @brief Invoke a character device's input callback with one character.
  * @param dev The device receiving the character.
  * @param c The character being input.
  */
-void Device_InputCharacter(Device *, char);
+void dev_input_character(Device *, char);
 
 /**
  * @brief Install the block-read callback and user data for a DEVICE_CLASS_BLOCK
@@ -443,7 +443,7 @@ void Device_InputCharacter(Device *, char);
  * @param readFunc Callback invoked to read a block.
  * @param userData Opaque data passed back to readFunc.
  */
-void Device_SetBlockRead(Device *, BlockDeviceReadFunc, void *);
+void dev_set_block_read(Device *, BlockDeviceReadFunc, void *);
 
 /**
  * @brief Install the block-write callback for a DEVICE_CLASS_BLOCK device.
@@ -452,7 +452,7 @@ void Device_SetBlockRead(Device *, BlockDeviceReadFunc, void *);
  * @param userData Opaque data passed back to writeFunc; leaves the existing
  *        userData in place if NULL.
  */
-void Device_SetBlockWrite(Device *, BlockDeviceWriteFunc, void *);
+void dev_set_block_write(Device *, BlockDeviceWriteFunc, void *);
 
 /**
  * @brief Install the block disk-info callback for a DEVICE_CLASS_BLOCK device.
@@ -461,7 +461,7 @@ void Device_SetBlockWrite(Device *, BlockDeviceWriteFunc, void *);
  * @param userData Opaque data passed back to infoFunc; leaves the existing
  *        userData in place if NULL.
  */
-void Device_SetBlockDiskInfo(Device *, BlockDeviceDiskInfoFunc, void *);
+void dev_set_block_disk_info(Device *, BlockDeviceDiskInfoFunc, void *);
 
 /**
  * @brief Read one or more blocks from a DEVICE_CLASS_BLOCK device via its
@@ -473,7 +473,7 @@ void Device_SetBlockDiskInfo(Device *, BlockDeviceDiskInfoFunc, void *);
  * @param unit Unit number on the device.
  * @return Whatever the device's readFunc returns, or -1 on error.
  */
-int Device_ReadBlock(Device *, uint8_t *, size_t, uint32_t, int);
+int dev_read_block(Device *, uint8_t *, size_t, uint32_t, int);
 
 /**
  * @brief Write one or more blocks to a DEVICE_CLASS_BLOCK device via its
@@ -485,7 +485,7 @@ int Device_ReadBlock(Device *, uint8_t *, size_t, uint32_t, int);
  * @param unit Unit number on the device.
  * @return Whatever the device's writeFunc returns, or -1 on error.
  */
-int Device_WriteBlock(Device *, const uint8_t *, size_t, uint32_t, int);
+int dev_write_block(Device *, const uint8_t *, size_t, uint32_t, int);
 
 // ** Device Manager **
 
@@ -508,12 +508,12 @@ typedef struct
  * @brief Allocate the device manager's device table.
  * @return 0 on success, -1 if the table could not be allocated.
  */
-int DeviceManager_Init(void);
+int devmgr_init(void);
 
 /**
  * @brief Destroy every registered device and free the device table.
  */
-void DeviceManager_Destroy(void);
+void devmgr_destroy(void);
 
 /**
  * @brief Register the fixed set of always-present devices (panel, RTC, console,
@@ -521,7 +521,7 @@ void DeviceManager_Destroy(void);
  *        standard IOX addresses. HDLC, SCSI, drum and CDC are added elsewhere,
  *        conditionally on configuration.
  */
-void DeviceManager_AddAllDevices(void);
+void devmgr_add_all_devices(void);
 
 /**
  * @brief Add one device of the given type and thumbwheel setting to the device
@@ -531,14 +531,14 @@ void DeviceManager_AddAllDevices(void);
  * @param thumbwheel Card thumbwheel setting passed to the device's constructor.
  * @return true if the device was created and added, false on failure or overlap.
  */
-bool DeviceManager_AddDevice(DeviceType, uint8_t);
+bool devmgr_add_device(DeviceType, uint8_t);
 
 /**
  * @brief Find the registered device whose IOX range contains an address.
  * @param address The IOX address to look up.
  * @return The matching Device, or NULL if none is registered at that address.
  */
-Device *DeviceManager_GetDeviceByAddress(uint32_t);
+Device *devmgr_get_device_by_address(uint32_t);
 
 /**
  * @brief Add the HDLC controller and start its modem with the given TCP config.
@@ -549,12 +549,12 @@ Device *DeviceManager_GetDeviceByAddress(uint32_t);
  * @param port TCP port for the modem connection.
  * @return true if the controller was added, false on failure.
  */
-bool DeviceManager_AddHDLCDevice_WithConfig(int, bool, const char *, int);
+bool devmgr_add_hdlc_device_with_config(int, bool, const char *, int);
 
 /**
  * @brief Reset every registered device.
  */
-void DeviceManager_MasterClear(void);
+void devmgr_master_clear(void);
 
 /**
  * @brief Dispatch an IOX read to the device whose range contains the address.
@@ -562,14 +562,14 @@ void DeviceManager_MasterClear(void);
  * @return The value returned by the device, or 0 if no device answers (an IOX
  *         error interrupt is also raised on level 14 in that case).
  */
-uint16_t DeviceManager_Read(uint32_t);
+uint16_t devmgr_read(uint32_t);
 
 /**
  * @brief Dispatch an IOX write to the device whose range contains the address.
  * @param address The IOX address being written.
  * @param value The value to write.
  */
-void DeviceManager_Write(uint32_t, uint16_t);
+void devmgr_write(uint32_t, uint16_t);
 
 /**
  * @brief Find the device with a pending request on an interrupt level and IDENT
@@ -578,26 +578,26 @@ void DeviceManager_Write(uint32_t, uint16_t);
  * @return The IDENT code from the highest-priority pending device on that
  *         level, or 0 if none is pending.
  */
-int DeviceManager_Ident(uint16_t);
+int devmgr_ident(uint16_t);
 
 /**
  * @brief Tick every registered device and collect their interrupt bits.
  * @return The bitwise OR of all devices' returned interrupt bits.
  */
-uint16_t DeviceManager_Tick(void);
+uint16_t devmgr_tick(void);
 
 /**
  * @brief Get the number of devices currently registered.
  * @return The device count.
  */
-int DeviceManager_GetDeviceCount(void);
+int devmgr_get_device_count(void);
 
 /**
  * @brief Get a registered device by its index in the device table.
  * @param index Index into the device table.
  * @return The Device at that index, or NULL if index is out of range.
  */
-Device *DeviceManager_GetDeviceByIndex(int);
+Device *devmgr_get_device_by_index(int);
 
 /**
  * @brief Dispatch a NORD-1 style IOT operation to the device that owns the
@@ -609,7 +609,7 @@ Device *DeviceManager_GetDeviceByIndex(int);
  * @return true if a device claimed devno and handled the operation, false if
  *         no device answers it (caller falls back to legacy IOX handling).
  */
-bool DeviceManager_IotOp(uint8_t, uint8_t, uint16_t *, bool *);
+bool devmgr_iot_op(uint8_t, uint8_t, uint16_t *, bool *);
 
 /**
  * @brief Boot from the first registered controller of a given device type.
@@ -618,7 +618,7 @@ bool DeviceManager_IotOp(uint8_t, uint8_t, uint16_t *, bool *);
  * @return The boot address, or -1 if no such controller is registered or on
  *         boot error.
  */
-int DeviceManager_BootFrom(DeviceType, int);
+int devmgr_boot_from(DeviceType, int);
 
 #include "./floppy/device_floppy_pio.h"
 #include "./floppy/device_floppy_dma.h"
@@ -660,6 +660,6 @@ int DeviceManager_BootFrom(DeviceType, int);
  *        SCSI_UNIT_NONE means no target at that ID.
  * @return true if the controller was added, false on failure.
  */
-bool DeviceManager_AddSCSIDevice_WithConfig(int, const SCSIUnitType *);
+bool devmgr_add_scsi_device_with_config(int, const SCSIUnitType *);
 
 #endif // DEVICES_TYPES_H

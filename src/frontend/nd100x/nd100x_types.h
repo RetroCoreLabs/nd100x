@@ -170,7 +170,7 @@ typedef struct {
  *        (no boot type, unit 0, no image, port 4711, ticks RTC, and so on).
  * @param config Configuration to fill; NULL is ignored.
  */
-void Config_Init(Config *);
+void config_init(Config *);
 
 /**
  * @brief Parse the nd100x command line with getopt_long and fill the
@@ -181,13 +181,13 @@ void Config_Init(Config *);
  * @return true when every option parsed, false on a bad or unknown option
  *         (an error message is printed to stderr).
  */
-bool Config_ParseCommandLine(Config *, int, char *[]);
+bool config_parse_command_line(Config *, int, char *[]);
 
 /**
  * @brief Print the version line, usage line and the full option list to stdout.
  * @param progName Program name to show in the usage line (argv[0]).
  */
-void Config_PrintHelp(const char *);
+void config_print_help(const char *);
 
 /**
  * @brief Run the ncurses floppy database browser: download the catalog from the
@@ -207,6 +207,6 @@ void initialize(void);
 /**
  * @brief Shut the emulated machine down and restore the host terminal mode.
  */
-void cleanup(void);
+void nd100x_cleanup(void);
 
 #endif // CONFIG_H

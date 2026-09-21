@@ -69,8 +69,8 @@ static const char *tx_str[] = {"LDATX", "LDXTX", "LDDTX", "LDBTX", "STATX", "STZ
  * OUT: Sets the string with the dissassembled operand and values
  */
 /* size exemption: opcode table (house rule 7.1) - one case per instruction group */
-void OpToStr(char *return_string, uint16_t max_len,
-             uint16_t operand) // NOLINT(readability-function-size)
+void disasm_op_to_str(char *return_string, uint16_t max_len,
+                      uint16_t operand) // NOLINT(readability-function-size)
 {
     uint16_t instr;
     char numstr[BUFSTRSIZE_SMALL];
@@ -94,7 +94,7 @@ void OpToStr(char *return_string, uint16_t max_len,
     /* ND110 delta offset for some instructions */
     (void)snprintf(deltastr, sizeof(deltastr), "%o", delta);
 
-    instr = extract_opcode(operand);
+    instr = disasm_extract_opcode(operand);
     switch (instr)
     {
     case 0000000: /* STZ */
@@ -788,7 +788,7 @@ void disasm_instr(uint16_t addr, uint16_t instr)
     if ((*g_dis)[addr] != NULL)
     {
         char disasm_str[BUFSTRSIZE];
-        OpToStr(disasm_str, BUFSTRSIZE, instr);
+        disasm_op_to_str(disasm_str, BUFSTRSIZE, instr);
 
 
         (*g_dis)[addr]->iscode = true;
@@ -799,7 +799,7 @@ void disasm_instr(uint16_t addr, uint16_t instr)
 void disasm_exr(uint16_t addr, uint16_t instr)
 {
     char disasm_str[BUFSTRSIZE];
-    OpToStr(disasm_str, BUFSTRSIZE, instr);
+    disasm_op_to_str(disasm_str, BUFSTRSIZE, instr);
 
     if ((*g_dis)[addr] != NULL)
     {
@@ -946,7 +946,7 @@ void disasm_dump(void)
                 }
 
                 fprintf(disasm_file, "          ");
-                OpToStr(disasm_str, BUFSTRSIZE, (*g_dis)[i]->theword);
+                disasm_op_to_str(disasm_str, BUFSTRSIZE, (*g_dis)[i]->theword);
                 fprintf(disasm_file, "%% %s", disasm_str);
             }
             fprintf(disasm_file, "\n");
@@ -964,7 +964,7 @@ void disasm_dump(void)
  * This means we will not completely emulate ND100 behaviour for
  * illegal opcodes yet.
  */
-uint16_t extract_opcode(uint16_t instr)
+uint16_t disasm_extract_opcode(uint16_t instr)
 {
     switch (instr & (0xFFFF << 11))
     {

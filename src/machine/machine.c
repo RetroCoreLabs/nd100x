@@ -70,7 +70,7 @@ const char *g_boot_type_str[] = {"none", "bpun", "aout", "bp",   "prog", "floppy
 
 // Initialize drive arrays. Returns 0, or -1 if memory ran out (the arrays
 // that were allocated stay allocated; cleanup_drive_arrays() frees them).
-int init_drive_arrays(void)
+int machine_init_drive_arrays(void)
 {
     if (!g_floppy_drives)
     {
@@ -210,7 +210,7 @@ int machine_init(bool debugger_enabled, int debugger_port)
 {
 
     // Initialize drive arrays
-    if (init_drive_arrays() != 0)
+    if (machine_init_drive_arrays() != 0)
     {
         LOG(LOG_CAT_MACHINE, LOG_ERROR, "machine_init: out of memory for the drive tables\n");
         return -1;
@@ -220,23 +220,23 @@ int machine_init(bool debugger_enabled, int debugger_port)
     cpu_init(debugger_enabled, debugger_port);
 
     // Initialize the CPU debugger (if enabled, starts the debugger thread)
-    init_cpu_debugger();
+    cpu_init_debugger();
 
     // Initialize IO devices
-    if (IO_Init() != 0)
+    if (io_init() != 0)
     {
         LOG(LOG_CAT_MACHINE, LOG_ERROR, "machine_init: device manager could not be set up\n");
         return -1;
     }
 
     // Set the CPU to RUN mode
-    set_cpu_run_mode(CPU_RUNNING);
+    cpu_set_run_mode(CPU_RUNNING);
     return 0;
 }
 
 void machine_add_hdlc(int device_num, bool is_server, const char *address, int port)
 {
-    bool success = DeviceManager_AddHDLCDevice_WithConfig(device_num, is_server, address, port);
+    bool success = devmgr_add_hdlc_device_with_config(device_num, is_server, address, port);
     if (success)
     {
         if (is_server)
@@ -256,10 +256,10 @@ void machine_add_hdlc(int device_num, bool is_server, const char *address, int p
     }
 }
 
-void cleanup_machine(void)
+void machine_cleanup(void)
 {
-    cleanup_cpu();
-    IO_Destroy();
+    cpu_cleanup();
+    io_destroy();
 
     // Unmount all drives to prevent memory leaks
 
@@ -270,7 +270,7 @@ void cleanup_machine(void)
         {
             if (g_floppy_drives[i].name[0] != '\0')
             {
-                unmount_drive(DRIVE_FLOPPY, i);
+                machine_unmount_drive(DRIVE_FLOPPY, i);
             }
         }
     }
@@ -282,7 +282,7 @@ void cleanup_machine(void)
         {
             if (g_smd_drives[i].name[0] != '\0')
             {
-                unmount_drive(DRIVE_SMD, i);
+                machine_unmount_drive(DRIVE_SMD, i);
             }
         }
     }
@@ -294,7 +294,7 @@ void cleanup_machine(void)
         {
             if (s_wd_drives[i].name[0] != '\0')
             {
-                unmount_drive(DRIVE_WINCHESTER, i);
+                machine_unmount_drive(DRIVE_WINCHESTER, i);
             }
         }
     }
@@ -306,7 +306,7 @@ void cleanup_machine(void)
         {
             if (s_scsi_drives[i].name[0] != '\0')
             {
-                unmount_drive(DRIVE_SCSI, i);
+                machine_unmount_drive(DRIVE_SCSI, i);
             }
         }
     }
@@ -321,18 +321,18 @@ void cleanup_machine(void)
 void machine_run(int ticks)
 {
     // Run the CPU until it stops but also handle debugger requests
-    while (get_cpu_run_mode() != CPU_SHUTDOWN)
+    while (cpu_get_run_mode() != CPU_SHUTDOWN)
     {
         ticks = cpu_run(ticks);
 
         // Check if DAP adapter has requested a pause
         if (gDebuggerEnabled)
         {
-            if (get_debugger_request_pause())
+            if (cpu_get_debugger_request_pause())
             {
-                if (!get_debugger_control_granted())
+                if (!cpu_get_debugger_control_granted())
                 {
-                    set_debugger_control_granted(true);
+                    cpu_set_debugger_control_granted(true);
                 }
 #ifndef __EMSCRIPTEN__
                 // A DAP command is in flight and owns the CPU: do not execute
@@ -346,12 +346,12 @@ void machine_run(int ticks)
 #ifdef __EMSCRIPTEN__
             /* WASM: if debugger has control, exit immediately to avoid
                busy-looping in single-threaded environment */
-            if (get_debugger_control_granted())
+            if (cpu_get_debugger_control_granted())
             {
                 return;
             }
 #endif
-            if ((get_cpu_run_mode() == CPU_PAUSED) || (get_cpu_run_mode() == CPU_BREAKPOINT))
+            if ((cpu_get_run_mode() == CPU_PAUSED) || (cpu_get_run_mode() == CPU_BREAKPOINT))
             {
 #ifndef __EMSCRIPTEN__
                 sleep_ms(1); // idle politely while stopped in the debugger
@@ -376,7 +376,7 @@ void machine_run(int ticks)
 void machine_stop(void)
 {
     // Stop the CPU
-    set_cpu_run_mode(CPU_STOPPED);
+    cpu_set_run_mode(CPU_STOPPED);
 }
 
 
@@ -390,7 +390,7 @@ void machine_stop(void)
 
 static BOOT_TYPE s_boot_type; /* Variable holding the way we should boot up the emulator */
 
-void setdefaultconfig(void)
+void machine_setdefaultconfig(void)
 {
     // Set default configuration
     s_boot_type = BOOT_SMD;
@@ -414,7 +414,7 @@ void setdefaultconfig(void)
 void write_memory(uint32_t address, uint16_t value)
 {
     // Write the value to physical memory at the given address
-    WritePhysicalMemory((int)address, value, false);
+    mms_write_physical_memory((int)address, value, false);
     if (g_disasm && address <= 0xFFFF)
     {
         disasm_addword((uint16_t)address, value);
@@ -422,7 +422,7 @@ void write_memory(uint32_t address, uint16_t value)
 }
 
 
-void mount_floppy(const char *image_file, int unit)
+void machine_mount_floppy(const char *image_file, int unit)
 {
     const char *floppy_img = image_file ? image_file : "FLOPPY.IMG";
 
@@ -431,8 +431,8 @@ void mount_floppy(const char *image_file, int unit)
     if (ftmp)
     {
         fclose(ftmp);
-        mount_drive(DRIVE_FLOPPY, unit, "md5-unknown", "Boot Floppy", "Boot floppy image",
-                    floppy_img);
+        machine_mount_drive(DRIVE_FLOPPY, unit, "md5-unknown", "Boot Floppy", "Boot floppy image",
+                            floppy_img);
     }
 }
 
@@ -452,9 +452,9 @@ int machine_floppy_swap(int unit, const char *path)
         return -1; /* floppy units 0-2 */
     }
 
-    if (isMounted(DRIVE_FLOPPY, unit))
+    if (machine_is_mounted(DRIVE_FLOPPY, unit))
     {
-        unmount_drive(DRIVE_FLOPPY, unit); /* eject: closes the old FILE* */
+        machine_unmount_drive(DRIVE_FLOPPY, unit); /* eject: closes the old FILE* */
     }
 
     if (path == NULL || path[0] == '\0')
@@ -469,7 +469,7 @@ int machine_floppy_swap(int unit, const char *path)
     }
     fclose(probe);
 
-    mount_drive(DRIVE_FLOPPY, unit, "md5-unknown", "Floppy", "Hot-swapped floppy", path);
+    machine_mount_drive(DRIVE_FLOPPY, unit, "md5-unknown", "Floppy", "Hot-swapped floppy", path);
     return 0;
 }
 
@@ -574,16 +574,16 @@ int machine_floppy_mount_catalog(int unit, const char *selector)
     char url[256];
     floppydb_image_url(entry, url, sizeof(url));
 
-    if (isMounted(dt, unit))
+    if (machine_is_mounted(dt, unit))
     {
-        unmount_drive(dt, unit); // eject the old disk first
+        machine_unmount_drive(dt, unit); // eject the old disk first
     }
 
-    mount_drive(dt, unit, entry->md5, entry->name, "Catalog mount", url);
+    machine_mount_drive(dt, unit, entry->md5, entry->name, "Catalog mount", url);
 
     // mount_drive() is void and bails silently if the download failed; isMounted()
     // is the reliable success signal (is_mounted is set only after a real load).
-    if (!isMounted(dt, unit))
+    if (!machine_is_mounted(dt, unit))
     {
         LOG(LOG_CAT_MACHINE, LOG_ERROR, "[catalog] mount FAILED (no libcurl? offline?): %s\n", url);
         return -4;
@@ -595,7 +595,7 @@ int machine_floppy_mount_catalog(int unit, const char *selector)
 }
 
 
-void mount_smd(const char *image_file, int unit)
+void machine_mount_smd(const char *image_file, int unit)
 {
     char path[256];
     snprintf(path, sizeof(path), "SMD%d.IMG", unit);
@@ -609,11 +609,13 @@ void mount_smd(const char *image_file, int unit)
         fclose(ftmp2);
         if (unit == 0)
         {
-            mount_drive(DRIVE_SMD, unit, "md5-unknown", "Boot SMD", "Boot SMD image", smd_img);
+            machine_mount_drive(DRIVE_SMD, unit, "md5-unknown", "Boot SMD", "Boot SMD image",
+                                smd_img);
         }
         else
         {
-            mount_drive(DRIVE_SMD, unit, "md5-unknown", "DATA SMD", "DATA SMD image", smd_img);
+            machine_mount_drive(DRIVE_SMD, unit, "md5-unknown", "DATA SMD", "DATA SMD image",
+                                smd_img);
         }
     }
 }
@@ -625,7 +627,7 @@ void mount_smd(const char *image_file, int unit)
  * carries the unit in a single bit (b9), so the unit range is a hardware
  * property rather than a configuration choice.
  */
-void mount_winchester(const char *image_file, int unit)
+void machine_mount_winchester(const char *image_file, int unit)
 {
     char path[256];
     snprintf(path, sizeof(path), "WD%d.IMG", unit);
@@ -639,13 +641,13 @@ void mount_winchester(const char *image_file, int unit)
         fclose(ftmp);
         if (unit == 0)
         {
-            mount_drive(DRIVE_WINCHESTER, unit, "md5-unknown", "Boot Winchester",
-                        "Boot Winchester image", wd_img);
+            machine_mount_drive(DRIVE_WINCHESTER, unit, "md5-unknown", "Boot Winchester",
+                                "Boot Winchester image", wd_img);
         }
         else
         {
-            mount_drive(DRIVE_WINCHESTER, unit, "md5-unknown", "DATA Winchester",
-                        "DATA Winchester image", wd_img);
+            machine_mount_drive(DRIVE_WINCHESTER, unit, "md5-unknown", "DATA Winchester",
+                                "DATA Winchester image", wd_img);
         }
     }
 }
@@ -660,7 +662,7 @@ void mount_winchester(const char *image_file, int unit)
  * in machine_block_read/write uses device->blockSizeBytes, not the mount's
  * block_size, so the mount stays type-agnostic.
  */
-void mount_scsi(const char *image_file, int unit)
+void machine_mount_scsi(const char *image_file, int unit)
 {
     char path[256];
     snprintf(path, sizeof(path), "SCSI%d.IMG", unit);
@@ -674,11 +676,13 @@ void mount_scsi(const char *image_file, int unit)
         fclose(ftmp);
         if (unit == 0)
         {
-            mount_drive(DRIVE_SCSI, unit, "md5-unknown", "Boot SCSI", "Boot SCSI image", scsi_img);
+            machine_mount_drive(DRIVE_SCSI, unit, "md5-unknown", "Boot SCSI", "Boot SCSI image",
+                                scsi_img);
         }
         else
         {
-            mount_drive(DRIVE_SCSI, unit, "md5-unknown", "DATA SCSI", "DATA SCSI image", scsi_img);
+            machine_mount_drive(DRIVE_SCSI, unit, "md5-unknown", "DATA SCSI", "DATA SCSI image",
+                                scsi_img);
         }
     }
     else
@@ -693,20 +697,20 @@ void mount_scsi(const char *image_file, int unit)
 
 
 // As a default, mount floppy and SMD drives (IF they exists)
-void autoMountDrives(void)
+void machine_auto_mount_drives(void)
 {
     // Automount floppy if file "FLOPPY.IMG" exists
-    if (!isMounted(DRIVE_FLOPPY, 0))
+    if (!machine_is_mounted(DRIVE_FLOPPY, 0))
     {
-        mount_floppy(NULL, 0);
+        machine_mount_floppy(NULL, 0);
     }
 
     // Automount SMD files
     for (int i = 0; i < 4; i++)
     {
-        if (!isMounted(DRIVE_SMD, i))
+        if (!machine_is_mounted(DRIVE_SMD, i))
         {
-            mount_smd(NULL, i);
+            machine_mount_smd(NULL, i);
         }
     }
 }
@@ -802,7 +806,7 @@ static int tape_leader_load(const char *path, bool verbose)
         {
             if (have)
             {
-                WritePhysicalMemory((int)loc, acc, false);
+                mms_write_physical_memory((int)loc, acc, false);
                 if (loc < lo)
                 {
                     lo = loc;
@@ -834,10 +838,10 @@ static int tape_leader_load(const char *path, bool verbose)
     }
 
     /* leave the rest of the tape in the reader for the started program */
-    Device *reader = DeviceManager_GetDeviceByAddress(0400);
+    Device *reader = devmgr_get_device_by_address(0400);
     if (reader != NULL && i < len)
     {
-        PaperTape_LoadTape(reader, data + i, (size_t)(len - i));
+        ptr_load_tape(reader, data + i, (size_t)(len - i));
     }
     else if (reader == NULL)
     {
@@ -857,8 +861,8 @@ static int tape_leader_load(const char *path, bool verbose)
     return start;
 }
 
-int program_load(BOOT_TYPE boot_type, int boot_unit, const char *image_file, bool verbose,
-                 uint16_t text_start, bool overlay_deposit)
+int machine_program_load(BOOT_TYPE boot_type, int boot_unit, const char *image_file, bool verbose,
+                         uint16_t text_start, bool overlay_deposit)
 {
     int boot_address;
     g_start_addr = 0;
@@ -866,7 +870,7 @@ int program_load(BOOT_TYPE boot_type, int boot_unit, const char *image_file, boo
     switch (boot_type)
     {
     case BOOT_BP:
-        boot_address = bp_load(image_file);
+        boot_address = bpun_bp_load(image_file);
         if (boot_address < 0)
         {
             LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error loading BP file '%s'\n", image_file);
@@ -875,7 +879,7 @@ int program_load(BOOT_TYPE boot_type, int boot_unit, const char *image_file, boo
         break;
 
     case BOOT_BPUN:
-        boot_address = LoadBPUN(image_file, verbose);
+        boot_address = bpun_load(image_file, verbose);
         if (boot_address < 0)
         {
             LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error loading BPUN file '%s'\n", image_file);
@@ -902,7 +906,7 @@ int program_load(BOOT_TYPE boot_type, int boot_unit, const char *image_file, boo
         /* SINTRAN :PROG loadable image. LoadPROG() writes the Bank 1 image to
          * physical memory and returns the program start address. Unlike BPUN,
          * the entry is the real start address (no separate boot/action fields). */
-        boot_address = LoadPROG(image_file, verbose);
+        boot_address = prog_load(image_file, verbose);
         if (boot_address < 0)
         {
             LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error loading PROG file '%s'\n", image_file);
@@ -912,9 +916,9 @@ int program_load(BOOT_TYPE boot_type, int boot_unit, const char *image_file, boo
         break;
     case BOOT_FLOPPY:
         // Record mount state for UI/menus; device still boots via BPUN for now
-        mount_floppy(image_file, 0);
+        machine_mount_floppy(image_file, 0);
 
-        boot_address = LoadBPUN(image_file, verbose);
+        boot_address = bpun_load(image_file, verbose);
         if (boot_address < 0)
         {
             LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error loading BPUN file\n");
@@ -926,12 +930,12 @@ int program_load(BOOT_TYPE boot_type, int boot_unit, const char *image_file, boo
     case BOOT_SMD:
 
         // Only mount from MEMFS file if not already mounted (gateway/OPFS mounts take priority)
-        if (!isMounted(DRIVE_SMD, boot_unit))
+        if (!machine_is_mounted(DRIVE_SMD, boot_unit))
         {
-            mount_smd(image_file, boot_unit);
+            machine_mount_smd(image_file, boot_unit);
         }
 
-        boot_address = DeviceManager_BootFrom(DEVICE_TYPE_DISC_SMD, boot_unit);
+        boot_address = devmgr_boot_from(DEVICE_TYPE_DISC_SMD, boot_unit);
         if (boot_address < 0)
         {
             LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error booting from SMD unit %d\n", boot_unit);
@@ -942,12 +946,12 @@ int program_load(BOOT_TYPE boot_type, int boot_unit, const char *image_file, boo
     case BOOT_WINCHESTER:
 
         // Only mount from MEMFS file if not already mounted
-        if (!isMounted(DRIVE_WINCHESTER, boot_unit))
+        if (!machine_is_mounted(DRIVE_WINCHESTER, boot_unit))
         {
-            mount_winchester(image_file, boot_unit);
+            machine_mount_winchester(image_file, boot_unit);
         }
 
-        boot_address = DeviceManager_BootFrom(DEVICE_TYPE_DISC_WINCHESTER, boot_unit);
+        boot_address = devmgr_boot_from(DEVICE_TYPE_DISC_WINCHESTER, boot_unit);
         if (boot_address < 0)
         {
             LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error booting from Winchester unit %d\n", boot_unit);
@@ -958,12 +962,12 @@ int program_load(BOOT_TYPE boot_type, int boot_unit, const char *image_file, boo
     case BOOT_SCSI:
 
         // Only mount from MEMFS file if not already mounted
-        if (!isMounted(DRIVE_SCSI, boot_unit))
+        if (!machine_is_mounted(DRIVE_SCSI, boot_unit))
         {
-            mount_scsi(image_file, boot_unit);
+            machine_mount_scsi(image_file, boot_unit);
         }
 
-        boot_address = DeviceManager_BootFrom(DEVICE_TYPE_DISC_SCSI, boot_unit);
+        boot_address = devmgr_boot_from(DEVICE_TYPE_DISC_SCSI, boot_unit);
         if (boot_address < 0)
         {
             LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error booting from SCSI unit %d\n", boot_unit);
@@ -988,7 +992,7 @@ int program_load(BOOT_TYPE boot_type, int boot_unit, const char *image_file, boo
          * LOAD-SYSTEM command (LOADV) does exactly the same thing at runtime.
          * The CDC controller keeps its surface in memory, so there is no
          * mount step here - the image is attached with --cdc=FILE. */
-        boot_address = DeviceManager_BootFrom(DEVICE_TYPE_CDC, boot_unit);
+        boot_address = devmgr_boot_from(DEVICE_TYPE_CDC, boot_unit);
         if (boot_address < 0)
         {
             LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error booting from CDC disc\n");
@@ -1002,14 +1006,14 @@ int program_load(BOOT_TYPE boot_type, int boot_unit, const char *image_file, boo
         break;
     }
 
-    autoMountDrives();
+    machine_auto_mount_drives();
     return 0;
 }
 
 /** DEVICE MOUNTING */
 
 // Return true if the drive is already mounted
-bool isMounted(DRIVE_TYPE drive_type, int unit)
+bool machine_is_mounted(DRIVE_TYPE drive_type, int unit)
 {
     MountedDriveInfo_t *drives = NULL;
     int max_units = 0;
@@ -1083,8 +1087,8 @@ static bool open_local_image(MountedDriveInfo_t *drive, const char *image_path)
     return true;
 }
 
-void mount_drive(DRIVE_TYPE drive_type, int unit, const char *md5, const char *name,
-                 const char *description, const char *image_path)
+void machine_mount_drive(DRIVE_TYPE drive_type, int unit, const char *md5, const char *name,
+                         const char *description, const char *image_path)
 {
     MountedDriveInfo_t *drives = NULL;
     int max_units = 0;
@@ -1105,7 +1109,7 @@ void mount_drive(DRIVE_TYPE drive_type, int unit, const char *md5, const char *n
     // Lazy init if drive arrays not yet allocated
     if (!drives)
     {
-        (void)init_drive_arrays(); /* checked through drives below */
+        (void)machine_init_drive_arrays(); /* checked through drives below */
         drives = drives_for_type(drive_type, NULL);
         if (!drives)
         {
@@ -1137,13 +1141,13 @@ void mount_drive(DRIVE_TYPE drive_type, int unit, const char *md5, const char *n
         // Check if it's an HTTP URL (case insensitive)
         if (strncasecmp(image_path, "http", 4) == 0)
         {
-            char *image_data = download_file(image_path);
+            char *image_data = dl_download_file(image_path);
             if (image_data)
             {
                 drives[unit].is_remote = true;
                 drives[unit].data.remote_data = image_data;
                 drives[unit].data_size =
-                    get_downloaded_size(); // Use actual size instead of strlen()
+                    dl_get_downloaded_size(); // Use actual size instead of strlen()
             }
             else
             {
@@ -1170,7 +1174,7 @@ void mount_drive(DRIVE_TYPE drive_type, int unit, const char *md5, const char *n
 }
 
 // Unmount a drive from the specified unit
-void unmount_drive(DRIVE_TYPE drive_type, int unit)
+void machine_unmount_drive(DRIVE_TYPE drive_type, int unit)
 {
     MountedDriveInfo_t *drives = NULL;
     int max_units = 0;
@@ -1249,7 +1253,7 @@ void unmount_drive(DRIVE_TYPE drive_type, int unit)
 }
 
 // List mounted drives for the specified drive type
-MountedDriveInfo_t *list_mount(DRIVE_TYPE drive_type)
+MountedDriveInfo_t *machine_list_mount(DRIVE_TYPE drive_type)
 {
     return drives_for_type(drive_type, NULL);
 }
@@ -1324,8 +1328,8 @@ EM_JS(int, gateway_is_available_js, (int driveType, int unit), {
 
 /* Mount an SMD drive for OPFS mode (no FILE* needed).
  * The actual I/O goes through JS opfsBlockRead/Write. */
-void mount_drive_opfs(DRIVE_TYPE drive_type, int unit, const char *name, const char *description,
-                      size_t image_size)
+void machine_mount_drive_opfs(DRIVE_TYPE drive_type, int unit, const char *name,
+                              const char *description, size_t image_size)
 {
     MountedDriveInfo_t *drives = NULL;
     int max_units = 0;
@@ -1343,7 +1347,7 @@ void mount_drive_opfs(DRIVE_TYPE drive_type, int unit, const char *name, const c
 
     if (!drives)
     {
-        (void)init_drive_arrays(); /* checked through drives below */
+        (void)machine_init_drive_arrays(); /* checked through drives below */
         drives = drives_for_type(drive_type, NULL);
         if (!drives)
         {
@@ -1367,8 +1371,8 @@ void mount_drive_opfs(DRIVE_TYPE drive_type, int unit, const char *name, const c
 
 /* Mount a drive for gateway mode (block I/O via WebSocket, no FILE*).
  * The actual I/O goes through JS gatewayBlockRead/Write. */
-void mount_drive_gateway(DRIVE_TYPE drive_type, int unit, const char *name, const char *description,
-                         size_t image_size)
+void machine_mount_drive_gateway(DRIVE_TYPE drive_type, int unit, const char *name,
+                                 const char *description, size_t image_size)
 {
     MountedDriveInfo_t *drives = NULL;
     int max_units = 0;
@@ -1386,7 +1390,7 @@ void mount_drive_gateway(DRIVE_TYPE drive_type, int unit, const char *name, cons
 
     if (!drives)
     {
-        (void)init_drive_arrays(); /* checked through drives below */
+        (void)machine_init_drive_arrays(); /* checked through drives below */
         drives = drives_for_type(drive_type, NULL);
         if (!drives)
         {
@@ -1464,7 +1468,7 @@ static void log_floppy_read_diag(const MountedDriveInfo_t *drives, int unit, uin
     if (floppy_read_log < 5)
     {
         floppy_read_log++;
-        Log_Write(LOG_CAT_FLOPPY, LOG_DEBUG,
+        log_write(LOG_CAT_FLOPPY, LOG_DEBUG,
                   "[FLOPPY-DIAG] machine_block_read: unit=%d drives=%s mounted=%d gateway=%d "
                   "opfs=%d remote=%d size=%d blkAddr=%u blkSize=%u\n",
                   unit, drives ? "ok" : "NULL", drives ? drives[unit].is_mounted : -1,

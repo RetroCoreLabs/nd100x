@@ -34,7 +34,7 @@
 #include "../devices_types.h"
 #include "../devices_protos.h"
 
-void DiskSMD_SetDiskType(DiskInfo *disk, DiskType dt)
+void smd_disk_set_type(DiskInfo *disk, DiskType dt)
 {
     disk->diskType = dt;
     disk->bytesPrSector = 1024; // 1024bytes / 512 Words

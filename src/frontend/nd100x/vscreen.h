@@ -47,7 +47,7 @@ typedef struct {
  * @param cols Columns per line; values <= 0 become 80.
  * @param inputCapable true when the screen can receive keyboard input.
  */
-void VScreen_Init(VScreen *vs, const char *name, Device *dev, int cols, bool input_capable);
+void vscreen_init(VScreen *vs, const char *name, Device *dev, int cols, bool input_capable);
 
 /**
  * @brief Store one character in the screen's ring buffer. LF and FF advance to a
@@ -56,7 +56,7 @@ void VScreen_Init(VScreen *vs, const char *name, Device *dev, int cols, bool inp
  * @param vs The screen to write to; NULL or an uninitialized screen is ignored.
  * @param c The character to store.
  */
-void VScreen_Write(VScreen *vs, char c);
+void vscreen_write(VScreen *vs, char c);
 
 /**
  * @brief Clear the real terminal and reprint the screen's header and buffered
@@ -65,12 +65,12 @@ void VScreen_Write(VScreen *vs, char c);
  *        print raw.
  * @param vs The screen to redraw; NULL or an uninitialized screen is ignored.
  */
-void VScreen_Redraw(VScreen *vs);
+void vscreen_redraw(VScreen *vs);
 
 /**
  * @brief Free the screen's line ring buffer and set lines to NULL.
  * @param vs The screen to destroy; NULL or an uninitialized screen is ignored.
  */
-void VScreen_Destroy(VScreen *vs);
+void vscreen_destroy(VScreen *vs);
 
 #endif // VSCREEN_H

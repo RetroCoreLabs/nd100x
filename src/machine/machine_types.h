@@ -108,19 +108,19 @@ typedef struct
  * @brief Initialise the device manager and add all emulated devices.
  * @return 0 on success, -1 if the device manager could not be set up.
  */
-int IO_Init(void);
+int io_init(void);
 
 /**
  * @brief Destroy the device manager and everything it owns.
  */
-void IO_Destroy(void);
+void io_destroy(void);
 
 /**
  * @brief Ask the device manager which device identifies on an interrupt level.
  * @param level Interrupt level to run the IDENT search on.
  * @return The IDENT code returned by the device manager for that level.
  */
-int IO_Ident(uint16_t);
+int io_ident(uint16_t);
 
 /**
  * @brief Tick all devices once and raise the interrupts they report.
@@ -154,7 +154,7 @@ int machine_floppy_mount_catalog(int, const char *);
  * @brief Allocate the floppy, SMD, SCSI and Winchester mounted-drive tables.
  * @return 0 on success, -1 if memory ran out (already allocated tables are kept).
  */
-int init_drive_arrays(void);
+int machine_init_drive_arrays(void);
 
 /**
  * @brief Set up the whole machine: drive tables, CPU, CPU debugger and I/O devices,
@@ -177,14 +177,14 @@ void machine_add_hdlc(int, bool, const char *, int);
 /**
  * @brief Shut down the CPU and I/O, unmount every mounted drive and free the drive tables.
  */
-void cleanup_machine(void);
+void machine_cleanup(void);
 
 /**
  * @brief Unmount a drive, clearing its entry in the table for that drive type.
  * @param drive_type Which drive table to act on.
  * @param unit Unit index inside that table.
  */
-void unmount_drive(DRIVE_TYPE, int);
+void machine_unmount_drive(DRIVE_TYPE, int);
 
 /**
  * @brief Run the CPU, servicing debugger pause/control requests, until the ticks are
@@ -201,7 +201,7 @@ void machine_stop(void);
 /**
  * @brief Set the default configuration: boot type SMD, start address 0, disassembly off.
  */
-void setdefaultconfig(void);
+void machine_setdefaultconfig(void);
 
 /**
  * @brief Write one word to physical memory, and to the disassembler if it is enabled.
@@ -217,7 +217,7 @@ void write_memory(uint32_t, uint16_t);
  * @param imageFile Image file path, or NULL for the default.
  * @param unit Floppy unit to mount on.
  */
-void mount_floppy(const char *, int);
+void machine_mount_floppy(const char *, int);
 
 /**
  * @brief Mount a drive image, filling in the table entry for that drive type and unit.
@@ -228,7 +228,7 @@ void mount_floppy(const char *, int);
  * @param description Longer drive description.
  * @param image_path Local file path or remote URL of the image.
  */
-void mount_drive(DRIVE_TYPE, int, const char *, const char *, const char *, const char *);
+void machine_mount_drive(DRIVE_TYPE, int, const char *, const char *, const char *, const char *);
 
 /**
  * @brief Hot-swap the floppy in a unit: eject the current image, then mount the new
@@ -245,7 +245,7 @@ int machine_floppy_swap(int, const char *);
  * @param unit Unit index inside that table.
  * @return true if that unit is mounted, false otherwise.
  */
-bool isMounted(DRIVE_TYPE, int);
+bool machine_is_mounted(DRIVE_TYPE, int);
 
 /**
  * @brief Mount an SMD image on a unit if the file can be opened, defaulting to
@@ -253,7 +253,7 @@ bool isMounted(DRIVE_TYPE, int);
  * @param imageFile Image file path, or NULL for the default.
  * @param unit SMD unit to mount on.
  */
-void mount_smd(const char *, int);
+void machine_mount_smd(const char *, int);
 
 /**
  * @brief Mount a Winchester image on a unit (0 or 1) if the file can be opened,
@@ -261,7 +261,7 @@ void mount_smd(const char *, int);
  * @param imageFile Image file path, or NULL for the default.
  * @param unit Winchester unit to mount on.
  */
-void mount_winchester(const char *, int);
+void machine_mount_winchester(const char *, int);
 
 /**
  * @brief Mount a SCSI image on a unit if the file can be opened, defaulting to
@@ -269,13 +269,13 @@ void mount_winchester(const char *, int);
  * @param imageFile Image file path, or NULL for the default.
  * @param unit SCSI unit to mount on.
  */
-void mount_scsi(const char *, int);
+void machine_mount_scsi(const char *, int);
 
 /**
  * @brief Mount the default floppy and SMD images for units that are not already
  *        mounted, if those image files exist.
  */
-void autoMountDrives(void);
+void machine_auto_mount_drives(void);
 
 /**
  * @brief Load or boot according to the boot type: load a BP/BPUN/a.out/tape image or
@@ -289,14 +289,14 @@ void autoMountDrives(void);
  * @return 0 on success, PROGRAM_LOAD_ERR_LOAD (-2) if the image could not be loaded,
  *         PROGRAM_LOAD_ERR_BOOT (-10) if the boot device failed, -1 for BOOT_NONE.
  */
-int program_load(BOOT_TYPE, int, const char *, bool, uint16_t, bool);
+int machine_program_load(BOOT_TYPE, int, const char *, bool, uint16_t, bool);
 
 /**
  * @brief Return the mounted-drive table for the given drive type.
  * @param drive_type Which drive table to return.
  * @return Pointer to the first entry of that table, or NULL if there is none.
  */
-MountedDriveInfo_t *list_mount(DRIVE_TYPE);
+MountedDriveInfo_t *machine_list_mount(DRIVE_TYPE);
 
 /**
  * @brief Mount a drive in OPFS mode, with no FILE*; the actual I/O goes through the
@@ -307,7 +307,7 @@ MountedDriveInfo_t *list_mount(DRIVE_TYPE);
  * @param description Longer drive description.
  * @param imageSize Image size in bytes.
  */
-void mount_drive_opfs(DRIVE_TYPE, int, const char *, const char *, size_t);
+void machine_mount_drive_opfs(DRIVE_TYPE, int, const char *, const char *, size_t);
 
 /**
  * @brief Mount a drive in gateway mode, with no FILE*; the actual I/O goes through the
@@ -318,7 +318,7 @@ void mount_drive_opfs(DRIVE_TYPE, int, const char *, const char *, size_t);
  * @param description Longer drive description.
  * @param imageSize Image size in bytes.
  */
-void mount_drive_gateway(DRIVE_TYPE, int, const char *, const char *, size_t);
+void machine_mount_drive_gateway(DRIVE_TYPE, int, const char *, const char *, size_t);
 
 /**
  * @brief Block-read callback for block devices: reads size blocks from the mounted

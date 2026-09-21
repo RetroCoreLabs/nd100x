@@ -120,7 +120,7 @@ typedef struct
  * @param thumbwheel Card thumbwheel; selects the IOX address block.
  * @return The new Device, or NULL on allocation failure.
  */
-Device *CreatePaperTapeDevice(uint8_t thumbwheel);
+Device *ptr_create_paper_tape_device(uint8_t thumbwheel);
 
 /**
  * @brief Replace the reader's tape buffer with new tape data and rewind to
@@ -129,6 +129,6 @@ Device *CreatePaperTapeDevice(uint8_t thumbwheel);
  * @param data Tape bytes to load.
  * @param length Number of bytes in data.
  */
-void PaperTape_LoadTape(Device *self, const uint8_t *data, size_t length);
+void ptr_load_tape(Device *self, const uint8_t *data, size_t length);
 
 #endif /* DEVICE_PAPER_TAPE_H */

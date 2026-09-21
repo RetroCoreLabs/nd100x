@@ -41,7 +41,7 @@
 static DWORD saved_console_mode = 0;
 static HANDLE saved_console_handle = NULL;
 
-void unsetcbreak(void)
+void ndlib_unsetcbreak(void)
 {
     if (saved_console_handle)
     {
@@ -49,7 +49,7 @@ void unsetcbreak(void)
     }
 }
 
-void setcbreak(void)
+void ndlib_setcbreak(void)
 {
     saved_console_handle = GetStdHandle(STD_INPUT_HANDLE);
     if (!saved_console_handle || saved_console_handle == INVALID_HANDLE_VALUE)
@@ -80,12 +80,12 @@ void setcbreak(void)
 
 static struct termios s_saved_tty;
 
-void unsetcbreak(void)
+void ndlib_unsetcbreak(void)
 {
     tcsetattr(0, TCSADRAIN, &s_saved_tty);
 }
 
-void setcbreak(void)
+void ndlib_setcbreak(void)
 {
     struct termios tty;
 

@@ -111,7 +111,7 @@ static struct option long_options[] = {
 };
 // clang-format on
 
-void Config_Init(Config *config)
+void config_init(Config *config)
 {
     if (!config)
     {
@@ -482,7 +482,7 @@ static bool parse_watch_config(Config *config, const char *watch_str)
     return true;
 }
 
-bool Config_ParseCommandLine(Config *config, int argc, char *argv[])
+bool config_parse_command_line(Config *config, int argc, char *argv[])
 {
     int option_index = 0;
     int c;
@@ -814,7 +814,7 @@ bool Config_ParseCommandLine(Config *config, int argc, char *argv[])
                 }
                 memcpy(prefix, optarg, len);
                 prefix[len] = '\0';
-                SCSIUnitType parsed = SCSI_ParseUnitType(prefix);
+                SCSIUnitType parsed = scsi_parse_unit_type(prefix);
                 if (parsed == SCSI_UNIT_NONE)
                 {
                     fprintf(stderr,
@@ -1031,7 +1031,7 @@ bool Config_ParseCommandLine(Config *config, int argc, char *argv[])
         case 0x154: /* --log=SPEC : per-category log levels. Checked here so a
                          * typo fails at once; applied again after the .ini is read
                          * so the CLI value wins (nd100x.c). */
-            if (Log_ParseSpec(optarg) != 0)
+            if (log_parse_spec(optarg) != 0)
             {
                 fprintf(stderr,
                         "Invalid --log value '%s' (expect category:level pairs, "
@@ -1140,7 +1140,7 @@ bool Config_ParseCommandLine(Config *config, int argc, char *argv[])
             {
                 fprintf(stderr,
                         "Error: --boot=scsi%d needs a 'hdd' target on SCSI ID %d (it is '%s').\n",
-                        u, u, SCSI_UnitTypeName(config->scsiType[u]));
+                        u, u, scsi_unit_type_name(config->scsiType[u]));
                 return false;
             }
         }
@@ -1213,7 +1213,7 @@ bool Config_ParseCommandLine(Config *config, int argc, char *argv[])
     return true;
 }
 
-void Config_PrintHelp(const char *prog_name)
+void config_print_help(const char *prog_name)
 {
     printf("nd100x %s (git %s, built %s)\n", ND100X_VERSION, ND100X_GIT_HASH, ND100X_BUILD_TIME);
     printf("Usage: %s [options]\n\n", prog_name);

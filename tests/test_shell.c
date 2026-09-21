@@ -42,8 +42,8 @@ static struct CpuRegs g_fake_regs;
 struct CpuRegs *g_reg = &g_fake_regs;
 
 /* Stub loader: never touches disk; just records the request. */
-int program_load(BOOT_TYPE boot_type, int boot_unit, const char *image_file, bool verbose,
-                 uint16_t text_start, bool overlay_deposit)
+int machine_program_load(BOOT_TYPE boot_type, int boot_unit, const char *image_file, bool verbose,
+                         uint16_t text_start, bool overlay_deposit)
 {
     (void)boot_type;
     (void)boot_unit;
@@ -68,7 +68,7 @@ uint16_t g_start_addr = 0;
 /* Controllable BPUN header the shell reads via GetLastBPUNHeader(). */
 static BPUN_Header g_fake_bpun;
 static bool g_fake_bpun_valid = true;
-bool GetLastBPUNHeader(BPUN_Header *out)
+bool bpun_get_last_header(BPUN_Header *out)
 {
     if (!g_fake_bpun_valid || !out)
     {
@@ -81,7 +81,7 @@ bool GetLastBPUNHeader(BPUN_Header *out)
 /* Controllable :PROG header the shell reads via GetLastPROGHeader(). */
 static PROG_Header g_fake_prog;
 static bool g_fake_prog_valid = true;
-bool GetLastPROGHeader(PROG_Header *out)
+bool prog_get_last_header(PROG_Header *out)
 {
     if (!g_fake_prog_valid || !out)
     {
@@ -93,11 +93,11 @@ bool GetLastPROGHeader(PROG_Header *out)
 
 /* Record the run mode the shell arms via set_cpu_run_mode(). */
 static CPURunMode g_run_mode = CPU_STOPPED;
-void set_cpu_run_mode(CPURunMode new_mode)
+void cpu_set_run_mode(CPURunMode new_mode)
 {
     g_run_mode = new_mode;
 }
-CPURunMode get_cpu_run_mode(void)
+CPURunMode cpu_get_run_mode(void)
 {
     return g_run_mode;
 }

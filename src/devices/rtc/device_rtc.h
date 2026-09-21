@@ -116,7 +116,7 @@ typedef struct
  * @param thumbwheel Card thumbwheel; selects the IOX address block.
  * @return The new Device, or NULL on allocation failure.
  */
-Device *CreateRTCDevice(uint8_t thumbwheel);
+Device *rtc_create_device(uint8_t thumbwheel);
 
 /**
  * @brief Select the RTC time base: instruction ticks (default) or host wall
@@ -124,6 +124,6 @@ Device *CreateRTCDevice(uint8_t thumbwheel);
  *        the clock runs at a real 50 Hz regardless of emulation speed.
  * @param enable true selects wall-clock mode, false selects instruction-tick mode.
  */
-void RTC_SetWallClockMode(bool enable);
+void rtc_set_wall_clock_mode(bool enable);
 
 #endif // DEVICE_RTC_H

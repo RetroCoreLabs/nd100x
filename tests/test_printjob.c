@@ -54,7 +54,7 @@ static void feed_string(PrintJob *pj, const char *s)
 {
     for (const char *p = s; *p; p++)
     {
-        PrintJob_PutChar(pj, *p);
+        pj_put_char(pj, *p);
     }
 }
 
@@ -65,11 +65,11 @@ static int test_pj_text_txt(const char *tmpdir)
     char outdir[512];
     snprintf(outdir, sizeof(outdir), "%s/text_txt", tmpdir);
 
-    PrintJob *pj = PrintJob_Create(PJ_PRINTER_TEXT, PJ_FORMAT_TXT, outdir);
+    PrintJob *pj = pj_create(PJ_PRINTER_TEXT, PJ_FORMAT_TXT, outdir);
     assert(pj != NULL);
 
     feed_string(pj, "Hello\n");
-    PrintJob_Flush(pj);
+    pj_flush(pj);
 
     char path[600];
     snprintf(path, sizeof(path), "%s/print-1.txt", outdir);
@@ -81,7 +81,7 @@ static int test_pj_text_txt(const char *tmpdir)
     assert(strcmp(content, "Hello\n") == 0);
     free(content);
 
-    PrintJob_Destroy(pj);
+    pj_destroy(pj);
     return 0;
 }
 
@@ -90,11 +90,11 @@ static int test_pj_text_pdf(const char *tmpdir)
     char outdir[512];
     snprintf(outdir, sizeof(outdir), "%s/text_pdf", tmpdir);
 
-    PrintJob *pj = PrintJob_Create(PJ_PRINTER_TEXT, PJ_FORMAT_PDF, outdir);
+    PrintJob *pj = pj_create(PJ_PRINTER_TEXT, PJ_FORMAT_PDF, outdir);
     assert(pj != NULL);
 
     feed_string(pj, "Hello\nWorld\n");
-    PrintJob_Flush(pj);
+    pj_flush(pj);
 
     char path[600];
     snprintf(path, sizeof(path), "%s/print-1.pdf", outdir);
@@ -109,7 +109,7 @@ static int test_pj_text_pdf(const char *tmpdir)
     assert(strstr(content + sz - 10, "%%EOF") != NULL);
     free(content);
 
-    PrintJob_Destroy(pj);
+    pj_destroy(pj);
     return 0;
 }
 
@@ -118,17 +118,17 @@ static int test_pj_escp_txt(const char *tmpdir)
     char outdir[512];
     snprintf(outdir, sizeof(outdir), "%s/escp_txt", tmpdir);
 
-    PrintJob *pj = PrintJob_Create(PJ_PRINTER_ESCP, PJ_FORMAT_TXT, outdir);
+    PrintJob *pj = pj_create(PJ_PRINTER_ESCP, PJ_FORMAT_TXT, outdir);
     assert(pj != NULL);
 
     /* Feed: ESC E (bold on) + "Bold" + ESC F (bold off) + " text\n" */
-    PrintJob_PutChar(pj, 0x1B);
-    PrintJob_PutChar(pj, 'E');
+    pj_put_char(pj, 0x1B);
+    pj_put_char(pj, 'E');
     feed_string(pj, "Bold");
-    PrintJob_PutChar(pj, 0x1B);
-    PrintJob_PutChar(pj, 'F');
+    pj_put_char(pj, 0x1B);
+    pj_put_char(pj, 'F');
     feed_string(pj, " text\n");
-    PrintJob_Flush(pj);
+    pj_flush(pj);
 
     char path[600];
     snprintf(path, sizeof(path), "%s/print-1.txt", outdir);
@@ -141,7 +141,7 @@ static int test_pj_escp_txt(const char *tmpdir)
     assert(strcmp(content, "Bold text\n") == 0);
     free(content);
 
-    PrintJob_Destroy(pj);
+    pj_destroy(pj);
     return 0;
 }
 
@@ -150,15 +150,15 @@ static int test_pj_escp_pdf(const char *tmpdir)
     char outdir[512];
     snprintf(outdir, sizeof(outdir), "%s/escp_pdf", tmpdir);
 
-    PrintJob *pj = PrintJob_Create(PJ_PRINTER_ESCP, PJ_FORMAT_PDF, outdir);
+    PrintJob *pj = pj_create(PJ_PRINTER_ESCP, PJ_FORMAT_PDF, outdir);
     assert(pj != NULL);
 
     /* Feed: ESC E (bold on) + "Bold" + LF */
-    PrintJob_PutChar(pj, 0x1B);
-    PrintJob_PutChar(pj, 'E');
+    pj_put_char(pj, 0x1B);
+    pj_put_char(pj, 'E');
     feed_string(pj, "Bold");
-    PrintJob_PutChar(pj, 0x0A); /* LF */
-    PrintJob_Flush(pj);
+    pj_put_char(pj, 0x0A); /* LF */
+    pj_flush(pj);
 
     char path[600];
     snprintf(path, sizeof(path), "%s/print-1.pdf", outdir);
@@ -172,7 +172,7 @@ static int test_pj_escp_pdf(const char *tmpdir)
     assert(memcmp(content, "%PDF-1.4", 8) == 0);
     free(content);
 
-    PrintJob_Destroy(pj);
+    pj_destroy(pj);
     return 0;
 }
 
@@ -181,20 +181,20 @@ static int test_pj_job_numbering(const char *tmpdir)
     char outdir[512];
     snprintf(outdir, sizeof(outdir), "%s/numbering", tmpdir);
 
-    PrintJob *pj = PrintJob_Create(PJ_PRINTER_TEXT, PJ_FORMAT_TXT, outdir);
+    PrintJob *pj = pj_create(PJ_PRINTER_TEXT, PJ_FORMAT_TXT, outdir);
     assert(pj != NULL);
 
     /* Job 1 */
     feed_string(pj, "Job1\n");
-    PrintJob_Flush(pj);
+    pj_flush(pj);
 
     /* Job 2 */
     feed_string(pj, "Job2\n");
-    PrintJob_Flush(pj);
+    pj_flush(pj);
 
     /* Job 3 */
     feed_string(pj, "Job3\n");
-    PrintJob_Flush(pj);
+    pj_flush(pj);
 
     char path[600];
     snprintf(path, sizeof(path), "%s/print-1.txt", outdir);
@@ -218,7 +218,7 @@ static int test_pj_job_numbering(const char *tmpdir)
     assert(strcmp(c1, "Job1\n") == 0);
     free(c1);
 
-    PrintJob_Destroy(pj);
+    pj_destroy(pj);
     return 0;
 }
 
@@ -227,16 +227,16 @@ static int test_pj_formfeed_split(const char *tmpdir)
     char outdir[512];
     snprintf(outdir, sizeof(outdir), "%s/ff_split", tmpdir);
 
-    PrintJob *pj = PrintJob_Create(PJ_PRINTER_TEXT, PJ_FORMAT_TXT, outdir);
+    PrintJob *pj = pj_create(PJ_PRINTER_TEXT, PJ_FORMAT_TXT, outdir);
     assert(pj != NULL);
 
     /* Form feed in text+txt mode triggers job flush */
     feed_string(pj, "Page1");
-    PrintJob_PutChar(pj, '\f');
+    pj_put_char(pj, '\f');
     /* That should have flushed job 1 */
 
     feed_string(pj, "Page2\n");
-    PrintJob_Flush(pj);
+    pj_flush(pj);
 
     char path[600];
     snprintf(path, sizeof(path), "%s/print-1.txt", outdir);
@@ -260,7 +260,7 @@ static int test_pj_formfeed_split(const char *tmpdir)
     assert(strcmp(c2, "Page2\n") == 0);
     free(c2);
 
-    PrintJob_Destroy(pj);
+    pj_destroy(pj);
     return 0;
 }
 
@@ -269,16 +269,16 @@ static int test_pj_check_timeout(const char *tmpdir)
     char outdir[512];
     snprintf(outdir, sizeof(outdir), "%s/timeout", tmpdir);
 
-    PrintJob *pj = PrintJob_Create(PJ_PRINTER_TEXT, PJ_FORMAT_TXT, outdir);
+    PrintJob *pj = pj_create(PJ_PRINTER_TEXT, PJ_FORMAT_TXT, outdir);
     assert(pj != NULL);
 
     feed_string(pj, "Data");
 
     /* Immediately after writing, timeout should NOT have elapsed */
-    bool timed_out = PrintJob_CheckTimeout(pj);
+    bool timed_out = pj_check_timeout(pj);
     assert(!timed_out);
 
-    PrintJob_Destroy(pj);
+    pj_destroy(pj);
     return 0;
 }
 
@@ -287,12 +287,12 @@ static int test_pj_destroy_flushes(const char *tmpdir)
     char outdir[512];
     snprintf(outdir, sizeof(outdir), "%s/destroy_flush", tmpdir);
 
-    PrintJob *pj = PrintJob_Create(PJ_PRINTER_TEXT, PJ_FORMAT_TXT, outdir);
+    PrintJob *pj = pj_create(PJ_PRINTER_TEXT, PJ_FORMAT_TXT, outdir);
     assert(pj != NULL);
 
     feed_string(pj, "Pending\n");
     /* Don't call Flush - Destroy should do it */
-    PrintJob_Destroy(pj);
+    pj_destroy(pj);
 
     char path[600];
     snprintf(path, sizeof(path), "%s/print-1.txt", outdir);

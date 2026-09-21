@@ -50,13 +50,13 @@ const uint8_t g_odd_parity_table[PARITY_TABLE_SIZE] = {
     1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0};
 
 // Helper function to get odd parity for a value
-uint8_t Device_GetOddParity(uint8_t value)
+uint8_t dev_get_odd_parity(uint8_t value)
 {
     return g_odd_parity_table[value];
 }
 
 
-void Device_Init(Device *dev, uint8_t thumbwheel, DeviceClass device_class, size_t block_size)
+void dev_init(Device *dev, uint8_t thumbwheel, DeviceClass device_class, size_t block_size)
 {
     (void)thumbwheel;
     if (!dev)
@@ -105,7 +105,7 @@ void Device_Init(Device *dev, uint8_t thumbwheel, DeviceClass device_class, size
     }
 }
 
-void Device_Destroy(Device *dev)
+void dev_destroy(Device *dev)
 {
     if (!dev)
     {
@@ -131,7 +131,7 @@ void Device_Destroy(Device *dev)
     }
 }
 
-void Device_Reset(Device *dev)
+void dev_reset(Device *dev)
 {
     if (!dev || !dev->Reset)
     {
@@ -140,7 +140,7 @@ void Device_Reset(Device *dev)
     dev->Reset(dev);
 }
 
-uint16_t Device_Tick(Device *dev)
+uint16_t dev_tick(Device *dev)
 {
     if (!dev || !dev->Tick)
     {
@@ -151,7 +151,7 @@ uint16_t Device_Tick(Device *dev)
 
 // Loads boot code from the given unit on this controller to memory.
 // Returns the boot address, or -1 if error
-int32_t Device_Boot(Device *dev, int unit)
+int32_t dev_boot(Device *dev, int unit)
 {
     if (!dev)
     {
@@ -165,7 +165,7 @@ int32_t Device_Boot(Device *dev, int unit)
     return dev->Boot(dev, unit);
 }
 
-bool Device_IsInAddress(Device *dev, uint32_t address)
+bool dev_is_in_address(Device *dev, uint32_t address)
 {
     if (!dev)
     {
@@ -174,7 +174,7 @@ bool Device_IsInAddress(Device *dev, uint32_t address)
     return (address >= dev->startAddress && address <= dev->endAddress);
 }
 
-uint32_t Device_RegisterAddress(Device *dev, uint32_t address)
+uint32_t dev_register_address(Device *dev, uint32_t address)
 {
     if (!dev)
     {
@@ -183,7 +183,7 @@ uint32_t Device_RegisterAddress(Device *dev, uint32_t address)
     return address - dev->startAddress;
 }
 
-uint16_t Device_Read(Device *dev, uint32_t address)
+uint16_t dev_read(Device *dev, uint32_t address)
 {
     if (!dev || !dev->Read)
     {
@@ -192,7 +192,7 @@ uint16_t Device_Read(Device *dev, uint32_t address)
     return dev->Read(dev, address);
 }
 
-void Device_Write(Device *dev, uint32_t address, uint16_t value)
+void dev_write(Device *dev, uint32_t address, uint16_t value)
 {
     if (!dev || !dev->Write)
     {
@@ -201,7 +201,7 @@ void Device_Write(Device *dev, uint32_t address, uint16_t value)
     dev->Write(dev, address, value);
 }
 
-uint16_t Device_Ident(Device *dev, uint16_t level)
+uint16_t dev_ident(Device *dev, uint16_t level)
 {
     if (!dev || !dev->Ident)
     {
@@ -210,8 +210,8 @@ uint16_t Device_Ident(Device *dev, uint16_t level)
     return dev->Ident(dev, level);
 }
 
-void Device_QueueIODelay(Device *dev, uint16_t ticks, IODelayedCallback cb, int param,
-                         uint8_t irqlevel)
+void dev_queue_io_delay(Device *dev, uint16_t ticks, IODelayedCallback cb, int param,
+                        uint8_t irqlevel)
 {
     if (!dev || !dev->ioDelays)
     {
@@ -241,7 +241,7 @@ void Device_QueueIODelay(Device *dev, uint16_t ticks, IODelayedCallback cb, int 
     delay->level = irqlevel;
 }
 
-void Device_TickIODelay(Device *dev)
+void dev_tick_io_delay(Device *dev)
 {
     if (!dev || !dev->ioDelays)
     {
@@ -258,7 +258,7 @@ void Device_TickIODelay(Device *dev)
             bool triggered = delay->callback(delay->context, delay->parameter);
             if (triggered && delay->level > 0)
             {
-                Device_GenerateInterrupt(dev, delay->level);
+                dev_generate_interrupt(dev, delay->level);
             }
             // Remove this delay by shifting remaining ones
             memmove(&dev->ioDelays[i], &dev->ioDelays[i + 1],
@@ -285,7 +285,7 @@ static void device_clear_interrupt(Device *dev, uint16_t level)
     }
 }
 
-void Device_GenerateInterrupt(Device *dev, uint16_t level)
+void dev_generate_interrupt(Device *dev, uint16_t level)
 {
     if (!dev)
     {
@@ -301,7 +301,7 @@ void Device_GenerateInterrupt(Device *dev, uint16_t level)
     }
 }
 
-void Device_SetInterruptStatus(Device *dev, bool active, uint16_t level)
+void dev_set_interrupt_status(Device *dev, bool active, uint16_t level)
 {
     if (!dev)
     {
@@ -310,7 +310,7 @@ void Device_SetInterruptStatus(Device *dev, bool active, uint16_t level)
 
     if (active)
     {
-        Device_GenerateInterrupt(dev, level);
+        dev_generate_interrupt(dev, level);
     }
     else
     {
@@ -318,7 +318,7 @@ void Device_SetInterruptStatus(Device *dev, bool active, uint16_t level)
     }
 }
 
-int32_t Device_IO_Seek(Device *dev, FILE *f, int64_t offset)
+int32_t dev_io_seek(Device *dev, FILE *f, int64_t offset)
 {
     (void)dev;
     if (!f)
@@ -329,7 +329,7 @@ int32_t Device_IO_Seek(Device *dev, FILE *f, int64_t offset)
 }
 
 
-int32_t Device_IO_ReadWord(Device *dev, FILE *f)
+int32_t dev_io_read_word(Device *dev, FILE *f)
 {
     (void)dev;
     if (!f)
@@ -354,7 +354,7 @@ int32_t Device_IO_ReadWord(Device *dev, FILE *f)
     return (hi << 8) | lo;
 }
 
-int32_t Device_IO_BufferReadWord(Device *dev, uint8_t *buf, int32_t word_offset)
+int32_t dev_io_buffer_read_word(Device *dev, uint8_t *buf, int32_t word_offset)
 {
     (void)dev;
     if (!buf)
@@ -382,7 +382,7 @@ int32_t Device_IO_BufferReadWord(Device *dev, uint8_t *buf, int32_t word_offset)
 }
 
 
-int32_t Device_IO_WriteWord(Device *dev, FILE *f, uint16_t data)
+int32_t dev_io_write_word(Device *dev, FILE *f, uint16_t data)
 {
     (void)dev;
     if (!f)
@@ -405,7 +405,7 @@ int32_t Device_IO_WriteWord(Device *dev, FILE *f, uint16_t data)
     return 0;
 }
 
-int32_t Device_IO_BufferWriteWord(Device *dev, uint8_t *buf, int32_t word_offset, uint16_t data)
+int32_t dev_io_buffer_write_word(Device *dev, uint8_t *buf, int32_t word_offset, uint16_t data)
 {
     (void)dev;
     if (!buf)
@@ -427,17 +427,17 @@ int32_t Device_IO_BufferWriteWord(Device *dev, uint8_t *buf, int32_t word_offset
 // DMA bypasses shadow memory (page tables) - it's a physical bus transfer.
 // Set g_dma_access so IsAddressShadowMemory skips the shadow check.
 
-void Device_DMAWrite(uint32_t core_address, uint16_t data)
+void dev_dma_write(uint32_t core_address, uint16_t data)
 {
     g_dma_access = true;
-    WritePhysicalMemory(core_address & 0xFFFFFF, data, false);
+    mms_write_physical_memory(core_address & 0xFFFFFF, data, false);
     g_dma_access = false;
 }
 
-int32_t Device_DMARead(uint32_t core_address)
+int32_t dev_dma_read(uint32_t core_address)
 {
     g_dma_access = true;
-    int32_t result = ReadPhysicalMemory(core_address & 0xFFFFFF, false);
+    int32_t result = mms_read_physical_memory(core_address & 0xFFFFFF, false);
     g_dma_access = false;
     return result;
 }
@@ -445,7 +445,7 @@ int32_t Device_DMARead(uint32_t core_address)
 // Character Device Functions
 
 // Set character device output handler
-void Device_SetCharacterOutput(Device *dev, CharacterDeviceOutputFunc output_func)
+void dev_set_character_output(Device *dev, CharacterDeviceOutputFunc output_func)
 {
     if (!dev || dev->deviceClass != DEVICE_CLASS_CHARACTER)
     {
@@ -456,7 +456,7 @@ void Device_SetCharacterOutput(Device *dev, CharacterDeviceOutputFunc output_fun
 }
 
 // Set character device input handler
-void Device_SetCharacterInput(Device *dev, CharacterDeviceInputFunc input_func)
+void dev_set_character_input(Device *dev, CharacterDeviceInputFunc input_func)
 {
     if (!dev || dev->deviceClass != DEVICE_CLASS_CHARACTER)
     {
@@ -467,7 +467,7 @@ void Device_SetCharacterInput(Device *dev, CharacterDeviceInputFunc input_func)
 }
 
 // Output a character from the device
-void Device_OutputCharacter(Device *dev, char c)
+void dev_output_character(Device *dev, char c)
 {
     if (!dev || dev->deviceClass != DEVICE_CLASS_CHARACTER || !dev->charCallbacks.outputFunc)
     {
@@ -478,7 +478,7 @@ void Device_OutputCharacter(Device *dev, char c)
 }
 
 // Input a character to the device
-void Device_InputCharacter(Device *dev, char c)
+void dev_input_character(Device *dev, char c)
 {
     if (!dev || dev->deviceClass != DEVICE_CLASS_CHARACTER || !dev->charCallbacks.inputFunc)
     {
@@ -491,7 +491,7 @@ void Device_InputCharacter(Device *dev, char c)
 // Block Device Functions
 
 // Set block device read handler
-void Device_SetBlockRead(Device *dev, BlockDeviceReadFunc read_func, void *user_data)
+void dev_set_block_read(Device *dev, BlockDeviceReadFunc read_func, void *user_data)
 {
     if (!dev || dev->deviceClass != DEVICE_CLASS_BLOCK)
     {
@@ -503,7 +503,7 @@ void Device_SetBlockRead(Device *dev, BlockDeviceReadFunc read_func, void *user_
 }
 
 // Set block device write handler
-void Device_SetBlockWrite(Device *dev, BlockDeviceWriteFunc write_func, void *user_data)
+void dev_set_block_write(Device *dev, BlockDeviceWriteFunc write_func, void *user_data)
 {
     if (!dev || dev->deviceClass != DEVICE_CLASS_BLOCK)
     {
@@ -518,7 +518,7 @@ void Device_SetBlockWrite(Device *dev, BlockDeviceWriteFunc write_func, void *us
 }
 
 // Set block device disk info handler
-void Device_SetBlockDiskInfo(Device *dev, BlockDeviceDiskInfoFunc info_func, void *user_data)
+void dev_set_block_disk_info(Device *dev, BlockDeviceDiskInfoFunc info_func, void *user_data)
 {
     if (!dev || dev->deviceClass != DEVICE_CLASS_BLOCK)
     {
@@ -532,7 +532,7 @@ void Device_SetBlockDiskInfo(Device *dev, BlockDeviceDiskInfoFunc info_func, voi
 }
 
 // Read blocks from the device; returns number of blocks read, or -1 on error
-int Device_ReadBlock(Device *dev, uint8_t *buffer, size_t size, uint32_t block_address, int unit)
+int dev_read_block(Device *dev, uint8_t *buffer, size_t size, uint32_t block_address, int unit)
 {
     if (!dev || dev->deviceClass != DEVICE_CLASS_BLOCK || !dev->blockCallbacks.readFunc || !buffer)
     {
@@ -544,8 +544,8 @@ int Device_ReadBlock(Device *dev, uint8_t *buffer, size_t size, uint32_t block_a
 }
 
 // Write blocks to the device; returns number of blocks written, or -1 on error
-int Device_WriteBlock(Device *dev, const uint8_t *buffer, size_t size, uint32_t block_address,
-                      int unit)
+int dev_write_block(Device *dev, const uint8_t *buffer, size_t size, uint32_t block_address,
+                    int unit)
 {
     if (!dev || dev->deviceClass != DEVICE_CLASS_BLOCK || !dev->blockCallbacks.writeFunc || !buffer)
     {

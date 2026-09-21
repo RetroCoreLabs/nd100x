@@ -57,7 +57,7 @@ static int pending_set;
 static uint8_t fake_disk[FAKE_DISK_BLOCKS * FAKE_BLOCK_BYTES];
 static int disk_attached = 1;
 
-void Device_Init(Device *dev, uint8_t thumbwheel, DeviceClass device_class, size_t block_size)
+void dev_init(Device *dev, uint8_t thumbwheel, DeviceClass device_class, size_t block_size)
 {
     (void)thumbwheel;
     memset(dev, 0, sizeof(Device));
@@ -65,7 +65,7 @@ void Device_Init(Device *dev, uint8_t thumbwheel, DeviceClass device_class, size
     dev->blockSizeBytes = block_size;
 }
 
-void Device_DMAWrite(uint32_t core_address, uint16_t data)
+void dev_dma_write(uint32_t core_address, uint16_t data)
 {
     if (core_address < FAKE_MEM_WORDS)
     {
@@ -73,7 +73,7 @@ void Device_DMAWrite(uint32_t core_address, uint16_t data)
     }
 }
 
-int32_t Device_DMARead(uint32_t core_address)
+int32_t dev_dma_read(uint32_t core_address)
 {
     if (core_address < FAKE_MEM_WORDS)
     {
@@ -82,8 +82,8 @@ int32_t Device_DMARead(uint32_t core_address)
     return 0;
 }
 
-void Device_QueueIODelay(Device *dev, uint16_t ticks, IODelayedCallback cb, int param,
-                         uint8_t irqlevel)
+void dev_queue_io_delay(Device *dev, uint16_t ticks, IODelayedCallback cb, int param,
+                        uint8_t irqlevel)
 {
     (void)ticks;
     pending_cb = cb;
@@ -93,7 +93,7 @@ void Device_QueueIODelay(Device *dev, uint16_t ticks, IODelayedCallback cb, int 
     pending_set = 1;
 }
 
-void Device_TickIODelay(Device *dev)
+void dev_tick_io_delay(Device *dev)
 {
     if (!pending_set)
     {
@@ -106,7 +106,7 @@ void Device_TickIODelay(Device *dev)
     }
 }
 
-void Device_SetInterruptStatus(Device *dev, bool active, uint16_t level)
+void dev_set_interrupt_status(Device *dev, bool active, uint16_t level)
 {
     if (active)
     {
@@ -118,20 +118,20 @@ void Device_SetInterruptStatus(Device *dev, bool active, uint16_t level)
     }
 }
 
-uint32_t Device_RegisterAddress(Device *dev, uint32_t address)
+uint32_t dev_register_address(Device *dev, uint32_t address)
 {
     return address - dev->startAddress;
 }
 
 /* Big-endian word packing, matching the real Device_IO_Buffer* helpers:
  * word w = { byte 2w, byte 2w+1 }. */
-int32_t Device_IO_BufferReadWord(Device *dev, uint8_t *buf, int32_t word_offset)
+int32_t dev_io_buffer_read_word(Device *dev, uint8_t *buf, int32_t word_offset)
 {
     (void)dev;
     return (int32_t)(((uint16_t)buf[word_offset * 2] << 8) | buf[word_offset * 2 + 1]);
 }
 
-int32_t Device_IO_BufferWriteWord(Device *dev, uint8_t *buf, int32_t word_offset, uint16_t data)
+int32_t dev_io_buffer_write_word(Device *dev, uint8_t *buf, int32_t word_offset, uint16_t data)
 {
     (void)dev;
     buf[word_offset * 2] = (uint8_t)(data >> 8);
@@ -245,7 +245,7 @@ int main(void)
 {
     printf("=== Winchester disc controller tests ===\n");
 
-    Device *dev = CreateWinchesterDevice(0);
+    Device *dev = wd_create_winchester_device(0);
     CHECK(dev != NULL, "device created");
     if (!dev)
     {
@@ -265,7 +265,7 @@ int main(void)
     CHECK(data->regs.maxUnits == 2, "two units - unit select is ONE control-word bit");
 
     /* Disk system 2 answers 510-517 with ident 5. */
-    Device *dev2 = CreateWinchesterDevice(1);
+    Device *dev2 = wd_create_winchester_device(1);
     CHECK(dev2 != NULL && dev2->startAddress == 0510 && dev2->identCode == 005,
           "disk system 2 at 510 ident 5");
     if (dev2)
@@ -341,7 +341,7 @@ int main(void)
         CHECK(fake_mem[0x1000 + 512] == 0, "M0 read: did not overrun the word count");
 
         /* The operation completes on the queued delay, not instantly. */
-        Device_TickIODelay(dev);
+        dev_tick_io_delay(dev);
         uint16_t st = status(dev);
         CHECK((st & ST_ACTIVE) == 0, "M0: controller not active after completion");
         CHECK((st & ST_FINISHED) != 0, "M0: finished bit set");
@@ -363,7 +363,7 @@ int main(void)
         wr(dev, R_LOAD_BA, 0);
         wr(dev, R_LOAD_WC, 512);
         wr(dev, R_LOAD_CW, CW_ACTIVATE | (WD_OP_WRITE_TRANSFER << CW_OP_SHIFT));
-        Device_TickIODelay(dev);
+        dev_tick_io_delay(dev);
 
         uint16_t w0 = (uint16_t)((fake_disk[0] << 8) | fake_disk[1]);
         uint16_t wl = (uint16_t)((fake_disk[1022] << 8) | fake_disk[1023]);
@@ -379,13 +379,13 @@ int main(void)
         /* bit 14 = 0 -> towards cylinder 0 */
         wr(dev, R_LOAD_WC, 10); /* step count */
         wr(dev, R_LOAD_CW, CW_ACTIVATE | (WD_OP_SEEK << CW_OP_SHIFT));
-        Device_TickIODelay(dev);
+        dev_tick_io_delay(dev);
         CHECK(data->regs.disks[0].cylinder == 90, "M4 with bit 14 = 0 steps TOWARDS cylinder 0");
 
         /* bit 14 = 1 -> away from cylinder 0 */
         wr(dev, R_LOAD_WC, 5);
         wr(dev, R_LOAD_CW, CW_ACTIVATE | CW_DIRECTION | (WD_OP_SEEK << CW_OP_SHIFT));
-        Device_TickIODelay(dev);
+        dev_tick_io_delay(dev);
         CHECK(data->regs.disks[0].cylinder == 95, "M4 with bit 14 = 1 steps AWAY from cylinder 0");
 
         /* Seeking past cylinder 0 clamps the CYLINDER, and must not disturb
@@ -393,7 +393,7 @@ int main(void)
         uint8_t head_before = data->regs.head;
         wr(dev, R_LOAD_WC, 1000);
         wr(dev, R_LOAD_CW, CW_ACTIVATE | (WD_OP_SEEK << CW_OP_SHIFT));
-        Device_TickIODelay(dev);
+        dev_tick_io_delay(dev);
         CHECK(data->regs.disks[0].cylinder == 0, "M4 clamps at cylinder 0");
         CHECK(data->regs.head == head_before, "M4 clamp does not corrupt the head register");
     }
@@ -402,7 +402,7 @@ int main(void)
     {
         data->regs.disks[0].cylinder = 400;
         wr(dev, R_LOAD_CW, CW_ACTIVATE | (WD_OP_RETURN_TO_ZERO << CW_OP_SHIFT));
-        Device_TickIODelay(dev);
+        dev_tick_io_delay(dev);
         CHECK(data->regs.disks[0].cylinder == 0, "M7 returns the arm to cylinder 0");
     }
 
@@ -526,7 +526,7 @@ int main(void)
               "activation itself does not interrupt - completion does");
 
         /* The operation completes on the queued delay, not instantly. */
-        Device_TickIODelay(dev);
+        dev_tick_io_delay(dev);
         st = status(dev);
         CHECK((st & ST_ACTIVE) == 0 && (st & ST_FINISHED) != 0,
               "the transfer completed and the card is ready again");

@@ -110,55 +110,55 @@ typedef struct
  * @brief Initialize a HdlcDCB structure to default values
  * @param dcb Pointer to HdlcDCB structure to initialize
  */
-void DCB_Init(HdlcDCB *dcb);
+void dcb_init(HdlcDCB *dcb);
 
 /**
  * @brief Clear a HdlcDCB structure (same as Init)
  * @param dcb Pointer to HdlcDCB structure to clear
  */
-void DCB_Clear(HdlcDCB *dcb);
+void dcb_clear(HdlcDCB *dcb);
 
 /**
  * @brief Get the Key flags from the KeyValue
  * @param dcb Pointer to HdlcDCB structure
  * @return Key flags masked with KEYFLAG_MASK_KEY
  */
-KeyFlags DCB_GetKey(const HdlcDCB *dcb);
+KeyFlags dcb_get_key(const HdlcDCB *dcb);
 
 /**
  * @brief Check if HdlcDCB has Receiver Start of Message flag
  * @param dcb Pointer to HdlcDCB structure
  * @return true if RSOM flag is set, false otherwise
  */
-bool DCB_HasRSOMFlag(const HdlcDCB *dcb);
+bool dcb_has_rsom_flag(const HdlcDCB *dcb);
 
 /**
  * @brief Check if HdlcDCB has Receiver End of Message flag
  * @param dcb Pointer to HdlcDCB structure
  * @return true if REOM flag is set, false otherwise
  */
-bool DCB_HasREOMFlag(const HdlcDCB *dcb);
+bool dcb_has_reom_flag(const HdlcDCB *dcb);
 
 /**
  * @brief Get the DataFlow Cost from KeyValue
  * @param dcb Pointer to HdlcDCB structure
  * @return DataFlow Cost value
  */
-uint16_t DCB_GetDataFlowCost(const HdlcDCB *dcb);
+uint16_t dcb_get_data_flow_cost(const HdlcDCB *dcb);
 
 /**
  * @brief Get the combined 24-bit data memory address
  * @param dcb Pointer to HdlcDCB structure
  * @return Combined address from mostAddress and leastAddress
  */
-uint32_t DCB_GetDataMemoryAddress(const HdlcDCB *dcb);
+uint32_t dcb_get_data_memory_address(const HdlcDCB *dcb);
 
 /**
  * @brief Set the 24-bit data memory address
  * @param dcb Pointer to HdlcDCB structure
  * @param address 24-bit address to set
  */
-void DCB_SetDataMemoryAddress(HdlcDCB *dcb, uint32_t address);
+void dcb_set_data_memory_address(HdlcDCB *dcb, uint32_t address);
 
 // Accessor functions
 
@@ -167,84 +167,84 @@ void DCB_SetDataMemoryAddress(HdlcDCB *dcb, uint32_t address);
  * @param dcb Descriptor to modify.
  * @param address Memory address of the buffer.
  */
-void DCB_SetBufferAddress(HdlcDCB *dcb, uint32_t address);
+void dcb_set_buffer_address(HdlcDCB *dcb, uint32_t address);
 
 /**
  * @brief Get the memory address this buffer description was loaded from.
  * @param dcb Descriptor to read.
  * @return bufferAddress field, or 0 if dcb is NULL.
  */
-uint32_t DCB_GetBufferAddress(const HdlcDCB *dcb);
+uint32_t dcb_get_buffer_address(const HdlcDCB *dcb);
 
 /**
  * @brief Set the buffer's offset (in 4-word blocks) from the list pointer.
  * @param dcb Descriptor to modify.
  * @param offset Offset value to store.
  */
-void DCB_SetOffsetFromLP(HdlcDCB *dcb, uint16_t offset);
+void dcb_set_offset_from_lp(HdlcDCB *dcb, uint16_t offset);
 
 /**
  * @brief Get the buffer's offset (in 4-word blocks) from the list pointer.
  * @param dcb Descriptor to read.
  * @return offsetFromLP field, or 0 if dcb is NULL.
  */
-uint16_t DCB_GetOffsetFromLP(const HdlcDCB *dcb);
+uint16_t dcb_get_offset_from_lp(const HdlcDCB *dcb);
 
 /**
  * @brief Set the raw KEY value (flags plus control information).
  * @param dcb Descriptor to modify.
  * @param keyValue Raw key value to store.
  */
-void DCB_SetKeyValue(HdlcDCB *dcb, uint16_t key_value);
+void dcb_set_key_value(HdlcDCB *dcb, uint16_t key_value);
 
 /**
  * @brief Get the raw KEY value (flags plus control information).
  * @param dcb Descriptor to read.
  * @return keyValue field, or 0 if dcb is NULL.
  */
-uint16_t DCB_GetKeyValue(const HdlcDCB *dcb);
+uint16_t dcb_get_key_value(const HdlcDCB *dcb);
 
 /**
  * @brief Set the byte count (number of information bytes).
  * @param dcb Descriptor to modify.
  * @param byteCount Byte count to store.
  */
-void DCB_SetByteCount(HdlcDCB *dcb, uint16_t byte_count);
+void dcb_set_byte_count(HdlcDCB *dcb, uint16_t byte_count);
 
 /**
  * @brief Get the byte count (number of information bytes).
  * @param dcb Descriptor to read.
  * @return byteCount field, or 0 if dcb is NULL.
  */
-uint16_t DCB_GetByteCount(const HdlcDCB *dcb);
+uint16_t dcb_get_byte_count(const HdlcDCB *dcb);
 
 /**
  * @brief Set the Displacement1/Displacement2 value applied to this buffer.
  * @param dcb Descriptor to modify.
  * @param displacement Displacement value, in bytes.
  */
-void DCB_SetDisplacement(HdlcDCB *dcb, uint16_t displacement);
+void dcb_set_displacement(HdlcDCB *dcb, uint16_t displacement);
 
 /**
  * @brief Get the Displacement1/Displacement2 value applied to this buffer.
  * @param dcb Descriptor to read.
  * @return displacement field, or 0 if dcb is NULL.
  */
-uint16_t DCB_GetDisplacement(const HdlcDCB *dcb);
+uint16_t dcb_get_displacement(const HdlcDCB *dcb);
 
 /**
  * @brief Set the list pointer value (start-of-list address this buffer belongs to).
  * @param dcb Descriptor to modify.
  * @param listPointer List pointer value to store.
  */
-void DCB_SetListPointer(HdlcDCB *dcb, uint32_t list_pointer);
+void dcb_set_list_pointer(HdlcDCB *dcb, uint32_t list_pointer);
 
 /**
  * @brief Get the list pointer value (start-of-list address this buffer belongs to).
  * @param dcb Descriptor to read.
  * @return listPointer field, or 0 if dcb is NULL.
  */
-uint32_t DCB_GetListPointer(const HdlcDCB *dcb);
+uint32_t dcb_get_list_pointer(const HdlcDCB *dcb);
 
 // DMA helper functions
 
@@ -253,68 +253,68 @@ uint32_t DCB_GetListPointer(const HdlcDCB *dcb);
  * @param dcb Descriptor to modify.
  * @param address Memory address to store.
  */
-void DCB_SetDMAAddress(HdlcDCB *dcb, uint32_t address);
+void dcb_set_dma_address(HdlcDCB *dcb, uint32_t address);
 
 /**
  * @brief Get the memory address to use for the next DMA read/write.
  * @param dcb Descriptor to read.
  * @return dmaAddress field, or 0 if dcb is NULL.
  */
-uint32_t DCB_GetDMAAddress(const HdlcDCB *dcb);
+uint32_t dcb_get_dma_address(const HdlcDCB *dcb);
 
 /**
  * @brief Set the count of bytes read so far during this buffer's DMA transfer.
  * @param dcb Descriptor to modify.
  * @param bytesRead Byte count to store.
  */
-void DCB_SetDMABytesRead(HdlcDCB *dcb, int bytes_read);
+void dcb_set_dma_bytes_read(HdlcDCB *dcb, int bytes_read);
 
 /**
  * @brief Get the count of bytes read so far during this buffer's DMA transfer.
  * @param dcb Descriptor to read.
  * @return dmaBytesRead field, or 0 if dcb is NULL.
  */
-int DCB_GetDMABytesRead(const HdlcDCB *dcb);
+int dcb_get_dma_bytes_read(const HdlcDCB *dcb);
 
 /**
  * @brief Set the count of bytes written so far during this buffer's DMA transfer.
  * @param dcb Descriptor to modify.
  * @param bytesWritten Byte count to store.
  */
-void DCB_SetDMABytesWritten(HdlcDCB *dcb, int bytes_written);
+void dcb_set_dma_bytes_written(HdlcDCB *dcb, int bytes_written);
 
 /**
  * @brief Get the count of bytes written so far during this buffer's DMA transfer.
  * @param dcb Descriptor to read.
  * @return dmaBytesWritten field, or 0 if dcb is NULL.
  */
-int DCB_GetDMABytesWritten(const HdlcDCB *dcb);
+int dcb_get_dma_bytes_written(const HdlcDCB *dcb);
 
 /**
  * @brief Set the last 16-bit word read from ND memory for this buffer.
  * @param dcb Descriptor to modify.
  * @param data Word value to store, or -1 to mark as not read.
  */
-void DCB_SetDMAReadData(HdlcDCB *dcb, int data);
+void dcb_set_dma_read_data(HdlcDCB *dcb, int data);
 
 /**
  * @brief Get the last 16-bit word read from ND memory for this buffer.
  * @param dcb Descriptor to read.
  * @return dmaReadData field, or -1 if dcb is NULL or the data was not read.
  */
-int DCB_GetDMAReadData(const HdlcDCB *dcb);
+int dcb_get_dma_read_data(const HdlcDCB *dcb);
 
 /**
  * @brief Check whether a DMA read word is cached (dmaReadData != -1).
  * @param dcb Descriptor to read.
  * @return true if a read word is cached, false otherwise (including on NULL dcb).
  */
-bool DCB_IsDMAReadDataValid(const HdlcDCB *dcb);
+bool dcb_is_dma_read_data_valid(const HdlcDCB *dcb);
 
 /**
  * @brief Reset the cached DMA read word to -1 (not read).
  * @param dcb Descriptor to modify.
  */
-void DCB_ClearDMAReadData(HdlcDCB *dcb);
+void dcb_clear_dma_read_data(HdlcDCB *dcb);
 
 #endif // DMA_DCB_H

@@ -74,7 +74,7 @@ static uint16_t line_printer_read(Device *self, uint32_t address)
 
     LinePrinterData *data = (LinePrinterData *)self->deviceData;
     uint16_t value = 0;
-    uint32_t reg = Device_RegisterAddress(self, address);
+    uint32_t reg = dev_register_address(self, address);
 
     switch (reg)
     {
@@ -101,7 +101,7 @@ static void line_printer_write(Device *self, uint32_t address, uint16_t value)
     }
 
     LinePrinterData *data = (LinePrinterData *)self->deviceData;
-    uint32_t reg = Device_RegisterAddress(self, address);
+    uint32_t reg = dev_register_address(self, address);
 
     switch (reg)
     {
@@ -111,7 +111,7 @@ static void line_printer_write(Device *self, uint32_t address, uint16_t value)
         // Matches C# reference: no status changes, printer is always instantly ready
         char c = (char)(value & 0x7F);
         data->characterBuffer = c;
-        Device_OutputCharacter(self, c);
+        dev_output_character(self, c);
         break;
     }
 
@@ -130,7 +130,7 @@ static void line_printer_write(Device *self, uint32_t address, uint16_t value)
         else
         {
             data->statusRegister.bits.interruptEnabled = 0;
-            Device_SetInterruptStatus(self, false, self->interruptLevel);
+            dev_set_interrupt_status(self, false, self->interruptLevel);
         }
 
         // Bit 2: Activate
@@ -147,10 +147,10 @@ static void line_printer_write(Device *self, uint32_t address, uint16_t value)
         data->statusRegister.bits.readyForTransfer = 1;
 
         // If IE is set AND ready, raise interrupt
-        Device_SetInterruptStatus(self,
-                                  data->statusRegister.bits.interruptEnabled &&
-                                      data->statusRegister.bits.readyForTransfer,
-                                  self->interruptLevel);
+        dev_set_interrupt_status(self,
+                                 data->statusRegister.bits.interruptEnabled &&
+                                     data->statusRegister.bits.readyForTransfer,
+                                 self->interruptLevel);
 
         // Bit 4: DeviceClear (no-op in C# reference)
         if (data->controlWord.bits.deviceClear)
@@ -176,13 +176,13 @@ static uint16_t line_printer_ident(Device *self, uint16_t level)
     {
         LinePrinterData *data = (LinePrinterData *)self->deviceData;
         data->statusRegister.bits.interruptEnabled = 0;
-        Device_SetInterruptStatus(self, false, level);
+        dev_set_interrupt_status(self, false, level);
         return self->identCode;
     }
     return 0;
 }
 
-Device *CreateLinePrinterDevice(uint8_t thumbwheel)
+Device *lp_create_line_printer_device(uint8_t thumbwheel)
 {
     Device *dev = malloc(sizeof(Device));
     if (!dev)
@@ -198,7 +198,7 @@ Device *CreateLinePrinterDevice(uint8_t thumbwheel)
     }
 
     // Initialize device base structure as character device
-    Device_Init(dev, thumbwheel, DEVICE_CLASS_CHARACTER, 0);
+    dev_init(dev, thumbwheel, DEVICE_CLASS_CHARACTER, 0);
 
     // Initialize device-specific data
     data->characterBuffer = 0;

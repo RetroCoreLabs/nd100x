@@ -24,13 +24,13 @@ static const char *scsi_phase_description[8] = {"DATA OUT", "DATA IN", "COMMAND"
                                                 "*",        "*",       "MESSAGE OUT", "MESSAGE IN"};
 
 
-const char *SCSIBus_PhaseName(uint32_t phase)
+const char *scsi_bus_phase_name(uint32_t phase)
 {
     return scsi_phase_description[phase & S_PHASE_MASK];
 }
 
 
-void SCSIBus_Init(SCSIBus *bus)
+void scsi_bus_init(SCSIBus *bus)
 {
     if (!bus)
     {
@@ -40,7 +40,7 @@ void SCSIBus_Init(SCSIBus *bus)
 }
 
 
-int SCSIBus_AddDevice(SCSIBus *bus, SCSIDevice *dev)
+int scsi_bus_add_device(SCSIBus *bus, SCSIDevice *dev)
 {
     if (!bus || !dev)
     {
@@ -64,7 +64,7 @@ int SCSIBus_AddDevice(SCSIBus *bus, SCSIDevice *dev)
 }
 
 
-void SCSIBus_Clock(SCSIBus *bus)
+void scsi_bus_clock(SCSIBus *bus)
 {
     if (!bus)
     {
@@ -136,7 +136,7 @@ static void scsi_bus_regen_ctrl(SCSIBus *bus, int refid)
 }
 
 
-uint32_t SCSIBus_ControlRead(SCSIBus *bus)
+uint32_t scsi_bus_control_read(SCSIBus *bus)
 {
     if (!bus)
     {
@@ -147,7 +147,7 @@ uint32_t SCSIBus_ControlRead(SCSIBus *bus)
 
 
 /* Register which control lines this device wants scsi_ctrl_changed() for. */
-void SCSIBus_ControlWait(SCSIBus *bus, int refid, uint32_t lines, uint32_t mask)
+void scsi_bus_control_wait(SCSIBus *bus, int refid, uint32_t lines, uint32_t mask)
 {
     if (!bus || refid < 0 || refid >= SCSI_BUS_MAX_DEVICES)
     {
@@ -163,7 +163,7 @@ void SCSIBus_ControlWait(SCSIBus *bus, int refid, uint32_t lines, uint32_t mask)
 }
 
 
-void SCSIBus_ControlWrite(SCSIBus *bus, int refid, uint32_t lines, uint32_t mask)
+void scsi_bus_control_write(SCSIBus *bus, int refid, uint32_t lines, uint32_t mask)
 {
     if (!bus || refid < 0 || refid >= SCSI_BUS_MAX_DEVICES)
     {
@@ -182,7 +182,7 @@ void SCSIBus_ControlWrite(SCSIBus *bus, int refid, uint32_t lines, uint32_t mask
 }
 
 
-uint8_t SCSIBus_DataRead(SCSIBus *bus)
+uint8_t scsi_bus_data_read(SCSIBus *bus)
 {
     if (!bus)
     {
@@ -192,7 +192,7 @@ uint8_t SCSIBus_DataRead(SCSIBus *bus)
 }
 
 
-void SCSIBus_DataWrite(SCSIBus *bus, int refid, uint8_t data)
+void scsi_bus_data_write(SCSIBus *bus, int refid, uint8_t data)
 {
     if (!bus || refid < 0 || refid >= SCSI_BUS_MAX_DEVICES)
     {

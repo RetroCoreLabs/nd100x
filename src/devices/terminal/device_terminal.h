@@ -168,7 +168,7 @@ typedef struct
  * @param thumbwheel Card thumbwheel; selects the IOX address block.
  * @return The new Device, or NULL on allocation failure.
  */
-Device *CreateTerminalDevice(uint8_t thumbwheel);
+Device *terminal_create_device(uint8_t thumbwheel);
 
 /**
  * @brief Append a keycode to the terminal's input queue, or set the overrun
@@ -176,5 +176,5 @@ Device *CreateTerminalDevice(uint8_t thumbwheel);
  * @param self The terminal device.
  * @param keycode The keycode to queue.
  */
-void Terminal_QueueKeyCode(Device *self, uint8_t keycode);
+void terminal_queue_key_code(Device *self, uint8_t keycode);
 #endif // DEVICE_TERMINAL_H

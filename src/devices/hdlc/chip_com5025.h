@@ -293,7 +293,7 @@ typedef struct COM5025State
  * @param chip Chip state to initialize.
  * @return void.
  */
-void COM5025_Init(COM5025State *chip);
+void com5025_init(COM5025State *chip);
 
 /**
  * @brief Apply the MR (Master Reset) signal: clear flags and status, set
@@ -302,7 +302,7 @@ void COM5025_Init(COM5025State *chip);
  * @param chip Chip state to reset.
  * @return void.
  */
-void COM5025_Reset(COM5025State *chip);
+void com5025_reset(COM5025State *chip);
 
 /**
  * @brief Read one of the byte-wide registers (BYTE OP = 1) selected by reg,
@@ -312,7 +312,7 @@ void COM5025_Reset(COM5025State *chip);
  * @param reg Byte register to read (COM5025RegistersByte).
  * @return Register value, or 0 if chip is NULL.
  */
-uint8_t COM5025_ReadByte(COM5025State *chip, COM5025RegistersByte reg);
+uint8_t com5025_read_byte(COM5025State *chip, COM5025RegistersByte reg);
 
 /**
  * @brief Write one of the byte-wide registers (BYTE OP = 1) selected by reg.
@@ -323,7 +323,7 @@ uint8_t COM5025_ReadByte(COM5025State *chip, COM5025RegistersByte reg);
  * @param value Value to store in the register.
  * @return void.
  */
-void COM5025_WriteByte(COM5025State *chip, COM5025RegistersByte reg, uint8_t value);
+void com5025_write_byte(COM5025State *chip, COM5025RegistersByte reg, uint8_t value);
 
 /**
  * @brief Read one of the word-wide registers (BYTE OP = 0) selected by reg,
@@ -333,7 +333,7 @@ void COM5025_WriteByte(COM5025State *chip, COM5025RegistersByte reg, uint8_t val
  * @param reg Word register to read (COM5025RegistersWord).
  * @return Register value, or 0 if chip is NULL.
  */
-uint16_t COM5025_ReadWord(COM5025State *chip, COM5025RegistersWord reg);
+uint16_t com5025_read_word(COM5025State *chip, COM5025RegistersWord reg);
 
 /**
  * @brief Write one of the word-wide registers (BYTE OP = 0) selected by reg.
@@ -344,7 +344,7 @@ uint16_t COM5025_ReadWord(COM5025State *chip, COM5025RegistersWord reg);
  * @param value Value to store in the register.
  * @return void.
  */
-void COM5025_WriteWord(COM5025State *chip, COM5025RegistersWord reg, uint16_t value);
+void com5025_write_word(COM5025State *chip, COM5025RegistersWord reg, uint16_t value);
 
 /**
  * @brief Set one of the chip input pins (RCP, RSI, RXENA, MR, TXENA, MSEL) to
@@ -355,7 +355,7 @@ void COM5025_WriteWord(COM5025State *chip, COM5025RegistersWord reg, uint16_t va
  * @param value New pin level.
  * @return void.
  */
-void COM5025_SetInputPin(COM5025State *chip, COM5025SignalPinIn pin, bool value);
+void com5025_set_input_pin(COM5025State *chip, COM5025SignalPinIn pin, bool value);
 
 /**
  * @brief Read the current level of a chip input pin.
@@ -363,7 +363,7 @@ void COM5025_SetInputPin(COM5025State *chip, COM5025SignalPinIn pin, bool value)
  * @param pin Input pin to read (COM5025SignalPinIn).
  * @return Current pin level, or false if chip is NULL or pin is out of range.
  */
-bool COM5025_GetInputPin(COM5025State *chip, COM5025SignalPinIn pin);
+bool com5025_get_input_pin(COM5025State *chip, COM5025SignalPinIn pin);
 
 /**
  * @brief Read the current level of a chip output pin.
@@ -371,7 +371,7 @@ bool COM5025_GetInputPin(COM5025State *chip, COM5025SignalPinIn pin);
  * @param pin Output pin to read (COM5025SignalPinOut).
  * @return Current pin level, or false if chip is NULL or pin is out of range.
  */
-bool COM5025_GetOutputPin(COM5025State *chip, COM5025SignalPinOut pin);
+bool com5025_get_output_pin(COM5025State *chip, COM5025SignalPinOut pin);
 
 /**
  * @brief Advance the receiver by one bit time (RCP edge): shift in the RSI
@@ -380,7 +380,7 @@ bool COM5025_GetOutputPin(COM5025State *chip, COM5025SignalPinOut pin);
  * @param chip Chip state to clock.
  * @return void.
  */
-void COM5025_ClockReceiver(COM5025State *chip);
+void com5025_clock_receiver(COM5025State *chip);
 
 /**
  * @brief Advance the transmitter by one bit time (TCP edge) when TXENA and
@@ -389,7 +389,7 @@ void COM5025_ClockReceiver(COM5025State *chip);
  * @param chip Chip state to clock.
  * @return void.
  */
-void COM5025_ClockTransmitter(COM5025State *chip);
+void com5025_clock_transmitter(COM5025State *chip);
 
 /**
  * @brief Queue a block of received bytes into the shared register file's
@@ -400,7 +400,7 @@ void COM5025_ClockTransmitter(COM5025State *chip);
  * @param length Number of bytes in data.
  * @return void.
  */
-void COM5025_ReceiveData(COM5025State *chip, const uint8_t *data, int length);
+void com5025_receive_data(COM5025State *chip, const uint8_t *data, int length);
 
 /**
  * @brief Load one byte into the transmitter data/shift registers, start the
@@ -410,7 +410,7 @@ void COM5025_ReceiveData(COM5025State *chip, const uint8_t *data, int length);
  * @param data Byte to transmit.
  * @return void.
  */
-void COM5025_TransmitData(COM5025State *chip, uint8_t data);
+void com5025_transmit_data(COM5025State *chip, uint8_t data);
 
 // Callback setup functions
 
@@ -422,7 +422,7 @@ void COM5025_TransmitData(COM5025State *chip, uint8_t data);
  * @param newRxStatus New receiver status register value.
  * @return void.
  */
-void COM5025_SetReceiverStatus(COM5025State *chip, uint16_t new_rx_status);
+void com5025_set_receiver_status(COM5025State *chip, uint16_t new_rx_status);
 
 /**
  * @brief Register the callback invoked when the chip serializes a

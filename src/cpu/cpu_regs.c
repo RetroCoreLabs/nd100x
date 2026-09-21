@@ -35,7 +35,7 @@
 /// @brief Set the PIL (Program Interrupt Level)
 /// @param newLevel The new level to set
 /// @return Returns true if the level was set, false otherwise
-bool setPIL(char new_level)
+bool cpu_set_pil(char new_level)
 {
     if (new_level >= 16)
     {
@@ -54,7 +54,7 @@ bool setPIL(char new_level)
 }
 
 // Set and lock PEA
-void setPEA(uint16_t pea)
+void cpu_set_pea(uint16_t pea)
 {
     if (gPEA_Lock)
     {
@@ -65,7 +65,7 @@ void setPEA(uint16_t pea)
 }
 
 // Set and lock PES
-void setPES(uint16_t pes)
+void cpu_set_pes(uint16_t pes)
 {
     if (gPES_Lock)
     {
@@ -76,7 +76,7 @@ void setPES(uint16_t pes)
 }
 
 // Set and lock PGS
-void setPGS(uint16_t pgs)
+void cpu_set_pgs(uint16_t pgs)
 {
     if (gPGS_Lock)
     {
@@ -90,7 +90,7 @@ void setPGS(uint16_t pgs)
 }
 
 
-void setreg(int r, int val)
+void cpu_setreg(int r, int val)
 {
     if (r == _STS)
     {
@@ -102,7 +102,7 @@ void setreg(int r, int val)
     }
 }
 
-uint16_t getbit(uint16_t regnum, uint16_t stsbit)
+uint16_t cpu_getbit(uint16_t regnum, uint16_t stsbit)
 {
     uint16_t result;
     uint16_t tmp;
@@ -119,7 +119,7 @@ uint16_t getbit(uint16_t regnum, uint16_t stsbit)
     return result;
 }
 
-void clrbit(uint16_t regnum, uint16_t stsbit)
+void cpu_clrbit(uint16_t regnum, uint16_t stsbit)
 {
     uint16_t thebit;
     thebit = (1 << stsbit) ^ 0xFFFF;
@@ -131,7 +131,7 @@ void clrbit(uint16_t regnum, uint16_t stsbit)
  * This function handles all setting of MSB STS bits
  * NOTE:: PIL handling is done by setPIL function!!
  */
-void setbit_STS_MSB(uint16_t stsbit, char val)
+void cpu_setbit_sts_msb(uint16_t stsbit, char val)
 {
     uint16_t thebit = 0;
 
@@ -148,12 +148,12 @@ void setbit_STS_MSB(uint16_t stsbit, char val)
 }
 
 
-void setbit(uint16_t regnum, uint16_t stsbit, char val)
+void cpu_setbit(uint16_t regnum, uint16_t stsbit, char val)
 {
 
     if ((regnum == _STS) && (stsbit > 7))
     {
-        setbit_STS_MSB(stsbit, val);
+        cpu_setbit_sts_msb(stsbit, val);
         return;
     }
 
@@ -176,27 +176,27 @@ void setbit(uint16_t regnum, uint16_t stsbit, char val)
 }
 
 
-void AdjustSTS(uint16_t reg_a, uint16_t operand, int result)
+void cpu_adjust_sts(uint16_t reg_a, uint16_t operand, int result)
 {
     /* C (carry) */
     if (result > 0xFFFF)
     {
-        setbit(_STS, STS_CARRY, 1);
+        cpu_setbit(_STS, STS_CARRY, 1);
     }
     else
     {
-        setbit(_STS, STS_CARRY, 0);
+        cpu_setbit(_STS, STS_CARRY, 0);
     }
 
     /* O(static overflow), Q (dynamic overflow) */
     if (!(((1 << 15) & reg_a) ^ ((1 << 15) & operand)) &&
         (((1 << 15) & reg_a) ^ ((1 << 15) & result)))
     {
-        setbit(_STS, STS_STATIC_OVERFLOW, 1);
-        setbit(_STS, STS_DYNAMIC_OVERFLOW, 1);
+        cpu_setbit(_STS, STS_STATIC_OVERFLOW, 1);
+        cpu_setbit(_STS, STS_DYNAMIC_OVERFLOW, 1);
     }
     else
     {
-        setbit(_STS, STS_DYNAMIC_OVERFLOW, 0);
+        cpu_setbit(_STS, STS_DYNAMIC_OVERFLOW, 0);
     }
 }

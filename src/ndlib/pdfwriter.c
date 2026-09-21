@@ -66,7 +66,7 @@
 #define A4_WIDTH  595.28f
 #define A4_HEIGHT 841.89f
 
-PdfDocument *Pdf_Create(void)
+PdfDocument *pdf_create(void)
 {
     PdfDocument *doc = calloc(1, sizeof(PdfDocument));
     if (!doc)
@@ -86,7 +86,7 @@ PdfDocument *Pdf_Create(void)
     return doc;
 }
 
-int Pdf_AddPage(PdfDocument *doc)
+int pdf_add_page(PdfDocument *doc)
 {
     if (!doc)
     {
@@ -118,8 +118,8 @@ int Pdf_AddPage(PdfDocument *doc)
     return doc->pageCount++;
 }
 
-void Pdf_AddTextSpan(PdfDocument *doc, int page_index, float x, float y, uint8_t style,
-                     float font_size, const char *text)
+void pdf_add_text_span(PdfDocument *doc, int page_index, float x, float y, uint8_t style,
+                       float font_size, const char *text)
 {
     if (!doc || page_index < 0 || page_index >= doc->pageCount || !text)
     {
@@ -300,7 +300,7 @@ static void write_xref_and_trailer(FILE *f, const int64_t *offsets, int total_ob
     fprintf(f, "startxref\n%" PRId64 "\n%%%%EOF\n", xref_offset);
 }
 
-bool Pdf_WriteToFile(PdfDocument *doc, const char *filename)
+bool pdf_write_to_file(PdfDocument *doc, const char *filename)
 {
     if (!doc || !filename || doc->pageCount == 0)
     {
@@ -380,7 +380,7 @@ bool Pdf_WriteToFile(PdfDocument *doc, const char *filename)
     return true;
 }
 
-void Pdf_Destroy(PdfDocument *doc)
+void pdf_destroy(PdfDocument *doc)
 {
     if (!doc)
     {

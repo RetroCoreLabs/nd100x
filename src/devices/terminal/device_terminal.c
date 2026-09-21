@@ -145,7 +145,7 @@ static uint16_t terminal_tick(Device *self)
     }
 
     // Process I/O delays
-    Device_TickIODelay(self);
+    dev_tick_io_delay(self);
 
     // Check for new incoming characters
 
@@ -167,7 +167,7 @@ static uint16_t terminal_tick(Device *self)
             {
             case 0: // 8 bits
                 value &= 0xFF;
-                if (Device_GetOddParity(value) == 1)
+                if (dev_get_odd_parity(value) == 1)
                 {
                     value |= (1 << 7);
                 }
@@ -177,7 +177,7 @@ static uint16_t terminal_tick(Device *self)
                 value &= 0x7F;
                 if (data->inputControl.bits.parityGeneration)
                 {
-                    if (Device_GetOddParity(value) == 1)
+                    if (dev_get_odd_parity(value) == 1)
                     {
                         value |= (1 << 7);
                     }
@@ -197,10 +197,10 @@ static uint16_t terminal_tick(Device *self)
 
             data->uartInputBuf = value;
             data->inputStatus.bits.deviceReadyForTransfer = true;
-            Device_SetInterruptStatus(self,
-                                      data->inputStatus.bits.interruptEnabled &&
-                                          data->inputStatus.bits.deviceReadyForTransfer,
-                                      12);
+            dev_set_interrupt_status(self,
+                                     data->inputStatus.bits.interruptEnabled &&
+                                         data->inputStatus.bits.deviceReadyForTransfer,
+                                     12);
         }
     }
 
@@ -216,7 +216,7 @@ static uint16_t terminal_read(Device *self, uint32_t address)
 
     TerminalData *data = (TerminalData *)self->deviceData;
     uint16_t value = 0;
-    uint32_t reg = Device_RegisterAddress(self, address);
+    uint32_t reg = dev_register_address(self, address);
 
     switch (reg)
     {
@@ -226,10 +226,10 @@ static uint16_t terminal_read(Device *self, uint32_t address)
         data->uartInputBuf = 0;
         data->inputStatus.bits.deviceReadyForTransfer = false;
 
-        Device_SetInterruptStatus(self,
-                                  data->inputStatus.bits.interruptEnabled &&
-                                      data->inputStatus.bits.deviceReadyForTransfer,
-                                  12);
+        dev_set_interrupt_status(self,
+                                 data->inputStatus.bits.interruptEnabled &&
+                                     data->inputStatus.bits.deviceReadyForTransfer,
+                                 12);
 
         break;
 
@@ -252,7 +252,7 @@ static uint16_t terminal_read(Device *self, uint32_t address)
     {
         if (reg != TERMINAL_READ_INPUT_DATA)
         {
-            Log_Write(LOG_CAT_TERM, LOG_DEBUG, "Terminal Reading from address: %o value: %o\n",
+            log_write(LOG_CAT_TERM, LOG_DEBUG, "Terminal Reading from address: %o value: %o\n",
                       address, value);
         }
     }
@@ -272,10 +272,10 @@ static void terminal_write_input_control(Device *self, TerminalData *data, uint1
     data->inputStatus.bits.deviceActivated = data->inputControl.bits.deviceActivated;
 
     // Trigger interrupt ?
-    Device_SetInterruptStatus(self,
-                              data->inputStatus.bits.interruptEnabled &&
-                                  data->inputStatus.bits.deviceReadyForTransfer,
-                              12);
+    dev_set_interrupt_status(self,
+                             data->inputStatus.bits.interruptEnabled &&
+                                 data->inputStatus.bits.deviceReadyForTransfer,
+                             12);
 
     if (data->inputControl.bits.deviceClear)
     {
@@ -302,13 +302,13 @@ static void terminal_write(Device *self, uint32_t address, uint16_t value)
     }
 
     TerminalData *data = (TerminalData *)self->deviceData;
-    uint32_t reg = Device_RegisterAddress(self, address);
+    uint32_t reg = dev_register_address(self, address);
 
     if (Log_IsEnabled(LOG_CAT_TERM, LOG_DEBUG))
     {
         if (reg != TERMINAL_WRITE_DATA)
         {
-            Log_Write(LOG_CAT_TERM, LOG_DEBUG, "Terminal Writing value: %o to address: %o\n", value,
+            log_write(LOG_CAT_TERM, LOG_DEBUG, "Terminal Writing value: %o to address: %o\n", value,
                       address);
         }
     }
@@ -338,22 +338,22 @@ static void terminal_write(Device *self, uint32_t address, uint16_t value)
 
         // Clear interrupt status
         data->outputStatus.bits.readyForTransfer = false;
-        Device_SetInterruptStatus(self,
-                                  data->outputStatus.bits.interruptEnabled &&
-                                      data->outputStatus.bits.readyForTransfer,
-                                  10);
+        dev_set_interrupt_status(self,
+                                 data->outputStatus.bits.interruptEnabled &&
+                                     data->outputStatus.bits.readyForTransfer,
+                                 10);
 
         if (data->inputControl.bits.testMode)
         {
             // In test mode, echo the character back with parity
-            Terminal_QueueKeyCode(self, c);
+            terminal_queue_key_code(self, c);
         }
         else
         {
             // Use character device callback if available
             if (self->deviceClass == DEVICE_CLASS_CHARACTER && self->charCallbacks.outputFunc)
             {
-                Device_OutputCharacter(self, c);
+                dev_output_character(self, c);
             }
             else
             {
@@ -363,8 +363,8 @@ static void terminal_write(Device *self, uint32_t address, uint16_t value)
         }
 
         // Simulate transfer delay
-        Device_QueueIODelay(self, IODELAY_TERMINAL, write_end, self->identCode,
-                            self->interruptLevel);
+        dev_queue_io_delay(self, IODELAY_TERMINAL, write_end, self->identCode,
+                           self->interruptLevel);
         break;
 
     case TERMINAL_WRITE_SET_OUTPUT_CONTROL:
@@ -375,10 +375,10 @@ static void terminal_write(Device *self, uint32_t address, uint16_t value)
         data->outputStatus.bits.interruptEnabled = data->outputControl.bits.interruptEnabled;
 
         // Trigger interrupt ?
-        Device_SetInterruptStatus(self,
-                                  data->outputStatus.bits.interruptEnabled &&
-                                      data->outputStatus.bits.readyForTransfer,
-                                  10);
+        dev_set_interrupt_status(self,
+                                 data->outputStatus.bits.interruptEnabled &&
+                                     data->outputStatus.bits.readyForTransfer,
+                                 10);
         break;
     default:
         break;
@@ -403,7 +403,7 @@ static uint16_t terminal_ident(Device *self, uint16_t level)
         { // output
             data->outputStatus.bits.interruptEnabled = false;
         }
-        Device_SetInterruptStatus(self, false, level);
+        dev_set_interrupt_status(self, false, level);
         return self->identCode;
     }
     return 0;
@@ -427,7 +427,7 @@ static bool write_end(void *context, int param)
     data->outputStatus.bits.readyForTransfer = true;
     data->checkInputQueueTick = 0; // Make sure input check is delayed
 
-    Device_SetInterruptStatus(
+    dev_set_interrupt_status(
         self, data->outputStatus.bits.interruptEnabled && data->outputStatus.bits.readyForTransfer,
         10);
 
@@ -435,7 +435,7 @@ static bool write_end(void *context, int param)
 }
 
 // Add QueueKeyCode implementation
-void Terminal_QueueKeyCode(Device *self, uint8_t keycode)
+void terminal_queue_key_code(Device *self, uint8_t keycode)
 {
     if (!self)
     {
@@ -468,11 +468,11 @@ static void terminal_input_function(Device *device, char c)
     {
         return;
     }
-    Terminal_QueueKeyCode(device, (uint8_t)c);
+    terminal_queue_key_code(device, (uint8_t)c);
 }
 
 
-Device *CreateTerminalDevice(uint8_t thumbwheel)
+Device *terminal_create_device(uint8_t thumbwheel)
 {
     Device *dev = malloc(sizeof(Device));
     if (!dev)
@@ -488,7 +488,7 @@ Device *CreateTerminalDevice(uint8_t thumbwheel)
     }
 
     // Initialize device base structure as a character device
-    Device_Init(dev, thumbwheel, DEVICE_CLASS_CHARACTER, 0);
+    dev_init(dev, thumbwheel, DEVICE_CLASS_CHARACTER, 0);
 
     // Set up device-specific data
     memset(data, 0, sizeof(TerminalData));
@@ -537,7 +537,7 @@ Device *CreateTerminalDevice(uint8_t thumbwheel)
 
 
     // hook up  Device_SetCharacterInput to Terminal_QueueKeyCode
-    Device_SetCharacterInput(dev, terminal_input_function);
+    dev_set_character_input(dev, terminal_input_function);
 
     LOG(LOG_CAT_TERM, LOG_INFO, "Terminal %d created (%s, ident %o, address %o)\n",
         dev->logicalDevice, dev->memoryName, dev->identCode, dev->startAddress);

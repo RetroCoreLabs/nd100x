@@ -375,14 +375,14 @@ static int cmd_run_program(const char *nd100_root, int argc, char **argv)
          * and sets STARTADDR to the real entry; the entry also comes from the
          * header via GetLastPROGHeader(). :PROG has no BPUN-style action field -
          * it always autostarts at its start address. */
-        if (program_load(BOOT_PROG, 0, filepath, true, 0, false) < 0)
+        if (machine_program_load(BOOT_PROG, 0, filepath, true, 0, false) < 0)
         {
             fprintf(stderr, "Could not load :PROG '%s' - not running.\n", filepath);
             return -1;
         }
 
         PROG_Header phdr;
-        if (!GetLastPROGHeader(&phdr))
+        if (!prog_get_last_header(&phdr))
         {
             fprintf(stderr, "Could not read :PROG header - not running.\n");
             return -1;
@@ -395,7 +395,7 @@ static int cmd_run_program(const char *nd100_root, int argc, char **argv)
         }
 
         gPC = phdr.startAddress;
-        set_cpu_run_mode(CPU_RUNNING);
+        cpu_set_run_mode(CPU_RUNNING);
         printf("Starting at 0o%o - handing control to the ND-100...\n\n", phdr.startAddress);
         return SHELL_RESULT_RUN;
     }
@@ -405,7 +405,7 @@ static int cmd_run_program(const char *nd100_root, int argc, char **argv)
      * (e.g. MAC.BPUN has boot=0 but its real entry is start=0164316). The
      * fopen pre-check above guards the file-not-found case; a genuinely corrupt
      * image makes program_load() fail, and the shell stays at its prompt. */
-    if (program_load(BOOT_BPUN, 0, filepath, true, 0, false) < 0)
+    if (machine_program_load(BOOT_BPUN, 0, filepath, true, 0, false) < 0)
     {
         fprintf(stderr, "Could not load BPUN '%s' - not running.\n", filepath);
         return -1;
@@ -416,7 +416,7 @@ static int cmd_run_program(const char *nd100_root, int argc, char **argv)
      * start, otherwise the CPU stays in OPCOM (halted) with P = start. Read the
      * real header (program_load left STARTADDR = boot, which is wrong here). */
     BPUN_Header hdr;
-    if (!GetLastBPUNHeader(&hdr))
+    if (!bpun_get_last_header(&hdr))
     {
         fprintf(stderr, "Could not read BPUN header - not running.\n");
         return -1;
@@ -428,7 +428,7 @@ static int cmd_run_program(const char *nd100_root, int argc, char **argv)
     {
         /* Non-autostart image: leave the CPU halted with P = start, like a
          * real ND-100 would sit in OPCOM. Stay at the shell prompt. */
-        set_cpu_run_mode(CPU_STOPPED);
+        cpu_set_run_mode(CPU_STOPPED);
         printf("Loaded. Action=0o%o (non-autostart): P set to 0o%o, CPU held.\n", hdr.action,
                hdr.start);
         printf("Use the debugger to run it, or load an autostart image.\n");
@@ -438,7 +438,7 @@ static int cmd_run_program(const char *nd100_root, int argc, char **argv)
     /* Autostart (action == 0): enter at start and mark the CPU runnable, then
      * hand control back to the caller (main), which drives the real machine
      * run loop - reusing all terminal I/O, menu and telnet plumbing. */
-    set_cpu_run_mode(CPU_RUNNING);
+    cpu_set_run_mode(CPU_RUNNING);
     printf("Starting at 0o%o - handing control to the ND-100...\n\n", hdr.start);
 
     return SHELL_RESULT_RUN;

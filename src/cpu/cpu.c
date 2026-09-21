@@ -79,11 +79,11 @@ static uint64_t throttle_get_ns(void)
 
 /* Forward declarations for ring buffer diagnostics */
 static uint16_t last_device_irq_bits = 0;
-void ring_dump(void);
+void cpu_ring_dump(void);
 
 
 #ifdef WITH_DEBUGGER
-void stop_debugger_thread(void);
+void debugger_stop_thread(void);
 
 #ifdef __EMSCRIPTEN__
 /* WASM: single-threaded, no atomics needed */
@@ -237,7 +237,7 @@ int cpu_trace_nd110_set(const char *path)
     return 0;
 }
 
-void do_op(uint16_t operand, bool is_exr)
+void cpu_do_op(uint16_t operand, bool is_exr)
 {
 
     if (!is_exr)
@@ -247,7 +247,7 @@ void do_op(uint16_t operand, bool is_exr)
 
     if (g_instr_funcs[operand] == NULL)
     {
-        illegal_instr(operand);
+        cpu_illegal_instr(operand);
         return;
     }
 
@@ -283,9 +283,9 @@ void do_op(uint16_t operand, bool is_exr)
  * to use for the actual use of the address supplied
  * See Manual ND.06.014, Page 34
  */
-uint16_t New_GetEffectiveAddr(uint16_t instr, bool *use_apt)
+uint16_t cpu_get_effective_addr(uint16_t instr, bool *use_apt)
 {
-    int disp = signExtend(instr & 0xFF);
+    int disp = cpu_sign_extend(instr & 0xFF);
     uint16_t eff_addr;
 
     uint16_t p = (gPC - 1) & 0xFFFF;
@@ -302,12 +302,12 @@ uint16_t New_GetEffectiveAddr(uint16_t instr, bool *use_apt)
         break;
     case 2: /* ((P) + disp) */
         eff_addr = p + disp;
-        eff_addr = ReadIndirectVirtualMemory(eff_addr, false);
+        eff_addr = mms_read_indirect_virtual_memory(eff_addr, false);
         *use_apt = true;
         break;
     case 3: /* ((B) + disp) */
         eff_addr = gB + disp;
-        eff_addr = ReadIndirectVirtualMemory(eff_addr, true);
+        eff_addr = mms_read_indirect_virtual_memory(eff_addr, true);
         *use_apt = true;
         break;
     case 4: /* (X) + disp */
@@ -320,12 +320,12 @@ uint16_t New_GetEffectiveAddr(uint16_t instr, bool *use_apt)
         break;
     case 6: /* ((P) + disp) + (X) */
         eff_addr = p + disp;
-        eff_addr = gX + ReadIndirectVirtualMemory(eff_addr, false);
+        eff_addr = gX + mms_read_indirect_virtual_memory(eff_addr, false);
         *use_apt = true;
         break;
     case 7: /* ((B) + disp) + (X) */
         eff_addr = (gB + disp) & 0xFFFF;
-        eff_addr = gX + ReadIndirectVirtualMemory(eff_addr, true);
+        eff_addr = gX + mms_read_indirect_virtual_memory(eff_addr, true);
         *use_apt = true;
         break;
     default: /* not reached: the mode field is 3 bits and all 8 values are handled */
@@ -359,7 +359,7 @@ uint16_t New_GetEffectiveAddr(uint16_t instr, bool *use_apt)
 ///  MOR |   9      |    11    | Memory out of range Addressing non-existent memory.
 ///  POW |   10     |    12    | Power fail interrupt
 ///  ----+----------+----------+------------------------------------------------------------------------
-uint16_t calcIIC(void)
+uint16_t cpu_calc_iic(void)
 {
     uint16_t priority_code = gIID & gIIE;
     if (priority_code == 0)
@@ -386,7 +386,7 @@ uint16_t calcIIC(void)
 static void recalc_internal_interrupt_bits(void)
 {
     // Check for Z (error) flag
-    if (getbit(_STS, STS_ERROR_INDICATOR))
+    if (cpu_getbit(_STS, STS_ERROR_INDICATOR))
     {
         gIID |= 1 << 5;
     }
@@ -395,7 +395,7 @@ static void recalc_internal_interrupt_bits(void)
     {
         // Set PID bit 14 to trigger LVL change to 14
         gPID |= (1 << 14);
-        gIIC = calcIIC();
+        gIIC = cpu_calc_iic();
         gCHKIT =
             true; // removing this makes sintran crash during boot  // System malfunction. Sintran halt in ERRFATAL. L-reg: 042713
     }
@@ -429,7 +429,7 @@ static void calc_pk(void)
  * IN: interrupt level and possible subbitfield
  * for those levels that has that. (LVL 14).
  */
-void interrupt(uint16_t lvl, uint16_t sub)
+void cpu_interrupt(uint16_t lvl, uint16_t sub)
 {
 
     if (lvl == 14)
@@ -479,13 +479,13 @@ void interrupt(uint16_t lvl, uint16_t sub)
         }
         if (ND100X_HOT_TRACE && Log_IsEnabled(LOG_CAT_TRAP, LOG_TRACE))
         {
-            Log_Write(LOG_CAT_TRAP, LOG_TRACE, "TRAP at P:[%6o], sub=%d", gPC, sub);
+            log_write(LOG_CAT_TRAP, LOG_TRACE, "TRAP at P:[%6o], sub=%d", gPC, sub);
         }
         longjmp(s_cpu_jmp_buf, 1); // Jump back to cpurun() in cpu_thread
     }
 }
 
-void device_interrupt(uint16_t interrupt_bits)
+void cpu_device_interrupt(uint16_t interrupt_bits)
 {
     last_device_irq_bits = interrupt_bits;
 
@@ -510,18 +510,18 @@ void device_interrupt(uint16_t interrupt_bits)
 /*
  * Routine that handles phys mem writes and shadow memory.
  */
-void PhysMemWrite(uint16_t value, uint32_t addr)
+void cpu_phys_mem_write(uint16_t value, uint32_t addr)
 {
-    WritePhysicalMemory(addr, value, false); // in cpu_mms.c
+    mms_write_physical_memory(addr, value, false); // in cpu_mms.c
     return;
 }
 
 /*
  * Routine that handles phys mem reads and shadow memory.
  */
-uint16_t PhysMemRead(uint32_t addr)
+uint16_t cpu_phys_mem_read(uint32_t addr)
 {
-    return ReadPhysicalMemory(addr, false); // in cpu_mms.c
+    return mms_read_physical_memory(addr, false); // in cpu_mms.c
 }
 
 #ifdef WITH_DEBUGGER
@@ -532,8 +532,8 @@ uint16_t PhysMemRead(uint32_t addr)
  */
 void cpu_watchpoint_triggered(uint32_t addr, bool is_write)
 {
-    set_cpu_stop_reason(STOP_REASON_DATA_BREAKPOINT);
-    set_cpu_run_mode(CPU_BREAKPOINT);
+    cpu_set_stop_reason(STOP_REASON_DATA_BREAKPOINT);
+    cpu_set_run_mode(CPU_BREAKPOINT);
     if (!gDebuggerEnabled)
     {
         fprintf(stderr, "\n--- CPU stopped: watchpoint %s at %06o (PC=%06o) ---\n",
@@ -547,12 +547,12 @@ void cpu_watchpoint_triggered(uint32_t addr, bool is_write)
             for (i = -2; i <= 4; i++)
             {
                 fprintf(stderr, " %06o",
-                        (unsigned short)ReadVirtualMemory((gB + i) & 0xFFFF, true));
+                        (unsigned short)mms_read_virtual_memory((gB + i) & 0xFFFF, true));
             }
             fprintf(stderr, "  (B[-1]=NNN)\n");
         }
-        ring_dump();
-        set_cpu_run_mode(CPU_SHUTDOWN);
+        cpu_ring_dump();
+        cpu_set_run_mode(CPU_SHUTDOWN);
     }
 }
 #endif
@@ -561,7 +561,7 @@ void cpu_watchpoint_triggered(uint32_t addr, bool is_write)
  * Write a word to memory.
  * Here we implement all Memory Management System functions.
  */
-void MemoryWrite(uint16_t value, uint16_t addr, bool use_apt, uint8_t byte_select)
+void cpu_memory_write(uint16_t value, uint16_t addr, bool use_apt, uint8_t byte_select)
 {
 #ifdef WITH_DEBUGGER
     // Hot path: counter check -> bitmap check -> slow path
@@ -569,33 +569,33 @@ void MemoryWrite(uint16_t value, uint16_t addr, bool use_apt, uint8_t byte_selec
     // Cost when watchpoints active but addr miss: + 1 byte load + 1 bit test
     if (g_watchpoint_count > 0 && (g_watchpoint_bitmap[addr >> 3] & (1 << (addr & 7))) &&
         (g_watchpoint_min_value == 0 || value >= (uint16_t)g_watchpoint_min_value) &&
-        watchpoint_check_slow(addr, true, use_apt))
+        bkpt_watchpoint_check_slow(addr, true, use_apt))
     {
         cpu_watchpoint_triggered(addr, true);
     }
 #endif
-    WriteVirtualMemory(addr, value, use_apt, byte_select); // in cpu_mms.c
+    mms_write_virtual_memory(addr, value, use_apt, byte_select); // in cpu_mms.c
 }
 
 /*
  * Read a word from memory.
  * Here we implement all Memory Management System functions.
  */
-uint16_t MemoryRead(uint16_t addr, bool use_apt)
+uint16_t cpu_memory_read(uint16_t addr, bool use_apt)
 {
 #ifdef WITH_DEBUGGER
     if (g_watchpoint_count > 0 && (g_watchpoint_bitmap[addr >> 3] & (1 << (addr & 7))) &&
-        watchpoint_check_slow(addr, false, use_apt))
+        bkpt_watchpoint_check_slow(addr, false, use_apt))
     {
         cpu_watchpoint_triggered(addr, false);
     }
 #endif
-    return ReadVirtualMemory(addr, use_apt); // in cpu_mms.c
+    return mms_read_virtual_memory(addr, use_apt); // in cpu_mms.c
 }
 
 static uint16_t memory_fetch(uint16_t addr, bool use_apt)
 {
-    return FetchVirtualMemory(addr, use_apt); // in cpu_mms.c
+    return mms_fetch_virtual_memory(addr, use_apt); // in cpu_mms.c
 }
 
 /// @brief Check if we need to switch runlevel
@@ -618,16 +618,16 @@ static bool check_and_switch(void)
 
         if (gPK != gPIL)
         {
-            setPIL(gPK); /* Change to new runlevel */
+            cpu_set_pil(gPK); /* Change to new runlevel */
 
             if (ND100X_HOT_TRACE && Log_IsEnabled(LOG_CAT_PKSWITCH, LOG_TRACE))
             {
                 bool is_rtc = ((gPVL == 13) || (gPIL == 13));
                 if (!is_rtc)
                 {
-                    Log_Write(LOG_CAT_PKSWITCH, LOG_TRACE, "Switched from %d P[%6o] to %d P[%6o]",
+                    log_write(LOG_CAT_PKSWITCH, LOG_TRACE, "Switched from %d P[%6o] to %d P[%6o]",
                               gPVL, g_reg->reg[gPVL][_P], gPIL, g_reg->reg[gPIL][_P]);
-                    Log_Write(LOG_CAT_PKSWITCH, LOG_TRACE, "New pc after switch %6o", gPC);
+                    log_write(LOG_CAT_PKSWITCH, LOG_TRACE, "New pc after switch %6o", gPC);
                 }
             }
             return true;
@@ -657,7 +657,7 @@ static void trace_before_exec(void)
     if (g_cpu_trace)
     {
         char disasm_str[128];
-        OpToStr(disasm_str, sizeof(disasm_str), g_operand);
+        disasm_op_to_str(disasm_str, sizeof(disasm_str), g_operand);
         fprintf(
             stderr,
             "%06o %06o %-24s PIL=%d prevPIL=%d A=%06o D=%06o T=%06o X=%06o B=%06o L=%06o P=%06o "
@@ -705,8 +705,8 @@ static void private_cpu_tick(void)
     {
         fprintf(stderr, "\n--- CPU stopped: max instruction count reached (%llu) ---\n",
                 (unsigned long long)g_cpu_max_instr);
-        ring_dump();
-        set_cpu_run_mode(CPU_SHUTDOWN);
+        cpu_ring_dump();
+        cpu_set_run_mode(CPU_SHUTDOWN);
         return;
     }
 
@@ -714,8 +714,8 @@ static void private_cpu_tick(void)
     if (g_cpu_breakpoint_enabled && gPC == g_cpu_breakpoint_addr)
     {
         fprintf(stderr, "\n--- CPU stopped: breakpoint at %06o ---\n", g_cpu_breakpoint_addr);
-        ring_dump();
-        set_cpu_run_mode(CPU_SHUTDOWN);
+        cpu_ring_dump();
+        cpu_set_run_mode(CPU_SHUTDOWN);
         return;
     }
 
@@ -749,7 +749,7 @@ static void private_cpu_tick(void)
 
     // Execute instruction
     g_instr_counter++;
-    do_op(g_operand, false);
+    cpu_do_op(g_operand, false);
 
 #ifdef WITH_DEBUGGER
     // After JPL instruction, we need to update the entry point of the JPL instruction to be able to find the symbol for the stack frame
@@ -877,7 +877,7 @@ static void ring_record(unsigned short pc, unsigned char pil, unsigned short opc
     ring_idx = (ring_idx + 1) % RING_SIZE;
 }
 
-void ring_dump(void)
+void cpu_ring_dump(void)
 {
     int i;
     char disasm_str[128];
@@ -920,7 +920,7 @@ void ring_dump(void)
         int idx = (ring_idx - count + i + RING_SIZE) % RING_SIZE;
         if (ring_buf[idx].pc || ring_buf[idx].pil)
         {
-            OpToStr(disasm_str, sizeof(disasm_str), ring_buf[idx].opcode);
+            disasm_op_to_str(disasm_str, sizeof(disasm_str), ring_buf[idx].opcode);
             fprintf(stderr, "  [%3d] %2d %06o %06o %-24s %06o %04x %04x %04x %04x %04x %04x\r\n", i,
                     ring_buf[idx].pil, ring_buf[idx].pc, ring_buf[idx].opcode, disasm_str,
                     ring_buf[idx].a_reg, ring_buf[idx].sts, ring_buf[idx].pid, ring_buf[idx].pie,
@@ -938,7 +938,7 @@ int cpu_run(int ticks_arg)
     volatile int ticks = ticks_arg;
 #ifdef WITH_DEBUGGER
     static uint32_t dbg_poll_ctr = 0; // emulated-instruction counter for async pause poll
-    if (get_debugger_control_granted())
+    if (cpu_get_debugger_control_granted())
     {
 #ifndef __EMSCRIPTEN__
         sleep_ms(100); // Portable (POSIX nanosleep / Windows Sleep)
@@ -969,7 +969,7 @@ int cpu_run(int ticks_arg)
         }
         if (ND100X_HOT_TRACE && Log_IsEnabled(LOG_CAT_TRAP, LOG_TRACE))
         {
-            Log_Write(LOG_CAT_TRAP, LOG_TRACE, "CPU: Interrupt handler returned, PC=%06o, PGS=%04x",
+            log_write(LOG_CAT_TRAP, LOG_TRACE, "CPU: Interrupt handler returned, PC=%06o, PGS=%04x",
                       gPC, gPGS);
         }
     }
@@ -977,7 +977,7 @@ int cpu_run(int ticks_arg)
 
     while (ticks != 0)
     {
-        CPURunMode current_run_mode = get_cpu_run_mode();
+        CPURunMode current_run_mode = cpu_get_run_mode();
 
 #ifdef WITH_DEBUGGER
 // Async pause is human-latency, so poll it on the emulated machine's own
@@ -995,7 +995,7 @@ int cpu_run(int ticks_arg)
         if (gDebuggerEnabled && ++dbg_poll_ctr >= DBG_POLL_INSTR)
         {
             dbg_poll_ctr = 0;
-            if (get_debugger_request_pause())
+            if (cpu_get_debugger_request_pause())
             {
                 // return ASAP, let the caller handle the debugger request
                 return ticks;
@@ -1068,7 +1068,7 @@ int cpu_run(int ticks_arg)
                 (g_breakpoint_step_pending || (g_breakpoint_entry_count > 0 &&
                                                (g_breakpoint_bitmap[gPC >> 3] & (1 << (gPC & 7))))))
             {
-                if (check_for_breakpoint() != STOP_REASON_NONE)
+                if (bkpt_check_hit() != STOP_REASON_NONE)
                 {
                     return ticks;
                 }
@@ -1079,8 +1079,8 @@ int cpu_run(int ticks_arg)
         else if (current_run_mode == CPU_STOPPED)
         {
             printf("CPU: WAS STOPPED, SHUTTING DOWN\r\n");
-            ring_dump();
-            set_cpu_run_mode(CPU_SHUTDOWN);
+            cpu_ring_dump();
+            cpu_set_run_mode(CPU_SHUTDOWN);
             break;
         }
         else
@@ -1156,15 +1156,15 @@ void cpu_init(bool debugger_enabled, int debugger_port)
     /* Initialize volatile memory to zero */
     memset(&g_volatile_memory, 0, sizeof(g_volatile_memory));
 
-    setbit_STS_MSB(STS_ND100_INDICATOR, 1);
+    cpu_setbit_sts_msb(STS_ND100_INDICATOR, 1);
     gCSR = 1 << 2; /* this bit sets the cache as not available */
 
     /* Set cpu as running for now. Probably should depend on settings */
-    set_cpu_run_mode(CPU_RUNNING);
+    cpu_set_run_mode(CPU_RUNNING);
     g_instr_counter = 0;
 
     // Allocate ShadowMemory for pagetables
-    CreatePagingTables();
+    mms_create_paging_tables();
 
     /* Pick the CPU model BEFORE the dispatch table is built - it gates whole groups. */
     cpu_set_type_from_env();
@@ -1178,7 +1178,7 @@ void cpu_init(bool debugger_enabled, int debugger_port)
     cpu_versn_set_identity_from_env();
 
     /* OK lets set up the parsing for our current cpu before we start it. */
-    Setup_Instructions();
+    cpu_instructions();
 
     gALD = 01560; // oct 1560 (ALD position 4, Binary load from 1560) // Floppy
 
@@ -1194,15 +1194,15 @@ void cpu_init(bool debugger_enabled, int debugger_port)
 /// @brief Initialize the CPU debugger
 /// @details This function initializes the CPU debugger thread
 
-void init_cpu_debugger(void)
+void cpu_init_debugger(void)
 {
 #ifdef WITH_DEBUGGER
     if (!gDebuggerEnabled)
     {
         return;
     }
-    breakpoint_manager_init();
-    start_debugger();
+    bkpt_manager_init();
+    debugger_start();
 #endif
 }
 
@@ -1223,31 +1223,31 @@ void cpu_reset(void)
     gDebuggerEnabled = saved_debugger_enabled;
 #endif
 
-    setbit_STS_MSB(STS_ND100_INDICATOR, 1);
+    cpu_setbit_sts_msb(STS_ND100_INDICATOR, 1);
     gCSR = 1 << 2; /* this bit sets the cache as not available */
 
     // Destroy paging tables (they will be recreated when cpu is initialized)
-    DestroyPagingTables();
+    mms_destroy_paging_tables();
 
     // Allocate ShadowMemory for pagetables
-    CreatePagingTables();
+    mms_create_paging_tables();
 
 
-    set_cpu_run_mode(CPU_RUNNING);
+    cpu_set_run_mode(CPU_RUNNING);
     g_instr_counter = 0;
 }
 
 /// @brief Cleanup the CPU
 /// @details This function cleans up the CPU. It destroys the paging tables and stops the debugger thread.
-void cleanup_cpu(void)
+void cpu_cleanup(void)
 {
     // Destroy paging tables
-    DestroyPagingTables();
+    mms_destroy_paging_tables();
 
 #ifdef WITH_DEBUGGER
     if (gDebuggerEnabled)
     {
-        stop_debugger_thread();
+        debugger_stop_thread();
     }
 #endif
 }
@@ -1255,7 +1255,7 @@ void cleanup_cpu(void)
 
 /// @brief Request from the debugger to take control of the CPU
 /// @param requested
-void set_debugger_request_pause(bool requested)
+void cpu_set_debugger_request_pause(bool requested)
 {
 #ifdef WITH_DEBUGGER
 #ifdef __EMSCRIPTEN__
@@ -1271,7 +1271,7 @@ void set_debugger_request_pause(bool requested)
 /// @brief Check if the debugger has requested to pause the CPU
 /// @return true if the debugger has requested to pause the CPU, false otherwise
 /// @details This function is used to check if the debugger has requested to pause the CPU.
-bool get_debugger_request_pause(void)
+bool cpu_get_debugger_request_pause(void)
 {
 #ifdef WITH_DEBUGGER
 #ifdef __EMSCRIPTEN__
@@ -1292,7 +1292,7 @@ bool get_debugger_request_pause(void)
 /// @brief Set the debugger control granted flag
 /// @param requested
 /// @details This function is used to set the debugger control granted flag.
-void set_debugger_control_granted(bool requested)
+void cpu_set_debugger_control_granted(bool requested)
 {
 #ifdef WITH_DEBUGGER
 #ifdef __EMSCRIPTEN__
@@ -1308,7 +1308,7 @@ void set_debugger_control_granted(bool requested)
 /// @brief Check if the debugger control is granted
 /// @details This function is used to check if the debugger control is granted.
 /// @return  true if the debugger control is granted, false otherwise
-bool get_debugger_control_granted(void)
+bool cpu_get_debugger_control_granted(void)
 {
 #ifdef WITH_DEBUGGER
 #ifdef __EMSCRIPTEN__
@@ -1328,7 +1328,7 @@ bool get_debugger_control_granted(void)
 
 /// @brief Set the debugger stop reason
 /// @param reason The reason for stopping the cpu
-void set_cpu_stop_reason(CpuStopReason reason)
+void cpu_set_stop_reason(CpuStopReason reason)
 {
 #ifdef WITH_DEBUGGER
 #ifdef __EMSCRIPTEN__
@@ -1342,7 +1342,7 @@ void set_cpu_stop_reason(CpuStopReason reason)
 }
 
 
-CpuStopReason get_cpu_stop_reason(void)
+CpuStopReason cpu_get_stop_reason(void)
 {
 #ifdef WITH_DEBUGGER
 #ifdef __EMSCRIPTEN__
@@ -1361,7 +1361,7 @@ CpuStopReason get_cpu_stop_reason(void)
 }
 
 
-void set_cpu_run_mode(CPURunMode new_mode)
+void cpu_set_run_mode(CPURunMode new_mode)
 {
 #ifdef WITH_DEBUGGER
 #ifdef __EMSCRIPTEN__
@@ -1377,7 +1377,7 @@ void set_cpu_run_mode(CPURunMode new_mode)
 }
 
 
-CPURunMode get_cpu_run_mode(void)
+CPURunMode cpu_get_run_mode(void)
 {
 #ifdef WITH_DEBUGGER
 #ifdef __EMSCRIPTEN__

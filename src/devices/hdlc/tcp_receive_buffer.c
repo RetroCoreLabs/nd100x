@@ -29,7 +29,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-void TcpReceiveBuffer_Init(TcpReceiveBuffer *buf, int capacity)
+void rxbuf_init(TcpReceiveBuffer *buf, int capacity)
 {
     if (!buf)
     {
@@ -47,7 +47,7 @@ void TcpReceiveBuffer_Init(TcpReceiveBuffer *buf, int capacity)
     buf->count = 0;
 }
 
-void TcpReceiveBuffer_Destroy(TcpReceiveBuffer *buf)
+void rxbuf_destroy(TcpReceiveBuffer *buf)
 {
     if (!buf)
     {
@@ -64,7 +64,7 @@ void TcpReceiveBuffer_Destroy(TcpReceiveBuffer *buf)
     buf->count = 0;
 }
 
-int TcpReceiveBuffer_Enqueue(TcpReceiveBuffer *buf, const uint8_t *data, int length)
+int rxbuf_enqueue(TcpReceiveBuffer *buf, const uint8_t *data, int length)
 {
     if (!buf || !buf->buffer || !data || length <= 0)
     {
@@ -101,7 +101,7 @@ int TcpReceiveBuffer_Enqueue(TcpReceiveBuffer *buf, const uint8_t *data, int len
     return bytes_to_write;
 }
 
-bool TcpReceiveBuffer_DequeueByte(TcpReceiveBuffer *buf, uint8_t *out)
+bool rxbuf_dequeue_byte(TcpReceiveBuffer *buf, uint8_t *out)
 {
     if (!buf || !buf->buffer || buf->count == 0)
     {
@@ -118,7 +118,7 @@ bool TcpReceiveBuffer_DequeueByte(TcpReceiveBuffer *buf, uint8_t *out)
     return true;
 }
 
-int TcpReceiveBuffer_Available(TcpReceiveBuffer *buf)
+int rxbuf_available(TcpReceiveBuffer *buf)
 {
     if (!buf)
     {
@@ -127,7 +127,7 @@ int TcpReceiveBuffer_Available(TcpReceiveBuffer *buf)
     return buf->count;
 }
 
-void TcpReceiveBuffer_Clear(TcpReceiveBuffer *buf)
+void rxbuf_clear(TcpReceiveBuffer *buf)
 {
     if (!buf)
     {

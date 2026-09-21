@@ -47,7 +47,7 @@ static void test_fcs_good_residue(void)
     uint16_t fcs = 0xFFFF;
     for (int i = 0; i < 3; i++)
     {
-        fcs = HDLC_CRC_CalcCCITT(fcs, data[i]);
+        fcs = hdlc_crc_crc_calc_ccitt(fcs, data[i]);
     }
     uint16_t complement = fcs ^ 0xFFFF;
 
@@ -55,10 +55,10 @@ static void test_fcs_good_residue(void)
     uint16_t check = 0xFFFF;
     for (int i = 0; i < 3; i++)
     {
-        check = HDLC_CRC_CalcCCITT(check, data[i]);
+        check = hdlc_crc_crc_calc_ccitt(check, data[i]);
     }
-    check = HDLC_CRC_CalcCCITT(check, complement & 0xFF);
-    check = HDLC_CRC_CalcCCITT(check, (complement >> 8) & 0xFF);
+    check = hdlc_crc_crc_calc_ccitt(check, complement & 0xFF);
+    check = hdlc_crc_crc_calc_ccitt(check, (complement >> 8) & 0xFF);
 
     ASSERT_EQ(check, 0xF0B8, "FCS residue is 0xF0B8");
     printf(" ok\n");
@@ -68,8 +68,8 @@ static void test_fcs_deterministic(void)
 {
     printf("  test_fcs_deterministic...");
     uint8_t data[] = {0xAA, 0xBB, 0xCC};
-    uint16_t crc1 = HDLCFrame_CalculateCRC(data, 3);
-    uint16_t crc2 = HDLCFrame_CalculateCRC(data, 3);
+    uint16_t crc1 = hdlc_frame_calculate_crc(data, 3);
+    uint16_t crc2 = hdlc_frame_calculate_crc(data, 3);
     ASSERT_EQ(crc1, crc2, "CRC deterministic");
     printf(" ok\n");
 }
@@ -78,12 +78,12 @@ static void test_fcs_incremental_matches_batch(void)
 {
     printf("  test_fcs_incremental_matches_batch...");
     uint8_t data[] = {0x01, 0x02, 0x03, 0x04};
-    uint16_t batch = HDLCFrame_CalculateCRC(data, 4);
+    uint16_t batch = hdlc_frame_calculate_crc(data, 4);
 
     uint16_t incr = 0xFFFF;
     for (int i = 0; i < 4; i++)
     {
-        incr = HDLCFrame_UpdateCRC(incr, data[i]);
+        incr = hdlc_frame_update_crc(incr, data[i]);
     }
     ASSERT_EQ(incr, batch, "incremental matches batch");
     printf(" ok\n");
@@ -92,7 +92,7 @@ static void test_fcs_incremental_matches_batch(void)
 static void test_fcs_empty(void)
 {
     printf("  test_fcs_empty...");
-    uint16_t crc = HDLCFrame_CalculateCRC(NULL, 0);
+    uint16_t crc = hdlc_frame_calculate_crc(NULL, 0);
     ASSERT_EQ(crc, 0xFFFF, "empty data stays init");
     printf(" ok\n");
 }
@@ -107,7 +107,7 @@ static void test_real_frame_crc(void)
     uint16_t crc = 0xFFFF;
     for (int i = 0; i < 6; i++)
     {
-        crc = HDLC_CRC_CalcCCITT(crc, content[i]);
+        crc = hdlc_crc_crc_calc_ccitt(crc, content[i]);
     }
     ASSERT_EQ(crc, 0xF0B8, "real frame CRC residue");
     printf(" ok\n");
@@ -119,12 +119,12 @@ static void test_real_frame_via_process_byte(void)
     // Feed the user's exact frame through HDLCFrame_AddByte
     uint8_t wire[] = {0x7E, 0x01, 0x73, 0x00, 0x67, 0x60, 0x98, 0x7E};
     HDLCFrame frame;
-    HDLCFrame_Init(&frame);
+    hdlc_frame_init(&frame);
 
     bool complete = false;
     for (int i = 0; i < 8; i++)
     {
-        complete = HDLCFrame_AddByte(&frame, wire[i]);
+        complete = hdlc_frame_add_byte(&frame, wire[i]);
         if (complete)
         {
             break;
@@ -132,11 +132,11 @@ static void test_real_frame_via_process_byte(void)
     }
 
     ASSERT(complete, "frame complete");
-    ASSERT(HDLCFrame_IsCRCValid(&frame), "CRC valid");
-    ASSERT_EQ(HDLCFrame_GetFrameLength(&frame), 6, "6 bytes (data+FCS)");
+    ASSERT(hdlc_frame_is_crc_valid(&frame), "CRC valid");
+    ASSERT_EQ(hdlc_frame_get_frame_length(&frame), 6, "6 bytes (data+FCS)");
 
     // Data portion (excluding 2-byte FCS): 01 73 00 67
-    const uint8_t *data = HDLCFrame_GetFrameData(&frame);
+    const uint8_t *data = hdlc_frame_get_frame_data(&frame);
     ASSERT_EQ(data[0], 0x01, "addr byte");
     ASSERT_EQ(data[1], 0x73, "control byte");
     ASSERT_EQ(data[2], 0x00, "data[0]");

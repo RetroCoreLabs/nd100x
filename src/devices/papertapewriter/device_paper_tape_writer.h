@@ -112,7 +112,7 @@ typedef struct
  * @param thumbwheel Card thumbwheel; selects the IOX address block.
  * @return The new Device, or NULL on allocation failure.
  */
-Device *CreatePaperTapeWriterDevice(uint8_t thumbwheel);
+Device *ptp_create_paper_tape_writer_device(uint8_t thumbwheel);
 
 /**
  * @brief Get a pointer to the punch's accumulated output buffer.
@@ -120,6 +120,6 @@ Device *CreatePaperTapeWriterDevice(uint8_t thumbwheel);
  * @param length Set to the number of bytes accumulated so far, or 0 if none.
  * @return Pointer to the internal tape buffer, or NULL if none is allocated.
  */
-const uint8_t *PaperTapeWriter_GetTapeData(Device *self, size_t *length);
+const uint8_t *ptp_get_tape_data(Device *self, size_t *length);
 
 #endif /* DEVICE_PAPER_TAPE_WRITER_H */

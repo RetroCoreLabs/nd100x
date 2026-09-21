@@ -47,13 +47,13 @@
 #include "cpu_types.h"
 #include "cpu_protos.h"
 
-int NDFloat_Div(unsigned short int *p_a, unsigned short int *p_b, unsigned short int *p_r);
-int NDFloat_Mul(unsigned short int *p_a, unsigned short int *p_b, unsigned short int *p_r);
-int NDFloat_Add(unsigned short int *p_a, unsigned short int *p_b, unsigned short int *p_r);
-int NDFloat_Sub(unsigned short int *p_a, unsigned short int *p_b, unsigned short int *p_r);
+int float_div(unsigned short int *p_a, unsigned short int *p_b, unsigned short int *p_r);
+int float_mul(unsigned short int *p_a, unsigned short int *p_b, unsigned short int *p_r);
+int float_add(unsigned short int *p_a, unsigned short int *p_b, unsigned short int *p_r);
+int float_sub(unsigned short int *p_a, unsigned short int *p_b, unsigned short int *p_r);
 
-void DoNLZ(char scaling);
-void DoDNZ(char scaling);
+void float_do_nlz(char scaling);
+void float_do_dnz(char scaling);
 
 /*
  * Internal floating point representation.
@@ -242,7 +242,7 @@ static void sub48(struct fp *f1, struct fp *f2, uint16_t *r)
  * are added to the floating accumulator with the result in the floating
  * accumulator.
  */
-int NDFloat_Add(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
+int float_add(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
 {
     struct fp f1;
     struct fp f2;
@@ -268,7 +268,7 @@ int NDFloat_Add(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
  * are subtracted from the floating accumulator with the result
  * in the floating accumulator.
  */
-int NDFloat_Sub(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
+int float_sub(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
 {
     struct fp f1;
     struct fp f2;
@@ -297,7 +297,7 @@ int NDFloat_Sub(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
  * number at the effective floating word locations with the result in
  * the floating accumulator.
  */
-int NDFloat_Mul(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
+int float_mul(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
 {
     struct fp f1;
     struct fp f2;
@@ -338,7 +338,7 @@ int NDFloat_Mul(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
  * at the effective floating word locations (p_b). Result in p_r.
  * If division by zero is attempted, the error indicator Z is set.
  */
-int NDFloat_Div(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
+int float_div(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
 {
     struct fp f1;
     struct fp f2;
@@ -398,7 +398,7 @@ int NDFloat_Div(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
  * Because of the single precision fixed point number, the D register
  * will be cleared.
  */
-void DoNLZ(char scaling)
+void float_do_nlz(char scaling)
 {
     int sh;
     int s;
@@ -446,7 +446,7 @@ void DoNLZ(char scaling)
  * Negative numbers are converted to positive before conversion,
  * then the result is negated.
  */
-void DoDNZ(char scaling)
+void float_do_dnz(char scaling)
 {
     int32_t val = 0;
     int sh;
@@ -477,7 +477,7 @@ void DoDNZ(char scaling)
         val <<= sh;
         if (val > 32767)
         {
-            setbit(_STS, STS_ERROR_INDICATOR, 1);
+            cpu_setbit(_STS, STS_ERROR_INDICATOR, 1);
         }
     }
 
@@ -511,12 +511,12 @@ void DoDNZ(char scaling)
 
 #define FP32_BIAS 257
 
-int NDFloat_Add32(unsigned short int *p_a, unsigned short int *p_b, unsigned short int *p_r);
-int NDFloat_Sub32(unsigned short int *p_a, unsigned short int *p_b, unsigned short int *p_r);
-int NDFloat_Mul32(unsigned short int *p_a, unsigned short int *p_b, unsigned short int *p_r);
-int NDFloat_Div32(unsigned short int *p_a, unsigned short int *p_b, unsigned short int *p_r);
-void DoNLZ32(char scaling);
-void DoDNZ32(char scaling);
+int float_add_32(unsigned short int *p_a, unsigned short int *p_b, unsigned short int *p_r);
+int float_sub_32(unsigned short int *p_a, unsigned short int *p_b, unsigned short int *p_r);
+int float_mul_32(unsigned short int *p_a, unsigned short int *p_b, unsigned short int *p_r);
+int float_div_32(unsigned short int *p_a, unsigned short int *p_b, unsigned short int *p_r);
+void float_do_nlz32(char scaling);
+void float_do_dnz32(char scaling);
 
 /*
  * mkfp32 - Unpack the A,D word pair into the internal fp struct.
@@ -598,7 +598,7 @@ static void pack32(int s, int e, uint64_t m, uint16_t *a, uint16_t *d)
  * Zero operands are exact special cases handled before the core (the
  * core assumes non-zero normalized mantissas).
  */
-int NDFloat_Add32(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
+int float_add_32(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
 {
     struct fp f1;
     struct fp f2;
@@ -644,7 +644,7 @@ int NDFloat_Add32(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
 /*
  * NDFloat_Sub32 - Subtract two 32-bit floating point numbers (reg - mem).
  */
-int NDFloat_Sub32(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
+int float_sub_32(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
 {
     struct fp f1;
     struct fp f2;
@@ -692,7 +692,7 @@ int NDFloat_Sub32(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
 /*
  * NDFloat_Mul32 - Multiply two 32-bit floating point numbers.
  */
-int NDFloat_Mul32(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
+int float_mul_32(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
 {
     struct fp f1;
     struct fp f2;
@@ -734,7 +734,7 @@ int NDFloat_Mul32(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
  *
  * Returns non-zero on divide-by-zero (caller sets the error indicator Z).
  */
-int NDFloat_Div32(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
+int float_div_32(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
 {
     struct fp f1;
     struct fp f2;
@@ -794,7 +794,7 @@ int NDFloat_Div32(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
  * if T changed the machine has the 48-bit FPP, if T is untouched it has
  * the 32-bit FPP.
  */
-void DoNLZ32(char scaling)
+void float_do_nlz32(char scaling)
 {
     int sh;
     int s;
@@ -849,7 +849,7 @@ void DoNLZ32(char scaling)
  * fixed point number in the A register. Sets the error indicator Z on
  * overflow, like DoDNZ. The T register is NEVER written.
  */
-void DoDNZ32(char scaling)
+void float_do_dnz32(char scaling)
 {
     int s;
     int e;
@@ -892,7 +892,7 @@ void DoDNZ32(char scaling)
 
     if (val > 32767)
     {
-        setbit(_STS, STS_ERROR_INDICATOR, 1);
+        cpu_setbit(_STS, STS_ERROR_INDICATOR, 1);
     }
     if (s)
     {

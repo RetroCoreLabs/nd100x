@@ -290,7 +290,7 @@ static bool bcd_get_operand(BcdOperand *op, uint16_t d1, uint16_t d2, bool is_as
     mem_len = bcd_mem_words(op);
     for (i = mem_len - 1; i >= 0; i--)
     {
-        op->words[i] = MemoryRead((uint16_t)((op->addr + i) & 0xFFFF), true);
+        op->words[i] = cpu_memory_read((uint16_t)((op->addr + i) & 0xFFFF), true);
     }
 
     return true;
@@ -314,7 +314,7 @@ static void bcd_store_operand(BcdOperand *op)
     mem_len = bcd_mem_words(op);
     for (i = 0; i < mem_len; i++)
     {
-        MemoryWrite(op->words[i], (uint16_t)((op->addr + i) & 0xFFFF), true, 2);
+        cpu_memory_write(op->words[i], (uint16_t)((op->addr + i) & 0xFFFF), true, 2);
     }
 }
 

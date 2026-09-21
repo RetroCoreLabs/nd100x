@@ -501,7 +501,7 @@ static char *get_cached_or_download_json(bool force_download, bool *from_cache)
     }
 
     // Download from network
-    char *json_data = download_file(FLOPPIES_JSON_URL);
+    char *json_data = dl_download_file(FLOPPIES_JSON_URL);
     if (json_data)
     {
         save_to_cache(json_data);
@@ -1274,7 +1274,7 @@ static void draw_mount_popup(void)
     mvwprintw(popup, 4, 2, "MD5: %s", floppy->md5);
 
     // Get current mounted drives
-    MountedDriveInfo_t *current_drives = list_mount(floppy->drive_type);
+    MountedDriveInfo_t *current_drives = machine_list_mount(floppy->drive_type);
     if (!current_drives)
     {
         mvwprintw(popup, 6, 2, "Error: Could not get mounted drives");
@@ -1362,7 +1362,7 @@ static void handle_mount_popup_input(int ch)
         {
             // Check if selected unit is already mounted
             MountedDriveInfo_t *current_drives =
-                list_mount(menu_state.mount_popup.floppy->drive_type);
+                machine_list_mount(menu_state.mount_popup.floppy->drive_type);
             if (current_drives &&
                 current_drives[menu_state.mount_popup.selected_unit].name[0] != '\0')
             {
@@ -1380,10 +1380,10 @@ static void handle_mount_popup_input(int ch)
             }
 
             // Call the external mount function with correct drive type and image path
-            mount_drive(menu_state.mount_popup.floppy->drive_type,
-                        menu_state.mount_popup.selected_unit, menu_state.mount_popup.floppy->md5,
-                        menu_state.mount_popup.floppy->name,
-                        menu_state.mount_popup.floppy->description, image_path);
+            machine_mount_drive(
+                menu_state.mount_popup.floppy->drive_type, menu_state.mount_popup.selected_unit,
+                menu_state.mount_popup.floppy->md5, menu_state.mount_popup.floppy->name,
+                menu_state.mount_popup.floppy->description, image_path);
 
             free(image_path); // Free the allocated URL
             hide_mount_popup();
@@ -1467,8 +1467,8 @@ static void draw_unmount_popup(void)
     mvwprintw(popup, 0, 2, " Unmount ");
 
     // Get mounted drives
-    MountedDriveInfo_t *g_floppy_drives = list_mount(DRIVE_FLOPPY);
-    MountedDriveInfo_t *g_smd_drives = list_mount(DRIVE_SMD);
+    MountedDriveInfo_t *g_floppy_drives = machine_list_mount(DRIVE_FLOPPY);
+    MountedDriveInfo_t *g_smd_drives = machine_list_mount(DRIVE_SMD);
 
     if (!g_floppy_drives || !g_smd_drives)
     {
@@ -1572,7 +1572,7 @@ static void handle_unmount_popup_input(int ch)
         }
 
         // Call unmount function
-        unmount_drive(drive_type, unit);
+        machine_unmount_drive(drive_type, unit);
         hide_unmount_popup();
     }
     break;
@@ -1796,7 +1796,7 @@ static int load_catalog(void)
         printf("\n  Download failed. Check your network connection.\n");
         printf("  Press any key to return.\n");
         fflush(stdout);
-        (void)read_key_event();
+        (void)kbd_read_key_event();
         return -1;
     }
 

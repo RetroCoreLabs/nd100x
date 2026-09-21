@@ -32,20 +32,20 @@ static void scsi_target_step(SCSITarget *t, bool timeout);
 /* ------------------------------------------------------------------ */
 /* Big-endian accessors (SCSISupport.cs Buffer)                        */
 /* ------------------------------------------------------------------ */
-void scsi_put_u16be(uint8_t *buf, uint16_t value)
+void scsi_device_scsi_put_u16_be(uint8_t *buf, uint16_t value)
 {
     buf[0] = (uint8_t)(value >> 8);
     buf[1] = (uint8_t)(value);
 }
 
-void scsi_put_u24be(uint8_t *buf, uint32_t value)
+void scsi_device_scsi_put_u24_be(uint8_t *buf, uint32_t value)
 {
     buf[0] = (uint8_t)(value >> 16);
     buf[1] = (uint8_t)(value >> 8);
     buf[2] = (uint8_t)(value);
 }
 
-void scsi_put_u32be(uint8_t *buf, uint32_t value)
+void scsi_device_scsi_put_u32_be(uint8_t *buf, uint32_t value)
 {
     buf[0] = (uint8_t)(value >> 24);
     buf[1] = (uint8_t)(value >> 16);
@@ -53,17 +53,17 @@ void scsi_put_u32be(uint8_t *buf, uint32_t value)
     buf[3] = (uint8_t)(value);
 }
 
-uint16_t scsi_get_u16be(const uint8_t *buf)
+uint16_t scsi_device_scsi_get_u16_be(const uint8_t *buf)
 {
     return (uint16_t)(((uint16_t)buf[0] << 8) | buf[1]);
 }
 
-uint32_t scsi_get_u24be(const uint8_t *buf)
+uint32_t scsi_device_scsi_get_u24_be(const uint8_t *buf)
 {
     return ((uint32_t)buf[0] << 16) | ((uint32_t)buf[1] << 8) | buf[2];
 }
 
-uint32_t scsi_get_u32be(const uint8_t *buf)
+uint32_t scsi_device_scsi_get_u32_be(const uint8_t *buf)
 {
     return ((uint32_t)buf[0] << 24) | ((uint32_t)buf[1] << 16) | ((uint32_t)buf[2] << 8) | buf[3];
 }
@@ -84,7 +84,7 @@ static void scsi_target_log(SCSITarget *t, const char *fmt, ...)
     va_start(args, fmt);
     vsnprintf(msg, sizeof(msg), fmt, args);
     va_end(args);
-    Log_Write(LOG_CAT_SCSI, LOG_DEBUG, "TGT%d: %s", t->dev.scsi_id, msg);
+    log_write(LOG_CAT_SCSI, LOG_DEBUG, "TGT%d: %s", t->dev.scsi_id, msg);
 }
 
 
@@ -140,7 +140,7 @@ static SCSIBufControl *scsi_target_buf_control_pop(SCSITarget *t)
 /* ------------------------------------------------------------------ */
 /* Data buffer accessors                                               */
 /* ------------------------------------------------------------------ */
-uint8_t SCSITarget_DefaultGetData(SCSITarget *t, SBUF id, int pos)
+uint8_t scsi_device_default_get_data(SCSITarget *t, SBUF id, int pos)
 {
     switch (id)
     {
@@ -163,7 +163,7 @@ uint8_t SCSITarget_DefaultGetData(SCSITarget *t, SBUF id, int pos)
 }
 
 
-void SCSITarget_DefaultPutData(SCSITarget *t, SBUF id, int pos, uint8_t data)
+void scsi_device_default_put_data(SCSITarget *t, SBUF id, int pos, uint8_t data)
 {
     switch (id)
     {
@@ -192,7 +192,7 @@ static uint8_t scsi_target_get_data(SCSITarget *t, SBUF id, int pos)
     {
         return t->scsi_get_data(t, id, pos);
     }
-    return SCSITarget_DefaultGetData(t, id, pos);
+    return scsi_device_default_get_data(t, id, pos);
 }
 
 
@@ -204,7 +204,7 @@ static void scsi_target_put_data(SCSITarget *t, SBUF id, int pos, uint8_t data)
     }
     else
     {
-        SCSITarget_DefaultPutData(t, id, pos, data);
+        scsi_device_default_put_data(t, id, pos, data);
     }
 }
 
@@ -212,7 +212,7 @@ static void scsi_target_put_data(SCSITarget *t, SBUF id, int pos, uint8_t data)
 /* ------------------------------------------------------------------ */
 /* Phase queueing (called from a concrete target's scsi_command)       */
 /* ------------------------------------------------------------------ */
-void SCSITarget_DataIn(SCSITarget *t, SBUF buf, int size)
+void scsi_device_data_in(SCSITarget *t, SBUF buf, int size)
 {
     SCSIBufControl *c = scsi_target_buf_control_push(t);
     c->action = BC_DATA_IN;
@@ -223,7 +223,7 @@ void SCSITarget_DataIn(SCSITarget *t, SBUF buf, int size)
 }
 
 
-void SCSITarget_DataOut(SCSITarget *t, SBUF buf, int size)
+void scsi_device_data_out(SCSITarget *t, SBUF buf, int size)
 {
     SCSIBufControl *c = scsi_target_buf_control_push(t);
     c->action = BC_DATA_OUT;
@@ -233,7 +233,7 @@ void SCSITarget_DataOut(SCSITarget *t, SBUF buf, int size)
 
 
 /* Queue STATUS + COMMAND COMPLETE message + BUS FREE. */
-void SCSITarget_StatusComplete(SCSITarget *t, uint8_t status)
+void scsi_device_status_complete(SCSITarget *t, uint8_t status)
 {
     scsi_target_log(t, "scsi_status_complete: status=0x%02X", status);
 
@@ -277,7 +277,7 @@ static void scsi_target_set_sense_data(SCSITarget *t, uint8_t sense_key, uint16_
         t->scsi_sense_buffer[2] = (uint8_t)((data->filemark ? 0x80 : 0) | (data->eom ? 0x40 : 0) |
                                             (data->bad_len ? 0x20 : 0));
         /* information field, bytes 3-6, big-endian */
-        scsi_put_u32be(&t->scsi_sense_buffer[3], (uint32_t)data->info);
+        scsi_device_scsi_put_u32_be(&t->scsi_sense_buffer[3], (uint32_t)data->info);
     }
     else
     {
@@ -285,12 +285,12 @@ static void scsi_target_set_sense_data(SCSITarget *t, uint8_t sense_key, uint16_
     }
 
     t->scsi_sense_buffer[2] |= (uint8_t)(sense_key & 0x0f);
-    t->scsi_sense_buffer[7] = 10;                              /* additional sense length */
-    scsi_put_u16be(&t->scsi_sense_buffer[12], sense_key_code); /* ASC / ASCQ */
+    t->scsi_sense_buffer[7] = 10; /* additional sense length */
+    scsi_device_scsi_put_u16_be(&t->scsi_sense_buffer[12], sense_key_code); /* ASC / ASCQ */
 }
 
 
-void SCSITarget_Sense(SCSITarget *t, bool deferred, uint8_t key, int asc, int ascq)
+void scsi_device_sense(SCSITarget *t, bool deferred, uint8_t key, int asc, int ascq)
 {
     SCSISenseData s;
     memset(&s, 0, sizeof(s));
@@ -305,18 +305,18 @@ static void scsi_target_report_condition(SCSITarget *t, uint8_t sense_key, uint1
                                          const SCSISenseData *data)
 {
     scsi_target_set_sense_data(t, sense_key, sense_key_code, data);
-    SCSITarget_StatusComplete(t, SS_CHECK_CONDITION);
+    scsi_device_status_complete(t, SS_CHECK_CONDITION);
 }
 
 
-void SCSITarget_ReportBadCmd(SCSITarget *t, uint8_t cmd)
+void scsi_device_report_bad_cmd(SCSITarget *t, uint8_t cmd)
 {
     scsi_target_log(t, "cmd 0x%02X    *** BAD COMMAND", cmd);
     scsi_target_report_condition(t, SK_ILLEGAL_REQUEST, SKC_INVALID_COMMAND_OPERATION_CODE, NULL);
 }
 
 
-void SCSITarget_ReportBadLun(SCSITarget *t, uint8_t cmd, uint8_t lun)
+void scsi_device_report_bad_lun(SCSITarget *t, uint8_t cmd, uint8_t lun)
 {
     scsi_target_log(t, "cmd 0x%02X lun=%d    *** BAD LUN", cmd, lun);
     scsi_target_report_condition(t, SK_ILLEGAL_REQUEST, SKC_LOGICAL_UNIT_NOT_SUPPORTED, NULL);
@@ -328,19 +328,19 @@ void SCSITarget_ReportBadLun(SCSITarget *t, uint8_t cmd, uint8_t lun)
 /* ------------------------------------------------------------------ */
 static void scsi_target_recv_byte(SCSITarget *t)
 {
-    SCSIBus_ControlWait(t->bus, t->dev.refid, S_ACK, S_ACK);
+    scsi_bus_control_wait(t->bus, t->dev.refid, S_ACK, S_ACK);
     t->scsi_state = (t->scsi_state & SCSI_STATE_MASK) | TS_RECV_BYTE_T_WAIT_ACK_1;
-    SCSIBus_ControlWrite(t->bus, t->dev.refid, S_REQ, S_REQ);
+    scsi_bus_control_write(t->bus, t->dev.refid, S_REQ, S_REQ);
     scsi_target_step(t, false);
 }
 
 
 static void scsi_target_send_byte(SCSITarget *t, uint8_t val)
 {
-    SCSIBus_ControlWait(t->bus, t->dev.refid, S_ACK, S_ACK);
+    scsi_bus_control_wait(t->bus, t->dev.refid, S_ACK, S_ACK);
     t->scsi_state = (t->scsi_state & SCSI_STATE_MASK) | TS_SEND_BYTE_T_WAIT_ACK_1;
-    SCSIBus_DataWrite(t->bus, t->dev.refid, val);
-    SCSIBus_ControlWrite(t->bus, t->dev.refid, S_REQ, S_REQ);
+    scsi_bus_data_write(t->bus, t->dev.refid, val);
+    scsi_bus_control_write(t->bus, t->dev.refid, S_REQ, S_REQ);
     scsi_target_step(t, false);
 }
 
@@ -412,15 +412,15 @@ static void scsi_target_step(SCSITarget *t, bool timeout)
         return;
     }
 
-    uint32_t ctrl = SCSIBus_ControlRead(t->bus);
-    uint8_t data = SCSIBus_DataRead(t->bus);
+    uint32_t ctrl = scsi_bus_control_read(t->bus);
+    uint8_t data = scsi_bus_data_read(t->bus);
 
     (void)timeout;
 
     if (ctrl & S_RST)
     {
         scsi_target_log(t, "scsi bus reset");
-        SCSITarget_DeviceReset(t);
+        scsi_device_device_reset(t);
         return;
     }
 
@@ -447,7 +447,7 @@ static void scsi_target_step(SCSITarget *t, bool timeout)
         if ((ctrl & (S_SEL | S_BSY)) == S_SEL)
         {
             t->scsi_state = TS_TARGET_SELECT_WAIT_SEL_0;
-            SCSIBus_ControlWrite(t->bus, t->dev.refid, S_BSY, S_BSY);
+            scsi_bus_control_write(t->bus, t->dev.refid, S_BSY, S_BSY);
         }
         else
         {
@@ -472,9 +472,9 @@ static void scsi_target_step(SCSITarget *t, bool timeout)
         if (ctrl & S_ACK)
         {
             scsi_target_put_data(t, t->data_buffer_id, t->data_buffer_pos++,
-                                 SCSIBus_DataRead(t->bus));
+                                 scsi_bus_data_read(t->bus));
             t->scsi_state = (t->scsi_state & SCSI_STATE_MASK) | TS_RECV_BYTE_T_WAIT_ACK_0;
-            SCSIBus_ControlWrite(t->bus, t->dev.refid, 0, S_REQ);
+            scsi_bus_control_write(t->bus, t->dev.refid, 0, S_REQ);
         }
         break;
 
@@ -482,7 +482,7 @@ static void scsi_target_step(SCSITarget *t, bool timeout)
         if (!(ctrl & S_ACK))
         {
             t->scsi_state &= SCSI_STATE_MASK;
-            SCSIBus_ControlWait(t->bus, t->dev.refid, 0, S_ACK);
+            scsi_bus_control_wait(t->bus, t->dev.refid, 0, S_ACK);
             /* scsi_data_byte_period() is 0 -> step immediately. */
             scsi_target_step(t, false);
         }
@@ -492,8 +492,8 @@ static void scsi_target_step(SCSITarget *t, bool timeout)
         if (ctrl & S_ACK)
         {
             t->scsi_state = (t->scsi_state & SCSI_STATE_MASK) | TS_SEND_BYTE_T_WAIT_ACK_0;
-            SCSIBus_DataWrite(t->bus, t->dev.refid, 0);
-            SCSIBus_ControlWrite(t->bus, t->dev.refid, 0, S_REQ);
+            scsi_bus_data_write(t->bus, t->dev.refid, 0);
+            scsi_bus_control_write(t->bus, t->dev.refid, 0, S_REQ);
         }
         break;
 
@@ -501,7 +501,7 @@ static void scsi_target_step(SCSITarget *t, bool timeout)
         if (!(ctrl & S_ACK))
         {
             t->scsi_state &= SCSI_STATE_MASK;
-            SCSIBus_ControlWait(t->bus, t->dev.refid, 0, S_ACK);
+            scsi_bus_control_wait(t->bus, t->dev.refid, 0, S_ACK);
             scsi_target_step(t, false);
         }
         break;
@@ -518,23 +518,23 @@ static void scsi_target_step(SCSITarget *t, bool timeout)
             if (ctrl & S_ATN)
             {
                 t->scsi_state = TS_TARGET_WAIT_MSG_BYTE;
-                SCSIBus_ControlWrite(t->bus, t->dev.refid, S_PHASE_MSG_OUT, S_PHASE_MASK);
+                scsi_bus_control_write(t->bus, t->dev.refid, S_PHASE_MSG_OUT, S_PHASE_MASK);
             }
             else
             {
                 t->scsi_state = TS_TARGET_WAIT_CMD_BYTE;
-                SCSIBus_ControlWrite(t->bus, t->dev.refid, S_PHASE_COMMAND, S_PHASE_MASK);
+                scsi_bus_control_write(t->bus, t->dev.refid, S_PHASE_COMMAND, S_PHASE_MASK);
             }
             scsi_target_recv_byte(t);
             break;
 
         case BC_STATUS:
-            SCSIBus_ControlWrite(t->bus, t->dev.refid, S_PHASE_STATUS, S_PHASE_MASK);
+            scsi_bus_control_write(t->bus, t->dev.refid, S_PHASE_STATUS, S_PHASE_MASK);
             scsi_target_send_byte(t, (uint8_t)ctl->param1);
             break;
 
         case BC_DATA_IN:
-            SCSIBus_ControlWrite(t->bus, t->dev.refid, S_PHASE_DATA_IN, S_PHASE_MASK);
+            scsi_bus_control_write(t->bus, t->dev.refid, S_PHASE_DATA_IN, S_PHASE_MASK);
             t->data_buffer_id = (SBUF)ctl->param1;
             t->data_buffer_size = ctl->param2;
             t->data_buffer_pos = 0;
@@ -544,7 +544,7 @@ static void scsi_target_step(SCSITarget *t, bool timeout)
             break;
 
         case BC_DATA_OUT:
-            SCSIBus_ControlWrite(t->bus, t->dev.refid, S_PHASE_DATA_OUT, S_PHASE_MASK);
+            scsi_bus_control_write(t->bus, t->dev.refid, S_PHASE_DATA_OUT, S_PHASE_MASK);
             t->data_buffer_id = (SBUF)ctl->param1;
             t->data_buffer_size = ctl->param2;
             t->data_buffer_pos = 0;
@@ -554,14 +554,14 @@ static void scsi_target_step(SCSITarget *t, bool timeout)
             break;
 
         case BC_MESSAGE_1:
-            SCSIBus_ControlWrite(t->bus, t->dev.refid, S_PHASE_MSG_IN, S_PHASE_MASK);
+            scsi_bus_control_write(t->bus, t->dev.refid, S_PHASE_MSG_IN, S_PHASE_MASK);
             scsi_target_send_byte(t, (uint8_t)ctl->param1);
             break;
 
         case BC_BUS_FREE:
-            SCSIBus_DataWrite(t->bus, t->dev.refid, 0);
-            SCSIBus_ControlWait(t->bus, t->dev.refid, S_BSY | S_SEL | S_RST, S_ALL);
-            SCSIBus_ControlWrite(t->bus, t->dev.refid, 0, S_ALL);
+            scsi_bus_data_write(t->bus, t->dev.refid, 0);
+            scsi_bus_control_wait(t->bus, t->dev.refid, S_BSY | S_SEL | S_RST, S_ALL);
+            scsi_bus_control_write(t->bus, t->dev.refid, 0, S_ALL);
             t->scsi_state = TS_IDLE;
             break;
 
@@ -599,7 +599,7 @@ static void scsi_target_step(SCSITarget *t, bool timeout)
             t->data_buffer_id = SBUF_MAIN;
             t->data_buffer_pos = 0;
             t->scsi_state = TS_TARGET_WAIT_CMD_BYTE;
-            SCSIBus_ControlWrite(t->bus, t->dev.refid, S_PHASE_COMMAND, S_PHASE_MASK);
+            scsi_bus_control_write(t->bus, t->dev.refid, S_PHASE_COMMAND, S_PHASE_MASK);
         }
         scsi_target_recv_byte(t);
         break;
@@ -618,7 +618,7 @@ static void scsi_target_step(SCSITarget *t, bool timeout)
         if (scsi_target_command_done(t, t->scsi_cmdbuf[0], t->data_buffer_pos))
         {
             t->scsi_cmdsize = t->data_buffer_pos;
-            SCSIBus_ControlWait(t->bus, t->dev.refid, 0, S_ACK);
+            scsi_bus_control_wait(t->bus, t->dev.refid, 0, S_ACK);
             if (t->scsi_command)
             {
                 t->scsi_command(t);
@@ -671,7 +671,7 @@ static void scsi_target_ctrl_changed(SCSIDevice *self)
 }
 
 
-void SCSITarget_DeviceReset(SCSITarget *t)
+void scsi_device_device_reset(SCSITarget *t)
 {
     if (!t)
     {
@@ -691,14 +691,14 @@ void SCSITarget_DeviceReset(SCSITarget *t)
         return;
     }
 
-    SCSIBus_DataWrite(t->bus, t->dev.refid, 0);
-    SCSIBus_ControlWrite(t->bus, t->dev.refid, 0, S_ALL);
-    SCSIBus_ControlWait(t->bus, t->dev.refid, S_SEL | S_BSY | S_RST, S_ALL);
-    SCSITarget_Sense(t, false, SK_NO_SENSE, 0, 0);
+    scsi_bus_data_write(t->bus, t->dev.refid, 0);
+    scsi_bus_control_write(t->bus, t->dev.refid, 0, S_ALL);
+    scsi_bus_control_wait(t->bus, t->dev.refid, S_SEL | S_BSY | S_RST, S_ALL);
+    scsi_device_sense(t, false, SK_NO_SENSE, 0, 0);
 }
 
 
-void SCSITarget_Init(SCSITarget *t, SCSIBus *bus, uint8_t scsi_id, const char *name)
+void scsi_device_init(SCSITarget *t, SCSIBus *bus, uint8_t scsi_id, const char *name)
 {
     /* NOTE: does not memset - the caller owns the struct and may already have
      * filled in the concrete-target hooks. Only the base fields are set here. */
@@ -709,8 +709,8 @@ void SCSITarget_Init(SCSITarget *t, SCSIBus *bus, uint8_t scsi_id, const char *n
     t->dev.impl = t;
     t->dev.refid = -1;
 
-    SCSIBus_AddDevice(bus, &t->dev);
+    scsi_bus_add_device(bus, &t->dev);
     t->bus = bus;
 
-    SCSITarget_DeviceReset(t);
+    scsi_device_device_reset(t);
 }

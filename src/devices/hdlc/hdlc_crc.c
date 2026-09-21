@@ -80,7 +80,7 @@ static void initialize_parity_tables(void)
     parity_tables_initialized = true;
 }
 
-uint16_t HDLC_CRC_CalculateCRC16Buffer(uint16_t crc, const uint8_t *buf, int length)
+uint16_t hdlc_crc_crc_calculate_crc16_buffer(uint16_t crc, const uint8_t *buf, int length)
 {
     if (!buf)
     {
@@ -89,12 +89,12 @@ uint16_t HDLC_CRC_CalculateCRC16Buffer(uint16_t crc, const uint8_t *buf, int len
 
     for (int i = 0; i < length; i++)
     {
-        crc = HDLC_CRC_CalcCrc16(crc, buf[i]);
+        crc = hdlc_crc_crc_calc_crc_16(crc, buf[i]);
     }
     return crc;
 }
 
-uint16_t HDLC_CRC_CalcCrc16(uint16_t crc, uint8_t byte)
+uint16_t hdlc_crc_crc_calc_crc_16(uint16_t crc, uint8_t byte)
 {
     // Uses the polynomial x^16 + x^15 + x^2 + 1 (0xA001)
     // Algorithm shifts CRC right by 4 bits and performs XOR operation with lookup table values
@@ -103,7 +103,7 @@ uint16_t HDLC_CRC_CalcCrc16(uint16_t crc, uint8_t byte)
     return crc;
 }
 
-uint16_t HDLC_CRC_CalcCCITT(uint16_t fcs, uint8_t byte)
+uint16_t hdlc_crc_crc_calc_ccitt(uint16_t fcs, uint8_t byte)
 {
     // Uses the polynomial x^16 + x^12 + x^5 + 1 (0x1021)
     fcs = (uint16_t)((fcs >> 8) ^ fcstab[(fcs ^ byte) & 0xff]);
@@ -137,7 +137,7 @@ static uint8_t hdlc_crc_calculate_parity_bit(uint8_t data, HDLCParityMode mode)
     return 0; // Default case
 }
 
-uint8_t HDLC_CRC_AddParityBit(uint8_t data, HDLCParityMode mode)
+uint8_t hdlc_crc_crc_add_parity_bit(uint8_t data, HDLCParityMode mode)
 {
     initialize_parity_tables();
 
@@ -146,7 +146,7 @@ uint8_t HDLC_CRC_AddParityBit(uint8_t data, HDLCParityMode mode)
     return (uint8_t)(data | (parity_bit << 7)); // OR operation to set the parity bit in MSB
 }
 
-bool HDLC_CRC_CheckParity(uint8_t data, HDLCParityMode mode)
+bool hdlc_crc_crc_check_parity(uint8_t data, HDLCParityMode mode)
 {
     initialize_parity_tables();
 

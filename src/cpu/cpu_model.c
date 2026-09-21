@@ -44,7 +44,7 @@ static const struct { const char *name; CpuType type; } g_models[] = {
 
 #define MODEL_COUNT ((int)(sizeof(g_models) / sizeof(g_models[0])))
 
-bool CpuModel_FromName(const char *name, CpuType *out)
+bool cpumodel_from_name(const char *name, CpuType *out)
 {
     if (!name)
     {
@@ -64,7 +64,7 @@ bool CpuModel_FromName(const char *name, CpuType *out)
     return false;
 }
 
-const char *CpuModel_Name(CpuType t)
+const char *cpumodel_name(CpuType t)
 {
     for (int i = 0; i < MODEL_COUNT; i++)
     {
@@ -80,7 +80,7 @@ const char *CpuModel_Name(CpuType t)
  * what the guest itself reports. Deliberately separate from CpuModel_Name():
  * that one round-trips through the config file and must stay exactly what the
  * parser accepts, hyphens and all would break it. */
-const char *CpuModel_DisplayName(CpuType t)
+const char *cpumodel_display_name(CpuType t)
 {
     switch (t)
     {
@@ -111,12 +111,12 @@ const char *CpuModel_DisplayName(CpuType t)
     }
 }
 
-int CpuModel_Count(void)
+int cpumodel_count(void)
 {
     return MODEL_COUNT;
 }
 
-const char *CpuModel_NameByIndex(int i)
+const char *cpumodel_name_by_index(int i)
 {
     if (i < 0 || i >= MODEL_COUNT)
     {

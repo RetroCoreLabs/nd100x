@@ -62,7 +62,7 @@ typedef struct MachineConfigApplyOpts
  * @param mc   The configuration to install.
  * @param opts What a command line already decided; may be NULL for "nothing".
  */
-void MachineConfig_ApplyCpu(const MachineConfig *mc, const MachineConfigApplyOpts *opts);
+void mc_apply_cpu(const MachineConfig *mc, const MachineConfigApplyOpts *opts);
 
 /**
  * @brief Add the configured terminals, disc controllers with their mounted
@@ -74,6 +74,6 @@ void MachineConfig_ApplyCpu(const MachineConfig *mc, const MachineConfigApplyOpt
  *
  * @param mc The configuration whose devices are added.
  */
-void MachineConfig_ApplyDevices(const MachineConfig *mc);
+void mc_apply_devices(const MachineConfig *mc);
 
 #endif /* MACHINE_CONFIG_APPLY_H */

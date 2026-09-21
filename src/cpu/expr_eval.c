@@ -412,7 +412,7 @@ static uint16_t parse_primary(Parser *p)
         }
         if (!has_error(p))
         {
-            return (uint16_t)ReadVirtualMemory(val, false);
+            return (uint16_t)mms_read_virtual_memory(val, false);
         }
         return 0;
     }

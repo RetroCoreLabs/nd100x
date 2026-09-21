@@ -60,8 +60,8 @@ typedef struct
 
 
 // Physical memory functions in cpu_mms.c
-extern int ReadPhysicalMemory(int physical_address, bool privileged);
-extern void WritePhysicalMemory(int physical_address, uint16_t value, bool privileged);
+extern int mms_read_physical_memory(int physical_address, bool privileged);
+extern void mms_write_physical_memory(int physical_address, uint16_t value, bool privileged);
 /* Also provided by the cpu module: the -a disassembler records each word a
  * loader deposits (cpu_disasm.c; declared for the cpu module in cpu_types.h). */
 extern int g_disasm;
@@ -125,7 +125,7 @@ typedef enum
  * @return true when a BPUN has been loaded successfully at least once and out
  *         is not NULL, false otherwise.
  */
-bool GetLastBPUNHeader(BPUN_Header *out);
+bool bpun_get_last_header(BPUN_Header *out);
 
 /**
  * @brief Load a BPUN (boot program unprotected) file into physical memory and
@@ -135,7 +135,7 @@ bool GetLastBPUNHeader(BPUN_Header *out);
  * @return The bootstrap-loader "boot" address from the file on success, 0 if
  *         the file could not be opened, and -1 if parsing failed.
  */
-int LoadBPUN(const char *filename, bool verbose);
+int bpun_load(const char *filename, bool verbose);
 
 /**
  * @brief Binary load from a boot device. Not implemented - the argument is
@@ -143,7 +143,7 @@ int LoadBPUN(const char *filename, bool verbose);
  * @param bpfile Name of the device or file to load from.
  * @return -1 always.
  */
-int bp_load(const char *bpfile);
+int bpun_bp_load(const char *bpfile);
 
 /**
  * @brief Copy the header of the most recently loaded :PROG file into *out.
@@ -151,7 +151,7 @@ int bp_load(const char *bpfile);
  * @return true when a :PROG has been loaded successfully at least once and
  *         out is not NULL, false otherwise.
  */
-bool GetLastPROGHeader(PROG_Header *out);
+bool prog_get_last_header(PROG_Header *out);
 
 /**
  * @brief Load a SINTRAN :PROG image into physical memory and cache its header
@@ -167,7 +167,7 @@ bool GetLastPROGHeader(PROG_Header *out);
  *         could not be opened, the header was short, a seek failed, or a bank
  *         could not be read.
  */
-int LoadPROG(const char *filename, bool verbose);
+int prog_load(const char *filename, bool verbose);
 
 /**
  * @brief Put the console into cbreak mode so keys arrive one at a time without
@@ -179,13 +179,13 @@ int LoadPROG(const char *filename, bool verbose);
  *          input handle, then clears ENABLE_LINE_INPUT, ENABLE_ECHO_INPUT and
  *          ENABLE_PROCESSED_INPUT and sets ENABLE_WINDOW_INPUT.
  */
-void setcbreak(void);
+void ndlib_setcbreak(void);
 
 /**
  * @brief Restore the console settings saved by setcbreak().
  * @details Does nothing on Windows when no console handle was saved.
  */
-void unsetcbreak(void);
+void ndlib_unsetcbreak(void);
 
 
 #endif //

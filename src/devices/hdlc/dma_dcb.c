@@ -34,7 +34,7 @@
 
 #include "hdlc_constants.h"
 
-void DCB_Init(HdlcDCB *dcb)
+void dcb_init(HdlcDCB *dcb)
 {
     if (!dcb)
     {
@@ -60,17 +60,17 @@ void DCB_Init(HdlcDCB *dcb)
     dcb->dmaReadData = -1; // -1 indicates not read
 }
 
-void DCB_Clear(HdlcDCB *dcb)
+void dcb_clear(HdlcDCB *dcb)
 {
     if (!dcb)
     {
         return;
     }
 
-    DCB_Init(dcb);
+    dcb_init(dcb);
 }
 
-KeyFlags DCB_GetKey(const HdlcDCB *dcb)
+KeyFlags dcb_get_key(const HdlcDCB *dcb)
 {
     if (!dcb)
     {
@@ -80,7 +80,7 @@ KeyFlags DCB_GetKey(const HdlcDCB *dcb)
     return (KeyFlags)(dcb->keyValue & KEYFLAG_MASK_KEY);
 }
 
-bool DCB_HasRSOMFlag(const HdlcDCB *dcb)
+bool dcb_has_rsom_flag(const HdlcDCB *dcb)
 {
     if (!dcb)
     {
@@ -90,7 +90,7 @@ bool DCB_HasRSOMFlag(const HdlcDCB *dcb)
     return (dcb->keyValue & KEYFLAG_RCOST_RSOM) != 0;
 }
 
-bool DCB_HasREOMFlag(const HdlcDCB *dcb)
+bool dcb_has_reom_flag(const HdlcDCB *dcb)
 {
     if (!dcb)
     {
@@ -100,7 +100,7 @@ bool DCB_HasREOMFlag(const HdlcDCB *dcb)
     return (dcb->keyValue & KEYFLAG_RCOST_REOM) != 0;
 }
 
-uint16_t DCB_GetDataFlowCost(const HdlcDCB *dcb)
+uint16_t dcb_get_data_flow_cost(const HdlcDCB *dcb)
 {
     if (!dcb)
     {
@@ -110,7 +110,7 @@ uint16_t DCB_GetDataFlowCost(const HdlcDCB *dcb)
     return (uint16_t)(dcb->keyValue & KEYFLAG_MASK_DATAFLOW_COST);
 }
 
-uint32_t DCB_GetDataMemoryAddress(const HdlcDCB *dcb)
+uint32_t dcb_get_data_memory_address(const HdlcDCB *dcb)
 {
     if (!dcb)
     {
@@ -121,7 +121,7 @@ uint32_t DCB_GetDataMemoryAddress(const HdlcDCB *dcb)
     return (uint32_t)(dcb->mostAddress & 0x00FF) << 16 | dcb->leastAddress;
 }
 
-void DCB_SetDataMemoryAddress(HdlcDCB *dcb, uint32_t address)
+void dcb_set_data_memory_address(HdlcDCB *dcb, uint32_t address)
 {
     if (!dcb)
     {
@@ -132,7 +132,7 @@ void DCB_SetDataMemoryAddress(HdlcDCB *dcb, uint32_t address)
     dcb->mostAddress = (uint16_t)((address >> 16) & 0x00FF);
 }
 
-void DCB_SetBufferAddress(HdlcDCB *dcb, uint32_t address)
+void dcb_set_buffer_address(HdlcDCB *dcb, uint32_t address)
 {
     if (!dcb)
     {
@@ -142,7 +142,7 @@ void DCB_SetBufferAddress(HdlcDCB *dcb, uint32_t address)
     dcb->bufferAddress = address;
 }
 
-uint32_t DCB_GetBufferAddress(const HdlcDCB *dcb)
+uint32_t dcb_get_buffer_address(const HdlcDCB *dcb)
 {
     if (!dcb)
     {
@@ -152,7 +152,7 @@ uint32_t DCB_GetBufferAddress(const HdlcDCB *dcb)
     return dcb->bufferAddress;
 }
 
-void DCB_SetOffsetFromLP(HdlcDCB *dcb, uint16_t offset)
+void dcb_set_offset_from_lp(HdlcDCB *dcb, uint16_t offset)
 {
     if (!dcb)
     {
@@ -162,7 +162,7 @@ void DCB_SetOffsetFromLP(HdlcDCB *dcb, uint16_t offset)
     dcb->offsetFromLP = offset;
 }
 
-uint16_t DCB_GetOffsetFromLP(const HdlcDCB *dcb)
+uint16_t dcb_get_offset_from_lp(const HdlcDCB *dcb)
 {
     if (!dcb)
     {
@@ -172,7 +172,7 @@ uint16_t DCB_GetOffsetFromLP(const HdlcDCB *dcb)
     return dcb->offsetFromLP;
 }
 
-void DCB_SetKeyValue(HdlcDCB *dcb, uint16_t key_value)
+void dcb_set_key_value(HdlcDCB *dcb, uint16_t key_value)
 {
     if (!dcb)
     {
@@ -182,7 +182,7 @@ void DCB_SetKeyValue(HdlcDCB *dcb, uint16_t key_value)
     dcb->keyValue = key_value;
 }
 
-uint16_t DCB_GetKeyValue(const HdlcDCB *dcb)
+uint16_t dcb_get_key_value(const HdlcDCB *dcb)
 {
     if (!dcb)
     {
@@ -192,7 +192,7 @@ uint16_t DCB_GetKeyValue(const HdlcDCB *dcb)
     return dcb->keyValue;
 }
 
-void DCB_SetByteCount(HdlcDCB *dcb, uint16_t byte_count)
+void dcb_set_byte_count(HdlcDCB *dcb, uint16_t byte_count)
 {
     if (!dcb)
     {
@@ -202,7 +202,7 @@ void DCB_SetByteCount(HdlcDCB *dcb, uint16_t byte_count)
     dcb->byteCount = byte_count;
 }
 
-uint16_t DCB_GetByteCount(const HdlcDCB *dcb)
+uint16_t dcb_get_byte_count(const HdlcDCB *dcb)
 {
     if (!dcb)
     {
@@ -212,7 +212,7 @@ uint16_t DCB_GetByteCount(const HdlcDCB *dcb)
     return dcb->byteCount;
 }
 
-void DCB_SetDisplacement(HdlcDCB *dcb, uint16_t displacement)
+void dcb_set_displacement(HdlcDCB *dcb, uint16_t displacement)
 {
     if (!dcb)
     {
@@ -222,7 +222,7 @@ void DCB_SetDisplacement(HdlcDCB *dcb, uint16_t displacement)
     dcb->displacement = displacement;
 }
 
-uint16_t DCB_GetDisplacement(const HdlcDCB *dcb)
+uint16_t dcb_get_displacement(const HdlcDCB *dcb)
 {
     if (!dcb)
     {
@@ -232,7 +232,7 @@ uint16_t DCB_GetDisplacement(const HdlcDCB *dcb)
     return dcb->displacement;
 }
 
-void DCB_SetListPointer(HdlcDCB *dcb, uint32_t list_pointer)
+void dcb_set_list_pointer(HdlcDCB *dcb, uint32_t list_pointer)
 {
     if (!dcb)
     {
@@ -242,7 +242,7 @@ void DCB_SetListPointer(HdlcDCB *dcb, uint32_t list_pointer)
     dcb->listPointer = list_pointer;
 }
 
-uint32_t DCB_GetListPointer(const HdlcDCB *dcb)
+uint32_t dcb_get_list_pointer(const HdlcDCB *dcb)
 {
     if (!dcb)
     {
@@ -254,7 +254,7 @@ uint32_t DCB_GetListPointer(const HdlcDCB *dcb)
 
 // DMA helper functions
 
-void DCB_SetDMAAddress(HdlcDCB *dcb, uint32_t address)
+void dcb_set_dma_address(HdlcDCB *dcb, uint32_t address)
 {
     if (!dcb)
     {
@@ -264,7 +264,7 @@ void DCB_SetDMAAddress(HdlcDCB *dcb, uint32_t address)
     dcb->dmaAddress = address;
 }
 
-uint32_t DCB_GetDMAAddress(const HdlcDCB *dcb)
+uint32_t dcb_get_dma_address(const HdlcDCB *dcb)
 {
     if (!dcb)
     {
@@ -274,7 +274,7 @@ uint32_t DCB_GetDMAAddress(const HdlcDCB *dcb)
     return dcb->dmaAddress;
 }
 
-void DCB_SetDMABytesRead(HdlcDCB *dcb, int bytes_read)
+void dcb_set_dma_bytes_read(HdlcDCB *dcb, int bytes_read)
 {
     if (!dcb)
     {
@@ -284,7 +284,7 @@ void DCB_SetDMABytesRead(HdlcDCB *dcb, int bytes_read)
     dcb->dmaBytesRead = bytes_read;
 }
 
-int DCB_GetDMABytesRead(const HdlcDCB *dcb)
+int dcb_get_dma_bytes_read(const HdlcDCB *dcb)
 {
     if (!dcb)
     {
@@ -294,7 +294,7 @@ int DCB_GetDMABytesRead(const HdlcDCB *dcb)
     return dcb->dmaBytesRead;
 }
 
-void DCB_SetDMABytesWritten(HdlcDCB *dcb, int bytes_written)
+void dcb_set_dma_bytes_written(HdlcDCB *dcb, int bytes_written)
 {
     if (!dcb)
     {
@@ -304,7 +304,7 @@ void DCB_SetDMABytesWritten(HdlcDCB *dcb, int bytes_written)
     dcb->dmaBytesWritten = bytes_written;
 }
 
-int DCB_GetDMABytesWritten(const HdlcDCB *dcb)
+int dcb_get_dma_bytes_written(const HdlcDCB *dcb)
 {
     if (!dcb)
     {
@@ -314,7 +314,7 @@ int DCB_GetDMABytesWritten(const HdlcDCB *dcb)
     return dcb->dmaBytesWritten;
 }
 
-void DCB_SetDMAReadData(HdlcDCB *dcb, int data)
+void dcb_set_dma_read_data(HdlcDCB *dcb, int data)
 {
     if (!dcb)
     {
@@ -324,7 +324,7 @@ void DCB_SetDMAReadData(HdlcDCB *dcb, int data)
     dcb->dmaReadData = data;
 }
 
-int DCB_GetDMAReadData(const HdlcDCB *dcb)
+int dcb_get_dma_read_data(const HdlcDCB *dcb)
 {
     if (!dcb)
     {
@@ -334,7 +334,7 @@ int DCB_GetDMAReadData(const HdlcDCB *dcb)
     return dcb->dmaReadData;
 }
 
-bool DCB_IsDMAReadDataValid(const HdlcDCB *dcb)
+bool dcb_is_dma_read_data_valid(const HdlcDCB *dcb)
 {
     if (!dcb)
     {
@@ -344,7 +344,7 @@ bool DCB_IsDMAReadDataValid(const HdlcDCB *dcb)
     return dcb->dmaReadData != -1;
 }
 
-void DCB_ClearDMAReadData(HdlcDCB *dcb)
+void dcb_clear_dma_read_data(HdlcDCB *dcb)
 {
     if (!dcb)
     {

@@ -48,7 +48,7 @@
 static DeviceManager device_manager = {0}; // Initialize to zero
 
 // Returns 0, or -1 if the device table could not be allocated.
-int DeviceManager_Init(void)
+int devmgr_init(void)
 {
 
     device_manager.deviceCapacity = INITIAL_DEVICE_CAPACITY;
@@ -67,14 +67,14 @@ int DeviceManager_Init(void)
     return 0;
 }
 
-void DeviceManager_Destroy(void)
+void devmgr_destroy(void)
 {
     // Clean up all devices
     for (int i = 0; i < device_manager.deviceCount; i++)
     {
         if (device_manager.devices[i].device)
         {
-            Device_Destroy(device_manager.devices[i].device);
+            dev_destroy(device_manager.devices[i].device);
             free(device_manager.devices[i].device); // Free the device itself
             device_manager.devices[i].device = NULL;
         }
@@ -90,35 +90,35 @@ void DeviceManager_Destroy(void)
     device_manager.deviceCapacity = 0;
 }
 
-void DeviceManager_AddAllDevices(void)
+void devmgr_add_all_devices(void)
 {
 
     // Initialize the panel controller
-    setup_pap();
+    panel_setup_pap();
 
     // Add the RTC at octal 1570-1577
-    DeviceManager_AddDevice(DEVICE_TYPE_RTC, 0);
+    devmgr_add_device(DEVICE_TYPE_RTC, 0);
 
     // Add the Console at octal 300-307
-    DeviceManager_AddDevice(DEVICE_TYPE_TERMINAL, 0);
+    devmgr_add_device(DEVICE_TYPE_TERMINAL, 0);
 
     // Add the PaperTape Reader at octal 400-403
-    DeviceManager_AddDevice(DEVICE_TYPE_PAPER_TAPE, 0);
+    devmgr_add_device(DEVICE_TYPE_PAPER_TAPE, 0);
 
     // Add the PaperTape Writer (Punch) at octal 410-413
-    DeviceManager_AddDevice(DEVICE_TYPE_PAPER_TAPE_WRITER, 0);
+    devmgr_add_device(DEVICE_TYPE_PAPER_TAPE_WRITER, 0);
 
     // Add the Line Printer at octal 430-433
-    DeviceManager_AddDevice(DEVICE_TYPE_LINE_PRINTER, 0);
+    devmgr_add_device(DEVICE_TYPE_LINE_PRINTER, 0);
 
     // The PIO floppy controller is not added: its address range 1560-1567 is
     // the DMA floppy's.
 
     // Add the FloppyDMA at octal 1560-1567
-    DeviceManager_AddDevice(DEVICE_TYPE_FLOPPY_DMA, 0);
+    devmgr_add_device(DEVICE_TYPE_FLOPPY_DMA, 0);
 
     // Add the SMD at octal 1540-1547
-    DeviceManager_AddDevice(DEVICE_TYPE_DISC_SMD, 0);
+    devmgr_add_device(DEVICE_TYPE_DISC_SMD, 0);
 
     // The NORD TSS swapping drum (octal 540-547) is NOT added here. Like the CDC
     // and the SCSI controller, it is now GATED: installed only when a --drum image
@@ -143,21 +143,21 @@ void DeviceManager_AddAllDevices(void)
  *
  * SCSI IOX bases by thumbwheel TW2: 0=0144300, 1=0144400, 2=0144500, 3=0144600.
  */
-bool DeviceManager_AddSCSIDevice_WithConfig(int thumbwheel, const SCSIUnitType *unit_types)
+bool devmgr_add_scsi_device_with_config(int thumbwheel, const SCSIUnitType *unit_types)
 {
-    bool success = DeviceManager_AddDevice(DEVICE_TYPE_DISC_SCSI, (uint8_t)thumbwheel);
+    bool success = devmgr_add_device(DEVICE_TYPE_DISC_SCSI, (uint8_t)thumbwheel);
 
     if (success && unit_types)
     {
         static const uint16_t scsi_base_addr[] = {0144300, 0144400, 0144500, 0144600};
-        Device *dev = DeviceManager_GetDeviceByAddress(scsi_base_addr[thumbwheel & 0x03]);
+        Device *dev = devmgr_get_device_by_address(scsi_base_addr[thumbwheel & 0x03]);
         if (dev)
         {
             for (int unit = 0; unit < SCSI_MAX_UNITS; unit++)
             {
                 if (unit_types[unit] != SCSI_UNIT_NONE)
                 {
-                    SCSI_SetUnitType(dev, unit, unit_types[unit]);
+                    scsi_set_unit_type(dev, unit, unit_types[unit]);
                 }
             }
         }
@@ -166,10 +166,10 @@ bool DeviceManager_AddSCSIDevice_WithConfig(int thumbwheel, const SCSIUnitType *
     return success;
 }
 
-bool DeviceManager_AddHDLCDevice_WithConfig(int thumbwheel, bool is_server, const char *address,
-                                            int port)
+bool devmgr_add_hdlc_device_with_config(int thumbwheel, bool is_server, const char *address,
+                                        int port)
 {
-    bool success = DeviceManager_AddDevice(DEVICE_TYPE_HDLC, (uint8_t)thumbwheel);
+    bool success = devmgr_add_device(DEVICE_TYPE_HDLC, (uint8_t)thumbwheel);
 
     if (success)
     {
@@ -178,13 +178,13 @@ bool DeviceManager_AddHDLCDevice_WithConfig(int thumbwheel, bool is_server, cons
         static const uint16_t hdlc_base_addr[] = {0, 01640, 01660, 01700, 01720};
         if (thumbwheel >= 1 && thumbwheel <= 4)
         {
-            Device *dev = DeviceManager_GetDeviceByAddress(hdlc_base_addr[thumbwheel]);
+            Device *dev = devmgr_get_device_by_address(hdlc_base_addr[thumbwheel]);
             if (dev && dev->deviceData)
             {
                 HDLCData *data = (HDLCData *)dev->deviceData;
                 if (data->modem)
                 {
-                    Modem_StartModem(data->modem, is_server, address, port);
+                    modem_start(data->modem, is_server, address, port);
                 }
             }
         }
@@ -201,7 +201,7 @@ static Device *create_device(DeviceType type, uint8_t thumbwheel)
     switch (type)
     {
     case DEVICE_TYPE_RTC:
-        dev = CreateRTCDevice(thumbwheel);
+        dev = rtc_create_device(thumbwheel);
         if (!dev)
         {
             LOG(LOG_CAT_DEVICE, LOG_ERROR, "Failed to create RTC device\n");
@@ -209,7 +209,7 @@ static Device *create_device(DeviceType type, uint8_t thumbwheel)
         }
         break;
     case DEVICE_TYPE_TERMINAL:
-        dev = CreateTerminalDevice(thumbwheel);
+        dev = terminal_create_device(thumbwheel);
         if (!dev)
         {
             LOG(LOG_CAT_DEVICE, LOG_ERROR, "Failed to create terminal device\n");
@@ -217,7 +217,7 @@ static Device *create_device(DeviceType type, uint8_t thumbwheel)
         }
         break;
     case DEVICE_TYPE_PAPER_TAPE:
-        dev = CreatePaperTapeDevice(thumbwheel);
+        dev = ptr_create_paper_tape_device(thumbwheel);
         if (!dev)
         {
             LOG(LOG_CAT_DEVICE, LOG_ERROR, "Failed to create paper tape device\n");
@@ -225,7 +225,7 @@ static Device *create_device(DeviceType type, uint8_t thumbwheel)
         }
         break;
     case DEVICE_TYPE_FLOPPY_PIO:
-        dev = CreateFloppyPIODevice(thumbwheel);
+        dev = floppy_pio_create_device(thumbwheel);
         if (!dev)
         {
             LOG(LOG_CAT_DEVICE, LOG_ERROR, "Failed to create floppy PIO device\n");
@@ -234,7 +234,7 @@ static Device *create_device(DeviceType type, uint8_t thumbwheel)
         break;
 
     case DEVICE_TYPE_DISC_SMD:
-        dev = CreateSMDDevice(thumbwheel);
+        dev = smd_create_device(thumbwheel);
         if (!dev)
         {
             LOG(LOG_CAT_DEVICE, LOG_ERROR, "Failed to create SMD device\n");
@@ -242,7 +242,7 @@ static Device *create_device(DeviceType type, uint8_t thumbwheel)
         }
         break;
     case DEVICE_TYPE_DISC_WINCHESTER:
-        dev = CreateWinchesterDevice(thumbwheel);
+        dev = wd_create_winchester_device(thumbwheel);
         if (!dev)
         {
             LOG(LOG_CAT_DEVICE, LOG_ERROR, "Failed to create Winchester device\n");
@@ -250,7 +250,7 @@ static Device *create_device(DeviceType type, uint8_t thumbwheel)
         }
         break;
     case DEVICE_TYPE_DISC_SCSI:
-        dev = CreateSCSIDevice(thumbwheel);
+        dev = scsi_create_device(thumbwheel);
         if (!dev)
         {
             LOG(LOG_CAT_DEVICE, LOG_ERROR, "Failed to create SCSI device\n");
@@ -258,7 +258,7 @@ static Device *create_device(DeviceType type, uint8_t thumbwheel)
         }
         break;
     case DEVICE_TYPE_DRUM:
-        dev = CreateDrumDevice(thumbwheel);
+        dev = drum_create_device(thumbwheel);
         if (!dev)
         {
             LOG(LOG_CAT_DEVICE, LOG_ERROR, "Failed to create DRUM device\n");
@@ -266,7 +266,7 @@ static Device *create_device(DeviceType type, uint8_t thumbwheel)
         }
         break;
     case DEVICE_TYPE_CDC:
-        dev = CreateCdcDevice(thumbwheel);
+        dev = cdc_create_device(thumbwheel);
         if (!dev)
         {
             LOG(LOG_CAT_DEVICE, LOG_ERROR, "Failed to create CDC disc device\n");
@@ -274,7 +274,7 @@ static Device *create_device(DeviceType type, uint8_t thumbwheel)
         }
         break;
     case DEVICE_TYPE_FLOPPY_DMA:
-        dev = CreateFloppyDMADevice(thumbwheel);
+        dev = floppy_dma_create_device(thumbwheel);
         if (!dev)
         {
             LOG(LOG_CAT_DEVICE, LOG_ERROR, "Failed to create floppy DMA device\n");
@@ -282,7 +282,7 @@ static Device *create_device(DeviceType type, uint8_t thumbwheel)
         }
         break;
     case DEVICE_TYPE_LINE_PRINTER:
-        dev = CreateLinePrinterDevice(thumbwheel);
+        dev = lp_create_line_printer_device(thumbwheel);
         if (!dev)
         {
             LOG(LOG_CAT_DEVICE, LOG_ERROR, "Failed to create line printer device\n");
@@ -290,7 +290,7 @@ static Device *create_device(DeviceType type, uint8_t thumbwheel)
         }
         break;
     case DEVICE_TYPE_PAPER_TAPE_WRITER:
-        dev = CreatePaperTapeWriterDevice(thumbwheel);
+        dev = ptp_create_paper_tape_writer_device(thumbwheel);
         if (!dev)
         {
             LOG(LOG_CAT_DEVICE, LOG_ERROR, "Failed to create paper tape writer device\n");
@@ -298,7 +298,7 @@ static Device *create_device(DeviceType type, uint8_t thumbwheel)
         }
         break;
     case DEVICE_TYPE_HDLC:
-        dev = CreateHDLCDevice(thumbwheel);
+        dev = hdlc_create_device(thumbwheel);
         if (!dev)
         {
             LOG(LOG_CAT_DEVICE, LOG_ERROR, "Failed to create HDLC device\n");
@@ -315,24 +315,24 @@ static Device *create_device(DeviceType type, uint8_t thumbwheel)
     {
         // Record the concrete type for downstream logic (read-only property)
         dev->type = type;
-        Device_Reset(dev);
+        dev_reset(dev);
     }
 
     return dev;
 }
 
-void DeviceManager_MasterClear(void)
+void devmgr_master_clear(void)
 {
     for (int i = 0; i < device_manager.deviceCount; i++)
     {
         if (device_manager.devices[i].device)
         {
-            Device_Reset(device_manager.devices[i].device);
+            dev_reset(device_manager.devices[i].device);
         }
     }
 }
 
-bool DeviceManager_AddDevice(DeviceType type, uint8_t thumbwheel)
+bool devmgr_add_device(DeviceType type, uint8_t thumbwheel)
 {
     // Check if we have capacity
     if (device_manager.deviceCount >= device_manager.deviceCapacity)
@@ -367,7 +367,7 @@ bool DeviceManager_AddDevice(DeviceType type, uint8_t thumbwheel)
                     "answered by '%s' (IOX %o-%o). These cards cannot both be fitted.\n",
                     dev->memoryName, dev->startAddress, dev->endAddress, other->memoryName,
                     other->startAddress, other->endAddress);
-                Device_Destroy(dev);
+                dev_destroy(dev);
                 free(dev);
                 return false;
             }
@@ -377,9 +377,9 @@ bool DeviceManager_AddDevice(DeviceType type, uint8_t thumbwheel)
         // If this is a block device, hook up machine-level block IO callbacks
         if (dev->deviceClass == DEVICE_CLASS_BLOCK)
         {
-            Device_SetBlockRead(dev, machine_block_read, NULL);
-            Device_SetBlockWrite(dev, machine_block_write, NULL);
-            Device_SetBlockDiskInfo(dev, machine_block_disk_info, NULL);
+            dev_set_block_read(dev, machine_block_read, NULL);
+            dev_set_block_write(dev, machine_block_write, NULL);
+            dev_set_block_disk_info(dev, machine_block_disk_info, NULL);
         }
         device_manager.deviceCount++;
         return true;
@@ -392,25 +392,25 @@ bool DeviceManager_AddDevice(DeviceType type, uint8_t thumbwheel)
     return false;
 }
 
-uint16_t DeviceManager_Read(uint32_t address)
+uint16_t devmgr_read(uint32_t address)
 {
     for (int i = 0; i < device_manager.deviceCount; i++)
     {
 
         Device *dev = device_manager.devices[i].device;
 
-        if (dev && Device_IsInAddress(dev, address))
+        if (dev && dev_is_in_address(dev, address))
         {
-            return Device_Read(dev, address);
+            return dev_read(dev, address);
         }
     }
 
-    interrupt(14, 1 << 7); /* IOX error lvl14 */
+    cpu_interrupt(14, 1 << 7); /* IOX error lvl14 */
     LOG(LOG_CAT_DEVICE, LOG_DEBUG, "No device found for READ address: %o\n", address);
     return 0;
 }
 
-void DeviceManager_Write(uint32_t address, uint16_t value)
+void devmgr_write(uint32_t address, uint16_t value)
 {
     for (int i = 0; i < device_manager.deviceCount; i++)
     {
@@ -421,25 +421,25 @@ void DeviceManager_Write(uint32_t address, uint16_t value)
             continue;
         }
 
-        if (Device_IsInAddress(dev, address))
+        if (dev_is_in_address(dev, address))
         {
-            Device_Write(dev, address, value);
+            dev_write(dev, address, value);
             return;
         }
     }
 
-    interrupt(14, 1 << 7); /* IOX error lvl14 */
+    cpu_interrupt(14, 1 << 7); /* IOX error lvl14 */
     LOG(LOG_CAT_DEVICE, LOG_DEBUG, "No device found for WRITE address: %o\n", address);
 }
 
-int DeviceManager_Ident(uint16_t level)
+int devmgr_ident(uint16_t level)
 {
     for (int i = 0; i < device_manager.deviceCount; i++)
     {
         Device *dev = device_manager.devices[i].device;
         if (dev && (dev->interruptBits & (1 << level)))
         {
-            uint16_t id = Device_Ident(dev, level);
+            uint16_t id = dev_ident(dev, level);
             if (id > 0)
             {
                 // IDENT is the ND-100 interrupt ACKNOWLEDGE: identifying the
@@ -463,7 +463,7 @@ int DeviceManager_Ident(uint16_t level)
     return 0;
 }
 
-uint16_t DeviceManager_Tick(void)
+uint16_t devmgr_tick(void)
 {
     uint16_t interrupt_bits = 0;
     for (int i = 0; i < device_manager.deviceCount; i++)
@@ -471,18 +471,18 @@ uint16_t DeviceManager_Tick(void)
         Device *dev = device_manager.devices[i].device;
         if (dev)
         {
-            interrupt_bits |= Device_Tick(dev);
+            interrupt_bits |= dev_tick(dev);
         }
     }
 
     return interrupt_bits;
 }
-Device *DeviceManager_GetDeviceByAddress(uint32_t address)
+Device *devmgr_get_device_by_address(uint32_t address)
 {
     for (int i = 0; i < device_manager.deviceCount; i++)
     {
         Device *dev = device_manager.devices[i].device;
-        if (dev && Device_IsInAddress(dev, address))
+        if (dev && dev_is_in_address(dev, address))
         {
             return dev;
         }
@@ -491,12 +491,12 @@ Device *DeviceManager_GetDeviceByAddress(uint32_t address)
     return NULL;
 }
 
-int DeviceManager_GetDeviceCount(void)
+int devmgr_get_device_count(void)
 {
     return device_manager.deviceCount;
 }
 
-Device *DeviceManager_GetDeviceByIndex(int index)
+Device *devmgr_get_device_by_index(int index)
 {
     if (index < 0 || index >= device_manager.deviceCount)
     {
@@ -517,7 +517,7 @@ Device *DeviceManager_GetDeviceByIndex(int index)
 // Note: each controller's Boot function performs a MEMORY boot (first blocks
 // of the unit loaded to address 0). BPUN and bootstrap boot modes are handled
 // elsewhere (program_load) or not implemented.
-bool DeviceManager_IotOp(uint8_t devno, uint8_t func, uint16_t *reg_a, bool *skip)
+bool devmgr_iot_op(uint8_t devno, uint8_t func, uint16_t *reg_a, bool *skip)
 {
     for (int i = 0; i < device_manager.deviceCount; i++)
     {
@@ -536,14 +536,14 @@ bool DeviceManager_IotOp(uint8_t devno, uint8_t func, uint16_t *reg_a, bool *ski
     return false;
 }
 
-int DeviceManager_BootFrom(DeviceType type, int unit)
+int devmgr_boot_from(DeviceType type, int unit)
 {
     for (int i = 0; i < device_manager.deviceCount; i++)
     {
         Device *dev = device_manager.devices[i].device;
         if (dev && dev->type == type)
         {
-            return Device_Boot(dev, unit);
+            return dev_boot(dev, unit);
         }
     }
 

@@ -37,7 +37,7 @@
 #include "../devices_protos.h"
 
 
-uint32_t DiskSCSI_LastLBA(const SCSIDiskInfo *disk)
+uint32_t scsi_disk_last_lba(const SCSIDiskInfo *disk)
 {
     if (!disk)
     {
@@ -66,7 +66,7 @@ static void disk_scsi_set_field(char *field, size_t width, const char *src)
 }
 
 
-void DiskSCSI_SetDiskType(SCSIDiskInfo *disk, SCSIDiskType dt)
+void scsi_disk_set_type(SCSIDiskInfo *disk, SCSIDiskType dt)
 {
     if (!disk)
     {

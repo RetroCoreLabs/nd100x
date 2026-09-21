@@ -105,6 +105,6 @@ typedef struct
  * @param thumbwheel Card thumbwheel; selects the IOX address block.
  * @return The new Device, or NULL on allocation failure.
  */
-Device *CreateLinePrinterDevice(uint8_t thumbwheel);
+Device *lp_create_line_printer_device(uint8_t thumbwheel);
 
 #endif /* DEVICE_LINE_PRINTER_H */

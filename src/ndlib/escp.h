@@ -101,7 +101,7 @@ typedef struct EscpContext
  * @return New context the caller frees with Escp_Destroy(), or NULL if any
  *         allocation failed.
  */
-EscpContext *Escp_Create(void);
+EscpContext *escp_create(void);
 
 /**
  * @brief Feed one byte to the interpreter state machine, which appends
@@ -110,7 +110,7 @@ EscpContext *Escp_Create(void);
  * @param ctx Interpreter context; NULL is ignored.
  * @param c   The byte received from the emulated printer port.
  */
-void Escp_PutChar(EscpContext *ctx, uint8_t c);
+void escp_put_char(EscpContext *ctx, uint8_t c);
 
 /**
  * @brief Flush the pending line and return the accumulated styled spans.
@@ -120,7 +120,7 @@ void Escp_PutChar(EscpContext *ctx, uint8_t c);
  * @param count Receives the number of spans; may be NULL.
  * @return Pointer to the first span, or NULL when ctx is NULL.
  */
-const EscpSpan *Escp_GetSpans(EscpContext *ctx, int *count);
+const EscpSpan *escp_get_spans(EscpContext *ctx, int *count);
 
 /**
  * @brief Number of pages produced so far.
@@ -128,20 +128,20 @@ const EscpSpan *Escp_GetSpans(EscpContext *ctx, int *count);
  * @return Current 0-based page index plus one, or 0 when nothing has been
  *         printed yet.
  */
-int Escp_GetPageCount(EscpContext *ctx);
+int escp_get_page_count(EscpContext *ctx);
 
 /**
  * @brief Free all span text, drop the line buffer and return the parser,
  *        column, line, page and printer settings to their defaults.
  * @param ctx Interpreter context; NULL is ignored.
  */
-void Escp_Reset(EscpContext *ctx);
+void escp_reset(EscpContext *ctx);
 
 /**
  * @brief Free the span text, the span array, the line buffer and the context.
  * @param ctx Interpreter context; NULL is ignored.
  */
-void Escp_Destroy(EscpContext *ctx);
+void escp_destroy(EscpContext *ctx);
 
 /**
  * @brief Run one byte through the ESC command state machine for text-only
@@ -154,6 +154,6 @@ void Escp_Destroy(EscpContext *ctx);
  * @param c   The byte received from the emulated printer port.
  * @return The character to emit, or 0 when the byte was consumed.
  */
-char Escp_StripToPlainChar(EscpContext *ctx, uint8_t c);
+char escp_strip_to_plain_char(EscpContext *ctx, uint8_t c);
 
 #endif /* ESCP_H */

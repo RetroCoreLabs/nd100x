@@ -33,6 +33,6 @@
  * @param outlen Size of out in bytes.
  * @return true on success; false on overflow, with {"error":"..."} in out.
  */
-bool MachineConfig_ToJson(const MachineConfig *cfg, char *out, size_t outlen);
+bool mc_to_json(const MachineConfig *cfg, char *out, size_t outlen);
 
 #endif /* MACHINE_CONFIG_JSON_H */

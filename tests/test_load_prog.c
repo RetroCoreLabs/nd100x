@@ -19,12 +19,12 @@
 
 /* ---- Stubs for load_prog.c's externals -------------------------------- */
 /* Stubs for the real functions in src/cpu (cpu_protos.h); prototypes match. */
-void WritePhysicalMemory(int physical_address, uint16_t value, bool privileged);
+void mms_write_physical_memory(int physical_address, uint16_t value, bool privileged);
 void disasm_addword(uint16_t addr, uint16_t myword);
 
 static uint16_t g_mem[65536];
 static int g_writes;
-void WritePhysicalMemory(int physical_address, uint16_t value, bool privileged)
+void mms_write_physical_memory(int physical_address, uint16_t value, bool privileged)
 {
     (void)privileged;
     if (physical_address >= 0 && physical_address < 65536)
@@ -109,7 +109,7 @@ static void test_one_bank(void)
         return;
     }
 
-    int rc = LoadPROG(p, true);
+    int rc = prog_load(p, true);
     CHECK(rc == 0100, "start should be 0o100, got 0o%o", rc);
     CHECK(g_writes == 4, "should write exactly 4 words, wrote %d", g_writes);
     CHECK(g_mem[0200] == 0x1111, "word@0o200 = 0x%04X, want 0x1111", g_mem[0200]);
@@ -119,7 +119,7 @@ static void test_one_bank(void)
     CHECK(g_mem[0177] == 0 && g_mem[0204] == 0, "must not write outside the bank");
 
     PROG_Header h = {0};
-    CHECK(GetLastPROGHeader(&h), "GetLastPROGHeader should succeed");
+    CHECK(prog_get_last_header(&h), "GetLastPROGHeader should succeed");
     CHECK(h.startAddress == 0100 && h.firstBank1 == 0200 && h.lastBank1 == 0203,
           "header fields wrong: start=0o%o first=0o%o last=0o%o", h.startAddress, h.firstBank1,
           h.lastBank1);
@@ -142,11 +142,11 @@ static void test_two_bank_detect(void)
         return;
     }
 
-    int rc = LoadPROG(p, false);
+    int rc = prog_load(p, false);
     CHECK(rc == 026111, "start should be 0o26111, got 0o%o", rc);
     CHECK(g_mem[0] == 0xAAAA && g_mem[1] == 0xBBBB, "Bank 1 must still load");
     PROG_Header h = {0};
-    CHECK(GetLastPROGHeader(&h) && h.twoBank == true, "twoBank must be detected");
+    CHECK(prog_get_last_header(&h) && h.twoBank == true, "twoBank must be detected");
     unlink(p);
 }
 
@@ -161,7 +161,7 @@ static void test_truncated(void)
     {
         return;
     }
-    int rc = LoadPROG(p, false);
+    int rc = prog_load(p, false);
     CHECK(rc == -1, "truncated data must return -1, got %d", rc);
     unlink(p);
 }
@@ -169,7 +169,7 @@ static void test_truncated(void)
 static void test_missing(void)
 {
     printf("TEST: LoadPROG missing file -> error\n");
-    int rc = LoadPROG("/tmp/nd100x-nope-xyz.prog", false);
+    int rc = prog_load("/tmp/nd100x-nope-xyz.prog", false);
     CHECK(rc == -1, "missing file must return -1, got %d", rc);
 }
 

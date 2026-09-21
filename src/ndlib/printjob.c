@@ -65,7 +65,7 @@
 static void flush_job(PrintJob *pj);
 static void ensure_directory(const char *path);
 
-PrintJob *PrintJob_Create(PjPrinterType printer_type, PjOutputFormat format, const char *output_dir)
+PrintJob *pj_create(PjPrinterType printer_type, PjOutputFormat format, const char *output_dir)
 {
     PrintJob *pj = calloc(1, sizeof(PrintJob));
     if (!pj)
@@ -85,7 +85,7 @@ PrintJob *PrintJob_Create(PjPrinterType printer_type, PjOutputFormat format, con
 
     if (printer_type == PJ_PRINTER_ESCP)
     {
-        pj->escpCtx = Escp_Create();
+        pj->escpCtx = escp_create();
         if (!pj->escpCtx)
         {
             free(pj->outputDir);
@@ -137,19 +137,19 @@ static void start_new_job(PrintJob *pj)
     else
     {
         // PDF mode
-        pj->pdfDoc = Pdf_Create();
+        pj->pdfDoc = pdf_create();
         if (!pj->pdfDoc)
         {
             pj->jobActive = false;
             return;
         }
-        pj->pdfCurrentPage = Pdf_AddPage(pj->pdfDoc);
+        pj->pdfCurrentPage = pdf_add_page(pj->pdfDoc);
         pj->pdfColumn = 0;
         pj->pdfLine = 0;
 
         if (pj->printerType == PJ_PRINTER_ESCP && pj->escpCtx)
         {
-            Escp_Reset(pj->escpCtx);
+            escp_reset(pj->escpCtx);
         }
     }
 }
@@ -184,8 +184,8 @@ static void text_pdf_flush_line(PrintJob *pj)
     float x = PDF_MARGIN_LEFT;
     float y = PDF_PAGE_HEIGHT - PDF_MARGIN_TOP - (pj->pdfLine * PDF_LINE_HEIGHT);
 
-    Pdf_AddTextSpan(pj->pdfDoc, pj->pdfCurrentPage, x, y, PDF_STYLE_NORMAL, PDF_FONT_SIZE,
-                    pdf_line_buf);
+    pdf_add_text_span(pj->pdfDoc, pj->pdfCurrentPage, x, y, PDF_STYLE_NORMAL, PDF_FONT_SIZE,
+                      pdf_line_buf);
     pdf_line_buf_len = 0;
 }
 
@@ -210,14 +210,14 @@ static void text_pdf_putchar(PrintJob *pj, char c)
         pj->pdfColumn = 0;
         if (pj->pdfLine >= PDF_LINES_PER_PAGE)
         {
-            pj->pdfCurrentPage = Pdf_AddPage(pj->pdfDoc);
+            pj->pdfCurrentPage = pdf_add_page(pj->pdfDoc);
             pj->pdfLine = 0;
         }
         break;
 
     case '\f':
         text_pdf_flush_line(pj);
-        pj->pdfCurrentPage = Pdf_AddPage(pj->pdfDoc);
+        pj->pdfCurrentPage = pdf_add_page(pj->pdfDoc);
         pj->pdfLine = 0;
         pj->pdfColumn = 0;
         break;
@@ -244,7 +244,7 @@ static void escp_txt_putchar(PrintJob *pj, char c)
         return;
     }
 
-    char plain = Escp_StripToPlainChar(pj->escpCtx, (uint8_t)c);
+    char plain = escp_strip_to_plain_char(pj->escpCtx, (uint8_t)c);
     if (plain)
     {
         fputc(plain, pj->txtFile);
@@ -260,7 +260,7 @@ static void escp_pdf_putchar(PrintJob *pj, char c)
     {
         return;
     }
-    Escp_PutChar(pj->escpCtx, (uint8_t)c);
+    escp_put_char(pj->escpCtx, (uint8_t)c);
 }
 
 // Convert ESC/P spans to PDF spans and write
@@ -272,7 +272,7 @@ static void escp_pdf_flush(PrintJob *pj)
     }
 
     int span_count = 0;
-    const EscpSpan *spans = Escp_GetSpans(pj->escpCtx, &span_count);
+    const EscpSpan *spans = escp_get_spans(pj->escpCtx, &span_count);
     if (!spans || span_count == 0)
     {
         return;
@@ -289,7 +289,7 @@ static void escp_pdf_flush(PrintJob *pj)
     }
     while (pj->pdfDoc->pageCount <= max_page)
     {
-        Pdf_AddPage(pj->pdfDoc);
+        pdf_add_page(pj->pdfDoc);
     }
 
     // Convert each ESC/P span to a PDF text span
@@ -316,7 +316,7 @@ static void escp_pdf_flush(PrintJob *pj)
             style |= PDF_STYLE_UNDERLINE;
         }
 
-        Pdf_AddTextSpan(pj->pdfDoc, sp->page, x, y, style, PDF_FONT_SIZE, sp->text);
+        pdf_add_text_span(pj->pdfDoc, sp->page, x, y, style, PDF_FONT_SIZE, sp->text);
     }
 }
 
@@ -362,7 +362,7 @@ static void flush_job(PrintJob *pj)
 
         if (pj->pdfDoc)
         {
-            if (Pdf_WriteToFile(pj->pdfDoc, filename))
+            if (pdf_write_to_file(pj->pdfDoc, filename))
             {
                 LOG(LOG_CAT_PRINTER, LOG_INFO, "Printer job %d saved to %s\n", pj->jobNumber,
                     filename);
@@ -371,7 +371,7 @@ static void flush_job(PrintJob *pj)
             {
                 LOG(LOG_CAT_PRINTER, LOG_ERROR, "PrintJob: failed to write %s\n", filename);
             }
-            Pdf_Destroy(pj->pdfDoc);
+            pdf_destroy(pj->pdfDoc);
             pj->pdfDoc = NULL;
         }
     }
@@ -381,7 +381,7 @@ static void flush_job(PrintJob *pj)
 
 // --- Public API ---
 
-void PrintJob_PutChar(PrintJob *pj, char c)
+void pj_put_char(PrintJob *pj, char c)
 {
     if (!pj)
     {
@@ -444,7 +444,7 @@ void PrintJob_PutChar(PrintJob *pj, char c)
     }
 }
 
-bool PrintJob_CheckTimeout(PrintJob *pj)
+bool pj_check_timeout(PrintJob *pj)
 {
     if (!pj || !pj->jobActive)
     {
@@ -460,7 +460,7 @@ bool PrintJob_CheckTimeout(PrintJob *pj)
     return false;
 }
 
-void PrintJob_Flush(PrintJob *pj)
+void pj_flush(PrintJob *pj)
 {
     if (!pj)
     {
@@ -469,7 +469,7 @@ void PrintJob_Flush(PrintJob *pj)
     flush_job(pj);
 }
 
-void PrintJob_Destroy(PrintJob *pj)
+void pj_destroy(PrintJob *pj)
 {
     if (!pj)
     {
@@ -480,7 +480,7 @@ void PrintJob_Destroy(PrintJob *pj)
 
     if (pj->escpCtx)
     {
-        Escp_Destroy(pj->escpCtx);
+        escp_destroy(pj->escpCtx);
     }
     free(pj->outputDir);
     free(pj);

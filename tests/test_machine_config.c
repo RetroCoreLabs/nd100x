@@ -30,7 +30,7 @@
 /* machine_config.c calls these two SCSI helpers for the disk media names;
  * they are replicated here (1:1 with device_scsi.c) so the whole SCSI device
  * does not have to be linked in. */
-SCSIUnitType SCSI_ParseUnitType(const char *name)
+SCSIUnitType scsi_parse_unit_type(const char *name)
 {
     if (!name)
     {
@@ -55,7 +55,7 @@ SCSIUnitType SCSI_ParseUnitType(const char *name)
     return SCSI_UNIT_NONE;
 }
 
-const char *SCSI_UnitTypeName(SCSIUnitType type)
+const char *scsi_unit_type_name(SCSIUnitType type)
 {
     switch (type)
     {
@@ -110,16 +110,16 @@ int main(void)
     }
 
     /* Default is the standard 48-bit FPP. */
-    MachineConfig_SetDefaults(&cfg);
+    mc_set_defaults(&cfg);
     mc_check("default fpp_bits", 48, cfg.fpp_bits);
 
     /* Write a config with fpp = 32 and read it back. */
     cfg.fpp_bits = 32;
     snprintf(path, sizeof(path), "%s/fpp32.ini", dir);
-    mc_check_bool("WriteFile(fpp=32)", MachineConfig_WriteFile(&cfg, path, err, sizeof(err)));
+    mc_check_bool("WriteFile(fpp=32)", mc_write_file(&cfg, path, err, sizeof(err)));
 
-    MachineConfig_InitBaseline(&cfg);
-    mc_check_bool("LoadFile(fpp=32)", MachineConfig_LoadFile(&cfg, path, err, sizeof(err)));
+    mc_init_baseline(&cfg);
+    mc_check_bool("LoadFile(fpp=32)", mc_load_file(&cfg, path, err, sizeof(err)));
     mc_check("round-tripped fpp_bits", 32, cfg.fpp_bits);
 
     /* A config without an fpp key keeps the 48-bit default. */
@@ -133,8 +133,8 @@ int main(void)
             fclose(f);
         }
     }
-    MachineConfig_InitBaseline(&cfg);
-    mc_check_bool("LoadFile(no fpp key)", MachineConfig_LoadFile(&cfg, path, err, sizeof(err)));
+    mc_init_baseline(&cfg);
+    mc_check_bool("LoadFile(no fpp key)", mc_load_file(&cfg, path, err, sizeof(err)));
     mc_check("fpp_bits stays default", 48, cfg.fpp_bits);
     mc_check("cpu_type read", 110, cfg.cpu_type);
 
@@ -149,23 +149,22 @@ int main(void)
             fclose(f);
         }
     }
-    MachineConfig_InitBaseline(&cfg);
+    mc_init_baseline(&cfg);
     err[0] = '\0';
-    mc_check_bool("LoadFile(fpp=99) rejected",
-                  !MachineConfig_LoadFile(&cfg, path, err, sizeof(err)));
+    mc_check_bool("LoadFile(fpp=99) rejected", !mc_load_file(&cfg, path, err, sizeof(err)));
     mc_check_bool("fpp=99 error mentions 'fpp'", strstr(err, "fpp") != NULL);
 
     /* Default RTC time base is instruction ticks. */
-    MachineConfig_SetDefaults(&cfg);
+    mc_set_defaults(&cfg);
     mc_check("default rtc_wall", 0, cfg.rtc_wall);
 
     /* Write a config with rtc = wall and read it back. */
     cfg.rtc_wall = true;
     snprintf(path, sizeof(path), "%s/rtcwall.ini", dir);
-    mc_check_bool("WriteFile(rtc=wall)", MachineConfig_WriteFile(&cfg, path, err, sizeof(err)));
+    mc_check_bool("WriteFile(rtc=wall)", mc_write_file(&cfg, path, err, sizeof(err)));
 
-    MachineConfig_InitBaseline(&cfg);
-    mc_check_bool("LoadFile(rtc=wall)", MachineConfig_LoadFile(&cfg, path, err, sizeof(err)));
+    mc_init_baseline(&cfg);
+    mc_check_bool("LoadFile(rtc=wall)", mc_load_file(&cfg, path, err, sizeof(err)));
     mc_check("round-tripped rtc_wall", 1, cfg.rtc_wall);
 
     /* rtc = ticks parses back to the default. */
@@ -179,15 +178,15 @@ int main(void)
             fclose(f);
         }
     }
-    MachineConfig_InitBaseline(&cfg);
+    mc_init_baseline(&cfg);
     cfg.rtc_wall = true; /* prove the key actively clears it */
-    mc_check_bool("LoadFile(rtc=ticks)", MachineConfig_LoadFile(&cfg, path, err, sizeof(err)));
+    mc_check_bool("LoadFile(rtc=ticks)", mc_load_file(&cfg, path, err, sizeof(err)));
     mc_check("rtc=ticks clears rtc_wall", 0, cfg.rtc_wall);
 
     /* A config without an rtc key keeps the ticks default. */
-    MachineConfig_InitBaseline(&cfg);
+    mc_init_baseline(&cfg);
     snprintf(path, sizeof(path), "%s/nofpp.ini", dir); /* reuse: has no rtc key */
-    mc_check_bool("LoadFile(no rtc key)", MachineConfig_LoadFile(&cfg, path, err, sizeof(err)));
+    mc_check_bool("LoadFile(no rtc key)", mc_load_file(&cfg, path, err, sizeof(err)));
     mc_check("rtc_wall stays default", 0, cfg.rtc_wall);
 
     /* rtc = sometimes must be rejected with a clear error. */
@@ -201,19 +200,17 @@ int main(void)
             fclose(f);
         }
     }
-    MachineConfig_InitBaseline(&cfg);
+    mc_init_baseline(&cfg);
     err[0] = '\0';
-    mc_check_bool("LoadFile(rtc=sometimes) rejected",
-                  !MachineConfig_LoadFile(&cfg, path, err, sizeof(err)));
+    mc_check_bool("LoadFile(rtc=sometimes) rejected", !mc_load_file(&cfg, path, err, sizeof(err)));
     mc_check_bool("rtc error mentions 'rtc'", strstr(err, "rtc") != NULL);
 
     /* ---- [nd500] ------------------------------------------------------ */
 
     /* No section at all: no ND-500. */
-    MachineConfig_InitBaseline(&cfg);
+    mc_init_baseline(&cfg);
     snprintf(path, sizeof(path), "%s/nofpp.ini", dir); /* reuse: [machine] only */
-    mc_check_bool("LoadFile(no nd500 section)",
-                  MachineConfig_LoadFile(&cfg, path, err, sizeof(err)));
+    mc_check_bool("LoadFile(no nd500 section)", mc_load_file(&cfg, path, err, sizeof(err)));
     mc_check("no section means no ND-500", 0, cfg.nd500.enabled);
 
     /* Naming the section is what enables it. */
@@ -231,8 +228,8 @@ int main(void)
             fclose(f);
         }
     }
-    MachineConfig_InitBaseline(&cfg);
-    mc_check_bool("LoadFile(nd500)", MachineConfig_LoadFile(&cfg, path, err, sizeof(err)));
+    mc_init_baseline(&cfg);
+    mc_check_bool("LoadFile(nd500)", mc_load_file(&cfg, path, err, sizeof(err)));
     mc_check("[nd500] enables the ND-500", 1, cfg.nd500.enabled);
     mc_check("nd500 memory", 32, cfg.nd500.memory_mb);
     mc_check_bool("nd500 kernel", strcmp(cfg.nd500.kernel, "vmunix") == 0);
@@ -249,10 +246,9 @@ int main(void)
     /* Round trip: the writer must not lose the section, or the first Save in
      * the config window silently deletes the whole ND-500. */
     snprintf(path, sizeof(path), "%s/nd500_out.ini", dir);
-    mc_check_bool("WriteFile(nd500)", MachineConfig_WriteFile(&cfg, path, err, sizeof(err)));
-    MachineConfig_InitBaseline(&cfg);
-    mc_check_bool("LoadFile(nd500 round trip)",
-                  MachineConfig_LoadFile(&cfg, path, err, sizeof(err)));
+    mc_check_bool("WriteFile(nd500)", mc_write_file(&cfg, path, err, sizeof(err)));
+    mc_init_baseline(&cfg);
+    mc_check_bool("LoadFile(nd500 round trip)", mc_load_file(&cfg, path, err, sizeof(err)));
     mc_check("round-tripped enabled", 1, cfg.nd500.enabled);
     mc_check("round-tripped memory", 32, cfg.nd500.memory_mb);
     mc_check_bool("round-tripped kernel", strcmp(cfg.nd500.kernel, "vmunix") == 0);
@@ -261,9 +257,9 @@ int main(void)
     mc_check("round-tripped disk1 stays writable", 1, cfg.nd500.disk_writable[1]);
 
     /* A machine with no ND-500 must not GROW an [nd500] section. */
-    MachineConfig_SetDefaults(&cfg);
+    mc_set_defaults(&cfg);
     snprintf(path, sizeof(path), "%s/no_nd500_out.ini", dir);
-    mc_check_bool("WriteFile(no nd500)", MachineConfig_WriteFile(&cfg, path, err, sizeof(err)));
+    mc_check_bool("WriteFile(no nd500)", mc_write_file(&cfg, path, err, sizeof(err)));
     {
         FILE *f = fopen(path, "r");
         char buf[8192];
@@ -286,10 +282,10 @@ int main(void)
             fclose(f);
         }
     }
-    MachineConfig_InitBaseline(&cfg);
+    mc_init_baseline(&cfg);
     err[0] = '\0';
     mc_check_bool("LoadFile(nd500 memory=999) rejected",
-                  !MachineConfig_LoadFile(&cfg, path, err, sizeof(err)));
+                  !mc_load_file(&cfg, path, err, sizeof(err)));
     mc_check_bool("the error mentions memory", strstr(err, "memory") != NULL);
 
     snprintf(path, sizeof(path), "%s/badkey.ini", dir);
@@ -301,10 +297,10 @@ int main(void)
             fclose(f);
         }
     }
-    MachineConfig_InitBaseline(&cfg);
+    mc_init_baseline(&cfg);
     err[0] = '\0';
     mc_check_bool("LoadFile(nd500 unknown key) rejected",
-                  !MachineConfig_LoadFile(&cfg, path, err, sizeof(err)));
+                  !mc_load_file(&cfg, path, err, sizeof(err)));
     mc_check_bool("the error lists the known keys", strstr(err, "kernel") != NULL);
 
     snprintf(path, sizeof(path), "%s/baddisk.ini", dir);
@@ -316,10 +312,9 @@ int main(void)
             fclose(f);
         }
     }
-    MachineConfig_InitBaseline(&cfg);
+    mc_init_baseline(&cfg);
     err[0] = '\0';
-    mc_check_bool("LoadFile(nd500 disk99) rejected",
-                  !MachineConfig_LoadFile(&cfg, path, err, sizeof(err)));
+    mc_check_bool("LoadFile(nd500 disk99) rejected", !mc_load_file(&cfg, path, err, sizeof(err)));
 
     printf("machine_config tests: %d checks, %d failed\n", mc_total, mc_failed);
     return mc_failed ? 1 : 0;

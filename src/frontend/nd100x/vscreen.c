@@ -21,7 +21,7 @@
 
 #include "charset.h"
 
-void VScreen_Init(VScreen *vs, const char *name, Device *dev, int cols, bool input_capable)
+void vscreen_init(VScreen *vs, const char *name, Device *dev, int cols, bool input_capable)
 {
     if (!vs)
     {
@@ -60,7 +60,7 @@ void VScreen_Init(VScreen *vs, const char *name, Device *dev, int cols, bool inp
     }
 }
 
-void VScreen_Write(VScreen *vs, char c)
+void vscreen_write(VScreen *vs, char c)
 {
     if (!vs || !vs->lines)
     {
@@ -103,7 +103,7 @@ void VScreen_Write(VScreen *vs, char c)
     }
 }
 
-void VScreen_Redraw(VScreen *vs)
+void vscreen_redraw(VScreen *vs)
 {
     if (!vs || !vs->lines)
     {
@@ -157,7 +157,7 @@ void VScreen_Redraw(VScreen *vs)
     fflush(stdout);
 }
 
-void VScreen_Destroy(VScreen *vs)
+void vscreen_destroy(VScreen *vs)
 {
     if (!vs || !vs->lines)
     {

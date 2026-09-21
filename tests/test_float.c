@@ -40,9 +40,9 @@ struct CpuRegs *g_reg = &fptest_regs;
 static int fptest_z_set;
 
 /* Stub for the real setbit() in src/cpu (cpu_protos.h). */
-void setbit(uint16_t regnum, uint16_t stsbit, char val);
+void cpu_setbit(uint16_t regnum, uint16_t stsbit, char val);
 
-void setbit(uint16_t regnum, uint16_t stsbit, char val)
+void cpu_setbit(uint16_t regnum, uint16_t stsbit, char val)
 {
     (void)regnum;
     if (stsbit == STS_ERROR_INDICATOR && val)
@@ -52,18 +52,18 @@ void setbit(uint16_t regnum, uint16_t stsbit, char val)
 }
 
 /* The routines under test (float.c has no public header of its own). */
-int NDFloat_Add(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r);
-int NDFloat_Sub(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r);
-int NDFloat_Mul(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r);
-int NDFloat_Div(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r);
-void DoNLZ(char scaling);
-void DoDNZ(char scaling);
-int NDFloat_Add32(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r);
-int NDFloat_Sub32(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r);
-int NDFloat_Mul32(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r);
-int NDFloat_Div32(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r);
-void DoNLZ32(char scaling);
-void DoDNZ32(char scaling);
+int float_add(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r);
+int float_sub(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r);
+int float_mul(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r);
+int float_div(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r);
+void float_do_nlz(char scaling);
+void float_do_dnz(char scaling);
+int float_add_32(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r);
+int float_sub_32(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r);
+int float_mul_32(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r);
+int float_div_32(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r);
+void float_do_nlz32(char scaling);
+void float_do_dnz32(char scaling);
 
 /* ---------------------------------------------------------------- */
 /* Test harness                                                     */
@@ -329,22 +329,22 @@ static void run_fp48_lock(void)
 
         memcpy(a, tc->a, sizeof(a));
         memcpy(b, tc->b, sizeof(b));
-        NDFloat_Add(a, b, r);
+        float_add(a, b, r);
         check3(name, "FAD", tc->add, r);
 
         memcpy(a, tc->a, sizeof(a));
         memcpy(b, tc->b, sizeof(b));
-        NDFloat_Sub(a, b, r);
+        float_sub(a, b, r);
         check3(name, "FSB", tc->sub, r);
 
         memcpy(a, tc->a, sizeof(a));
         memcpy(b, tc->b, sizeof(b));
-        NDFloat_Mul(a, b, r);
+        float_mul(a, b, r);
         check3(name, "FMU", tc->mul, r);
 
         memcpy(a, tc->a, sizeof(a));
         memcpy(b, tc->b, sizeof(b));
-        rc = NDFloat_Div(a, b, r);
+        rc = float_div(a, b, r);
         check3(name, "FDV", tc->dv, r);
         check_int(name, "FDV rc", tc->div_rc, rc);
     }
@@ -361,12 +361,12 @@ static void run_fp48_lock(void)
         REG_D = 0177777;
         fptest_z_set = 0;
 
-        DoNLZ((char)tc->scaling);
+        float_do_nlz((char)tc->scaling);
         check_int(name, "NLZ T", tc->nlz[0], REG_T);
         check_int(name, "NLZ A", tc->nlz[1], REG_A);
         check_int(name, "NLZ D", tc->nlz[2], REG_D);
 
-        DoDNZ((char)-tc->scaling);
+        float_do_dnz((char)-tc->scaling);
         check_int(name, "DNZ T", tc->dnz[0], REG_T);
         check_int(name, "DNZ A", tc->dnz[1], REG_A);
         check_int(name, "DNZ D", tc->dnz[2], REG_D);
@@ -396,13 +396,13 @@ static int op32(char op, uint16_t a0, uint16_t a1, uint16_t b0, uint16_t b1, uin
     switch (op)
     {
     case '+':
-        return NDFloat_Add32(a, b, r);
+        return float_add_32(a, b, r);
     case '-':
-        return NDFloat_Sub32(a, b, r);
+        return float_sub_32(a, b, r);
     case '*':
-        return NDFloat_Mul32(a, b, r);
+        return float_mul_32(a, b, r);
     default:
-        return NDFloat_Div32(a, b, r);
+        return float_div_32(a, b, r);
     }
 }
 
@@ -520,12 +520,12 @@ static void run_fp32(void)
         REG_D = 0177777;
         fptest_z_set = 0;
 
-        DoNLZ32(16);
+        float_do_nlz32(16);
         check_int(name, "NLZ A", tc->nlz[0], REG_A);
         check_int(name, "NLZ D", tc->nlz[1], REG_D);
         check_int(name, "NLZ T", 0125252, REG_T);
 
-        DoDNZ32(-16);
+        float_do_dnz32(-16);
         check_int(name, "DNZ A (identity)", (uint16_t)tc->val, REG_A);
         check_int(name, "DNZ D", 0, REG_D);
         check_int(name, "DNZ T", 0125252, REG_T);
@@ -538,11 +538,11 @@ static void run_fp32(void)
         REG_T = 0125252;
         REG_A = 1;
         REG_D = 0177777;
-        DoNLZ32(17);
+        float_do_nlz32(17);
         check_int("nlz32(+17) of 1", "A", 0040200, REG_A);
         check_int("nlz32(+17) of 1", "D", 0, REG_D);
         check_int("nlz32(+17) of 1", "T", 0125252, REG_T);
-        DoDNZ32(-17);
+        float_do_dnz32(-17);
         check_int("nlz32(+17) of 1", "round trip", 1, REG_A);
     }
 
@@ -551,7 +551,7 @@ static void run_fp32(void)
         REG_T = 0125252;
         REG_A = 1;
         REG_D = 0;
-        DoNLZ(16);
+        float_do_nlz(16);
         fptest_total++;
         if (REG_T == 0125252)
         {
@@ -567,7 +567,7 @@ static void run_fp32(void)
         REG_A = 0042000;
         REG_D = 0;
         fptest_z_set = 0;
-        DoDNZ32(-16);
+        float_do_dnz32(-16);
         check_int("dnz32 ovf", "A", 0100000, REG_A);
         check_int("dnz32 ovf", "Z", 1, fptest_z_set);
         check_int("dnz32 ovf", "T", 0125252, REG_T);
@@ -576,7 +576,7 @@ static void run_fp32(void)
         REG_A = 0;
         REG_D = 0;
         fptest_z_set = 0;
-        DoDNZ32(-16);
+        float_do_dnz32(-16);
         check_int("dnz32 zero", "A", 0, REG_A);
         check_int("dnz32 zero", "Z", 0, fptest_z_set);
     }
@@ -586,12 +586,12 @@ static void run_fp32(void)
         /* float(2) * float(3) denormalizes back to the integer 6. */
         uint16_t a[2] = {0040200, 0};
         uint16_t b[2] = {0040240, 0};
-        NDFloat_Mul32(a, b, r);
+        float_mul_32(a, b, r);
         REG_T = 0125252;
         REG_A = r[0];
         REG_D = r[1];
         fptest_z_set = 0;
-        DoDNZ32(-16);
+        float_do_dnz32(-16);
         check_int("fmu(2,3)->dnz", "A", 6, REG_A);
         check_int("fmu(2,3)->dnz", "Z", 0, fptest_z_set);
         check_int("fmu(2,3)->dnz", "T", 0125252, REG_T);

@@ -47,7 +47,7 @@ typedef enum
  * @param length Number of bytes in buf.
  * @return Updated CRC value, or the unchanged crc if buf is NULL.
  */
-uint16_t HDLC_CRC_CalculateCRC16Buffer(uint16_t crc, const uint8_t *buf, int length);
+uint16_t hdlc_crc_crc_calculate_crc16_buffer(uint16_t crc, const uint8_t *buf, int length);
 
 /**
  * @brief Fold one byte into a running CRC-16 (polynomial x^16+x^15+x^2+1,
@@ -56,7 +56,7 @@ uint16_t HDLC_CRC_CalculateCRC16Buffer(uint16_t crc, const uint8_t *buf, int len
  * @param byte Next byte to fold in.
  * @return Updated CRC value.
  */
-uint16_t HDLC_CRC_CalcCrc16(uint16_t crc, uint8_t byte);
+uint16_t hdlc_crc_crc_calc_crc_16(uint16_t crc, uint8_t byte);
 
 /**
  * @brief Fold one byte into a running CRC-16-CCITT (polynomial
@@ -66,7 +66,7 @@ uint16_t HDLC_CRC_CalcCrc16(uint16_t crc, uint8_t byte);
  * @param byte Next byte to fold in.
  * @return Updated FCS value.
  */
-uint16_t HDLC_CRC_CalcCCITT(uint16_t fcs, uint8_t byte);
+uint16_t hdlc_crc_crc_calc_ccitt(uint16_t fcs, uint8_t byte);
 
 // Parity functions
 
@@ -77,7 +77,7 @@ uint16_t HDLC_CRC_CalcCCITT(uint16_t fcs, uint8_t byte);
  * @param mode Parity mode to apply (odd or even).
  * @return data with bit 7 set to the computed parity bit.
  */
-uint8_t HDLC_CRC_AddParityBit(uint8_t data, HDLCParityMode mode);
+uint8_t hdlc_crc_crc_add_parity_bit(uint8_t data, HDLCParityMode mode);
 
 /**
  * @brief Test whether a byte's precomputed parity bit is set for the given
@@ -87,6 +87,6 @@ uint8_t HDLC_CRC_AddParityBit(uint8_t data, HDLCParityMode mode);
  * @return true if the table parity bit for data under mode is 1, false
  *         otherwise.
  */
-bool HDLC_CRC_CheckParity(uint8_t data, HDLCParityMode mode);
+bool hdlc_crc_crc_check_parity(uint8_t data, HDLCParityMode mode);
 
 #endif // HDLC_CRC_H

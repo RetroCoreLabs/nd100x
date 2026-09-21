@@ -33,17 +33,17 @@
 #include "../src/devices/rtc/device_rtc.h"
 
 /* From device_rtc.c (normally declared in the generated devices_protos.h). */
-Device *CreateRTCDevice(uint8_t thumbwheel);
-void RTC_SetWallClockMode(bool enable);
+Device *rtc_create_device(uint8_t thumbwheel);
+void rtc_set_wall_clock_mode(bool enable);
 
 /* ---- Device_* stubs (device_rtc.c uses exactly these four) ---- */
 /* Prototypes match src/devices/device.c (devices_protos.h). */
-void Device_Init(Device *dev, uint8_t thumbwheel, DeviceClass device_class, size_t block_size);
-void Device_TickIODelay(Device *dev);
-void Device_SetInterruptStatus(Device *dev, bool active, uint16_t level);
-uint32_t Device_RegisterAddress(Device *dev, uint32_t address);
+void dev_init(Device *dev, uint8_t thumbwheel, DeviceClass device_class, size_t block_size);
+void dev_tick_io_delay(Device *dev);
+void dev_set_interrupt_status(Device *dev, bool active, uint16_t level);
+uint32_t dev_register_address(Device *dev, uint32_t address);
 
-void Device_Init(Device *dev, uint8_t thumbwheel, DeviceClass device_class, size_t block_size)
+void dev_init(Device *dev, uint8_t thumbwheel, DeviceClass device_class, size_t block_size)
 {
     memset(dev, 0, sizeof(*dev));
     (void)thumbwheel;
@@ -51,12 +51,12 @@ void Device_Init(Device *dev, uint8_t thumbwheel, DeviceClass device_class, size
     (void)block_size;
 }
 
-void Device_TickIODelay(Device *dev)
+void dev_tick_io_delay(Device *dev)
 {
     (void)dev;
 }
 
-void Device_SetInterruptStatus(Device *dev, bool active, uint16_t level)
+void dev_set_interrupt_status(Device *dev, bool active, uint16_t level)
 {
     if (active)
     {
@@ -68,7 +68,7 @@ void Device_SetInterruptStatus(Device *dev, bool active, uint16_t level)
     }
 }
 
-uint32_t Device_RegisterAddress(Device *dev, uint32_t address)
+uint32_t dev_register_address(Device *dev, uint32_t address)
 {
     return address - dev->startAddress;
 }
@@ -181,7 +181,7 @@ static int64_t wall_pulses_slow_handler(Device *rtc, RTCData *data)
 
 int main(void)
 {
-    Device *rtc = CreateRTCDevice(0);
+    Device *rtc = rtc_create_device(0);
     if (!rtc)
     {
         printf("CreateRTCDevice failed\n");
@@ -201,7 +201,7 @@ int main(void)
               pulses_over_ticks(rtc, data, 10L * TICKS_20MS));
 
     /* ---- wall mode: ~50 Hz host time, independent of call rate ---- */
-    RTC_SetWallClockMode(true);
+    rtc_set_wall_clock_mode(true);
     rtc->Reset(rtc);
 
     /* Spin for 1.0 s of host time; expect ~50 pulses (20 ms period).
@@ -226,7 +226,7 @@ int main(void)
                     wall_pulses_slow_handler(rtc, data));
 
     /* Back to ticks mode: behavior must return to the deterministic count. */
-    RTC_SetWallClockMode(false);
+    rtc_set_wall_clock_mode(false);
     rtc->Reset(rtc);
     rtc_check("ticks again: 5 pulses in 52750 calls", 5,
               pulses_over_ticks(rtc, data, 5L * TICKS_20MS));

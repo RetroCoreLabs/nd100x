@@ -26,7 +26,7 @@
  * @param out Receives the matching CpuType; may be NULL if only the match result is wanted.
  * @return true on a match (and *out written when out is non-NULL), false for NULL or unknown name.
  */
-bool CpuModel_FromName(const char *name, CpuType *out);
+bool cpumodel_from_name(const char *name, CpuType *out);
 
 /* CpuType -> the canonical config-file spelling ("ND110CX"). This is what the
  * parser accepts, so it round-trips; "ND?" for an unknown value. */
@@ -35,7 +35,7 @@ bool CpuModel_FromName(const char *name, CpuType *out);
  * @param t CPU model to name.
  * @return Pointer to a static string; "ND?" when the value is not in the model table.
  */
-const char *CpuModel_Name(CpuType t);
+const char *cpumodel_name(CpuType t);
 
 /* CpuType -> the human form TPE and CONFIGURATION print ("ND-110/CX"). For
  * display only - it does NOT round-trip through the config parser. */
@@ -44,20 +44,20 @@ const char *CpuModel_Name(CpuType t);
  * @param t CPU model to name.
  * @return Pointer to a static string; "ND?" for a CpuType the switch does not cover.
  */
-const char *CpuModel_DisplayName(CpuType t);
+const char *cpumodel_display_name(CpuType t);
 
 /* The list, for building a picker. */
 /**
  * @brief Return the number of entries in the CPU model table.
  * @return Count of models, used to bound CpuModel_NameByIndex().
  */
-int CpuModel_Count(void);
+int cpumodel_count(void);
 
 /**
  * @brief Return the config-file name of the model table entry at an index, for building a picker.
  * @param i Zero-based index into the model table.
  * @return Pointer to a static name string, or NULL when i is negative or past the last entry.
  */
-const char *CpuModel_NameByIndex(int i);
+const char *cpumodel_name_by_index(int i);
 
 #endif /* CPU_MODEL_H */

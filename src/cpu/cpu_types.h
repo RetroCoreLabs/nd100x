@@ -627,8 +627,8 @@ extern int g_disasm;
  * in their generated *_protos.h. Declared here so the defining files, which
  * include this header, are checked against the same signature. */
 uint16_t io_op(uint16_t ioadd, uint16_t reg_a); /* machine/io.c */
-int IO_Ident(uint16_t level);                   /* machine/io.c */
-void start_debugger(void);                      /* debugger/debugger.c */
+int io_ident(uint16_t level);                   /* machine/io.c */
+void debugger_start(void);                      /* debugger/debugger.c */
 
 /* Set by device DMA (devices/device.c) around a transfer so the shadow-RAM
  * check in cpu_mms.c is skipped: DMA is a physical bus access. */
@@ -800,7 +800,7 @@ int cpu_trace_nd110_set(const char *);
  * @param isEXR True if this instruction is being executed from a register (EXR), so P must
  * not be advanced.
  */
-void do_op(uint16_t, bool);
+void cpu_do_op(uint16_t, bool);
 
 /**
  * @brief Compute the effective address for an instruction using the 8 ND-100 addressing
@@ -813,7 +813,7 @@ void do_op(uint16_t, bool);
  * space (false).
  * @return The computed effective address.
  */
-uint16_t New_GetEffectiveAddr(uint16_t, bool *);
+uint16_t cpu_get_effective_addr(uint16_t, bool *);
 
 /**
  * @brief Compute the Internal Interrupt Code (IIC) from the priority-encoded AND of gIID
@@ -822,7 +822,7 @@ uint16_t New_GetEffectiveAddr(uint16_t, bool *);
  * @return The IIC code (0-12 octal per the source table), or 0 if no internal interrupt is
  * pending.
  */
-uint16_t calcIIC(void);
+uint16_t cpu_calc_iic(void);
 
 /**
  * @brief Set an internal interrupt: for level 14, OR sub into gIID and set PID bit 14 if
@@ -834,7 +834,7 @@ uint16_t calcIIC(void);
  * @param sub Subbitfield used only when lvl is 14, identifying which internal interrupt(s)
  * (MC/MPV/PF/II/Z/PI/IOX/PTY/MOR/POW) fired.
  */
-void interrupt(uint16_t, uint16_t);
+void cpu_interrupt(uint16_t, uint16_t);
 
 /**
  * @brief Merge external device interrupt bits into gPID, masked to bits 10-13 and 15 (the
@@ -843,7 +843,7 @@ void interrupt(uint16_t, uint16_t);
  * @param interruptBits Raw interrupt bits from the device layer; only bits 10-13 and 15
  * (mask 0xBC00) are used.
  */
-void device_interrupt(uint16_t);
+void cpu_device_interrupt(uint16_t);
 
 /**
  * @brief Write a word to physical memory (and its shadow copy) by calling
@@ -851,7 +851,7 @@ void device_interrupt(uint16_t);
  * @param value The 16-bit word to write.
  * @param addr The physical address to write to.
  */
-void PhysMemWrite(uint16_t, uint32_t);
+void cpu_phys_mem_write(uint16_t, uint32_t);
 
 /**
  * @brief Read a word from physical memory (and its shadow copy) by calling
@@ -859,7 +859,7 @@ void PhysMemWrite(uint16_t, uint32_t);
  * @param addr The physical address to read from.
  * @return The 16-bit word read.
  */
-uint16_t PhysMemRead(uint32_t);
+uint16_t cpu_phys_mem_read(uint32_t);
 
 /**
  * @brief Common handling when a memory watchpoint matches: record STOP_REASON_DATA_BREAKPOINT
@@ -881,7 +881,7 @@ void cpu_watchpoint_triggered(uint32_t, bool);
  * @param UseAPT True to use the Alterable Page Table, false for the Program Page Table.
  * @param byte_select Byte-write selector passed through to WriteVirtualMemory().
  */
-void MemoryWrite(uint16_t, uint16_t, bool, uint8_t);
+void cpu_memory_write(uint16_t, uint16_t, bool, uint8_t);
 
 /**
  * @brief Read a word through the Memory Management System, first checking the watchpoint
@@ -891,7 +891,7 @@ void MemoryWrite(uint16_t, uint16_t, bool, uint8_t);
  * @param UseAPT True to use the Alterable Page Table, false for the Program Page Table.
  * @return The 16-bit word read.
  */
-uint16_t MemoryRead(uint16_t, bool);
+uint16_t cpu_memory_read(uint16_t, bool);
 
 /**
  * @brief Check whether the next instruction at PC is a jump-family opcode (JMP, JAP, JAN,
@@ -909,7 +909,7 @@ bool cpu_instruction_is_jump(void);
  * ring buffer (PC, opcode, disassembly, A, STS, PID, PIE, IID, IIE, device bits) to stderr.
  * Does nothing if g_cpu_ring_dump_size is not positive.
  */
-void ring_dump(void);
+void cpu_ring_dump(void);
 
 /**
  * @brief Run the CPU instruction loop for a given number of ticks, handling runlevel
@@ -947,7 +947,7 @@ void cpu_init(bool, int);
  * breakpoint manager and start the debugger thread (start_debugger()). No-op when
  * WITH_DEBUGGER is not compiled in, or when the debugger is not enabled.
  */
-void init_cpu_debugger(void);
+void cpu_init_debugger(void);
 
 /**
  * @brief Reset the CPU: zero volatile memory and the register set (preserving
@@ -961,21 +961,21 @@ void cpu_reset(void);
  * @brief Clean up the CPU: destroy the paging tables and, if the debugger is enabled, stop
  * the debugger thread.
  */
-void cleanup_cpu(void);
+void cpu_cleanup(void);
 
 /**
  * @brief Set the flag by which the DAP debugger thread asks the CPU thread to pause,
  * stored as an atomic/interlocked value per platform (WITH_DEBUGGER builds only).
  * @param requested True to request a pause, false to clear the request.
  */
-void set_debugger_request_pause(bool);
+void cpu_set_debugger_request_pause(bool);
 
 /**
  * @brief Read the debugger pause-request flag set by set_debugger_request_pause().
  * @return True if the debugger has requested a pause; always false when WITH_DEBUGGER is
  * not compiled in.
  */
-bool get_debugger_request_pause(void);
+bool cpu_get_debugger_request_pause(void);
 
 /**
  * @brief Set the flag by which the CPU thread tells the debugger it is paused and the
@@ -983,28 +983,28 @@ bool get_debugger_request_pause(void);
  * (WITH_DEBUGGER builds only).
  * @param requested True when control is granted to the debugger, false otherwise.
  */
-void set_debugger_control_granted(bool);
+void cpu_set_debugger_control_granted(bool);
 
 /**
  * @brief Read the debugger-control-granted flag set by set_debugger_control_granted().
  * @return True if debugger control is currently granted; always false when WITH_DEBUGGER
  * is not compiled in.
  */
-bool get_debugger_control_granted(void);
+bool cpu_get_debugger_control_granted(void);
 
 /**
  * @brief Set the reason the CPU last stopped (e.g. breakpoint, data breakpoint), stored as
  * an atomic/interlocked value per platform (WITH_DEBUGGER builds only).
  * @param reason The CpuStopReason to record.
  */
-void set_cpu_stop_reason(CpuStopReason);
+void cpu_set_stop_reason(CpuStopReason);
 
 /**
  * @brief Read the CPU stop reason set by set_cpu_stop_reason().
  * @return The recorded CpuStopReason; STOP_REASON_NONE when WITH_DEBUGGER is not compiled
  * in.
  */
-CpuStopReason get_cpu_stop_reason(void);
+CpuStopReason cpu_get_stop_reason(void);
 
 /**
  * @brief Set the current CPU run mode (CPU_RUNNING, CPU_BREAKPOINT, CPU_PAUSED,
@@ -1012,13 +1012,13 @@ CpuStopReason get_cpu_stop_reason(void);
  * WITH_DEBUGGER is compiled in, or in the plain CurrentCPURunMode global otherwise.
  * @param new_mode The CPURunMode to set.
  */
-void set_cpu_run_mode(CPURunMode);
+void cpu_set_run_mode(CPURunMode);
 
 /**
  * @brief Read the current CPU run mode set by set_cpu_run_mode().
  * @return The current CPURunMode value.
  */
-CPURunMode get_cpu_run_mode(void);
+CPURunMode cpu_get_run_mode(void);
 
 /**
  * @brief Enable or disable CPU throttling to cpu_throttle_mhz, logging the new state.
@@ -1058,7 +1058,7 @@ void cpu_set_ring_at_clpt(int64_t);
  * @param x Byte value in the low 8 bits (bit 7 is the sign bit).
  * @return Sign-extended value: bits 8-15 set to 1 when bit 7 of x is 1.
  */
-int16_t signExtend(uint16_t);
+int16_t cpu_sign_extend(uint16_t);
 
 /**
  * @brief Handle an illegal/unimplemented opcode by raising the illegal
@@ -1067,7 +1067,7 @@ int16_t signExtend(uint16_t);
  *        "ND-100": it decides so only if execution traps here.
  * @param operand The undecoded instruction word that could not be dispatched.
  */
-void illegal_instr(uint16_t);
+void cpu_illegal_instr(uint16_t);
 
 /**
  * @brief Execute BFILL: fill memory with the byte in A, X bytes/words
@@ -1111,7 +1111,7 @@ void opcode_versn_read_cpu_version(uint16_t);
  * @param eff_addr Effective address of the memory operand to add to A.
  * @param UseAPT Whether to read through the alternative page table.
  */
-void add_A_mem(uint16_t, bool);
+void cpu_add_a_mem(uint16_t, bool);
 
 /**
  * @brief Execute MOVB: move a byte field from the A/D-addressed source to
@@ -1135,7 +1135,7 @@ void opcode_movbf_move_bytes_forward_buggy(uint16_t);
  * @param eff_addr Effective address of the memory operand to subtract from A.
  * @param UseAPT Whether to read through the alternative page table.
  */
-void sub_A_mem(uint16_t, bool);
+void cpu_sub_a_mem(uint16_t, bool);
 
 /**
  * @brief Execute RDIV: divide the 32-bit signed double accumulator AD by the
@@ -1145,7 +1145,7 @@ void sub_A_mem(uint16_t, bool);
  *        comments.
  * @param instr Instruction word; bits 3-5 select the divisor register.
  */
-void rdiv_org(uint16_t);
+void cpu_rdiv_org(uint16_t);
 
 /**
  * @brief Execute RMPY: multiply the source register (instr bits 3-5) by the
@@ -1155,7 +1155,7 @@ void rdiv_org(uint16_t);
  *        source comments.
  * @param instr Instruction word; selects the source and destination registers.
  */
-void rmpy_org(uint16_t);
+void cpu_rmpy_org(uint16_t);
 
 /**
  * @brief Load the two BCD working words s_bcd_d1/s_bcd_d2 from the memory
@@ -1164,7 +1164,7 @@ void rmpy_org(uint16_t);
  *        SHDE) implemented in bcd.c.
  * @param address Address of the first of the two BCD words to read.
  */
-void GetBCD(uint16_t);
+void cpu_get_bcd(uint16_t);
 
 /**
  * @brief Store the two BCD working words s_bcd_d1/s_bcd_d2 back to the
@@ -1172,7 +1172,7 @@ void GetBCD(uint16_t);
  *        page table, for the BCD instructions implemented in bcd.c.
  * @param address Address of the first of the two BCD words to write.
  */
-void StoreBCD(uint16_t);
+void cpu_store_bcd(uint16_t);
 
 /**
  * @brief Populate the g_instr_funcs dispatch table by registering every
@@ -1180,7 +1180,7 @@ void StoreBCD(uint16_t);
  *        RMPY, etc.) against its opcode, opcode range or opcode/mask
  *        signature.
  */
-void Setup_Instructions(void);
+void cpu_instructions(void);
 
 /**
  * @brief Set the current PIL (Priority Interrupt Level), saving the old
@@ -1190,21 +1190,21 @@ void Setup_Instructions(void);
  * @return true if the PIL was set or was already newLevel; false if
  *         newLevel is 16 or greater (invalid PIL).
  */
-bool setPIL(char);
+bool cpu_set_pil(char);
 
 /**
  * @brief Set the PEA (Page Error Address) register once, then lock it so
  *        further calls are ignored until the lock is cleared elsewhere.
  * @param pea New PEA value.
  */
-void setPEA(uint16_t);
+void cpu_set_pea(uint16_t);
 
 /**
  * @brief Set the PES (Page Error Status) register once, then lock it so
  *        further calls are ignored until the lock is cleared elsewhere.
  * @param pes New PES value.
  */
-void setPES(uint16_t);
+void cpu_set_pes(uint16_t);
 
 /**
  * @brief Set the PGS (Page Table Group Status, unverified name) register
@@ -1212,7 +1212,7 @@ void setPES(uint16_t);
  *        stored without locking.
  * @param pgs New PGS value.
  */
-void setPGS(uint16_t);
+void cpu_set_pgs(uint16_t);
 
 /**
  * @brief Write val into register r at the current run level, masking STS
@@ -1220,7 +1220,7 @@ void setPGS(uint16_t);
  * @param r Register index (_STS or a general register index).
  * @param val Value to store into the register.
  */
-void setreg(int, int);
+void cpu_setreg(int, int);
 
 /**
  * @brief Read one bit of a register at the current run level. For _STS,
@@ -1230,14 +1230,14 @@ void setreg(int, int);
  * @param stsbit Bit position to read (0-15).
  * @return The selected bit value, 0 or 1.
  */
-uint16_t getbit(uint16_t, uint16_t);
+uint16_t cpu_getbit(uint16_t, uint16_t);
 
 /**
  * @brief Clear one bit of a register at the current run level.
  * @param regnum Register index (_STS or a general register index).
  * @param stsbit Bit position to clear (0-15).
  */
-void clrbit(uint16_t, uint16_t);
+void cpu_clrbit(uint16_t, uint16_t);
 
 /**
  * @brief Set or clear one bit of the shared MSB half of STS (reg_STS, common
@@ -1246,7 +1246,7 @@ void clrbit(uint16_t, uint16_t);
  * @param stsbit Bit position within STS to modify.
  * @param val Nonzero to set the bit, zero to clear it.
  */
-void setbit_STS_MSB(uint16_t, char);
+void cpu_setbit_sts_msb(uint16_t, char);
 
 /**
  * @brief Set or clear one bit of a register at the current run level,
@@ -1256,7 +1256,7 @@ void setbit_STS_MSB(uint16_t, char);
  * @param stsbit Bit position to modify (0-15).
  * @param val Nonzero to set the bit, zero to clear it.
  */
-void setbit(uint16_t, uint16_t, char);
+void cpu_setbit(uint16_t, uint16_t, char);
 
 /**
  * @brief Update STS carry (C), static overflow (O) and dynamic overflow (Q)
@@ -1267,7 +1267,7 @@ void setbit(uint16_t, uint16_t, char);
  * @param result Result of the arithmetic operation (wider than 16 bits so
  *        carry-out is visible).
  */
-void AdjustSTS(uint16_t, uint16_t, int);
+void cpu_adjust_sts(uint16_t, uint16_t, int);
 
 /* src/cpu/cpu_mms.c */
 
@@ -1276,7 +1276,7 @@ void AdjustSTS(uint16_t, uint16_t, int);
  * (--ring-at-pf diagnostic).
  * @param n Page-fault number counted from 1 at which to dump; 0 disables the dump.
  */
-void cpu_set_ring_at_pf(int64_t);
+void mms_cpu_set_ring_at_pf(int64_t);
 
 /**
  * @brief Allocate and initialize the global page-table shadow RAM (g_paging_tables)
@@ -1285,12 +1285,12 @@ void cpu_set_ring_at_pf(int64_t);
  * @return true on success; false if the shadow RAM calloc failed (g_paging_tables
  * is left with isInitialized still unset).
  */
-bool CreatePagingTables(void);
+bool mms_create_paging_tables(void);
 
 /**
  * @brief Free the global page-table shadow RAM allocated by CreatePagingTables().
  */
-void DestroyPagingTables(void);
+void mms_destroy_paging_tables(void);
 
 /**
  * @brief Compute the word offset into g_paging_tables.shadowRam for a given page
@@ -1302,7 +1302,7 @@ void DestroyPagingTables(void);
  * address used in the offset calculation.
  * @return Shadow-RAM address (offset added to g_paging_tables.shadowRamAddress).
  */
-uint16_t GetPTShadowAddress(uint32_t, uint32_t, PageTableMode);
+uint16_t mms_get_pt_shadow_address(uint32_t, uint32_t, PageTableMode);
 
 /**
  * @brief Write a 16-bit word into the page-table shadow RAM at a physical shadow
@@ -1312,7 +1312,7 @@ uint16_t GetPTShadowAddress(uint32_t, uint32_t, PageTableMode);
  * @param address Physical shadow-RAM address (as seen on the 16-bit address bus).
  * @param value Word value to store.
  */
-void PT_Write(uint32_t, uint16_t);
+void mms_write(uint32_t, uint16_t);
 
 /**
  * @brief Read a 16-bit word from the page-table shadow RAM at a physical shadow
@@ -1321,7 +1321,7 @@ void PT_Write(uint32_t, uint16_t);
  * @return The stored word, or 0 if shadowRam is NULL or address is out of range
  * (0 is not distinguishable from a real stored zero).
  */
-uint16_t PT_Read(uint32_t);
+uint16_t mms_read(uint32_t);
 
 /**
  * @brief Read a full page table entry (PTE) from shadow RAM for the current
@@ -1336,7 +1336,7 @@ uint16_t PT_Read(uint32_t);
  * (in normal mode) pageTable > 3 (0 is not distinguishable from a real all-zero
  * entry).
  */
-uint32_t GetPageTableEntry(uint32_t, uint32_t, PageTableMode);
+uint32_t mms_get_page_table_entry(uint32_t, uint32_t, PageTableMode);
 
 /**
  * @brief Debugger/inspector variant of GetPageTableEntry() that reads by
@@ -1351,7 +1351,7 @@ uint32_t GetPageTableEntry(uint32_t, uint32_t, PageTableMode);
  * for pageTable 0-3), or 0 if shadowRam is NULL, pageTable >= 16, or (on MMS1)
  * pageTable > 3.
  */
-uint32_t GetPageTableEntryForDebugger(uint32_t, uint32_t, PageTableMode);
+uint32_t mms_get_page_table_entry_for_debugger(uint32_t, uint32_t, PageTableMode);
 
 /**
  * @brief Write a page table entry back into shadow RAM, packing it as two words
@@ -1365,7 +1365,7 @@ uint32_t GetPageTableEntryForDebugger(uint32_t, uint32_t, PageTableMode);
  * @return true on success; false if shadowRam is NULL or pageTable >= 16 (no
  * write performed).
  */
-bool UpdatePageTableEntry(uint32_t, uint32_t, PageTableMode, uint32_t);
+bool mms_update_page_table_entry(uint32_t, uint32_t, PageTableMode, uint32_t);
 
 /**
  * @brief Set the PGU (page used) flag in a page table entry if not already set,
@@ -1376,7 +1376,7 @@ bool UpdatePageTableEntry(uint32_t, uint32_t, PageTableMode, uint32_t);
  * @param PTe Current page table entry value.
  * @return The page table entry with PGU_FLAG set (same value if it was already set).
  */
-uint32_t SetPageUsed(uint32_t, uint32_t, PageTableMode, uint32_t);
+uint32_t mms_set_page_used(uint32_t, uint32_t, PageTableMode, uint32_t);
 
 /**
  * @brief Set the WIP (written) flag in a page table entry if not already set,
@@ -1388,7 +1388,7 @@ uint32_t SetPageUsed(uint32_t, uint32_t, PageTableMode, uint32_t);
  * @return The page table entry with WIP_FLAG set, or the unmodified PTe if
  * shadowRam is NULL or pageTable >= 16.
  */
-uint32_t SetPageWritten(uint32_t, uint32_t, PageTableMode, uint32_t);
+uint32_t mms_set_page_written(uint32_t, uint32_t, PageTableMode, uint32_t);
 
 /**
  * @brief Format a page table entry into a short human-readable string (WPM/RPM/
@@ -1397,7 +1397,7 @@ uint32_t SetPageWritten(uint32_t, uint32_t, PageTableMode, uint32_t);
  * @return Pointer to a static internal buffer holding the formatted string;
  * overwritten on the next call, not thread-safe.
  */
-const char *GetPageTableEntryDebugInfo(uint32_t);
+const char *mms_get_page_table_entry_debug_info(uint32_t);
 
 /**
  * @brief Translate a virtual address to a physical address through the current
@@ -1419,7 +1419,7 @@ const char *GetPageTableEntryDebugInfo(uint32_t);
  * initialized, or on a ring violation, page fault/permit violation, or
  * out-of-range physical address (all of which also raise a level-14 interrupt).
  */
-int mapVirtualToPhysical(uint32_t, AccessMode, bool);
+int mms_map_virtual_to_physical(uint32_t, AccessMode, bool);
 
 /**
  * @brief Build and store the PGS (Page Status) register value for a fault: packs
@@ -1433,7 +1433,7 @@ int mapVirtualToPhysical(uint32_t, AccessMode, bool);
  * not present, matching hardware behaviour validated against the ND paging
  * diagnostic (TPE) - unverified beyond what that comment documents.
  */
-void UpdatePGS(uint32_t, uint32_t, AccessMode, bool);
+void mms_update_pgs(uint32_t, uint32_t, AccessMode, bool);
 
 /**
  * @brief Check whether a page table entry permits the requested access: raises a
@@ -1451,7 +1451,7 @@ void UpdatePGS(uint32_t, uint32_t, AccessMode, bool);
  * @return true if the access is permitted; false if a page fault or permit
  * violation was raised (an internal interrupt has already been generated).
  */
-bool checkPageProtection(uint32_t, uint32_t, uint32_t, AccessMode, uint32_t);
+bool mms_check_page_protection(uint32_t, uint32_t, uint32_t, AccessMode, uint32_t);
 
 /**
  * @brief Determine whether a 16-bit address falls in the page-table shadow
@@ -1464,7 +1464,7 @@ bool checkPageProtection(uint32_t, uint32_t, uint32_t, AccessMode, uint32_t);
  * DEPO), which allows the shadow-memory window regardless of the current ring.
  * @return true if addr lies in the active shadow-RAM window; false otherwise.
  */
-bool IsAddressShadowMemory(uint32_t, bool);
+bool mms_is_address_shadow_memory(uint32_t, bool);
 
 /**
  * @brief Read a data word through the virtual memory path (READ access mode),
@@ -1475,7 +1475,7 @@ bool IsAddressShadowMemory(uint32_t, bool);
  * @param UseAPT Whether to translate via the APT (data) page table field.
  * @return The word read; 0 if translation failed (a fault was already raised).
  */
-int ReadVirtualMemory(uint32_t, bool);
+int mms_read_virtual_memory(uint32_t, bool);
 
 /**
  * @brief Read a word through the virtual memory path using READ_FETCH access
@@ -1486,7 +1486,7 @@ int ReadVirtualMemory(uint32_t, bool);
  * @param UseAPT Whether to translate via the APT (data) page table field.
  * @return The word read; 0 if translation failed (a fault was already raised).
  */
-int ReadIndirectVirtualMemory(uint32_t, bool);
+int mms_read_indirect_virtual_memory(uint32_t, bool);
 
 /**
  * @brief Fetch an instruction word through the virtual memory path (FETCH
@@ -1497,7 +1497,7 @@ int ReadIndirectVirtualMemory(uint32_t, bool);
  * than the PT (instruction) field.
  * @return The word fetched; 0 if translation failed (a fault was already raised).
  */
-int FetchVirtualMemory(uint32_t, bool);
+int mms_fetch_virtual_memory(uint32_t, bool);
 
 /**
  * @brief Write a data word through the virtual memory path (WRITE access mode),
@@ -1509,7 +1509,7 @@ int FetchVirtualMemory(uint32_t, bool);
  * @param UseAPT Whether to translate via the APT (data) page table field.
  * @param wm Write mode (full word, or MSB/LSB byte write).
  */
-void WriteVirtualMemory(uint32_t, uint16_t, bool, WriteMode);
+void mms_write_virtual_memory(uint32_t, uint16_t, bool, WriteMode);
 
 /**
  * @brief Classify a physical word address into its ND-100 memory region: the
@@ -1518,7 +1518,7 @@ void WriteVirtualMemory(uint32_t, uint16_t, bool, WriteMode);
  * @param physicalWordAddress Physical word address to classify.
  * @return ND_MEM_MPM5, ND_MEM_LOCAL, or ND_MEM_NONE.
  */
-NDMemoryType GetPhysicalMemoryType(uint32_t);
+NDMemoryType mms_get_physical_memory_type(uint32_t);
 
 /**
  * @brief Read a word from physical memory: checks physical watchpoints (when
@@ -1531,7 +1531,7 @@ NDMemoryType GetPhysicalMemoryType(uint32_t);
  * @return The word read; 0 if physicalAddress is negative or out of range
  * (HandleMemoryOutOfRange() has already been called for the out-of-range case).
  */
-int ReadPhysicalMemory(int, bool);
+int mms_read_physical_memory(int, bool);
 
 /**
  * @brief Write a full 16-bit word to physical memory. Thin wrapper around
@@ -1541,7 +1541,7 @@ int ReadPhysicalMemory(int, bool);
  * @param privileged Whether this access is privileged, forwarded to
  * WritePhysicalMemoryWM().
  */
-void WritePhysicalMemory(int, uint16_t, bool);
+void mms_write_physical_memory(int, uint16_t, bool);
 
 /**
  * @brief Write to physical memory with byte/word write mode: checks physical
@@ -1555,7 +1555,7 @@ void WritePhysicalMemory(int, uint16_t, bool);
  * IsAddressShadowMemory().
  * @param wm Write mode: WRITEMODE_WORD, WRITEMODE_MSB, or WRITEMODE_LSB.
  */
-void WritePhysicalMemoryWM(int, uint16_t, bool, WriteMode);
+void mms_write_physical_memory_wm(int, uint16_t, bool, WriteMode);
 
 /**
  * @brief Record a memory-out-of-range fault into PEA/PES and raise the level-14
@@ -1563,7 +1563,7 @@ void WritePhysicalMemoryWM(int, uint16_t, bool, WriteMode);
  * @param physicalAddress Physical address that was out of range, stored (masked)
  * into PEA/PES.
  */
-void HandleMemoryOutOfRange(uint32_t);
+void mms_handle_memory_out_of_range(uint32_t);
 
 /**
  * @brief Handle a memory protection violation: optionally logs the faulting PTE
@@ -1572,7 +1572,7 @@ void HandleMemoryOutOfRange(uint32_t);
  * @param virtualAddress Virtual address that caused the violation, used only for
  * the diagnostic log line.
  */
-void HandleMPV(uint32_t);
+void mms_handle_mpv(uint32_t);
 
 /**
  * @brief Handle a page fault by raising the level-14 PF interrupt (bit 3).
@@ -1580,7 +1580,7 @@ void HandleMPV(uint32_t);
  * @param virtualAddress Virtual address that faulted; unused (parameter kept for
  * the HandleMPV()-matching call signature).
  */
-void HandlePF(uint32_t);
+void mms_handle_pf(uint32_t);
 
 /**
  * @brief Debugger-only physical memory read that bypasses the MMU, watchpoint
@@ -1696,17 +1696,17 @@ int Dbg_WriteVirtualMemoryDSpace(uint32_t, uint16_t);
 /**
  * @brief Allocate the single static BreakpointManager instance and reset it.
  */
-void breakpoint_manager_init(void);
+void bkpt_manager_init(void);
 
 /**
  * @brief Clear all breakpoints and drop the global manager pointer to NULL.
  */
-void breakpoint_manager_cleanup(void);
+void bkpt_manager_cleanup(void);
 
 /**
  * @brief Arm a one-instruction single step by setting step_count to 1.
  */
-void breakpoint_manager_step_one(void);
+void bkpt_manager_step_one(void);
 
 /**
  * @brief Add a breakpoint entry at address, hashed into g_breakpoint_mgr's bucket table.
@@ -1716,25 +1716,25 @@ void breakpoint_manager_step_one(void);
  * @param hitCondition Optional hit-count string compared against hitCount, or NULL.
  * @param logMessage Optional logpoint message, copied with strdup, or NULL.
  */
-void breakpoint_manager_add(uint16_t, BreakpointType, const char *, const char *, const char *);
+void bkpt_manager_add(uint16_t, BreakpointType, const char *, const char *, const char *);
 
 /**
  * @brief Remove breakpoint entries at address, matching type or all types if type is -1.
  * @param address Address to remove entries from.
  * @param type Breakpoint type to match, or -1 to remove every entry at address.
  */
-void breakpoint_manager_remove(uint16_t, int);
+void bkpt_manager_remove(uint16_t, int);
 
 /**
  * @brief Free every breakpoint entry in every hash bucket and reset the PC bitmap.
  */
-void breakpoint_manager_clear(void);
+void bkpt_manager_clear(void);
 
 /**
  * @brief Free only breakpoint entries whose type matches, keeping the rest.
  * @param type Breakpoint type to remove.
  */
-void breakpoint_manager_clear_type(BreakpointType);
+void bkpt_manager_clear_type(BreakpointType);
 
 /**
  * @brief Advance one pending single step, then check the current PC against
@@ -1743,7 +1743,7 @@ void breakpoint_manager_clear_type(BreakpointType);
  * matching entry evaluated at this PC (a logpoint entry logs and does not
  * change the returned type).
  */
-int check_for_breakpoint(void);
+int bkpt_check_hit(void);
 
 /**
  * @brief Fetch and consume the address of the last breakpoint hit recorded on
@@ -1752,7 +1752,7 @@ int check_for_breakpoint(void);
  * no hit is pending or if address is NULL.
  * @return true if a hit was pending and address was written, false otherwise.
  */
-bool breakpoint_manager_get_last_hit(uint16_t *);
+bool bkpt_manager_get_last_hit(uint16_t *);
 
 /**
  * @brief Add a watchpoint on a 16-bit virtual address, or update the type of
@@ -1763,14 +1763,14 @@ bool breakpoint_manager_get_last_hit(uint16_t *);
  * @param pil -1 to match any PIL, or 0-15 to match one specific PIL.
  * @return 0 on success, -1 if the table is full (MAX_WATCHPOINTS reached).
  */
-int watchpoint_add(uint16_t, WatchpointType, WatchpointSpace, int8_t);
+int bkpt_watchpoint_add(uint16_t, WatchpointType, WatchpointSpace, int8_t);
 
 /**
  * @brief Remove the first active watchpoint whose address matches, filling
  * the hole with the last active slot and rebuilding the address bitmap.
  * @param address Virtual address of the watchpoint to remove.
  */
-void watchpoint_remove(uint16_t);
+void bkpt_watchpoint_remove(uint16_t);
 
 /**
  * @brief Slow-path scan of every active watchpoint for a match on address,
@@ -1781,7 +1781,7 @@ void watchpoint_remove(uint16_t);
  * @return 1 if a watchpoint matched and was not swallowed by the skip-count,
  * 0 if nothing matched or the match was swallowed.
  */
-int watchpoint_check_slow(uint16_t, bool, bool);
+int bkpt_watchpoint_check_slow(uint16_t, bool, bool);
 
 /**
  * @brief Legacy wrapper for watchpoint_check_slow that always passes
@@ -1790,18 +1790,18 @@ int watchpoint_check_slow(uint16_t, bool, bool);
  * @param isWrite true for a write access, false for a read access.
  * @return 1 if a watchpoint matched, 0 otherwise.
  */
-int watchpoint_check(uint16_t, bool);
+int bkpt_watchpoint_check(uint16_t, bool);
 
 /**
  * @brief Deactivate every watchpoint slot and clear the address bitmap.
  */
-void watchpoint_clear(void);
+void bkpt_watchpoint_clear(void);
 
 /**
  * @brief Return the number of active virtual watchpoints (g_watchpoint_count).
  * @return Current watchpoint count.
  */
-int watchpoint_get_count(void);
+int bkpt_watchpoint_get_count(void);
 
 /**
  * @brief Read back the address and type of the watchpoint at a table index.
@@ -1810,7 +1810,7 @@ int watchpoint_get_count(void);
  * @param out_type Pointer that receives the watchpoint's type, cast to int.
  * @return 0 on success, -1 if index is out of range or that slot is inactive.
  */
-int watchpoint_get(int, uint16_t *, int *);
+int bkpt_watchpoint_get(int, uint16_t *, int *);
 
 /**
  * @brief Add a watchpoint on a 32-bit physical address, or update the type of
@@ -1820,14 +1820,14 @@ int watchpoint_get(int, uint16_t *, int *);
  * @param pil -1 to match any PIL, or 0-15 to match one specific PIL.
  * @return 0 on success, -1 if the table is full (MAX_WATCHPOINTS reached).
  */
-int phys_watchpoint_add(uint32_t, WatchpointType, int8_t);
+int bkpt_phys_watchpoint_add(uint32_t, WatchpointType, int8_t);
 
 /**
  * @brief Remove the first active physical watchpoint whose address matches,
  * filling the hole with the last active slot and rebuilding the page bitmap.
  * @param address Physical address of the watchpoint to remove.
  */
-void phys_watchpoint_remove(uint32_t);
+void bkpt_phys_watchpoint_remove(uint32_t);
 
 /**
  * @brief Scan every active physical watchpoint for a match on address, PIL,
@@ -1836,19 +1836,19 @@ void phys_watchpoint_remove(uint32_t);
  * @param isWrite true for a write access, false for a read access.
  * @return 1 if a watchpoint matched, 0 otherwise.
  */
-int phys_watchpoint_check(uint32_t, bool);
+int bkpt_phys_watchpoint_check(uint32_t, bool);
 
 /**
  * @brief Deactivate every physical watchpoint slot and clear the page bitmap.
  */
-void phys_watchpoint_clear(void);
+void bkpt_phys_watchpoint_clear(void);
 
 /**
  * @brief Return the number of active physical watchpoints
  * (g_phys_watchpoint_count).
  * @return Current physical watchpoint count.
  */
-int phys_watchpoint_get_count(void);
+int bkpt_phys_watchpoint_get_count(void);
 
 /**
  * @brief Read back the address and type of the physical watchpoint at a
@@ -1858,7 +1858,7 @@ int phys_watchpoint_get_count(void);
  * @param out_type Pointer that receives the watchpoint's type, cast to int.
  * @return 0 on success, -1 if index is out of range or that slot is inactive.
  */
-int phys_watchpoint_get(int, uint32_t *, int *);
+int bkpt_phys_watchpoint_get(int, uint32_t *, int *);
 
 /* src/cpu/cpu_disasm.c and src/cpu/float.c */
 
@@ -1868,7 +1868,7 @@ int phys_watchpoint_get(int, uint32_t *, int *);
  * @param max_len Size in bytes of return_string, passed to the final snprintf.
  * @param operand The raw 16-bit instruction word to decode.
  */
-void OpToStr(char *, uint16_t, uint16_t);
+void disasm_op_to_str(char *, uint16_t, uint16_t);
 
 /**
  * @brief Record a decoded instruction word into the disassembly map at addr.
@@ -1928,7 +1928,7 @@ void disasm_dump(void);
  *         opcodes the decode tables do not cover, returns instr unchanged
  *         (marked in the source as a case that should not be reached).
  */
-uint16_t extract_opcode(uint16_t);
+uint16_t disasm_extract_opcode(uint16_t);
 
 /**
  * @brief Add two 48-bit ND-100 floating point numbers (FAD), serving the 48-bit
@@ -1938,7 +1938,7 @@ uint16_t extract_opcode(uint16_t);
  * @param p_r Output: 3-word {T,A,D} result.
  * @return 0 always.
  */
-int NDFloat_Add(uint16_t *, uint16_t *, uint16_t *);
+int float_add(uint16_t *, uint16_t *, uint16_t *);
 
 /**
  * @brief Subtract two 48-bit ND-100 floating point numbers (FSB, p_a - p_b),
@@ -1948,7 +1948,7 @@ int NDFloat_Add(uint16_t *, uint16_t *, uint16_t *);
  * @param p_r Output: 3-word {T,A,D} result.
  * @return 0 always.
  */
-int NDFloat_Sub(uint16_t *, uint16_t *, uint16_t *);
+int float_sub(uint16_t *, uint16_t *, uint16_t *);
 
 /**
  * @brief Multiply two 48-bit ND-100 floating point numbers (FMU), serving the
@@ -1959,7 +1959,7 @@ int NDFloat_Sub(uint16_t *, uint16_t *, uint16_t *);
  *            underflow to zero or exponent underflow below -16383.
  * @return 0 always.
  */
-int NDFloat_Mul(uint16_t *, uint16_t *, uint16_t *);
+int float_mul(uint16_t *, uint16_t *, uint16_t *);
 
 /**
  * @brief Divide two 48-bit ND-100 floating point numbers (FDV, p_a / p_b),
@@ -1973,7 +1973,7 @@ int NDFloat_Mul(uint16_t *, uint16_t *, uint16_t *);
  * @return 0 on success, 1 if the divisor p_b is zero (division by zero;
  *         caller is expected to set the Z error indicator).
  */
-int NDFloat_Div(uint16_t *, uint16_t *, uint16_t *);
+int float_div(uint16_t *, uint16_t *, uint16_t *);
 
 /**
  * @brief Normalize the integer in register A into the 48-bit floating
@@ -1981,7 +1981,7 @@ int NDFloat_Div(uint16_t *, uint16_t *, uint16_t *);
  * @param scaling Signed scaling factor added to the exponent bias; +16 for a
  *                plain integer-to-float conversion.
  */
-void DoNLZ(char);
+void float_do_nlz(char);
 
 /**
  * @brief Denormalize the 48-bit floating accumulator {T,A,D} into the
@@ -1991,7 +1991,7 @@ void DoNLZ(char);
  * @param scaling Signed scaling factor added to the exponent; -16 for a
  *                plain float-to-integer conversion.
  */
-void DoDNZ(char);
+void float_do_dnz(char);
 
 /**
  * @brief Add two 32-bit ND-100 floating point numbers (FAD), serving the
@@ -2001,7 +2001,7 @@ void DoDNZ(char);
  * @param p_r Output: 2-word {A,D} result.
  * @return 0 always.
  */
-int NDFloat_Add32(uint16_t *, uint16_t *, uint16_t *);
+int float_add_32(uint16_t *, uint16_t *, uint16_t *);
 
 /**
  * @brief Subtract two 32-bit ND-100 floating point numbers (FSB, p_a - p_b),
@@ -2012,7 +2012,7 @@ int NDFloat_Add32(uint16_t *, uint16_t *, uint16_t *);
  * @param p_r Output: 2-word {A,D} result.
  * @return 0 always.
  */
-int NDFloat_Sub32(uint16_t *, uint16_t *, uint16_t *);
+int float_sub_32(uint16_t *, uint16_t *, uint16_t *);
 
 /**
  * @brief Multiply two 32-bit ND-100 floating point numbers (FMU), serving
@@ -2023,7 +2023,7 @@ int NDFloat_Sub32(uint16_t *, uint16_t *, uint16_t *);
  *            is zero.
  * @return 0 always.
  */
-int NDFloat_Mul32(uint16_t *, uint16_t *, uint16_t *);
+int float_mul_32(uint16_t *, uint16_t *, uint16_t *);
 
 /**
  * @brief Divide two 32-bit ND-100 floating point numbers (FDV, p_a / p_b),
@@ -2037,7 +2037,7 @@ int NDFloat_Mul32(uint16_t *, uint16_t *, uint16_t *);
  * @return 0 on success, 1 if the divisor p_b is zero (division by zero;
  *         caller is expected to set the Z error indicator).
  */
-int NDFloat_Div32(uint16_t *, uint16_t *, uint16_t *);
+int float_div_32(uint16_t *, uint16_t *, uint16_t *);
 
 /**
  * @brief Normalize the integer in register A into the 32-bit floating
@@ -2047,7 +2047,7 @@ int NDFloat_Div32(uint16_t *, uint16_t *, uint16_t *);
  * @param scaling Signed scaling factor added to the exponent bias; +16 for a
  *                plain integer-to-float conversion.
  */
-void DoNLZ32(char);
+void float_do_nlz32(char);
 
 /**
  * @brief Denormalize the 32-bit floating accumulator A,D pair into the
@@ -2058,7 +2058,7 @@ void DoNLZ32(char);
  * @param scaling Signed scaling factor added to the exponent; -16 for a
  *                plain float-to-integer conversion.
  */
-void DoDNZ32(char);
+void float_do_dnz32(char);
 
 /* src/cpu/bcd.c */
 

@@ -38,7 +38,7 @@ static bool drum_end(void *context, int param);
 static char drum_backing_path[1024];
 static int drum_has_backing_path = 0;
 
-void DrumDevice_SetBackingFile(const char *path)
+void drum_set_backing_file(const char *path)
 {
     if (path && path[0])
     {
@@ -180,8 +180,8 @@ static void drum_execute_go(Device *self)
     {
         d->status |= DRUM_STATUS_ERR;
         /* Still raise completion so the driver takes its error exit. */
-        Device_QueueIODelay(self, IODELAY_HDD_SMD, (IODelayedCallback)drum_end, 0,
-                            self->interruptLevel);
+        dev_queue_io_delay(self, IODELAY_HDD_SMD, (IODelayedCallback)drum_end, 0,
+                           self->interruptLevel);
         return;
     }
 
@@ -191,11 +191,11 @@ static void drum_execute_go(Device *self)
         switch (func)
         {
         case DRUM_FUNC_READ: /* drum -> memory */
-            Device_DMAWrite(core, d->surface[word_offset + i]);
+            dev_dma_write(core, d->surface[word_offset + i]);
             break;
         case DRUM_FUNC_WRITE: /* memory -> drum */
         {
-            int32_t w = Device_DMARead(core);
+            int32_t w = dev_dma_read(core);
             d->surface[word_offset + i] = (uint16_t)(w & 0xFFFF);
             break;
         }
@@ -204,7 +204,7 @@ static void drum_execute_go(Device *self)
             break;
         case DRUM_FUNC_COMPARE: /* compare drum vs memory */
         {
-            int32_t w = Device_DMARead(core);
+            int32_t w = dev_dma_read(core);
             if ((uint16_t)(w & 0xFFFF) != d->surface[word_offset + i])
             {
                 d->status |= DRUM_STATUS_ERR;
@@ -232,8 +232,7 @@ static void drum_execute_go(Device *self)
 
     /* Queue the delayed completion, exactly like SMD. The callback clears DVA
      * and (returning true) raises the level-11 interrupt. */
-    Device_QueueIODelay(self, IODELAY_HDD_SMD, (IODelayedCallback)drum_end, 0,
-                        self->interruptLevel);
+    dev_queue_io_delay(self, IODELAY_HDD_SMD, (IODelayedCallback)drum_end, 0, self->interruptLevel);
 }
 
 /* ----- delayed completion: clears busy, requests the interrupt ---------- */
@@ -264,7 +263,7 @@ static uint16_t drum_tick(Device *self)
     {
         return 0;
     }
-    Device_TickIODelay(self);
+    dev_tick_io_delay(self);
     return self->interruptBits;
 }
 
@@ -276,7 +275,7 @@ static uint16_t drum_ident(Device *self, uint16_t level)
     }
     if ((self->interruptBits & (1 << level)) != 0)
     {
-        Device_SetInterruptStatus(self, false, level);
+        dev_set_interrupt_status(self, false, level);
         return self->identCode;
     }
     return 0;
@@ -326,7 +325,7 @@ static void drum_destroy(Device *self)
 }
 
 /* ----- factory ---------------------------------------------------------- */
-Device *CreateDrumDevice(uint8_t thumbwheel)
+Device *drum_create_device(uint8_t thumbwheel)
 {
     Device *dev = (Device *)malloc(sizeof(Device));
     if (!dev)
@@ -344,7 +343,7 @@ Device *CreateDrumDevice(uint8_t thumbwheel)
 
     /* Standard (non-block) class: the drum DMAs directly from its own surface,
      * so it needs no block callbacks and avoids the type-keyed mount plumbing. */
-    Device_Init(dev, thumbwheel, DEVICE_CLASS_STANDARD, 0);
+    dev_init(dev, thumbwheel, DEVICE_CLASS_STANDARD, 0);
     dev->deviceData = d;
     dev->type = DEVICE_TYPE_DRUM;
 

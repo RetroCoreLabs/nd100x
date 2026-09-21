@@ -22,15 +22,15 @@
 #include <stdint.h>
 #include <stdbool.h>
 /* Prototypes match the real functions in src/cpu (cpu_protos.h). */
-int ReadPhysicalMemory(int physical_address, bool privileged);
-void WritePhysicalMemory(int physical_address, uint16_t value, bool privileged);
-int ReadPhysicalMemory(int physical_address, bool privileged)
+int mms_read_physical_memory(int physical_address, bool privileged);
+void mms_write_physical_memory(int physical_address, uint16_t value, bool privileged);
+int mms_read_physical_memory(int physical_address, bool privileged)
 {
     (void)physical_address;
     (void)privileged;
     return 0;
 }
-void WritePhysicalMemory(int physical_address, uint16_t value, bool privileged)
+void mms_write_physical_memory(int physical_address, uint16_t value, bool privileged)
 {
     (void)physical_address;
     (void)value;

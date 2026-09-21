@@ -91,7 +91,7 @@ static void scsi_log(const char *fmt, ...)
     va_start(args, fmt);
     vsnprintf(msg, sizeof(msg), fmt, args);
     va_end(args);
-    Log_Write(LOG_CAT_SCSI, LOG_DEBUG, "%s", msg);
+    log_write(LOG_CAT_SCSI, LOG_DEBUG, "%s", msg);
 }
 
 
@@ -109,7 +109,7 @@ static void scsi_increment_mar(SCSIData *data)
 }
 
 
-SCSIUnitType SCSI_ParseUnitType(const char *name)
+SCSIUnitType scsi_parse_unit_type(const char *name)
 {
     if (!name)
     {
@@ -137,7 +137,7 @@ SCSIUnitType SCSI_ParseUnitType(const char *name)
 }
 
 
-const char *SCSI_UnitTypeName(SCSIUnitType type)
+const char *scsi_unit_type_name(SCSIUnitType type)
 {
     switch (type)
     {
@@ -156,7 +156,7 @@ const char *SCSI_UnitTypeName(SCSIUnitType type)
 }
 
 
-bool SCSI_SetUnitType(Device *dev, int unit, SCSIUnitType type)
+bool scsi_set_unit_type(Device *dev, int unit, SCSIUnitType type)
 {
     if (!dev || !dev->deviceData)
     {
@@ -173,7 +173,7 @@ bool SCSI_SetUnitType(Device *dev, int unit, SCSIUnitType type)
     {
         LOG(LOG_CAT_SCSI, LOG_ERROR,
             "SCSI: unit %d type '%s' is not implemented yet (only 'hdd')\n", unit,
-            SCSI_UnitTypeName(type));
+            scsi_unit_type_name(type));
         return false;
     }
 
@@ -182,8 +182,8 @@ bool SCSI_SetUnitType(Device *dev, int unit, SCSIUnitType type)
 
     if (type == SCSI_UNIT_HDD && !data->diskPresent[unit])
     {
-        SCSIHDD_Init(&data->disks[unit], &data->bus, (uint8_t)unit, dev, unit,
-                     SCSI_DISK_MICROPOLIS_1375_ND);
+        scsi_hdd_init(&data->disks[unit], &data->bus, (uint8_t)unit, dev, unit,
+                      SCSI_DISK_MICROPOLIS_1375_ND);
         data->diskPresent[unit] = true;
         scsi_log("unit %d attached as hdd (Micropolis 1375-ND)", unit);
     }
@@ -246,7 +246,7 @@ static uint8_t scsi_read_next_byte_dma(SCSIData *data)
 
     if ((data->dma_bytes_read % 2) == 0)
     {
-        data->dma_read_data = Device_DMARead(scsi_get_mar(data));
+        data->dma_read_data = dev_dma_read(scsi_get_mar(data));
         byteval = (uint8_t)((data->dma_read_data >> 8) & 0xFF);
         scsi_increment_mar(data);
     }
@@ -263,20 +263,20 @@ static uint8_t scsi_read_next_byte_dma(SCSIData *data)
 static void scsi_write_next_byte_dma(SCSIData *data, uint8_t byteval)
 {
     uint32_t mar = scsi_get_mar(data);
-    int32_t mem_data = Device_DMARead(mar);
+    int32_t mem_data = dev_dma_read(mar);
     uint16_t write_data;
 
     if ((data->dma_bytes_written % 2) == 0)
     {
         /* even byte -> HIGH byte, preserve the low byte */
         write_data = (uint16_t)((mem_data & 0x00FF) | ((byteval & 0xFF) << 8));
-        Device_DMAWrite(mar, write_data);
+        dev_dma_write(mar, write_data);
     }
     else
     {
         /* odd byte -> LOW byte, preserve the high byte, then advance */
         write_data = (uint16_t)((mem_data & 0xFF00) | (byteval & 0xFF));
-        Device_DMAWrite(mar, write_data);
+        dev_dma_write(mar, write_data);
         scsi_increment_mar(data);
     }
 
@@ -314,7 +314,7 @@ static void scsi_step_go_state(Device *self)
 
         if (data->interruptEnabled)
         {
-            Device_GenerateInterrupt(self, self->interruptLevel);
+            dev_generate_interrupt(self, self->interruptLevel);
         }
     }
 
@@ -496,7 +496,7 @@ static uint16_t scsi_status_word(SCSIData *data)
 static uint16_t scsi_read(Device *self, uint32_t address)
 {
     SCSIData *data = (SCSIData *)self->deviceData;
-    uint32_t reg = Device_RegisterAddress(self, address);
+    uint32_t reg = dev_register_address(self, address);
     uint16_t rval = 0;
 
     switch (reg)
@@ -565,7 +565,7 @@ static uint16_t scsi_read(Device *self, uint32_t address)
 
     if (Log_IsEnabled(LOG_CAT_SCSI, LOG_DEBUG))
     {
-        Log_Write(LOG_CAT_SCSI, LOG_DEBUG, "IOX READ  addr=%o reg=%o -> value=%o (0x%04X)\n",
+        log_write(LOG_CAT_SCSI, LOG_DEBUG, "IOX READ  addr=%o reg=%o -> value=%o (0x%04X)\n",
                   address, reg, rval, rval);
     }
 
@@ -596,11 +596,11 @@ static void scsi_write_control(Device *self, SCSIData *data, uint16_t value)
         uint32_t dma_address = scsi_get_mar(data);
         if (data->writeNDMemory)
         {
-            Device_DMAWrite(dma_address, data->readWriteData);
+            dev_dma_write(dma_address, data->readWriteData);
         }
         else
         {
-            data->readWriteData = (uint16_t)Device_DMARead(dma_address);
+            data->readWriteData = (uint16_t)dev_dma_read(dma_address);
         }
     }
 
@@ -646,18 +646,18 @@ static void scsi_write_control(Device *self, SCSIData *data, uint16_t value)
          * normally dormant - but a driver that enables interrupts while
          * idle (e.g. after Clear Device, which sets readyForTransfer)
          * would otherwise hang waiting for an interrupt that never comes. */
-        Device_GenerateInterrupt(self, self->interruptLevel);
+        dev_generate_interrupt(self, self->interruptLevel);
     }
 }
 
 static void scsi_write(Device *self, uint32_t address, uint16_t value)
 {
     SCSIData *data = (SCSIData *)self->deviceData;
-    uint32_t reg = Device_RegisterAddress(self, address);
+    uint32_t reg = dev_register_address(self, address);
 
     if (Log_IsEnabled(LOG_CAT_SCSI, LOG_DEBUG))
     {
-        Log_Write(LOG_CAT_SCSI, LOG_DEBUG, "IOX WRITE addr=%o reg=%o value=%o (0x%04X)\n", address,
+        log_write(LOG_CAT_SCSI, LOG_DEBUG, "IOX WRITE addr=%o reg=%o value=%o (0x%04X)\n", address,
                   reg, value, value);
     }
 
@@ -735,9 +735,9 @@ static uint16_t scsi_tick(Device *self)
         return 0;
     }
 
-    Device_TickIODelay(self);
+    dev_tick_io_delay(self);
 
-    SCSIBus_Clock(&data->bus);
+    scsi_bus_clock(&data->bus);
 
     if (data->active)
     {
@@ -757,14 +757,14 @@ static uint16_t scsi_ident(Device *self, uint16_t level)
 
     if (Log_IsEnabled(LOG_CAT_SCSI, LOG_DEBUG))
     {
-        Log_Write(LOG_CAT_SCSI, LOG_DEBUG, "IDENT level=%d identCode=%o\n", level, self->identCode);
+        log_write(LOG_CAT_SCSI, LOG_DEBUG, "IDENT level=%d identCode=%o\n", level, self->identCode);
     }
 
     if ((self->interruptBits & (1 << level)) != 0)
     {
         SCSIData *data = (SCSIData *)self->deviceData;
         data->interruptEnabled = false;
-        Device_SetInterruptStatus(self, false, level);
+        dev_set_interrupt_status(self, false, level);
         return self->identCode;
     }
     return 0;
@@ -813,7 +813,7 @@ static int scsi_boot(Device *self, int unit)
     {
         LOG(LOG_CAT_SCSI, LOG_ERROR,
             "Error: SCSI boot needs a 'hdd' target on unit %d (unit %d is '%s')\n", unit, unit,
-            SCSI_UnitTypeName(data->unitType[unit]));
+            scsi_unit_type_name(data->unitType[unit]));
         return -1;
     }
 
@@ -866,15 +866,15 @@ static int scsi_boot(Device *self, int unit)
      * words (even byte -> high). */
     for (int i = 0; i < word_counter; i++)
     {
-        uint32_t read_data = Device_IO_BufferReadWord(self, buffer, i);
-        Device_DMAWrite(i, (uint16_t)read_data);
+        uint32_t read_data = dev_io_buffer_read_word(self, buffer, i);
+        dev_dma_write(i, (uint16_t)read_data);
     }
 
     free(buffer);
 
     if (Log_IsEnabled(LOG_CAT_SCSI, LOG_DEBUG))
     {
-        Log_Write(LOG_CAT_SCSI, LOG_DEBUG, "Boot loaded %d words from unit %d to address 0\n",
+        log_write(LOG_CAT_SCSI, LOG_DEBUG, "Boot loaded %d words from unit %d to address 0\n",
                   word_counter, unit);
     }
 
@@ -895,7 +895,7 @@ static void scsi_destroy(Device *dev)
 }
 
 
-Device *CreateSCSIDevice(uint8_t thumbwheel)
+Device *scsi_create_device(uint8_t thumbwheel)
 {
     Device *dev = (Device *)malloc(sizeof(Device));
     if (!dev)
@@ -915,7 +915,7 @@ Device *CreateSCSIDevice(uint8_t thumbwheel)
 
     /* Initialize device base structure. Allocates ioDelays - without it
      * Device_QueueIODelay silently no-ops. */
-    Device_Init(dev, thumbwheel, DEVICE_CLASS_BLOCK, 1024);
+    dev_init(dev, thumbwheel, DEVICE_CLASS_BLOCK, 1024);
 
     dev->deviceData = data;
 
@@ -979,7 +979,7 @@ Device *CreateSCSIDevice(uint8_t thumbwheel)
     /* Build the SCSI bus and put our NCR-5386 on it as SCSI ID 7. The disk
      * targets are attached later by SCSI_SetUnitType, once the command line
      * has said which units exist. */
-    SCSIBus_Init(&data->bus);
+    scsi_bus_init(&data->bus);
     NCR5386_Init(&data->ncr, &data->bus, SCSI_CONTROLLER_ID, scsi_on_ncr_interrupt,
                  scsi_on_ncr_data_request, dev);
 

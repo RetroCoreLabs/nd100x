@@ -57,7 +57,7 @@ static int side_effect(void)
 int main(void)
 {
     printf("=== logger tests ===\n");
-    Log_SetSink(capture_sink, NULL);
+    log_set_sink(capture_sink, NULL);
 
     /* Defaults: every category at INFO. */
     CHECK(Log_IsEnabled(LOG_CAT_SMD, LOG_ERROR), "ERROR enabled by default");
@@ -80,30 +80,30 @@ int main(void)
     CHECK(g_last_cat == LOG_CAT_NET && g_last_lvl == LOG_WARN, "sink gets category and level");
 
     /* Spec parsing. */
-    CHECK(Log_ParseSpec("smd:debug,hdlc:TRACE") == 0, "valid spec accepted");
+    CHECK(log_parse_spec("smd:debug,hdlc:TRACE") == 0, "valid spec accepted");
     CHECK(Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG), "smd raised to debug");
     CHECK(!Log_IsEnabled(LOG_CAT_SMD, LOG_TRACE), "smd not raised to trace");
     CHECK(Log_IsEnabled(LOG_CAT_HDLC, LOG_TRACE),
           "hdlc raised to trace, level name case-insensitive");
     CHECK(!Log_IsEnabled(LOG_CAT_CPU, LOG_DEBUG), "other categories unchanged");
 
-    CHECK(Log_ParseSpec("*:warn") == 0, "wildcard accepted");
+    CHECK(log_parse_spec("*:warn") == 0, "wildcard accepted");
     CHECK(!Log_IsEnabled(LOG_CAT_SMD, LOG_INFO), "wildcard lowered smd to warn");
     CHECK(Log_IsEnabled(LOG_CAT_CPU, LOG_WARN), "wildcard set cpu to warn");
 
-    CHECK(Log_ParseSpec("all:info,SMD:debug") == 0, "all + later override accepted");
+    CHECK(log_parse_spec("all:info,SMD:debug") == 0, "all + later override accepted");
     CHECK(Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG), "later pair wins, category case-insensitive");
     CHECK(!Log_IsEnabled(LOG_CAT_CPU, LOG_DEBUG), "all:info applied to cpu");
 
-    CHECK(Log_ParseSpec("nosuch:debug") == -1, "unknown category rejected");
-    CHECK(Log_ParseSpec("smd:loud") == -1, "unknown level rejected");
-    CHECK(Log_ParseSpec("smd") == -1, "missing level rejected");
-    CHECK(Log_ParseSpec(NULL) == -1, "NULL spec rejected");
-    CHECK(Log_ParseSpec("") == 0, "empty spec is a no-op");
+    CHECK(log_parse_spec("nosuch:debug") == -1, "unknown category rejected");
+    CHECK(log_parse_spec("smd:loud") == -1, "unknown level rejected");
+    CHECK(log_parse_spec("smd") == -1, "missing level rejected");
+    CHECK(log_parse_spec(NULL) == -1, "NULL spec rejected");
+    CHECK(log_parse_spec("") == 0, "empty spec is a no-op");
 
     /* Out-of-range category never enabled, never crashes. */
     CHECK(!Log_IsEnabled((LogCategory)LOG_CAT_COUNT, LOG_ERROR), "out-of-range category disabled");
-    CHECK(strcmp(Log_CategoryName((LogCategory)999), "?") == 0, "out-of-range category name");
+    CHECK(strcmp(log_category_name((LogCategory)999), "?") == 0, "out-of-range category name");
 
     /* A message longer than the line buffer is cut and still ends the line. */
     char big[2000];
@@ -114,7 +114,7 @@ int main(void)
     CHECK(n > 0 && n < sizeof(g_last) && g_last[n - 1] == '\n',
           "long message cut and newline-terminated");
 
-    Log_SetSink(NULL, NULL);
+    log_set_sink(NULL, NULL);
     printf("=== %d passed, %d failed ===\n", g_pass, g_fail);
     return g_fail ? 1 : 0;
 }

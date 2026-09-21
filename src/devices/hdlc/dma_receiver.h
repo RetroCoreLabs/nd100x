@@ -84,15 +84,15 @@ typedef struct DMAReceiver
  * @param hdlcDevice Owning HDLC device.
  * @return void.
  */
-void DMAReceiver_Init(DMAReceiver *receiver, void *com5025, DMAControlBlocks *dma_cb,
-                      struct Device *hdlc_device);
+void dma_rx_init(DMAReceiver *receiver, void *com5025, DMAControlBlocks *dma_cb,
+                 struct Device *hdlc_device);
 
 /**
  * @brief Free the TCP receive ring buffer and clear the interrupt callback.
  * @param receiver Receiver state to destroy.
  * @return void.
  */
-void DMAReceiver_Destroy(DMAReceiver *receiver);
+void dma_rx_destroy(DMAReceiver *receiver);
 
 /**
  * @brief Reset the received-byte counter and clear the TCP receive ring
@@ -100,7 +100,7 @@ void DMAReceiver_Destroy(DMAReceiver *receiver);
  * @param receiver Receiver state to clear.
  * @return void.
  */
-void DMAReceiver_Clear(DMAReceiver *receiver);
+void dma_rx_clear(DMAReceiver *receiver);
 
 /**
  * @brief Called every CPU cycle from DMAEngine_Tick: after an adaptive
@@ -109,7 +109,7 @@ void DMAReceiver_Clear(DMAReceiver *receiver);
  * @param receiver Receiver state to advance.
  * @return void.
  */
-void DMAReceiver_Tick(DMAReceiver *receiver);
+void dma_rx_tick(DMAReceiver *receiver);
 
 // State management
 
@@ -121,7 +121,7 @@ void DMAReceiver_Tick(DMAReceiver *receiver);
  * @param receiver Receiver state to update.
  * @return void.
  */
-void DMAReceiver_SetReceiverState(DMAReceiver *receiver);
+void dma_rx_set_receiver_state(DMAReceiver *receiver);
 
 // Data processing - TCP ring buffer path (burst mode, always active)
 
@@ -134,7 +134,7 @@ void DMAReceiver_SetReceiverState(DMAReceiver *receiver);
  * @param length Number of bytes in data.
  * @return void.
  */
-void DMAReceiver_ReceiveDataFromModem(DMAReceiver *receiver, const uint8_t *data, int length);
+void dma_rx_receive_data_from_modem(DMAReceiver *receiver, const uint8_t *data, int length);
 
 
 // Buffer management
@@ -149,7 +149,6 @@ void DMAReceiver_ReceiveDataFromModem(DMAReceiver *receiver, const uint8_t *data
  * @param callback Function to call with the interrupt bit to set.
  * @return void.
  */
-void DMAReceiver_SetInterruptCallback(DMAReceiver *receiver,
-                                      DMAReceiverSetInterruptCallback callback);
+void dma_rx_set_interrupt_callback(DMAReceiver *receiver, DMAReceiverSetInterruptCallback callback);
 
 #endif // DMA_RECEIVER_H

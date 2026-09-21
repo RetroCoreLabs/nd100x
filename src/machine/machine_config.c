@@ -61,7 +61,7 @@ static const int g_descriptor_count = (int)(sizeof(g_descriptors) / sizeof(g_des
  * symmetry/readability with iox_scsi_v. */
 static const uint16_t *const mc_unused_iox = iox_scsi;
 
-const ControllerDescriptor *MC_DescriptorForType(CtrlType type)
+const ControllerDescriptor *mc_descriptor_for_type(CtrlType type)
 {
     for (int i = 0; i < g_descriptor_count; i++)
     {
@@ -95,9 +95,9 @@ static CtrlType mc_ctrl_type_from_name(const char *name)
     return d ? d->type : CTRL_NONE;
 }
 
-const char *MC_CtrlTypeName(CtrlType type)
+const char *mc_ctrl_type_name(CtrlType type)
 {
-    const ControllerDescriptor *d = MC_DescriptorForType(type);
+    const ControllerDescriptor *d = mc_descriptor_for_type(type);
     return d ? d->name : "none";
 }
 
@@ -176,7 +176,7 @@ static int parse_bool(const char *v)
 /* ------------------------------------------------------------------ */
 /* Defaults                                                            */
 /* ------------------------------------------------------------------ */
-void MachineConfig_InitBaseline(MachineConfig *cfg)
+void mc_init_baseline(MachineConfig *cfg)
 {
     if (!cfg)
     {
@@ -220,13 +220,13 @@ void MachineConfig_InitBaseline(MachineConfig *cfg)
     (void)mc_unused_iox;
 }
 
-void MachineConfig_SetDefaults(MachineConfig *cfg)
+void mc_set_defaults(MachineConfig *cfg)
 {
     if (!cfg)
     {
         return;
     }
-    MachineConfig_InitBaseline(cfg);
+    mc_init_baseline(cfg);
 
     /* floppy.0 */
     McController *fl = &cfg->controllers[cfg->controllerCount++];
@@ -259,7 +259,7 @@ void MachineConfig_SetDefaults(MachineConfig *cfg)
 /* ------------------------------------------------------------------ */
 /* Autoload INI name from argv[0]                                      */
 /* ------------------------------------------------------------------ */
-void MachineConfig_DefaultIniName(const char *argv0, char *outbuf, size_t outlen)
+void mc_default_ini_name(const char *argv0, char *outbuf, size_t outlen)
 {
     if (!outbuf || !outlen)
     {
@@ -456,7 +456,7 @@ static bool mc_parse_disk_key(McController *c, const ControllerDescriptor *d, co
         {
             memcpy(prefix, value, plen);
             prefix[plen] = '\0';
-            SCSIUnitType m = SCSI_ParseUnitType(prefix);
+            SCSIUnitType m = scsi_parse_unit_type(prefix);
             if (m != SCSI_UNIT_NONE)
             {
                 media = m;
@@ -484,7 +484,7 @@ static bool mc_parse_disk_key(McController *c, const ControllerDescriptor *d, co
     return true;
 }
 
-bool MachineConfig_LoadFile(MachineConfig *cfg, const char *path, char *err, size_t errlen)
+bool mc_load_file(MachineConfig *cfg, const char *path, char *err, size_t errlen)
 {
     if (!cfg || !path)
     {
@@ -587,8 +587,8 @@ bool MachineConfig_LoadFile(MachineConfig *cfg, const char *path, char *err, siz
                                       "[controller.%s.%d]: duplicate controller. "
                                       "A '%s' controller on thumbwheel %d is already defined. "
                                       "Each controller+thumbwheel may appear only once.",
-                                      MC_CtrlTypeName(cur_type), cur_wheel,
-                                      MC_CtrlTypeName(cur_type), cur_wheel);
+                                      mc_ctrl_type_name(cur_type), cur_wheel,
+                                      mc_ctrl_type_name(cur_type), cur_wheel);
                     }
                 }
                 bool created = false;
@@ -646,7 +646,7 @@ bool MachineConfig_LoadFile(MachineConfig *cfg, const char *path, char *err, siz
                 if (*ep == '\0' && val[0] != '\0')
                 {
                     int mapped;
-                    if (!MachineConfig_CpuTypeForNumber((int)c, &mapped))
+                    if (!mc_cpu_type_for_number((int)c, &mapped))
                     {
                         fclose(f);
                         return mc_err(err, errlen, path, lineno,
@@ -660,7 +660,7 @@ bool MachineConfig_LoadFile(MachineConfig *cfg, const char *path, char *err, siz
                 else
                 {
                     CpuType t;
-                    if (!CpuModel_FromName(val, &t))
+                    if (!cpumodel_from_name(val, &t))
                     {
                         fclose(f);
                         return mc_err(err, errlen, path, lineno,
@@ -719,7 +719,7 @@ bool MachineConfig_LoadFile(MachineConfig *cfg, const char *path, char *err, siz
             {
                 break;
             }
-            const ControllerDescriptor *d = MC_DescriptorForType(cur_type);
+            const ControllerDescriptor *d = mc_descriptor_for_type(cur_type);
             if (!d)
             {
                 break;
@@ -1152,11 +1152,11 @@ static bool validate_boot_device(const MachineConfig *cfg, char *err, size_t err
 {
     if (cfg->boot.is_disc)
     {
-        const ControllerDescriptor *d = MC_DescriptorForType(cfg->boot.type);
+        const ControllerDescriptor *d = mc_descriptor_for_type(cfg->boot.type);
         if (!d || !d->bootable)
         {
             return mc_err(err, errlen, path, 0, "[boot] device: '%s' is not a bootable controller.",
-                          MC_CtrlTypeName(cfg->boot.type));
+                          mc_ctrl_type_name(cfg->boot.type));
         }
         /* find the enabled controller instance */
         const McController *bc = NULL;
@@ -1194,14 +1194,14 @@ static bool validate_boot_device(const MachineConfig *cfg, char *err, size_t err
             return mc_err(err, errlen, path, 0,
                           "[boot] device = scsi.%d.%d: media is '%s' but only 'hdd' can boot.",
                           cfg->boot.wheel, cfg->boot.unit,
-                          SCSI_UnitTypeName(bc->disks[cfg->boot.unit].media));
+                          scsi_unit_type_name(bc->disks[cfg->boot.unit].media));
         }
     }
 
     return true;
 }
 
-bool MachineConfig_Validate(const MachineConfig *cfg, char *err, size_t errlen)
+bool mc_validate(const MachineConfig *cfg, char *err, size_t errlen)
 {
     if (!cfg)
     {
@@ -1225,7 +1225,7 @@ bool MachineConfig_Validate(const MachineConfig *cfg, char *err, size_t errlen)
         {
             continue;
         }
-        const ControllerDescriptor *d = MC_DescriptorForType(c->type);
+        const ControllerDescriptor *d = mc_descriptor_for_type(c->type);
         if (!d)
         {
             continue;
@@ -1281,7 +1281,7 @@ bool MachineConfig_Validate(const MachineConfig *cfg, char *err, size_t errlen)
 /* ------------------------------------------------------------------ */
 /* Pretty printer (--show-config)                                      */
 /* ------------------------------------------------------------------ */
-void MachineConfig_Print(const MachineConfig *cfg, FILE *out)
+void mc_print(const MachineConfig *cfg, FILE *out)
 {
     if (!cfg || !out)
     {
@@ -1289,7 +1289,7 @@ void MachineConfig_Print(const MachineConfig *cfg, FILE *out)
     }
     fprintf(out, "Machine configuration (%s):\n",
             cfg->loaded_from_file ? cfg->source_path : "built-in defaults");
-    fprintf(out, "  CPU: %s\n", CpuModel_DisplayName((CpuType)cfg->cpu_model));
+    fprintf(out, "  CPU: %s\n", cpumodel_display_name((CpuType)cfg->cpu_model));
     fprintf(out, "  FPP: %d-bit\n", cfg->fpp_bits);
     fprintf(out, "  RTC: %s\n", cfg->rtc_wall ? "wall-clock 20 ms" : "instruction ticks");
 
@@ -1297,7 +1297,7 @@ void MachineConfig_Print(const MachineConfig *cfg, FILE *out)
     for (int i = 0; i < cfg->controllerCount; i++)
     {
         const McController *c = &cfg->controllers[i];
-        const ControllerDescriptor *d = MC_DescriptorForType(c->type);
+        const ControllerDescriptor *d = mc_descriptor_for_type(c->type);
         if (!d)
         {
             continue;
@@ -1314,7 +1314,7 @@ void MachineConfig_Print(const MachineConfig *cfg, FILE *out)
                     if (c->type == CTRL_SCSI)
                     {
                         fprintf(out, "        disk%d = %s:%s\n", s,
-                                SCSI_UnitTypeName(c->disks[s].media), c->disks[s].image);
+                                scsi_unit_type_name(c->disks[s].media), c->disks[s].image);
                     }
                     else
                     {
@@ -1349,7 +1349,7 @@ void MachineConfig_Print(const MachineConfig *cfg, FILE *out)
 
     if (cfg->boot.is_disc)
     {
-        fprintf(out, "  Boot: %s.%d.%d\n", MC_CtrlTypeName(cfg->boot.type), cfg->boot.wheel,
+        fprintf(out, "  Boot: %s.%d.%d\n", mc_ctrl_type_name(cfg->boot.type), cfg->boot.wheel,
                 cfg->boot.unit);
     }
     else
@@ -1384,7 +1384,7 @@ void MachineConfig_Print(const MachineConfig *cfg, FILE *out)
 /* ------------------------------------------------------------------ */
 /* INI serializer (--write-config / web Download-.ini)                 */
 /* ------------------------------------------------------------------ */
-bool MachineConfig_WriteFile(const MachineConfig *cfg, const char *path, char *err, size_t errlen)
+bool mc_write_file(const MachineConfig *cfg, const char *path, char *err, size_t errlen)
 {
     if (!cfg || !path)
     {
@@ -1405,13 +1405,13 @@ bool MachineConfig_WriteFile(const MachineConfig *cfg, const char *path, char *e
      * name only when the number could not express it. */
     {
         int plain;
-        if (MachineConfig_CpuTypeForNumber(cfg->cpu_type, &plain) && plain == cfg->cpu_model)
+        if (mc_cpu_type_for_number(cfg->cpu_type, &plain) && plain == cfg->cpu_model)
         {
             fprintf(f, "cpu = %d\n", cfg->cpu_type);
         }
         else
         {
-            fprintf(f, "cpu = %s\n", CpuModel_Name((CpuType)cfg->cpu_model));
+            fprintf(f, "cpu = %s\n", cpumodel_name((CpuType)cfg->cpu_model));
         }
     }
     fprintf(f, "fpp = %d\n", cfg->fpp_bits);
@@ -1420,7 +1420,7 @@ bool MachineConfig_WriteFile(const MachineConfig *cfg, const char *path, char *e
     for (int i = 0; i < cfg->controllerCount; i++)
     {
         const McController *c = &cfg->controllers[i];
-        const ControllerDescriptor *d = MC_DescriptorForType(c->type);
+        const ControllerDescriptor *d = mc_descriptor_for_type(c->type);
         if (!d)
         {
             continue;
@@ -1437,7 +1437,7 @@ bool MachineConfig_WriteFile(const MachineConfig *cfg, const char *path, char *e
                 }
                 if (c->type == CTRL_SCSI)
                 {
-                    fprintf(f, "disk%d = %s:%s\n", s, SCSI_UnitTypeName(c->disks[s].media),
+                    fprintf(f, "disk%d = %s:%s\n", s, scsi_unit_type_name(c->disks[s].media),
                             c->disks[s].image);
                 }
                 else
@@ -1476,7 +1476,7 @@ bool MachineConfig_WriteFile(const MachineConfig *cfg, const char *path, char *e
     fprintf(f, "[boot]\n");
     if (cfg->boot.is_disc)
     {
-        fprintf(f, "device = %s.%d.%d\n\n", MC_CtrlTypeName(cfg->boot.type), cfg->boot.wheel,
+        fprintf(f, "device = %s.%d.%d\n\n", mc_ctrl_type_name(cfg->boot.type), cfg->boot.wheel,
                 cfg->boot.unit);
     }
     else
@@ -1601,7 +1601,7 @@ bool MachineConfig_WriteFile(const MachineConfig *cfg, const char *path, char *e
 /* ------------------------------------------------------------------ */
 /* CPU number -> CpuType                                               */
 /* ------------------------------------------------------------------ */
-bool MachineConfig_CpuTypeForNumber(int cpu_number, int *out_type)
+bool mc_cpu_type_for_number(int cpu_number, int *out_type)
 {
     switch (cpu_number)
     {

@@ -180,17 +180,17 @@ struct DisplayPanel
  * @brief Process the PANC command word (gPANC) after a "TRR PANC" instruction
  *        and set the PANS response word (gPANS) accordingly.
  */
-void ProcessTerminalPanc(void);
+void panel_process_terminal_panc(void);
 
 /**
  * @brief Respond to a "TRR LMP" instruction; clears gPANS.
  */
-void ProcessTerminalLamp(void);
+void panel_process_terminal_lamp(void);
 
 /**
  * @brief Set gPANS presence/full bits and allocate and reset the static panel
  *        state, then refresh the machine time fields.
  */
-void setup_pap(void);
+void panel_setup_pap(void);
 
 #endif // PANEL_H

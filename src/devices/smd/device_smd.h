@@ -332,6 +332,6 @@ typedef struct
  * @param thumbwheel Card thumbwheel; selects the IOX address block.
  * @return The new Device, or NULL on allocation failure.
  */
-Device *CreateSMDDevice(uint8_t thumbwheel);
+Device *smd_create_device(uint8_t thumbwheel);
 
 #endif /* DEVICE_SMD_H */
