@@ -1557,3 +1557,101 @@ a84775d	2026-09-21	-	macro use	tests/test_float.c	48	_Z	STS_ERROR_INDICATOR	2
 2153b84	2026-09-21	3.2-3.7	union	src/cpu/cpu_types.h	282	ndram	Ndram	1
 2153b84	2026-09-21	3.2-3.7	parameter	src/cpu/cpu_types.h	629	regA	reg_a	1
 2153b84	2026-09-21	3.2-3.7	parameter	src/cpu/float.c	156	isZero	is_zero	12
+e29a234	2026-09-21	3.4-3.7	parameter	tests/test_bcd.c	48	UseAPT	use_apt	6
+e29a234	2026-09-21	3.4-3.7	typedef	tests/test_bcd.c	117	bcd_test_case	BcdTestCase	4
+e29a234	2026-09-21	3.4-3.7	typedef	tests/test_bcd.c	100	bcd_test_dest	BcdTestDest	2
+e29a234	2026-09-21	3.4-3.7	typedef	tests/test_bcd.c	92	bcd_test_op	BcdTestOp	2
+e29a234	2026-09-21	3.4-3.7	local variable	tests/test_cdc.c	221	OVDK	ovdk	2
+e29a234	2026-09-21	3.4-3.7	local variable	tests/test_cdc.c	222	OVLAY	ovlay	2
+e29a234	2026-09-21	3.4-3.7	local variable	tests/test_cdc.c	320	badSector	bad_sector	2
+e29a234	2026-09-21	3.4-3.7	parameter	tests/test_cdc.c	51	blockSize	block_size	2
+e29a234	2026-09-21	3.4-3.7	parameter	tests/test_cdc.c	59	coreAddress	core_address	6
+e29a234	2026-09-21	3.4-3.7	parameter	tests/test_cdc.c	51	deviceClass	device_class	2
+e29a234	2026-09-21	3.4-3.7	static variable	tests/test_cdc.c	42	g_fakeMem	fake_mem	38
+e29a234	2026-09-21	3.4-3.7	static variable	tests/test_cdc.c	45	g_pendingCb	pending_cb	4
+e29a234	2026-09-21	3.4-3.7	static variable	tests/test_cdc.c	46	g_pendingCtx	pending_ctx	3
+e29a234	2026-09-21	3.4-3.7	static variable	tests/test_cdc.c	48	g_pendingLevel	pending_level	3
+e29a234	2026-09-21	3.4-3.7	static variable	tests/test_cdc.c	47	g_pendingParam	pending_param	3
+e29a234	2026-09-21	3.4-3.7	static variable	tests/test_cdc.c	49	g_pendingSet	pending_set	4
+e29a234	2026-09-21	3.4-3.7	local variable	tests/test_cdc.c	327	lastSector	last_sector	2
+e29a234	2026-09-21	3.4-3.7	local variable	tests/test_cdc.c	289	offC	off_c	2
+e29a234	2026-09-21	3.4-3.7	local variable	tests/test_cdc.c	238	okA	ok_a	3
+e29a234	2026-09-21	3.4-3.7	local variable	tests/test_cdc.c	268	okB	ok_b	3
+e29a234	2026-09-21	3.4-3.7	local variable	tests/test_cdc.c	495	okP	ok_p	3
+e29a234	2026-09-21	3.4-3.7	local variable	tests/test_cdc.c	302	okRT	ok_rt	3
+e29a234	2026-09-21	3.4-3.7	local variable	tests/test_cdc.c	288	okW	ok_w	3
+e29a234	2026-09-21	3.4-3.7	local variable	tests/test_cdc.c	376	rcaHigh	rca_high	2
+e29a234	2026-09-21	3.4-3.7	local variable	tests/test_cdc.c	375	rcaLow	rca_low	2
+e29a234	2026-09-21	3.4-3.7	local variable	tests/test_cdc.c	223	sectorA	sector_a	9
+e29a234	2026-09-21	3.4-3.7	local variable	tests/test_cdc.c	263	sectorB	sector_b	3
+e29a234	2026-09-21	3.4-3.7	local variable	tests/test_cdc.c	280	sectorC	sector_c	4
+e29a234	2026-09-21	3.4-3.7	local variable	tests/test_cdc.c	416	sectorD	sector_d	4
+e29a234	2026-09-21	3.4-3.7	local variable	tests/test_cdc.c	441	sectorE	sector_e	3
+e29a234	2026-09-21	3.4-3.7	parameter	tests/test_drum.c	115	addrHi	addr_hi	2
+e29a234	2026-09-21	3.4-3.7	parameter	tests/test_drum.c	39	blockSize	block_size	2
+e29a234	2026-09-21	3.4-3.7	parameter	tests/test_drum.c	47	coreAddress	core_address	6
+e29a234	2026-09-21	3.4-3.7	parameter	tests/test_drum.c	39	deviceClass	device_class	2
+e29a234	2026-09-21	3.4-3.7	static variable	tests/test_drum.c	30	g_fakeMem	fake_mem	10
+e29a234	2026-09-21	3.4-3.7	static variable	tests/test_drum.c	33	g_pendingCb	pending_cb	4
+e29a234	2026-09-21	3.4-3.7	static variable	tests/test_drum.c	34	g_pendingCtx	pending_ctx	3
+e29a234	2026-09-21	3.4-3.7	static variable	tests/test_drum.c	36	g_pendingLevel	pending_level	3
+e29a234	2026-09-21	3.4-3.7	static variable	tests/test_drum.c	35	g_pendingParam	pending_param	3
+e29a234	2026-09-21	3.4-3.7	static variable	tests/test_drum.c	37	g_pendingSet	pending_set	4
+e29a234	2026-09-21	3.4-3.7	local variable	tests/test_drum.c	213	maxBlk	max_blk	3
+e29a234	2026-09-21	3.4-3.7	local variable	tests/test_drum.c	183	okR	ok_r	3
+e29a234	2026-09-21	3.4-3.7	local variable	tests/test_drum.c	161	okW	ok_w	3
+e29a234	2026-09-21	3.4-3.7	local variable	tests/test_escp.c	156	defaultWidth	default_width	4
+e29a234	2026-09-21	3.4-3.7	typedef	tests/test_escp.c	406	escp_test_fn	EscpTestFn	2
+e29a234	2026-09-21	3.4-3.7	typedef	tests/test_float.c	463	fp32_nlz_case	Fp32NlzCase	3
+e29a234	2026-09-21	3.4-3.7	typedef	tests/test_float.c	416	fp32_op_case	Fp32OpCase	5
+e29a234	2026-09-21	3.4-3.7	typedef	tests/test_float.c	265	fp48_nlz_case	Fp48NlzCase	3
+e29a234	2026-09-21	3.4-3.7	typedef	tests/test_float.c	115	fp48_pair_case	Fp48PairCase	3
+e29a234	2026-09-21	3.4-3.7	global variable	tests/test_floppydb.c	57	FIXTURE	fixture	2
+e29a234	2026-09-21	3.4-3.7	local variable	tests/test_hdlc_frame.c	297	framesReceived	frames_received	5
+e29a234	2026-09-21	3.4-3.7	local variable	tests/test_hdlc_frame.c	237	rxData	rx_data	7
+e29a234	2026-09-21	3.4-3.7	local variable	tests/test_hdlc_frame.c	234	rxLen	rx_len	4
+e29a234	2026-09-21	3.4-3.7	local variable	tests/test_hdlc_frame.c	292	totalLen	total_len	2
+e29a234	2026-09-21	3.4-3.7	local variable	tests/test_hdlc_frame.c	214	wireLen	wire_len	9
+e29a234	2026-09-21	3.4-3.7	parameter	tests/test_hdlc_main.c	19	physicalAddress	physical_address	6
+e29a234	2026-09-21	3.4-3.7	parameter	tests/test_load_prog.c	68	fB2	f_b2	2
+e29a234	2026-09-21	3.4-3.7	parameter	tests/test_load_prog.c	69	lB2	l_b2	2
+e29a234	2026-09-21	3.4-3.7	parameter	tests/test_load_prog.c	22	physicalAddress	physical_address	5
+e29a234	2026-09-21	3.4-3.7	typedef	tests/test_pdfwriter.c	500	pdf_test_fn	PdfTestFn	2
+e29a234	2026-09-21	3.4-3.7	typedef	tests/test_pdfwriter.c	501	pdf_test_fn_dir	PdfTestFnDir	2
+e29a234	2026-09-21	3.4-3.7	parameter	tests/test_printer_main.c	25	physicalAddress	physical_address	6
+e29a234	2026-09-21	3.4-3.7	typedef	tests/test_printjob.c	312	pj_test_fn	PjTestFn	2
+e29a234	2026-09-21	3.4-3.7	parameter	tests/test_rtc.c	41	blockSize	block_size	3
+e29a234	2026-09-21	3.4-3.7	parameter	tests/test_rtc.c	41	deviceClass	device_class	3
+e29a234	2026-09-21	3.4-3.7	parameter	tests/test_shell.c	45	bootType	boot_type	2
+e29a234	2026-09-21	3.4-3.7	parameter	tests/test_shell.c	45	bootUnit	boot_unit	2
+e29a234	2026-09-21	3.4-3.7	parameter	tests/test_shell.c	45	imageFile	image_file	3
+e29a234	2026-09-21	3.4-3.7	local variable	tests/test_winchester.c	474	L11	l11	10
+e29a234	2026-09-21	3.4-3.7	parameter	tests/test_winchester.c	144	blockCount	block_count	8
+e29a234	2026-09-21	3.4-3.7	parameter	tests/test_winchester.c	60	blockSize	block_size	2
+e29a234	2026-09-21	3.4-3.7	parameter	tests/test_winchester.c	68	coreAddress	core_address	6
+e29a234	2026-09-21	3.4-3.7	parameter	tests/test_winchester.c	60	deviceClass	device_class	2
+e29a234	2026-09-21	3.4-3.7	global variable	tests/test_winchester.c	58	g_diskAttached	disk_attached	5
+e29a234	2026-09-21	3.4-3.7	static variable	tests/test_winchester.c	57	g_fakeDisk	fake_disk	12
+e29a234	2026-09-21	3.4-3.7	static variable	tests/test_winchester.c	46	g_fakeMem	fake_mem	9
+e29a234	2026-09-21	3.4-3.7	static variable	tests/test_winchester.c	48	g_pendingCb	pending_cb	4
+e29a234	2026-09-21	3.4-3.7	static variable	tests/test_winchester.c	49	g_pendingCtx	pending_ctx	3
+e29a234	2026-09-21	3.4-3.7	static variable	tests/test_winchester.c	51	g_pendingLevel	pending_level	3
+e29a234	2026-09-21	3.4-3.7	static variable	tests/test_winchester.c	50	g_pendingParam	pending_param	3
+e29a234	2026-09-21	3.4-3.7	static variable	tests/test_winchester.c	52	g_pendingSet	pending_set	4
+e29a234	2026-09-21	3.4-3.7	local variable	tests/test_winchester.c	393	headBefore	head_before	2
+e29a234	2026-09-21	3.4-3.7	parameter	tests/test_winchester.c	169	readOnly	read_only	3
+e29a234	2026-09-21	3.4-3.7	typedef	tests/wd_conformance_seq.h	45	wds_op	WdsOp	2
+e29a234	2026-09-21	3.4-3.7	typedef	tests/wd_conformance_seq.h	53	wds_step	WdsStep	2
+e29a234	2026-09-21	3.4-3.7	parameter	tests/wd_trace.c	159	blockCount	block_count	8
+e29a234	2026-09-21	3.4-3.7	parameter	tests/wd_trace.c	79	blockSize	block_size	2
+e29a234	2026-09-21	3.4-3.7	parameter	tests/wd_trace.c	87	coreAddress	core_address	6
+e29a234	2026-09-21	3.4-3.7	parameter	tests/wd_trace.c	79	deviceClass	device_class	2
+e29a234	2026-09-21	3.4-3.7	global variable	tests/wd_trace.c	77	g_fakeDisk	fake_disk	6
+e29a234	2026-09-21	3.4-3.7	global variable	tests/wd_trace.c	67	g_fakeMem	fake_mem	5
+e29a234	2026-09-21	3.4-3.7	global variable	tests/wd_trace.c	69	g_pendingCb	pending_cb	4
+e29a234	2026-09-21	3.4-3.7	global variable	tests/wd_trace.c	70	g_pendingCtx	pending_ctx	3
+e29a234	2026-09-21	3.4-3.7	global variable	tests/wd_trace.c	72	g_pendingLevel	pending_level	3
+e29a234	2026-09-21	3.4-3.7	global variable	tests/wd_trace.c	71	g_pendingParam	pending_param	3
+e29a234	2026-09-21	3.4-3.7	global variable	tests/wd_trace.c	73	g_pendingSet	pending_set	4
+e29a234	2026-09-21	3.4-3.7	parameter	tests/wd_trace.c	184	readOnly	read_only	3
+e29a234	2026-09-21	3.4-3.7	local variable	tests/wd_trace.c	222	wds_step	WdsStep	1
