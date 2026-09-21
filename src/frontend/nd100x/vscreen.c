@@ -21,7 +21,7 @@
 
 #include "charset.h"
 
-void VScreen_Init(VScreen *vs, const char *name, Device *dev, int cols, bool inputCapable)
+void VScreen_Init(VScreen *vs, const char *name, Device *dev, int cols, bool input_capable)
 {
     if (!vs)
     {
@@ -32,7 +32,7 @@ void VScreen_Init(VScreen *vs, const char *name, Device *dev, int cols, bool inp
     snprintf(vs->name, sizeof(vs->name), "%s", name);
     vs->device = dev;
     vs->cols = (cols > 0) ? cols : 80;
-    vs->isInputCapable = inputCapable;
+    vs->isInputCapable = input_capable;
     vs->localActive = true;
     vs->lineCount = 0;
     vs->currentLine = 0;
@@ -117,29 +117,29 @@ void VScreen_Redraw(VScreen *vs)
     printf("=== %s ===\n", vs->name);
 
     // Determine the starting line (oldest line in the buffer)
-    int numLines = (vs->lineCount < VSCREEN_BUF_LINES) ? vs->lineCount : VSCREEN_BUF_LINES;
-    int startLine;
-    if (numLines == 0)
+    int num_lines = (vs->lineCount < VSCREEN_BUF_LINES) ? vs->lineCount : VSCREEN_BUF_LINES;
+    int start_line;
+    if (num_lines == 0)
     {
         return;
     }
 
     if (vs->lineCount < VSCREEN_BUF_LINES)
     {
-        startLine = 0;
+        start_line = 0;
     }
     else
     {
-        startLine = (vs->currentLine + 1) % VSCREEN_BUF_LINES;
+        start_line = (vs->currentLine + 1) % VSCREEN_BUF_LINES;
     }
 
     // Print all buffered lines. Terminal screens get national 7-bit charset
     // translation (per-char) so a redraw matches live output; non-terminal
     // screens (printer, tape, log) are emitted raw.
-    for (int i = 0; i < numLines; i++)
+    for (int i = 0; i < num_lines; i++)
     {
-        int lineIdx = (startLine + i) % VSCREEN_BUF_LINES;
-        const char *line = vs->lines[lineIdx];
+        int line_idx = (start_line + i) % VSCREEN_BUF_LINES;
+        const char *line = vs->lines[line_idx];
         if (vs->isInputCapable && charset_get() != CHARSET_OFF)
         {
             for (const char *p = line; *p; p++)

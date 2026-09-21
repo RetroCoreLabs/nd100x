@@ -64,7 +64,7 @@ typedef struct {
  * @param screenCount Number of entries in screens.
  * @param activeScreen Pointer to the caller's index of the currently shown screen.
  */
-void menu_init(MenuState *state, VScreen *screens, int screenCount, int *activeScreen);
+void menu_init(MenuState *state, VScreen *screens, int screen_count, int *active_screen);
 
 // Check if menu is currently active (suppresses VScreen stdout output)
 static inline bool menu_is_active(const MenuState *state)
@@ -80,7 +80,7 @@ static inline bool menu_is_active(const MenuState *state)
  * @param telnetServer Telnet server used by the screen and pending-client views;
  *        may be NULL.
  */
-void menu_enter(MenuState *state, TelnetServer *telnetServer);
+void menu_enter(MenuState *state, TelnetServer *telnet_server);
 
 /**
  * @brief Dispatch one keypress according to the current menu mode. ESC leaves the
@@ -90,7 +90,7 @@ void menu_enter(MenuState *state, TelnetServer *telnetServer);
  * @param telnetServer Telnet server used by the screen and pending-client views;
  *        may be NULL.
  */
-void menu_process_key(MenuState *state, const KeyEvent *key, TelnetServer *telnetServer);
+void menu_process_key(MenuState *state, const KeyEvent *key, TelnetServer *telnet_server);
 
 /**
  * @brief Drive the menu's timed work: dismiss an expired MENU_MESSAGE back to its
@@ -99,7 +99,7 @@ void menu_process_key(MenuState *state, const KeyEvent *key, TelnetServer *telne
  * @param state Menu state to update.
  * @param telnetServer Telnet server used by the pending-client view; may be NULL.
  */
-void menu_tick(MenuState *state, TelnetServer *telnetServer);
+void menu_tick(MenuState *state, TelnetServer *telnet_server);
 #else
 /**
  * @brief Switch the menu into MENU_F12 and draw the top-level F12 menu.

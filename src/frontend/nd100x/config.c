@@ -111,7 +111,7 @@ static struct option long_options[] = {
 };
 // clang-format on
 
-void Config_Init(Config_t *config)
+void Config_Init(Config *config)
 {
     if (!config)
     {
@@ -218,9 +218,9 @@ void Config_Init(Config_t *config)
  *          paper-tape reader for the started program to read (raw, unframed).
  * The byte stream after '!' cannot be told apart mechanically, so guessing
  * is unsafe - the operator says which loader to model, as on the hardware. */
-static bool parseBootSpec(Config_t *config, const char *bootStr)
+static bool parse_boot_spec(Config *config, const char *boot_str)
 {
-    if (!bootStr || !config)
+    if (!boot_str || !config)
     {
         return false;
     }
@@ -240,16 +240,16 @@ static bool parseBootSpec(Config_t *config, const char *bootStr)
     // clang-format on
     for (size_t i = 0; i < sizeof(simple) / sizeof(simple[0]); i++)
     {
-        if (strcmp(simple[i].name, bootStr) == 0)
+        if (strcmp(simple[i].name, boot_str) == 0)
         {
             config->bootType = simple[i].type;
             return true;
         }
     }
 
-    if (strncmp("smd", bootStr, 3) == 0)
+    if (strncmp("smd", boot_str, 3) == 0)
     {
-        const char *u = bootStr + 3;
+        const char *u = boot_str + 3;
         if (*u == '\0')
         {
             config->bootType = BOOT_SMD;
@@ -261,16 +261,16 @@ static bool parseBootSpec(Config_t *config, const char *bootStr)
             config->bootUnit = u[0] - '0';
             return true;
         }
-        fprintf(stderr, "Invalid SMD boot unit in '%s' (use smd or smd0-smd3)\n", bootStr);
+        fprintf(stderr, "Invalid SMD boot unit in '%s' (use smd or smd0-smd3)\n", boot_str);
         return false;
     }
 
     /* Winchester (ST506 / 8 inch). Two units only - the control word carries
      * the unit in a single bit (ND-11.015.01 sec 3.1 / 3.4). Booting also
      * implies the card is fitted. */
-    if (strncmp("wd", bootStr, 2) == 0)
+    if (strncmp("wd", boot_str, 2) == 0)
     {
-        const char *u = bootStr + 2;
+        const char *u = boot_str + 2;
         if (*u == '\0')
         {
             config->bootType = BOOT_WINCHESTER;
@@ -284,13 +284,13 @@ static bool parseBootSpec(Config_t *config, const char *bootStr)
             config->wdEnabled = true;
             return true;
         }
-        fprintf(stderr, "Invalid Winchester boot unit in '%s' (use wd, wd0 or wd1)\n", bootStr);
+        fprintf(stderr, "Invalid Winchester boot unit in '%s' (use wd, wd0 or wd1)\n", boot_str);
         return false;
     }
 
-    if (strncmp("scsi", bootStr, 4) == 0)
+    if (strncmp("scsi", boot_str, 4) == 0)
     {
-        const char *u = bootStr + 4;
+        const char *u = boot_str + 4;
         if (*u == '\0')
         {
             config->bootType = BOOT_SCSI;
@@ -305,19 +305,19 @@ static bool parseBootSpec(Config_t *config, const char *bootStr)
         fprintf(
             stderr,
             "Invalid SCSI boot unit in '%s' (use scsi or scsi0-scsi6; ID 7 is the controller)\n",
-            bootStr);
+            boot_str);
         return false;
     }
 
-    fprintf(stderr, "Invalid boot type: %s\n", bootStr);
+    fprintf(stderr, "Invalid boot type: %s\n", boot_str);
     return false;
 }
 
 // Parse HDLC config: "N:PORT" (server) or "N:HOST:PORT" (client)
 // N = device number 1-4
-static bool parseHDLCConfig(Config_t *config, const char *hdlcStr)
+static bool parse_hdlc_config(Config *config, const char *hdlc_str)
 {
-    if (!hdlcStr || !config)
+    if (!hdlc_str || !config)
     {
         return false;
     }
@@ -327,7 +327,7 @@ static bool parseHDLCConfig(Config_t *config, const char *hdlcStr)
         return false;
     }
 
-    char *str = strdup(hdlcStr);
+    char *str = strdup(hdlc_str);
     if (!str)
     {
         return false;
@@ -344,8 +344,8 @@ static bool parseHDLCConfig(Config_t *config, const char *hdlcStr)
 
     *first_colon = '\0';
     char *endptr;
-    int devNum = (int)strtol(str, &endptr, 10);
-    if (*endptr != '\0' || devNum < 1 || devNum > 4)
+    int dev_num = (int)strtol(str, &endptr, 10);
+    if (*endptr != '\0' || dev_num < 1 || dev_num > 4)
     {
         fprintf(stderr, "HDLC device number must be 1-4, got: %s\n", str);
         free(str);
@@ -355,9 +355,9 @@ static bool parseHDLCConfig(Config_t *config, const char *hdlcStr)
     // Check for duplicate device number
     for (int i = 0; i < config->hdlcCount; i++)
     {
-        if (config->hdlc[i].deviceNum == devNum)
+        if (config->hdlc[i].deviceNum == dev_num)
         {
-            fprintf(stderr, "HDLC device %d already configured\n", devNum);
+            fprintf(stderr, "HDLC device %d already configured\n", dev_num);
             free(str);
             return false;
         }
@@ -367,13 +367,13 @@ static bool parseHDLCConfig(Config_t *config, const char *hdlcStr)
     char *second_colon = strchr(rest, ':');
 
     int idx = config->hdlcCount;
-    config->hdlc[idx].deviceNum = devNum;
+    config->hdlc[idx].deviceNum = dev_num;
 
     if (second_colon)
     {
         // Client mode: "HOST:PORT"
         *second_colon = '\0';
-        char *portStr = second_colon + 1;
+        char *port_str = second_colon + 1;
 
         config->hdlc[idx].address = strdup(rest);
         if (!config->hdlc[idx].address)
@@ -382,7 +382,7 @@ static bool parseHDLCConfig(Config_t *config, const char *hdlcStr)
             return false;
         }
 
-        config->hdlc[idx].port = (int)strtol(portStr, &endptr, 10);
+        config->hdlc[idx].port = (int)strtol(port_str, &endptr, 10);
         if (*endptr != '\0' || config->hdlc[idx].port <= 0 || config->hdlc[idx].port > 65535)
         {
             free(config->hdlc[idx].address);
@@ -412,9 +412,9 @@ static bool parseHDLCConfig(Config_t *config, const char *hdlcStr)
 
 // Parse watchpoint config: "[phys:]ADDR[:r|w|rw]"
 // ADDR accepts octal (leading 0), hex (0x), or decimal, matching -B.
-static bool parseWatchConfig(Config_t *config, const char *watchStr)
+static bool parse_watch_config(Config *config, const char *watch_str)
 {
-    if (!watchStr || !config)
+    if (!watch_str || !config)
     {
         return false;
     }
@@ -424,17 +424,17 @@ static bool parseWatchConfig(Config_t *config, const char *watchStr)
         return false;
     }
 
-    char *str = strdup(watchStr);
+    char *str = strdup(watch_str);
     if (!str)
     {
         return false;
     }
 
     char *p = str;
-    bool isPhys = false;
+    bool is_phys = false;
     if (strncmp(p, "phys:", 5) == 0)
     {
-        isPhys = true;
+        is_phys = true;
         p += 5;
     }
 
@@ -474,7 +474,7 @@ static bool parseWatchConfig(Config_t *config, const char *watchStr)
     }
 
     int idx = config->watchCount;
-    config->watch[idx].isPhysical = isPhys;
+    config->watch[idx].isPhysical = is_phys;
     config->watch[idx].address = addr;
     config->watch[idx].type = type;
     config->watchCount++;
@@ -482,7 +482,7 @@ static bool parseWatchConfig(Config_t *config, const char *watchStr)
     return true;
 }
 
-bool Config_ParseCommandLine(Config_t *config, int argc, char *argv[])
+bool Config_ParseCommandLine(Config *config, int argc, char *argv[])
 {
     int option_index = 0;
     int c;
@@ -494,7 +494,7 @@ bool Config_ParseCommandLine(Config_t *config, int argc, char *argv[])
         switch (c)
         {
         case 'b':
-            if (!parseBootSpec(config, optarg))
+            if (!parse_boot_spec(config, optarg))
             {
                 return false;
             }
@@ -570,9 +570,9 @@ bool Config_ParseCommandLine(Config_t *config, int argc, char *argv[])
             config->telnetEnabled = true;
             if (optarg)
             {
-                char *portEnd;
-                long port = strtol(optarg, &portEnd, 10);
-                if (*portEnd != '\0' || port <= 0 || port > 65535)
+                char *port_end;
+                long port = strtol(optarg, &port_end, 10);
+                if (*port_end != '\0' || port <= 0 || port > 65535)
                 {
                     fprintf(stderr, "Invalid telnet port: %s\n", optarg);
                     return false;
@@ -641,7 +641,7 @@ bool Config_ParseCommandLine(Config_t *config, int argc, char *argv[])
             exit(0);
 
         case 'H':
-            if (!parseHDLCConfig(config, optarg))
+            if (!parse_hdlc_config(config, optarg))
             {
                 fprintf(stderr, "Invalid HDLC configuration: %s\n", optarg);
                 return false;
@@ -710,7 +710,7 @@ bool Config_ParseCommandLine(Config_t *config, int argc, char *argv[])
             break;
 
         case 'W':
-            if (!parseWatchConfig(config, optarg))
+            if (!parse_watch_config(config, optarg))
             {
                 return false;
             }
@@ -912,9 +912,9 @@ bool Config_ParseCommandLine(Config_t *config, int argc, char *argv[])
                              * No silent clamp / no silent default on bad input - reject and fail, same as
                              * --cputype / --opr. Applied to ND_Memsize (= MB * 524288 words) in nd100x.c
                              * BEFORE machine_init, ahead of the ECC latch / MMS allocations. */
-            char *memEnd;
-            long mb = strtol(optarg, &memEnd, 10);
-            if (*memEnd != '\0' || mb < 1 || mb > 16)
+            char *mem_end;
+            long mb = strtol(optarg, &mem_end, 10);
+            if (*mem_end != '\0' || mb < 1 || mb > 16)
             {
                 fprintf(stderr,
                         "Invalid --memory value '%s' (expect an integer 1..16, in megabytes; "
@@ -932,9 +932,9 @@ bool Config_ParseCommandLine(Config_t *config, int argc, char *argv[])
                              * single-precision FPP was a factory option independent of the CPU
                              * model. Applied to CurrentFPPType in nd100x.c; no silent default
                              * on bad input - reject and fail, same as --memory. */
-            char *fppEnd;
-            long fb = strtol(optarg, &fppEnd, 10);
-            if (*fppEnd != '\0' || (fb != 32 && fb != 48))
+            char *fpp_end;
+            long fb = strtol(optarg, &fpp_end, 10);
+            if (*fpp_end != '\0' || (fb != 32 && fb != 48))
             {
                 fprintf(stderr,
                         "Invalid --fpp value '%s' (expect 32 or 48, "
@@ -978,9 +978,9 @@ bool Config_ParseCommandLine(Config_t *config, int argc, char *argv[])
                              * ND panel switches are always read/quoted in OCTAL, so parse base 8
                              * (NOT base 0). NORD TSS cold-start uses 131313 (create SYSTEM user),
                              * 111111 (verbose disc-error diagnostics); range is a 16-bit word. */
-            char *oprEnd;
-            long v = strtol(optarg, &oprEnd, 8);
-            if (*oprEnd != '\0' || v < 0 || v > 0177777L)
+            char *opr_end;
+            long v = strtol(optarg, &opr_end, 8);
+            if (*opr_end != '\0' || v < 0 || v > 0177777L)
             {
                 fprintf(stderr,
                         "Invalid --opr value '%s' (expect octal 0..177777, "
@@ -1213,10 +1213,10 @@ bool Config_ParseCommandLine(Config_t *config, int argc, char *argv[])
     return true;
 }
 
-void Config_PrintHelp(const char *progName)
+void Config_PrintHelp(const char *prog_name)
 {
     printf("nd100x %s (git %s, built %s)\n", ND100X_VERSION, ND100X_GIT_HASH, ND100X_BUILD_TIME);
-    printf("Usage: %s [options]\n\n", progName);
+    printf("Usage: %s [options]\n\n", prog_name);
     printf("Options:\n");
     printf("  -b,      --boot=TYPE    Boot type (bp, bpun, tape, aout, prog, floppy,\n");
     printf("                          smd[0-3], wd[0-1], scsi[0-6], cdc)\n");
@@ -1360,16 +1360,16 @@ void Config_PrintHelp(const char *progName)
     printf("  -h,      --help         Show this help message\n");
     printf("  -V,      --version      Show version, git hash and build time, then exit\n\n");
     printf("Examples:\n");
-    printf("  %s --boot=bpun --image=test.bpun\n", progName);
-    printf("  %s --boot=floppy --image=disk.img --start=0x1000 --disasm\n", progName);
-    printf("  %s --debugger\n", progName);
-    printf("  %s --hdlc=1:%d                  # HDLC 1 server on port %d\n", progName,
+    printf("  %s --boot=bpun --image=test.bpun\n", prog_name);
+    printf("  %s --boot=floppy --image=disk.img --start=0x1000 --disasm\n", prog_name);
+    printf("  %s --debugger\n", prog_name);
+    printf("  %s --hdlc=1:%d                  # HDLC 1 server on port %d\n", prog_name,
            HDLC_DEFAULT_PORT, HDLC_DEFAULT_PORT);
-    printf("  %s --hdlc=1:192.168.1.10:%d     # HDLC 1 client\n", progName, HDLC_DEFAULT_PORT);
-    printf("  %s --boot=smd --smd0=myboot.img --smd1=data.img\n", progName);
-    printf("  %s --boot=smd1                  # Boot from SMD unit 1\n", progName);
-    printf("  %s --boot=scsi0 --scsi0=hdd:SCSI-K.image  # Boot from SCSI ID 0\n", progName);
-    printf("  %s --hdlc=1:5000 --hdlc=2:5001  # Two HDLC devices\n", progName);
+    printf("  %s --hdlc=1:192.168.1.10:%d     # HDLC 1 client\n", prog_name, HDLC_DEFAULT_PORT);
+    printf("  %s --boot=smd --smd0=myboot.img --smd1=data.img\n", prog_name);
+    printf("  %s --boot=smd1                  # Boot from SMD unit 1\n", prog_name);
+    printf("  %s --boot=scsi0 --scsi0=hdd:SCSI-K.image  # Boot from SCSI ID 0\n", prog_name);
+    printf("  %s --hdlc=1:5000 --hdlc=2:5001  # Two HDLC devices\n", prog_name);
 
     /*
      * Machine identity is configured through environment variables (nd100x has no

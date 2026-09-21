@@ -238,6 +238,10 @@ def suspect(old, new, kind=None):
     A lowercase word glued to an acronym - CHStoLBA - cannot be told apart
     this way and still needs a person; SPELLINGS carries those.
     """
+    if old.startswith("g_") and not new.startswith("g_"):
+        # fix_prefix drops g_ from a file static, where rule 3.4 does not want
+        # it. Compare what is left, or the strip itself reads as a mangling.
+        old = old[2:]
     if kind is not None and kind not in SNAKE_KINDS:
         # CamelCase and UPPER_CASE names: the split is not snake_case, so this
         # test does not apply. A mangled one shows up as a build failure or in
@@ -252,6 +256,25 @@ def spell_out(new):
         if bad in new:
             new = new.replace(bad, good)
     return re.sub(r"__+", "_", new).strip("_")
+
+
+# Types are PascalCase (rule 3.7). clang-tidy turns Config_t into ConfigT,
+# carrying the old suffix over as a stray capital; Ronny chose to drop it
+# (21-SEP-2026), so Config_t becomes Config and FloppyDisk_t FloppyDisk.
+TYPE_KINDS = ("typedef", "struct", "union", "enum")
+
+# Where dropping _t would collide with a type that already exists.
+# MenuState is taken by the screen menu in screenmenu.h; this one is the
+# floppy-database browser state in menu.c.
+TYPE_OVERRIDE = {"MenuState_t": "FloppyMenuState"}
+
+
+def pascal(name):
+    """PascalCase, keeping acronyms whole: floppy_disk -> FloppyDisk."""
+    words = []
+    for part in name.split("_"):
+        words += WORD.findall(part)
+    return "".join(w if w.isupper() else w.capitalize() for w in words)
 
 
 def fix_prefix(kind, message):
@@ -280,6 +303,14 @@ def fix_prefix(kind, message):
     new = spell_out(repls[0].get("ReplacementText", ""))
     for repl in repls:
         repl["ReplacementText"] = spell_out(repl.get("ReplacementText", ""))
+    # A type whose name ends in _t: drop the suffix rather than keep it as a
+    # trailing capital (ConfigT).
+    found = MSG.search(message.get("Message", ""))
+    old_name = found.group(2) if found else ""
+    if kind in TYPE_KINDS and old_name.endswith("_t"):
+        new = TYPE_OVERRIDE.get(old_name) or pascal(old_name[:-2])
+        for repl in repls:
+            repl["ReplacementText"] = new
     if kind == "global variable" and new.startswith("g_"):
         decl = os.path.normpath(os.path.join(REPO, message.get("FilePath", "")))
         if is_static_decl(decl, message.get("FileOffset", 0)):
@@ -303,6 +334,11 @@ def filter_fixes(fix_files, module_dir, out_dir, escapes=()):
         for diag in doc.get("Diagnostics", []):
             message = diag.get("DiagnosticMessage", {})
             repls = message.get("Replacements", [])
+            # A generated header is rebuilt from the sources by mkptypes, so a
+            # use inside one is not an edit this tool has to make - and must
+            # not veto the rename. Config_t was skipped entirely because
+            # nd100x_protos.h mentions it.
+            repls = [r for r in repls if not generated(r.get("FilePath", ""))]
             if not repls:
                 continue
             # A rename is all-or-nothing. Applying only the parts that fall
@@ -313,7 +349,6 @@ def filter_fixes(fix_files, module_dir, out_dir, escapes=()):
             # undeclared". A declaration owned by another module is that
             # module's rename to make.
             if any(not inside_module(r.get("FilePath", ""), module_dir)
-                   or generated(r.get("FilePath", ""))
                    for r in repls):
                 continue
             message["Replacements"] = repls

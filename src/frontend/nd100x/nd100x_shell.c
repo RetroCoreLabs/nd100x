@@ -54,15 +54,15 @@ typedef struct
     const char *name;
     const char *abbrev;
     const char *help;
-    int (*handler)(const char *nd100Root, int argc, char **argv);
+    int (*handler)(const char *nd100_root, int argc, char **argv);
 } ShellCommand;
 
 /* Forward declarations */
-static int cmd_help(const char *nd100Root, int argc, char **argv);
-static int cmd_exit(const char *nd100Root, int argc, char **argv);
-static int cmd_list_files(const char *nd100Root, int argc, char **argv);
-static int cmd_run_program(const char *nd100Root, int argc, char **argv);
-static int cmd_show_regs(const char *nd100Root, int argc, char **argv);
+static int cmd_help(const char *nd100_root, int argc, char **argv);
+static int cmd_exit(const char *nd100_root, int argc, char **argv);
+static int cmd_list_files(const char *nd100_root, int argc, char **argv);
+static int cmd_run_program(const char *nd100_root, int argc, char **argv);
+static int cmd_show_regs(const char *nd100_root, int argc, char **argv);
 
 // clang-format off
 static ShellCommand commands[] = {
@@ -174,11 +174,11 @@ static void join_path(char *out, size_t out_sz, const char *dir, const char *nam
  * List BPUN/PROG files in the nd100Root directory
  * Supports pattern filtering: *.bpun, *.prog, etc.
  */
-static int cmd_list_files(const char *nd100Root, int argc, char **argv)
+static int cmd_list_files(const char *nd100_root, int argc, char **argv)
 {
 
     const char *pattern = (argc > 1) ? argv[1] : "*";
-    const char *search_dir = nd100Root ? nd100Root : ".";
+    const char *search_dir = nd100_root ? nd100_root : ".";
 
     DIR *dir = opendir(search_dir);
     if (!dir)
@@ -330,7 +330,7 @@ static bool resolve_program_file(const char *dir, const char *name, char *out, s
 /**
  * Load and run a BPUN program file
  */
-static int cmd_run_program(const char *nd100Root, int argc, char **argv)
+static int cmd_run_program(const char *nd100_root, int argc, char **argv)
 {
 
     if (argc < 2)
@@ -340,7 +340,7 @@ static int cmd_run_program(const char *nd100Root, int argc, char **argv)
     }
 
     const char *filename = argv[1];
-    const char *search_dir = nd100Root ? nd100Root : ".";
+    const char *search_dir = nd100_root ? nd100_root : ".";
 
     /* Resolve the typed name to a real file. "run mac" -> "MAC.BPUN". */
     char filepath[512];
@@ -447,9 +447,9 @@ static int cmd_run_program(const char *nd100Root, int argc, char **argv)
 /**
  * Display CPU registers
  */
-static int cmd_show_regs(const char *nd100Root, int argc, char **argv)
+static int cmd_show_regs(const char *nd100_root, int argc, char **argv)
 {
-    (void)nd100Root;
+    (void)nd100_root;
     (void)argc;
     (void)argv;
 
@@ -474,9 +474,9 @@ static int cmd_show_regs(const char *nd100Root, int argc, char **argv)
 /**
  * Show help message
  */
-static int cmd_help(const char *nd100Root, int argc, char **argv)
+static int cmd_help(const char *nd100_root, int argc, char **argv)
 {
-    (void)nd100Root;
+    (void)nd100_root;
     (void)argc;
     (void)argv;
 
@@ -495,9 +495,9 @@ static int cmd_help(const char *nd100Root, int argc, char **argv)
 /**
  * Exit the shell
  */
-static int cmd_exit(const char *nd100Root, int argc, char **argv)
+static int cmd_exit(const char *nd100_root, int argc, char **argv)
 {
-    (void)nd100Root;
+    (void)nd100_root;
     (void)argc;
     (void)argv;
 
@@ -509,7 +509,7 @@ static int cmd_exit(const char *nd100Root, int argc, char **argv)
  * Execute a single command
  * Returns: 0 = continue, 1 = exit shell, -1 = error
  */
-static int execute_command(const char *nd100Root, char *line)
+static int execute_command(const char *nd100_root, char *line)
 {
     if (!line || *line == '\0')
     {
@@ -529,7 +529,7 @@ static int execute_command(const char *nd100Root, char *line)
     {
         if (cmd_matches(tokens[0], commands[i].name, commands[i].abbrev))
         {
-            int result = commands[i].handler(nd100Root, argc, tokens);
+            int result = commands[i].handler(nd100_root, argc, tokens);
             return result;
         }
     }
@@ -566,7 +566,7 @@ static char *read_line(void)
 /**
  * Execute commands from a script file
  */
-static int execute_script(const char *nd100Root, const char *script_path)
+static int execute_script(const char *nd100_root, const char *script_path)
 {
     FILE *f = fopen(script_path, "r");
     if (!f)
@@ -595,7 +595,7 @@ static int execute_script(const char *nd100Root, const char *script_path)
         }
 
         printf("%s %s\n", SHELL_PROMPT, line);
-        int result = execute_command(nd100Root, line);
+        int result = execute_command(nd100_root, line);
         if (result == 1)
         {
             break; /* EXIT command */
@@ -620,7 +620,7 @@ static int execute_script(const char *nd100Root, const char *script_path)
 /**
  * Main shell loop
  */
-int nd100x_shell_run(const char *nd100Root, const char *scriptPath)
+int nd100x_shell_run(const char *nd100_root, const char *script_path)
 {
     printf("\n");
     printf("ND-100 Interactive Shell\n");
@@ -632,10 +632,10 @@ int nd100x_shell_run(const char *nd100Root, const char *scriptPath)
 #endif
 
     /* Execute script if provided */
-    if (scriptPath)
+    if (script_path)
     {
-        printf("Loading script: %s\n\n", scriptPath);
-        int result = execute_script(nd100Root, scriptPath);
+        printf("Loading script: %s\n\n", script_path);
+        int result = execute_script(nd100_root, script_path);
         if (result == SHELL_RESULT_RUN)
         {
             return SHELL_RESULT_RUN; /* script launched a program */
@@ -664,7 +664,7 @@ int nd100x_shell_run(const char *nd100Root, const char *scriptPath)
         }
 #endif
 
-        int result = execute_command(nd100Root, line);
+        int result = execute_command(nd100_root, line);
         if (result == 1)
         {
 #ifdef HAVE_READLINE

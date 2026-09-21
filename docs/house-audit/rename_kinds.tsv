@@ -103,3 +103,79 @@ src/ndlib	enum constant	src/ndlib/ndlib_types.h	LoadState_FloMonCount	LOAD_STATE
 src/ndlib	enum constant	src/ndlib/ndlib_types.h	LoadState_FloMonLoad	LOAD_STATE_FLO_MON_LOAD
 src/ndlib	enum constant	src/ndlib/ndlib_types.h	LoadState_Preamble	LOAD_STATE_PREAMBLE
 src/ndlib	typedef	src/ndlib/net_compat.h	nd_ssize_t	NdSsizeT
+src/frontend/nd100x	function	src/frontend/nd100x/nd100x.c	LogScreenHandler	log_screen_handler
+src/frontend/nd100x	function	src/frontend/nd100x/nd100x.c	PaperTapeWriterOutputHandler	paper_tape_writer_output_handler
+src/frontend/nd100x	function	src/frontend/nd100x/nd100x.c	PrinterOutputHandler	printer_output_handler
+src/frontend/nd100x	function	src/frontend/nd100x/nd100x.c	VScreenOutputHandler	v_screen_output_handler
+src/frontend/nd100x	function	src/frontend/nd100x/nd100x.c	findScreenForDevice	find_screen_for_device
+src/frontend/nd100x	function	src/frontend/nd100x/config.c	parseBootSpec	parse_boot_spec
+src/frontend/nd100x	function	src/frontend/nd100x/config.c	parseHDLCConfig	parse_hdlc_config
+src/frontend/nd100x	function	src/frontend/nd100x/config.c	parseWatchConfig	parse_watch_config
+src/frontend/nd100x	global variable	src/frontend/nd100x/nd100x.c	activeScreen	active_screen
+src/frontend/nd100x	global variable	src/frontend/nd100x/nd100x.c	g_machineConfig	machine_config
+src/frontend/nd100x	global variable	src/frontend/nd100x/nd100x.c	g_useMachineConfig	use_machine_config
+src/frontend/nd100x	global variable	src/frontend/nd100x/nd100x.c	logScreenIndex	log_screen_index
+src/frontend/nd100x	global variable	src/frontend/nd100x/nd100x.c	logScreenMutex	log_screen_mutex
+src/frontend/nd100x	global variable	src/frontend/nd100x/nd100x.c	menuState	menu_state
+src/frontend/nd100x	global variable	src/frontend/nd100x/nd100x.c	printJob	print_job
+src/frontend/nd100x	global variable	src/frontend/nd100x/nd100x.c	screenCount	screen_count
+src/frontend/nd100x	global variable	src/frontend/nd100x/nd100x.c	tapeWriterActive	tape_writer_active
+src/frontend/nd100x	global variable	src/frontend/nd100x/nd100x.c	tapeWriterJobNumber	tape_writer_job_number
+src/frontend/nd100x	global variable	src/frontend/nd100x/nd100x.c	tapeWriterLastOutputTime	tape_writer_last_output_time
+src/frontend/nd100x	global variable	src/frontend/nd100x/nd100x.c	telnetServer	telnet_server
+src/frontend/nd100x	local variable	src/frontend/nd100x/screenmenu.c	addrStr	addr_str
+src/frontend/nd100x	local variable	src/frontend/nd100x/nd100x.c	altScreen	alt_screen
+src/frontend/nd100x	local variable	src/frontend/nd100x/config.c	devNum	dev_num
+src/frontend/nd100x	local variable	src/frontend/nd100x/nd100x.c	extraTerminals	extra_terminals
+src/frontend/nd100x	local variable	src/frontend/nd100x/config.c	fppEnd	fpp_end
+src/frontend/nd100x	local variable	src/frontend/nd100x/screenmenu.c	hasStatus	has_status
+src/frontend/nd100x	local variable	src/frontend/nd100x/screenmenu.c	hasTelnet	has_telnet
+src/frontend/nd100x	local variable	src/frontend/nd100x/nd100x.c	iniName	ini_name
+src/frontend/nd100x	local variable	src/frontend/nd100x/nd100x.c	iniPath	ini_path
+src/frontend/nd100x	local variable	src/frontend/nd100x/config.c	isPhys	is_phys
+src/frontend/nd100x	local variable	src/frontend/nd100x/vscreen.c	lineIdx	line_idx
+src/frontend/nd100x	local variable	src/frontend/nd100x/nd100x.c	mappedLen	mapped_len
+src/frontend/nd100x	local variable	src/frontend/nd100x/nd100x.c	mappedSeq	mapped_seq
+src/frontend/nd100x	local variable	src/frontend/nd100x/nd100x.c	mcErr	mc_err
+src/frontend/nd100x	local variable	src/frontend/nd100x/nd100x.c	mcOpts	mc_opts
+src/frontend/nd100x	local variable	src/frontend/nd100x/config.c	memEnd	mem_end
+src/frontend/nd100x	local variable	src/frontend/nd100x/vscreen.c	numLines	num_lines
+src/frontend/nd100x	local variable	src/frontend/nd100x/config.c	oprEnd	opr_end
+src/frontend/nd100x	local variable	src/frontend/nd100x/config.c	portEnd	port_end
+src/frontend/nd100x	local variable	src/frontend/nd100x/config.c	portStr	port_str
+src/frontend/nd100x	local variable	src/frontend/nd100x/nd100x.c	printDir	print_dir
+src/frontend/nd100x	local variable	src/frontend/nd100x/nd100x.c	runMode	run_mode
+src/frontend/nd100x	local variable	src/frontend/nd100x/screenmenu.c	rxBytesStr	rx_bytes_str
+src/frontend/nd100x	local variable	src/frontend/nd100x/screenmenu.c	rxDrop	rx_drop
+src/frontend/nd100x	local variable	src/frontend/nd100x/screenmenu.c	rxDropStr	rx_drop_str
+src/frontend/nd100x	local variable	src/frontend/nd100x/screenmenu.c	rxState	rx_state
+src/frontend/nd100x	local variable	src/frontend/nd100x/screenmenu.c	rxStr	rx_str
+src/frontend/nd100x	local variable	src/frontend/nd100x/vscreen.c	startLine	start_line
+src/frontend/nd100x	local variable	src/frontend/nd100x/screenmenu.c	statusBuf	status_buf
+src/frontend/nd100x	local variable	src/frontend/nd100x/screenmenu.c	tmpBuf	tmp_buf
+src/frontend/nd100x	local variable	src/frontend/nd100x/screenmenu.c	txBytesStr	tx_bytes_str
+src/frontend/nd100x	local variable	src/frontend/nd100x/screenmenu.c	txDrop	tx_drop
+src/frontend/nd100x	local variable	src/frontend/nd100x/screenmenu.c	txDropStr	tx_drop_str
+src/frontend/nd100x	local variable	src/frontend/nd100x/screenmenu.c	txState	tx_state
+src/frontend/nd100x	local variable	src/frontend/nd100x/screenmenu.c	txStr	tx_str
+src/frontend/nd100x	local variable	src/frontend/nd100x/nd100x.c	typeStr	type_str
+src/frontend/nd100x	parameter	src/frontend/nd100x/screenmenu.h	activeScreen	active_screen
+src/frontend/nd100x	parameter	src/frontend/nd100x/config.c	bootStr	boot_str
+src/frontend/nd100x	parameter	src/frontend/nd100x/config.c	hdlcStr	hdlc_str
+src/frontend/nd100x	parameter	src/frontend/nd100x/vscreen.h	inputCapable	input_capable
+src/frontend/nd100x	parameter	src/frontend/nd100x/nd100x_shell.h	nd100Root	nd100_root
+src/frontend/nd100x	parameter	src/frontend/nd100x/config.c	progName	prog_name
+src/frontend/nd100x	parameter	src/frontend/nd100x/screenmenu.c	returnTo	return_to
+src/frontend/nd100x	parameter	src/frontend/nd100x/screenmenu.h	screenCount	screen_count
+src/frontend/nd100x	parameter	src/frontend/nd100x/nd100x_shell.h	scriptPath	script_path
+src/frontend/nd100x	parameter	src/frontend/nd100x/screenmenu.h	telnetServer	telnet_server
+src/frontend/nd100x	parameter	src/frontend/nd100x/config.c	watchStr	watch_str
+src/frontend/nd100x	static variable	src/frontend/nd100x/nd100x.c	termAddresses	term_addresses
+src/frontend/nd100x	typedef	src/frontend/nd100x/nd100x_types.h	Config_t	Config
+src/frontend/nd100x	typedef	src/frontend/nd100x/menu.c	DirectoryPage_t	DirectoryPage
+src/frontend/nd100x	typedef	src/frontend/nd100x/menu.c	FloppyDisk_t	FloppyDisk
+src/frontend/nd100x	typedef	src/frontend/nd100x/menu.c	MenuState_t	FloppyMenuState
+src/frontend/nd100x	typedef	src/frontend/nd100x/menu.c	MountPopup_t	MountPopup
+src/frontend/nd100x	typedef	src/frontend/nd100x/nd100x_types.h	PrintFormat_t	PrintFormat
+src/frontend/nd100x	typedef	src/frontend/nd100x/nd100x_types.h	PrinterType_t	PrinterType
+src/frontend/nd100x	typedef	src/frontend/nd100x/nd100x_types.h	Config_t	Config

@@ -124,7 +124,7 @@ typedef struct {
     char *directory_content;  // Dynamically allocated based on content length
     char product[256];
     DRIVE_TYPE drive_type;  // FLOPPY or SMD based on filesystem image size
-} FloppyDisk_t;
+} FloppyDisk;
 // clang-format on
 
 // Menu state structure
@@ -135,7 +135,7 @@ typedef struct {
     int end_line;       // Last line number (0-based)
     int scroll_y;       // Scroll position for this page
     int lines_count;    // Number of lines on this page
-} DirectoryPage_t;
+} DirectoryPage;
 // clang-format on
 
 // Mount popup window structure
@@ -144,13 +144,13 @@ typedef struct {
     WINDOW *popup_win;
     int selected_unit;  // 0-1 for floppy, 0-3 for SMD
     bool visible;
-    FloppyDisk_t *floppy;  // Pointer to the floppy to mount
-} MountPopup_t;
+    FloppyDisk *floppy;  // Pointer to the floppy to mount
+} MountPopup;
 // clang-format on
 
 // clang-format off
 typedef struct {
-    FloppyDisk_t *floppies;
+    FloppyDisk *floppies;
     int floppy_count;
     int selected_index;
     char search_text[256];
@@ -161,7 +161,7 @@ typedef struct {
     int detail_scroll_y;    // Vertical scroll position for details window
     int detail_page_size;   // Number of lines that fit in details window
     int detail_total_lines; // Total number of lines in directory content
-    DirectoryPage_t *directory_pages;  // Array of pages for current floppy
+    DirectoryPage *directory_pages;  // Array of pages for current floppy
     int directory_page_count;          // Number of pages
     int current_page;                  // Current page index (0-based)
     WINDOW *search_win;
@@ -169,12 +169,12 @@ typedef struct {
     WINDOW *detail_win;
     WINDOW *toolbar_win;
     int max_y, max_x;
-    MountPopup_t mount_popup;  // Mount popup window
-    MountPopup_t unmount_popup;  // Unmount popup window
-} MenuState_t;
+    MountPopup mount_popup;  // Mount popup window
+    MountPopup unmount_popup;  // Unmount popup window
+} FloppyMenuState;
 // clang-format on
 
-static MenuState_t menu_state;
+static FloppyMenuState menu_state;
 
 // Helper function to detect drive type based on filesystem image size
 static DRIVE_TYPE detect_drive_type(const char *directory_content)
@@ -273,7 +273,7 @@ static void free_directory_pages(void)
 }
 
 // Build directory pages array for current floppy
-static void build_directory_pages(FloppyDisk_t *floppy)
+static void build_directory_pages(FloppyDisk *floppy)
 {
     // Free existing pages
     free_directory_pages();
@@ -315,7 +315,7 @@ static void build_directory_pages(FloppyDisk_t *floppy)
     int page_count = (total_lines + max_display_lines - 1) / max_display_lines;
 
     // Allocate pages array
-    menu_state.directory_pages = malloc(page_count * sizeof(DirectoryPage_t));
+    menu_state.directory_pages = malloc(page_count * sizeof(DirectoryPage));
     if (!menu_state.directory_pages)
     {
         return;
@@ -327,7 +327,7 @@ static void build_directory_pages(FloppyDisk_t *floppy)
     // Build each page
     for (int i = 0; i < page_count; i++)
     {
-        DirectoryPage_t *page = &menu_state.directory_pages[i];
+        DirectoryPage *page = &menu_state.directory_pages[i];
         page->start_line = i * max_display_lines;
         page->end_line = (i + 1) * max_display_lines - 1;
         if (page->end_line >= total_lines)
@@ -544,7 +544,7 @@ static void free_floppy_contents(int count)
 
 // Fill floppy from one catalog record. Returns 1 if the record was taken,
 // 0 if it is skipped (Status != 0), -1 if memory ran out.
-static int parse_one_floppy(cJSON *item, FloppyDisk_t *floppy)
+static int parse_one_floppy(cJSON *item, FloppyDisk *floppy)
 {
     // Parse JSON fields
     cJSON *id = cJSON_GetObjectItem(item, "Id");
@@ -618,7 +618,7 @@ static bool parse_floppies_json(const char *json_data)
     }
 
     int array_size = cJSON_GetArraySize(json);
-    menu_state.floppies = malloc(array_size * sizeof(FloppyDisk_t));
+    menu_state.floppies = malloc(array_size * sizeof(FloppyDisk));
     if (!menu_state.floppies)
     {
         cJSON_Delete(json);
@@ -642,7 +642,7 @@ static bool parse_floppies_json(const char *json_data)
             continue;
         }
 
-        FloppyDisk_t *floppy = &menu_state.floppies[menu_state.floppy_count];
+        FloppyDisk *floppy = &menu_state.floppies[menu_state.floppy_count];
 
         int rc = parse_one_floppy(item, floppy);
         if (rc == 0)
@@ -777,7 +777,7 @@ static void draw_floppy_list(void)
         int floppy_idx =
             (menu_state.filtered_count > 0) ? menu_state.filtered_indices[item_idx] : item_idx;
 
-        FloppyDisk_t *floppy = &menu_state.floppies[floppy_idx];
+        FloppyDisk *floppy = &menu_state.floppies[floppy_idx];
 
         if (item_idx == menu_state.selected_index)
         {
@@ -882,13 +882,13 @@ static void safe_print_line_no_scroll(WINDOW *win, int y, int x, const char *tex
 // Print the current page of the floppy's directory listing into the detail
 // window from row y on. Returns the next free row, or -1 if the listing
 // could not be copied (out of memory).
-static int print_directory_page(FloppyDisk_t *floppy, int y, int win_height, int max_width)
+static int print_directory_page(FloppyDisk *floppy, int y, int win_height, int max_width)
 {
     int lines_printed = 0;
 
     if (menu_state.directory_pages && menu_state.current_page < menu_state.directory_page_count)
     {
-        DirectoryPage_t *current_page = &menu_state.directory_pages[menu_state.current_page];
+        DirectoryPage *current_page = &menu_state.directory_pages[menu_state.current_page];
 
         // Create a copy to avoid destroying the original string with strtok
         char *content_copy = strdup(floppy->directory_content);
@@ -948,7 +948,7 @@ static void draw_floppy_details(void)
         int floppy_idx = (menu_state.filtered_count > 0)
                              ? menu_state.filtered_indices[menu_state.selected_index]
                              : menu_state.selected_index;
-        FloppyDisk_t *floppy = &menu_state.floppies[floppy_idx];
+        FloppyDisk *floppy = &menu_state.floppies[floppy_idx];
 
         int y = 1;
 
@@ -993,7 +993,7 @@ static void draw_floppy_details(void)
         // Show page information
         if (menu_state.directory_pages && menu_state.current_page < menu_state.directory_page_count)
         {
-            DirectoryPage_t *current_page = &menu_state.directory_pages[menu_state.current_page];
+            DirectoryPage *current_page = &menu_state.directory_pages[menu_state.current_page];
             char page_info[128];
             snprintf(page_info, sizeof(page_info), "Page %d/%d (Lines %d-%d of %d)",
                      menu_state.current_page + 1, menu_state.directory_page_count,
@@ -1087,7 +1087,7 @@ static void filter_floppies(void)
     // Search through all floppies
     for (int i = 0; i < menu_state.floppy_count; i++)
     {
-        FloppyDisk_t *floppy = &menu_state.floppies[i];
+        FloppyDisk *floppy = &menu_state.floppies[i];
 
         // Search in all text fields (case-insensitive)
         bool found = false;
@@ -1259,7 +1259,7 @@ static void draw_mount_popup(void)
     }
 
     WINDOW *popup = menu_state.mount_popup.popup_win;
-    FloppyDisk_t *floppy = menu_state.mount_popup.floppy;
+    FloppyDisk *floppy = menu_state.mount_popup.floppy;
 
     // Clear and draw border
     werase(popup);

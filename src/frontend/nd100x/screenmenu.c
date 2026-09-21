@@ -43,7 +43,7 @@
 // =========================================================
 
 static void draw_f12(void);
-static void draw_screen_select(MenuState *state, void *telnetServer);
+static void draw_screen_select(MenuState *state, void *telnet_server);
 static void draw_release_prompt(MenuState *state);
 static void draw_hdlc_status(void);
 static void draw_cpu_speed(void);
@@ -51,7 +51,7 @@ static void draw_charset(void);
 static void draw_panel_switches(void);
 static void draw_about(void);
 #if !defined(__EMSCRIPTEN__)
-static void draw_pending_list(void *telnetServer);
+static void draw_pending_list(void *telnet_server);
 #endif
 
 // Human-readable byte count (e.g. "1.2 KB", "3.4 MB")
@@ -71,7 +71,7 @@ static void format_bytes(uint64_t bytes, char *buf, int buflen)
     }
 }
 
-static void menu_set_mode(MenuState *state, MenuMode mode, void *telnetServer)
+static void menu_set_mode(MenuState *state, MenuMode mode, void *telnet_server)
 {
     state->mode = mode;
     switch (mode)
@@ -83,7 +83,7 @@ static void menu_set_mode(MenuState *state, MenuMode mode, void *telnetServer)
         draw_f12();
         break;
     case MENU_SCREEN_SELECT:
-        draw_screen_select(state, telnetServer);
+        draw_screen_select(state, telnet_server);
         break;
     case MENU_SCREEN_RELEASE:
         draw_release_prompt(state);
@@ -108,7 +108,7 @@ static void menu_set_mode(MenuState *state, MenuMode mode, void *telnetServer)
     case MENU_PENDING_LIST:
 #if !defined(__EMSCRIPTEN__)
         state->lastRefresh = time(NULL);
-        draw_pending_list(telnetServer);
+        draw_pending_list(telnet_server);
 #endif
         break;
     case MENU_MESSAGE:
@@ -118,12 +118,12 @@ static void menu_set_mode(MenuState *state, MenuMode mode, void *telnetServer)
     }
 }
 
-static void menu_show_message(MenuState *state, const char *msg, MenuMode returnTo)
+static void menu_show_message(MenuState *state, const char *msg, MenuMode return_to)
 {
     printf("\n%s\n", msg);
     fflush(stdout);
     state->mode = MENU_MESSAGE;
-    state->returnTo = returnTo;
+    state->returnTo = return_to;
     state->messageExpiry = time(NULL) + 1;
 }
 
@@ -374,21 +374,21 @@ static void draw_hdlc_status(void)
 
         found++;
 
-        char addrStr[16];
-        snprintf(addrStr, sizeof(addrStr), "%04o-%04o", dev->startAddress, dev->endAddress);
+        char addr_str[16];
+        snprintf(addr_str, sizeof(addr_str), "%04o-%04o", dev->startAddress, dev->endAddress);
 
         bool connected = data->modem ? atomic_load(&data->modem->connected) : false;
 
-        char txBytesStr[16];
-        char rxBytesStr[16];
-        format_bytes(data->modem ? data->modem->bytesTx : 0, txBytesStr, sizeof(txBytesStr));
-        format_bytes(data->modem ? data->modem->bytesRx : 0, rxBytesStr, sizeof(rxBytesStr));
+        char tx_bytes_str[16];
+        char rx_bytes_str[16];
+        format_bytes(data->modem ? data->modem->bytesTx : 0, tx_bytes_str, sizeof(tx_bytes_str));
+        format_bytes(data->modem ? data->modem->bytesRx : 0, rx_bytes_str, sizeof(rx_bytes_str));
 
         HDLCRxFrameStatus st;
-        bool hasStatus = HDLC_GetRxFrameStatus(data, &st);
+        bool has_status = HDLC_GetRxFrameStatus(data, &st);
 
         // Device header
-        printf("  HDLC #%d  [%s]  Connected: %s\n", data->thumbwheel, addrStr,
+        printf("  HDLC #%d  [%s]  Connected: %s\n", data->thumbwheel, addr_str,
                connected ? "Yes" : "No");
 
         // Fixed-width snprintf buffers so columns stay aligned regardless of value length
@@ -400,26 +400,26 @@ static void draw_hdlc_status(void)
             char c_errs[18];
             char c_state[20];
             char c_queue[12];
-            char tmpBuf[24];
+            char tmp_buf[24];
 
             // --- RX line ---
-            snprintf(c_dma, sizeof(c_dma), "%-3s", (hasStatus && st.rxDmaEnabled) ? "On" : "Off");
-            snprintf(c_bytes, sizeof(c_bytes), "%-8s", rxBytesStr);
+            snprintf(c_dma, sizeof(c_dma), "%-3s", (has_status && st.rxDmaEnabled) ? "On" : "Off");
+            snprintf(c_bytes, sizeof(c_bytes), "%-8s", rx_bytes_str);
             snprintf(c_frames, sizeof(c_frames), "%-8" PRIu64, data->framesRx);
-            snprintf(c_ena, sizeof(c_ena), "RXE=%-6s", (hasStatus && st.rxEnabled) ? "On" : "Off");
+            snprintf(c_ena, sizeof(c_ena), "RXE=%-6s", (has_status && st.rxEnabled) ? "On" : "Off");
             snprintf(c_errs, sizeof(c_errs), "Errs=%-7" PRIu64, data->framesRxErrors);
 
             // RX frame assembly state
-            const char *rxState = "Idle";
-            if (hasStatus)
+            const char *rx_state = "Idle";
+            if (has_status)
             {
                 if (!st.rxDmaEnabled)
                 {
-                    rxState = "DMA off";
+                    rx_state = "DMA off";
                 }
                 else if (!st.rxDcbReady)
                 {
-                    rxState = "No DCB";
+                    rx_state = "No DCB";
                 }
                 else
                 {
@@ -427,20 +427,20 @@ static void draw_hdlc_status(void)
                     {
                     case 1:
                     case 2:
-                        snprintf(tmpBuf, sizeof(tmpBuf), "Rx %d B", st.frameLength);
-                        rxState = tmpBuf;
+                        snprintf(tmp_buf, sizeof(tmp_buf), "Rx %d B", st.frameLength);
+                        rx_state = tmp_buf;
                         break;
                     case 3:
-                        rxState = "Error";
+                        rx_state = "Error";
                         break;
                     default:
                         break;
                     }
                 }
             }
-            snprintf(c_state, sizeof(c_state), "State=%-10.13s", rxState);
+            snprintf(c_state, sizeof(c_state), "State=%-10.13s", rx_state);
 
-            if (hasStatus)
+            if (has_status)
             {
                 format_bytes(st.tcpQueueUsed, c_queue, sizeof(c_queue));
             }
@@ -453,16 +453,16 @@ static void draw_hdlc_status(void)
                    c_frames, c_ena, c_errs, c_state, c_queue);
 
             // --- TX line ---
-            snprintf(c_dma, sizeof(c_dma), "%-3s", (hasStatus && st.txDmaEnabled) ? "On" : "Off");
-            snprintf(c_bytes, sizeof(c_bytes), "%-8s", txBytesStr);
+            snprintf(c_dma, sizeof(c_dma), "%-3s", (has_status && st.txDmaEnabled) ? "On" : "Off");
+            snprintf(c_bytes, sizeof(c_bytes), "%-8s", tx_bytes_str);
             snprintf(c_frames, sizeof(c_frames), "%-8" PRIu64, data->framesTx);
-            snprintf(c_ena, sizeof(c_ena), "TXE=%-6s", (hasStatus && st.txEnabled) ? "On" : "Off");
+            snprintf(c_ena, sizeof(c_ena), "TXE=%-6s", (has_status && st.txEnabled) ? "On" : "Off");
             snprintf(c_errs, sizeof(c_errs), "%-12s", ""); // blank to align with RX Errs column
 
-            const char *txState = hasStatus ? tx_sender_state_name(st.txSenderState) : "Stopped";
-            snprintf(c_state, sizeof(c_state), "State=%-10s", txState);
+            const char *tx_state = has_status ? tx_sender_state_name(st.txSenderState) : "Stopped";
+            snprintf(c_state, sizeof(c_state), "State=%-10s", tx_state);
 
-            if (hasStatus)
+            if (has_status)
             {
                 format_bytes(st.txQueueUsed, c_queue, sizeof(c_queue));
             }
@@ -475,7 +475,7 @@ static void draw_hdlc_status(void)
                    c_frames, c_ena, c_errs, c_state, c_queue);
 
             // DCB and TX diagnostics
-            if (hasStatus && st.txStarts > 0)
+            if (has_status && st.txStarts > 0)
             {
                 printf("    DCB: TX=%-8" PRIu64 " RX=%-8" PRIu64 "  |  Starts=%-6" PRIu64
                        " Sent=%-6" PRIu64 " Skip=%" PRIu64 "\n",
@@ -515,15 +515,15 @@ static void draw_hdlc_status(void)
             }
 
             // Dropped bytes line (only shown if any drops occurred)
-            uint64_t rxDrop = data->modem ? data->modem->rxDropped : 0;
-            uint64_t txDrop = data->modem ? data->modem->txDropped : 0;
-            if (rxDrop > 0 || txDrop > 0)
+            uint64_t rx_drop = data->modem ? data->modem->rxDropped : 0;
+            uint64_t tx_drop = data->modem ? data->modem->txDropped : 0;
+            if (rx_drop > 0 || tx_drop > 0)
             {
-                char rxDropStr[16];
-                char txDropStr[16];
-                format_bytes(rxDrop, rxDropStr, sizeof(rxDropStr));
-                format_bytes(txDrop, txDropStr, sizeof(txDropStr));
-                printf("    ** DROPPED: RX=%s  TX=%s\n", rxDropStr, txDropStr);
+                char rx_drop_str[16];
+                char tx_drop_str[16];
+                format_bytes(rx_drop, rx_drop_str, sizeof(rx_drop_str));
+                format_bytes(tx_drop, tx_drop_str, sizeof(tx_drop_str));
+                printf("    ** DROPPED: RX=%s  TX=%s\n", rx_drop_str, tx_drop_str);
             }
         }
 
@@ -590,18 +590,18 @@ static const char *screen_status_text(MenuState *state, int i, void *telnet_serv
             uint64_t tx = 0;
             telnet_screen_stats(ts, state->screens[i].name, &rx, &tx);
 
-            char rxStr[16];
-            char txStr[16];
-            format_bytes(rx, rxStr, sizeof(rxStr));
-            format_bytes(tx, txStr, sizeof(txStr));
+            char rx_str[16];
+            char tx_str[16];
+            format_bytes(rx, rx_str, sizeof(rx_str));
+            format_bytes(tx, tx_str, sizeof(tx_str));
 
             if (addr && addr[0])
             {
-                snprintf(buf, buf_size, " [Telnet %s] rx:%s tx:%s", addr, rxStr, txStr);
+                snprintf(buf, buf_size, " [Telnet %s] rx:%s tx:%s", addr, rx_str, tx_str);
             }
             else
             {
-                snprintf(buf, buf_size, " [Telnet] rx:%s tx:%s", rxStr, txStr);
+                snprintf(buf, buf_size, " [Telnet] rx:%s tx:%s", rx_str, tx_str);
             }
             status = buf;
         }
@@ -629,16 +629,16 @@ static const char *screen_status_text(MenuState *state, int i, void *telnet_serv
     return status;
 }
 
-static void draw_screen_select(MenuState *state, void *telnetServer)
+static void draw_screen_select(MenuState *state, void *telnet_server)
 {
-    bool hasTelnet = (telnetServer != NULL);
+    bool has_telnet = (telnet_server != NULL);
 
     printf("\033[2J\033[H");
 
 #if !defined(__EMSCRIPTEN__)
-    if (hasTelnet)
+    if (has_telnet)
     {
-        TelnetServer *ts = (TelnetServer *)telnetServer;
+        TelnetServer *ts = (TelnetServer *)telnet_server;
         int pending = TelnetServer_GetPendingCount(ts);
         if (pending > 0)
         {
@@ -658,9 +658,9 @@ static void draw_screen_select(MenuState *state, void *telnetServer)
 
     for (int i = 0; i < state->screenCount; i++)
     {
-        char statusBuf[128];
+        char status_buf[128];
         const char *status =
-            screen_status_text(state, i, telnetServer, statusBuf, sizeof(statusBuf));
+            screen_status_text(state, i, telnet_server, status_buf, sizeof(status_buf));
 
         if (i < 9)
         {
@@ -673,7 +673,7 @@ static void draw_screen_select(MenuState *state, void *telnetServer)
     }
 
 #if !defined(__EMSCRIPTEN__)
-    if (hasTelnet)
+    if (has_telnet)
     {
         printf("\n  [R] Release terminal (virtual->inactive, or disconnect telnet)");
         printf("\n  [P] Pending connections (live view)");
@@ -696,9 +696,9 @@ static void draw_release_prompt(MenuState *state)
 }
 
 #if !defined(__EMSCRIPTEN__)
-static void draw_pending_list(void *telnetServer)
+static void draw_pending_list(void *telnet_server)
 {
-    TelnetServer *ts = (TelnetServer *)telnetServer;
+    TelnetServer *ts = (TelnetServer *)telnet_server;
     int count = TelnetServer_GetPendingCount(ts);
 
     printf("\033[2J\033[H");
@@ -720,11 +720,11 @@ static void draw_pending_list(void *telnetServer)
             uint64_t tx = 0;
             if (TelnetServer_GetPendingInfo(ts, i, addr, sizeof(addr), &age, &rx, &tx))
             {
-                char rxStr[16];
-                char txStr[16];
-                format_bytes(rx, rxStr, sizeof(rxStr));
-                format_bytes(tx, txStr, sizeof(txStr));
-                printf("  %d) %-24s  %-10s  %-10s  %ds / 60s\n", i + 1, addr, rxStr, txStr, age);
+                char rx_str[16];
+                char tx_str[16];
+                format_bytes(rx, rx_str, sizeof(rx_str));
+                format_bytes(tx, tx_str, sizeof(tx_str));
+                printf("  %d) %-24s  %-10s  %-10s  %ds / 60s\n", i + 1, addr, rx_str, tx_str, age);
             }
         }
     }
@@ -739,42 +739,42 @@ static void draw_pending_list(void *telnetServer)
 // Public API
 // =========================================================
 
-void menu_init(MenuState *state, VScreen *screens, int screenCount, int *activeScreen)
+void menu_init(MenuState *state, VScreen *screens, int screen_count, int *active_screen)
 {
     memset(state, 0, sizeof(MenuState));
     state->screens = screens;
-    state->screenCount = screenCount;
-    state->activeScreen = activeScreen;
+    state->screenCount = screen_count;
+    state->activeScreen = active_screen;
 }
 
 #if !defined(__EMSCRIPTEN__)
-void menu_enter(MenuState *state, TelnetServer *telnetServer)
+void menu_enter(MenuState *state, TelnetServer *telnet_server)
 #else
 void menu_enter(MenuState *state, void *telnetServer)
 #endif
 {
-    menu_set_mode(state, MENU_F12, telnetServer);
+    menu_set_mode(state, MENU_F12, telnet_server);
 }
 
 #if !defined(__EMSCRIPTEN__)
-void menu_tick(MenuState *state, TelnetServer *telnetServer)
+void menu_tick(MenuState *state, TelnetServer *telnet_server)
 #else
 void menu_tick(MenuState *state, void *telnetServer)
 #endif
 {
     if (state->mode == MENU_MESSAGE && time(NULL) >= state->messageExpiry)
     {
-        menu_set_mode(state, state->returnTo, telnetServer);
+        menu_set_mode(state, state->returnTo, telnet_server);
     }
 #if !defined(__EMSCRIPTEN__)
     // Live refresh for pending list view (every 2 seconds)
-    if (state->mode == MENU_PENDING_LIST && telnetServer)
+    if (state->mode == MENU_PENDING_LIST && telnet_server)
     {
         time_t now = time(NULL);
         if (now - state->lastRefresh >= 2)
         {
             state->lastRefresh = now;
-            draw_pending_list(telnetServer);
+            draw_pending_list(telnet_server);
         }
     }
 #endif
@@ -805,7 +805,7 @@ void menu_tick(MenuState *state, void *telnetServer)
 // =========================================================
 
 #if !defined(__EMSCRIPTEN__)
-void menu_process_key(MenuState *state, const KeyEvent *key, TelnetServer *telnetServer)
+void menu_process_key(MenuState *state, const KeyEvent *key, TelnetServer *telnet_server)
 #else
 void menu_process_key(MenuState *state, const KeyEvent *key, void *telnetServer)
 #endif
@@ -827,7 +827,7 @@ void menu_process_key(MenuState *state, const KeyEvent *key, void *telnetServer)
     case MENU_F12:
         if (is_esc)
         {
-            menu_set_mode(state, MENU_NONE, telnetServer);
+            menu_set_mode(state, MENU_NONE, telnet_server);
         }
         else if (ch == '1')
         {
@@ -841,32 +841,32 @@ void menu_process_key(MenuState *state, const KeyEvent *key, void *telnetServer)
                 printf("Failed to show floppy menu\n");
             }
 #endif
-            menu_set_mode(state, MENU_NONE, telnetServer);
+            menu_set_mode(state, MENU_NONE, telnet_server);
         }
         else if (ch == '2')
         {
-            menu_set_mode(state, MENU_SCREEN_SELECT, telnetServer);
+            menu_set_mode(state, MENU_SCREEN_SELECT, telnet_server);
         }
         else if (ch == '3')
         {
-            menu_set_mode(state, MENU_HDLC_STATUS, telnetServer);
+            menu_set_mode(state, MENU_HDLC_STATUS, telnet_server);
         }
         else if (ch == '4')
         {
             cpu_speed_initialized = false;
-            menu_set_mode(state, MENU_CPU_SPEED, telnetServer);
+            menu_set_mode(state, MENU_CPU_SPEED, telnet_server);
         }
         else if (ch == '5')
         {
-            menu_set_mode(state, MENU_CHARSET, telnetServer);
+            menu_set_mode(state, MENU_CHARSET, telnet_server);
         }
         else if (ch == '6')
         {
-            menu_set_mode(state, MENU_PANEL_SWITCHES, telnetServer);
+            menu_set_mode(state, MENU_PANEL_SWITCHES, telnet_server);
         }
         else if (ch == 'a' || ch == 'A')
         {
-            menu_set_mode(state, MENU_ABOUT, telnetServer);
+            menu_set_mode(state, MENU_ABOUT, telnet_server);
         }
         break;
 
@@ -874,18 +874,18 @@ void menu_process_key(MenuState *state, const KeyEvent *key, void *telnetServer)
     case MENU_SCREEN_SELECT:
         if (is_esc)
         {
-            menu_set_mode(state, MENU_NONE, telnetServer);
+            menu_set_mode(state, MENU_NONE, telnet_server);
             return;
         }
 #if !defined(__EMSCRIPTEN__)
-        if ((ch == 'r' || ch == 'R') && telnetServer)
+        if ((ch == 'r' || ch == 'R') && telnet_server)
         {
-            menu_set_mode(state, MENU_SCREEN_RELEASE, telnetServer);
+            menu_set_mode(state, MENU_SCREEN_RELEASE, telnet_server);
             return;
         }
-        if ((ch == 'p' || ch == 'P') && telnetServer)
+        if ((ch == 'p' || ch == 'P') && telnet_server)
         {
-            menu_set_mode(state, MENU_PENDING_LIST, telnetServer);
+            menu_set_mode(state, MENU_PENDING_LIST, telnet_server);
             return;
         }
 #endif
@@ -903,8 +903,8 @@ void menu_process_key(MenuState *state, const KeyEvent *key, void *telnetServer)
             if (choice >= 0 && choice < state->screenCount)
             {
 #if !defined(__EMSCRIPTEN__)
-                if (telnetServer &&
-                    TelnetServer_IsDeviceConnected(telnetServer, state->screens[choice].device))
+                if (telnet_server &&
+                    TelnetServer_IsDeviceConnected(telnet_server, state->screens[choice].device))
                 {
                     menu_show_message(state, "Terminal is in use by telnet client.",
                                       MENU_SCREEN_SELECT);
@@ -912,18 +912,18 @@ void menu_process_key(MenuState *state, const KeyEvent *key, void *telnetServer)
                 }
 
                 // If not locally active, re-activate it and clear carrier
-                if (telnetServer && state->screens[choice].isInputCapable &&
+                if (telnet_server && state->screens[choice].isInputCapable &&
                     !state->screens[choice].localActive)
                 {
                     state->screens[choice].localActive = true;
-                    TelnetServer_SetDeviceLocallyActive(telnetServer, state->screens[choice].device,
-                                                        true);
-                    TelnetServer_ClearDeviceCarrier(telnetServer, state->screens[choice].device);
+                    TelnetServer_SetDeviceLocallyActive(telnet_server,
+                                                        state->screens[choice].device, true);
+                    TelnetServer_ClearDeviceCarrier(telnet_server, state->screens[choice].device);
                 }
 #endif
                 *state->activeScreen = choice;
             }
-            menu_set_mode(state, MENU_NONE, telnetServer);
+            menu_set_mode(state, MENU_NONE, telnet_server);
         }
         break;
 
@@ -931,7 +931,7 @@ void menu_process_key(MenuState *state, const KeyEvent *key, void *telnetServer)
     case MENU_SCREEN_RELEASE:
         if (is_esc)
         {
-            menu_set_mode(state, MENU_SCREEN_SELECT, telnetServer);
+            menu_set_mode(state, MENU_SCREEN_SELECT, telnet_server);
             return;
         }
         {
@@ -962,12 +962,12 @@ void menu_process_key(MenuState *state, const KeyEvent *key, void *telnetServer)
             }
 
 #if !defined(__EMSCRIPTEN__)
-            if (telnetServer)
+            if (telnet_server)
             {
                 // If telnet-connected: disconnect the client
-                if (TelnetServer_IsDeviceConnected(telnetServer, state->screens[choice].device))
+                if (TelnetServer_IsDeviceConnected(telnet_server, state->screens[choice].device))
                 {
-                    TelnetServer_DisconnectDevice(telnetServer, state->screens[choice].device);
+                    TelnetServer_DisconnectDevice(telnet_server, state->screens[choice].device);
                     char msg[64];
                     snprintf(msg, sizeof(msg), "%s telnet client disconnected.",
                              state->screens[choice].name);
@@ -985,8 +985,8 @@ void menu_process_key(MenuState *state, const KeyEvent *key, void *telnetServer)
                         return;
                     }
                     state->screens[choice].localActive = false;
-                    TelnetServer_SetDeviceLocallyActive(telnetServer, state->screens[choice].device,
-                                                        false);
+                    TelnetServer_SetDeviceLocallyActive(telnet_server,
+                                                        state->screens[choice].device, false);
                     char msg[64];
                     snprintf(msg, sizeof(msg), "%s released for telnet.",
                              state->screens[choice].name);
@@ -1006,21 +1006,21 @@ void menu_process_key(MenuState *state, const KeyEvent *key, void *telnetServer)
     case MENU_PENDING_LIST:
         if (is_esc)
         {
-            menu_set_mode(state, MENU_SCREEN_SELECT, telnetServer);
+            menu_set_mode(state, MENU_SCREEN_SELECT, telnet_server);
             return;
         }
-        if (telnetServer)
+        if (telnet_server)
         {
             if (ch == 'd' || ch == 'D')
             {
-                int count = TelnetServer_GetPendingCount(telnetServer);
+                int count = TelnetServer_GetPendingCount(telnet_server);
                 if (count == 0)
                 {
                     menu_show_message(state, "No pending connections to drop.", MENU_PENDING_LIST);
                 }
                 else if (count == 1)
                 {
-                    TelnetServer_DropPending(telnetServer, 0);
+                    TelnetServer_DropPending(telnet_server, 0);
                     menu_show_message(state, "Dropped pending connection.", MENU_PENDING_LIST);
                 }
                 else
@@ -1034,15 +1034,15 @@ void menu_process_key(MenuState *state, const KeyEvent *key, void *telnetServer)
             else if (ch >= '1' && ch <= '9')
             {
                 int idx = ch - '1';
-                if (TelnetServer_DropPending(telnetServer, idx))
+                if (TelnetServer_DropPending(telnet_server, idx))
                 {
-                    draw_pending_list(telnetServer);
+                    draw_pending_list(telnet_server);
                     state->lastRefresh = time(NULL);
                 }
             }
             else if (ch == 'a' || ch == 'A')
             {
-                TelnetServer_DropAllPending(telnetServer);
+                TelnetServer_DropAllPending(telnet_server);
                 menu_show_message(state, "All pending connections dropped.", MENU_PENDING_LIST);
             }
         }
@@ -1053,14 +1053,14 @@ void menu_process_key(MenuState *state, const KeyEvent *key, void *telnetServer)
     case MENU_HDLC_STATUS:
         if (is_esc)
         {
-            menu_set_mode(state, MENU_F12, telnetServer);
+            menu_set_mode(state, MENU_F12, telnet_server);
         }
         break;
 
     case MENU_CPU_SPEED:
         if (is_esc)
         {
-            menu_set_mode(state, MENU_F12, telnetServer);
+            menu_set_mode(state, MENU_F12, telnet_server);
         }
         else if (ch == 't' || ch == 'T')
         {
@@ -1099,7 +1099,7 @@ void menu_process_key(MenuState *state, const KeyEvent *key, void *telnetServer)
     case MENU_CHARSET:
         if (is_esc)
         {
-            menu_set_mode(state, MENU_F12, telnetServer);
+            menu_set_mode(state, MENU_F12, telnet_server);
         }
         else if (ch >= '1' && ch <= ('0' + CHARSET_COUNT))
         {
@@ -1115,7 +1115,7 @@ void menu_process_key(MenuState *state, const KeyEvent *key, void *telnetServer)
     case MENU_PANEL_SWITCHES:
         if (is_esc)
         {
-            menu_set_mode(state, MENU_F12, telnetServer);
+            menu_set_mode(state, MENU_F12, telnet_server);
         }
         else if (g_reg != NULL)
         {
@@ -1145,7 +1145,7 @@ void menu_process_key(MenuState *state, const KeyEvent *key, void *telnetServer)
     case MENU_ABOUT:
         if (is_esc)
         {
-            menu_set_mode(state, MENU_F12, telnetServer);
+            menu_set_mode(state, MENU_F12, telnet_server);
         }
         break;
 

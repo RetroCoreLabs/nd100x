@@ -47,7 +47,7 @@ typedef struct {
  * @param cols Columns per line; values <= 0 become 80.
  * @param inputCapable true when the screen can receive keyboard input.
  */
-void VScreen_Init(VScreen *vs, const char *name, Device *dev, int cols, bool inputCapable);
+void VScreen_Init(VScreen *vs, const char *name, Device *dev, int cols, bool input_capable);
 
 /**
  * @brief Store one character in the screen's ring buffer. LF and FF advance to a

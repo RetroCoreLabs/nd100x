@@ -58,6 +58,6 @@
  *         SHELL_RESULT_RUN when the user asked to run a loaded program (the
  *         caller must then drive the machine run loop).
  */
-int nd100x_shell_run(const char *nd100Root, const char *scriptPath);
+int nd100x_shell_run(const char *nd100_root, const char *script_path);
 
 #endif /* ND100X_SHELL_H */

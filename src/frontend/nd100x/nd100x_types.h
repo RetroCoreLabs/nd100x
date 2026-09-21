@@ -44,7 +44,7 @@ typedef enum {
     PRINTER_TEXT,      // Simple line printer (plain ASCII)
     PRINTER_ESCP,      // Epson ESC/P interpreter
     PRINTER_LASER      // Color laser (future, not yet implemented)
-} PrinterType_t;
+} PrinterType;
 // clang-format on
 
 // Printer output format (--printformat= option)
@@ -52,7 +52,7 @@ typedef enum {
 typedef enum {
     PRINT_FORMAT_TXT,  // Plain text output (.txt)
     PRINT_FORMAT_PDF   // PDF output (.pdf)
-} PrintFormat_t;
+} PrintFormat;
 // clang-format on
 
 // Configuration structure
@@ -141,8 +141,8 @@ typedef struct {
     // on NORD-10 the low 15 bits select a memory word shown in the LEV4 display.
     bool oprSet;         // --opr given: preset the panel switch register
     uint16_t opr;        // --opr=OCTAL value (see docs/TSS-CONTROL-PANEL-SWITCHES.md)
-    PrinterType_t printerType;   // --printer= option (default: PRINTER_TEXT)
-    PrintFormat_t printFormat;    // --printformat= option (default: PRINT_FORMAT_TXT)
+    PrinterType printerType;   // --printer= option (default: PRINTER_TEXT)
+    PrintFormat printFormat;    // --printformat= option (default: PRINT_FORMAT_TXT)
     CharsetVariant charset;       // --charset= option: local-console national 7-bit charset (default: CHARSET_OFF)
     // HDLC configuration (up to 4 devices, thumbwheels 1-4)
     #define MAX_HDLC_DEVICES 4
@@ -162,7 +162,7 @@ typedef struct {
     char *traceNd110File;    // its output file; NULL = stdout
     long ringAtPf;           // --ring-at-pf=N: dump the instruction ring at the N'th page fault; -1 = not given
     long ringAtClpt;         // --ring-at-clpt=N: same at the N'th CLPT; -1 = not given
-} Config_t;
+} Config;
 // clang-format on
 
 /**
@@ -170,7 +170,7 @@ typedef struct {
  *        (no boot type, unit 0, no image, port 4711, ticks RTC, and so on).
  * @param config Configuration to fill; NULL is ignored.
  */
-void Config_Init(Config_t *);
+void Config_Init(Config *);
 
 /**
  * @brief Parse the nd100x command line with getopt_long and fill the
@@ -181,7 +181,7 @@ void Config_Init(Config_t *);
  * @return true when every option parsed, false on a bad or unknown option
  *         (an error message is printed to stderr).
  */
-bool Config_ParseCommandLine(Config_t *, int, char *[]);
+bool Config_ParseCommandLine(Config *, int, char *[]);
 
 /**
  * @brief Print the version line, usage line and the full option list to stdout.

@@ -158,11 +158,9 @@
   "3.2": {
    "files": {
     "src/cpu/cpu_mms.c": 4,
-    "src/frontend/nd100x/config.c": 3,
-    "src/frontend/nd100x/nd100x.c": 5,
     "src/ndlib/log.h": 1
    },
-   "total": 13
+   "total": 5
   },
   "3.3": {
    "files": {
@@ -182,16 +180,7 @@
     "src/cpu/cpu_types.h": 82,
     "src/cpu/float.c": 5,
     "src/devices/scsi/device_scsi.h": 1,
-    "src/frontend/nd100x/config.c": 11,
-    "src/frontend/nd100x/menu.c": 4,
-    "src/frontend/nd100x/nd100x.c": 26,
-    "src/frontend/nd100x/nd100x_shell.c": 15,
-    "src/frontend/nd100x/nd100x_shell.h": 2,
-    "src/frontend/nd100x/nd100x_types.h": 3,
-    "src/frontend/nd100x/screenmenu.c": 28,
-    "src/frontend/nd100x/screenmenu.h": 5,
-    "src/frontend/nd100x/vscreen.c": 4,
-    "src/frontend/nd100x/vscreen.h": 1,
+    "src/frontend/nd100x/nd100x.c": 1,
     "src/machine/machine_config.h": 1,
     "src/machine/machine_types.h": 3,
     "src/ndlib/ndlib_types.h": 2,
@@ -215,7 +204,7 @@
     "tools/reth-tap/test-framing.c": 1,
     "tools/reth-tap/test-gateway.c": 1
    },
-   "total": 494
+   "total": 396
   },
   "3.8": {
    "files": {
