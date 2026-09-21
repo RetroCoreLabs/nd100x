@@ -62,12 +62,12 @@ void MemoryWrite(uint16_t value, uint16_t addr, bool UseAPT, unsigned char byte_
 }
 
 /* The instructions under test. */
-void ndfunc_addd(uint16_t instr);
-void ndfunc_subd(uint16_t instr);
-void ndfunc_comd(uint16_t instr);
-void ndfunc_shde(uint16_t instr);
-void ndfunc_pack(uint16_t instr);
-void ndfunc_unpack(uint16_t instr);
+void opcode_addd_add_two_decimal_operands(uint16_t instr);
+void opcode_subd_subtract_two_decimal_operands(uint16_t instr);
+void opcode_comd_compare_two_decimal_operands(uint16_t instr);
+void opcode_shde_decimal_shift(uint16_t instr);
+void opcode_pack_convert_to_decimal(uint16_t instr);
+void opcode_unpack_convert_from_decimal(uint16_t instr);
 
 /* ---------------------------------------------------------------- */
 /* Test harness                                                     */
@@ -157,22 +157,22 @@ static void bcdtest_run(const bcd_test_case *tc)
     switch (tc->op)
     {
     case OP_ADDD:
-        ndfunc_addd(0140120);
+        opcode_addd_add_two_decimal_operands(0140120);
         break;
     case OP_SUBD:
-        ndfunc_subd(0140121);
+        opcode_subd_subtract_two_decimal_operands(0140121);
         break;
     case OP_COMD:
-        ndfunc_comd(0140122);
+        opcode_comd_compare_two_decimal_operands(0140122);
         break;
     case OP_PACK:
-        ndfunc_pack(0140124);
+        opcode_pack_convert_to_decimal(0140124);
         break;
     case OP_UPACK:
-        ndfunc_unpack(0140125);
+        opcode_unpack_convert_from_decimal(0140125);
         break;
     case OP_SHDE:
-        ndfunc_shde(0140126);
+        opcode_shde_decimal_shift(0140126);
         break;
     default:
         break;

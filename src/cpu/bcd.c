@@ -662,7 +662,7 @@ static bool bcd_add_sub(bcd_operand *op1, const bcd_operand *op2, int op2_sign_f
  * for either operand.  When the first operand field is too short to contain all
  * significant digits of the sum, a decimal overflow occurs."
  */
-void ndfunc_addd(uint16_t instr)
+void opcode_addd_add_two_decimal_operands(uint16_t instr)
 {
     bcd_operand op1;
     bcd_operand op2;
@@ -694,7 +694,7 @@ void ndfunc_addd(uint16_t instr)
  * is placed in the first operand's location."  SUBD flips op2's sign and then
  * runs the exact same ADDE body as ADDD.
  */
-void ndfunc_subd(uint16_t instr)
+void opcode_subd_subtract_two_decimal_operands(uint16_t instr)
 {
     bcd_operand op1;
     bcd_operand op2;
@@ -805,7 +805,7 @@ static int bcd_compare(const bcd_operand *op1, const bcd_operand *op2)
  *
  * A = 1 (op1 > op2), 0 (equal), -1 / 0xFFFF (op1 < op2).
  */
-void ndfunc_comd(uint16_t instr)
+void opcode_comd_compare_two_decimal_operands(uint16_t instr)
 {
     bcd_operand op1;
     bcd_operand op2;
@@ -1029,7 +1029,7 @@ static bool bcd_shde(bcd_operand *dst, const bcd_operand *src)
     return !overflow;
 }
 
-void ndfunc_shde(uint16_t instr)
+void opcode_shde_decimal_shift(uint16_t instr)
 {
     bcd_operand op1;
     bcd_operand op2;
@@ -1279,7 +1279,7 @@ static bool bcd_convert_to_packed(bcd_operand *dst, const bcd_operand *src)
     return true;
 }
 
-void ndfunc_pack(uint16_t instr)
+void opcode_pack_convert_to_decimal(uint16_t instr)
 {
     bcd_operand op1; /* A/D: ASCII source      */
     bcd_operand op2; /* X/T: packed BCD dest   */
@@ -1448,7 +1448,7 @@ static bool bcd_convert_to_unpacked(bcd_operand *dst, const bcd_operand *src)
     return true;
 }
 
-void ndfunc_unpack(uint16_t instr)
+void opcode_unpack_convert_from_decimal(uint16_t instr)
 {
     bcd_operand op1; /* A/D: packed BCD source */
     bcd_operand op2; /* X/T: ASCII destination */

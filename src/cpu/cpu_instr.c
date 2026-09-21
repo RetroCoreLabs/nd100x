@@ -45,7 +45,7 @@ void cpu_set_ring_at_clpt(int64_t n)
     s_ring_at_clpt = n > 0 ? n : 0;
 }
 #include <stdlib.h>
-#include <string.h> /* strlen()/strcmp() - VERSN identity parsing, see ndfunc_versn() */
+#include <string.h> /* strlen()/strcmp() - VERSN identity parsing, see opcode_versn_read_cpu_version() */
 #include <stdio.h>
 static void do_ident(uint16_t);
 static void do_lrb(uint16_t);
@@ -191,7 +191,7 @@ static void unimplemented_instr(uint16_t operand)
 
 /* AAA
  */
-static void ndfunc_aaa(uint16_t operand)
+static void opcode_aaa_add_argument_to_a(uint16_t operand)
 {
     short temp;
 
@@ -201,7 +201,7 @@ static void ndfunc_aaa(uint16_t operand)
 
 /* AAB
  */
-static void ndfunc_aab(uint16_t operand)
+static void opcode_aab_add_argument_to_b(uint16_t operand)
 {
     uint16_t temp;
 
@@ -211,7 +211,7 @@ static void ndfunc_aab(uint16_t operand)
 
 /* AAT
  */
-static void ndfunc_aat(uint16_t operand)
+static void opcode_aat_add_argument_to_t(uint16_t operand)
 {
     uint16_t temp;
 
@@ -221,7 +221,7 @@ static void ndfunc_aat(uint16_t operand)
 
 /* AAX
  */
-static void ndfunc_aax(uint16_t operand)
+static void opcode_aax_add_argument_to_x(uint16_t operand)
 {
     uint16_t temp;
 
@@ -232,7 +232,7 @@ static void ndfunc_aax(uint16_t operand)
 
 /* MON
  */
-static void ndfunc_mon(uint16_t operand)
+static void opcode_mon_monitor_call(uint16_t operand)
 {
     uint16_t monitor_number = (operand & 0x1ff);
 
@@ -259,35 +259,35 @@ static void ndfunc_mon(uint16_t operand)
 
 /* SAA
  */
-static void ndfunc_saa(uint16_t operand)
+static void opcode_saa_set_argument_to_a(uint16_t operand)
 {
     setreg(_A, signExtend(operand & 0xFF));
 }
 
 /* SAB
  */
-static void ndfunc_sab(uint16_t operand)
+static void opcode_sab_set_argument_to_b(uint16_t operand)
 {
     setreg(_B, signExtend(operand & 0xFF));
 }
 
 /* SAT
  */
-static void ndfunc_sat(uint16_t operand)
+static void opcode_sat_set_argument_to_t(uint16_t operand)
 {
     setreg(_T, signExtend(operand & 0xFF));
 }
 
 /* SAX
  */
-static void ndfunc_sax(uint16_t operand)
+static void opcode_sax_set_argument_to_x(uint16_t operand)
 {
     setreg(_X, signExtend(operand & 0xFF));
 }
 
 /* SHT, SHD, SHA, SAD
  */
-static void ndfunc_shifts(uint16_t operand)
+static void opcode_shift_group(uint16_t operand)
 {
     uint32_t double_reg;
 
@@ -314,7 +314,7 @@ static void ndfunc_shifts(uint16_t operand)
 
 /* NLZ
  */
-static void ndfunc_nlz(uint16_t operand)
+static void opcode_nlz_normalize_floating_accumulator(uint16_t operand)
 {
     if (g_current_fpp_type == FPP48)
     {
@@ -328,7 +328,7 @@ static void ndfunc_nlz(uint16_t operand)
 
 /* DNZ
  */
-static void ndfunc_dnz(uint16_t operand)
+static void opcode_dnz_denormalize_to_fixed_point(uint16_t operand)
 {
     if (g_current_fpp_type == FPP48)
     {
@@ -342,7 +342,7 @@ static void ndfunc_dnz(uint16_t operand)
 
 /* SRB (Privileged)
  */
-static void ndfunc_srb(uint16_t operand)
+static void opcode_srb_store_register_block(uint16_t operand)
 {
     if (!check_priv())
     {
@@ -355,7 +355,7 @@ static void ndfunc_srb(uint16_t operand)
 
 /* LRB (Privileged)
  */
-static void ndfunc_lrb(uint16_t operand)
+static void opcode_lrb_load_register_block(uint16_t operand)
 {
     if (!check_priv())
     {
@@ -415,7 +415,7 @@ static void cjp(bool jmp_flag, uint16_t operand)
 ///
 /// Affected: (P)
 /// </summary>
-static void ndfunc_jap(uint16_t operand)
+static void opcode_jap_jump_if_a_positive(uint16_t operand)
 {
     bool flag = ((1 << 15) & gA) == 0;
     cjp(flag, operand);
@@ -428,7 +428,7 @@ static void ndfunc_jap(uint16_t operand)
 ///
 /// Affected: (P)
 /// </summary>
-static void ndfunc_jan(uint16_t operand)
+static void opcode_jan_jump_if_a_negative(uint16_t operand)
 {
     bool flag = ((1 << 15) & gA) != 0;
     cjp(flag, operand);
@@ -441,7 +441,7 @@ static void ndfunc_jan(uint16_t operand)
 ///
 /// Affected: (P)
 /// </summary>
-static void ndfunc_jaz(uint16_t operand)
+static void opcode_jaz_jump_if_a_zero(uint16_t operand)
 {
     /* MICROCODE-VALIDATED 2026-07-20: JAZ does NOT touch STS.
      * RASK CS 007310-007313 (ND-110-RASK.LISTING.TXT:12259-12262) is
@@ -464,7 +464,7 @@ static void ndfunc_jaz(uint16_t operand)
 ///
 /// Affected: (P)
 /// </summary>
-static void ndfunc_jaf(uint16_t operand)
+static void opcode_jaf_jump_if_a_not_zero(uint16_t operand)
 {
     cjp(gA != 0, operand);
 }
@@ -477,7 +477,7 @@ static void ndfunc_jaf(uint16_t operand)
 /// X is incremented by one, and if the X bit 15 equals zero after the incrementation, the jump takes place.
 /// Affected: (P) and (X)
 /// </summary>
-static void ndfunc_jpc(uint16_t operand)
+static void opcode_jpc_increment_x_and_jump_if_x_positive(uint16_t operand)
 {
     gX++;
 
@@ -492,7 +492,7 @@ static void ndfunc_jpc(uint16_t operand)
 ///
 /// Affected: (P) and(X)
 /// </summary>
-static void ndfunc_jnc(uint16_t operand)
+static void opcode_jnc_increment_x_and_jump_if_x_negative(uint16_t operand)
 {
     gX++;
     cjp((gX & (1 << 15)) != 0, operand);
@@ -505,7 +505,7 @@ static void ndfunc_jnc(uint16_t operand)
 ///
 /// Affected: (P)
 /// </summary>
-static void ndfunc_jxn(uint16_t operand)
+static void opcode_jxn_jump_if_x_negative(uint16_t operand)
 {
     cjp((gX & (1 << 15)) != 0, operand);
 }
@@ -517,14 +517,14 @@ static void ndfunc_jxn(uint16_t operand)
 ///
 /// Affected: (P)
 /// </summary>
-static void ndfunc_jxz(uint16_t operand)
+static void opcode_jxz_jump_if_x_zero(uint16_t operand)
 {
     cjp(gX == 0, operand);
 }
 
 /* JPL
  */
-static void ndfunc_jpl(uint16_t operand)
+static void opcode_jpl_jump_if_last_result_positive(uint16_t operand)
 {
     uint16_t old_gPC = gPC - 1;
 
@@ -563,7 +563,7 @@ static void ndfunc_jpl(uint16_t operand)
 /* SKP
  * Skip instructions, this one interleaves with other instructions so might need some extra checkings.
  */
-static void ndfunc_skp(uint16_t operand)
+static void opcode_skp_skip_next_if_condition(uint16_t operand)
 {
     if (is_skip(operand))
     {
@@ -584,7 +584,7 @@ static void ndfunc_skp(uint16_t operand)
 ///
 /// The instruction will always have a skip return (no error condition)
 /// </summary>
-void ndfunc_bfill_new(uint16_t operand)
+void opcode_bfill_new_byte_fill(uint16_t operand)
 {
     (void)operand;
     bool useAPT = false;
@@ -614,7 +614,7 @@ void ndfunc_bfill_new(uint16_t operand)
     gPC++; // Skip return
 }
 
-static void ndfunc_bfill(uint16_t operand)
+static void opcode_bfill_byte_fill(uint16_t operand)
 {
     (void)operand;
     uint16_t d1, len, addr, i;
@@ -640,7 +640,7 @@ static void ndfunc_bfill(uint16_t operand)
 
 /* STZ
  */
-static void ndfunc_stz(uint16_t operand)
+static void opcode_stz_store_zero(uint16_t operand)
 {
     gEA = New_GetEffectiveAddr(operand, &gUseAPT);
     MemoryWrite(0, gEA, gUseAPT, 2);
@@ -648,7 +648,7 @@ static void ndfunc_stz(uint16_t operand)
 
 /* STA
  */
-static void ndfunc_sta(uint16_t operand)
+static void opcode_sta_store_a_register(uint16_t operand)
 {
     gEA = New_GetEffectiveAddr(operand, &gUseAPT);
 
@@ -657,7 +657,7 @@ static void ndfunc_sta(uint16_t operand)
 
 /* STT
  */
-static void ndfunc_stt(uint16_t operand)
+static void opcode_stt_store_t_register(uint16_t operand)
 {
     gEA = New_GetEffectiveAddr(operand, &gUseAPT);
     MemoryWrite(gT, gEA, gUseAPT, 2);
@@ -665,7 +665,7 @@ static void ndfunc_stt(uint16_t operand)
 
 /* STX
  */
-static void ndfunc_stx(uint16_t operand)
+static void opcode_stx_store_x_register(uint16_t operand)
 {
     gEA = New_GetEffectiveAddr(operand, &gUseAPT);
     MemoryWrite(gX, gEA, gUseAPT, 2);
@@ -673,7 +673,7 @@ static void ndfunc_stx(uint16_t operand)
 
 /* STD
  */
-static void ndfunc_std(uint16_t operand)
+static void opcode_std_store_double_word(uint16_t operand)
 {
     gEA = New_GetEffectiveAddr(operand, &gUseAPT);
     MemoryWrite(gA, gEA + 0, gUseAPT, 2);
@@ -692,7 +692,7 @@ static void ndfunc_std(uint16_t operand)
  * operand at ea/ea+1). STF on a 32-bit float writes stale T at ea and lands
  * the value one word off - misaligned exactly as on the real CPU.
  */
-static void ndfunc_stf(uint16_t operand)
+static void opcode_stf_store_floating_accumulator(uint16_t operand)
 {
     gEA = New_GetEffectiveAddr(operand, &gUseAPT);
     MemoryWrite(gT, gEA + 0, gUseAPT, 2);
@@ -702,7 +702,7 @@ static void ndfunc_stf(uint16_t operand)
 
 /* LDA
  */
-static void ndfunc_lda(uint16_t operand)
+static void opcode_lda_load_a_register(uint16_t operand)
 {
     gEA = New_GetEffectiveAddr(operand, &gUseAPT);
     gA = MemoryRead(gEA, gUseAPT);
@@ -710,7 +710,7 @@ static void ndfunc_lda(uint16_t operand)
 
 /* LDT
  */
-static void ndfunc_ldt(uint16_t operand)
+static void opcode_ldt_load_t_register(uint16_t operand)
 {
     gEA = New_GetEffectiveAddr(operand, &gUseAPT);
     gT = MemoryRead(gEA, gUseAPT);
@@ -718,7 +718,7 @@ static void ndfunc_ldt(uint16_t operand)
 
 /* LDX
  */
-static void ndfunc_ldx(uint16_t operand)
+static void opcode_ldx_load_x_register(uint16_t operand)
 {
     gEA = New_GetEffectiveAddr(operand, &gUseAPT);
     gX = MemoryRead(gEA, gUseAPT);
@@ -726,7 +726,7 @@ static void ndfunc_ldx(uint16_t operand)
 
 /* LDD
  */
-static void ndfunc_ldd(uint16_t operand)
+static void opcode_ldd_load_double_word(uint16_t operand)
 {
     gEA = New_GetEffectiveAddr(operand, &gUseAPT);
 
@@ -745,7 +745,7 @@ static void ndfunc_ldd(uint16_t operand)
  * --fpp=32: LDF overwrites T (which the 32-bit FPP never touches) and reads
  * the A,D value one word off - use LDD instead for 32-bit floats.
  */
-static void ndfunc_ldf(uint16_t operand)
+static void opcode_ldf_load_floating_accumulator(uint16_t operand)
 {
     gEA = New_GetEffectiveAddr(operand, &gUseAPT);
 
@@ -757,7 +757,7 @@ static void ndfunc_ldf(uint16_t operand)
 
 /* STZTX
  */
-static void ndfunc_stztx(uint16_t operand)
+static void opcode_stztx_store_zero_t_x_relative(uint16_t operand)
 {
     if (!check_priv())
     {
@@ -771,7 +771,7 @@ static void ndfunc_stztx(uint16_t operand)
 
 /* STATX
  */
-static void ndfunc_statx(uint16_t operand)
+static void opcode_statx_store_a_register_t_x_relative(uint16_t operand)
 {
     if (!check_priv())
     {
@@ -785,7 +785,7 @@ static void ndfunc_statx(uint16_t operand)
 
 /* STDTX
  */
-static void ndfunc_stdtx(uint16_t operand)
+static void opcode_stdtx_store_double_word_t_x_relative(uint16_t operand)
 {
     if (!check_priv())
     {
@@ -810,7 +810,7 @@ static void ndfunc_stdtx(uint16_t operand)
 ///
 /// Affected: (A)
 /// </summary>
-static void ndfunc_ldatx(uint16_t operand)
+static void opcode_ldatx_load_a_register_t_x_relative(uint16_t operand)
 {
     if (!check_priv())
     {
@@ -834,7 +834,7 @@ static void ndfunc_ldatx(uint16_t operand)
 ///
 /// Affected: (X)
 /// </summary>
-static void ndfunc_ldxtx(uint16_t operand)
+static void opcode_ldxtx_load_x_register_t_x_relative(uint16_t operand)
 {
     if (!check_priv())
     {
@@ -858,7 +858,7 @@ static void ndfunc_ldxtx(uint16_t operand)
 ///
 /// Affected: (A,D)
 /// </summary>
-static void ndfunc_lddtx(uint16_t operand)
+static void opcode_lddtx_load_double_word_t_x_relative(uint16_t operand)
 {
 
     if (!check_priv())
@@ -886,7 +886,7 @@ static void ndfunc_lddtx(uint16_t operand)
 ///
 /// Affected: (B)
 /// </summary>
-static void ndfunc_ldbtx(uint16_t operand)
+static void opcode_ldbtx_load_b_register_t_x_relative(uint16_t operand)
 {
     uint16_t temp;
     unsigned int result;
@@ -914,7 +914,7 @@ static void ndfunc_ldbtx(uint16_t operand)
 ///
 /// Affected: (EL), (P)
 /// </summary>
-static void ndfunc_min(uint16_t operand)
+static void opcode_min_memory_increment_and_skip_if_zero(uint16_t operand)
 {
     gEA = New_GetEffectiveAddr(operand, &gUseAPT);
 
@@ -930,7 +930,7 @@ static void ndfunc_min(uint16_t operand)
 
 /* ADD
  */
-static void ndfunc_add(uint16_t operand)
+static void opcode_add_add_to_a_register(uint16_t operand)
 {
     gEA = New_GetEffectiveAddr(operand, &gUseAPT);
 
@@ -940,7 +940,7 @@ static void ndfunc_add(uint16_t operand)
 
 /* SUB
  */
-static void ndfunc_sub(uint16_t operand)
+static void opcode_sub_subtract_from_a_register(uint16_t operand)
 {
     gEA = New_GetEffectiveAddr(operand, &gUseAPT);
     uint16_t eff_word = MemoryRead(gEA, gUseAPT);
@@ -949,7 +949,7 @@ static void ndfunc_sub(uint16_t operand)
 
 /* AND
  */
-static void ndfunc_and(uint16_t operand)
+static void opcode_and_logical_and_to_a_register(uint16_t operand)
 {
     gEA = New_GetEffectiveAddr(operand, &gUseAPT);
     gA = gA & MemoryRead(gEA, gUseAPT);
@@ -957,7 +957,7 @@ static void ndfunc_and(uint16_t operand)
 
 /* ORA
  */
-static void ndfunc_ora(uint16_t operand)
+static void opcode_ora_logical_or_to_a_register(uint16_t operand)
 {
     gEA = New_GetEffectiveAddr(operand, &gUseAPT);
     gA = gA | MemoryRead(gEA, gUseAPT);
@@ -968,10 +968,10 @@ static void ndfunc_ora(uint16_t operand)
  * FPP32 memory-operand layout (also FSB/FMU/FDV below): the 2-word operand
  * lives at ea/ea+1 and the accumulator is the A,D pair. IMPORTANT: LDF/STF
  * are NOT the store/load path for these floats - they are unconditional
- * 3-word T/A/D movers in the real microcode (see ndfunc_stf/ndfunc_ldf) and
+ * 3-word T/A/D movers in the real microcode (see opcode_stf_store_floating_accumulator/opcode_ldf_load_floating_accumulator) and
  * would place the value one word off. Store/load 32-bit floats with STD/LDD.
  */
-static void ndfunc_fad(uint16_t operand)
+static void opcode_fad_add_to_floating_accumulator(uint16_t operand)
 {
     gEA = New_GetEffectiveAddr(operand, &gUseAPT);
 
@@ -1006,7 +1006,7 @@ static void ndfunc_fad(uint16_t operand)
 
 /* FSB
  */
-static void ndfunc_fsb(uint16_t operand)
+static void opcode_fsb_subtract_from_floating_accumulator(uint16_t operand)
 {
     gEA = New_GetEffectiveAddr(operand, &gUseAPT);
 
@@ -1041,7 +1041,7 @@ static void ndfunc_fsb(uint16_t operand)
 
 /* FMU
  */
-static void ndfunc_fmu(uint16_t operand)
+static void opcode_fmu_multiply_floating_accumulator(uint16_t operand)
 {
     gEA = New_GetEffectiveAddr(operand, &gUseAPT);
 
@@ -1076,7 +1076,7 @@ static void ndfunc_fmu(uint16_t operand)
 
 /* FDV
  */
-static void ndfunc_fdv(uint16_t operand)
+static void opcode_fdv_divide_floating_accumulator(uint16_t operand)
 {
     gEA = New_GetEffectiveAddr(operand, &gUseAPT);
 
@@ -1119,7 +1119,7 @@ static void ndfunc_fdv(uint16_t operand)
 
 /* JMP
  */
-static void ndfunc_jmp(uint16_t operand)
+static void opcode_jmp_jump_unconditional(uint16_t operand)
 {
     uint16_t old_gPC = gPC - 1;
 
@@ -1134,7 +1134,7 @@ static void ndfunc_jmp(uint16_t operand)
 
 /* GECO
  */
-static void ndfunc_geco(uint16_t operand)
+static void opcode_geco_customer_specified_instruction(uint16_t operand)
 {
     (void)operand;
     /*
@@ -1690,7 +1690,7 @@ void cpu_versn_set_identity_from_env(void)
 /*
  * True when the emulated CPU is an ND-120 (any ND-120 variant). SINTRAN's SYSEVAL uses
  * VERSN's T-register bit 15 to tell an ND-120 from an ND-110; this predicate drives that
- * bit (see ndfunc_versn / the TRA CS path). Ported from the ND-120-support helper
+ * bit (see opcode_versn_read_cpu_version / the TRA CS path). Ported from the ND-120-support helper
  * (commit 97c9961); adapted to this tree's CpuType enum, which carries only ND120CX.
  */
 static bool versn_is_nd120(void)
@@ -1698,7 +1698,7 @@ static bool versn_is_nd120(void)
     return (g_current_cpu_type == ND120CX);
 }
 
-void ndfunc_versn(uint16_t operand)
+void opcode_versn_read_cpu_version(uint16_t operand)
 {
     (void)operand;
     /*
@@ -1803,7 +1803,7 @@ static bool update_memory_io(void)
  * the CPU does not have to pull in the whole device-model header. */
 bool DeviceManager_IotOp(uint8_t devno, uint8_t func, uint16_t *regA, bool *skip);
 
-static void ndfunc_iot(uint16_t operand)
+static void opcode_iot_nord_1_legacy_do_not_use(uint16_t operand)
 {
     // ND110 Microcode:
     // IOT - INSTRUCTION IS PRIVILEGED WHEN RING = 0 OR 1
@@ -1858,7 +1858,7 @@ static void ndfunc_iot(uint16_t operand)
 
 /* IOX (Privileged)
  */
-static void ndfunc_iox(uint16_t operand)
+static void opcode_iox_exchange_with_io_system(uint16_t operand)
 {
     if (!check_priv())
     {
@@ -1873,7 +1873,7 @@ static void ndfunc_iox(uint16_t operand)
 
 /* IOXT (Privileged)
  */
-static void ndfunc_ioxt(uint16_t operand)
+static void opcode_ioxt_exchange_with_io_system_t_addressed(uint16_t operand)
 {
     (void)operand;
     if (!check_priv())
@@ -1893,7 +1893,7 @@ static void ndfunc_ioxt(uint16_t operand)
  *
  * NOTE: Privileged instruction
  */
-static void ndfunc_ident(uint16_t operand)
+static void opcode_ident_identify_interrupting_device(uint16_t operand)
 {
     if (!check_priv())
     {
@@ -1924,7 +1924,7 @@ static void ndfunc_ident(uint16_t operand)
 
 /* OPCOM (Privileged)
  */
-static void ndfunc_opcom(uint16_t operand)
+static void opcode_opcom_operator_communication(uint16_t operand)
 {
     (void)operand;
     if (!check_priv())
@@ -1940,7 +1940,7 @@ static void ndfunc_opcom(uint16_t operand)
 ///
 /// Note: This instruction results in a no-operation if the A register of the current program level is used
 /// </summary>
-static void ndfunc_irw(uint16_t operand)
+static void opcode_irw_inter_register_write(uint16_t operand)
 {
     if (!check_priv())
     {
@@ -1979,7 +1979,7 @@ static void ndfunc_irw(uint16_t operand)
 /// If bits 0-2 are zero, the status registers on the specified program level will be read into the A register bits 0-7, with bits 8-15 cleared.
 /// The IRR instruction is privileged.
 /// </summary>
-static void ndfunc_irr(uint16_t operand)
+static void opcode_irr_inter_register_read(uint16_t operand)
 {
     if (!check_priv())
     {
@@ -2001,7 +2001,7 @@ static void ndfunc_irr(uint16_t operand)
 
 /* EXAM (Privileged)
  */
-static void ndfunc_exam(uint16_t operand)
+static void opcode_exam_examine_memory(uint16_t operand)
 {
     (void)operand;
     if (!check_priv())
@@ -2017,7 +2017,7 @@ static void ndfunc_exam(uint16_t operand)
 /* DEPO (Privileged)
  */
 
-static void ndfunc_depo(uint16_t operand)
+static void opcode_depo_deposit_memory(uint16_t operand)
 {
     (void)operand;
     if (!check_priv())
@@ -2031,7 +2031,7 @@ static void ndfunc_depo(uint16_t operand)
 
 /* POF (Privileged)
  */
-static void ndfunc_pof(uint16_t operand)
+static void opcode_pof_paging_off(uint16_t operand)
 {
     (void)operand;
 
@@ -2044,7 +2044,7 @@ static void ndfunc_pof(uint16_t operand)
 
 /* PIOF (Privileged)
  */
-static void ndfunc_piof(uint16_t operand)
+static void opcode_piof_paging_and_interrupt_off(uint16_t operand)
 {
     (void)operand;
 
@@ -2059,7 +2059,7 @@ static void ndfunc_piof(uint16_t operand)
 
 /* PON
  */
-static void ndfunc_pon(uint16_t operand)
+static void opcode_pon_paging_on(uint16_t operand)
 {
     (void)operand;
     setbit_STS_MSB(_PONI, 1);
@@ -2067,7 +2067,7 @@ static void ndfunc_pon(uint16_t operand)
 
 /* PION
  */
-static void ndfunc_pion(uint16_t operand)
+static void opcode_pion_paging_and_interrupt_on(uint16_t operand)
 {
     (void)operand;
     setbit_STS_MSB(_IONI, 1);
@@ -2078,7 +2078,7 @@ static void ndfunc_pion(uint16_t operand)
 /// <summary>
 /// IOF - Turn off interrupt system
 /// </summary>
-static void ndfunc_iof(uint16_t operand)
+static void opcode_iof_interrupt_off(uint16_t operand)
 {
     (void)operand;
     if (!check_priv())
@@ -2094,7 +2094,7 @@ static void ndfunc_iof(uint16_t operand)
 ///
 /// Turn on interrupt system
 /// </summary>
-static void ndfunc_ion(uint16_t operand)
+static void opcode_ion_interrupt_on(uint16_t operand)
 {
     (void)operand;
     setbit_STS_MSB(_IONI, 1);
@@ -2104,7 +2104,7 @@ static void ndfunc_ion(uint16_t operand)
 
 /* REX (Privileged)
  */
-static void ndfunc_rex(uint16_t operand)
+static void opcode_rex_reset_extended_address_mode(uint16_t operand)
 {
     (void)operand;
     if (!check_priv())
@@ -2117,7 +2117,7 @@ static void ndfunc_rex(uint16_t operand)
 
 /* SEX (Privileged)
  */
-static void ndfunc_sex(uint16_t operand)
+static void opcode_sex_set_extended_address_mode(uint16_t operand)
 {
     (void)operand;
     if (!check_priv())
@@ -2184,7 +2184,7 @@ static uint32_t nd110_bankgroup_phys(uint16_t bank, uint16_t index, uint16_t ope
  * NOTE: Privileged instruction
  */
 
-static void ndfunc_setpt(uint16_t operand)
+static void opcode_setpt_set_page_tables(uint16_t operand)
 {
     (void)operand;
     if (!check_priv())
@@ -2260,7 +2260,7 @@ static void ndfunc_setpt(uint16_t operand)
 ///
 /// Affected: (?)
 /// </summary>
-static void ndfunc_clept(uint16_t operand)
+static void opcode_clept_clear_page_tables(uint16_t operand)
 {
     (void)operand;
     if (!check_priv())
@@ -2384,7 +2384,7 @@ static void ndfunc_clept(uint16_t operand)
 ///
 /// Affected: (?)
 /// </summary>
-static void ndfunc_clnreent(uint16_t operand)
+static void opcode_clnreent_clear_non_reentrant_pages(uint16_t operand)
 {
     (void)operand;
     uint16_t a_reg;
@@ -2498,7 +2498,7 @@ static void ndfunc_clnreent(uint16_t operand)
 ///
 /// Affected: (?)
 /// </summary>
-static void ndfunc_chreent_pages(uint16_t operand)
+static void opcode_chreent_pages(uint16_t operand)
 {
     (void)operand;
     uint16_t prog_d;
@@ -2616,7 +2616,7 @@ static void clepu_mark_working_set(uint32_t idx)
     WritePhysicalMemory((int)table_addr, tw, true); /* 004114 DERQ */
 }
 
-static void ndfunc_clepu(uint16_t operand)
+static void opcode_clepu_clear_page_tables_and_collect_page_used(uint16_t operand)
 {
     (void)operand;
     if (!check_priv())
@@ -2663,7 +2663,7 @@ static void ndfunc_clepu(uint16_t operand)
      * table word lives at L + word (physical).  The save/PGU/clear order matches the
      * microcode: save [X+2] (004077), collect (004101-114), then clear (004116).
      *
-     * NOTE: unlike the older ndfunc_clept above, the next-node pointer at [X] is read FIRST,
+     * NOTE: unlike the older opcode_clept_clear_page_tables above, the next-node pointer at [X] is read FIRST,
      * on every pass including the terminating one - that access order and the final X are
      * oracle-verified (see the RetroCore CLEPT/CLEPU comments).
      */
@@ -2744,7 +2744,7 @@ static void ndfunc_clepu(uint16_t operand)
  *
  * Ref ND-06.026.1 EN, page 196. Port of RetroCore WGLOB().
  */
-static void ndfunc_wglob(uint16_t operand)
+static void opcode_wglob_initialize_global_pointers(uint16_t operand)
 {
     (void)operand;
     if (!check_priv())
@@ -2764,7 +2764,7 @@ static void ndfunc_wglob(uint16_t operand)
  *
  * Ref ND-06.026.1 EN, page 196. Port of RetroCore RGLOB().
  */
-static void ndfunc_rglob(uint16_t operand)
+static void opcode_rglob_examine_global_pointers(uint16_t operand)
 {
     (void)operand;
     if (!check_priv())
@@ -2788,7 +2788,7 @@ static void ndfunc_rglob(uint16_t operand)
  * Faithful to RASK microcode INSP1 (ND-110-RASK.LISTING.TXT 10386-10501).
  * Port of RetroCore INSPL().
  */
-static void ndfunc_inspl(uint16_t operand)
+static void opcode_inspl_insert_page_in_page_list(uint16_t operand)
 {
     (void)operand;
     uint32_t stbnk;
@@ -2852,7 +2852,7 @@ static void ndfunc_inspl(uint16_t operand)
  * Faithful to RASK microcode REMP1 (ND-110-RASK.LISTING.TXT 10463-10527).
  * Port of RetroCore REMPL().
  */
-static void ndfunc_rempl(uint16_t operand)
+static void opcode_rempl_remove_page_from_page_list(uint16_t operand)
 {
     (void)operand;
     uint32_t stbnk;
@@ -2922,7 +2922,7 @@ static void ndfunc_rempl(uint16_t operand)
  *
  * Port of RetroCore CNREK().
  */
-static void ndfunc_cnrek(uint16_t operand)
+static void opcode_cnrek_clear_non_reentrant_pages_sintran_k(uint16_t operand)
 {
     (void)operand;
     uint16_t a_reg;
@@ -3002,7 +3002,7 @@ static void ndfunc_cnrek(uint16_t operand)
  * Faithful to RASK microcode CLPK1/CLPK4/CLPK3 (ND-110-RASK.LISTING.TXT 10585-10704).
  * Port of RetroCore CLPT().
  */
-static void ndfunc_clpt(uint16_t operand)
+static void opcode_clpt_clear_segment_from_page_tables(uint16_t operand)
 {
     (void)operand;
     uint32_t cmbnk;
@@ -3165,7 +3165,7 @@ static void nd110_enter_page_table(uint16_t r4_mask)
  * Enter a segment's pages into the page tables.  Faithful to RASK ENPK1/REPK2
  * (ND-110-RASK.LISTING.TXT 10634-10704).  Port of RetroCore ENPT().
  */
-static void ndfunc_enpt(uint16_t operand)
+static void opcode_enpt_enter_segment_in_page_tables(uint16_t operand)
 {
     (void)operand;
     if (!check_priv())
@@ -3183,7 +3183,7 @@ static void ndfunc_enpt(uint16_t operand)
  * reentrant.  Faithful to RASK REPK1/REPK2 (ND-110-RASK.LISTING.TXT 10640-10704).
  * Port of RetroCore REPT().
  */
-static void ndfunc_rept(uint16_t operand)
+static void opcode_rept_enter_reentrant_segment_in_page_tables(uint16_t operand)
 {
     (void)operand;
     if (!check_priv())
@@ -3203,7 +3203,7 @@ static void ndfunc_rept(uint16_t operand)
  *
  * Port of RetroCore LBIT().
  */
-static void ndfunc_lbit(uint16_t operand)
+static void opcode_lbit_load_bit_accumulator_from_logical_memory(uint16_t operand)
 {
     (void)operand;
     uint32_t bit_index;
@@ -3231,7 +3231,7 @@ static void ndfunc_lbit(uint16_t operand)
  *
  * Port of RetroCore LBITP().
  */
-static void ndfunc_lbitp(uint16_t operand)
+static void opcode_lbitp_load_bit_accumulator_from_physical_memory(uint16_t operand)
 {
     (void)operand;
     uint32_t bit_index;
@@ -3263,7 +3263,7 @@ static void ndfunc_lbitp(uint16_t operand)
  *
  * Port of RetroCore SBIT().
  */
-static void ndfunc_sbit(uint16_t operand)
+static void opcode_sbit_store_bit_accumulator_to_logical_memory(uint16_t operand)
 {
     (void)operand;
     uint32_t bit_index;
@@ -3298,7 +3298,7 @@ static void ndfunc_sbit(uint16_t operand)
  *
  * Port of RetroCore SBITP().
  */
-static void ndfunc_sbitp(uint16_t operand)
+static void opcode_sbitp_store_bit_accumulator_to_physical_memory(uint16_t operand)
 {
     (void)operand;
     uint32_t bit_index;
@@ -3338,7 +3338,7 @@ static void ndfunc_sbitp(uint16_t operand)
  *
  * Port of RetroCore LBYTP().
  */
-static void ndfunc_lbytp(uint16_t operand)
+static void opcode_lbytp_load_byte_from_physical_memory(uint16_t operand)
 {
     (void)operand;
     uint32_t bank;
@@ -3373,7 +3373,7 @@ static void ndfunc_lbytp(uint16_t operand)
  *
  * Port of RetroCore SBYTP().
  */
-static void ndfunc_sbytp(uint16_t operand)
+static void opcode_sbytp_store_byte_in_physical_memory(uint16_t operand)
 {
     (void)operand;
     uint32_t bank;
@@ -3413,7 +3413,7 @@ static void ndfunc_sbytp(uint16_t operand)
  *
  * Port of RetroCore TSETP().
  */
-static void ndfunc_tsetp(uint16_t operand)
+static void opcode_tsetp_test_and_set_physical_word(uint16_t operand)
 {
     (void)operand;
     uint32_t bank;
@@ -3439,7 +3439,7 @@ static void ndfunc_tsetp(uint16_t operand)
  *
  * Port of RetroCore RDUSP().
  */
-static void ndfunc_rdusp(uint16_t operand)
+static void opcode_rdusp_read_physical_word_bypassing_cache(uint16_t operand)
 {
     (void)operand;
     uint32_t bank;
@@ -3465,7 +3465,7 @@ static void ndfunc_rdusp(uint16_t operand)
  */
 
 /* LASB - 140700 + (delta << 3) (privileged): A := STBNK[B + delta]. */
-static void ndfunc_lasb(uint16_t operand)
+static void opcode_lasb_load_a_from_segment_table_bank(uint16_t operand)
 {
     if (!check_priv())
     {
@@ -3476,7 +3476,7 @@ static void ndfunc_lasb(uint16_t operand)
 }
 
 /* SASB - 140701 + (delta << 3) (privileged): STBNK[B + delta] := A. */
-static void ndfunc_sasb(uint16_t operand)
+static void opcode_sasb_store_a_in_segment_table_bank(uint16_t operand)
 {
     if (!check_priv())
     {
@@ -3487,7 +3487,7 @@ static void ndfunc_sasb(uint16_t operand)
 }
 
 /* LACB - 140702 + (delta << 3) (privileged): A := CMBUK[X + delta]. */
-static void ndfunc_lacb(uint16_t operand)
+static void opcode_lacb_load_a_from_core_map_bank(uint16_t operand)
 {
     if (!check_priv())
     {
@@ -3498,7 +3498,7 @@ static void ndfunc_lacb(uint16_t operand)
 }
 
 /* SACB - 140703 + (delta << 3) (privileged): CMBUK[X + delta] := A. */
-static void ndfunc_sacb(uint16_t operand)
+static void opcode_sacb_store_a_in_core_map_bank(uint16_t operand)
 {
     if (!check_priv())
     {
@@ -3509,7 +3509,7 @@ static void ndfunc_sacb(uint16_t operand)
 }
 
 /* LXSB - 140704 + (delta << 3) (privileged): X := STBNK[B + delta]. */
-static void ndfunc_lxsb(uint16_t operand)
+static void opcode_lxsb_load_x_from_segment_table_bank(uint16_t operand)
 {
     if (!check_priv())
     {
@@ -3520,7 +3520,7 @@ static void ndfunc_lxsb(uint16_t operand)
 }
 
 /* LXCB - 140705 + (delta << 3) (privileged): X := CMBUK[X + delta]. */
-static void ndfunc_lxcb(uint16_t operand)
+static void opcode_lxcb_load_x_from_core_map_bank(uint16_t operand)
 {
     if (!check_priv())
     {
@@ -3531,7 +3531,7 @@ static void ndfunc_lxcb(uint16_t operand)
 }
 
 /* SZSB - 140706 + (delta << 3) (privileged): STBNK[B + delta] := 0. */
-static void ndfunc_szsb(uint16_t operand)
+static void opcode_szsb_store_zero_in_segment_table_bank(uint16_t operand)
 {
     if (!check_priv())
     {
@@ -3542,7 +3542,7 @@ static void ndfunc_szsb(uint16_t operand)
 }
 
 /* SZCB - 140707 + (delta << 3) (privileged): CMBUK[X + delta] := 0. */
-static void ndfunc_szcb(uint16_t operand)
+static void opcode_szcb_store_zero_in_core_map_bank(uint16_t operand)
 {
     if (!check_priv())
     {
@@ -3596,7 +3596,7 @@ static void ndfunc_szcb(uint16_t operand)
  * Reading the frame with UseAPT=0 while PTM=1 (split I/D space) fetches a word
  * from the CODE page where SMAX should be, producing a bogus stack overflow.
  */
-static void ndfunc_init(uint16_t operand)
+static void opcode_init_initialize_stack(uint16_t operand)
 {
     (void)operand;
     uint16_t demand, start, maxsize, flag;
@@ -3633,7 +3633,7 @@ static void ndfunc_init(uint16_t operand)
  * ADDR+3: Normal return
  *
  */
-static void ndfunc_entr(uint16_t operand)
+static void opcode_entr_enter_stack(uint16_t operand)
 {
     (void)operand;
     uint16_t oldB, demand, smax, stp;
@@ -3656,7 +3656,7 @@ static void ndfunc_entr(uint16_t operand)
 
 /* LEAVE
  */
-static void ndfunc_leave(uint16_t operand)
+static void opcode_leave_leave_stack(uint16_t operand)
 {
     (void)operand;
     gPC = MemoryRead(gB - 128, 1);
@@ -3665,7 +3665,7 @@ static void ndfunc_leave(uint16_t operand)
 
 /* ELEAV
  */
-static void ndfunc_eleav(uint16_t operand)
+static void opcode_eleav_error_leave_stack(uint16_t operand)
 {
     (void)operand;
     uint16_t tmp;
@@ -3689,7 +3689,7 @@ static void ndfunc_eleav(uint16_t operand)
 ///
 /// Affected: (A)
 /// </summary>
-static void ndfunc_lbyt(uint16_t operand)
+static void opcode_lbyt_load_byte_to_a_register(uint16_t operand)
 {
     (void)operand;
 
@@ -3717,7 +3717,7 @@ static void ndfunc_lbyt(uint16_t operand)
 ///
 /// Affected: (EL)
 /// </summary>
-static void ndfunc_sbyt(uint16_t operand)
+static void opcode_sbyt_store_byte_from_a_register(uint16_t operand)
 {
     (void)operand;
 
@@ -3750,7 +3750,7 @@ static void ndfunc_sbyt(uint16_t operand)
 ///
 /// Affected: (X)
 /// </summary>
-static void ndfunc_mix3(uint16_t operand)
+static void opcode_mix3_multiply_index_by_three(uint16_t operand)
 {
     (void)operand;
     gX = (uint16_t)((gA - 1) * 3);
@@ -4161,7 +4161,7 @@ static void do_wait(uint16_t instr)
  * Unconditionally stops the emulator.
  * A register = process exit code.
  */
-static void ndfunc_halt(uint16_t operand)
+static void opcode_halt(uint16_t operand)
 {
     (void)operand;
     printf("\r\nHALT opcode at PIL[%d] PC[%6o] A[%6o]\r\n", gPIL, gPC, gA);
@@ -4171,7 +4171,7 @@ static void ndfunc_halt(uint16_t operand)
 
 /* LWCS (Privileged)
  */
-static void ndfunc_lwcs(uint16_t instr)
+static void opcode_lwcs_load_writable_control_store(uint16_t instr)
 {
     (void)instr;
     // LWCS is a no-operation on the ND-110
@@ -5196,7 +5196,7 @@ static void do_move_bytes(bool checkOverlapping)
 /*
  * MOVB
  */
-void ndfunc_movb(uint16_t instr)
+void opcode_movb_move_byte(uint16_t instr)
 {
     (void)instr;
     do_move_bytes(false);
@@ -5205,7 +5205,7 @@ void ndfunc_movb(uint16_t instr)
 /*
  * MOVBF instruction.
  */
-void ndfunc_movbf(uint16_t instr)
+void opcode_movbf_move_bytes_forward(uint16_t instr)
 {
     (void)instr;
     do_move_bytes(true);
@@ -5552,121 +5552,121 @@ void Setup_Instructions(void) // NOLINT(readability-function-size)
 {
     //instruction_add_range(0000000, 0177777, &illegal_instr); /* First make all instructions by default point to illegal_instr  */
 
-    // instruction_add_range(0000000, 0003777, &ndfunc_stz); /* STZ  */
-    instruction_add_mask(0000000, 0xF800, &ndfunc_stz);
+    // instruction_add_range(0000000, 0003777, &opcode_stz_store_zero); /* STZ  */
+    instruction_add_mask(0000000, 0xF800, &opcode_stz_store_zero);
 
-    // instruction_add_range(0004000, 0007777, &ndfunc_sta); /* STA  */
-    instruction_add_mask(0004000, 0xF800, &ndfunc_sta);
+    // instruction_add_range(0004000, 0007777, &opcode_sta_store_a_register); /* STA  */
+    instruction_add_mask(0004000, 0xF800, &opcode_sta_store_a_register);
 
-    // instruction_add_range(0010000, 0013777, &ndfunc_stt); /* STT  */
-    instruction_add_mask(0010000, 0xF800, &ndfunc_stt);
+    // instruction_add_range(0010000, 0013777, &opcode_stt_store_t_register); /* STT  */
+    instruction_add_mask(0010000, 0xF800, &opcode_stt_store_t_register);
 
-    // instruction_add_range(0014000, 0017777, &ndfunc_stx); /* STX  */
-    instruction_add_mask(0014000, 0xF800, &ndfunc_stx);
+    // instruction_add_range(0014000, 0017777, &opcode_stx_store_x_register); /* STX  */
+    instruction_add_mask(0014000, 0xF800, &opcode_stx_store_x_register);
 
-    // instruction_add_range(0020000, 0023777, &ndfunc_std); /* STD  */
-    instruction_add_mask(0020000, 0xF800, &ndfunc_std);
+    // instruction_add_range(0020000, 0023777, &opcode_std_store_double_word); /* STD  */
+    instruction_add_mask(0020000, 0xF800, &opcode_std_store_double_word);
 
-    // instruction_add_range(0024000, 0027777, &ndfunc_ldd); /* LDD  */
-    instruction_add_mask(0024000, 0xF800, &ndfunc_ldd);
+    // instruction_add_range(0024000, 0027777, &opcode_ldd_load_double_word); /* LDD  */
+    instruction_add_mask(0024000, 0xF800, &opcode_ldd_load_double_word);
 
-    // instruction_add_range(0030000, 0033777, &ndfunc_stf); /* STF  */
-    instruction_add_mask(0030000, 0xF800, &ndfunc_stf);
+    // instruction_add_range(0030000, 0033777, &opcode_stf_store_floating_accumulator); /* STF  */
+    instruction_add_mask(0030000, 0xF800, &opcode_stf_store_floating_accumulator);
 
-    // instruction_add_range(0034000, 0037777, &ndfunc_ldf); /* LDF  */
-    instruction_add_mask(0034000, 0xF800, &ndfunc_ldf);
+    // instruction_add_range(0034000, 0037777, &opcode_ldf_load_floating_accumulator); /* LDF  */
+    instruction_add_mask(0034000, 0xF800, &opcode_ldf_load_floating_accumulator);
 
-    // instruction_add_range(0040000, 0043777, &ndfunc_min); /* MIN  */
-    instruction_add_mask(0040000, 0xF800, &ndfunc_min);
+    // instruction_add_range(0040000, 0043777, &opcode_min_memory_increment_and_skip_if_zero); /* MIN  */
+    instruction_add_mask(0040000, 0xF800, &opcode_min_memory_increment_and_skip_if_zero);
 
-    // instruction_add_range(0044000, 0047777, &ndfunc_lda); /* LDA  */
-    instruction_add_mask(0044000, 0xF800, &ndfunc_lda);
+    // instruction_add_range(0044000, 0047777, &opcode_lda_load_a_register); /* LDA  */
+    instruction_add_mask(0044000, 0xF800, &opcode_lda_load_a_register);
 
-    // instruction_add_range(0050000, 0053777, &ndfunc_ldt); /* LDT  */
-    instruction_add_mask(0050000, 0xF800, &ndfunc_ldt);
+    // instruction_add_range(0050000, 0053777, &opcode_ldt_load_t_register); /* LDT  */
+    instruction_add_mask(0050000, 0xF800, &opcode_ldt_load_t_register);
 
-    // instruction_add_range(0054000, 0057777, &ndfunc_ldx); /* LDX  */
-    instruction_add_mask(0054000, 0xF800, &ndfunc_ldx);
+    // instruction_add_range(0054000, 0057777, &opcode_ldx_load_x_register); /* LDX  */
+    instruction_add_mask(0054000, 0xF800, &opcode_ldx_load_x_register);
 
-    // instruction_add_range(0060000, 0063777, &ndfunc_add); /* ADD  */
-    instruction_add_mask(0060000, 0xF800, &ndfunc_add);
+    // instruction_add_range(0060000, 0063777, &opcode_add_add_to_a_register); /* ADD  */
+    instruction_add_mask(0060000, 0xF800, &opcode_add_add_to_a_register);
 
-    // instruction_add_range(0064000, 0067777, &ndfunc_sub); /* SUB  */
-    instruction_add_mask(0064000, 0xF800, &ndfunc_sub);
+    // instruction_add_range(0064000, 0067777, &opcode_sub_subtract_from_a_register); /* SUB  */
+    instruction_add_mask(0064000, 0xF800, &opcode_sub_subtract_from_a_register);
 
-    // instruction_add(0070000, 0073777, &ndfunc_and); /* AND  */
-    instruction_add_mask(0070000, 0xF800, &ndfunc_and);
+    // instruction_add(0070000, 0073777, &opcode_and_logical_and_to_a_register); /* AND  */
+    instruction_add_mask(0070000, 0xF800, &opcode_and_logical_and_to_a_register);
 
-    // instruction_add_range(0074000, 0077777, &ndfunc_ora); /* ORA  */
-    instruction_add_mask(0074000, 0xF800, &ndfunc_ora);
+    // instruction_add_range(0074000, 0077777, &opcode_ora_logical_or_to_a_register); /* ORA  */
+    instruction_add_mask(0074000, 0xF800, &opcode_ora_logical_or_to_a_register);
 
-    // instruction_add_range(0100000, 0103777, &ndfunc_fad); /* FAD  */
-    instruction_add_mask(0100000, 0xF800, &ndfunc_fad);
+    // instruction_add_range(0100000, 0103777, &opcode_fad_add_to_floating_accumulator); /* FAD  */
+    instruction_add_mask(0100000, 0xF800, &opcode_fad_add_to_floating_accumulator);
 
-    // instruction_add_range(0104000, 0107777, &ndfunc_fsb); /* FSB  */
-    instruction_add_mask(0104000, 0xF800, &ndfunc_fsb);
+    // instruction_add_range(0104000, 0107777, &opcode_fsb_subtract_from_floating_accumulator); /* FSB  */
+    instruction_add_mask(0104000, 0xF800, &opcode_fsb_subtract_from_floating_accumulator);
 
-    // instruction_add_range(0110000, 0113777, &ndfunc_fmu); /* FMU  */
-    instruction_add_mask(0110000, 0xF800, &ndfunc_fmu);
+    // instruction_add_range(0110000, 0113777, &opcode_fmu_multiply_floating_accumulator); /* FMU  */
+    instruction_add_mask(0110000, 0xF800, &opcode_fmu_multiply_floating_accumulator);
 
-    // instruction_add_range(0114000, 0117777, &ndfunc_fdv); /* FDV  */
-    instruction_add_mask(0114000, 0xF800, &ndfunc_fdv);
+    // instruction_add_range(0114000, 0117777, &opcode_fdv_divide_floating_accumulator); /* FDV  */
+    instruction_add_mask(0114000, 0xF800, &opcode_fdv_divide_floating_accumulator);
 
     // instruction_add_range(0120000, 0123777, &mpy);       /* MPY  */
     instruction_add_mask(0120000, 0xF800, &mpy);
 
-    // instruction_add_range(0124000, 0127777, &ndfunc_jmp); /* JMP  */
-    instruction_add_mask(0124000, 0xF800, &ndfunc_jmp);
+    // instruction_add_range(0124000, 0127777, &opcode_jmp_jump_unconditional); /* JMP  */
+    instruction_add_mask(0124000, 0xF800, &opcode_jmp_jump_unconditional);
 
-    // instruction_add_range(0134000, 0137777, &ndfunc_jpl); /* JPL  */
-    instruction_add_mask(0134000, 0xF800, &ndfunc_jpl);
+    // instruction_add_range(0134000, 0137777, &opcode_jpl_jump_if_last_result_positive); /* JPL  */
+    instruction_add_mask(0134000, 0xF800, &opcode_jpl_jump_if_last_result_positive);
 
     // CJPs - Conditional jumps
-    // instruction_add_range(0130000, 0130377, &ndfunc_jap); /* JAP */
-    instruction_add_mask(0130000, 0xFF00, &ndfunc_jap);
+    // instruction_add_range(0130000, 0130377, &opcode_jap_jump_if_a_positive); /* JAP */
+    instruction_add_mask(0130000, 0xFF00, &opcode_jap_jump_if_a_positive);
 
-    // instruction_add_range(0130400, 0130777, &ndfunc_jan); /* JAN */
-    instruction_add_mask(0130400, 0xFF00, &ndfunc_jan);
+    // instruction_add_range(0130400, 0130777, &opcode_jan_jump_if_a_negative); /* JAN */
+    instruction_add_mask(0130400, 0xFF00, &opcode_jan_jump_if_a_negative);
 
-    // instruction_add_range(0131000, 0131377, &ndfunc_jaz); /* JAZ */
-    instruction_add_mask(0131000, 0xFF00, &ndfunc_jaz);
+    // instruction_add_range(0131000, 0131377, &opcode_jaz_jump_if_a_zero); /* JAZ */
+    instruction_add_mask(0131000, 0xFF00, &opcode_jaz_jump_if_a_zero);
 
-    // instruction_add_range(0131400, 0131777, &ndfunc_jaf); /* JAF */
-    instruction_add_mask(0131400, 0xFF00, &ndfunc_jaf);
+    // instruction_add_range(0131400, 0131777, &opcode_jaf_jump_if_a_not_zero); /* JAF */
+    instruction_add_mask(0131400, 0xFF00, &opcode_jaf_jump_if_a_not_zero);
 
-    // instruction_add_range(0132000, 0132377, &ndfunc_jpc); /* JPC */
-    instruction_add_mask(0132000, 0xFF00, &ndfunc_jpc);
+    // instruction_add_range(0132000, 0132377, &opcode_jpc_increment_x_and_jump_if_x_positive); /* JPC */
+    instruction_add_mask(0132000, 0xFF00, &opcode_jpc_increment_x_and_jump_if_x_positive);
 
-    // instruction_add_range(0132400, 0132777, &ndfunc_jnc); /* JNC */
-    instruction_add_mask(0132400, 0xFF00, &ndfunc_jnc);
+    // instruction_add_range(0132400, 0132777, &opcode_jnc_increment_x_and_jump_if_x_negative); /* JNC */
+    instruction_add_mask(0132400, 0xFF00, &opcode_jnc_increment_x_and_jump_if_x_negative);
 
-    // instruction_add_range(0133000, 0133377, &ndfunc_jxz); /* JXZ */
-    instruction_add_mask(0133000, 0xFF00, &ndfunc_jxz);
+    // instruction_add_range(0133000, 0133377, &opcode_jxz_jump_if_x_zero); /* JXZ */
+    instruction_add_mask(0133000, 0xFF00, &opcode_jxz_jump_if_x_zero);
 
-    // instruction_add_range(0133400, 0133777, &ndfunc_jxn); /* JXN */
-    instruction_add_mask(0133400, 0xFF00, &ndfunc_jxn);
+    // instruction_add_range(0133400, 0133777, &opcode_jxn_jump_if_x_negative); /* JXN */
+    instruction_add_mask(0133400, 0xFF00, &opcode_jxn_jump_if_x_negative);
 
-    instruction_add_mask(0140000, 0xF8C0, &ndfunc_skp);
+    instruction_add_mask(0140000, 0xF8C0, &opcode_skp_skip_next_if_condition);
 
     // BCD (CX)
-    instruction_add(0140120, &ndfunc_addd);   /* ADDD  */
-    instruction_add(0140121, &ndfunc_subd);   /* SUBD  */
-    instruction_add(0140122, &ndfunc_comd);   /* COMD  */
-    instruction_add(0140124, &ndfunc_pack);   /* PACK  */
-    instruction_add(0140125, &ndfunc_unpack); /* UPACK */
-    instruction_add(0140126, &ndfunc_shde);   /* SHDE  */
+    instruction_add(0140120, &opcode_addd_add_two_decimal_operands);      /* ADDD  */
+    instruction_add(0140121, &opcode_subd_subtract_two_decimal_operands); /* SUBD  */
+    instruction_add(0140122, &opcode_comd_compare_two_decimal_operands);  /* COMD  */
+    instruction_add(0140124, &opcode_pack_convert_to_decimal);            /* PACK  */
+    instruction_add(0140125, &opcode_unpack_convert_from_decimal);        /* UPACK */
+    instruction_add(0140126, &opcode_shde_decimal_shift);                 /* SHDE  */
 
     instruction_add(0140123, &do_tset); /* TSET  */
     instruction_add(0140127, &do_rdus); /* RDUS  */
 
     { // CE; CX
 
-        instruction_add(0140130, &ndfunc_bfill); /* BFILL */
-        instruction_add(0140131, &do_movb);      /* MOVB  */
-        instruction_add(0140132, &do_movbf);     /* MOVBF */
+        instruction_add(0140130, &opcode_bfill_byte_fill); /* BFILL */
+        instruction_add(0140131, &do_movb);                /* MOVB  */
+        instruction_add(0140132, &do_movbf);               /* MOVBF */
 
-        // instruction_add(0140131, &ndfunc_movb);  /* MOVB  */
-        // instruction_add(0140132, &ndfunc_movbf); /* MOVBF */
+        // instruction_add(0140131, &opcode_movb_move_byte);  /* MOVB  */
+        // instruction_add(0140132, &opcode_movbf_move_bytes_forward); /* MOVBF */
     }
 
     switch (g_current_cpu_type)
@@ -5678,7 +5678,7 @@ void Setup_Instructions(void) // NOLINT(readability-function-size)
     case ND120CX: /* ND-120 is instruction-set-identical to the ND-110/CX (VERSN + the 140133 / */
                   /* 140500-140517 / 14070x ND-110 groups). Without VERSN here it traps illegal, */
         /* and TPE cannot read the ND-120/CX identity. Reapplied from session-windows-work. */
-        instruction_add(0140133, &ndfunc_versn); /* VERSN - ND110+ */
+        instruction_add(0140133, &opcode_versn_read_cpu_version); /* VERSN - ND110+ */
         break;
     default:
         break;
@@ -5686,13 +5686,13 @@ void Setup_Instructions(void) // NOLINT(readability-function-size)
 
     { // CE; CX
 
-        instruction_add(0140134, &ndfunc_init);  /* INIT  */
-        instruction_add(0140135, &ndfunc_entr);  /* ENTR  */
-        instruction_add(0140136, &ndfunc_leave); /* LEAVE */
-        instruction_add(0140137, &ndfunc_eleav); /* ELEAV */
+        instruction_add(0140134, &opcode_init_initialize_stack);   /* INIT  */
+        instruction_add(0140135, &opcode_entr_enter_stack);        /* ENTR  */
+        instruction_add(0140136, &opcode_leave_leave_stack);       /* LEAVE */
+        instruction_add(0140137, &opcode_eleav_error_leave_stack); /* ELEAV */
     }
     // instruction_add(0140200, 0140277, &illegal_instr); /* USER1 (microcode defined by user or illegal instruction otherwise) */
-    instruction_add(0140200, &ndfunc_halt); /* HALT - emulator exit, A=exit code */
+    instruction_add(0140200, &opcode_halt); /* HALT - emulator exit, A=exit code */
 
     switch (g_current_cpu_type)
     {
@@ -5702,27 +5702,49 @@ void Setup_Instructions(void) // NOLINT(readability-function-size)
     case ND110PCX:
     case ND120CX: /* ND-120 is instruction-set-identical to the ND-110/CX - same ND-110 opcode group. */
         // ALL are priveleged!
-        instruction_add(0140500, &ndfunc_wglob); /* WGLOB - ND110 Specific */
-        instruction_add(0140501, &ndfunc_rglob); /* RGLOB - ND110 Specific */
-        instruction_add(0140502, &ndfunc_inspl); /* INSPL - ND110 Specific */
-        instruction_add(0140503, &ndfunc_rempl); /* REMPL - ND110 Specific */
-        instruction_add(0140504, &ndfunc_cnrek); /* CNREK - ND110 Specific */
-        instruction_add(0140505, &ndfunc_clpt);  /* CLPT  - ND110 Specific */
-        instruction_add(0140506, &ndfunc_enpt);  /* ENPT  - ND110 Specific */
-        instruction_add(0140507, &ndfunc_rept);  /* REPT  - ND110 Specific */
-        instruction_add(0140510, &ndfunc_lbit);  /* LBIT  - ND110 Specific */
+        instruction_add(0140500,
+                        &opcode_wglob_initialize_global_pointers); /* WGLOB - ND110 Specific */
+        instruction_add(0140501,
+                        &opcode_rglob_examine_global_pointers); /* RGLOB - ND110 Specific */
+        instruction_add(0140502,
+                        &opcode_inspl_insert_page_in_page_list); /* INSPL - ND110 Specific */
+        instruction_add(0140503,
+                        &opcode_rempl_remove_page_from_page_list); /* REMPL - ND110 Specific */
+        instruction_add(
+            0140504,
+            &opcode_cnrek_clear_non_reentrant_pages_sintran_k); /* CNREK - ND110 Specific */
+        instruction_add(0140505,
+                        &opcode_clpt_clear_segment_from_page_tables); /* CLPT  - ND110 Specific */
+        instruction_add(0140506,
+                        &opcode_enpt_enter_segment_in_page_tables); /* ENPT  - ND110 Specific */
+        instruction_add(
+            0140507,
+            &opcode_rept_enter_reentrant_segment_in_page_tables); /* REPT  - ND110 Specific */
+        instruction_add(
+            0140510,
+            &opcode_lbit_load_bit_accumulator_from_logical_memory); /* LBIT  - ND110 Specific */
         /*
          * 140511 LBITP and 140512 SBIT were MISSING from this table entirely (not even
          * registered as unimplemented) - see ND-06.029.1 EN and RetroCore
          * Instructions.cs (hasND110Group), which registers the full 140510-140517 run.
          */
-        instruction_add(0140511, &ndfunc_lbitp); /* LBITP - ND110 Specific */
-        instruction_add(0140512, &ndfunc_sbit);  /* SBIT  - ND110 Specific */
-        instruction_add(0140513, &ndfunc_sbitp); /* SBITP - ND110 Specific */
-        instruction_add(0140514, &ndfunc_lbytp); /* LBYTP - ND110 Specific */
-        instruction_add(0140515, &ndfunc_sbytp); /* SBYTP - ND110 Specific */
-        instruction_add(0140516, &ndfunc_tsetp); /* TSETP - ND110 Specific */
-        instruction_add(0140517, &ndfunc_rdusp); /* RDUSP - ND110 Specific */
+        instruction_add(
+            0140511,
+            &opcode_lbitp_load_bit_accumulator_from_physical_memory); /* LBITP - ND110 Specific */
+        instruction_add(
+            0140512,
+            &opcode_sbit_store_bit_accumulator_to_logical_memory); /* SBIT  - ND110 Specific */
+        instruction_add(
+            0140513,
+            &opcode_sbitp_store_bit_accumulator_to_physical_memory); /* SBITP - ND110 Specific */
+        instruction_add(0140514,
+                        &opcode_lbytp_load_byte_from_physical_memory); /* LBYTP - ND110 Specific */
+        instruction_add(0140515,
+                        &opcode_sbytp_store_byte_in_physical_memory); /* SBYTP - ND110 Specific */
+        instruction_add(0140516,
+                        &opcode_tsetp_test_and_set_physical_word); /* TSETP - ND110 Specific */
+        instruction_add(
+            0140517, &opcode_rdusp_read_physical_word_bypassing_cache); /* RDUSP - ND110 Specific */
 
         break;
     default:
@@ -5746,14 +5768,26 @@ void Setup_Instructions(void) // NOLINT(readability-function-size)
          * only the bare 14070x word left the 56 displaced encodings undecoded.
          * Note also that 0140703 was mislabelled "SASB" here; it is SACB.
          */
-        instruction_add_mask(0140700, 0xFFC7, &ndfunc_lasb); /* LASB - ND110 Specific */
-        instruction_add_mask(0140701, 0xFFC7, &ndfunc_sasb); /* SASB - ND110 Specific */
-        instruction_add_mask(0140702, 0xFFC7, &ndfunc_lacb); /* LACB - ND110 Specific */
-        instruction_add_mask(0140703, 0xFFC7, &ndfunc_sacb); /* SACB - ND110 Specific */
-        instruction_add_mask(0140704, 0xFFC7, &ndfunc_lxsb); /* LXSB - ND110 Specific */
-        instruction_add_mask(0140705, 0xFFC7, &ndfunc_lxcb); /* LXCB - ND110 Specific */
-        instruction_add_mask(0140706, 0xFFC7, &ndfunc_szsb); /* SZSB - ND110 Specific */
-        instruction_add_mask(0140707, 0xFFC7, &ndfunc_szcb); /* SZCB - ND110 Specific */
+        instruction_add_mask(
+            0140700, 0xFFC7,
+            &opcode_lasb_load_a_from_segment_table_bank); /* LASB - ND110 Specific */
+        instruction_add_mask(
+            0140701, 0xFFC7,
+            &opcode_sasb_store_a_in_segment_table_bank); /* SASB - ND110 Specific */
+        instruction_add_mask(0140702, 0xFFC7,
+                             &opcode_lacb_load_a_from_core_map_bank); /* LACB - ND110 Specific */
+        instruction_add_mask(0140703, 0xFFC7,
+                             &opcode_sacb_store_a_in_core_map_bank); /* SACB - ND110 Specific */
+        instruction_add_mask(
+            0140704, 0xFFC7,
+            &opcode_lxsb_load_x_from_segment_table_bank); /* LXSB - ND110 Specific */
+        instruction_add_mask(0140705, 0xFFC7,
+                             &opcode_lxcb_load_x_from_core_map_bank); /* LXCB - ND110 Specific */
+        instruction_add_mask(
+            0140706, 0xFFC7,
+            &opcode_szsb_store_zero_in_segment_table_bank); /* SZSB - ND110 Specific */
+        instruction_add_mask(0140707, 0xFFC7,
+                             &opcode_szcb_store_zero_in_core_map_bank); /* SZCB - ND110 Specific */
         break;
     default:
         break;
@@ -5763,45 +5797,46 @@ void Setup_Instructions(void) // NOLINT(readability-function-size)
     {
         // ND100-CX and ND110-CX only
 
-        instruction_add(0140300, &ndfunc_setpt);         /* SETPT */
-        instruction_add(0140301, &ndfunc_clept);         /* CLEPT */
-        instruction_add(0140302, &ndfunc_clnreent);      /* CLNREENT */
-        instruction_add(0140303, &ndfunc_chreent_pages); /* CHREENT-PAGES */
-        instruction_add(0140304, &ndfunc_clepu);         /* CLEPU */
+        instruction_add(0140300, &opcode_setpt_set_page_tables);              /* SETPT */
+        instruction_add(0140301, &opcode_clept_clear_page_tables);            /* CLEPT */
+        instruction_add(0140302, &opcode_clnreent_clear_non_reentrant_pages); /* CLNREENT */
+        instruction_add(0140303, &opcode_chreent_pages);                      /* CHREENT-PAGES */
+        instruction_add(0140304, &opcode_clepu_clear_page_tables_and_collect_page_used); /* CLEPU */
     }
-    instruction_add_mask(0141200, 0xFFC0, &rmpy);        /* RMPY */
-    instruction_add_mask(0141600, 0xFFC0, &rdiv);        /* RDIV */
-    instruction_add_mask(0142200, 0xFFC0, &ndfunc_lbyt); /* LBYT */
-    instruction_add_mask(0142600, 0xFFC0, &ndfunc_sbyt); /* SBYT */
+    instruction_add_mask(0141200, 0xFFC0, &rmpy);                                   /* RMPY */
+    instruction_add_mask(0141600, 0xFFC0, &rdiv);                                   /* RDIV */
+    instruction_add_mask(0142200, 0xFFC0, &opcode_lbyt_load_byte_to_a_register);    /* LBYT */
+    instruction_add_mask(0142600, 0xFFC0, &opcode_sbyt_store_byte_from_a_register); /* SBYT */
 
     // CX instructions
-    instruction_add(0142700, &ndfunc_geco);              /* GECO - Undocumented instruction */
-    instruction_add_mask(0143100, 0xFFC0, &do_movew);    /* MOVEW */
-    instruction_add_mask(0143200, 0xFFC0, &ndfunc_mix3); /* MIX3 */
+    instruction_add(
+        0142700, &opcode_geco_customer_specified_instruction); /* GECO - Undocumented instruction */
+    instruction_add_mask(0143100, 0xFFC0, &do_movew);          /* MOVEW */
+    instruction_add_mask(0143200, 0xFFC0, &opcode_mix3_multiply_index_by_three); /* MIX3 */
 
-    instruction_add_mask(0143300, 0xFFC7, &ndfunc_ldatx); /* LDATX */
-    instruction_add_mask(0143301, 0xFFC7, &ndfunc_ldxtx); /* LDXTX */
-    instruction_add_mask(0143302, 0xFFC7, &ndfunc_lddtx); /* LDDTX */
-    instruction_add_mask(0143303, 0xFFC7, &ndfunc_ldbtx); /* LDBTX */
-    instruction_add_mask(0143304, 0xFFC7, &ndfunc_statx); /* STATX */
-    instruction_add_mask(0143305, 0xFFC7, &ndfunc_stztx); /* STZTX */
-    instruction_add_mask(0143306, 0xFFC7, &ndfunc_stdtx); /* STDTX */
+    instruction_add_mask(0143300, 0xFFC7, &opcode_ldatx_load_a_register_t_x_relative);   /* LDATX */
+    instruction_add_mask(0143301, 0xFFC7, &opcode_ldxtx_load_x_register_t_x_relative);   /* LDXTX */
+    instruction_add_mask(0143302, 0xFFC7, &opcode_lddtx_load_double_word_t_x_relative);  /* LDDTX */
+    instruction_add_mask(0143303, 0xFFC7, &opcode_ldbtx_load_b_register_t_x_relative);   /* LDBTX */
+    instruction_add_mask(0143304, 0xFFC7, &opcode_statx_store_a_register_t_x_relative);  /* STATX */
+    instruction_add_mask(0143305, 0xFFC7, &opcode_stztx_store_zero_t_x_relative);        /* STZTX */
+    instruction_add_mask(0143306, 0xFFC7, &opcode_stdtx_store_double_word_t_x_relative); /* STDTX */
 
-    instruction_add(0143500, &ndfunc_lwcs); /* LWCS */
+    instruction_add(0143500, &opcode_lwcs_load_writable_control_store); /* LWCS */
 
-    instruction_add(0143604, &ndfunc_ident); /* IDENT PL10 */
-    instruction_add(0143611, &ndfunc_ident); /* IDENT PL11 */
-    instruction_add(0143622, &ndfunc_ident); /* IDENT PL12 */
-    instruction_add(0143643, &ndfunc_ident); /* IDENT PL13 */
+    instruction_add(0143604, &opcode_ident_identify_interrupting_device); /* IDENT PL10 */
+    instruction_add(0143611, &opcode_ident_identify_interrupting_device); /* IDENT PL11 */
+    instruction_add(0143622, &opcode_ident_identify_interrupting_device); /* IDENT PL12 */
+    instruction_add(0143643, &opcode_ident_identify_interrupting_device); /* IDENT PL13 */
 
-    instruction_add_range(0144000, 0147777, &regop); /* --ROPS-- */
-    instruction_add_mask(0150000, 0xFFF0, &do_tra);  /* TRA */
-    instruction_add_mask(0150100, 0xFFF0, &do_trr);  /* TRR */
-    instruction_add_mask(0150200, 0xFFF0, &do_mcl);  /* MCL */
-    instruction_add_mask(0150300, 0xFFF0, &do_mst);  /* MST */
-    instruction_add(0150400, &ndfunc_opcom);         /* OPCOM */
-    instruction_add(0150401, &ndfunc_iof);           /* IOF */
-    instruction_add(0150402, &ndfunc_ion);           /* ION */
+    instruction_add_range(0144000, 0147777, &regop);                /* --ROPS-- */
+    instruction_add_mask(0150000, 0xFFF0, &do_tra);                 /* TRA */
+    instruction_add_mask(0150100, 0xFFF0, &do_trr);                 /* TRR */
+    instruction_add_mask(0150200, 0xFFF0, &do_mcl);                 /* MCL */
+    instruction_add_mask(0150300, 0xFFF0, &do_mst);                 /* MST */
+    instruction_add(0150400, &opcode_opcom_operator_communication); /* OPCOM */
+    instruction_add(0150401, &opcode_iof_interrupt_off);            /* IOF */
+    instruction_add(0150402, &opcode_ion_interrupt_on);             /* ION */
     switch (g_current_cpu_type)
     {
     case ND110PCX:
@@ -5811,46 +5846,48 @@ void Setup_Instructions(void) // NOLINT(readability-function-size)
     default:
         break;
     }
-    instruction_add(0150404, &ndfunc_pof);  /* POF */
-    instruction_add(0150405, &ndfunc_piof); /* PIOF */
-    instruction_add(0150406, &ndfunc_sex);  /* SEX */
-    instruction_add(0150407, &ndfunc_rex);  /* REX */
-    instruction_add(0150410, &ndfunc_pon);  /* PON */
-    instruction_add(0150412, &ndfunc_pion); /* PION */
+    instruction_add(0150404, &opcode_pof_paging_off);                  /* POF */
+    instruction_add(0150405, &opcode_piof_paging_and_interrupt_off);   /* PIOF */
+    instruction_add(0150406, &opcode_sex_set_extended_address_mode);   /* SEX */
+    instruction_add(0150407, &opcode_rex_reset_extended_address_mode); /* REX */
+    instruction_add(0150410, &opcode_pon_paging_on);                   /* PON */
+    instruction_add(0150412, &opcode_pion_paging_and_interrupt_on);    /* PION */
 
-    instruction_add(0150415, &ndfunc_ioxt); /* IOXT */
-    instruction_add(0150416, &ndfunc_exam); /* EXAM */
-    instruction_add(0150417, &ndfunc_depo); /* DEPO */
+    instruction_add(0150415, &opcode_ioxt_exchange_with_io_system_t_addressed); /* IOXT */
+    instruction_add(0150416, &opcode_exam_examine_memory);                      /* EXAM */
+    instruction_add(0150417, &opcode_depo_deposit_memory);                      /* DEPO */
 
-    instruction_add_mask(0151000, 0xFF00, &do_wait);    /* WAIT - Range 151000 - 151377 */
-    instruction_add_mask(0151400, 0xFF00, &ndfunc_nlz); /* NLZ */
-    instruction_add_mask(0152000, 0xFF00, &ndfunc_dnz); /* DNZ */
-    instruction_add_mask(0152402, 0xFF07, &ndfunc_srb); /* SRB */
-    instruction_add_mask(0152600, 0xFF07, &ndfunc_lrb); /* LRB */
-    instruction_add_mask(0153000, 0xFF00, &ndfunc_mon); /* MON  - Range 153000-153377  */
-    instruction_add_mask(0153400, 0xFF80, &ndfunc_irw); /* IRW */
-    instruction_add_mask(0153600, 0xFF80, &ndfunc_irr); /* IRR */
+    instruction_add_mask(0151000, 0xFF00, &do_wait); /* WAIT - Range 151000 - 151377 */
+    instruction_add_mask(0151400, 0xFF00, &opcode_nlz_normalize_floating_accumulator); /* NLZ */
+    instruction_add_mask(0152000, 0xFF00, &opcode_dnz_denormalize_to_fixed_point);     /* DNZ */
+    instruction_add_mask(0152402, 0xFF07, &opcode_srb_store_register_block);           /* SRB */
+    instruction_add_mask(0152600, 0xFF07, &opcode_lrb_load_register_block);            /* LRB */
+    instruction_add_mask(0153000, 0xFF00,
+                         &opcode_mon_monitor_call); /* MON  - Range 153000-153377  */
+    instruction_add_mask(0153400, 0xFF80, &opcode_irw_inter_register_write); /* IRW */
+    instruction_add_mask(0153600, 0xFF80, &opcode_irr_inter_register_read);  /* IRR */
 
-    // instruction_add_range(0154000, 0157777, &ndfunc_shifts); /* SHT, SHD, SHA, SAD */  /* NOTE: this is actually a ND1 instruction, so need to check which NDs implement it later */
-    instruction_add_mask(0154000, 0x7980, &ndfunc_shifts); // SHT
-    instruction_add_mask(0154200, 0x7980, &ndfunc_shifts); // SHD
-    instruction_add_mask(0154400, 0x7980, &ndfunc_shifts); // SHA
-    instruction_add_mask(0154600, 0x7980, &ndfunc_shifts); // SAD
+    // instruction_add_range(0154000, 0157777, &opcode_shift_group); /* SHT, SHD, SHA, SAD */  /* NOTE: this is actually a ND1 instruction, so need to check which NDs implement it later */
+    instruction_add_mask(0154000, 0x7980, &opcode_shift_group); // SHT
+    instruction_add_mask(0154200, 0x7980, &opcode_shift_group); // SHD
+    instruction_add_mask(0154400, 0x7980, &opcode_shift_group); // SHA
+    instruction_add_mask(0154600, 0x7980, &opcode_shift_group); // SAD
 
     // IOT Range 0160000 - 0163777
-    instruction_add_mask(0160000, 0xF800,
-                         &ndfunc_iot); /* IOT  - ND1 specific, but exists on all CPU's*/
+    instruction_add_mask(
+        0160000, 0xF800,
+        &opcode_iot_nord_1_legacy_do_not_use); /* IOT  - ND1 specific, but exists on all CPU's*/
 
-    instruction_add_mask(0164000, 0xF800, &ndfunc_iox); /* IOX */
+    instruction_add_mask(0164000, 0xF800, &opcode_iox_exchange_with_io_system); /* IOX */
 
-    instruction_add_mask(0170000, 0xFF00, &ndfunc_sab); /* SAB */
-    instruction_add_mask(0170400, 0xFF00, &ndfunc_saa); /* SAA */
-    instruction_add_mask(0171000, 0xFF00, &ndfunc_sat); /* SAT */
-    instruction_add_mask(0171400, 0xFF00, &ndfunc_sax); /* SAX */
-    instruction_add_mask(0172000, 0xFF00, &ndfunc_aab); /* AAB */
-    instruction_add_mask(0172400, 0xFF00, &ndfunc_aaa); /* AAA */
-    instruction_add_mask(0173000, 0xFF00, &ndfunc_aat); /* AAT */
-    instruction_add_mask(0173400, 0xFF00, &ndfunc_aax); /* AAX */
+    instruction_add_mask(0170000, 0xFF00, &opcode_sab_set_argument_to_b); /* SAB */
+    instruction_add_mask(0170400, 0xFF00, &opcode_saa_set_argument_to_a); /* SAA */
+    instruction_add_mask(0171000, 0xFF00, &opcode_sat_set_argument_to_t); /* SAT */
+    instruction_add_mask(0171400, 0xFF00, &opcode_sax_set_argument_to_x); /* SAX */
+    instruction_add_mask(0172000, 0xFF00, &opcode_aab_add_argument_to_b); /* AAB */
+    instruction_add_mask(0172400, 0xFF00, &opcode_aaa_add_argument_to_a); /* AAA */
+    instruction_add_mask(0173000, 0xFF00, &opcode_aat_add_argument_to_t); /* AAT */
+    instruction_add_mask(0173400, 0xFF00, &opcode_aax_add_argument_to_x); /* AAX */
 
     instruction_add_range(0174000, 0177777, &do_bops); /* Bit Operation Instructions */
     /* Bit operations, 16 of them, 4 BSET,4 BSKP and 8 others */

@@ -1058,7 +1058,7 @@ void illegal_instr(uint16_t);
  *        the alternative page table (APT) when T bit 14 is set.
  * @param operand Unused; BFILL takes its operands from A, T and X.
  */
-void ndfunc_bfill_new(uint16_t);
+void opcode_bfill_new_byte_fill(uint16_t);
 
 /**
  * @brief Reset the VERSN PROM image to the default ND-110 back-wiring
@@ -1085,7 +1085,7 @@ void cpu_versn_set_identity_from_env(void);
  *        DELILAH-L microcode and the CPU board 3202 straps.
  * @param operand Unused; VERSN takes its selector from A and returns via D/T.
  */
-void ndfunc_versn(uint16_t);
+void opcode_versn_read_cpu_version(uint16_t);
 
 /**
  * @brief Add the memory word at eff_addr to A, updating C and Q in STS.
@@ -1101,7 +1101,7 @@ void add_A_mem(uint16_t, bool);
  *        the X/T-addressed destination without checking for overlap.
  * @param instr Unused; MOVB takes its operands from A, D, X and T.
  */
-void ndfunc_movb(uint16_t);
+void opcode_movb_move_byte(uint16_t);
 
 /**
  * @brief Execute MOVBF: move a byte field from the A/D-addressed source to
@@ -1109,7 +1109,7 @@ void ndfunc_movb(uint16_t);
  *        when source and destination word ranges overlap.
  * @param instr Unused; MOVBF takes its operands from A, D, X and T.
  */
-void ndfunc_movbf(uint16_t);
+void opcode_movbf_move_bytes_forward(uint16_t);
 
 /**
  * @brief Subtract the memory word at eff_addr from A, updating C and Q in
@@ -2053,7 +2053,7 @@ void DoDNZ32(char);
  * 010520-011054).
  * @param instr Unused; the instruction word (opcode only, no operand fields).
  */
-void ndfunc_addd(uint16_t);
+void opcode_addd_add_two_decimal_operands(uint16_t);
 
 /**
  * @brief SUBD - Subtract Decimal (140 121): subtract the X.T packed
@@ -2064,7 +2064,7 @@ void ndfunc_addd(uint16_t);
  * digits already stored.
  * @param instr Unused; the instruction word (opcode only, no operand fields).
  */
-void ndfunc_subd(uint16_t);
+void opcode_subd_subtract_two_decimal_operands(uint16_t);
 
 /**
  * @brief COMD - Compare Decimal (140 122): compare the A.D packed
@@ -2074,7 +2074,7 @@ void ndfunc_subd(uint16_t);
  * Always takes the skip return (P+2).
  * @param instr Unused; the instruction word (opcode only, no operand fields).
  */
-void ndfunc_comd(uint16_t);
+void opcode_comd_compare_two_decimal_operands(uint16_t);
 
 /**
  * @brief SHDE - Decimal Shift (140 126): move the A.D packed decimal
@@ -2087,7 +2087,7 @@ void ndfunc_comd(uint16_t);
  * stored.
  * @param instr Unused; the instruction word (opcode only, no operand fields).
  */
-void ndfunc_shde(uint16_t);
+void opcode_shde_decimal_shift(uint16_t);
 
 /**
  * @brief PACK - Convert to packed decimal (140 124): convert the A.D
@@ -2098,7 +2098,7 @@ void ndfunc_shde(uint16_t);
  * code, sets bit 15 of both A and D) and takes the error return (P+1).
  * @param instr Unused; the instruction word (opcode only, no operand fields).
  */
-void ndfunc_pack(uint16_t);
+void opcode_pack_convert_to_decimal(uint16_t);
 
 /**
  * @brief UPACK - Convert to unpacked decimal (140 125): convert the
@@ -2110,6 +2110,6 @@ void ndfunc_pack(uint16_t);
  * both A and D) and takes the error return (P+1).
  * @param instr Unused; the instruction word (opcode only, no operand fields).
  */
-void ndfunc_unpack(uint16_t);
+void opcode_unpack_convert_from_decimal(uint16_t);
 
 #endif // CPU_TYPES_H

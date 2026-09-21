@@ -1170,7 +1170,7 @@ void cpu_init(bool debuggerEnabled, int debuggerPort)
     /*
      * The VERSN identity (back-wiring PROM + microprogram/print version) depends on
      * the CPU model, so it is reset AFTER cpu_set_type_from_env() and then given the
-     * chance to be overridden by the ND100X_* identity variables. See ndfunc_versn().
+     * chance to be overridden by the ND100X_* identity variables. See opcode_versn_read_cpu_version().
      */
     cpu_versn_reset();
     cpu_versn_set_identity_from_env();
