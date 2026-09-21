@@ -42,18 +42,18 @@ static struct CpuRegs g_fake_regs;
 struct CpuRegs *g_reg = &g_fake_regs;
 
 /* Stub loader: never touches disk; just records the request. */
-int program_load(BOOT_TYPE bootType, int bootUnit, const char *imageFile, bool verbose,
+int program_load(BOOT_TYPE boot_type, int boot_unit, const char *image_file, bool verbose,
                  uint16_t text_start, bool overlay_deposit)
 {
-    (void)bootType;
-    (void)bootUnit;
+    (void)boot_type;
+    (void)boot_unit;
     (void)verbose;
     (void)text_start;
     (void)overlay_deposit;
     g_prog_load_calls++;
-    if (imageFile)
+    if (image_file)
     {
-        snprintf(g_prog_load_path, sizeof(g_prog_load_path), "%s", imageFile);
+        snprintf(g_prog_load_path, sizeof(g_prog_load_path), "%s", image_file);
     }
     else
     {

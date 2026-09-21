@@ -45,18 +45,18 @@ static struct CpuRegs bcdtest_regs;
 struct CpuRegs *g_reg = &bcdtest_regs;
 
 /* Stubs for the real functions in src/cpu/cpu_mms.c (cpu_protos.h). */
-uint16_t MemoryRead(uint16_t addr, bool UseAPT);
-void MemoryWrite(uint16_t value, uint16_t addr, bool UseAPT, unsigned char byte_select);
+uint16_t MemoryRead(uint16_t addr, bool use_apt);
+void MemoryWrite(uint16_t value, uint16_t addr, bool use_apt, unsigned char byte_select);
 
-uint16_t MemoryRead(uint16_t addr, bool UseAPT)
+uint16_t MemoryRead(uint16_t addr, bool use_apt)
 {
-    (void)UseAPT;
+    (void)use_apt;
     return bcdtest_mem[addr];
 }
 
-void MemoryWrite(uint16_t value, uint16_t addr, bool UseAPT, unsigned char byte_select)
+void MemoryWrite(uint16_t value, uint16_t addr, bool use_apt, unsigned char byte_select)
 {
-    (void)UseAPT;
+    (void)use_apt;
     (void)byte_select;
     bcdtest_mem[addr] = value;
 }
@@ -89,7 +89,7 @@ typedef enum
     OP_SHDE,
     OP_PACK,
     OP_UPACK
-} bcd_test_op;
+} BcdTestOp;
 
 /* Where the result is expected to land. */
 typedef enum
@@ -97,35 +97,35 @@ typedef enum
     DEST_OP1, /* the A/D field (ADDD, SUBD)          */
     DEST_OP2, /* the X/T field (SHDE, PACK, UPACK)   */
     DEST_NONE /* nothing written (COMD, error paths) */
-} bcd_test_dest;
+} BcdTestDest;
 
 typedef struct
 {
     const char *name;
-    bcd_test_op op;
+    BcdTestOp op;
     uint16_t d;         /* D register: descriptor D2 of operand 1 */
     uint16_t t;         /* T register: descriptor D2 of operand 2 */
     uint16_t w1[MAX_W]; /* initial words of the op1 field        */
     int n1;
     uint16_t w2[MAX_W]; /* initial words of the op2 field        */
     int n2;
-    bcd_test_dest dest;
+    BcdTestDest dest;
     uint16_t expect[MAX_W]; /* expected words at the destination     */
     int n_expect;
     bool expect_skip; /* true = SKIP return (P+2)              */
     int expect_a;     /* COMD: expected A register, else -1    */
-} bcd_test_case;
+} BcdTestCase;
 
 static int bcdtest_total;
 static int bcdtest_failed;
 
-static void bcdtest_fail(const bcd_test_case *tc, const char *what, unsigned expected, unsigned got)
+static void bcdtest_fail(const BcdTestCase *tc, const char *what, unsigned expected, unsigned got)
 {
     printf("  FAIL  %-46s %s: expected %04X, got %04X\n", tc->name, what, expected, got);
     bcdtest_failed++;
 }
 
-static void bcdtest_run(const bcd_test_case *tc)
+static void bcdtest_run(const BcdTestCase *tc)
 {
     uint16_t dest_addr;
     int i;
@@ -236,7 +236,7 @@ static void bcdtest_run(const bcd_test_case *tc)
  * INCLUDING the sign nibble; bytes for ASCII).
  */
 
-static const bcd_test_case bcdtest_cases[] = {
+static const BcdTestCase bcdtest_cases[] = {
     /* ---------------------------------------------------------------- */
     /* TPE "INSTRUCTION" diagnostic invocations (hardware validated)     */
     /* ---------------------------------------------------------------- */

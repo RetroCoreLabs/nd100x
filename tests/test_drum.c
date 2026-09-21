@@ -27,36 +27,36 @@
 
 /* A small physical-memory stand-in for DMA. 64 Ki words is plenty. */
 #define FAKE_MEM_WORDS 65536u
-static uint16_t g_fakeMem[FAKE_MEM_WORDS];
+static uint16_t fake_mem[FAKE_MEM_WORDS];
 
 /* One pending delayed callback (the drum only ever queues one at a time). */
-static IODelayedCallback g_pendingCb;
-static void *g_pendingCtx;
-static int g_pendingParam;
-static uint8_t g_pendingLevel;
-static int g_pendingSet;
+static IODelayedCallback pending_cb;
+static void *pending_ctx;
+static int pending_param;
+static uint8_t pending_level;
+static int pending_set;
 
-void Device_Init(Device *dev, uint8_t thumbwheel, DeviceClass deviceClass, size_t blockSize)
+void Device_Init(Device *dev, uint8_t thumbwheel, DeviceClass device_class, size_t block_size)
 {
     (void)thumbwheel;
-    (void)blockSize;
+    (void)block_size;
     memset(dev, 0, sizeof(Device)); /* real Device_Init zeroes the struct */
-    dev->deviceClass = deviceClass;
+    dev->deviceClass = device_class;
 }
 
-void Device_DMAWrite(uint32_t coreAddress, uint16_t data)
+void Device_DMAWrite(uint32_t core_address, uint16_t data)
 {
-    if (coreAddress < FAKE_MEM_WORDS)
+    if (core_address < FAKE_MEM_WORDS)
     {
-        g_fakeMem[coreAddress] = data;
+        fake_mem[core_address] = data;
     }
 }
 
-int32_t Device_DMARead(uint32_t coreAddress)
+int32_t Device_DMARead(uint32_t core_address)
 {
-    if (coreAddress < FAKE_MEM_WORDS)
+    if (core_address < FAKE_MEM_WORDS)
     {
-        return g_fakeMem[coreAddress];
+        return fake_mem[core_address];
     }
     return 0;
 }
@@ -66,11 +66,11 @@ void Device_QueueIODelay(Device *dev, uint16_t ticks, IODelayedCallback cb, int 
 {
     (void)dev;
     (void)ticks;
-    g_pendingCb = cb;
-    g_pendingCtx = dev;
-    g_pendingParam = param;
-    g_pendingLevel = irqlevel;
-    g_pendingSet = 1;
+    pending_cb = cb;
+    pending_ctx = dev;
+    pending_param = param;
+    pending_level = irqlevel;
+    pending_set = 1;
 }
 
 /* Mimics the real Device_TickIODelay: fire the queued callback and, if it
@@ -78,14 +78,14 @@ void Device_QueueIODelay(Device *dev, uint16_t ticks, IODelayedCallback cb, int 
  * machinery + Device_GenerateInterrupt do). */
 void Device_TickIODelay(Device *dev)
 {
-    if (!g_pendingSet)
+    if (!pending_set)
     {
         return;
     }
-    g_pendingSet = 0;
-    if (g_pendingCb && g_pendingCb(g_pendingCtx, g_pendingParam))
+    pending_set = 0;
+    if (pending_cb && pending_cb(pending_ctx, pending_param))
     {
-        dev->interruptBits |= (uint16_t)(1u << g_pendingLevel);
+        dev->interruptBits |= (uint16_t)(1u << pending_level);
     }
 }
 
@@ -112,9 +112,9 @@ static int g_pass, g_fail;
 // clang-format on
 
 /* Build a control word: function in bits 13-14, core-addr-hi in 5-6, go=7. */
-static uint16_t ctrl_go(uint16_t func, uint16_t addrHi)
+static uint16_t ctrl_go(uint16_t func, uint16_t addr_hi)
 {
-    return (uint16_t)((func << 13) | ((addrHi & 3) << 5) | DRUM_CTRL_GO_VALUE);
+    return (uint16_t)((func << 13) | ((addr_hi & 3) << 5) | DRUM_CTRL_GO_VALUE);
 }
 /* Build a drum block address: sector in 15-11, track in 10-0. */
 static uint16_t block_of(uint16_t sector, uint16_t track)
@@ -150,23 +150,23 @@ int main(void)
     DrumData *d = (DrumData *)dev->deviceData;
 
     /* --- 1. WRITE (memory -> drum): fill memory, transfer, check surface. --- */
-    memset(g_fakeMem, 0, sizeof(g_fakeMem));
+    memset(fake_mem, 0, sizeof(fake_mem));
     for (uint16_t i = 0; i < 8; i++)
     {
-        g_fakeMem[0x100 + i] = (uint16_t)(0xA000 + i);
+        fake_mem[0x100 + i] = (uint16_t)(0xA000 + i);
     }
     uint16_t blk = block_of(/*sector*/ 3, /*track*/ 5);
     program(dev, 0x100, blk, 8, ctrl_go(DRUM_FUNC_WRITE, 0));
     uint32_t off = ((uint32_t)5 * DRUM_SECTORS_PER_TRACK + 3) * DRUM_WORDS_PER_SECTOR;
-    int okW = 1;
+    int ok_w = 1;
     for (uint16_t i = 0; i < 8; i++)
     {
         if (d->surface[off + i] != (uint16_t)(0xA000 + i))
         {
-            okW = 0;
+            ok_w = 0;
         }
     }
-    CHECK(okW, "write transfer copied memory to the correct drum offset");
+    CHECK(ok_w, "write transfer copied memory to the correct drum offset");
     CHECK((status(dev) & DRUM_STATUS_DVA) != 0, "DVA set (busy) after go");
 
     /* completion: tick fires the delayed callback -> DVA clears, interrupt up */
@@ -177,25 +177,25 @@ int main(void)
     CHECK((dev->interruptBits & (1u << DRUM_INT_LEVEL)) == 0, "Ident clears the interrupt bit");
 
     /* --- 2. READ (drum -> memory): read the page we just wrote back out. --- */
-    memset(g_fakeMem, 0, sizeof(g_fakeMem));
+    memset(fake_mem, 0, sizeof(fake_mem));
     program(dev, 0x200, blk, 8, ctrl_go(DRUM_FUNC_READ, 0));
     dev->Tick(dev);
-    int okR = 1;
+    int ok_r = 1;
     for (uint16_t i = 0; i < 8; i++)
     {
-        if (g_fakeMem[0x200 + i] != (uint16_t)(0xA000 + i))
+        if (fake_mem[0x200 + i] != (uint16_t)(0xA000 + i))
         {
-            okR = 0;
+            ok_r = 0;
         }
     }
-    CHECK(okR, "read transfer copied the drum back into memory");
+    CHECK(ok_r, "read transfer copied the drum back into memory");
     CHECK((status(dev) & DRUM_STATUS_ERR) == 0, "no error on a good read");
 
     /* --- 3. COMPARE: equal -> no ERR; mismatched -> ERR. --- */
     program(dev, 0x200, blk, 8, ctrl_go(DRUM_FUNC_COMPARE, 0));
     dev->Tick(dev);
     CHECK((status(dev) & DRUM_STATUS_ERR) == 0, "compare of identical data: no error");
-    g_fakeMem[0x203] ^= 0xFFFF; /* corrupt one word */
+    fake_mem[0x203] ^= 0xFFFF; /* corrupt one word */
     program(dev, 0x200, blk, 8, ctrl_go(DRUM_FUNC_COMPARE, 0));
     dev->Tick(dev);
     CHECK((status(dev) & DRUM_STATUS_ERR) != 0, "compare mismatch sets ERR");
@@ -210,13 +210,13 @@ int main(void)
 
     /* --- 5. Full-size surface: every block address is in range; only a word
        count that overruns the end of the surface trips ERR. --- */
-    uint16_t maxBlk = block_of(31, 03777); /* last addressable block */
-    program(dev, 0x100, maxBlk, 8, ctrl_go(DRUM_FUNC_READ_TEST, 0));
+    uint16_t max_blk = block_of(31, 03777); /* last addressable block */
+    program(dev, 0x100, max_blk, 8, ctrl_go(DRUM_FUNC_READ_TEST, 0));
     CHECK((status(dev) & DRUM_STATUS_ERR) == 0,
           "max block address is in range on a full-size drum");
     dev->Tick(dev);
     /* At the very last sector, a count past its final word overruns -> ERR. */
-    program(dev, 0x100, maxBlk, DRUM_WORDS_PER_SECTOR + 1, ctrl_go(DRUM_FUNC_READ_TEST, 0));
+    program(dev, 0x100, max_blk, DRUM_WORDS_PER_SECTOR + 1, ctrl_go(DRUM_FUNC_READ_TEST, 0));
     CHECK((status(dev) & DRUM_STATUS_ERR) != 0, "word count past end of surface sets ERR");
     dev->Tick(dev);
     CHECK((status(dev) & DRUM_STATUS_DVA) == 0, "device not left busy after a bounds error");

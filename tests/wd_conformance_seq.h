@@ -42,15 +42,15 @@ typedef enum
     WDS_INTBITS,   /* print the pending interrupt bit for level 11        */
     WDS_SETTLE     /* run the core to completion (a no-op when the model
                      * is synchronous); prints nothing                     */
-} wds_op;
+} WdsOp;
 
 typedef struct
 {
-    wds_op op;
+    WdsOp op;
     unsigned arg; /* register offset, or IDENT level */
     unsigned val; /* value for WDS_WRITE             */
     const char *what;
-} wds_step;
+} WdsStep;
 
 /* Register offsets. */
 // clang-format off
@@ -74,7 +74,7 @@ typedef struct
 // clang-format on
 
 // clang-format off
-static const wds_step WD_CONFORMANCE_SEQ[] = {
+static const WdsStep WD_CONFORMANCE_SEQ[] = {
 
     /* ---- 1. power-on state ------------------------------------------- */
     { WDS_RESET,   0, 0, "master clear" },

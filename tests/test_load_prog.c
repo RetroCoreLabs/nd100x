@@ -19,17 +19,17 @@
 
 /* ---- Stubs for load_prog.c's externals -------------------------------- */
 /* Stubs for the real functions in src/cpu (cpu_protos.h); prototypes match. */
-void WritePhysicalMemory(int physicalAddress, uint16_t value, bool privileged);
+void WritePhysicalMemory(int physical_address, uint16_t value, bool privileged);
 void disasm_addword(uint16_t addr, uint16_t myword);
 
 static uint16_t g_mem[65536];
 static int g_writes;
-void WritePhysicalMemory(int physicalAddress, uint16_t value, bool privileged)
+void WritePhysicalMemory(int physical_address, uint16_t value, bool privileged)
 {
     (void)privileged;
-    if (physicalAddress >= 0 && physicalAddress < 65536)
+    if (physical_address >= 0 && physical_address < 65536)
     {
-        g_mem[physicalAddress] = value;
+        g_mem[physical_address] = value;
         g_writes++;
     }
 }
@@ -65,8 +65,8 @@ static void put_be16(FILE *f, uint16_t v)
 
 /* Write a synthetic 1-bank :PROG: header (6 words) padded to 512 bytes,
  * then 'n' big-endian data words. Returns the temp path (static buffer). */
-static const char *make_prog(uint16_t start, uint16_t first, uint16_t last, uint16_t fB2,
-                             uint16_t lB2, const uint16_t *data, int n)
+static const char *make_prog(uint16_t start, uint16_t first, uint16_t last, uint16_t f_b2,
+                             uint16_t l_b2, const uint16_t *data, int n)
 {
     static char path[] = "/tmp/nd100x-prog-XXXXXX";
     snprintf(path, sizeof(path), "%s", "/tmp/nd100x-prog-XXXXXX");
@@ -80,8 +80,8 @@ static const char *make_prog(uint16_t start, uint16_t first, uint16_t last, uint
     put_be16(f, start); /* start, restart */
     put_be16(f, first);
     put_be16(f, last);
-    put_be16(f, fB2);
-    put_be16(f, lB2);
+    put_be16(f, f_b2);
+    put_be16(f, l_b2);
     for (int i = 12; i < 512; i++)
     {
         fputc(0, f); /* pad header block */

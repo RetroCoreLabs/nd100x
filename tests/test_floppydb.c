@@ -54,7 +54,7 @@ static int g_failures = 0;
 
 /* Two PACK-ONE entries (different md5 + size), one SMD image, one Status=1 that
  * must be excluded. Filesystem image size is octal, as in the real catalog. */
-static const char *FIXTURE =
+static const char *fixture =
     "[\n"
     "  {\n"
     "    \"Id\": 1, \"Name\": \"Pack One rev A\", \"Status\": 0,\n"
@@ -85,7 +85,7 @@ int main(int argc, char **argv)
 {
     printf("=== floppydb catalog API tests ===\n");
 
-    int n = floppydb_load_json(FIXTURE);
+    int n = floppydb_load_json(fixture);
     printf("floppydb_load_json -> %d entries\n", n);
     CHECK(n == 3, "Status!=0 record excluded (3 of 4 loaded)");
     CHECK(floppydb_count() == 3, "floppydb_count() == 3");

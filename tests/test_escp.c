@@ -153,7 +153,7 @@ static int test_escp_pitch_elite(void)
     EscpContext *ctx = Escp_Create();
 
     /* Default is 10 cpi = 7.2 pt char width */
-    float defaultWidth = POINTS_PER_INCH / 10.0f;
+    float default_width = POINTS_PER_INCH / 10.0f;
 
     /* ESC M = 12 cpi (Elite) */
     Escp_PutChar(ctx, 0x1B);
@@ -166,7 +166,7 @@ static int test_escp_pitch_elite(void)
     float expected = POINTS_PER_INCH / 12.0f;
     assert(fabsf(spans[0].charWidth - expected) < 0.01f);
     /* Verify it's different from default */
-    assert(fabsf(spans[0].charWidth - defaultWidth) > 0.1f);
+    assert(fabsf(spans[0].charWidth - default_width) > 0.1f);
 
     Escp_Destroy(ctx);
     return 0;
@@ -313,8 +313,8 @@ static int test_escp_reset(void)
     /* Last span should have no attributes and default pitch */
     const EscpSpan *last = &spans[count - 1];
     assert(last->attrs == 0);
-    float defaultWidth = POINTS_PER_INCH / 10.0f;
-    assert(fabsf(last->charWidth - defaultWidth) < 0.01f);
+    float default_width = POINTS_PER_INCH / 10.0f;
+    assert(fabsf(last->charWidth - default_width) < 0.01f);
 
     Escp_Destroy(ctx);
     return 0;
@@ -403,14 +403,14 @@ static int test_escp_backspace(void)
 
 /* Suite runner */
 
-typedef int (*escp_test_fn)(void);
+typedef int (*EscpTestFn)(void);
 
 int run_escp_tests(void)
 {
     int passed = 0;
     int failed = 0;
     // clang-format off
-    struct { const char *name; escp_test_fn fn; } tests[] = {
+    struct { const char *name; EscpTestFn fn; } tests[] = {
         { "escp_plain_text",     test_escp_plain_text },
         { "escp_cr_lf_ff",      test_escp_cr_lf_ff },
         { "escp_bold",          test_escp_bold },

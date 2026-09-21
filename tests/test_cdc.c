@@ -39,36 +39,36 @@
 
 /* A physical-memory stand-in for DMA. 64 Ki words is plenty for the tests. */
 #define FAKE_MEM_WORDS 65536u
-static uint16_t g_fakeMem[FAKE_MEM_WORDS];
+static uint16_t fake_mem[FAKE_MEM_WORDS];
 
 /* One pending delayed callback (the disc only ever queues one at a time). */
-static IODelayedCallback g_pendingCb;
-static void *g_pendingCtx;
-static int g_pendingParam;
-static uint8_t g_pendingLevel;
-static int g_pendingSet;
+static IODelayedCallback pending_cb;
+static void *pending_ctx;
+static int pending_param;
+static uint8_t pending_level;
+static int pending_set;
 
-void Device_Init(Device *dev, uint8_t thumbwheel, DeviceClass deviceClass, size_t blockSize)
+void Device_Init(Device *dev, uint8_t thumbwheel, DeviceClass device_class, size_t block_size)
 {
     (void)thumbwheel;
-    (void)blockSize;
+    (void)block_size;
     memset(dev, 0, sizeof(Device)); /* real Device_Init zeroes the struct */
-    dev->deviceClass = deviceClass;
+    dev->deviceClass = device_class;
 }
 
-void Device_DMAWrite(uint32_t coreAddress, uint16_t data)
+void Device_DMAWrite(uint32_t core_address, uint16_t data)
 {
-    if (coreAddress < FAKE_MEM_WORDS)
+    if (core_address < FAKE_MEM_WORDS)
     {
-        g_fakeMem[coreAddress] = data;
+        fake_mem[core_address] = data;
     }
 }
 
-int32_t Device_DMARead(uint32_t coreAddress)
+int32_t Device_DMARead(uint32_t core_address)
 {
-    if (coreAddress < FAKE_MEM_WORDS)
+    if (core_address < FAKE_MEM_WORDS)
     {
-        return g_fakeMem[coreAddress];
+        return fake_mem[core_address];
     }
     return 0;
 }
@@ -77,25 +77,25 @@ void Device_QueueIODelay(Device *dev, uint16_t ticks, IODelayedCallback cb, int 
                          uint8_t irqlevel)
 {
     (void)ticks;
-    g_pendingCb = cb;
-    g_pendingCtx = dev;
-    g_pendingParam = param;
-    g_pendingLevel = irqlevel;
-    g_pendingSet = 1;
+    pending_cb = cb;
+    pending_ctx = dev;
+    pending_param = param;
+    pending_level = irqlevel;
+    pending_set = 1;
 }
 
 /* Mimics the real Device_TickIODelay: fire the queued callback and, if it
  * returns true, raise the interrupt bit for its level. */
 void Device_TickIODelay(Device *dev)
 {
-    if (!g_pendingSet)
+    if (!pending_set)
     {
         return;
     }
-    g_pendingSet = 0;
-    if (g_pendingCb && g_pendingCb(g_pendingCtx, g_pendingParam))
+    pending_set = 0;
+    if (pending_cb && pending_cb(pending_ctx, pending_param))
     {
-        dev->interruptBits |= (uint16_t)(1u << g_pendingLevel);
+        dev->interruptBits |= (uint16_t)(1u << pending_level);
     }
 }
 
@@ -218,34 +218,34 @@ int main(void)
 
     /* --- 4. READ transfer, sector A = OVLAY*2 + OVDK -------------------- *
      * OVDK = 0160 octal, OV19 (XSTAR) = 036 octal -> sector 0254 octal.    */
-    const uint32_t OVDK = 0160;
-    const uint32_t OVLAY = 036;
-    uint32_t sectorA = OVLAY * 2 + OVDK; /* = 0254 octal = 172 dec */
-    CHECK(sectorA == 0254u, "overlay sector math OVLAY*2+OVDK == 0254 octal");
+    const uint32_t ovdk = 0160;
+    const uint32_t ovlay = 036;
+    uint32_t sector_a = ovlay * 2 + ovdk; /* = 0254 octal = 172 dec */
+    CHECK(sector_a == 0254u, "overlay sector math OVLAY*2+OVDK == 0254 octal");
 
     /* addressing math asserted directly: sector -> byte offset S*256*2 */
-    CHECK(sectorA * CDC_SECTOR_BYTES == sectorA * CDC_WORDS_PER_SECTOR * 2u,
+    CHECK(sector_a * CDC_SECTOR_BYTES == sector_a * CDC_WORDS_PER_SECTOR * 2u,
           "byte offset of a sector is S*256*2");
 
-    seed_sector(d, sectorA, 0x7000);
-    memset(g_fakeMem, 0, sizeof(g_fakeMem));
-    program(dev, /*core*/ 0x0300, (uint16_t)sectorA, CDC_WORDS_PER_SECTOR, modus_go(CDC_OP_READ));
+    seed_sector(d, sector_a, 0x7000);
+    memset(fake_mem, 0, sizeof(fake_mem));
+    program(dev, /*core*/ 0x0300, (uint16_t)sector_a, CDC_WORDS_PER_SECTOR, modus_go(CDC_OP_READ));
     CHECK((status(dev) & CDC_STATUS_BUSY) != 0, "BUSY set after GO (before completion)");
     CHECK((status(dev) & CDC_STATUS_ERR) == 0, "no ERR on a good read");
     CHECK(d->status.bits.active == 1 && d->status.bits.transferOn == 1,
           "status union: active + transferOn set during a transfer");
 
-    int okA = 1;
+    int ok_a = 1;
     for (uint16_t i = 0; i < CDC_WORDS_PER_SECTOR; i++)
     {
-        if (g_fakeMem[0x0300 + i] != (uint16_t)(0x7000 + i))
+        if (fake_mem[0x0300 + i] != (uint16_t)(0x7000 + i))
         {
-            okA = 0;
+            ok_a = 0;
         }
     }
-    CHECK(okA, "READ DMA'd the whole 256-word sector A to the right core addresses");
+    CHECK(ok_a, "READ DMA'd the whole 256-word sector A to the right core addresses");
     /* the mapping used was exactly surface[sectorA*256 + i] */
-    CHECK(g_fakeMem[0x0300] == d->surface[sectorA * CDC_WORDS_PER_SECTOR],
+    CHECK(fake_mem[0x0300] == d->surface[sector_a * CDC_WORDS_PER_SECTOR],
           "READ fetched word 0 from surface offset sector*256");
 
     /* completion: Tick fires the delayed callback -> BUSY clears, IRQ raised */
@@ -256,58 +256,58 @@ int main(void)
     CHECK((dev->interruptBits & (1u << CDC_INT_LEVEL)) != 0, "completion interrupt on level 11");
     CHECK(dev->Ident(dev, CDC_INT_LEVEL) == CDC_IDENT_CODE, "Ident returns the ident code");
     CHECK((dev->interruptBits & (1u << CDC_INT_LEVEL)) == 0, "Ident clears the interrupt bit");
-    CHECK(dev->Read(dev, dev->startAddress + CDC_REG_RSECT) == (uint16_t)sectorA,
+    CHECK(dev->Read(dev, dev->startAddress + CDC_REG_RSECT) == (uint16_t)sector_a,
           "RSECT (502) reports the last sector touched");
 
     /* --- 5. READ a SECOND, different sector (partial word count) -------- */
-    uint32_t sectorB = sectorA + 1; /* 0255 octal, ROV4 sector */
-    seed_sector(d, sectorB, 0x9000);
-    memset(g_fakeMem, 0, sizeof(g_fakeMem));
-    program(dev, 0x0500, (uint16_t)sectorB, 8, modus_go(CDC_OP_READ)); /* only 8 words */
+    uint32_t sector_b = sector_a + 1; /* 0255 octal, ROV4 sector */
+    seed_sector(d, sector_b, 0x9000);
+    memset(fake_mem, 0, sizeof(fake_mem));
+    program(dev, 0x0500, (uint16_t)sector_b, 8, modus_go(CDC_OP_READ)); /* only 8 words */
     dev->Tick(dev);
-    int okB = 1;
+    int ok_b = 1;
     for (uint16_t i = 0; i < 8; i++)
     {
-        if (g_fakeMem[0x0500 + i] != (uint16_t)(0x9000 + i))
+        if (fake_mem[0x0500 + i] != (uint16_t)(0x9000 + i))
         {
-            okB = 0;
+            ok_b = 0;
         }
     }
-    CHECK(okB, "READ of sector B copied the requested word count");
-    CHECK(g_fakeMem[0x0500 + 8] == 0, "READ did not transfer beyond the word count");
+    CHECK(ok_b, "READ of sector B copied the requested word count");
+    CHECK(fake_mem[0x0500 + 8] == 0, "READ did not transfer beyond the word count");
 
     /* --- 6. WRITE transfer + round-trip READ back ----------------------- */
-    uint32_t sectorC = 0100; /* an empty sector */
-    memset(g_fakeMem, 0, sizeof(g_fakeMem));
+    uint32_t sector_c = 0100; /* an empty sector */
+    memset(fake_mem, 0, sizeof(fake_mem));
     for (uint16_t i = 0; i < 16; i++)
     {
-        g_fakeMem[0x0700 + i] = (uint16_t)(0xB000 + i);
+        fake_mem[0x0700 + i] = (uint16_t)(0xB000 + i);
     }
-    program(dev, 0x0700, (uint16_t)sectorC, 16, modus_go(CDC_OP_WRITE));
+    program(dev, 0x0700, (uint16_t)sector_c, 16, modus_go(CDC_OP_WRITE));
     dev->Tick(dev);
-    int okW = 1;
-    uint32_t offC = sectorC * CDC_WORDS_PER_SECTOR;
+    int ok_w = 1;
+    uint32_t off_c = sector_c * CDC_WORDS_PER_SECTOR;
     for (uint16_t i = 0; i < 16; i++)
     {
-        if (d->surface[offC + i] != (uint16_t)(0xB000 + i))
+        if (d->surface[off_c + i] != (uint16_t)(0xB000 + i))
         {
-            okW = 0;
+            ok_w = 0;
         }
     }
-    CHECK(okW, "WRITE copied memory to the correct disc sector offset");
+    CHECK(ok_w, "WRITE copied memory to the correct disc sector offset");
 
-    memset(g_fakeMem, 0, sizeof(g_fakeMem));
-    program(dev, 0x0800, (uint16_t)sectorC, 16, modus_go(CDC_OP_READ));
+    memset(fake_mem, 0, sizeof(fake_mem));
+    program(dev, 0x0800, (uint16_t)sector_c, 16, modus_go(CDC_OP_READ));
     dev->Tick(dev);
-    int okRT = 1;
+    int ok_rt = 1;
     for (uint16_t i = 0; i < 16; i++)
     {
-        if (g_fakeMem[0x0800 + i] != (uint16_t)(0xB000 + i))
+        if (fake_mem[0x0800 + i] != (uint16_t)(0xB000 + i))
         {
-            okRT = 0;
+            ok_rt = 0;
         }
     }
-    CHECK(okRT, "round-trip: READ returns exactly what WRITE stored");
+    CHECK(ok_rt, "round-trip: READ returns exactly what WRITE stored");
 
     /* --- 7. control-word device clear (bit 4) clears BUSY/ERR ----------- */
     d->status.raw |= (CDC_STATUS_BUSY | CDC_STATUS_ERR);
@@ -317,15 +317,15 @@ int main(void)
 
     /* --- 8. bounds / error handling ------------------------------------- */
     /* a sector beyond the surface is out of range -> ERR, not left busy */
-    uint32_t badSector = d->surfaceSectors + 5; /* past the end */
-    program(dev, 0x0100, (uint16_t)badSector, 8, modus_go(CDC_OP_READ));
+    uint32_t bad_sector = d->surfaceSectors + 5; /* past the end */
+    program(dev, 0x0100, (uint16_t)bad_sector, 8, modus_go(CDC_OP_READ));
     CHECK((status(dev) & CDC_STATUS_ERR) != 0, "out-of-range sector sets ERR");
     dev->Tick(dev);
     CHECK((status(dev) & CDC_STATUS_BUSY) == 0, "device not left busy after a bounds error");
 
     /* a word count that overruns the last valid sector -> ERR */
-    uint32_t lastSector = d->surfaceSectors - 1;
-    program(dev, 0x0100, (uint16_t)lastSector, CDC_WORDS_PER_SECTOR + 1, modus_go(CDC_OP_READ));
+    uint32_t last_sector = d->surfaceSectors - 1;
+    program(dev, 0x0100, (uint16_t)last_sector, CDC_WORDS_PER_SECTOR + 1, modus_go(CDC_OP_READ));
     CHECK((status(dev) & CDC_STATUS_ERR) != 0, "word count past end of surface sets ERR");
     dev->Tick(dev);
 
@@ -372,10 +372,10 @@ int main(void)
                CDC_CTRL_ADDR16 | CDC_CTRL_ADDR17); /* no activate */
     CHECK(d->control.bits.addressBit16 == 1 && d->control.bits.addressBit17 == 1,
           "control decode: core-address bits 5-6 (addr 16-17)");
-    uint16_t rcaLow = dev->Read(dev, dev->startAddress + CDC_REG_RCA);
-    uint16_t rcaHigh = dev->Read(dev, dev->startAddress + CDC_REG_RCA);
-    CHECK(rcaLow == 0xBEEF, "RCA two-read: first read is the low 16 bits");
-    CHECK(rcaHigh == 0x03, "RCA two-read: second read is the high 8 (control bits 5-6 => 3)");
+    uint16_t rca_low = dev->Read(dev, dev->startAddress + CDC_REG_RCA);
+    uint16_t rca_high = dev->Read(dev, dev->startAddress + CDC_REG_RCA);
+    CHECK(rca_low == 0xBEEF, "RCA two-read: first read is the low 16 bits");
+    CHECK(rca_high == 0x03, "RCA two-read: second read is the high 8 (control bits 5-6 => 3)");
     /* a read status re-initialises the RCA read sequence (MANUAL-N100 p.188) */
     (void)status(dev);
     CHECK(dev->Read(dev, dev->startAddress + CDC_REG_RCA) == 0xBEEF,
@@ -385,19 +385,19 @@ int main(void)
     /* --- 12. TEST MODE self-test (MANUAL-N10 p.14) --------------------- *
      * Read-with-Test, block address == 125252, returns pre-wired words:     *
      * even = 125252 (octal), odd = 052525 (octal).                          */
-    memset(g_fakeMem, 0, sizeof(g_fakeMem));
+    memset(fake_mem, 0, sizeof(fake_mem));
     program(dev, 0x0B00, (uint16_t)CDC_TESTMODE_BLOCK, 6,
             (uint16_t)(modus_go(CDC_OP_READ) | CDC_CTRL_TEST)); /* read + test mode */
     dev->Tick(dev);
     CHECK((status(dev) & CDC_STATUS_ERR) == 0,
           "test-mode read with block 125252 succeeds (no ERR)");
-    CHECK(g_fakeMem[0x0B00 + 0] == (uint16_t)CDC_TESTMODE_EVEN &&
-              g_fakeMem[0x0B00 + 2] == (uint16_t)CDC_TESTMODE_EVEN &&
-              g_fakeMem[0x0B00 + 4] == (uint16_t)CDC_TESTMODE_EVEN,
+    CHECK(fake_mem[0x0B00 + 0] == (uint16_t)CDC_TESTMODE_EVEN &&
+              fake_mem[0x0B00 + 2] == (uint16_t)CDC_TESTMODE_EVEN &&
+              fake_mem[0x0B00 + 4] == (uint16_t)CDC_TESTMODE_EVEN,
           "test-mode even words are 125252 (octal)");
-    CHECK(g_fakeMem[0x0B00 + 1] == (uint16_t)CDC_TESTMODE_ODD &&
-              g_fakeMem[0x0B00 + 3] == (uint16_t)CDC_TESTMODE_ODD &&
-              g_fakeMem[0x0B00 + 5] == (uint16_t)CDC_TESTMODE_ODD,
+    CHECK(fake_mem[0x0B00 + 1] == (uint16_t)CDC_TESTMODE_ODD &&
+              fake_mem[0x0B00 + 3] == (uint16_t)CDC_TESTMODE_ODD &&
+              fake_mem[0x0B00 + 5] == (uint16_t)CDC_TESTMODE_ODD,
           "test-mode odd words are 052525 (octal)");
     CHECK((uint16_t)CDC_TESTMODE_EVEN == 0xAAAAu && (uint16_t)CDC_TESTMODE_ODD == 0x5555u,
           "test-mode words are the 0xAAAA / 0x5555 bit patterns");
@@ -405,7 +405,7 @@ int main(void)
     CHECK(dev->Read(dev, dev->startAddress + CDC_REG_SEEK) == (uint16_t)CDC_TESTMODE_BLOCK,
           "SEEK (506) with test mode returns the loaded block address");
     /* test-mode read with the WRONG block address flags an error */
-    memset(g_fakeMem, 0, sizeof(g_fakeMem));
+    memset(fake_mem, 0, sizeof(fake_mem));
     program(dev, 0x0C00, 0123, 4, (uint16_t)(modus_go(CDC_OP_READ) | CDC_CTRL_TEST));
     CHECK((status(dev) & CDC_STATUS_ERR) != 0, "test-mode read with wrong block sets ERR");
     dev->Tick(dev);
@@ -413,23 +413,23 @@ int main(void)
 
     /* --- 13. COMPARE operation (op 11) round-trip ---------------------- */
     {
-        uint32_t sectorD = 0120;
-        memset(g_fakeMem, 0, sizeof(g_fakeMem));
+        uint32_t sector_d = 0120;
+        memset(fake_mem, 0, sizeof(fake_mem));
         for (uint16_t i = 0; i < 12; i++)
         {
-            g_fakeMem[0x0D00 + i] = (uint16_t)(0xD000 + i);
+            fake_mem[0x0D00 + i] = (uint16_t)(0xD000 + i);
         }
         /* First WRITE the pattern to the disc. */
-        program(dev, 0x0D00, (uint16_t)sectorD, 12, modus_go(CDC_OP_WRITE));
+        program(dev, 0x0D00, (uint16_t)sector_d, 12, modus_go(CDC_OP_WRITE));
         dev->Tick(dev);
         /* COMPARE the SAME memory vs disc -> no compare error. */
-        program(dev, 0x0D00, (uint16_t)sectorD, 12, modus_go(CDC_OP_COMPARE));
+        program(dev, 0x0D00, (uint16_t)sector_d, 12, modus_go(CDC_OP_COMPARE));
         CHECK(d->status.bits.compareError == 0 && (status(dev) & CDC_STATUS_ERR) == 0,
               "COMPARE of matching data reports no error");
         dev->Tick(dev);
         /* Corrupt one memory word and COMPARE again -> compare error + errorOr. */
-        g_fakeMem[0x0D00 + 5] ^= 0xFFFF;
-        program(dev, 0x0D00, (uint16_t)sectorD, 12, modus_go(CDC_OP_COMPARE));
+        fake_mem[0x0D00 + 5] ^= 0xFFFF;
+        program(dev, 0x0D00, (uint16_t)sector_d, 12, modus_go(CDC_OP_COMPARE));
         CHECK(d->status.bits.compareError == 1 && (status(dev) & CDC_STATUS_ERR) != 0,
               "COMPARE of mismatching data sets compare error + inclusive-OR error");
         dev->Tick(dev);
@@ -438,13 +438,13 @@ int main(void)
 
     /* --- 14. READ-PARITY operation (op 10) is a no-op success ---------- */
     {
-        uint32_t sectorE = 0121;
-        seed_sector(d, sectorE, 0xE000);
-        memset(g_fakeMem, 0xFF, sizeof(g_fakeMem)); /* would-be-visible if it wrote */
-        program(dev, 0x0E00, (uint16_t)sectorE, 8, modus_go(CDC_OP_READ_PARITY));
+        uint32_t sector_e = 0121;
+        seed_sector(d, sector_e, 0xE000);
+        memset(fake_mem, 0xFF, sizeof(fake_mem)); /* would-be-visible if it wrote */
+        program(dev, 0x0E00, (uint16_t)sector_e, 8, modus_go(CDC_OP_READ_PARITY));
         dev->Tick(dev);
         CHECK((status(dev) & CDC_STATUS_ERR) == 0, "READ-PARITY succeeds (no injected CRC fault)");
-        CHECK(g_fakeMem[0x0E00] == 0xFFFF,
+        CHECK(fake_mem[0x0E00] == 0xFFFF,
               "READ-PARITY performs no memory transfer (core untouched)");
     }
 
@@ -471,7 +471,7 @@ int main(void)
             /* WRITE a sector, then Destroy -> persists big-endian to the file. */
             for (uint16_t i = 0; i < 32; i++)
             {
-                g_fakeMem[0x0900 + i] = (uint16_t)(0xC100 + i);
+                fake_mem[0x0900 + i] = (uint16_t)(0xC100 + i);
             }
             program(d1, 0x0900, 0130, 32, modus_go(CDC_OP_WRITE));
             d1->Tick(d1);
@@ -489,18 +489,18 @@ int main(void)
         CHECK(d2 != NULL, "device re-created from existing backing file");
         if (d2)
         {
-            memset(g_fakeMem, 0, sizeof(g_fakeMem));
+            memset(fake_mem, 0, sizeof(fake_mem));
             program(d2, 0x0A00, 0130, 32, modus_go(CDC_OP_READ));
             d2->Tick(d2);
-            int okP = 1;
+            int ok_p = 1;
             for (uint16_t i = 0; i < 32; i++)
             {
-                if (g_fakeMem[0x0A00 + i] != (uint16_t)(0xC100 + i))
+                if (fake_mem[0x0A00 + i] != (uint16_t)(0xC100 + i))
                 {
-                    okP = 0;
+                    ok_p = 0;
                 }
             }
-            CHECK(okP, "backing file persisted the WRITE across close/re-open (big-endian)");
+            CHECK(ok_p, "backing file persisted the WRITE across close/re-open (big-endian)");
             if (d2->Destroy)
             {
                 d2->Destroy(d2);

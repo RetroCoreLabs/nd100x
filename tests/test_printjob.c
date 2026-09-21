@@ -309,14 +309,14 @@ static int test_pj_destroy_flushes(const char *tmpdir)
 
 /* Suite runner */
 
-typedef int (*pj_test_fn)(const char *);
+typedef int (*PjTestFn)(const char *);
 
 int run_printjob_tests(const char *tmpdir)
 {
     int passed = 0;
     int failed = 0;
     // clang-format off
-    struct { const char *name; pj_test_fn fn; } tests[] = {
+    struct { const char *name; PjTestFn fn; } tests[] = {
         { "pj_text_txt",          test_pj_text_txt },
         { "pj_text_pdf",          test_pj_text_pdf },
         { "pj_escp_txt",          test_pj_escp_txt },

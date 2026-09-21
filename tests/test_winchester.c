@@ -43,41 +43,41 @@
 /* ---------------- fake device infrastructure ---------------------------- */
 
 #define FAKE_MEM_WORDS 65536u
-static uint16_t g_fakeMem[FAKE_MEM_WORDS];
+static uint16_t fake_mem[FAKE_MEM_WORDS];
 
-static IODelayedCallback g_pendingCb;
-static void *g_pendingCtx;
-static int g_pendingParam;
-static uint8_t g_pendingLevel;
-static int g_pendingSet;
+static IODelayedCallback pending_cb;
+static void *pending_ctx;
+static int pending_param;
+static uint8_t pending_level;
+static int pending_set;
 
 /* A fake backing store: one buffer standing in for the mounted image. */
 #define FAKE_DISK_BLOCKS 64u
 #define FAKE_BLOCK_BYTES 1024u
-static uint8_t g_fakeDisk[FAKE_DISK_BLOCKS * FAKE_BLOCK_BYTES];
-static int g_diskAttached = 1;
+static uint8_t fake_disk[FAKE_DISK_BLOCKS * FAKE_BLOCK_BYTES];
+static int disk_attached = 1;
 
-void Device_Init(Device *dev, uint8_t thumbwheel, DeviceClass deviceClass, size_t blockSize)
+void Device_Init(Device *dev, uint8_t thumbwheel, DeviceClass device_class, size_t block_size)
 {
     (void)thumbwheel;
     memset(dev, 0, sizeof(Device));
-    dev->deviceClass = deviceClass;
-    dev->blockSizeBytes = blockSize;
+    dev->deviceClass = device_class;
+    dev->blockSizeBytes = block_size;
 }
 
-void Device_DMAWrite(uint32_t coreAddress, uint16_t data)
+void Device_DMAWrite(uint32_t core_address, uint16_t data)
 {
-    if (coreAddress < FAKE_MEM_WORDS)
+    if (core_address < FAKE_MEM_WORDS)
     {
-        g_fakeMem[coreAddress] = data;
+        fake_mem[core_address] = data;
     }
 }
 
-int32_t Device_DMARead(uint32_t coreAddress)
+int32_t Device_DMARead(uint32_t core_address)
 {
-    if (coreAddress < FAKE_MEM_WORDS)
+    if (core_address < FAKE_MEM_WORDS)
     {
-        return g_fakeMem[coreAddress];
+        return fake_mem[core_address];
     }
     return 0;
 }
@@ -86,23 +86,23 @@ void Device_QueueIODelay(Device *dev, uint16_t ticks, IODelayedCallback cb, int 
                          uint8_t irqlevel)
 {
     (void)ticks;
-    g_pendingCb = cb;
-    g_pendingCtx = dev;
-    g_pendingParam = param;
-    g_pendingLevel = irqlevel;
-    g_pendingSet = 1;
+    pending_cb = cb;
+    pending_ctx = dev;
+    pending_param = param;
+    pending_level = irqlevel;
+    pending_set = 1;
 }
 
 void Device_TickIODelay(Device *dev)
 {
-    if (!g_pendingSet)
+    if (!pending_set)
     {
         return;
     }
-    g_pendingSet = 0;
-    if (g_pendingCb && g_pendingCb(g_pendingCtx, g_pendingParam))
+    pending_set = 0;
+    if (pending_cb && pending_cb(pending_ctx, pending_param))
     {
-        dev->interruptBits |= (uint16_t)(1u << g_pendingLevel);
+        dev->interruptBits |= (uint16_t)(1u << pending_level);
     }
 }
 
@@ -141,42 +141,42 @@ int32_t Device_IO_BufferWriteWord(Device *dev, uint8_t *buf, int32_t word_offset
 
 /* ---------------- fake block callbacks ---------------------------------- */
 
-static int fake_read(Device *self, uint8_t *buffer, size_t blockCount, uint32_t lba, int unit)
+static int fake_read(Device *self, uint8_t *buffer, size_t block_count, uint32_t lba, int unit)
 {
     (void)self;
     (void)unit;
-    if (lba + blockCount > FAKE_DISK_BLOCKS)
+    if (lba + block_count > FAKE_DISK_BLOCKS)
     {
         return -1;
     }
-    memcpy(buffer, &g_fakeDisk[lba * FAKE_BLOCK_BYTES], blockCount * FAKE_BLOCK_BYTES);
-    return (int)blockCount;
+    memcpy(buffer, &fake_disk[lba * FAKE_BLOCK_BYTES], block_count * FAKE_BLOCK_BYTES);
+    return (int)block_count;
 }
 
-static int fake_write(Device *self, const uint8_t *buffer, size_t blockCount, uint32_t lba,
+static int fake_write(Device *self, const uint8_t *buffer, size_t block_count, uint32_t lba,
                       int unit)
 {
     (void)self;
     (void)unit;
-    if (lba + blockCount > FAKE_DISK_BLOCKS)
+    if (lba + block_count > FAKE_DISK_BLOCKS)
     {
         return -1;
     }
-    memcpy(&g_fakeDisk[lba * FAKE_BLOCK_BYTES], buffer, blockCount * FAKE_BLOCK_BYTES);
-    return (int)blockCount;
+    memcpy(&fake_disk[lba * FAKE_BLOCK_BYTES], buffer, block_count * FAKE_BLOCK_BYTES);
+    return (int)block_count;
 }
 
-static int fake_info(Device *self, size_t *size, bool *readOnly, int unit)
+static int fake_info(Device *self, size_t *size, bool *read_only, int unit)
 {
     (void)self;
     (void)unit;
     if (size)
     {
-        *size = g_diskAttached ? sizeof(g_fakeDisk) : 0;
+        *size = disk_attached ? sizeof(fake_disk) : 0;
     }
-    if (readOnly)
+    if (read_only)
     {
-        *readOnly = false;
+        *read_only = false;
     }
     return 0;
 }
@@ -322,10 +322,10 @@ int main(void)
         /* Seed the fake image: LBA 0, one block, ascending words. */
         for (uint32_t i = 0; i < FAKE_BLOCK_BYTES / 2; i++)
         {
-            g_fakeDisk[i * 2] = (uint8_t)((0x1000 + i) >> 8);
-            g_fakeDisk[i * 2 + 1] = (uint8_t)((0x1000 + i) & 0xFF);
+            fake_disk[i * 2] = (uint8_t)((0x1000 + i) >> 8);
+            fake_disk[i * 2 + 1] = (uint8_t)((0x1000 + i) & 0xFF);
         }
-        memset(g_fakeMem, 0, sizeof(g_fakeMem));
+        memset(fake_mem, 0, sizeof(fake_mem));
 
         /* Unit 0, head 0, cylinder 0, sector 0 -> LBA 0. */
         wr(dev, R_LOAD_CW, 0);      /* select unit 0, clear test mode */
@@ -336,9 +336,9 @@ int main(void)
         wr(dev, R_LOAD_WC, 512);    /* one 1024-byte sector */
         wr(dev, R_LOAD_CW, CW_ACTIVATE | (WD_OP_READ_TRANSFER << CW_OP_SHIFT));
 
-        CHECK(g_fakeMem[0x1000] == 0x1000, "M0 read: first word landed in memory");
-        CHECK(g_fakeMem[0x1000 + 511] == 0x1000 + 511, "M0 read: last word landed in memory");
-        CHECK(g_fakeMem[0x1000 + 512] == 0, "M0 read: did not overrun the word count");
+        CHECK(fake_mem[0x1000] == 0x1000, "M0 read: first word landed in memory");
+        CHECK(fake_mem[0x1000 + 511] == 0x1000 + 511, "M0 read: last word landed in memory");
+        CHECK(fake_mem[0x1000 + 512] == 0, "M0 read: did not overrun the word count");
 
         /* The operation completes on the queued delay, not instantly. */
         Device_TickIODelay(dev);
@@ -352,9 +352,9 @@ int main(void)
     {
         for (uint32_t i = 0; i < 512; i++)
         {
-            g_fakeMem[0x2000 + i] = (uint16_t)(0xA000 + i);
+            fake_mem[0x2000 + i] = (uint16_t)(0xA000 + i);
         }
-        memset(g_fakeDisk, 0, sizeof(g_fakeDisk));
+        memset(fake_disk, 0, sizeof(fake_disk));
 
         wr(dev, R_LOAD_CW, 0);
         (void)status(dev);
@@ -365,8 +365,8 @@ int main(void)
         wr(dev, R_LOAD_CW, CW_ACTIVATE | (WD_OP_WRITE_TRANSFER << CW_OP_SHIFT));
         Device_TickIODelay(dev);
 
-        uint16_t w0 = (uint16_t)((g_fakeDisk[0] << 8) | g_fakeDisk[1]);
-        uint16_t wl = (uint16_t)((g_fakeDisk[1022] << 8) | g_fakeDisk[1023]);
+        uint16_t w0 = (uint16_t)((fake_disk[0] << 8) | fake_disk[1]);
+        uint16_t wl = (uint16_t)((fake_disk[1022] << 8) | fake_disk[1023]);
         CHECK(w0 == 0xA000, "M1 write: first word reached the image");
         CHECK(wl == (uint16_t)(0xA000 + 511), "M1 write: last word reached the image");
     }
@@ -390,12 +390,12 @@ int main(void)
 
         /* Seeking past cylinder 0 clamps the CYLINDER, and must not disturb
          * the head - the C# original wrote the clamp into the head register. */
-        uint8_t headBefore = data->regs.head;
+        uint8_t head_before = data->regs.head;
         wr(dev, R_LOAD_WC, 1000);
         wr(dev, R_LOAD_CW, CW_ACTIVATE | (WD_OP_SEEK << CW_OP_SHIFT));
         Device_TickIODelay(dev);
         CHECK(data->regs.disks[0].cylinder == 0, "M4 clamps at cylinder 0");
-        CHECK(data->regs.head == headBefore, "M4 clamp does not corrupt the head register");
+        CHECK(data->regs.head == head_before, "M4 clamp does not corrupt the head register");
     }
 
     /* --- 11. M7 return to zero ------------------------------------------ */
@@ -441,7 +441,7 @@ int main(void)
 
     /* --- 15. a powered-off unit reports a fault, never a hang ------------ */
     {
-        g_diskAttached = 0;
+        disk_attached = 0;
         data->regs.disks[0].unitAttachChecked = false;
 
         wr(dev, R_LOAD_CW, 0);
@@ -456,7 +456,7 @@ int main(void)
         CHECK((st & ST_DISK_FAULT) != 0, "unattached unit raises a disk fault");
         CHECK((st & ST_ACTIVE) == 0, "unattached unit still terminates the operation");
         CHECK((st & ST_ON_CYLINDER) == 0, "unattached unit is not on cylinder");
-        g_diskAttached = 1;
+        disk_attached = 1;
     }
 
     /* --- 16. interrupt + IDENT PL11, the TPE CONFIGURATION probe ---------
@@ -471,49 +471,49 @@ int main(void)
      * level 11D, expected identcode: 1B", because the interrupt was only ever
      * raised at the END of a device operation, never on an idle card. */
     {
-        const uint16_t L11 = (uint16_t)(1u << 11);
+        const uint16_t l11 = (uint16_t)(1u << 11);
 
         /* Start from a known quiet state. */
         wr(dev, R_LOAD_CW, CW_DEVICE_CLEAR);
         (void)status(dev);
-        CHECK((dev->interruptBits & L11) == 0, "device clear leaves level 11 quiet");
+        CHECK((dev->interruptBits & l11) == 0, "device clear leaves level 11 quiet");
 
         /* Enable the interrupt on an IDLE controller - no activate bit. */
         wr(dev, R_LOAD_CW, CW_INT_NOT_ACTIVE);
         uint16_t st = status(dev);
         CHECK((st & ST_FINISHED) != 0, "idle controller reports ready (status bit 3)");
         CHECK((st & 1u) != 0, "interrupt-enable reaches status bit 0");
-        CHECK((dev->interruptBits & L11) != 0,
+        CHECK((dev->interruptBits & l11) != 0,
               "ready + interrupt enabled asserts BINT11 on an idle controller");
 
         /* IDENT PL11 answers with code 1, and identing clears the interrupt. */
         CHECK(dev->Ident(dev, 11) == 001, "IDENT PL11 returns ident code 1");
-        CHECK((dev->interruptBits & L11) == 0, "IDENT cleared the pending interrupt");
+        CHECK((dev->interruptBits & l11) == 0, "IDENT cleared the pending interrupt");
         CHECK(dev->Ident(dev, 11) == 0, "a second IDENT with nothing pending stays silent");
 
         /* An IDENT for a different level must never be answered - level 11 is
          * shared with the floppy (ident 21) and the SMD card (ident 17). */
         wr(dev, R_LOAD_CW, CW_INT_NOT_ACTIVE);
-        CHECK((dev->interruptBits & L11) != 0, "interrupt re-armed");
+        CHECK((dev->interruptBits & l11) != 0, "interrupt re-armed");
         CHECK(dev->Ident(dev, 10) == 0, "IDENT on the wrong level is not answered");
         CHECK(dev->Ident(dev, 13) == 0, "IDENT on level 13 is not answered");
-        CHECK((dev->interruptBits & L11) != 0, "a wrong-level IDENT left level 11 pending");
+        CHECK((dev->interruptBits & l11) != 0, "a wrong-level IDENT left level 11 pending");
 
         /* Device clear and interrupt enable in ONE control word: the clear
          * must not swallow the interrupt update. This is the usual probe
          * opening, and an early return on device clear breaks it. */
         (void)dev->Ident(dev, 11);
         wr(dev, R_LOAD_CW, CW_DEVICE_CLEAR | CW_INT_NOT_ACTIVE);
-        CHECK((dev->interruptBits & L11) != 0,
+        CHECK((dev->interruptBits & l11) != 0,
               "device clear + interrupt enable in one word still interrupts");
 
         /* Dropping the enable takes the interrupt away again. */
         wr(dev, R_LOAD_CW, 0);
-        CHECK((dev->interruptBits & L11) == 0, "clearing the enable drops BINT11");
+        CHECK((dev->interruptBits & l11) == 0, "clearing the enable drops BINT11");
 
         /* An ACTIVATED operation must not leave the card ready mid-flight;
          * the interrupt belongs at completion, not at activation. */
-        g_diskAttached = 1;
+        disk_attached = 1;
         data->regs.disks[0].unitAttachChecked = false;
         wr(dev, R_LOAD_CW, CW_INT_NOT_ACTIVE);
         (void)status(dev);
@@ -522,7 +522,7 @@ int main(void)
         wr(dev, R_LOAD_BA, 0);
         wr(dev, R_LOAD_WC, 512);
         wr(dev, R_LOAD_CW, CW_INT_NOT_ACTIVE | CW_ACTIVATE | (WD_OP_READ_TRANSFER << CW_OP_SHIFT));
-        CHECK((dev->interruptBits & L11) == 0,
+        CHECK((dev->interruptBits & l11) == 0,
               "activation itself does not interrupt - completion does");
 
         /* The operation completes on the queued delay, not instantly. */
@@ -530,7 +530,7 @@ int main(void)
         st = status(dev);
         CHECK((st & ST_ACTIVE) == 0 && (st & ST_FINISHED) != 0,
               "the transfer completed and the card is ready again");
-        CHECK((dev->interruptBits & L11) != 0, "completion raised the interrupt");
+        CHECK((dev->interruptBits & l11) != 0, "completion raised the interrupt");
         CHECK(dev->Ident(dev, 11) == 001, "IDENT after a transfer returns code 1");
     }
 

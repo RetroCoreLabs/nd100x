@@ -64,39 +64,39 @@
  * with no machine and no CPU. */
 
 #define FAKE_MEM_WORDS 65536u
-static uint16_t g_fakeMem[FAKE_MEM_WORDS];
+static uint16_t fake_mem[FAKE_MEM_WORDS];
 
-static IODelayedCallback g_pendingCb;
-static void *g_pendingCtx;
-static int g_pendingParam;
-static uint8_t g_pendingLevel;
-static int g_pendingSet;
+static IODelayedCallback pending_cb;
+static void *pending_ctx;
+static int pending_param;
+static uint8_t pending_level;
+static int pending_set;
 
 #define FAKE_DISK_BLOCKS 64u
 #define FAKE_BLOCK_BYTES 1024u
-static uint8_t g_fakeDisk[FAKE_DISK_BLOCKS * FAKE_BLOCK_BYTES];
+static uint8_t fake_disk[FAKE_DISK_BLOCKS * FAKE_BLOCK_BYTES];
 
-void Device_Init(Device *dev, uint8_t thumbwheel, DeviceClass deviceClass, size_t blockSize)
+void Device_Init(Device *dev, uint8_t thumbwheel, DeviceClass device_class, size_t block_size)
 {
     (void)thumbwheel;
     memset(dev, 0, sizeof(Device));
-    dev->deviceClass = deviceClass;
-    dev->blockSizeBytes = blockSize;
+    dev->deviceClass = device_class;
+    dev->blockSizeBytes = block_size;
 }
 
-void Device_DMAWrite(uint32_t coreAddress, uint16_t data)
+void Device_DMAWrite(uint32_t core_address, uint16_t data)
 {
-    if (coreAddress < FAKE_MEM_WORDS)
+    if (core_address < FAKE_MEM_WORDS)
     {
-        g_fakeMem[coreAddress] = data;
+        fake_mem[core_address] = data;
     }
 }
 
-int32_t Device_DMARead(uint32_t coreAddress)
+int32_t Device_DMARead(uint32_t core_address)
 {
-    if (coreAddress < FAKE_MEM_WORDS)
+    if (core_address < FAKE_MEM_WORDS)
     {
-        return g_fakeMem[coreAddress];
+        return fake_mem[core_address];
     }
     return 0;
 }
@@ -105,23 +105,23 @@ void Device_QueueIODelay(Device *dev, uint16_t ticks, IODelayedCallback cb, int 
                          uint8_t irqlevel)
 {
     (void)ticks;
-    g_pendingCb = cb;
-    g_pendingCtx = dev;
-    g_pendingParam = param;
-    g_pendingLevel = irqlevel;
-    g_pendingSet = 1;
+    pending_cb = cb;
+    pending_ctx = dev;
+    pending_param = param;
+    pending_level = irqlevel;
+    pending_set = 1;
 }
 
 void Device_TickIODelay(Device *dev)
 {
-    if (!g_pendingSet)
+    if (!pending_set)
     {
         return;
     }
-    g_pendingSet = 0;
-    if (g_pendingCb && g_pendingCb(g_pendingCtx, g_pendingParam))
+    pending_set = 0;
+    if (pending_cb && pending_cb(pending_ctx, pending_param))
     {
-        dev->interruptBits |= (uint16_t)(1u << g_pendingLevel);
+        dev->interruptBits |= (uint16_t)(1u << pending_level);
     }
 }
 
@@ -156,42 +156,42 @@ int32_t Device_IO_BufferWriteWord(Device *dev, uint8_t *buf, int32_t word_offset
     return 0;
 }
 
-static int fake_read(Device *self, uint8_t *buffer, size_t blockCount, uint32_t lba, int unit)
+static int fake_read(Device *self, uint8_t *buffer, size_t block_count, uint32_t lba, int unit)
 {
     (void)self;
     (void)unit;
-    if (lba + blockCount > FAKE_DISK_BLOCKS)
+    if (lba + block_count > FAKE_DISK_BLOCKS)
     {
         return -1;
     }
-    memcpy(buffer, &g_fakeDisk[lba * FAKE_BLOCK_BYTES], blockCount * FAKE_BLOCK_BYTES);
-    return (int)blockCount;
+    memcpy(buffer, &fake_disk[lba * FAKE_BLOCK_BYTES], block_count * FAKE_BLOCK_BYTES);
+    return (int)block_count;
 }
 
-static int fake_write(Device *self, const uint8_t *buffer, size_t blockCount, uint32_t lba,
+static int fake_write(Device *self, const uint8_t *buffer, size_t block_count, uint32_t lba,
                       int unit)
 {
     (void)self;
     (void)unit;
-    if (lba + blockCount > FAKE_DISK_BLOCKS)
+    if (lba + block_count > FAKE_DISK_BLOCKS)
     {
         return -1;
     }
-    memcpy(&g_fakeDisk[lba * FAKE_BLOCK_BYTES], buffer, blockCount * FAKE_BLOCK_BYTES);
-    return (int)blockCount;
+    memcpy(&fake_disk[lba * FAKE_BLOCK_BYTES], buffer, block_count * FAKE_BLOCK_BYTES);
+    return (int)block_count;
 }
 
-static int fake_info(Device *self, size_t *size, bool *readOnly, int unit)
+static int fake_info(Device *self, size_t *size, bool *read_only, int unit)
 {
     (void)self;
     (void)unit;
     if (size)
     {
-        *size = sizeof(g_fakeDisk);
+        *size = sizeof(fake_disk);
     }
-    if (readOnly)
+    if (read_only)
     {
-        *readOnly = false;
+        *read_only = false;
     }
     return 0;
 }
@@ -203,8 +203,8 @@ int main(void)
     Device *dev;
     size_t i;
 
-    memset(g_fakeMem, 0, sizeof(g_fakeMem));
-    memset(g_fakeDisk, 0, sizeof(g_fakeDisk));
+    memset(fake_mem, 0, sizeof(fake_mem));
+    memset(fake_disk, 0, sizeof(fake_disk));
 
     dev = CreateWinchesterDevice(0);
     if (dev == NULL)
@@ -219,7 +219,7 @@ int main(void)
 
     for (i = 0; i < WD_CONFORMANCE_SEQ_LEN; i++)
     {
-        const wds_step *s = &WD_CONFORMANCE_SEQ[i];
+        const WdsStep *s = &WD_CONFORMANCE_SEQ[i];
 
         switch (s->op)
         {

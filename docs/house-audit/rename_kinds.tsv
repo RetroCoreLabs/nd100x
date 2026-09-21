@@ -280,3 +280,65 @@ src/cpu	struct	src/cpu/cpu_instr.c	versn_identity	VersnIdentity
 src/cpu	typedef	src/cpu/cpu_types.h	_NDRAM_	Ndram
 src/cpu	typedef	src/cpu/bcd.c	bcd_operand	BcdOperand
 src/cpu	union	src/cpu/cpu_types.h	ndram	Ndram
+tests	global variable	tests/test_floppydb.c	FIXTURE	fixture
+tests	global variable	tests/test_winchester.c	g_diskAttached	disk_attached
+tests	global variable	tests/wd_trace.c	g_fakeDisk	fake_disk
+tests	global variable	tests/wd_trace.c	g_fakeMem	fake_mem
+tests	global variable	tests/wd_trace.c	g_pendingCb	pending_cb
+tests	global variable	tests/wd_trace.c	g_pendingCtx	pending_ctx
+tests	global variable	tests/wd_trace.c	g_pendingLevel	pending_level
+tests	global variable	tests/wd_trace.c	g_pendingParam	pending_param
+tests	global variable	tests/wd_trace.c	g_pendingSet	pending_set
+tests	local variable	tests/test_winchester.c	L11	l11
+tests	local variable	tests/test_cdc.c	OVDK	ovdk
+tests	local variable	tests/test_cdc.c	OVLAY	ovlay
+tests	local variable	tests/test_cdc.c	badSector	bad_sector
+tests	local variable	tests/test_escp.c	defaultWidth	default_width
+tests	local variable	tests/test_hdlc_frame.c	framesReceived	frames_received
+tests	local variable	tests/test_winchester.c	headBefore	head_before
+tests	local variable	tests/test_cdc.c	lastSector	last_sector
+tests	local variable	tests/test_drum.c	maxBlk	max_blk
+tests	local variable	tests/test_cdc.c	offC	off_c
+tests	local variable	tests/test_cdc.c	okA	ok_a
+tests	local variable	tests/test_cdc.c	okB	ok_b
+tests	local variable	tests/test_cdc.c	okP	ok_p
+tests	local variable	tests/test_drum.c	okR	ok_r
+tests	local variable	tests/test_cdc.c	okRT	ok_rt
+tests	local variable	tests/test_drum.c	okW	ok_w
+tests	local variable	tests/test_cdc.c	rcaHigh	rca_high
+tests	local variable	tests/test_cdc.c	rcaLow	rca_low
+tests	local variable	tests/test_hdlc_frame.c	rxData	rx_data
+tests	local variable	tests/test_hdlc_frame.c	rxLen	rx_len
+tests	local variable	tests/test_cdc.c	sectorA	sector_a
+tests	local variable	tests/test_cdc.c	sectorB	sector_b
+tests	local variable	tests/test_cdc.c	sectorC	sector_c
+tests	local variable	tests/test_cdc.c	sectorD	sector_d
+tests	local variable	tests/test_cdc.c	sectorE	sector_e
+tests	local variable	tests/test_hdlc_frame.c	totalLen	total_len
+tests	local variable	tests/test_hdlc_frame.c	wireLen	wire_len
+tests	parameter	tests/test_bcd.c	UseAPT	use_apt
+tests	parameter	tests/test_drum.c	addrHi	addr_hi
+tests	parameter	tests/wd_trace.c	blockCount	block_count
+tests	parameter	tests/wd_trace.c	blockSize	block_size
+tests	parameter	tests/test_shell.c	bootType	boot_type
+tests	parameter	tests/test_shell.c	bootUnit	boot_unit
+tests	parameter	tests/wd_trace.c	coreAddress	core_address
+tests	parameter	tests/wd_trace.c	deviceClass	device_class
+tests	parameter	tests/test_load_prog.c	fB2	f_b2
+tests	parameter	tests/test_shell.c	imageFile	image_file
+tests	parameter	tests/test_load_prog.c	lB2	l_b2
+tests	parameter	tests/test_printer_main.c	physicalAddress	physical_address
+tests	parameter	tests/wd_trace.c	readOnly	read_only
+tests	typedef	tests/test_bcd.c	bcd_test_case	BcdTestCase
+tests	typedef	tests/test_bcd.c	bcd_test_dest	BcdTestDest
+tests	typedef	tests/test_bcd.c	bcd_test_op	BcdTestOp
+tests	typedef	tests/test_escp.c	escp_test_fn	EscpTestFn
+tests	typedef	tests/test_float.c	fp32_nlz_case	Fp32NlzCase
+tests	typedef	tests/test_float.c	fp32_op_case	Fp32OpCase
+tests	typedef	tests/test_float.c	fp48_nlz_case	Fp48NlzCase
+tests	typedef	tests/test_float.c	fp48_pair_case	Fp48PairCase
+tests	typedef	tests/test_pdfwriter.c	pdf_test_fn	PdfTestFn
+tests	typedef	tests/test_pdfwriter.c	pdf_test_fn_dir	PdfTestFnDir
+tests	typedef	tests/test_printjob.c	pj_test_fn	PjTestFn
+tests	typedef	tests/wd_conformance_seq.h	wds_op	WdsOp
+tests	typedef	tests/wd_conformance_seq.h	wds_step	WdsStep

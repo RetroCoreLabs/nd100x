@@ -112,11 +112,11 @@ typedef struct {
     uint16_t mul[3];    /* expected NDFloat_Mul result */
     uint16_t dv[3];     /* expected NDFloat_Div result */
     int    div_rc;    /* expected NDFloat_Div return (1 = div by zero) */
-} fp48_pair_case;
+} Fp48PairCase;
 // clang-format on
 
 /* Captured from unmodified float.c on 2026-07-27 - DO NOT RECOMPUTE. */
-static const fp48_pair_case fp48_pairs[] = {
+static const Fp48PairCase fp48_pairs[] = {
     /* +1, +1 */
     {{0040001, 0100000, 0000000},
      {0040001, 0100000, 0000000},
@@ -262,12 +262,12 @@ typedef struct {
     uint16_t nlz[3];    /* expected {T,A,D} after DoNLZ(scaling) */
     uint16_t dnz[3];    /* expected {T,A,D} after DoDNZ(-scaling) */
     int    z;         /* expected STS_ERROR_INDICATOR set during the round trip */
-} fp48_nlz_case;
+} Fp48NlzCase;
 // clang-format on
 
 /* Captured from unmodified float.c on 2026-07-27 - DO NOT RECOMPUTE. */
 // clang-format off
-static const fp48_nlz_case fp48_nlz[] = {
+static const Fp48NlzCase fp48_nlz[] = {
     {     0,  16, {0000000,0000000,0000000}, {0000000,0000000,0000000}, 0},
     {     1,  16, {0040001,0100000,0000000}, {0000000,0000001,0000000}, 0},
     {    -1,  16, {0140001,0100000,0000000}, {0000000,0177777,0000000}, 0},
@@ -319,7 +319,7 @@ static void run_fp48_lock(void)
     printf("48-bit regression lock: arithmetic pairs\n");
     for (i = 0; i < sizeof(fp48_pairs) / sizeof(fp48_pairs[0]); i++)
     {
-        const fp48_pair_case *tc = &fp48_pairs[i];
+        const Fp48PairCase *tc = &fp48_pairs[i];
         uint16_t a[3];
         uint16_t b[3];
         uint16_t r[3];
@@ -352,7 +352,7 @@ static void run_fp48_lock(void)
     printf("48-bit regression lock: NLZ/DNZ round trips\n");
     for (i = 0; i < sizeof(fp48_nlz) / sizeof(fp48_nlz[0]); i++)
     {
-        const fp48_nlz_case *tc = &fp48_nlz[i];
+        const Fp48NlzCase *tc = &fp48_nlz[i];
 
         snprintf(name, sizeof(name), "nlz[%u] val=%d sc=%d", i, tc->val, tc->scaling);
 
@@ -413,7 +413,7 @@ typedef struct {
     uint16_t a[2], b[2];   /* packed operands */
     uint16_t exp[2];       /* expected result words */
     int    rc;           /* expected return code (div by zero) */
-} fp32_op_case;
+} Fp32OpCase;
 // clang-format on
 
 /* Arithmetic vectors. The three FSB cases and both FDV cases are direct
@@ -421,7 +421,7 @@ typedef struct {
  * are computed with the same encodings and locked as implementation
  * behaviour (self-consistency proven by the FMU->DNZ round trip below). */
 // clang-format off
-static const fp32_op_case fp32_ops[] = {
+static const Fp32OpCase fp32_ops[] = {
     {"FSB(4,3) oracle",      '-', {0040300,0}, {0040240,0}, {0040100,0}, 0},
     {"FSB(3,2) oracle",      '-', {0040240,0}, {0040200,0}, {0040100,0}, 0},
     {"FSB(4,3.875) oracle",  '-', {0040300,0}, {0040274,0}, {0037600,0}, 0},
@@ -439,7 +439,7 @@ static const fp32_op_case fp32_ops[] = {
 /* Zero operands are exact special cases; divide by zero returns the
  * largest magnitude with the dividend's sign and rc=1 (caller sets Z). */
 // clang-format off
-static const fp32_op_case fp32_zero[] = {
+static const Fp32OpCase fp32_zero[] = {
     {"x + 0",  '+', {0040340,0000001}, {0,0},           {0040340,0000001}, 0},
     {"0 + y",  '+', {0,0},             {0140240,0000002}, {0140240,0000002}, 0},
     {"x - 0",  '-', {0040340,0000001}, {0,0},           {0040340,0000001}, 0},
@@ -460,7 +460,7 @@ typedef struct {
     int    val;       /* initial A register (signed) */
     uint16_t nlz[2];    /* expected A,D after DoNLZ32(+16) */
     int    z;         /* expected Z during the DNZ round trip */
-} fp32_nlz_case;
+} Fp32NlzCase;
 // clang-format on
 
 /* NLZ(+16) packed constants (1/-1/3 read off the fixed oracle; they match
@@ -468,7 +468,7 @@ typedef struct {
  * trip. -32768 survives the round trip but raises the overflow indicator
  * (the magnitude 32768 exceeds +32767 before the final negation). */
 // clang-format off
-static const fp32_nlz_case fp32_nlz[] = {
+static const Fp32NlzCase fp32_nlz[] = {
     {     0, {0000000, 0000000}, 0},
     {     1, {0040100, 0000000}, 0},
     {    -1, {0140100, 0000000}, 0},
@@ -492,7 +492,7 @@ static void run_fp32(void)
     printf("32-bit FPP: arithmetic (fixed-oracle vectors)\n");
     for (i = 0; i < sizeof(fp32_ops) / sizeof(fp32_ops[0]); i++)
     {
-        const fp32_op_case *tc = &fp32_ops[i];
+        const Fp32OpCase *tc = &fp32_ops[i];
         rc = op32(tc->op, tc->a[0], tc->a[1], tc->b[0], tc->b[1], r);
         check_int(tc->name, "r[0]", tc->exp[0], r[0]);
         check_int(tc->name, "r[1]", tc->exp[1], r[1]);
@@ -502,7 +502,7 @@ static void run_fp32(void)
     printf("32-bit FPP: zero operands and divide by zero\n");
     for (i = 0; i < sizeof(fp32_zero) / sizeof(fp32_zero[0]); i++)
     {
-        const fp32_op_case *tc = &fp32_zero[i];
+        const Fp32OpCase *tc = &fp32_zero[i];
         rc = op32(tc->op, tc->a[0], tc->a[1], tc->b[0], tc->b[1], r);
         check_int(tc->name, "r[0]", tc->exp[0], r[0]);
         check_int(tc->name, "r[1]", tc->exp[1], r[1]);
@@ -512,7 +512,7 @@ static void run_fp32(void)
     printf("32-bit FPP: NLZ constants and DNZ identity round trip\n");
     for (i = 0; i < sizeof(fp32_nlz) / sizeof(fp32_nlz[0]); i++)
     {
-        const fp32_nlz_case *tc = &fp32_nlz[i];
+        const Fp32NlzCase *tc = &fp32_nlz[i];
 
         snprintf(name, sizeof(name), "nlz32 %d", tc->val);
         REG_T = 0125252; /* sentinel: must NEVER change */

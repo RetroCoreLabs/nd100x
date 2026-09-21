@@ -179,26 +179,10 @@
     "src/machine/machine_types.h": 3,
     "src/ndlib/ndlib_types.h": 2,
     "src/ndlib/net_compat.h": 2,
-    "tests/test_bcd.c": 7,
-    "tests/test_cdc.c": 27,
-    "tests/test_drum.c": 14,
-    "tests/test_escp.c": 3,
-    "tests/test_float.c": 4,
-    "tests/test_floppydb.c": 1,
-    "tests/test_hdlc_frame.c": 10,
-    "tests/test_hdlc_main.c": 4,
-    "tests/test_load_prog.c": 4,
-    "tests/test_pdfwriter.c": 2,
-    "tests/test_printer_main.c": 4,
-    "tests/test_printjob.c": 1,
-    "tests/test_rtc.c": 4,
-    "tests/test_shell.c": 3,
-    "tests/test_winchester.c": 17,
-    "tests/wd_trace.c": 14,
     "tools/reth-tap/test-framing.c": 1,
     "tools/reth-tap/test-gateway.c": 1
    },
-   "total": 196
+   "total": 77
   },
   "3.8": {
    "files": {

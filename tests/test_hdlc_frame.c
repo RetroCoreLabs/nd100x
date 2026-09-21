@@ -211,14 +211,14 @@ static void test_roundtrip(void)
     // Build a frame from payload
     uint8_t payload[] = {0x01, 0x02, 0x03, 0x04, 0x05};
     uint8_t wire[128];
-    int wireLen = HDLCFrame_BuildFrame(payload, 5, wire, sizeof(wire));
-    ASSERT(wireLen > 0, "frame built");
+    int wire_len = HDLCFrame_BuildFrame(payload, 5, wire, sizeof(wire));
+    ASSERT(wire_len > 0, "frame built");
 
     // Feed wire bytes into receiver
     HDLCFrame rx;
     HDLCFrame_Init(&rx);
     bool complete = false;
-    for (int i = 0; i < wireLen; i++)
+    for (int i = 0; i < wire_len; i++)
     {
         complete = HDLCFrame_AddByte(&rx, wire[i]);
         if (complete)
@@ -231,13 +231,13 @@ static void test_roundtrip(void)
     ASSERT(HDLCFrame_IsCRCValid(&rx), "CRC valid");
 
     // Frame data should be payload + 2 CRC bytes
-    int rxLen = HDLCFrame_GetFrameLength(&rx);
-    ASSERT_EQ(rxLen, 7, "payload(5) + CRC(2)");
+    int rx_len = HDLCFrame_GetFrameLength(&rx);
+    ASSERT_EQ(rx_len, 7, "payload(5) + CRC(2)");
 
-    const uint8_t *rxData = HDLCFrame_GetFrameData(&rx);
+    const uint8_t *rx_data = HDLCFrame_GetFrameData(&rx);
     for (int i = 0; i < 5; i++)
     {
-        ASSERT_EQ(rxData[i], payload[i], "payload match");
+        ASSERT_EQ(rx_data[i], payload[i], "payload match");
     }
     printf(" ok\n");
 }
@@ -249,13 +249,13 @@ static void test_roundtrip_with_special_bytes(void)
     // Payload containing FLAG and ESCAPE bytes
     uint8_t payload[] = {HDLC_FLAG, 0x00, HDLC_ESCAPE, 0xFF, HDLC_FLAG};
     uint8_t wire[128];
-    int wireLen = HDLCFrame_BuildFrame(payload, 5, wire, sizeof(wire));
-    ASSERT(wireLen > 0, "frame built with special bytes");
+    int wire_len = HDLCFrame_BuildFrame(payload, 5, wire, sizeof(wire));
+    ASSERT(wire_len > 0, "frame built with special bytes");
 
     HDLCFrame rx;
     HDLCFrame_Init(&rx);
     bool complete = false;
-    for (int i = 0; i < wireLen; i++)
+    for (int i = 0; i < wire_len; i++)
     {
         complete = HDLCFrame_AddByte(&rx, wire[i]);
         if (complete)
@@ -267,9 +267,9 @@ static void test_roundtrip_with_special_bytes(void)
     ASSERT(complete, "frame complete");
     ASSERT(HDLCFrame_IsCRCValid(&rx), "CRC valid");
 
-    const uint8_t *rxData = HDLCFrame_GetFrameData(&rx);
-    ASSERT_EQ(rxData[0], HDLC_FLAG, "0x7E survived roundtrip");
-    ASSERT_EQ(rxData[2], HDLC_ESCAPE, "0x7D survived roundtrip");
+    const uint8_t *rx_data = HDLCFrame_GetFrameData(&rx);
+    ASSERT_EQ(rx_data[0], HDLC_FLAG, "0x7E survived roundtrip");
+    ASSERT_EQ(rx_data[2], HDLC_ESCAPE, "0x7D survived roundtrip");
     printf(" ok\n");
 }
 
@@ -289,27 +289,27 @@ static void test_roundtrip_multiple_frames(void)
     uint8_t stream[128];
     memcpy(stream, wire1, (size_t)len1);
     memcpy(stream + len1, wire2, (size_t)len2);
-    int totalLen = len1 + len2;
+    int total_len = len1 + len2;
 
     // Process stream, expecting two complete frames
     HDLCFrame rx;
     HDLCFrame_Init(&rx);
-    int framesReceived = 0;
+    int frames_received = 0;
 
-    for (int i = 0; i < totalLen; i++)
+    for (int i = 0; i < total_len; i++)
     {
         bool complete = HDLCFrame_AddByte(&rx, stream[i]);
         if (complete)
         {
-            framesReceived++;
+            frames_received++;
             ASSERT(HDLCFrame_IsCRCValid(&rx), "frame CRC valid");
 
-            if (framesReceived == 1)
+            if (frames_received == 1)
             {
                 ASSERT_EQ(HDLCFrame_GetFrameLength(&rx), 4, "frame1: 2+2 CRC");
                 ASSERT_EQ(HDLCFrame_GetFrameData(&rx)[0], 0xAA, "frame1 data");
             }
-            else if (framesReceived == 2)
+            else if (frames_received == 2)
             {
                 ASSERT_EQ(HDLCFrame_GetFrameLength(&rx), 5, "frame2: 3+2 CRC");
                 ASSERT_EQ(HDLCFrame_GetFrameData(&rx)[0], 0xCC, "frame2 data");
@@ -319,7 +319,7 @@ static void test_roundtrip_multiple_frames(void)
         }
     }
 
-    ASSERT_EQ(framesReceived, 2, "two frames received");
+    ASSERT_EQ(frames_received, 2, "two frames received");
     printf(" ok\n");
 }
 
@@ -335,13 +335,13 @@ static void test_roundtrip_large_payload(void)
     }
 
     uint8_t wire[1024];
-    int wireLen = HDLCFrame_BuildFrame(payload, 256, wire, sizeof(wire));
-    ASSERT(wireLen > 0, "large frame built");
+    int wire_len = HDLCFrame_BuildFrame(payload, 256, wire, sizeof(wire));
+    ASSERT(wire_len > 0, "large frame built");
 
     HDLCFrame rx;
     HDLCFrame_Init(&rx);
     bool complete = false;
-    for (int i = 0; i < wireLen; i++)
+    for (int i = 0; i < wire_len; i++)
     {
         complete = HDLCFrame_AddByte(&rx, wire[i]);
         if (complete)
@@ -353,13 +353,13 @@ static void test_roundtrip_large_payload(void)
     ASSERT(complete, "large frame complete");
     ASSERT(HDLCFrame_IsCRCValid(&rx), "large frame CRC valid");
 
-    int rxLen = HDLCFrame_GetFrameLength(&rx);
-    ASSERT_EQ(rxLen, 258, "256 payload + 2 CRC");
+    int rx_len = HDLCFrame_GetFrameLength(&rx);
+    ASSERT_EQ(rx_len, 258, "256 payload + 2 CRC");
 
-    const uint8_t *rxData = HDLCFrame_GetFrameData(&rx);
+    const uint8_t *rx_data = HDLCFrame_GetFrameData(&rx);
     for (int i = 0; i < 256; i++)
     {
-        ASSERT_EQ(rxData[i], (uint8_t)i, "payload byte match");
+        ASSERT_EQ(rx_data[i], (uint8_t)i, "payload byte match");
     }
     printf(" ok\n");
 }

@@ -497,8 +497,8 @@ static int test_pdf_page_mediabox(const char *tmpdir)
 
 /* ---- Suite runner ---- */
 
-typedef int (*pdf_test_fn)(void);
-typedef int (*pdf_test_fn_dir)(const char *);
+typedef int (*PdfTestFn)(void);
+typedef int (*PdfTestFnDir)(const char *);
 
 int run_pdfwriter_tests(const char *tmpdir)
 {
@@ -506,7 +506,7 @@ int run_pdfwriter_tests(const char *tmpdir)
     int failed = 0;
 
     // clang-format off
-    struct { const char *name; pdf_test_fn fn; } basic_tests[] = {
+    struct { const char *name; PdfTestFn fn; } basic_tests[] = {
         { "pdf_create",             test_pdf_create },
         { "pdf_add_pages",          test_pdf_add_pages },
         { "pdf_add_text_spans",     test_pdf_add_text_spans },
@@ -515,7 +515,7 @@ int run_pdfwriter_tests(const char *tmpdir)
     };
     // clang-format on
     // clang-format off
-    struct { const char *name; pdf_test_fn_dir fn; } render_tests[] = {
+    struct { const char *name; PdfTestFnDir fn; } render_tests[] = {
         { "pdf_structure",              test_pdf_structure },
         { "pdf_font_selection",         test_pdf_font_selection },
         { "pdf_absolute_positioning",   test_pdf_absolute_positioning },
