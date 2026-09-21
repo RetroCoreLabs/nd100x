@@ -32,6 +32,7 @@
 // When enabled, sleeps to maintain target instruction rate.
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdarg.h>
 #if defined(_WIN32) || defined(_WIN64)
 #include <windows.h>
 #else
@@ -76,6 +77,49 @@ static uint64_t throttle_get_ns(void)
 #include "cpu_types.h"
 #include "cpu_protos.h"
 #include "../ndlib/log.h"
+
+/**
+ * @brief Append one formatted fragment to a line being assembled in a buffer.
+ * @details The diagnostic dumps below build a line from several pieces, some of
+ *          them in a loop, and emit the finished line with a single LOG() call.
+ *          Writing each piece with its own LOG() would give every fragment its
+ *          own level prefix and its own newline, which breaks the column layout.
+ * @param buf  Buffer holding the line so far.
+ * @param size Size of buf in bytes, including room for the terminator.
+ * @param at   Number of bytes already in buf; pass 0 for the first fragment.
+ * @param fmt  printf-style format for this fragment.
+ * @param ...  Arguments consumed by the conversions in fmt.
+ * @return New length of the line, never more than size - 1. Once the buffer is
+ *         full the return value stops growing and later fragments are dropped,
+ *         so the caller needs no length check of its own.
+ */
+static int line_append(char *buf, size_t size, int at, const char *fmt, ...)
+    __attribute__((format(printf, 4, 5)));
+
+static int line_append(char *buf, size_t size, int at, const char *fmt, ...)
+{
+    va_list ap;
+    int room;
+    int n;
+
+    if (at < 0 || (size_t)at >= size)
+    {
+        return (int)size - 1;
+    }
+    room = (int)size - at;
+    va_start(ap, fmt);
+    n = vsnprintf(buf + at, (size_t)room, fmt, ap);
+    va_end(ap);
+    if (n < 0)
+    {
+        return at;
+    }
+    if (n >= room)
+    {
+        return (int)size - 1; /* truncated: the buffer is now full */
+    }
+    return at + n;
+}
 
 /* Forward declarations for ring buffer diagnostics */
 static uint16_t last_device_irq_bits = 0;
@@ -471,11 +515,10 @@ void cpu_interrupt(uint16_t lvl, uint16_t sub)
     {
         if (g_cpu_trace)
         {
-            fprintf(stderr,
-                    "*** TRAP lvl=14 sub=%d(0x%x) P=%06o PGS=%04x PEA=%06o PIL=%d MMU=%d %s%s%s\n",
-                    sub, sub, gPC, gPGS, gPEA, gPIL, STS_PAGING_ON_IS_SET,
-                    (sub & (1 << 2)) ? "MPV " : "", (sub & (1 << 3)) ? "PF " : "",
-                    (sub & (1 << 4)) ? "ILL " : "");
+            LOG(LOG_CAT_CPU, LOG_INFO,
+                "*** TRAP lvl=14 sub=%d(0x%x) P=%06o PGS=%04x PEA=%06o PIL=%d MMU=%d %s%s%s", sub,
+                sub, gPC, gPGS, gPEA, gPIL, STS_PAGING_ON_IS_SET, (sub & (1 << 2)) ? "MPV " : "",
+                (sub & (1 << 3)) ? "PF " : "", (sub & (1 << 4)) ? "ILL " : "");
         }
         if (ND100X_HOT_TRACE && Log_IsEnabled(LOG_CAT_TRAP, LOG_TRACE))
         {
@@ -536,20 +579,23 @@ void cpu_watchpoint_triggered(uint32_t addr, bool is_write)
     cpu_set_run_mode(CPU_BREAKPOINT);
     if (!gDebuggerEnabled)
     {
-        fprintf(stderr, "\n--- CPU stopped: watchpoint %s at %06o (PC=%06o) ---\n",
-                is_write ? "write" : "read", addr, gPC);
+        LOG(LOG_CAT_CPU, LOG_INFO, "--- CPU stopped: watchpoint %s at %06o (PC=%06o) ---",
+            is_write ? "write" : "read", addr, gPC);
         /* Caller frame context: B, B[-1]=NNN (frame size), and a window
          * so the offending .word NNN and arg-store offset can be read
          * directly instead of reconstructed. D-space (UseAPT=true). */
         {
+            char line[128];
+            int at = 0;
             int i;
-            fprintf(stderr, "B=%06o  frame[B-2..B+4]:", gB);
+            at = line_append(line, sizeof(line), at, "B=%06o  frame[B-2..B+4]:", gB);
             for (i = -2; i <= 4; i++)
             {
-                fprintf(stderr, " %06o",
-                        (unsigned short)mms_read_virtual_memory((gB + i) & 0xFFFF, true));
+                at = line_append(line, sizeof(line), at, " %06o",
+                                 (unsigned short)mms_read_virtual_memory((gB + i) & 0xFFFF, true));
             }
-            fprintf(stderr, "  (B[-1]=NNN)\n");
+            (void)line_append(line, sizeof(line), at, "  (B[-1]=NNN)");
+            LOG(LOG_CAT_CPU, LOG_INFO, "%s", line);
         }
         cpu_ring_dump();
         cpu_set_run_mode(CPU_SHUTDOWN);
@@ -674,8 +720,8 @@ static void trace_before_exec(void)
         if (b >= BSD_KSTK_BASE && b < BSD_KSTK_TOP && b < s_bsd_kstk_min)
         {
             s_bsd_kstk_min = b;
-            fprintf(stderr, "KSTKHW min=%06o used=%d\n", s_bsd_kstk_min,
-                    BSD_KSTK_TOP - s_bsd_kstk_min);
+            LOG(LOG_CAT_CPU, LOG_INFO, "KSTKHW min=%06o used=%d", s_bsd_kstk_min,
+                BSD_KSTK_TOP - s_bsd_kstk_min);
         }
     }
 }
@@ -703,8 +749,8 @@ static void private_cpu_tick(void)
     // Check max instruction limit
     if (g_cpu_max_instr > 0 && g_instr_counter >= g_cpu_max_instr)
     {
-        fprintf(stderr, "\n--- CPU stopped: max instruction count reached (%llu) ---\n",
-                (unsigned long long)g_cpu_max_instr);
+        LOG(LOG_CAT_CPU, LOG_INFO, "--- CPU stopped: max instruction count reached (%llu) ---",
+            (unsigned long long)g_cpu_max_instr);
         cpu_ring_dump();
         cpu_set_run_mode(CPU_SHUTDOWN);
         return;
@@ -713,7 +759,8 @@ static void private_cpu_tick(void)
     // Check breakpoint
     if (g_cpu_breakpoint_enabled && gPC == g_cpu_breakpoint_addr)
     {
-        fprintf(stderr, "\n--- CPU stopped: breakpoint at %06o ---\n", g_cpu_breakpoint_addr);
+        LOG(LOG_CAT_CPU, LOG_INFO, "--- CPU stopped: breakpoint at %06o ---",
+            g_cpu_breakpoint_addr);
         cpu_ring_dump();
         cpu_set_run_mode(CPU_SHUTDOWN);
         return;
@@ -881,6 +928,8 @@ void cpu_ring_dump(void)
 {
     int i;
     char disasm_str[128];
+    char line[256];
+    int at;
 
     if (g_cpu_ring_dump_size <= 0)
     {
@@ -893,27 +942,32 @@ void cpu_ring_dump(void)
         count = RING_SIZE;
     }
 
-    fprintf(stderr, "\r\n--- CPU state at exit ---\r\n");
-    fprintf(stderr, "PIL=%d PC=%06o A=%06o D=%06o T=%06o X=%06o B=%06o L=%06o\r\n", gPIL, gPC, gA,
-            gD, gT, gX, gB, gL);
-    fprintf(stderr, "STS=%04x PID=%04x PIE=%04x IID=%04x IIE=%04x PVL=%d\r\n", gSTSr, gPID, gPIE,
-            gIID, gIIE, gPVL);
-    fprintf(stderr, "STS per-level: ");
-    for (i = 0; i < 16; i++)
-    {
-        fprintf(stderr, "[%d]=%03o ", i, g_reg->reg[i][0] & 0xFF);
-    }
-    fprintf(stderr, "\r\n");
-    fprintf(stderr, "PC per-level:  ");
-    for (i = 0; i < 16; i++)
-    {
-        fprintf(stderr, "[%d]=%06o ", i, g_reg->reg[i][_P]);
-    }
-    fprintf(stderr, "\r\n");
+    LOG(LOG_CAT_CPU, LOG_INFO, "--- CPU state at exit ---");
+    LOG(LOG_CAT_CPU, LOG_INFO, "PIL=%d PC=%06o A=%06o D=%06o T=%06o X=%06o B=%06o L=%06o", gPIL,
+        gPC, gA, gD, gT, gX, gB, gL);
+    LOG(LOG_CAT_CPU, LOG_INFO, "STS=%04x PID=%04x PIE=%04x IID=%04x IIE=%04x PVL=%d", gSTSr, gPID,
+        gPIE, gIID, gIIE, gPVL);
 
-    fprintf(stderr, "\r\n--- Last %d instructions before exit ---\r\n", count);
-    fprintf(stderr, "  [  ] PIL    PC   OPCODE  DISASM                    A    STS   PID   PIE   "
-                    "IID   IIE  DEVBITS\r\n");
+    /* The two per-level rows and every ring row are single lines built from
+     * many fragments, so each is assembled in full before it is logged. */
+    at = line_append(line, sizeof(line), 0, "STS per-level: ");
+    for (i = 0; i < 16; i++)
+    {
+        at = line_append(line, sizeof(line), at, "[%d]=%03o ", i, g_reg->reg[i][0] & 0xFF);
+    }
+    LOG(LOG_CAT_CPU, LOG_INFO, "%s", line);
+
+    at = line_append(line, sizeof(line), 0, "PC per-level:  ");
+    for (i = 0; i < 16; i++)
+    {
+        at = line_append(line, sizeof(line), at, "[%d]=%06o ", i, g_reg->reg[i][_P]);
+    }
+    LOG(LOG_CAT_CPU, LOG_INFO, "%s", line);
+
+    LOG(LOG_CAT_CPU, LOG_INFO, "--- Last %d instructions before exit ---", count);
+    LOG(LOG_CAT_CPU, LOG_INFO,
+        "  [  ] PIL    PC   OPCODE  DISASM                    A    STS   PID   PIE   "
+        "IID   IIE  DEVBITS");
     /* Walk the ring from (ring_idx - count) to (ring_idx - 1), oldest first */
     for (i = 0; i < count; i++)
     {
@@ -921,10 +975,11 @@ void cpu_ring_dump(void)
         if (ring_buf[idx].pc || ring_buf[idx].pil)
         {
             disasm_op_to_str(disasm_str, sizeof(disasm_str), ring_buf[idx].opcode);
-            fprintf(stderr, "  [%3d] %2d %06o %06o %-24s %06o %04x %04x %04x %04x %04x %04x\r\n", i,
-                    ring_buf[idx].pil, ring_buf[idx].pc, ring_buf[idx].opcode, disasm_str,
-                    ring_buf[idx].a_reg, ring_buf[idx].sts, ring_buf[idx].pid, ring_buf[idx].pie,
-                    ring_buf[idx].iid, ring_buf[idx].iie, ring_buf[idx].devbits);
+            LOG(LOG_CAT_CPU, LOG_INFO,
+                "  [%3d] %2d %06o %06o %-24s %06o %04x %04x %04x %04x %04x %04x", i,
+                ring_buf[idx].pil, ring_buf[idx].pc, ring_buf[idx].opcode, disasm_str,
+                ring_buf[idx].a_reg, ring_buf[idx].sts, ring_buf[idx].pid, ring_buf[idx].pie,
+                ring_buf[idx].iid, ring_buf[idx].iie, ring_buf[idx].devbits);
         }
     }
 }
@@ -964,8 +1019,8 @@ int cpu_run(int ticks_arg)
 
         if (g_cpu_trace)
         {
-            fprintf(stderr, "*** FAULT RETURN PC=%06o PGS=%04x PEA=%06o PIL=%d MMU=%d\n", gPC, gPGS,
-                    gPEA, gPIL, STS_PAGING_ON_IS_SET);
+            LOG(LOG_CAT_CPU, LOG_INFO, "*** FAULT RETURN PC=%06o PGS=%04x PEA=%06o PIL=%d MMU=%d",
+                gPC, gPGS, gPEA, gPIL, STS_PAGING_ON_IS_SET);
         }
         if (ND100X_HOT_TRACE && Log_IsEnabled(LOG_CAT_TRAP, LOG_TRACE))
         {
@@ -1078,7 +1133,7 @@ int cpu_run(int ticks_arg)
 
         else if (current_run_mode == CPU_STOPPED)
         {
-            printf("CPU: WAS STOPPED, SHUTTING DOWN\r\n");
+            LOG(LOG_CAT_CPU, LOG_INFO, "CPU: WAS STOPPED, SHUTTING DOWN");
             cpu_ring_dump();
             cpu_set_run_mode(CPU_SHUTDOWN);
             break;

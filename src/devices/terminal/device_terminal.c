@@ -357,8 +357,10 @@ static void terminal_write(Device *self, uint32_t address, uint16_t value)
             }
             else
             {
-                // Fallback to printf if no callback is set
-                printf("%c", c);
+                /* No callback set: this is an emulated-terminal byte, not a
+                 * diagnostic, so it goes straight to stdout and never through
+                 * the logger. */
+                (void)fputc(c, stdout);
             }
         }
 

@@ -177,11 +177,9 @@ void cpu_illegal_instr(uint16_t operand)
 
 static void unimplemented_instr(uint16_t operand)
 {
-    printf("\r\n");
-    printf("--------------------------------\r\n");
-    printf("CPU: Unimplemented instruction: %06o at PC: %06o\r\n", operand, gPC);
-    printf("--------------------------------\r\n");
-    printf("\r\n");
+    LOG(LOG_CAT_CPU, LOG_INFO, "--------------------------------");
+    LOG(LOG_CAT_CPU, LOG_INFO, "CPU: Unimplemented instruction: %06o at PC: %06o", operand, gPC);
+    LOG(LOG_CAT_CPU, LOG_INFO, "--------------------------------");
 
     //set_cpu_run_mode(CPU_STOPPED); /* OK unimplemented function, lets stop CPU and end program that way */
 }
@@ -1402,10 +1400,11 @@ static void do_wait(uint16_t instr)
         // If the interrupt system is OFF
         // The ND-110 stops with the program counter (P register) pointing at the instruction after the WAIT and the front panel RUN indicator is turned off.
         // To restart the system, type ! on the console terminal
-        printf("\r\nWAIT when IONI is off PIL[%d] PC[%6o] PID[0x%4X] PIE[0x%4X] IONI[%d] PONI[%d] "
-               "STS_HI[%4X] STS_LO[%4X] A[%6o]\r\n",
-               gPIL, gPC, gPID, gPIE, STS_INTERRUPT_ON_IS_SET, STS_PAGING_ON_IS_SET, g_reg->reg_STS,
-               g_reg->reg[gPIL][_STS], gA);
+        LOG(LOG_CAT_CPU, LOG_INFO,
+            "WAIT when IONI is off PIL[%d] PC[%6o] PID[0x%4X] PIE[0x%4X] IONI[%d] PONI[%d] "
+            "STS_HI[%4X] STS_LO[%4X] A[%6o]",
+            gPIL, gPC, gPID, gPIE, STS_INTERRUPT_ON_IS_SET, STS_PAGING_ON_IS_SET, g_reg->reg_STS,
+            g_reg->reg[gPIL][_STS], gA);
         g_cpu_exit_code = (int)(short)gA;
         cpu_set_run_mode(CPU_STOPPED);
         return;
@@ -4666,7 +4665,7 @@ static void opcode_opcom_operator_communication(uint16_t operand)
     {
         return;
     }
-    printf("\r\nOPCOM at PIL[%d] PC[%6o] A[%6o]\r\n", gPIL, gPC, gA);
+    LOG(LOG_CAT_CPU, LOG_INFO, "OPCOM at PIL[%d] PC[%6o] A[%6o]", gPIL, gPC, gA);
     cpu_set_run_mode(CPU_STOPPED);
 }
 
@@ -6876,7 +6875,7 @@ static void opcode_mon_monitor_call(uint16_t operand)
 static void opcode_halt(uint16_t operand)
 {
     (void)operand;
-    printf("\r\nHALT opcode at PIL[%d] PC[%6o] A[%6o]\r\n", gPIL, gPC, gA);
+    LOG(LOG_CAT_CPU, LOG_INFO, "HALT opcode at PIL[%d] PC[%6o] A[%6o]", gPIL, gPC, gA);
     g_cpu_exit_code = (int)(short)gA;
     cpu_set_run_mode(CPU_STOPPED);
 }

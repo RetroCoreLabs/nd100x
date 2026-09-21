@@ -500,7 +500,7 @@
   },
   "7.3": {
    "files": {
-    "src/cpu/cpu.c": 24,
+    "src/cpu/cpu.c": 3,
     "src/cpu/cpu_disasm.c": 21,
     "src/cpu/cpu_instr.c": 4,
     "src/cpu/cpu_mms.c": 13,
@@ -538,7 +538,7 @@
     "src/ndlib/log.c": 1,
     "src/ndlib/ndlib.c": 1,
     "src/ndlib/pdfwriter.c": 17,
-    "src/ndlib/printjob.c": 8,
+    "src/ndlib/printjob.c": 6,
     "src/ndlib/telnetserver.c": 6,
     "tests/test_bcd.c": 1,
     "tests/test_cdc.c": 2,
@@ -554,7 +554,7 @@
     "tools/reth-tap/reth-tap.c": 26,
     "tools/reth-tap/test-gateway.c": 1
    },
-   "total": 760
+   "total": 737
   },
   "7.4": {
    "files": {},
@@ -596,14 +596,8 @@
    "total": 0
   },
   "9.4": {
-   "files": {
-    "src/cpu/cpu.c": 22,
-    "src/cpu/cpu_instr.c": 8,
-    "src/debugger/debugger.c": 9,
-    "src/devices/terminal/device_terminal.c": 1,
-    "src/ndlib/printjob.c": 2
-   },
-   "total": 42
+   "files": {},
+   "total": 0
   },
   "9.7": {
    "files": {

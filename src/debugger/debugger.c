@@ -28,6 +28,7 @@
 #include "../../external/libsymbols/include/aout.h"
 #endif
 
+#include "log.h"
 #include "debugger.h"
 #include "../cpu/cpu_types.h"
 #include "../cpu/cpu_protos.h"
@@ -113,14 +114,14 @@ int dap_server_send_event(DAPServer *s, const char *ev, cJSON *body)
 int dap_server_send_output(DAPServer *s, const char *msg)
 {
     (void)s;
-    printf("%s", msg);
+    LOG(LOG_CAT_DAP, LOG_INFO, "%s", msg);
     return 0;
 }
 int dap_server_send_output_category(DAPServer *s, DAPOutputCategory cat, const char *msg)
 {
     (void)s;
     (void)cat;
-    printf("%s", msg);
+    LOG(LOG_CAT_DAP, LOG_INFO, "%s", msg);
     return 0;
 }
 int dap_server_send_stopped_event(DAPServer *s, const char *reason, const char *desc)
@@ -5100,21 +5101,21 @@ void debugger_kbd_input(char c)
     {
         int run_mode = cpu_get_run_mode();
 
-        printf("P=%6o  RunMode=%d\n", gPC, run_mode);
+        LOG(LOG_CAT_DAP, LOG_INFO, "P=%6o  RunMode=%d", gPC, run_mode);
     }
 
     // Step the CPU
     if (c == ' ')
     {
         cpu_run(1);
-        printf("%6o\n", gPC);
+        LOG(LOG_CAT_DAP, LOG_INFO, "%6o", gPC);
     }
 
     // Disassemble the instruction at the current PC
     if (c == 'd')
     {
         int run_mode = cpu_get_run_mode();
-        printf("P=%6o  RunMode=%d\n\n", gPC, run_mode);
+        LOG(LOG_CAT_DAP, LOG_INFO, "P=%6o  RunMode=%d", gPC, run_mode);
 
         int virtual_address = gPC;
         for (int i = 0; i < 10; i++)
@@ -5122,24 +5123,16 @@ void debugger_kbd_input(char c)
 
             uint16_t operand = Dbg_ReadVirtualMemoryISpace(virtual_address);
 
-            // Get the address of the instruction (DAP SPEC says it must be hex)
-            printf("[%06o] ", virtual_address);
-
-            // Get the instruction
-
             // Disassemble the instruction
             char operand_str[50];
             disasm_op_to_str(operand_str, sizeof(operand_str), operand);
 
-            printf("%06o %s", operand, operand_str);
-
             const char *sym = debugger_get_symbol_for_address(virtual_address);
-            if (sym)
-            {
-                printf("    (%s)", sym);
-            }
 
-            printf("\n");
+            /* One line per address: the address, the word, the mnemonic and,
+             * when the address has one, the symbol it belongs to. */
+            LOG(LOG_CAT_DAP, LOG_INFO, "[%06o] %06o %s%s%s%s", virtual_address, operand,
+                operand_str, sym ? "    (" : "", sym ? sym : "", sym ? ")" : "");
 
             virtual_address++;
         }

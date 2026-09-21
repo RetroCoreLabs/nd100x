@@ -47,6 +47,7 @@
 #define ND_MKDIR(p) mkdir((p), 0755)
 #endif
 
+#include "log.h"
 #include "printjob.h"
 #include "ndlib_types.h"
 #include "ndlib_protos.h"
@@ -101,7 +102,7 @@ static void ensure_directory(const char *path)
 {
     if (ND_MKDIR(path) != 0 && errno != EEXIST)
     {
-        fprintf(stderr, "PrintJob: failed to create directory: %s\n", path);
+        LOG(LOG_CAT_PRINTER, LOG_ERROR, "failed to create directory: %s", path);
     }
 }
 
@@ -129,7 +130,7 @@ static void start_new_job(PrintJob *pj)
         pj->txtFile = fopen(filename, "w");
         if (!pj->txtFile)
         {
-            fprintf(stderr, "PrintJob: failed to open %s\n", filename);
+            LOG(LOG_CAT_PRINTER, LOG_ERROR, "failed to open %s", filename);
             pj->jobActive = false;
             return;
         }
