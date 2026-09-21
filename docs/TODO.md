@@ -11,23 +11,39 @@ Every item marked GATE must pass G1-G14 (`tools/house/gate.sh`) before its commi
 
 ## A. House standard cleanup - remaining phases
 
-Total findings still open: 37,194 (of which 30,300 are empty REVIEW cells).
+Total findings still open: **35,376** (of which 30,300 are empty REVIEW cells).
+Updated 21-SEP-2026 after phase 3.
 
-### A.1 Phase 3 - naming (GATE per module) - 1,915 findings
+### A.1 Phase 3 - naming - DONE except for 99 names that need decisions
 
-- [ ] 3.1 non-static functions to `module_verb` lower snake - 540 findings,
-      487 of them in the 61 files listed in `docs/house-audit/prefixes.tsv`.
-      Exempt: `Dbg_*`, `Nd500_*`, `Init`, `Boot`, `SendKeyToTerminal` (JavaScript
-      calls these by name).
-      Work module by module, one commit each. Feed the rename map to
-      `tools/house/objcompare.sh` so G9 can still compare objects.
-      Test stand-ins in `tests/` follow the real function's new name.
-- [ ] 3.2 static functions to lower snake - 222 findings.
-- [ ] 3.4-3.7 parameters and locals out of camelCase - 1,151 findings.
-- [ ] 3.3 (2), 3.8 (3), 3.9 (1) - leftovers, fold into the module they live in.
-- [ ] After 3.4-3.7: re-check rule 4.6 for `src/cpu/cpu_mms.c` and
-      `src/devices/hdlc/dma_control_blocks.c` (deferred, needs the parameter
-      renames first).
+Rule 3.1 went 540 -> 19, rule 3.2 222 -> 1, rule 3.4-3.7 1,151 -> 77. Every
+module under `src/` and the `tests/` directory has been through the fixers,
+each with the full gate and an object comparison. Every rename is traced in
+`docs/house-audit/rename_log.tsv` (3,451 rows).
+
+What is left is not sweepable, and each name needs a decision:
+
+- [ ] 3.1 - 19, 3.4-3.7 - 77, 3.2 - 1, 3.3 - 2. These are the names the tools
+      correctly refuse:
+      - declared in one module and used from others, which a per-module tool
+        cannot rewrite - `Log_IsEnabled`, `BOOT_TYPE`, `DRIVE_TYPE`,
+        `MC_Runtime`, `MountedDriveInfo_t`, `BPUN_Header`, `PROG_Header`,
+        `nd_pollfd_t`, `nd_socklen_t`;
+      - the register file indices `_A`, `_B`, `_D`, `_L`, `_P`, `_T`, `_X`,
+        `_STS` and the enum constants `Four`, `Sixteen` in `cpu_types.h`;
+      - `scsi_debug_enabled`, a non-static global used from the vendored
+        `ncr5386.c`, which cannot be edited.
+      Each needs either a whole-tree rename of the whole family, or a
+      recorded exemption. Renaming half a family is worse than none.
+- [ ] Re-check rule 4.6 for `src/cpu/cpu_mms.c` and
+      `src/devices/hdlc/dma_control_blocks.c` now that the parameter renames
+      are in.
+- [ ] `src/cpu/cpu_instr.c`: the registration table at the bottom is still in
+      its original order, deliberately - see
+      `docs/OPCODE_FILE_ORGANISATION_PLAN.md`. Note before touching it: these
+      are `instruction_add_mask` and `instruction_add_range` calls, so
+      registration order may decide precedence where masks overlap. That is a
+      behavioural question, not a cosmetic one.
 
 ### A.2 Phase 5 - types and arithmetic - 3,517 findings
 
@@ -119,6 +135,21 @@ This is its own piece of work, not part of the cleanup phases.
 ---
 
 ## E. Done (for reference)
+
+- Phase 3 naming, 21-SEP-2026. Rule 3.1 540 -> 19, rule 3.2 222 -> 1, rule
+  3.4-3.7 1,151 -> 77. Total 37,194 -> 35,376. Traced in
+  docs/house-audit/rename_log.tsv.
+- Every opcode function named after the instruction it implements
+  (`opcode_jan_jump_if_a_negative`), with a Doxygen block generated from
+  docs/cpu_documentation.md carrying opcode, mask, category, privilege and
+  bit layout. `tools/house/opcode_docs.py`.
+- src/cpu/cpu_instr.c sorted into 20 sections by instruction area, octal
+  within each. `docs/OPCODE_FILE_ORGANISATION_PLAN.md`.
+- The STS bits named: STS_CARRY, STS_PAGING_ON, and the accessors
+  STS_CARRY_IS_SET, so a bit number cannot be confused with a bit value.
+- MOVB/MOVBF: the dispatched pair holds the plain names, the kept-but-not-
+  dispatched pair is marked _buggy, and why is written in the source.
+- Reusable method captured in the `c-refactoring` skill.
 
 - SMD "Parallel seek disabled": Initiate Seek and Return To Zero Seek now use
   `IODELAY_HDD_SMD` (10 ticks), matching the RetroCore C# driver; 11 transfer
