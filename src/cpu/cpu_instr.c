@@ -189,7 +189,22 @@ static void unimplemented_instr(uint16_t operand)
 /************************************ INSTRUCTIONS *************************************/
 
 
-/* AAA
+/**
+ * @brief AAA - Add argument to A.
+ *
+ * @par Instruction
+ * Opcode 172400 octal, mask 1111_1111_0000_0000.
+ * Category: Argument Instruction. Privilege: User.
+ * Format: AAA <number>
+ *
+ * @par Instruction word
+ *   bits 15-8  opcode - The opcode determines what type of operation
+ *       occurs
+ *   bits 7-0  number - 8-bit argument extended to 16 bits using sign
+ *       extension
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section AAA
  */
 static void opcode_aaa_add_argument_to_a(uint16_t operand)
 {
@@ -199,7 +214,22 @@ static void opcode_aaa_add_argument_to_a(uint16_t operand)
     gA = do_add(gA, temp, 0);
 }
 
-/* AAB
+/**
+ * @brief AAB - Add argument to B.
+ *
+ * @par Instruction
+ * Opcode 172000 octal, mask 1111_1111_0000_0000.
+ * Category: Argument Instruction. Privilege: User.
+ * Format: AAB <number>
+ *
+ * @par Instruction word
+ *   bits 15-8  opcode - The opcode determines what type of operation
+ *       occurs
+ *   bits 7-0  number - 8-bit argument extended to 16 bits using sign
+ *       extension
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section AAB
  */
 static void opcode_aab_add_argument_to_b(uint16_t operand)
 {
@@ -209,7 +239,22 @@ static void opcode_aab_add_argument_to_b(uint16_t operand)
     gB = do_add(gB, temp, 0);
 }
 
-/* AAT
+/**
+ * @brief AAT - Add argument to T.
+ *
+ * @par Instruction
+ * Opcode 173000 octal, mask 1111_1111_0000_0000.
+ * Category: Argument Instruction. Privilege: User.
+ * Format: AAT <number>
+ *
+ * @par Instruction word
+ *   bits 15-8  opcode - The opcode determines what type of operation
+ *       occurs
+ *   bits 7-0  number - 8-bit argument extended to 16 bits using sign
+ *       extension
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section AAT
  */
 static void opcode_aat_add_argument_to_t(uint16_t operand)
 {
@@ -219,7 +264,22 @@ static void opcode_aat_add_argument_to_t(uint16_t operand)
     gT = do_add(gT, temp, 0);
 }
 
-/* AAX
+/**
+ * @brief AAX - Add argument to X.
+ *
+ * @par Instruction
+ * Opcode 173400 octal, mask 1111_1111_0000_0000.
+ * Category: Argument Instruction. Privilege: User.
+ * Format: AAX <number>
+ *
+ * @par Instruction word
+ *   bits 15-8  opcode - The opcode determines what type of operation
+ *       occurs
+ *   bits 7-0  number - 8-bit argument extended to 16 bits using sign
+ *       extension
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section AAX
  */
 static void opcode_aax_add_argument_to_x(uint16_t operand)
 {
@@ -230,7 +290,25 @@ static void opcode_aax_add_argument_to_x(uint16_t operand)
     gX = do_add(gX, temp, 0);
 }
 
-/* MON
+/**
+ * @brief MON - The MON instruction is used in special different contexts when running under an operating system.
+ *
+ * It provides system call functionality through different monitor call
+ * numbers.
+ *
+ * @par Instruction
+ * Opcode 153000 octal, mask 1111_1111_0000_0000.
+ * Category: Monitor Calls. Privilege: User.
+ * Format: MON <monitor_call_number>
+ *
+ * @par Instruction word
+ *   bits 15-8  opcode - The opcode determines what type of operation
+ *       occurs
+ *   bits 7-0  monitor_call_number - Monitor call number that determines
+ *       the system function
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section MON
  */
 static void opcode_mon_monitor_call(uint16_t operand)
 {
@@ -257,35 +335,98 @@ static void opcode_mon_monitor_call(uint16_t operand)
     }
 }
 
-/* SAA
+/**
+ * @brief SAA - Set argument to A.
+ *
+ * @par Instruction
+ * Opcode 170400 octal, mask 1111_1111_0000_0000.
+ * Category: Argument Instruction. Privilege: User.
+ * Format: SAA <number>
+ *
+ * @par Instruction word
+ *   bits 15-8  opcode - The opcode determines what type of operation
+ *       occurs
+ *   bits 7-0  number - 8-bit argument extended to 16 bits using sign
+ *       extension
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section SAA
  */
 static void opcode_saa_set_argument_to_a(uint16_t operand)
 {
     setreg(_A, signExtend(operand & 0xFF));
 }
 
-/* SAB
+/**
+ * @brief SAB - Set argument to B.
+ *
+ * @par Instruction
+ * Opcode 170000 octal, mask 1111_1111_0000_0000.
+ * Category: Argument Instruction. Privilege: User.
+ * Format: SAB <number>
+ *
+ * @par Instruction word
+ *   bits 15-8  opcode - The opcode determines what type of operation
+ *       occurs
+ *   bits 7-0  number - 8-bit argument extended to 16 bits using sign
+ *       extension
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section SAB
  */
 static void opcode_sab_set_argument_to_b(uint16_t operand)
 {
     setreg(_B, signExtend(operand & 0xFF));
 }
 
-/* SAT
+/**
+ * @brief SAT - Set argument to T.
+ *
+ * @par Instruction
+ * Opcode 171000 octal, mask 1111_1111_0000_0000.
+ * Category: Argument Instruction. Privilege: User.
+ * Format: SAT <number>
+ *
+ * @par Instruction word
+ *   bits 15-8  opcode - The opcode determines what type of operation
+ *       occurs
+ *   bits 7-0  number - 8-bit argument extended to 16 bits using sign
+ *       extension
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section SAT
  */
 static void opcode_sat_set_argument_to_t(uint16_t operand)
 {
     setreg(_T, signExtend(operand & 0xFF));
 }
 
-/* SAX
+/**
+ * @brief SAX - Set argument to X.
+ *
+ * @par Instruction
+ * Opcode 171400 octal, mask 1111_1111_0000_0000.
+ * Category: Argument Instruction. Privilege: User.
+ * Format: SAX <number>
+ *
+ * @par Instruction word
+ *   bits 15-8  opcode - The opcode determines what type of operation
+ *       occurs
+ *   bits 7-0  number - 8-bit argument extended to 16 bits using sign
+ *       extension
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section SAX
  */
 static void opcode_sax_set_argument_to_x(uint16_t operand)
 {
     setreg(_X, signExtend(operand & 0xFF));
 }
 
-/* SHT, SHD, SHA, SAD
+/**
+ * @brief SHIFTS - see the notes below.
+ *
+ * @param operand The full instruction word as fetched.
  */
 static void opcode_shift_group(uint16_t operand)
 {
@@ -312,7 +453,23 @@ static void opcode_shift_group(uint16_t operand)
     }
 }
 
-/* NLZ
+/**
+ * @brief NLZ - Normalize.
+ *
+ * Convert the number in A to a floating number in TAD
+ *
+ * @par Instruction
+ * Opcode 151400 octal, mask 1111_1111_0000_0000.
+ * Category: Floating Conversion (Standard Format). Privilege: User.
+ * Format: NLZ <scaling_factor>
+ *
+ * @par Instruction word
+ *   bits 15-8  opcode - The opcode for floating conversion
+ *   bits 7-0  scaling_factor - Scaling factor in range -128 to 127 (gives
+ *       converting range from 10^-39 to 10^39)
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section NLZ
  */
 static void opcode_nlz_normalize_floating_accumulator(uint16_t operand)
 {
@@ -326,7 +483,23 @@ static void opcode_nlz_normalize_floating_accumulator(uint16_t operand)
     }
 }
 
-/* DNZ
+/**
+ * @brief DNZ - Denormalise     .
+ *
+ * Convert the floating number in TAD to a fixed point number in A
+ *
+ * @par Instruction
+ * Opcode 152000 octal, mask 1111_1111_0000_0000.
+ * Category: Floating Conversion (Standard Format). Privilege: User.
+ * Format: DNZ <scaling_factor>
+ *
+ * @par Instruction word
+ *   bits 15-8  opcode - The opcode for floating conversion
+ *   bits 7-0  scaling_factor - Scaling factor in range -128 to 127 (gives
+ *       converting range from 10^-39 to 10^39)
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section DNZ
  */
 static void opcode_dnz_denormalize_to_fixed_point(uint16_t operand)
 {
@@ -340,7 +513,29 @@ static void opcode_dnz_denormalize_to_fixed_point(uint16_t operand)
     }
 }
 
-/* SRB (Privileged)
+/**
+ * @brief SRB - Store register block.
+ *
+ * Load the register block of the program level given in the instruction into
+ * the memory block pointed to by the X register. If the instruction
+ * specifies the current program level, the P register points to the
+ * instruction following SRB.
+ *
+ * @par Instruction
+ * Opcode 152402 octal, mask 1111_1111_1100_0000.
+ * Category: Register Block Instructions. Privilege: Privileged.
+ * Format: SRB <level>
+ *
+ * @par Instruction word
+ *   bits 15-11  opcode - The opcode determines what type of operation
+ *       occurs
+ *   bits 6-3  level - The level to load the register block to
+ *   bits 2-0  type - The type of register block
+ *       function<br><br>**Values:**<br>- `SRB` (`0`): Store Register
+ *       Block<br>- `LRB` (`2`): Load Register Block<br>
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section SRB
  */
 static void opcode_srb_store_register_block(uint16_t operand)
 {
@@ -353,7 +548,29 @@ static void opcode_srb_store_register_block(uint16_t operand)
     do_srb(operand);
 }
 
-/* LRB (Privileged)
+/**
+ * @brief LRB - Load register block.
+ *
+ * Load the contents of a memory block pointed to by the X register into the
+ * register block of the program level given in the instruction. If the
+ * instruction specifies the current program level, the P register (program
+ * counter) is not loaded from memory and is unchanged.
+ *
+ * @par Instruction
+ * Opcode 152600 octal, mask 1111_1111_1100_0000.
+ * Category: Register Block Instructions. Privilege: Privileged.
+ * Format: LRB <level>
+ *
+ * @par Instruction word
+ *   bits 15-11  opcode - The opcode determines what type of operation
+ *       occurs
+ *   bits 6-3  level - The level to load the register block to
+ *   bits 2-0  type - The type of register block
+ *       function<br><br>**Values:**<br>- `SRB` (`0`): Store Register
+ *       Block<br>- `LRB` (`2`): Load Register Block<br>
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section LRB
  */
 static void opcode_lrb_load_register_block(uint16_t operand)
 {
@@ -408,39 +625,81 @@ static void cjp(bool jmp_flag, uint16_t operand)
     }
 }
 
-/// <summary>
-/// JAP - Jump if A register is positive or zero, A bit 15 = 0.
-/// Code: 130 000
-/// Format: JAP <disp.>
-///
-/// Affected: (P)
-/// </summary>
+/**
+ * @brief JAP - Condition: Jump if (A) > 0 (jump if A positive).
+ *
+ * @par Instruction
+ * Opcode 130000 octal, mask 1111_1111_0000_0000.
+ * Category: Sequencing Instructions. Privilege: User.
+ * Format: JAP <displacement>
+ *
+ * @par Registers affected
+ * (P)
+ *
+ * @par Instruction word
+ *   bits 15-8  opcode - The opcode determines what type of operation
+ *       occurs
+ *   bits 7-0  displacement - 8-bit signed field gives the memory address
+ *       displacement (2's complement notation giving a displacement range of
+ *       -128 to 127 memory locations)
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section JAP
+ */
 static void opcode_jap_jump_if_a_positive(uint16_t operand)
 {
     bool flag = ((1 << 15) & gA) == 0;
     cjp(flag, operand);
 }
 
-/// <summary>
-/// JAN - Jump if A register is negative, A bit 15 = 1.
-/// Code: 130 400
-/// Format: JAN <disp.>
-///
-/// Affected: (P)
-/// </summary>
+/**
+ * @brief JAN - Condition: Jump if (A) < 0 (jump if A is negative).
+ *
+ * @par Instruction
+ * Opcode 130400 octal, mask 1111_1111_0000_0000.
+ * Category: Sequencing Instructions. Privilege: User.
+ * Format: JAN <displacement>
+ *
+ * @par Registers affected
+ * (P)
+ *
+ * @par Instruction word
+ *   bits 15-8  opcode - The opcode determines what type of operation
+ *       occurs
+ *   bits 7-0  displacement - 8-bit signed field gives the memory address
+ *       displacement (2's complement notation giving a displacement range of
+ *       -128 to 127 memory locations)
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section JAN
+ */
 static void opcode_jan_jump_if_a_negative(uint16_t operand)
 {
     bool flag = ((1 << 15) & gA) != 0;
     cjp(flag, operand);
 }
 
-/// <summary>
-/// JAZ - Jump if A register is zero.
-/// Code: 131 000
-/// Format: JAZ<disp>
-///
-/// Affected: (P)
-/// </summary>
+/**
+ * @brief JAZ - Condition: Jump if (A) == 0 (jump if A is zero).
+ *
+ * @par Instruction
+ * Opcode 131000 octal, mask 1111_1111_0000_0000.
+ * Category: Sequencing Instructions. Privilege: User.
+ * Format: JAZ <displacement>
+ *
+ * @par Registers affected
+ * (P)
+ *
+ * @par Instruction word
+ *   bits 15-8  opcode - The opcode determines what type of operation
+ *       occurs
+ *   bits 7-0  displacement - 8-bit signed field gives the memory address
+ *       displacement (2's complement notation giving a displacement range of
+ *       -128 to 127 memory locations)
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section JAZ
+ */
 static void opcode_jaz_jump_if_a_zero(uint16_t operand)
 {
     /* MICROCODE-VALIDATED 2026-07-20: JAZ does NOT touch STS.
@@ -457,26 +716,53 @@ static void opcode_jaz_jump_if_a_zero(uint16_t operand)
     cjp(gA == 0, operand);
 }
 
-/// <summary>
-/// JAF - Jump if A register is filled (not zero)
-/// Code: 131 400
-/// Format: JAF<disp. >
-///
-/// Affected: (P)
-/// </summary>
+/**
+ * @brief JAF - Condition: Jump if (A) != 0 (jump if A filled).
+ *
+ * @par Instruction
+ * Opcode 131400 octal, mask 1111_1111_0000_0000.
+ * Category: Sequencing Instructions. Privilege: User.
+ * Format: JAF <displacement>
+ *
+ * @par Registers affected
+ * (P)
+ *
+ * @par Instruction word
+ *   bits 15-8  opcode - The opcode determines what type of operation
+ *       occurs
+ *   bits 7-0  displacement - 8-bit signed field gives the memory address
+ *       displacement (2's complement notation giving a displacement range of
+ *       -128 to 127 memory locations)
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section JAF
+ */
 static void opcode_jaf_jump_if_a_not_zero(uint16_t operand)
 {
     cjp(gA != 0, operand);
 }
 
-/// <summary>
-/// JPC - Count and jump if X register is positive or zero.
-/// Code: 132000
-/// Format: JPC<disp. >
-///
-/// X is incremented by one, and if the X bit 15 equals zero after the incrementation, the jump takes place.
-/// Affected: (P) and (X)
-/// </summary>
+/**
+ * @brief JPC - Increment X and jump if X is positive.
+ *
+ * @par Instruction
+ * Opcode 132000 octal, mask 1111_1111_0000_0000.
+ * Category: Sequencing Instructions. Privilege: User.
+ * Format: JPC <displacement>
+ *
+ * @par Registers affected
+ * (P) and (X)
+ *
+ * @par Instruction word
+ *   bits 15-8  opcode - The opcode determines what type of operation
+ *       occurs
+ *   bits 7-0  displacement - 8-bit signed field gives the memory address
+ *       displacement (2's complement notation giving a displacement range of
+ *       -128 to 127 memory locations)
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section JPC
+ */
 static void opcode_jpc_increment_x_and_jump_if_x_positive(uint16_t operand)
 {
     gX++;
@@ -484,45 +770,109 @@ static void opcode_jpc_increment_x_and_jump_if_x_positive(uint16_t operand)
     cjp(((1 << 15) & gX) == 0, operand);
 }
 
-/// <summary>
-/// JNC - Count and jump if X register is negative.
-/// Code: 132 400
-/// Format: JNC<disp.>
-/// X is incremented by one; if then the X bit 15 equals one, the jump takes place.
-///
-/// Affected: (P) and(X)
-/// </summary>
+/**
+ * @brief JNC - Increment X and jump if X is negative.
+ *
+ * @par Instruction
+ * Opcode 132400 octal, mask 1111_1111_0000_0000.
+ * Category: Sequencing Instructions. Privilege: User.
+ * Format: JNC <displacement>
+ *
+ * @par Registers affected
+ * (P) and(X)
+ *
+ * @par Instruction word
+ *   bits 15-8  opcode - The opcode determines what type of operation
+ *       occurs
+ *   bits 7-0  displacement - 8-bit signed field gives the memory address
+ *       displacement (2's complement notation giving a displacement range of
+ *       -128 to 127 memory locations)
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section JNC
+ */
 static void opcode_jnc_increment_x_and_jump_if_x_negative(uint16_t operand)
 {
     gX++;
     cjp((gX & (1 << 15)) != 0, operand);
 }
 
-/// <summary>
-/// JXN - Jump if X register is negative. X bit 15 = 1.
-/// Code: 133 400
-/// Format: JXN <disp. >
-///
-/// Affected: (P)
-/// </summary>
+/**
+ * @brief JXN - Condition: Jump if (X) < 0 (jump if X negative).
+ *
+ * @par Instruction
+ * Opcode 133400 octal, mask 1111_1111_0000_0000.
+ * Category: Sequencing Instructions. Privilege: User.
+ * Format: JXN <displacement>
+ *
+ * @par Registers affected
+ * (P)
+ *
+ * @par Instruction word
+ *   bits 15-8  opcode - The opcode determines what type of operation
+ *       occurs
+ *   bits 7-0  displacement - 8-bit signed field gives the memory address
+ *       displacement (2's complement notation giving a displacement range of
+ *       -128 to 127 memory locations)
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section JXN
+ */
 static void opcode_jxn_jump_if_x_negative(uint16_t operand)
 {
     cjp((gX & (1 << 15)) != 0, operand);
 }
 
-/// <summary>
-/// JXZ - Jump if X register is zero.
-/// Code: 133 000
-/// Format: JXZ <disp. >_
-///
-/// Affected: (P)
-/// </summary>
+/**
+ * @brief JXZ - Condition: Jump if (X) == 0 (jump if X is zero).
+ *
+ * @par Instruction
+ * Opcode 133000 octal, mask 1111_1111_0000_0000.
+ * Category: Sequencing Instructions. Privilege: User.
+ * Format: JXZ <displacement>
+ *
+ * @par Registers affected
+ * (P)
+ *
+ * @par Instruction word
+ *   bits 15-8  opcode - The opcode determines what type of operation
+ *       occurs
+ *   bits 7-0  displacement - 8-bit signed field gives the memory address
+ *       displacement (2's complement notation giving a displacement range of
+ *       -128 to 127 memory locations)
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section JXZ
+ */
 static void opcode_jxz_jump_if_x_zero(uint16_t operand)
 {
     cjp(gX == 0, operand);
 }
 
-/* JPL
+/**
+ * @brief JPL - Jump if Plus - Jump to specified address if the result of the last operation was positive (sign bit is 0).
+ *
+ * The contents of the program counter are transferred to the L register and
+ * the next instruction is taken from the effective address of the JPL
+ * instruction. Note that the L register points to the instruction after the
+ * jump(the program counter incremented before transfer to the L register).
+ *
+ * @par Instruction
+ * Opcode 134000 octal.
+ * Category: Sequencing Instructions. Privilege: User.
+ * Format: JPL <address mode> <displacement>
+ *
+ * @par Instruction word
+ *   bits 15-11  opcode - The opcode determines what type of operation
+ *       occurs
+ *   bits 10-8  addressing_mode - These three bits give the addressing mode
+ *       for the instruction
+ *   bits 7-0  displacement - 8-bit signed field gives the memory address
+ *       displacement (2's complement notation giving a displacement range of
+ *       -128 to 127 memory locations)
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section JPL
  */
 static void opcode_jpl_jump_if_last_result_positive(uint16_t operand)
 {
@@ -560,8 +910,33 @@ static void opcode_jpl_jump_if_last_result_positive(uint16_t operand)
     }
 }
 
-/* SKP
- * Skip instructions, this one interleaves with other instructions so might need some extra checkings.
+/**
+ * @brief SKP - The next instruction is skipped if a specified condition is true.
+ *
+ * @par Instruction
+ * Opcode 140000 octal, mask 1111_1000_1100_0000.
+ * Category: Skip Instruction. Privilege: User.
+ * Format: SKP <dr> <condition> <sr>
+ *
+ * @par Instruction word
+ *   bits 15-11  opcode - The opcode determines what type of operation
+ *       occurs
+ *   bits 10-8  condition - Condition to skip the next
+ *       instruction<br><br>**Values:**<br>- `EQL` (`0`): Equal<br>- `GEQ`
+ *       (`1`): Greater or equal to (signed)<br>- `GRE` (`2`): Greater or equal
+ *       to (overflow, signed)<br>- `MGRE` (`3`): Magnitude greater or equal to
+ *       (overflow, unsigned)<br>- `UEQ` (`4`): Unequal<br>- `LSS` (`5`): Less
+ *       than (overflow, unsigned)<br>- `LST` (`6`): Less than (overflow,
+ *       signed)<br>- `MLST` (`7`): Magnitude less than (overflow,
+ *       unsigned)<br>
+ *   bits 7-6  zeros - Must be 00
+ *   bits 5-3  sr - The source register to be compared with the destination
+ *       register
+ *   bits 2-0  dr - The destination register to be compared with the source
+ *       register
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section SKP
  */
 static void opcode_skp_skip_next_if_condition(uint16_t operand)
 {
@@ -571,19 +946,11 @@ static void opcode_skp_skip_next_if_condition(uint16_t operand)
     }
 }
 
-/// <summary>
-/// BFILL - Byte Fill
-/// Code: 140 130
-/// Format: BFILL
-///
-/// This instruction has only one operand. The destination operand is specified in the X, and T registers.
-/// The right-most byte in the A-reg. (bits 0-7) is filled into the destination field.
-///
-/// After execution, the X-register and T-register bit 15 point to the end of the field(after the last byte).
-/// The T-register bits(0-11) equal zero.
-///
-/// The instruction will always have a skip return (no error condition)
-/// </summary>
+/**
+ * @brief BFILL_NEW - see the notes below.
+ *
+ * @param operand The full instruction word as fetched.
+ */
 void opcode_bfill_new_byte_fill(uint16_t operand)
 {
     (void)operand;
@@ -614,6 +981,27 @@ void opcode_bfill_new_byte_fill(uint16_t operand)
     gPC++; // Skip return
 }
 
+/**
+ * @brief BFILL - Byte fill.
+ *
+ * Only the destination is used as an operand in this instruction (it is
+ * placed in the X and T registers). The lower byte of the A register is then
+ * filled with the destination field. After execution, bit 15 of the T
+ * register points to the end of the field (after the last byte position) and
+ * the field length equals zero.
+ *
+ * @par Instruction
+ * Opcode 140130 octal, mask 1111_1111_1111_1111.
+ * Category: Byte Instructions. Privilege: User.
+ * Format: BFILL
+ *
+ * @par Instruction word
+ *   bits 15-0  opcode - The opcode determines what type of operation
+ *       occurs
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section BFILL
+ */
 static void opcode_bfill_byte_fill(uint16_t operand)
 {
     (void)operand;
@@ -638,7 +1026,28 @@ static void opcode_bfill_byte_fill(uint16_t operand)
     gPC++; /* This function has a SKIP return on no error, which is always? */
 }
 
-/* STZ
+/**
+ * @brief STZ - Store zero to memory location.
+ *
+ * (EA) <- 0 Store the value zero in the memory location pointed to by the
+ * effective address.
+ *
+ * @par Instruction
+ * Opcode 000000 octal, mask 1111_1000_0000_0000.
+ * Category: Memory Transfer - Store Instruction. Privilege: User.
+ * Format: STZ <addressing_mode> <displacement>
+ *
+ * @par Instruction word
+ *   bits 15-11  opcode - The opcode determines what type of operation
+ *       occurs
+ *   bits 10-8  addressing_mode - These three bits give the addressing mode
+ *       for the instruction
+ *   bits 7-0  displacement - 8-bit signed field gives the memory address
+ *       displacement (2's complement notation giving a displacement range of
+ *       -128 to 127 memory locations)
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section STZ
  */
 static void opcode_stz_store_zero(uint16_t operand)
 {
@@ -646,7 +1055,28 @@ static void opcode_stz_store_zero(uint16_t operand)
     MemoryWrite(0, gEA, gUseAPT, 2);
 }
 
-/* STA
+/**
+ * @brief STA - Store A register to memory location .
+ *
+ * (EA) <- (A) Store the contents of the A register in the memory location
+ * pointed to by the effective address.
+ *
+ * @par Instruction
+ * Opcode 004000 octal, mask 1111_1000_0000_0000.
+ * Category: Memory Transfer - Store Instruction. Privilege: User.
+ * Format: STA <addressing_mode> <displacement>
+ *
+ * @par Instruction word
+ *   bits 15-11  opcode - The opcode determines what type of operation
+ *       occurs
+ *   bits 10-8  addressing_mode - These three bits give the addressing mode
+ *       for the instruction
+ *   bits 7-0  displacement - 8-bit signed field gives the memory address
+ *       displacement (2's complement notation giving a displacement range of
+ *       -128 to 127 memory locations)
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section STA
  */
 static void opcode_sta_store_a_register(uint16_t operand)
 {
@@ -655,7 +1085,28 @@ static void opcode_sta_store_a_register(uint16_t operand)
     MemoryWrite(gA, gEA, gUseAPT, 2);
 }
 
-/* STT
+/**
+ * @brief STT - Store T register to memory location.
+ *
+ * (EA) <- (T) Store the contents of the T register in the memory location
+ * pointed to by the effective address.
+ *
+ * @par Instruction
+ * Opcode 010000 octal, mask 1111_1000_0000_0000.
+ * Category: Memory Transfer - Store Instruction. Privilege: User.
+ * Format: STT <addressing_mode> <displacement>
+ *
+ * @par Instruction word
+ *   bits 15-11  opcode - The opcode determines what type of operation
+ *       occurs
+ *   bits 10-8  addressing_mode - These three bits give the addressing mode
+ *       for the instruction
+ *   bits 7-0  displacement - 8-bit signed field gives the memory address
+ *       displacement (2's complement notation giving a displacement range of
+ *       -128 to 127 memory locations)
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section STT
  */
 static void opcode_stt_store_t_register(uint16_t operand)
 {
@@ -663,7 +1114,28 @@ static void opcode_stt_store_t_register(uint16_t operand)
     MemoryWrite(gT, gEA, gUseAPT, 2);
 }
 
-/* STX
+/**
+ * @brief STX - Store X register to memory location .
+ *
+ * (EA) <- (X) Store the contents of the X register in the memory location
+ * pointed to by the effective address.
+ *
+ * @par Instruction
+ * Opcode 014000 octal, mask 1111_1000_0000_0000.
+ * Category: Memory Transfer - Store Instruction. Privilege: User.
+ * Format: STX <addressing_mode> <displacement>
+ *
+ * @par Instruction word
+ *   bits 15-11  opcode - The opcode determines what type of operation
+ *       occurs
+ *   bits 10-8  addressing_mode - These three bits give the addressing mode
+ *       for the instruction
+ *   bits 7-0  displacement - 8-bit signed field gives the memory address
+ *       displacement (2's complement notation giving a displacement range of
+ *       -128 to 127 memory locations)
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section STX
  */
 static void opcode_stx_store_x_register(uint16_t operand)
 {
@@ -671,7 +1143,30 @@ static void opcode_stx_store_x_register(uint16_t operand)
     MemoryWrite(gX, gEA, gUseAPT, 2);
 }
 
-/* STD
+/**
+ * @brief STD - Store double word.
+ *
+ * (ea)     <- (A)   (ea) + 1 <- (D) Store the contents of the A register in
+ * the memory location pointed to by the effective address Store the contents
+ * of the D register in the memory location pointed to by the effective
+ * address plus one.
+ *
+ * @par Instruction
+ * Opcode 020000 octal, mask 1111_1000_0000_0000.
+ * Category: Memory Transfer - Double word instructions. Privilege: User.
+ * Format: STD <addressing_mode> <displacement>
+ *
+ * @par Instruction word
+ *   bits 15-11  opcode - The opcode determines what type of operation
+ *       occurs
+ *   bits 10-8  addressing_mode - These three bits give the addressing mode
+ *       for the instruction
+ *   bits 7-0  displacement - 8-bit signed field gives the memory address
+ *       displacement (2's complement notation giving a displacement range of
+ *       -128 to 127 memory locations)
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section STD
  */
 static void opcode_std_store_double_word(uint16_t operand)
 {
@@ -680,17 +1175,29 @@ static void opcode_std_store_double_word(uint16_t operand)
     MemoryWrite(gD, gEA + 1, gUseAPT, 2);
 }
 
-/* STF
- */
-/* STF - store float, ALWAYS 3 words (T->ea, A->ea+1, D->ea+2), in BOTH FPP
- * modes. Deliberately NOT gated on CurrentFPPType: LDF/STF are CPU data
- * movers, not FPP arithmetic, and the real microcode has no mode branch -
- * verified in ND-110 RASK (STF: 11607 -> STF1: 405 -> STD1: 400) and ND-120
- * DELILAH-L/K (13593/475/462); every addressing-mode slot enters via the T
- * word. Consequence for --fpp=32: the 32-bit float lives in A,D, so store/
- * load it with STD/LDD (2 words, layout matching the FAD..FDV memory
- * operand at ea/ea+1). STF on a 32-bit float writes stale T at ea and lands
- * the value one word off - misaligned exactly as on the real CPU.
+/**
+ * @brief STF - Store floating accumulator (TAD) to memory (ea).
+ *
+ * Memory format:  (ea)     <- (T)  (ea) + 1 <- (A)  (ea) + 2 <- (D) Store
+ * the contents of the floating accumulator (T,A and D registers) into the
+ * memory location pointed to by the effective address.
+ *
+ * @par Instruction
+ * Opcode 030000 octal, mask 1111_1000_0000_0000.
+ * Category: Standard Floating Instructions. Privilege: User.
+ * Format: STF <addressing_mode> <disp>
+ *
+ * @par Instruction word
+ *   bits 15-11  opcode - The opcode determines what type of operation
+ *       occurs
+ *   bits 10-8  addressing_mode - These three bits give the addressing mode
+ *       for the instruction
+ *   bits 7-0  displacement - 8-bit signed field gives the memory address
+ *       displacement (2's complement notation giving a displacement range of
+ *       -128 to 127 memory locations)
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section STF
  */
 static void opcode_stf_store_floating_accumulator(uint16_t operand)
 {
@@ -700,7 +1207,28 @@ static void opcode_stf_store_floating_accumulator(uint16_t operand)
     MemoryWrite(gD, gEA + 2, gUseAPT, 2);
 }
 
-/* LDA
+/**
+ * @brief LDA - Load A register.
+ *
+ * Load the contents of the memory location pointed to by the effective
+ * address into the A register.
+ *
+ * @par Instruction
+ * Opcode 044000 octal, mask 1111_1000_0000_0000.
+ * Category: Memory Transfer - Load Instruction. Privilege: User.
+ * Format: LDA <addressing_mode> <disp>
+ *
+ * @par Instruction word
+ *   bits 15-11  opcode - The opcode determines what type of operation
+ *       occurs
+ *   bits 10-8  addressing_mode - These three bits give the addressing mode
+ *       for the instruction
+ *   bits 7-0  displacement - 8-bit signed field gives the memory address
+ *       displacement (2's complement notation giving a displacement range of
+ *       -128 to 127 memory locations)
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section LDA
  */
 static void opcode_lda_load_a_register(uint16_t operand)
 {
@@ -708,7 +1236,28 @@ static void opcode_lda_load_a_register(uint16_t operand)
     gA = MemoryRead(gEA, gUseAPT);
 }
 
-/* LDT
+/**
+ * @brief LDT - Load T register.
+ *
+ * (T) <- (ea) Load the contents of the memory location pointed to by the
+ * effective address into the T register.
+ *
+ * @par Instruction
+ * Opcode 050000 octal, mask 1111_1000_0000_0000.
+ * Category: Memory Transfer - Load Instruction. Privilege: User.
+ * Format: LDT <addressing_mode> <disp>
+ *
+ * @par Instruction word
+ *   bits 15-11  opcode - The opcode determines what type of operation
+ *       occurs
+ *   bits 10-8  addressing_mode - These three bits give the addressing mode
+ *       for the instruction
+ *   bits 7-0  displacement - 8-bit signed field gives the memory address
+ *       displacement (2's complement notation giving a displacement range of
+ *       -128 to 127 memory locations)
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section LDT
  */
 static void opcode_ldt_load_t_register(uint16_t operand)
 {
@@ -716,7 +1265,28 @@ static void opcode_ldt_load_t_register(uint16_t operand)
     gT = MemoryRead(gEA, gUseAPT);
 }
 
-/* LDX
+/**
+ * @brief LDX - Load X register.
+ *
+ * (X) <- (ea) Load the contents of the memory location pointed to by the
+ * effective address into the X register.
+ *
+ * @par Instruction
+ * Opcode 054000 octal, mask 1111_1000_0000_0000.
+ * Category: Memory Transfer - Load Instruction. Privilege: User.
+ * Format: LDX <addressing_mode> <disp>
+ *
+ * @par Instruction word
+ *   bits 15-11  opcode - The opcode determines what type of operation
+ *       occurs
+ *   bits 10-8  addressing_mode - These three bits give the addressing mode
+ *       for the instruction
+ *   bits 7-0  displacement - 8-bit signed field gives the memory address
+ *       displacement (2's complement notation giving a displacement range of
+ *       -128 to 127 memory locations)
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section LDX
  */
 static void opcode_ldx_load_x_register(uint16_t operand)
 {
@@ -724,7 +1294,30 @@ static void opcode_ldx_load_x_register(uint16_t operand)
     gX = MemoryRead(gEA, gUseAPT);
 }
 
-/* LDD
+/**
+ * @brief LDD - Load double word.
+ *
+ * A <- (ea)   D <- (ea) + 1 Load the contents of the memory location pointed
+ * to by the effective address into the A register  Load the contents of the
+ * memory location pointed to by the effective address plus one into the D
+ * register.
+ *
+ * @par Instruction
+ * Opcode 024000 octal, mask 1111_1000_0000_0000.
+ * Category: Memory Transfer - Double word instructions. Privilege: User.
+ * Format: LDD <addressing_mode> <displacement>
+ *
+ * @par Instruction word
+ *   bits 15-11  opcode - The opcode determines what type of operation
+ *       occurs
+ *   bits 10-8  addressing_mode - These three bits give the addressing mode
+ *       for the instruction
+ *   bits 7-0  displacement - 8-bit signed field gives the memory address
+ *       displacement (2's complement notation giving a displacement range of
+ *       -128 to 127 memory locations)
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section LDD
  */
 static void opcode_ldd_load_double_word(uint16_t operand)
 {
@@ -734,16 +1327,31 @@ static void opcode_ldd_load_double_word(uint16_t operand)
     gD = MemoryRead(gEA + 1, gUseAPT);
 }
 
-/* LDF
- */
-/* LDF - load float, ALWAYS 3 words (ea->T, ea+1->A, ea+2->D), in BOTH FPP
- * modes - the exact mirror of STF above, and like STF deliberately NOT
- * gated on CurrentFPPType. Real-microcode evidence: ND-110 RASK LDF1: 407
- * -> LDD1: 402 -> fall-through into D; all 32 LDF addressing-mode slots
- * (11647-11690) funnel into LDF1, none starts at LDD1 (which a 2-word A,D
- * load would need). ND-120 DELILAH-L identical (481/468). Consequence for
- * --fpp=32: LDF overwrites T (which the 32-bit FPP never touches) and reads
- * the A,D value one word off - use LDD instead for 32-bit floats.
+/**
+ * @brief LDF - Load floating accumulator (TAD) from memory (FW).
+ *
+ * Memory format:  (T) <- EL  (A) <- EL+1  (D) <- EL+2 Load the contents of
+ * the memory location pointed to by the effective address into the T
+ * register, the contents of the effective address plus one into the A
+ * register and the contents of the effective address plus two into the D
+ * register.
+ *
+ * @par Instruction
+ * Opcode 034000 octal, mask 1111_1000_0000_0000.
+ * Category: Standard Floating Instructions. Privilege: User.
+ * Format: LDF <addressing_mode> <disp>
+ *
+ * @par Instruction word
+ *   bits 15-11  opcode - The opcode determines what type of operation
+ *       occurs
+ *   bits 10-8  addressing_mode - These three bits give the addressing mode
+ *       for the instruction
+ *   bits 7-0  displacement - 8-bit signed field gives the memory address
+ *       displacement (2's complement notation giving a displacement range of
+ *       -128 to 127 memory locations)
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section LDF
  */
 static void opcode_ldf_load_floating_accumulator(uint16_t operand)
 {
@@ -755,7 +1363,19 @@ static void opcode_ldf_load_floating_accumulator(uint16_t operand)
 }
 
 
-/* STZTX
+/**
+ * @brief STZTX - Store zero.
+ *
+ * (ea) <- 0000008 Store zero in the memory location given by the effective
+ * address.
+ *
+ * @par Instruction
+ * Opcode 143305 octal, mask 1111_1111_1100_0111.
+ * Category: Memory Transfer Instructions. Privilege: Privileged.
+ * Format: STZTX <displacement>
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section STZTX
  */
 static void opcode_stztx_store_zero_t_x_relative(uint16_t operand)
 {
@@ -769,7 +1389,19 @@ static void opcode_stztx_store_zero_t_x_relative(uint16_t operand)
     write_el(EL, 0);
 }
 
-/* STATX
+/**
+ * @brief STATX - Store A register.
+ *
+ * (ea) <- (A) Store the contents of the A register in the memory location
+ * given by the effective address.
+ *
+ * @par Instruction
+ * Opcode 143304 octal, mask 1111_1111_1100_0111.
+ * Category: Memory Transfer Instructions. Privilege: Privileged.
+ * Format: STATX <displacement>
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section STATX
  */
 static void opcode_statx_store_a_register_t_x_relative(uint16_t operand)
 {
@@ -783,7 +1415,20 @@ static void opcode_statx_store_a_register_t_x_relative(uint16_t operand)
     write_el(EL, gA);
 }
 
-/* STDTX
+/**
+ * @brief STDTX - Store double word.
+ *
+ * (ea) <- (A) (ea) + 1 <- (D) Store the double word held in the A and D
+ * registers in the memory locations given by the effective address and the
+ * effective address plus one.
+ *
+ * @par Instruction
+ * Opcode 143306 octal, mask 1111_1111_1100_0111.
+ * Category: Memory Transfer Instructions. Privilege: Privileged.
+ * Format: STDTX <displacement>
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section STDTX
  */
 static void opcode_stdtx_store_double_word_t_x_relative(uint16_t operand)
 {
@@ -798,18 +1443,23 @@ static void opcode_stdtx_store_double_word_t_x_relative(uint16_t operand)
     write_el(EL + 1, gD);
 }
 
-/// <summary>
-/// Load A register
-///
-/// Code: 143 3n0
-/// Format: LDATX
-///
-/// Load the contents of the physical memory location pointed to
-/// by the effective address into the A register.
-/// A := (EL)
-///
-/// Affected: (A)
-/// </summary>
+/**
+ * @brief LDATX - Load A register.
+ *
+ * (A) <- (ea) Load the contents of the physical memory location pointed to
+ * by the effective address into the A register.
+ *
+ * @par Instruction
+ * Opcode 143300 octal, mask 1111_1111_1100_0111.
+ * Category: Memory Transfer Instructions. Privilege: Privileged.
+ * Format: LDATX <disp>
+ *
+ * @par Registers affected
+ * (A)
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section LDATX
+ */
 static void opcode_ldatx_load_a_register_t_x_relative(uint16_t operand)
 {
     if (!check_priv())
@@ -823,17 +1473,23 @@ static void opcode_ldatx_load_a_register_t_x_relative(uint16_t operand)
     gA = read_el(EL);
 }
 
-/// <summary>
-/// Load X register
-/// Code: 143 3n1
-/// Format: LDXTX
-///
-/// Load the contents of the physical memory location pointed to
-/// by the effective address into the X  register.
-/// X := (EL)
-///
-/// Affected: (X)
-/// </summary>
+/**
+ * @brief LDXTX - Load X register.
+ *
+ * (X) <- (ea) Load the contents of the physical memory location pointed to
+ * by the effective address into the X register.
+ *
+ * @par Instruction
+ * Opcode 143301 octal, mask 1111_1111_1100_0111.
+ * Category: Memory Transfer Instructions. Privilege: Privileged.
+ * Format: LDXTX <displacement>
+ *
+ * @par Registers affected
+ * (X)
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section LDXTX
+ */
 static void opcode_ldxtx_load_x_register_t_x_relative(uint16_t operand)
 {
     if (!check_priv())
@@ -847,17 +1503,24 @@ static void opcode_ldxtx_load_x_register_t_x_relative(uint16_t operand)
     gX = read_el(EL);
 }
 
-/// <summary>
-/// Load Double Word
-/// Code: 143 3n2
-/// Format: LDDTX
-///
-/// Load the contents of the physical memory location pointed to by the effective address
-/// into the A register and the contents of the effective address plus one  into the D register
-/// A := (EL), D := (EL + 1) .
-///
-/// Affected: (A,D)
-/// </summary>
+/**
+ * @brief LDDTX - Load double word.
+ *
+ * (A) <- (ea) (D) <- (ea + 1) Load the contents of the physical memory
+ * location pointed to by the effective address into the A register and the
+ * contents of the effective address plus one into the D register.
+ *
+ * @par Instruction
+ * Opcode 143302 octal, mask 1111_1111_1100_0111.
+ * Category: Memory Transfer Instructions. Privilege: Privileged.
+ * Format: LDDTX <displacement>
+ *
+ * @par Registers affected
+ * (A,D)
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section LDDTX
+ */
 static void opcode_lddtx_load_double_word_t_x_relative(uint16_t operand)
 {
 
@@ -874,18 +1537,24 @@ static void opcode_lddtx_load_double_word_t_x_relative(uint16_t operand)
     gD = read_el(EL);
 }
 
-/// <summary>
-/// Load B register
-///
-/// Code: 143 3n3
-/// Format: LDBTX
-///
-/// Load the contents of the physical memory location pointed to by the twice the
-/// effective address contents into the B register, then OR the value with 177 000
-/// B := 177000 V ((EL) + (EL)) (V = inclusive OR)
-///
-/// Affected: (B)
-/// </summary>
+/**
+ * @brief LDBTX - Load B register.
+ *
+ * (B) <- 1770008 OR (2(ea)) Load the contents of the physical memory
+ * location pointed to by twice the effective address contents into the B
+ * register, then OR the value with 1770008. See description for usage.
+ *
+ * @par Instruction
+ * Opcode 143303 octal, mask 1111_1111_1100_0111.
+ * Category: Memory Transfer Instructions. Privilege: Privileged.
+ * Format: LDBTX <displacement>
+ *
+ * @par Registers affected
+ * (B)
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section LDBTX
+ */
 static void opcode_ldbtx_load_b_register_t_x_relative(uint16_t operand)
 {
     uint16_t temp;
@@ -904,16 +1573,34 @@ static void opcode_ldbtx_load_b_register_t_x_relative(uint16_t operand)
     gB = result | 0xFE00; // 0177000
 }
 
-/// <summary>
-/// MIN - Increment memory and skip if zero
-/// Code: 040 000
-///
-/// Format: MIN <address mode> <disp.>
-///
-/// Effective word is read and incremented by one and then stored in the effective location.If the result becomes zero, the next instruction is skipped.
-///
-/// Affected: (EL), (P)
-/// </summary>
+/**
+ * @brief MIN - Memory increment and skip next instruction if zero (EA): = (EA) + 1.
+ *
+ * (ea) <- (ea) + 1 (P)  <- (P) + 2 IF new (ea) = 0 The contents of the
+ * memory location pointed to by the effective address are incremented by
+ * one.  If the new memory location when incremented becomes zero, the next
+ * instruction is skipped.
+ *
+ * @par Instruction
+ * Opcode 040000 octal, mask 1111_1000_0000_0000.
+ * Category: Memory Transfer - Store Instruction. Privilege: User.
+ * Format: MIN <addressing_mode> <displacement>
+ *
+ * @par Registers affected
+ * (EL), (P)
+ *
+ * @par Instruction word
+ *   bits 15-11  opcode - The opcode determines what type of operation
+ *       occurs
+ *   bits 10-8  addressing_mode - These three bits give the addressing mode
+ *       for the instruction
+ *   bits 7-0  displacement - 8-bit signed field gives the memory address
+ *       displacement (2's complement notation giving a displacement range of
+ *       -128 to 127 memory locations)
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section MIN
+ */
 static void opcode_min_memory_increment_and_skip_if_zero(uint16_t operand)
 {
     gEA = New_GetEffectiveAddr(operand, &gUseAPT);
@@ -928,7 +1615,28 @@ static void opcode_min_memory_increment_and_skip_if_zero(uint16_t operand)
     }
 }
 
-/* ADD
+/**
+ * @brief ADD - Add to A register.
+ *
+ * A <- A + (EL) Add the contents of the memory location pointed to by the
+ * effective address to the A register, leaving the result in A.
+ *
+ * @par Instruction
+ * Opcode 060000 octal, mask 1111_1000_0000_0000.
+ * Category: Arithmetic and Logical. Privilege: User.
+ * Format: ADD <addressing_mode> <displacement>
+ *
+ * @par Instruction word
+ *   bits 15-11  opcode - The opcode determines what type of operation
+ *       occurs
+ *   bits 10-8  addressing_mode - These three bits give the addressing mode
+ *       for the instruction
+ *   bits 7-0  displacement - 8-bit signed field gives the memory address
+ *       displacement (2's complement notation giving a displacement range of
+ *       -128 to 127 memory locations)
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section ADD
  */
 static void opcode_add_add_to_a_register(uint16_t operand)
 {
@@ -938,7 +1646,28 @@ static void opcode_add_add_to_a_register(uint16_t operand)
     gA = do_add(gA, eff_word, 0);
 }
 
-/* SUB
+/**
+ * @brief SUB - Subtract from A register.
+ *
+ * A <- A - (EL) Subtract the contents of the memory location pointed to by
+ * the effective address from the A register, leaving the result in A.
+ *
+ * @par Instruction
+ * Opcode 064000 octal, mask 1111_1000_0000_0000.
+ * Category: Arithmetic and Logical. Privilege: User.
+ * Format: SUB <addressing_mode> <displacement>
+ *
+ * @par Instruction word
+ *   bits 15-11  opcode - The opcode determines what type of operation
+ *       occurs
+ *   bits 10-8  addressing_mode - These three bits give the addressing mode
+ *       for the instruction
+ *   bits 7-0  displacement - 8-bit signed field gives the memory address
+ *       displacement (2's complement notation giving a displacement range of
+ *       -128 to 127 memory locations)
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section SUB
  */
 static void opcode_sub_subtract_from_a_register(uint16_t operand)
 {
@@ -947,7 +1676,29 @@ static void opcode_sub_subtract_from_a_register(uint16_t operand)
     gA = do_add(gA, ~eff_word, 1);
 }
 
-/* AND
+/**
+ * @brief AND - Logical AND to A register.
+ *
+ * A <- A & (EA) Perform a bitwise AND operation between the contents of the
+ * A register and the contents of the memory location pointed to by the
+ * effective address, leaving the result in A.
+ *
+ * @par Instruction
+ * Opcode 070000 octal, mask 1111_1000_0000_0000.
+ * Category: Arithmetic and Logical. Privilege: User.
+ * Format: AND <addressing_mode> <displacement>
+ *
+ * @par Instruction word
+ *   bits 15-11  opcode - The opcode determines what type of operation
+ *       occurs
+ *   bits 10-8  addressing_mode - These three bits give the addressing mode
+ *       for the instruction
+ *   bits 7-0  displacement - 8-bit signed field gives the memory address
+ *       displacement (2's complement notation giving a displacement range of
+ *       -128 to 127 memory locations)
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section AND
  */
 static void opcode_and_logical_and_to_a_register(uint16_t operand)
 {
@@ -955,7 +1706,29 @@ static void opcode_and_logical_and_to_a_register(uint16_t operand)
     gA = gA & MemoryRead(gEA, gUseAPT);
 }
 
-/* ORA
+/**
+ * @brief ORA - Logical inclusive OR to A register.
+ *
+ * A <- A | (EA) Perform a bitwise OR operation between the contents of the A
+ * register and the contents of the memory location pointed to by the
+ * effective address, leaving the result in A.
+ *
+ * @par Instruction
+ * Opcode 074000 octal, mask 1111_1000_0000_0000.
+ * Category: Arithmetic and Logical. Privilege: User.
+ * Format: ORA <addressing_mode> <displacement>
+ *
+ * @par Instruction word
+ *   bits 15-11  opcode - The opcode determines what type of operation
+ *       occurs
+ *   bits 10-8  addressing_mode - These three bits give the addressing mode
+ *       for the instruction
+ *   bits 7-0  displacement - 8-bit signed field gives the memory address
+ *       displacement (2's complement notation giving a displacement range of
+ *       -128 to 127 memory locations)
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section ORA
  */
 static void opcode_ora_logical_or_to_a_register(uint16_t operand)
 {
@@ -963,13 +1736,30 @@ static void opcode_ora_logical_or_to_a_register(uint16_t operand)
     gA = gA | MemoryRead(gEA, gUseAPT);
 }
 
-/* FAD
+/**
+ * @brief FAD - Add to floating point accumulator.
  *
- * FPP32 memory-operand layout (also FSB/FMU/FDV below): the 2-word operand
- * lives at ea/ea+1 and the accumulator is the A,D pair. IMPORTANT: LDF/STF
- * are NOT the store/load path for these floats - they are unconditional
- * 3-word T/A/D movers in the real microcode (see opcode_stf_store_floating_accumulator/opcode_ldf_load_floating_accumulator) and
- * would place the value one word off. Store/load 32-bit floats with STD/LDD.
+ * (A) <- (ea)     + (T) (D) <- (ea + 1) + (A) The contents of two sequential
+ * memory locations, pointed to by the effective address, are added to the
+ * contents of the floating point accumulator (T and A registers). The result
+ * is held in the accumulator.
+ *
+ * @par Instruction
+ * Opcode 100000 octal, mask 1111_1000_0000_0000.
+ * Category: Standard Floating Instructions. Privilege: User.
+ * Format: FAD <addressing_mode> <disp>
+ *
+ * @par Instruction word
+ *   bits 15-11  opcode - The opcode determines what type of operation
+ *       occurs
+ *   bits 10-8  addressing_mode - These three bits give the addressing mode
+ *       for the instruction
+ *   bits 7-0  displacement - 8-bit signed field gives the memory address
+ *       displacement (2's complement notation giving a displacement range of
+ *       -128 to 127 memory locations)
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section FAD
  */
 static void opcode_fad_add_to_floating_accumulator(uint16_t operand)
 {
@@ -1004,7 +1794,29 @@ static void opcode_fad_add_to_floating_accumulator(uint16_t operand)
     }
 }
 
-/* FSB
+/**
+ * @brief FSB - Subtract from floating point accumulator.
+ *
+ * The contents of two sequential memory locations, pointed to by the
+ * effective address, are subtracted from the contents of the floating point
+ * accumulator (A and D registers).  The result is held in the accumulator.
+ *
+ * @par Instruction
+ * Opcode 104000 octal, mask 1111_1000_0000_0000.
+ * Category: Standard Floating Instructions. Privilege: User.
+ * Format: FSB <addressing_mode> <disp>
+ *
+ * @par Instruction word
+ *   bits 15-11  opcode - The opcode determines what type of operation
+ *       occurs
+ *   bits 10-8  addressing_mode - These three bits give the addressing mode
+ *       for the instruction
+ *   bits 7-0  displacement - 8-bit signed field gives the memory address
+ *       displacement (2's complement notation giving a displacement range of
+ *       -128 to 127 memory locations)
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section FSB
  */
 static void opcode_fsb_subtract_from_floating_accumulator(uint16_t operand)
 {
@@ -1039,7 +1851,29 @@ static void opcode_fsb_subtract_from_floating_accumulator(uint16_t operand)
     }
 }
 
-/* FMU
+/**
+ * @brief FMU - Multiply floating point accumulator.
+ *
+ * The contents of the floating point accumulator (A and D registers) are
+ * multiplied by the contents of two sequential memory locations, pointed to
+ * by the effective address.  The result is held in the accumulator.
+ *
+ * @par Instruction
+ * Opcode 110000 octal, mask 1111_1000_0000_0000.
+ * Category: Standard Floating Instructions. Privilege: User.
+ * Format: FMU <addressing_mode> <disp>
+ *
+ * @par Instruction word
+ *   bits 15-11  opcode - The opcode determines what type of operation
+ *       occurs
+ *   bits 10-8  addressing_mode - These three bits give the addressing mode
+ *       for the instruction
+ *   bits 7-0  displacement - 8-bit signed field gives the memory address
+ *       displacement (2's complement notation giving a displacement range of
+ *       -128 to 127 memory locations)
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section FMU
  */
 static void opcode_fmu_multiply_floating_accumulator(uint16_t operand)
 {
@@ -1074,7 +1908,29 @@ static void opcode_fmu_multiply_floating_accumulator(uint16_t operand)
     }
 }
 
-/* FDV
+/**
+ * @brief FDV - Divide floating point accumulator.
+ *
+ * The contents of the floating point accumulator (A and D registers) are
+ * divided by the contents of two sequential memory locations, pointed to by
+ * the effective address.
+ *
+ * @par Instruction
+ * Opcode 114000 octal, mask 1111_1000_0000_0000.
+ * Category: Standard Floating Instructions. Privilege: User.
+ * Format: FDV <addressing_mode> <disp>
+ *
+ * @par Instruction word
+ *   bits 15-11  opcode - The opcode determines what type of operation
+ *       occurs
+ *   bits 10-8  addressing_mode - These three bits give the addressing mode
+ *       for the instruction
+ *   bits 7-0  displacement - 8-bit signed field gives the memory address
+ *       displacement (2's complement notation giving a displacement range of
+ *       -128 to 127 memory locations)
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section FDV
  */
 static void opcode_fdv_divide_floating_accumulator(uint16_t operand)
 {
@@ -1117,7 +1973,28 @@ static void opcode_fdv_divide_floating_accumulator(uint16_t operand)
     }
 }
 
-/* JMP
+/**
+ * @brief JMP - Jump - Unconditional jump to specified address.
+ *
+ * The next instruction is taken from the effective address of the JMP
+ * instruction(the effective address is ioaded into the program counter).
+ *
+ * @par Instruction
+ * Opcode 124000 octal.
+ * Category: Sequencing Instructions. Privilege: User.
+ * Format: JMP <address mode> <displacement>
+ *
+ * @par Instruction word
+ *   bits 15-11  opcode - The opcode determines what type of operation
+ *       occurs
+ *   bits 10-8  addressing_mode - These three bits give the addressing mode
+ *       for the instruction
+ *   bits 7-0  displacement - 8-bit signed field gives the memory address
+ *       displacement (2's complement notation giving a displacement range of
+ *       -128 to 127 memory locations)
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section JMP
  */
 static void opcode_jmp_jump_unconditional(uint16_t operand)
 {
@@ -1132,7 +2009,25 @@ static void opcode_jmp_jump_unconditional(uint16_t operand)
     }
 }
 
-/* GECO
+/**
+ * @brief GECO - GECO is a customer-specifed instruction which appears to be included as part of the standard instruction set from ND-100/CE and later. .
+ *
+ * The name comes from the customer, GECO (Geophysical Company of Norway)
+ * SINTRAN III version L, and probably version K and possibly earlier, tests
+ * for GECO as part of the startup.      The instruction is found in the
+ * ND-110 microcode.
+ *
+ * @par Instruction
+ * Opcode 142700 octal, mask 1111_1111_1111_1111.
+ * Category: Undocumented Instructions. Privilege: User.
+ * Format: GECO
+ *
+ * @par Instruction word
+ *   bits 15-0  opcode - The opcode determines what type of operation
+ *       occurs
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section GECO
  */
 static void opcode_geco_customer_specified_instruction(uint16_t operand)
 {
@@ -1698,6 +2593,25 @@ static bool versn_is_nd120(void)
     return (g_current_cpu_type == ND120CX);
 }
 
+/**
+ * @brief VERSN - ** ND-110/ND-120 ONLY**.
+ *
+ * Read ND-110 CPU version and installation number. This instruction is used
+ * to read the version of ND-110 CPU installed. Three registers are loaded
+ * simultaneously with information in the following format:
+ *
+ * @par Instruction
+ * Opcode 140133 octal, mask 1111_1111_1111_1111.
+ * Category: System/CPU Information. Privilege: User.
+ * Format: VERSN
+ *
+ * @par Instruction word
+ *   bits 15-0  opcode - The opcode determines what type of operation
+ *       occurs
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section VERSN
+ */
 void opcode_versn_read_cpu_version(uint16_t operand)
 {
     (void)operand;
@@ -1803,6 +2717,17 @@ static bool update_memory_io(void)
  * the CPU does not have to pull in the whole device-model header. */
 bool DeviceManager_IotOp(uint8_t devno, uint8_t func, uint16_t *regA, bool *skip);
 
+/**
+ * @brief IOT - NORD-1 INSTRUCTION (DO NOT USE).
+ *
+ * @par Instruction
+ * Opcode 160000 octal, mask 1111_1000_0000_0000.
+ * Category: Input and Output. Privilege: Privileged.
+ * Format: IOT <device_register_address>
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section IOT
+ */
 static void opcode_iot_nord_1_legacy_do_not_use(uint16_t operand)
 {
     // ND110 Microcode:
@@ -1856,7 +2781,24 @@ static void opcode_iot_nord_1_legacy_do_not_use(uint16_t operand)
     gA = io_op(operand & 0x07ff, gA);
 }
 
-/* IOX (Privileged)
+/**
+ * @brief IOX - Exchange information between I/O system and A register.
+ *
+ * @par Instruction
+ * Opcode 164000 octal, mask 1111_1000_0000_0000.
+ * Category: Input and Output. Privilege: Privileged.
+ * Format: IOX <device_register_address>
+ *
+ * @par Instruction word
+ *   bits 15-10  opcode - The opcode determines what type of operation
+ *       occurs (fixed code 111012)
+ *   bits 10-0  device_register_address - 11-bit field limiting the number
+ *       of external devices that can be addressed by the CPU.<br>Bit 0 gives
+ *       the direction of transfer:<br>  - 0: input (from device to CPU)<br>  -
+ *       1: output (from CPU to device)<br>
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section IOX
  */
 static void opcode_iox_exchange_with_io_system(uint16_t operand)
 {
@@ -1871,7 +2813,20 @@ static void opcode_iox_exchange_with_io_system(uint16_t operand)
     }
 }
 
-/* IOXT (Privileged)
+/**
+ * @brief IOXT - Exchange information between I/O system and A register.
+ *
+ * @par Instruction
+ * Opcode 150415 octal, mask 1111_1111_1111_1111.
+ * Category: Input and Output. Privilege: Privileged.
+ * Format: IOXT
+ *
+ * @par Instruction word
+ *   bits 15-0  opcode - The opcode determines what type of operation
+ *       occurs
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section IOXT
  */
 static void opcode_ioxt_exchange_with_io_system_t_addressed(uint16_t operand)
 {
@@ -1889,9 +2844,24 @@ static void opcode_ioxt_exchange_with_io_system_t_addressed(uint16_t operand)
 }
 
 
-/* IDENT
+/**
+ * @brief IDENT - Transfer IDENT code of interrupting device with highest priority on the specified level to A register.
  *
- * NOTE: Privileged instruction
+ * @par Instruction
+ * Opcode 143600 octal, mask 1111_1111_1100_0000.
+ * Category: Interrupt Control Instructions. Privilege: User.
+ * Format: IDENT <level_code>
+ *
+ * @par Instruction word
+ *   bits 15-6  opcode - The opcode determines what type of operation
+ *       occurs
+ *   bits 5-0  level_code - The interrupt level
+ *       code<br><br>**Values:**<br>- `PL10` (`000004`): Level 10<br>- `PL11`
+ *       (`000011`): Level 11<br>- `PL12` (`000022`): Level 12<br>- `PL13`
+ *       (`000043`): Level 13<br>
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section IDENT
  */
 static void opcode_ident_identify_interrupting_device(uint16_t operand)
 {
@@ -1922,7 +2892,27 @@ static void opcode_ident_identify_interrupting_device(uint16_t operand)
 /********************SYSTEM FUNCTIONS  *******************/
 
 
-/* OPCOM (Privileged)
+/**
+ * @brief OPCOM - Operator Communication.
+ *
+ * This instruction is PRIVILEGED and only available to:   - programs running
+ * in system mode (rings 2-3)   - programs running without memory protection
+ * This instruction allows the programmer to use a terminal in direct
+ * communication with the CPU board. When the CPU is running, MOPC can be
+ * used to read input from the console. This is the software equivalent to
+ * pressing the OPCOM button on the control panel of the ND-110.
+ *
+ * @par Instruction
+ * Opcode 150400 octal, mask 1111_1111_1111_1111.
+ * Category: Interrupt Control Instructions. Privilege: Privileged.
+ * Format: OPCOM
+ *
+ * @par Instruction word
+ *   bits 15-0  opcode - The opcode determines what type of operation
+ *       occurs
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section OPCOM
  */
 static void opcode_opcom_operator_communication(uint16_t operand)
 {
@@ -1935,11 +2925,29 @@ static void opcode_opcom_operator_communication(uint16_t operand)
     set_cpu_run_mode(CPU_STOPPED);
 }
 
-/// <summary>
-/// IRW - Inter-Register Write
-///
-/// Note: This instruction results in a no-operation if the A register of the current program level is used
-/// </summary>
+/**
+ * @brief IRW - Inter Register Write.
+ *
+ * Write A to specified register on specified level
+ *
+ * @par Instruction
+ * Opcode 153400 octal, mask 1111_1111_1000_0000.
+ * Category: Inter-level Instructions. Privilege: Privileged.
+ * Format: IRW <level> <register>
+ *
+ * @par Instruction word
+ *   bits 15-7  opcode - The opcode for inter-register read
+ *   bits 6-3  level - Privilege level to access (0-15)
+ *   bits 2-0  register - Register to read from specified
+ *       level<br><br>**Values:**<br>- `STS` (`000000`): Status register<br>-
+ *       `DD` (`000001`): D register<br>- `DP` (`000002`): P register<br>- `DB`
+ *       (`000003`): B register<br>- `DL` (`000004`): L register<br>- `DA`
+ *       (`000005`): A register<br>- `DT` (`000006`): T register<br>- `DX`
+ *       (`000007`): X register<br>
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section IRW
+ */
 static void opcode_irw_inter_register_write(uint16_t operand)
 {
     if (!check_priv())
@@ -1971,14 +2979,29 @@ static void opcode_irw_inter_register_write(uint16_t operand)
     }
 }
 
-/// <summary>
-/// IRR - Inter-Register Read
-/// Code 0153600
-///
-/// This instruction is used to read into the A register on current program level one of the general registers inside/outside the current program level.
-/// If bits 0-2 are zero, the status registers on the specified program level will be read into the A register bits 0-7, with bits 8-15 cleared.
-/// The IRR instruction is privileged.
-/// </summary>
+/**
+ * @brief IRR - Inter Register Read.
+ *
+ * A: = specified register on specified level
+ *
+ * @par Instruction
+ * Opcode 153600 octal, mask 1111_1111_1000_0000.
+ * Category: Inter-level Instructions. Privilege: Privileged.
+ * Format: IRR <level> <register>
+ *
+ * @par Instruction word
+ *   bits 15-7  opcode - The opcode for inter-register read
+ *   bits 6-3  level - Privilege level to access (0-15)
+ *   bits 2-0  register - Register to read from specified
+ *       level<br><br>**Values:**<br>- `STS` (`000000`): Status register<br>-
+ *       `DD` (`000001`): D register<br>- `DP` (`000002`): P register<br>- `DB`
+ *       (`000003`): B register<br>- `DL` (`000004`): L register<br>- `DA`
+ *       (`000005`): A register<br>- `DT` (`000006`): T register<br>- `DX`
+ *       (`000007`): X register<br>
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section IRR
+ */
 static void opcode_irr_inter_register_read(uint16_t operand)
 {
     if (!check_priv())
@@ -1999,7 +3022,23 @@ static void opcode_irr_inter_register_read(uint16_t operand)
     }
 }
 
-/* EXAM (Privileged)
+/**
+ * @brief EXAM - Examine.
+ *
+ * Load the contents of the physical memory location, pointed to by the A and
+ * D register contents, into the T register.
+ *
+ * @par Instruction
+ * Opcode 150416 octal, mask 1111_1111_1111_1111.
+ * Category: Physical Memory Control Instructions. Privilege: Privileged.
+ * Format: EXAM
+ *
+ * @par Instruction word
+ *   bits 15-0  opcode - The opcode determines what type of operation
+ *       occurs
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section EXAM
  */
 static void opcode_exam_examine_memory(uint16_t operand)
 {
@@ -2017,6 +3056,24 @@ static void opcode_exam_examine_memory(uint16_t operand)
 /* DEPO (Privileged)
  */
 
+/**
+ * @brief DEPO - Deposit.
+ *
+ * Store the contents of the T register in the physical memory location
+ * pointed to by the A and D register contents.
+ *
+ * @par Instruction
+ * Opcode 150417 octal, mask 1111_1111_1111_1111.
+ * Category: Physical Memory Control Instructions. Privilege: Privileged.
+ * Format: DEPO
+ *
+ * @par Instruction word
+ *   bits 15-0  opcode - The opcode determines what type of operation
+ *       occurs
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section DEPO
+ */
 static void opcode_depo_deposit_memory(uint16_t operand)
 {
     (void)operand;
@@ -2029,7 +3086,26 @@ static void opcode_depo_deposit_memory(uint16_t operand)
     WritePhysicalMemory(fulladdress, gT, true);
 }
 
-/* POF (Privileged)
+/**
+ * @brief POF - Memory management OFF.
+ *
+ * Disable memory management system. The next instruction will be taken from
+ * a physical address given by the address following the POF instruction.
+ * Note: The CPU will be in an unrestricted mode without any hardware
+ * protection features - all instructions are legal and all memory
+ * accessible.
+ *
+ * @par Instruction
+ * Opcode 150404 octal, mask 1111_1111_1111_1111.
+ * Category: Interrupt Control Instructions. Privilege: Privileged.
+ * Format: POF
+ *
+ * @par Instruction word
+ *   bits 15-0  opcode - The opcode determines what type of operation
+ *       occurs
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section POF
  */
 static void opcode_pof_paging_off(uint16_t operand)
 {
@@ -2042,7 +3118,24 @@ static void opcode_pof_paging_off(uint16_t operand)
     setbit_STS_MSB(_PONI, 0);
 }
 
-/* PIOF (Privileged)
+/**
+ * @brief PIOF - Memory management and interrupt system OFF.
+ *
+ * Disables both the memory management and interrupt systems. This combines
+ * the functions of the IOF and POF instructions. Before_use:   Check
+ * conditions of the IOF instruction.
+ *
+ * @par Instruction
+ * Opcode 150405 octal, mask 1111_1111_1111_1111.
+ * Category: Memory Management Instructions. Privilege: Privileged.
+ * Format: PIOF
+ *
+ * @par Instruction word
+ *   bits 15-0  opcode - The opcode determines what type of operation
+ *       occurs
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section PIOF
  */
 static void opcode_piof_paging_and_interrupt_off(uint16_t operand)
 {
@@ -2057,7 +3150,25 @@ static void opcode_piof_paging_and_interrupt_off(uint16_t operand)
     setbit_STS_MSB(_PONI, 0);
 }
 
-/* PON
+/**
+ * @brief PON - Memory management ON.
+ *
+ * Enable memory management system. The next instruction after PON will then
+ * use the pageindex table specified by PCR. BEFORE USE ENSURE:   - Interrupt
+ * system is enabled,   - Internal hardware interrupts are enabled,   - Page
+ * tables and PCR registers are initialized.
+ *
+ * @par Instruction
+ * Opcode 150410 octal, mask 1111_1111_1111_1111.
+ * Category: Memory Management Instructions. Privilege: User.
+ * Format: PON
+ *
+ * @par Instruction word
+ *   bits 15-0  opcode - The opcode determines what type of operation
+ *       occurs
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section PON
  */
 static void opcode_pon_paging_on(uint16_t operand)
 {
@@ -2065,7 +3176,23 @@ static void opcode_pon_paging_on(uint16_t operand)
     setbit_STS_MSB(_PONI, 1);
 }
 
-/* PION
+/**
+ * @brief PION - Memory management and interrupt system ON.
+ *
+ * Enable both the memory management and interrupt systems. This combines the
+ * functions of the ION and PON instructions.
+ *
+ * @par Instruction
+ * Opcode 150412 octal, mask 1111_1111_1111_1111.
+ * Category: Memory Management Instructions. Privilege: User.
+ * Format: PION
+ *
+ * @par Instruction word
+ *   bits 15-0  opcode - The opcode determines what type of operation
+ *       occurs
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section PION
  */
 static void opcode_pion_paging_and_interrupt_on(uint16_t operand)
 {
@@ -2075,9 +3202,24 @@ static void opcode_pion_paging_and_interrupt_on(uint16_t operand)
     gCHKIT = true; // recalc PK
 }
 
-/// <summary>
-/// IOF - Turn off interrupt system
-/// </summary>
+/**
+ * @brief IOF - Interrupt System OFF.
+ *
+ * Disables the interrupt system. On IOF the ND-110 continues operation at
+ * the same program level.
+ *
+ * @par Instruction
+ * Opcode 150401 octal, mask 1111_1111_1111_1111.
+ * Category: Interrupt Control Instructions. Privilege: Privileged.
+ * Format: IOF
+ *
+ * @par Instruction word
+ *   bits 15-0  opcode - The opcode determines what type of operation
+ *       occurs
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section IOF
+ */
 static void opcode_iof_interrupt_off(uint16_t operand)
 {
     (void)operand;
@@ -2089,11 +3231,24 @@ static void opcode_iof_interrupt_off(uint16_t operand)
     setbit_STS_MSB(_IONI, 0);
 }
 
-/// <summary>
-/// ION
-///
-/// Turn on interrupt system
-/// </summary>
+/**
+ * @brief ION - Interrupt System ON.
+ *
+ * Enables the interrupt system. On ION the ND-i10 resumes operation in the
+ * program level with highest priority.
+ *
+ * @par Instruction
+ * Opcode 150402 octal, mask 1111_1111_1111_1111.
+ * Category: Interrupt Control Instructions. Privilege: User.
+ * Format: ION
+ *
+ * @par Instruction word
+ *   bits 15-0  opcode - The opcode determines what type of operation
+ *       occurs
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section ION
+ */
 static void opcode_ion_interrupt_on(uint16_t operand)
 {
     (void)operand;
@@ -2102,7 +3257,20 @@ static void opcode_ion_interrupt_on(uint16_t operand)
 }
 
 
-/* REX (Privileged)
+/**
+ * @brief REX - Reset extended address mode.
+ *
+ * @par Instruction
+ * Opcode 150407 octal, mask 1111_1111_1111_1111.
+ * Category: Memory Management Instructions. Privilege: Privileged.
+ * Format: REX
+ *
+ * @par Instruction word
+ *   bits 15-0  opcode - The opcode determines what type of operation
+ *       occurs
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section REX
  */
 static void opcode_rex_reset_extended_address_mode(uint16_t operand)
 {
@@ -2115,7 +3283,20 @@ static void opcode_rex_reset_extended_address_mode(uint16_t operand)
     setbit_STS_MSB(_SEXI, 0);
 }
 
-/* SEX (Privileged)
+/**
+ * @brief SEX - Set extended address mode.
+ *
+ * @par Instruction
+ * Opcode 150406 octal, mask 1111_1111_1111_1111.
+ * Category: Memory Management Instructions. Privilege: Privileged.
+ * Format: SEX
+ *
+ * @par Instruction word
+ *   bits 15-0  opcode - The opcode determines what type of operation
+ *       occurs
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section SEX
  */
 static void opcode_sex_set_extended_address_mode(uint16_t operand)
 {
@@ -2184,6 +3365,21 @@ static uint32_t nd110_bankgroup_phys(uint16_t bank, uint16_t index, uint16_t ope
  * NOTE: Privileged instruction
  */
 
+/**
+ * @brief SETPT - Set page tables.
+ *
+ * @par Instruction
+ * Opcode 140300 octal, mask 1111_1111_1111_1111.
+ * Category: Control Instructions. Privilege: Privileged.
+ * Format: SETPT
+ *
+ * @par Instruction word
+ *   bits 15-0  opcode - The opcode determines what type of operation
+ *       occurs
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section SETPT
+ */
 static void opcode_setpt_set_page_tables(uint16_t operand)
 {
     (void)operand;
@@ -2253,13 +3449,24 @@ static void opcode_setpt_set_page_tables(uint16_t operand)
 /// SINTRAN III CONTROL INSTRUCTIONS
 /// ALL ARE PRIVILEGED
 
-/// <summary>
-/// Clear Page Tables
-/// Code: 140 301
-/// Format: CLEPT
-///
-/// Affected: (?)
-/// </summary>
+/**
+ * @brief CLEPT - Clear page tables.
+ *
+ * @par Instruction
+ * Opcode 140301 octal, mask 1111_1111_1111_1111.
+ * Category: Control Instructions. Privilege: Privileged.
+ * Format: CLEPT
+ *
+ * @par Registers affected
+ * (?)
+ *
+ * @par Instruction word
+ *   bits 15-0  opcode - The opcode determines what type of operation
+ *       occurs
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section CLEPT
+ */
 static void opcode_clept_clear_page_tables(uint16_t operand)
 {
     (void)operand;
@@ -2371,19 +3578,29 @@ static void opcode_clept_clear_page_tables(uint16_t operand)
     }
 }
 
-/// <summary>
-/// Clear non re-entrant pages
-/// Code: 140 302
-/// Format: CLNREENT
-///
-/// Segment function
-///
-///
-/// The contents of the memory address at A+2 are read to find the page table to be cleared along with the SINTRAN RT bitmap (addressed by the X and T registers).
-/// The page table entries corresponding to those bits set in the RT bitmap are then cleared.
-///
-/// Affected: (?)
-/// </summary>
+/**
+ * @brief CLNREENT - Clear non reentrant pages.
+ *
+ * The contents of the memory address at A + 2 are read to find the page
+ * table to be cleared along with the SINTRAN RT bitmap (addressed by the X
+ * and T registers).  The page table entries corresponding to those bits set
+ * in the RT bitmap are then cleared.
+ *
+ * @par Instruction
+ * Opcode 140302 octal, mask 1111_1111_1111_1111.
+ * Category: Control Instructions. Privilege: Privileged.
+ * Format: CLNREENT
+ *
+ * @par Registers affected
+ * (?)
+ *
+ * @par Instruction word
+ *   bits 15-0  opcode - The opcode determines what type of operation
+ *       occurs
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section CLNREENT
+ */
 static void opcode_clnreent_clear_non_reentrant_pages(uint16_t operand)
 {
     (void)operand;
@@ -2480,24 +3697,14 @@ static void opcode_clnreent_clear_non_reentrant_pages(uint16_t operand)
     }
 }
 
-/// <summary>
-/// Change Page Tables
-/// Code 140 303
-/// Format: CHREENTPAGES
-///
-/// Segment function
-///
-/// The X  register is used to address the current (R1) and previous(Rp)  scratch registers.
-/// If the R1 is zero, the re-entrant page has nothing to change so the loop is left, otherwise the contents of the memory location pointed to by the R1+2 are loaded into T.
-///
-/// T then contains the protect table entry, if the page has not been written to (WIP bit 12 is zero )
-/// T and R1 are loaded with Rp.
-/// R1 (now containing Rp) is tested again for zero.
-/// If the page has been written to, the T register is loaded with the contents of the second scratch register(R2) pointed to by R1,
-/// and R2 becomes the address of Rp. X is loaded with R1 as the new pointer to the reentrant pages and Rp is loaded into the D register pointed to by A.
-///
-/// Affected: (?)
-/// </summary>
+/**
+ * @brief CHREENT_PAGES - see the notes below.
+ *
+ * @par Registers affected
+ * (?)
+ *
+ * @param operand The full instruction word as fetched.
+ */
 static void opcode_chreent_pages(uint16_t operand)
 {
     (void)operand;
@@ -2616,6 +3823,24 @@ static void clepu_mark_working_set(uint32_t idx)
     WritePhysicalMemory((int)table_addr, tw, true); /* 004114 DERQ */
 }
 
+/**
+ * @brief CLEPU - Clear page tables and collect PGU information.
+ *
+ * @par Instruction
+ * Opcode 140304 octal, mask 1111_1111_1111_1111.
+ * Category: Control Instructions. Privilege: Privileged.
+ * Format: CLEPU
+ *
+ * @par Registers affected
+ * (?)
+ *
+ * @par Instruction word
+ *   bits 15-0  opcode - The opcode determines what type of operation
+ *       occurs
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section CLEPU
+ */
 static void opcode_clepu_clear_page_tables_and_collect_page_used(uint16_t operand)
 {
     (void)operand;
@@ -2735,14 +3960,24 @@ static void opcode_clepu_clear_page_tables_and_collect_page_used(uint16_t operan
  * (ND-110 Functional Description, p.196 for the WGLOB/RGLOB global pointers).
  */
 
-/* WGLOB - 140500 (privileged)
+/**
+ * @brief WGLOB - Initialize global pointers.
  *
- * Initialize the global pointers:
- *   (T) => bank number of segment table  (STBNK)
- *   (A) => start address within bank     (STSRT - must be divisible by 8)
- *   (D) => bank number of core map table (CMBUK)
+ * (T) = bank number of segment table (STBNK) (A) = start address within bank
+ * (STSRT)* (D) = bank number of core map table (CMBNK) * must be divisible
+ * by 8
  *
- * Ref ND-06.026.1 EN, page 196. Port of RetroCore WGLOB().
+ * @par Instruction
+ * Opcode 140500 octal, mask 1111_1111_1111_1111.
+ * Category: Control Instructions. Privilege: Privileged.
+ * Format: WGLOB
+ *
+ * @par Instruction word
+ *   bits 15-0  opcode - The opcode determines what type of operation
+ *       occurs
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section WGLOB
  */
 static void opcode_wglob_initialize_global_pointers(uint16_t operand)
 {
@@ -2757,12 +3992,23 @@ static void opcode_wglob_initialize_global_pointers(uint16_t operand)
     gCMBUK = gD;
 }
 
-/* RGLOB - 140501 (privileged)
+/**
+ * @brief RGLOB - Examine global pointers.
  *
- * Examine the global pointers - the exact inverse of WGLOB:
- *   (T) <= STBNK, (A) <= STSRT, (D) <= CMBUK
+ * (T) <--- bank number of segment table (STBNK) (A) <--- start address
+ * within bank (STSRT) (D) <--- bank number of core map table (CMBNK)
  *
- * Ref ND-06.026.1 EN, page 196. Port of RetroCore RGLOB().
+ * @par Instruction
+ * Opcode 140501 octal, mask 1111_1111_1111_1111.
+ * Category: Control Instructions. Privilege: Privileged.
+ * Format: RGLOB
+ *
+ * @par Instruction word
+ *   bits 15-0  opcode - The opcode determines what type of operation
+ *       occurs
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section RGLOB
  */
 static void opcode_rglob_examine_global_pointers(uint16_t operand)
 {
@@ -2777,16 +4023,20 @@ static void opcode_rglob_examine_global_pointers(uint16_t operand)
     gD = gCMBUK;
 }
 
-/* INSPL - 140502 (privileged)
+/**
+ * @brief INSPL - Insert page in page list. (See Appendix B for a software description.).
  *
- * Insert a page's core-map entry at the HEAD of a segment's page list.  Atomic - no
- * loop, normal P+1 return.  Operand registers:
- *   B = base word of the segment descriptor (in STBNK; page-list head lives at B+7)
- *   X = base word of the page's core-map entry (in CMBUK)
- *   T = the tag word stored at X+3
+ * @par Instruction
+ * Opcode 140502 octal, mask 1111_1111_1111_1111.
+ * Category: Control Instructions. Privilege: Privileged.
+ * Format: INSPL
  *
- * Faithful to RASK microcode INSP1 (ND-110-RASK.LISTING.TXT 10386-10501).
- * Port of RetroCore INSPL().
+ * @par Instruction word
+ *   bits 15-0  opcode - The opcode determines what type of operation
+ *       occurs
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section INSPL
  */
 static void opcode_inspl_insert_page_in_page_list(uint16_t operand)
 {
@@ -2841,16 +4091,20 @@ static void opcode_inspl_insert_page_in_page_list(uint16_t operand)
     WritePhysicalMemory((int)(cmbnk | (uint32_t)((x_reg + 3) & 0xFFFF)), t_reg, true);
 }
 
-/* REMPL - 140503 (privileged)
+/**
+ * @brief REMPL - Remove page from page list.
  *
- * Remove a page's core-map entry from its segment's page list.  Atomic - no loop,
- * normal P+1 return.  The ONLY operand register is X = base word of the page's core-map
- * entry (in CMBUK); the segment and links are recovered from the entry's own words plus
- * the STBNK/STSRT globals.  Forward link at X, back link (or anchor marker) at X+1.
- * A marker (low 2 bits set) means this is the segment's tail.
+ * @par Instruction
+ * Opcode 140503 octal, mask 1111_1111_1111_1111.
+ * Category: Control Instructions. Privilege: Privileged.
+ * Format: REMPL
  *
- * Faithful to RASK microcode REMP1 (ND-110-RASK.LISTING.TXT 10463-10527).
- * Port of RetroCore REMPL().
+ * @par Instruction word
+ *   bits 15-0  opcode - The opcode determines what type of operation
+ *       occurs
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section REMPL
  */
 static void opcode_rempl_remove_page_from_page_list(uint16_t operand)
 {
@@ -2907,20 +4161,20 @@ static void opcode_rempl_remove_page_from_page_list(uint16_t operand)
     WritePhysicalMemory((int)(cmbnk | (uint32_t)((x_reg + 1) & 0xFFFF)), 0, true);
 }
 
-/* CNREK - 140504 (privileged)
+/**
+ * @brief CNREK - Clear non reentrant pages (SINTRAN K only).
  *
- * Faithful to RASK CNRE1 (ND-110-RASK.LISTING.TXT 10545-10581) plus the shared CLNR4
- * clear loop (9498-9537 - the SAME loop validated in CLNREENT).  CNREK reads the segment
- * descriptor at STBNK[A+2] (its value is dead in the clear path), then walks 8 RT-
- * description bitmap words at T[X..X+8) (examined PHYSICALLY in segment T, not through
- * the APT) and, for every set bit, clears the corresponding page-table entry via the
- * alternative page table: base 0174000, stride 2, 16 entries per word LSB-first (R1
- * advances continuously).  Early-out (clean no-op) if A+2 == 0 or X == 0.
+ * @par Instruction
+ * Opcode 140504 octal, mask 1111_1111_1111_1111.
+ * Category: Control Instructions. Privilege: Privileged.
+ * Format: CNREK
  *
- * Only differs from CLNREENT in: clear base (0174000 vs 0177000), first word ([X] vs
- * [X+025]), bound (X+8 vs X+T+1), and the bitmap read path (physical segment T vs APT).
+ * @par Instruction word
+ *   bits 15-0  opcode - The opcode determines what type of operation
+ *       occurs
  *
- * Port of RetroCore CNREK().
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section CNREK
  */
 static void opcode_cnrek_clear_non_reentrant_pages_sintran_k(uint16_t operand)
 {
@@ -2988,19 +4242,20 @@ static void opcode_cnrek_clear_non_reentrant_pages_sintran_k(uint16_t operand)
     }
 }
 
-/* CLPT - 140505 (privileged)
+/**
+ * @brief CLPT - Clear segment from the page tables.
  *
- * Clear (or re-link) a segment's entries from the page tables.  Walks a forward-linked
- * chain of core-map nodes in the core-map bank (CMBUK) from X (a null next-pointer at [X]
- * terminates).  For each node it reads the descriptor at [X+3] and forms the alternative-
- * page-table entry address B = (descriptor | 0176000) << 1.
+ * @par Instruction
+ * Opcode 140505 octal, mask 1111_1111_1111_1111.
+ * Category: Control Instructions. Privilege: Privileged.
+ * Format: CLPT
  *
- * Bit 15 of A selects the mode for the WHOLE instruction:
- *   set   -> clear the entry (APT[B] := 0) WITHOUT saving it
- *   clear -> read APT[B] and, if non-zero, deposit it physically to [X+2] and THEN clear it
+ * @par Instruction word
+ *   bits 15-0  opcode - The opcode determines what type of operation
+ *       occurs
  *
- * Faithful to RASK microcode CLPK1/CLPK4/CLPK3 (ND-110-RASK.LISTING.TXT 10585-10704).
- * Port of RetroCore CLPT().
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section CLPT
  */
 static void opcode_clpt_clear_segment_from_page_tables(uint16_t operand)
 {
@@ -3160,10 +4415,20 @@ static void nd110_enter_page_table(uint16_t r4_mask)
     }
 }
 
-/* ENPT - 140506 (privileged)
+/**
+ * @brief ENPT - Enter segment in page tables.
  *
- * Enter a segment's pages into the page tables.  Faithful to RASK ENPK1/REPK2
- * (ND-110-RASK.LISTING.TXT 10634-10704).  Port of RetroCore ENPT().
+ * @par Instruction
+ * Opcode 140506 octal, mask 1111_1111_1111_1111.
+ * Category: Control Instructions. Privilege: Privileged.
+ * Format: ENPT
+ *
+ * @par Instruction word
+ *   bits 15-0  opcode - The opcode determines what type of operation
+ *       occurs
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section ENPT
  */
 static void opcode_enpt_enter_segment_in_page_tables(uint16_t operand)
 {
@@ -3176,12 +4441,20 @@ static void opcode_enpt_enter_segment_in_page_tables(uint16_t operand)
     nd110_enter_page_table(0xF7FF); /* R4 = 0173777 octal - clears bit 11 */
 }
 
-/* REPT - 140507 (privileged)
+/**
+ * @brief REPT - Enter reentrant segment in page tables. (See Appendix B for a software description.).
  *
- * Enter a REENTRANT segment's pages into the page tables.  Identical to ENPT except it
- * masks BOTH bit 15 and bit 11 out of the descriptor word - marking the entered pages
- * reentrant.  Faithful to RASK REPK1/REPK2 (ND-110-RASK.LISTING.TXT 10640-10704).
- * Port of RetroCore REPT().
+ * @par Instruction
+ * Opcode 140507 octal, mask 1111_1111_1111_1111.
+ * Category: Control Instructions. Privilege: Privileged.
+ * Format: REPT
+ *
+ * @par Instruction word
+ *   bits 15-0  opcode - The opcode determines what type of operation
+ *       occurs
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section REPT
  */
 static void opcode_rept_enter_reentrant_segment_in_page_tables(uint16_t operand)
 {
@@ -3194,14 +4467,23 @@ static void opcode_rept_enter_reentrant_segment_in_page_tables(uint16_t operand)
     nd110_enter_page_table(0x77FF); /* R4 = 073777 octal - clears bits 15 and 11 */
 }
 
-/* LBIT - 140510 (privileged)
+/**
+ * @brief LBIT - Load single bit accumulator (K) with logical memory bit.
  *
- * Load the single-bit accumulator K with a bit from LOGICAL memory.
- *   X = start of the bit array (word address), A = bit index within the array.
- * The word read is X + (A >> 4) and the selected bit is A & 0xF (bit 0 = LSB).
- * Logical access uses the alternative page table, like the rest of the S3SEG group.
+ * (X) points to the start of a bit array (A) points to the bit within the
+ * array
  *
- * Port of RetroCore LBIT().
+ * @par Instruction
+ * Opcode 140510 octal, mask 1111_1111_1111_1111.
+ * Category: Control Instructions. Privilege: Privileged.
+ * Format: LBIT
+ *
+ * @par Instruction word
+ *   bits 15-0  opcode - The opcode determines what type of operation
+ *       occurs
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section LBIT
  */
 static void opcode_lbit_load_bit_accumulator_from_logical_memory(uint16_t operand)
 {
@@ -3223,13 +4505,23 @@ static void opcode_lbit_load_bit_accumulator_from_logical_memory(uint16_t operan
     setbit(_STS, _K, (char)((word >> bit_in_word) & 1));
 }
 
-/* LBITP - 140511 (privileged)
+/**
+ * @brief LBITP - Load single bit accumulator (K) with physical memory bit.
  *
- * The PHYSICAL variant of LBIT: T = bank number, X = bit-array start word (offset within
- * the bank), A = bit index.  The physical word is (T & 0xFF) << 16 | ((X + (A >> 4)) &
- * 0xFFFF) and the selected bit is A & 0xF.
+ * (T) points to the bank number containing the bit array (X) points to the
+ * start of a bit array (A) points to the bit within the array
  *
- * Port of RetroCore LBITP().
+ * @par Instruction
+ * Opcode 140511 octal, mask 1111_1111_1111_1111.
+ * Category: Control Instructions. Privilege: Privileged.
+ * Format: LBITP
+ *
+ * @par Instruction word
+ *   bits 15-0  opcode - The opcode determines what type of operation
+ *       occurs
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section LBITP
  */
 static void opcode_lbitp_load_bit_accumulator_from_physical_memory(uint16_t operand)
 {
@@ -3255,13 +4547,23 @@ static void opcode_lbitp_load_bit_accumulator_from_physical_memory(uint16_t oper
     setbit(_STS, _K, (char)((word >> bit_in_word) & 1));
 }
 
-/* SBIT - 140512 (privileged)
+/**
+ * @brief SBIT - Store the single bit accumulator (K) in a logical memory bit.
  *
- * Store the single-bit accumulator K into a bit in LOGICAL memory.  X = bit-array start
- * word, A = bit index; target word X + (A >> 4), bit A & 0xF.  Read-modify-write via the
- * alternative page table.
+ * (X) points to the start of a bit array (A) points to the bit within the
+ * array
  *
- * Port of RetroCore SBIT().
+ * @par Instruction
+ * Opcode 140512 octal, mask 1111_1111_1111_1111.
+ * Category: Control Instructions. Privilege: Privileged.
+ * Format: SBIT
+ *
+ * @par Instruction word
+ *   bits 15-0  opcode - The opcode determines what type of operation
+ *       occurs
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section SBIT
  */
 static void opcode_sbit_store_bit_accumulator_to_logical_memory(uint16_t operand)
 {
@@ -3291,12 +4593,23 @@ static void opcode_sbit_store_bit_accumulator_to_logical_memory(uint16_t operand
     WriteVirtualMemory(word_addr, word, true, WRITEMODE_WORD);
 }
 
-/* SBITP - 140513 (privileged)
+/**
+ * @brief SBITP - Store the single bit accumulator (K) in a physical memory bit.
  *
- * The PHYSICAL variant of SBIT: T = bank, X = bit-array start word, A = bit index;
- * read-modify-write of the word at (T & 0xFF) << 16 | ((X + (A >> 4)) & 0xFFFF).
+ * (T) points to the bank number containing the bit array (X) points to the
+ * start of a bit array (A) points to the bit within the array
  *
- * Port of RetroCore SBITP().
+ * @par Instruction
+ * Opcode 140513 octal, mask 1111_1111_1111_1111.
+ * Category: Control Instructions. Privilege: Privileged.
+ * Format: SBITP
+ *
+ * @par Instruction word
+ *   bits 15-0  opcode - The opcode determines what type of operation
+ *       occurs
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section SBITP
  */
 static void opcode_sbitp_store_bit_accumulator_to_physical_memory(uint16_t operand)
 {
@@ -3330,13 +4643,23 @@ static void opcode_sbitp_store_bit_accumulator_to_physical_memory(uint16_t opera
     WritePhysicalMemory((int)phys_addr, word, true);
 }
 
-/* LBYTP - 140514 (privileged)
+/**
+ * @brief LBYTP - Load the A register with a byte from physical memory.
  *
- * The PHYSICAL variant of LBYT: D = bank number, T = byte-array start word, X = byte index.
- * The physical word is (D & 0xFF) << 16 | ((T + (X >> 1)) & 0xFFFF); an EVEN X selects the
- * high (MSB) byte, an ODD X the low (LSB) byte - ND big-endian order, as in LBYT.
+ * (D) points to the bank number containing the byte array (T) points to the
+ * start of a byte array (X) points to the actual byte within the array
  *
- * Port of RetroCore LBYTP().
+ * @par Instruction
+ * Opcode 140514 octal, mask 1111_1111_1111_1111.
+ * Category: Control Instructions. Privilege: Privileged.
+ * Format: LBYTP
+ *
+ * @par Instruction word
+ *   bits 15-0  opcode - The opcode determines what type of operation
+ *       occurs
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section LBYTP
  */
 static void opcode_lbytp_load_byte_from_physical_memory(uint16_t operand)
 {
@@ -3365,13 +4688,23 @@ static void opcode_lbytp_load_byte_from_physical_memory(uint16_t operand)
     }
 }
 
-/* SBYTP - 140515 (privileged)
+/**
+ * @brief SBYTP - Store a byte in physical memory.
  *
- * The PHYSICAL variant of SBYT: D = bank, T = byte-array start word, X = byte index.
- * Read-modify-write of the word at (D & 0xFF) << 16 | ((T + (X >> 1)) & 0xFFFF);
- * even X = high byte, odd X = low byte.
+ * (D) points to the bank number containing the byte array (T) points to the
+ * start of a byte array (X) points to the actual byte within the array
  *
- * Port of RetroCore SBYTP().
+ * @par Instruction
+ * Opcode 140515 octal, mask 1111_1111_1111_1111.
+ * Category: Control Instructions. Privilege: Privileged.
+ * Format: SBYTP
+ *
+ * @par Instruction word
+ *   bits 15-0  opcode - The opcode determines what type of operation
+ *       occurs
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section SBYTP
  */
 static void opcode_sbytp_store_byte_in_physical_memory(uint16_t operand)
 {
@@ -3403,15 +4736,20 @@ static void opcode_sbytp_store_byte_in_physical_memory(uint16_t operand)
     WritePhysicalMemory((int)phys_addr, memval, true);
 }
 
-/* TSETP - 140516 (privileged)
+/**
+ * @brief TSETP - Test and set physical memory word.
  *
- * Atomically read a PHYSICAL memory word into A and write all-ones (0xFFFF) back - the
- * physical test-and-set used for multi-processor synchronisation.  T = bank, X = address
- * within the bank.  The read is always from memory and the write never reaches cache.
- * Unlike the logical TSET there is NO page-table side effect (physical access bypasses
- * paging).
+ * @par Instruction
+ * Opcode 140516 octal, mask 1111_1111_1111_1111.
+ * Category: Control Instructions. Privilege: Privileged.
+ * Format: TSETP
  *
- * Port of RetroCore TSETP().
+ * @par Instruction word
+ *   bits 15-0  opcode - The opcode determines what type of operation
+ *       occurs
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section TSETP
  */
 static void opcode_tsetp_test_and_set_physical_word(uint16_t operand)
 {
@@ -3432,12 +4770,27 @@ static void opcode_tsetp_test_and_set_physical_word(uint16_t operand)
     WritePhysicalMemory((int)phys_addr, 0xFFFF, true);
 }
 
-/* RDUSP - 140517 (privileged)
+/**
+ * @brief RDUSP - Read a physical memory word without using cache.
  *
- * The PHYSICAL variant of RDUS: load A with the word at (T & 0xFF) << 16 | (X & 0xFFFF),
- * always from memory, never cache (cache is not modelled).
+ * (T) points to the physical memory bank to be accessed (X) points to the
+ * address within the bank (A) is loaded with the memory word The old content
+ * of the memory address is always read from the memory and never from cache.
+ * Note: The execution time of this instruction includes two read-bus cycles
+ * (The CPU uses semaphore cycles - see ND-110 Functional Description Manual
+ * ND.06.027)
  *
- * Port of RetroCore RDUSP().
+ * @par Instruction
+ * Opcode 140517 octal, mask 1111_1111_1111_1111.
+ * Category: Control Instructions. Privilege: Privileged.
+ * Format: RDUSP
+ *
+ * @par Instruction word
+ *   bits 15-0  opcode - The opcode determines what type of operation
+ *       occurs
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section RDUSP
  */
 static void opcode_rdusp_read_physical_word_bypassing_cache(uint16_t operand)
 {
@@ -3464,7 +4817,20 @@ static void opcode_rdusp_read_physical_word_bypassing_cache(uint16_t operand)
  * ---------------------------------------------------------------------------
  */
 
-/* LASB - 140700 + (delta << 3) (privileged): A := STBNK[B + delta]. */
+/**
+ * @brief LASB - Load the A register with the contents of the segment-table bank (STBNK).
+ *
+ * (A) <--- (ea) ea = (B) + delta = STBNK entry delta: 3-bit displacement
+ * added to B included in the instruction opcode (bits 5-3)
+ *
+ * @par Instruction
+ * Opcode 140700 octal, mask 1111_1111_1100_0111.
+ * Category: Control Instructions. Privilege: Privileged.
+ * Format: LASB <displacement>
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section LASB
+ */
 static void opcode_lasb_load_a_from_segment_table_bank(uint16_t operand)
 {
     if (!check_priv())
@@ -3475,7 +4841,20 @@ static void opcode_lasb_load_a_from_segment_table_bank(uint16_t operand)
     gA = (uint16_t)ReadPhysicalMemory((int)nd110_bankgroup_phys(gSTBNK, gB, operand), true);
 }
 
-/* SASB - 140701 + (delta << 3) (privileged): STBNK[B + delta] := A. */
+/**
+ * @brief SASB - Store the A register contents in the segment table bank (STBNK).
+ *
+ * (ea) <--- (A) ea = (B) + delta = STBNK entry delta: 3-bit displacement
+ * added to B included in the instruction opcode (bits 5-3)
+ *
+ * @par Instruction
+ * Opcode 140701 octal, mask 1111_1111_1100_0111.
+ * Category: Control Instructions. Privilege: Privileged.
+ * Format: SASB <displacement>
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section SASB
+ */
 static void opcode_sasb_store_a_in_segment_table_bank(uint16_t operand)
 {
     if (!check_priv())
@@ -3486,7 +4865,20 @@ static void opcode_sasb_store_a_in_segment_table_bank(uint16_t operand)
     WritePhysicalMemory((int)nd110_bankgroup_phys(gSTBNK, gB, operand), gA, true);
 }
 
-/* LACB - 140702 + (delta << 3) (privileged): A := CMBUK[X + delta]. */
+/**
+ * @brief LACB - Load the A register from the core map-table bank (CMBNK).
+ *
+ * (A) <--- (ea) ea = (B) + delta = CMBNK entry delta: 3-bit displacement
+ * added to B included in the instruction opcode (bits 5-3)
+ *
+ * @par Instruction
+ * Opcode 140702 octal, mask 1111_1111_1100_0111.
+ * Category: Control Instructions. Privilege: Privileged.
+ * Format: LACB <displacement>
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section LACB
+ */
 static void opcode_lacb_load_a_from_core_map_bank(uint16_t operand)
 {
     if (!check_priv())
@@ -3497,7 +4889,20 @@ static void opcode_lacb_load_a_from_core_map_bank(uint16_t operand)
     gA = (uint16_t)ReadPhysicalMemory((int)nd110_bankgroup_phys(gCMBUK, gX, operand), true);
 }
 
-/* SACB - 140703 + (delta << 3) (privileged): CMBUK[X + delta] := A. */
+/**
+ * @brief SACB - Store the A register in the core map table bank (CMBNK).
+ *
+ * (ea) <--- (A) ea = (B) + delta = CMBNK entry delta: 3-bit displacement
+ * added to B included in the instruction opcode (bits 5-3)
+ *
+ * @par Instruction
+ * Opcode 140703 octal, mask 1111_1111_1100_0111.
+ * Category: Control Instructions. Privilege: Privileged.
+ * Format: SACB <displacement>
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section SACB
+ */
 static void opcode_sacb_store_a_in_core_map_bank(uint16_t operand)
 {
     if (!check_priv())
@@ -3508,7 +4913,20 @@ static void opcode_sacb_store_a_in_core_map_bank(uint16_t operand)
     WritePhysicalMemory((int)nd110_bankgroup_phys(gCMBUK, gX, operand), gA, true);
 }
 
-/* LXSB - 140704 + (delta << 3) (privileged): X := STBNK[B + delta]. */
+/**
+ * @brief LXSB - Load the X register from the segment table bank (STBNK).
+ *
+ * (X) <--- (ea) ea = (B) + delta = STBNK entry delta: 3-bit displacement
+ * added to B included in the instruction opcode (bits 5-3)
+ *
+ * @par Instruction
+ * Opcode 140704 octal, mask 1111_1111_1100_0111.
+ * Category: Control Instructions. Privilege: Privileged.
+ * Format: LXSB <diplacement>
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section LXSB
+ */
 static void opcode_lxsb_load_x_from_segment_table_bank(uint16_t operand)
 {
     if (!check_priv())
@@ -3519,7 +4937,20 @@ static void opcode_lxsb_load_x_from_segment_table_bank(uint16_t operand)
     gX = (uint16_t)ReadPhysicalMemory((int)nd110_bankgroup_phys(gSTBNK, gB, operand), true);
 }
 
-/* LXCB - 140705 + (delta << 3) (privileged): X := CMBUK[X + delta]. */
+/**
+ * @brief LXCB - Load the X register from the core table bank (CMBNK).
+ *
+ * (X) <--- (ea) ea = (B) + delta = CMBNK entry delta: 3-bit displacement
+ * added to B included in the instruction opcode (bits 5-3)
+ *
+ * @par Instruction
+ * Opcode 140705 octal, mask 1111_1111_1100_0111.
+ * Category: Control Instructions. Privilege: Privileged.
+ * Format: LXCB <displacement>
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section LXCB
+ */
 static void opcode_lxcb_load_x_from_core_map_bank(uint16_t operand)
 {
     if (!check_priv())
@@ -3530,7 +4961,20 @@ static void opcode_lxcb_load_x_from_core_map_bank(uint16_t operand)
     gX = (uint16_t)ReadPhysicalMemory((int)nd110_bankgroup_phys(gCMBUK, gX, operand), true);
 }
 
-/* SZSB - 140706 + (delta << 3) (privileged): STBNK[B + delta] := 0. */
+/**
+ * @brief SZSB - Store zero in the segment-table bank (STBNK).
+ *
+ * (ea) <--- 0 ea = (B) + delta = STBNK entry delta: 3-bit displacement added
+ * to B included in the instruction opcode (bits 5-3)
+ *
+ * @par Instruction
+ * Opcode 140706 octal, mask 1111_1111_1100_0111.
+ * Category: Control Instructions. Privilege: Privileged.
+ * Format: SZSB <displacement>
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section SZSB
+ */
 static void opcode_szsb_store_zero_in_segment_table_bank(uint16_t operand)
 {
     if (!check_priv())
@@ -3541,7 +4985,20 @@ static void opcode_szsb_store_zero_in_segment_table_bank(uint16_t operand)
     WritePhysicalMemory((int)nd110_bankgroup_phys(gSTBNK, gB, operand), 0, true);
 }
 
-/* SZCB - 140707 + (delta << 3) (privileged): CMBUK[X + delta] := 0. */
+/**
+ * @brief SZCB - Store zero in the core map-table bank (CMBNK).
+ *
+ * (ea) <--- 0 ea = (B) + delta = CMBNK entry delta: 3-bit displacement added
+ * to B included in the instruction opcode (bits 5-3)
+ *
+ * @par Instruction
+ * Opcode 140707 octal, mask 1111_1111_1100_0111.
+ * Category: Control Instructions. Privilege: Privileged.
+ * Format: SZCB <displacement>
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section SZCB
+ */
 static void opcode_szcb_store_zero_in_core_map_bank(uint16_t operand)
 {
     if (!check_priv())
@@ -3556,45 +5013,33 @@ static void opcode_szcb_store_zero_in_core_map_bank(uint16_t operand)
 /********************* STACK INSTRUCTIONS *********************/
 
 
-/* INIT
- * INIT instruction:
- * IN: nothing. uses PC.
- * ADDR  : INIT
- * ADDR+1: Stack demand
- * ADDR+2: Address of stack start
- * ADDR+3: Maximum stack size
- * ADDR+4: Flag
- * ADDR+5: Not used
- * ADDR+6: Error return
- * ADDR+7: Normal return
+/**
+ * @brief INIT - Initialize stack. .
  *
- */
-/*
- * Stack instructions (INIT / ENTR / LEAVE / ELEAV) and the page table they use.
+ * Loads the addresses pointed to by B with the stack frame addresses.  Sets
+ * up    LINK  <- L + 1                          {stack start}     PREVB <-
+ * (B)                            {save current pointer}     SMAX  <- stack
+ * start address + maximum stack size     (B)   <- (B = 2008) + 2008
+ * {establish new pointer}     STP   <- stack demand + (B)   Load the
+ * addresses pointed to by **B** with the stack frame addresses. Stack
+ * overflow and flag error causes an error return, that is the program
+ * continues at the address following the stack demand value.  In all other
+ * cases, the program skips this address to find the return address from the
+ * stack.   Format:   INIT    <number of words allocated to stack>   <address
+ * of stack start>   <maximum stack size>   <flag>   <address left empty>
+ * <error return address>   <return address>
  *
- * Verified against the ND-110 RASK microcode source (ND-110-RASK.uc):
+ * @par Instruction
+ * Opcode 140134 octal, mask 1111_1111_1111_1111.
+ * Category: Stack Operations. Privilege: User.
+ * Format: INIT
  *
- *   5INIT (001144)  reads its inline parameters at P+1.. with COMM,RDRQ,PT
- *   ENTR  (001162)  frame reads                        COMM,RDRQ,APT
- *   ENTRC (001174)  frame writes                       COMM,WRRQ,APT
- *                   BUT the argument read at "A,P"     COMM,RDRQ,PT
- *   ENTRB (001206)  frame writes                       COMM,WRRQ,APT
- *   ELEAV (001213)  frame read + writes                COMM,RDRQ/WRRQ,APT
- *   LEAV  (001224)  frame reads                        COMM,RDRQ,APT
+ * @par Instruction word
+ *   bits 15-0  opcode - The opcode determines what type of operation
+ *       occurs
  *
- * The rule the microcode follows, without exception:
- *   - the stack FRAME (LINK/PREVB/STP/SMAX/ERRCODE) is DATA  -> APT
- *   - the inline PARAMETERS live in the instruction stream    -> PT
- * (5INIT jumps into the shared ENTRC/ENTRB code, which is why INIT reads its
- *  parameters via PT yet builds the frame via APT.)
- *
- * APT is gated on PTM by the MMU itself - mapVirtualToPhysical() does
- * "if ((STS_PTM) && (UseAPT))" (cpu_mms.c) - so passing UseAPT=1 here means
- * "alternative table when PTM is set, standard table otherwise", exactly like
- * the hardware. No PTM test belongs in these functions.
- *
- * Reading the frame with UseAPT=0 while PTM=1 (split I/D space) fetches a word
- * from the CODE page where SMAX should be, producing a bogus stack overflow.
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section INIT
  */
 static void opcode_init_initialize_stack(uint16_t operand)
 {
@@ -3625,13 +5070,32 @@ static void opcode_init_initialize_stack(uint16_t operand)
     return;
 }
 
-/* ENTR
- * IN: nothing. uses PC.
- * ADDR  : ENTR
- * ADDR+1: Stack demand
- * ADDR+2: Error return
- * ADDR+3: Normal return
+/**
+ * @brief ENTR - Enter stack.
  *
+ * This instruction saves the current stack pointer (B), the return address
+ * (LINK), and previous stack pointer (PREVB). It transfers the top of stack
+ * address (SMAX) and establishes the new stack demand and pointer.   (B =
+ * 1778) <- (B)                {save current pointer in PREVB}   (B = 1758)
+ * <- (B = 1758)         {SMAX}   (B = 2008) <- (L) + 1            {save
+ * return address in LINK}   (B)        <- (B = 1768) + 2008   {new pointer}
+ * (B = 1768) <- stack demand + (B) Stack overflow causes an error return,
+ * that is the program continues at the address following the stack demand
+ * value. In all other cases, the program skips this address to find the
+ * return address from the stack. Format:   ENTR    <stack demand-value in
+ * words>   <error return address>   <return address>
+ *
+ * @par Instruction
+ * Opcode 140135 octal, mask 1111_1111_1111_1111.
+ * Category: Stack Operations. Privilege: User.
+ * Format: ENTR
+ *
+ * @par Instruction word
+ *   bits 15-0  opcode - The opcode determines what type of operation
+ *       occurs
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section ENTR
  */
 static void opcode_entr_enter_stack(uint16_t operand)
 {
@@ -3654,7 +5118,25 @@ static void opcode_entr_enter_stack(uint16_t operand)
     gPC += 2;
 }
 
-/* LEAVE
+/**
+ * @brief LEAVE - Leave stack.
+ *
+ * This instruction saves the previous stack pointer in LINK.  The B register
+ * is restored to its previous value (PREVB) and the stack is left by loading
+ * the P register (program counter) with the return address (LINK).   (P) <-
+ * (B = 2008)   {LINK}   (B) <- (B = 1778)   {PREVB} Format:   LEAVE
+ *
+ * @par Instruction
+ * Opcode 140136 octal, mask 1111_1111_1111_1111.
+ * Category: Stack Operations. Privilege: User.
+ * Format: LEAVE
+ *
+ * @par Instruction word
+ *   bits 15-0  opcode - The opcode determines what type of operation
+ *       occurs
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section LEAVE
  */
 static void opcode_leave_leave_stack(uint16_t operand)
 {
@@ -3663,7 +5145,29 @@ static void opcode_leave_leave_stack(uint16_t operand)
     gB = MemoryRead(gB - 127, 1);
 }
 
-/* ELEAV
+/**
+ * @brief ELEAV - Error leave stack.
+ *
+ * If an error occurs, leave the stack. This instruction saves the previous
+ * stack pointer in LINK and restores the B register to its previous value
+ * (PREVB) before leaving the stack. The stack is left by loading the P
+ * register (program counter) with the return address (LINK). The A register
+ * is loaded with an error code which is saved in the ERRCODE stack entry
+ * (pointed to by B = 1738).   (B = 2008) <- (B = 2008) - 1   (P)       <- (B
+ * = 2008)   {LINK}   (B)       <- (B = 1778)   {PREVB}   (A)       <-
+ * ERRCODE8   (B = 1738) <- (A)         {ERRCODE} Format:   ELEAV
+ *
+ * @par Instruction
+ * Opcode 140137 octal, mask 1111_1111_1111_1111.
+ * Category: Stack Operations. Privilege: User.
+ * Format: ELEAV
+ *
+ * @par Instruction word
+ *   bits 15-0  opcode - The opcode determines what type of operation
+ *       occurs
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section ELEAV
  */
 static void opcode_eleav_error_leave_stack(uint16_t operand)
 {
@@ -3680,15 +5184,31 @@ static void opcode_eleav_error_leave_stack(uint16_t operand)
 /************************ BYTE ************************/
 
 
-/// <summary>
-/// LBYT Load byte
-/// Code: 142200
-/// Format: LBYT
-///
-/// The 8 bit byte specified by the contents of the T and X registers is loaded into the A register bits 0-7, with the A register bits 8-15 cleared.
-///
-/// Affected: (A)
-/// </summary>
+/**
+ * @brief LBYT - Load byte from memory to A register.
+ *
+ * Addressing: EL = (T) + (X)/2 - If least significant bit of X = 1: Load
+ * right byte - If least significant bit of X = 0: Load left byte Load the
+ * byte addressed by the contents of the T and X register into the lower byte
+ * of the A register. The higher byte of the A register is cleared. The
+ * contents of T point to the beginning of a character string and the
+ * contents of X to a byte within the string.
+ *
+ * @par Instruction
+ * Opcode 142200 octal, mask 1111_1111_1111_1111.
+ * Category: Byte Instructions. Privilege: User.
+ * Format: LBYT
+ *
+ * @par Registers affected
+ * (A)
+ *
+ * @par Instruction word
+ *   bits 15-0  opcode - The opcode determines what type of operation
+ *       occurs
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section LBYT
+ */
 static void opcode_lbyt_load_byte_to_a_register(uint16_t operand)
 {
     (void)operand;
@@ -3707,16 +5227,29 @@ static void opcode_lbyt_load_byte_to_a_register(uint16_t operand)
     }
 }
 
-/// <summary>
-/// SBYT - Store byte
-/// Code: 142 600
-/// Format: SBYT
-///
-/// The byte contained in the A register bits 0-7 is stored in one half of the effective location pointed by the T and X registers,
-/// the second half of this effective location being unchanged. The contents of the A register are unchanged.
-///
-/// Affected: (EL)
-/// </summary>
+/**
+ * @brief SBYT - Store byte from A register to memory.
+ *
+ * Addressing: EL = (T) + (X)/2 - If least significant bit of X = 1: Store
+ * right byte - If least significant bit of X = 0: Store left byte The
+ * contents of T point to the beginning of a character string and the
+ * contents of X to a byte within the string.
+ *
+ * @par Instruction
+ * Opcode 142600 octal, mask 1111_1111_1111_1111.
+ * Category: Byte Instructions. Privilege: User.
+ * Format: SBYT
+ *
+ * @par Registers affected
+ * (EL)
+ *
+ * @par Instruction word
+ *   bits 15-0  opcode - The opcode determines what type of operation
+ *       occurs
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section SBYT
+ */
 static void opcode_sbyt_store_byte_from_a_register(uint16_t operand)
 {
     (void)operand;
@@ -3736,20 +5269,27 @@ static void opcode_sbyt_store_byte_from_a_register(uint16_t operand)
     }
 }
 
-/// <summary>
-/// MIX3 - Multiply index by 3
-///
-/// X <- ((A) - 1) *3
-///
-/// Format: MIX3
-///
-/// Code: 143 200
-///
-/// Multiply index by 3
-/// The X register is set equal to the contents of the A register minus one multiplied by three, i.e., (X) <- [(A) - 1] *3
-///
-/// Affected: (X)
-/// </summary>
+/**
+ * @brief MIX3 - Multiply index by 3.
+ *
+ * (X) <- [(A)-1] * 3 Take the contents of the A register as an operand and
+ * subtract one. Multiply the result by three and place it in the X register.
+ *
+ * @par Instruction
+ * Opcode 143200 octal, mask 1111_1111_1111_1111.
+ * Category: Register Operations. Privilege: User.
+ * Format: MIX3
+ *
+ * @par Registers affected
+ * (X)
+ *
+ * @par Instruction word
+ *   bits 15-0  opcode - The opcode determines what type of operation
+ *       occurs
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section MIX3
+ */
 static void opcode_mix3_multiply_index_by_three(uint16_t operand)
 {
     (void)operand;
@@ -4156,10 +5696,10 @@ static void do_wait(uint16_t instr)
     gCHKIT = true; // recalc PK (and do a level switch if needed)
 }
 
-/* HALT (emulator extension)
- * Opcode 0140200 (USER1 slot 0)
- * Unconditionally stops the emulator.
- * A register = process exit code.
+/**
+ * @brief HALT - see the notes below.
+ *
+ * @param operand The full instruction word as fetched.
  */
 static void opcode_halt(uint16_t operand)
 {
@@ -4169,7 +5709,30 @@ static void opcode_halt(uint16_t operand)
     set_cpu_run_mode(CPU_STOPPED);
 }
 
-/* LWCS (Privileged)
+/**
+ * @brief LWCS - Writable Control Store Instruction.
+ *
+ * This instruction is PRIVILEGED and only available to:   - programs running
+ * in system mode (rings 2-3)   - programs running without memory protection
+ * LWCS is a no-operation in the ND-110. The ND-110 is software compatible
+ * but not microcode compatible and writing to the writable control store has
+ * no meaning in the ND-110.  A no-operation is executed so that programs
+ * written for the ND-100 and NORD-10 can continue.      Unused areas of the
+ * microprogram can be read or written to using the TRR CS or TRA CS
+ * instruction. Further information on the LWCS instruction for the ND-100
+ * can be found in the ND-100 Reference Manual (ND-06.014).
+ *
+ * @par Instruction
+ * Opcode 143500 octal, mask 1111_1111_1111_1111.
+ * Category: privileged. Privilege: Privileged.
+ * Format: LWCS
+ *
+ * @par Instruction word
+ *   bits 15-0  opcode - The opcode determines what type of operation
+ *       occurs
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section LWCS
  */
 static void opcode_lwcs_load_writable_control_store(uint16_t instr)
 {
@@ -4818,12 +6381,45 @@ static void do_movew(uint16_t instr)
     }
 }
 
+/*
+ * MOVB and MOVBF exist twice, and the pair below is the one that runs.
+ *
+ * This pair is registered at 0140131 and 0140132. The other pair,
+ * opcode_movb_move_byte_buggy and opcode_movbf_move_bytes_forward_buggy,
+ * is further down; it calls do_move_bytes and its registration is commented
+ * out. It is kept on purpose (Ronny, 21-SEP-2026) because it does not work,
+ * not because it is dead code - do not delete it.
+ *
+ * The macro name below is misleading and is kept only because it is
+ * referenced elsewhere: set to 1, it COMPILES this pair rather than removing
+ * it. The unfinished-work notes on these two functions are the original
+ * author's and still stand.
+ */
 #define _removed_MOVB_AND_MOVBF_ 1
 #if _removed_MOVB_AND_MOVBF_ // replaced with do_move_bytes
-/*
- * MOVB instruction. TODO:: Fix edge case and document params here...
+/**
+ * @brief MOVB - Move byte.
+ *
+ * This instruction moves a block of bytes from the memory location addressed
+ * by the source operand to that of the memory location addressed by the
+ * destination operand. After execution, bit 15 of the D and T registers
+ * point to the end of the field that has been moved. The field length of the
+ * D register (source) equals zero and the T register (destination) field
+ * length is equal to the number of bytes moved.
+ *
+ * @par Instruction
+ * Opcode 140131 octal, mask 1111_1111_1111_1111.
+ * Category: Byte Instructions. Privilege: User.
+ * Format: MOVB
+ *
+ * @par Instruction word
+ *   bits 15-0  opcode - The opcode determines what type of operation
+ *       occurs
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section MOVB
  */
-static void do_movb(uint16_t instr)
+static void opcode_movb_move_byte(uint16_t instr)
 {
     (void)instr;
     uint16_t source, dest, lens, lend, len, s_lr, d_lr, s_apt, d_apt;
@@ -4922,10 +6518,29 @@ static void do_movb(uint16_t instr)
     gPC++; /* This function has a SKIP return on no error, which is always? */
 }
 
-/*
- * MOVBF instruction. TODO:: ALL
+/**
+ * @brief MOVBF - Move bytes forward.
+ *
+ * This instruction moves a block of bytes from the memory location addressed
+ * by the source operand to that of the memory location addressed by the
+ * destination operand. After execution, bit 15 of the D and T registers
+ * point to the end of the field that has been moved. The field length of the
+ * D register (source) equals zero and the T register (destination) field
+ * length is equal to the number of bytes moved.
+ *
+ * @par Instruction
+ * Opcode 140132 octal, mask 1111_1111_1111_1111.
+ * Category: Byte Instructions. Privilege: User.
+ * Format: MOVBF
+ *
+ * @par Instruction word
+ *   bits 15-0  opcode - The opcode determines what type of operation
+ *       occurs
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section MOVBF
  */
-static void do_movbf(uint16_t instr)
+static void opcode_movbf_move_bytes_forward(uint16_t instr)
 {
     (void)instr;
     uint16_t source, dest, lens, lend, len, s_lr, d_lr, s_apt, d_apt;
@@ -5193,19 +6808,57 @@ static void do_move_bytes(bool checkOverlapping)
     gPC++; // SKIP return
 }
 
-/*
- * MOVB
+/**
+ * @brief MOVB - Move byte.
+ *
+ * This instruction moves a block of bytes from the memory location addressed
+ * by the source operand to that of the memory location addressed by the
+ * destination operand. After execution, bit 15 of the D and T registers
+ * point to the end of the field that has been moved. The field length of the
+ * D register (source) equals zero and the T register (destination) field
+ * length is equal to the number of bytes moved.
+ *
+ * @par Instruction
+ * Opcode 140131 octal, mask 1111_1111_1111_1111.
+ * Category: Byte Instructions. Privilege: User.
+ * Format: MOVB
+ *
+ * @par Instruction word
+ *   bits 15-0  opcode - The opcode determines what type of operation
+ *       occurs
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section MOVB
  */
-void opcode_movb_move_byte(uint16_t instr)
+void opcode_movb_move_byte_buggy(uint16_t instr)
 {
     (void)instr;
     do_move_bytes(false);
 }
 
-/*
- * MOVBF instruction.
+/**
+ * @brief MOVBF - Move bytes forward.
+ *
+ * This instruction moves a block of bytes from the memory location addressed
+ * by the source operand to that of the memory location addressed by the
+ * destination operand. After execution, bit 15 of the D and T registers
+ * point to the end of the field that has been moved. The field length of the
+ * D register (source) equals zero and the T register (destination) field
+ * length is equal to the number of bytes moved.
+ *
+ * @par Instruction
+ * Opcode 140132 octal, mask 1111_1111_1111_1111.
+ * Category: Byte Instructions. Privilege: User.
+ * Format: MOVBF
+ *
+ * @par Instruction word
+ *   bits 15-0  opcode - The opcode determines what type of operation
+ *       occurs
+ *
+ * @param operand The full instruction word as fetched.
+ * @see docs/cpu_documentation.md section MOVBF
  */
-void opcode_movbf_move_bytes_forward(uint16_t instr)
+void opcode_movbf_move_bytes_forward_buggy(uint16_t instr)
 {
     (void)instr;
     do_move_bytes(true);
@@ -5661,12 +7314,12 @@ void Setup_Instructions(void) // NOLINT(readability-function-size)
 
     { // CE; CX
 
-        instruction_add(0140130, &opcode_bfill_byte_fill); /* BFILL */
-        instruction_add(0140131, &do_movb);                /* MOVB  */
-        instruction_add(0140132, &do_movbf);               /* MOVBF */
+        instruction_add(0140130, &opcode_bfill_byte_fill);          /* BFILL */
+        instruction_add(0140131, &opcode_movb_move_byte);           /* MOVB  */
+        instruction_add(0140132, &opcode_movbf_move_bytes_forward); /* MOVBF */
 
-        // instruction_add(0140131, &opcode_movb_move_byte);  /* MOVB  */
-        // instruction_add(0140132, &opcode_movbf_move_bytes_forward); /* MOVBF */
+        // instruction_add(0140131, &opcode_movb_move_byte_buggy);  /* MOVB  */
+        // instruction_add(0140132, &opcode_movbf_move_bytes_forward_buggy); /* MOVBF */
     }
 
     switch (g_current_cpu_type)

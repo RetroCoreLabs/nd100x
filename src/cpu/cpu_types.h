@@ -1101,7 +1101,7 @@ void add_A_mem(uint16_t, bool);
  *        the X/T-addressed destination without checking for overlap.
  * @param instr Unused; MOVB takes its operands from A, D, X and T.
  */
-void opcode_movb_move_byte(uint16_t);
+void opcode_movb_move_byte_buggy(uint16_t);
 
 /**
  * @brief Execute MOVBF: move a byte field from the A/D-addressed source to
@@ -1109,7 +1109,7 @@ void opcode_movb_move_byte(uint16_t);
  *        when source and destination word ranges overlap.
  * @param instr Unused; MOVBF takes its operands from A, D, X and T.
  */
-void opcode_movbf_move_bytes_forward(uint16_t);
+void opcode_movbf_move_bytes_forward_buggy(uint16_t);
 
 /**
  * @brief Subtract the memory word at eff_addr from A, updating C and Q in

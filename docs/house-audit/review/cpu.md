@@ -291,12 +291,12 @@ One row per function. A cell is empty until reviewed; write `ok`, or
 | do_rdus | 4650 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
 | do_tset | 4671 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
 | do_movew | 4703 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
-| do_movb | 4826 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
-| do_movbf | 4928 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| opcode_movb_move_byte | 4826 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| opcode_movbf_move_bytes_forward | 4928 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
 | add_A_mem | 5017 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
 | do_move_bytes | 5060 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
-| opcode_movb_move_byte | 5199 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
-| opcode_movbf_move_bytes_forward | 5208 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| opcode_movb_move_byte_buggy | 5199 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| opcode_movbf_move_bytes_forward_buggy | 5208 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
 | sub_A_mem | 5214 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
 | rdiv_org | 5254 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
 | rdiv | 5297 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |

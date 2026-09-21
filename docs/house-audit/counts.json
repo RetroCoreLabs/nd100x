@@ -24,7 +24,7 @@
    "files": {
     "src/cpu/cpu.c": 1,
     "src/cpu/cpu_disasm.c": 4,
-    "src/cpu/cpu_instr.c": 20,
+    "src/cpu/cpu_instr.c": 18,
     "src/cpu/cpu_types.h": 1,
     "src/debugger/debugger.c": 2,
     "src/debugger/debugger.h": 1,
@@ -39,7 +39,7 @@
     "src/devices/smd/disk_smd.h": 1,
     "src/frontend/nd100wasm/nd100wasm.c": 1
    },
-   "total": 53
+   "total": 51
   },
   "12.1": {
    "files": {},
