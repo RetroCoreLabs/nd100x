@@ -6,7 +6,7 @@ ec4b8ec	2026-09-20	3.2	static function	src/devices/rtc/device_rtc.c	183	RTC_Read
 ec4b8ec	2026-09-20	3.2	static function	src/devices/rtc/device_rtc.c	76	RTC_Reset	rtc_reset	2
 ec4b8ec	2026-09-20	3.2	static function	src/devices/rtc/device_rtc.c	46	RTC_Tick	rtc_tick	4
 ec4b8ec	2026-09-20	3.2	static function	src/devices/rtc/device_rtc.c	218	RTC_Write	rtc_write	2
-ec4b8ec	2026-09-20	3.2	local variable	tests/test_rtc.c	12	RTC_Tick	rtc_tick	3
+ec4b8ec	2026-09-20	3.2	comment reference	tests/test_rtc.c	12	RTC_Tick	rtc_tick	3
 6d00d41	2026-09-20	3.2	static function	src/devices/lineprinter/device_line_printer.c	168	LinePrinter_Ident	line_printer_ident	2
 6d00d41	2026-09-20	3.2	static function	src/devices/lineprinter/device_line_printer.c	68	LinePrinter_Read	line_printer_read	2
 6d00d41	2026-09-20	3.2	static function	src/devices/lineprinter/device_line_printer.c	43	LinePrinter_Reset	line_printer_reset	2
@@ -19,8 +19,8 @@ ec4b8ec	2026-09-20	3.2	local variable	tests/test_rtc.c	12	RTC_Tick	rtc_tick	3
 69c4e62	2026-09-20	3.2,3.4	static function	src/devices/papertape/device_paper_tape.c	59	PaperTape_Tick	paper_tape_tick	2
 69c4e62	2026-09-20	3.2,3.4	static function	src/devices/papertape/device_paper_tape.c	97	PaperTape_Write	paper_tape_write	2
 69c4e62	2026-09-20	3.2,3.4	local variable	src/devices/papertape/device_paper_tape.c	230	ptData	pt_data	11
-69c4e62	2026-09-20	3.2,3.4	local variable	src/devices/winchester/device_winchester.c	699	PaperTape_Ident	paper_tape_ident	1
-ca999eb	2026-09-20	3.2,3.4	local variable	src/cpu/cpu_instr.c	4611	Terminal_Ident	terminal_ident	1
+69c4e62	2026-09-20	3.2,3.4	comment reference	src/devices/winchester/device_winchester.c	699	PaperTape_Ident	paper_tape_ident	1
+ca999eb	2026-09-20	3.2,3.4	comment reference	src/cpu/cpu_instr.c	4611	Terminal_Ident	terminal_ident	1
 ca999eb	2026-09-20	3.2,3.4	static function	src/devices/terminal/device_terminal.c	388	Terminal_Ident	terminal_ident	2
 ca999eb	2026-09-20	3.2,3.4	static function	src/devices/terminal/device_terminal.c	465	Terminal_InputFunction	terminal_input_function	2
 ca999eb	2026-09-20	3.2,3.4	static function	src/devices/terminal/device_terminal.c	210	Terminal_Read	terminal_read	2
@@ -89,16 +89,16 @@ e868ac8	2026-09-20	3.2,3.4	local variable	src/devices/drum/device_drum.c	170	wor
 8bab358	2026-09-20	3.2,3.4	local variable	src/devices/cdc/device_cdc.c	98	newWords	new_words	4
 8bab358	2026-09-20	3.2,3.4	parameter	src/devices/cdc/device_cdc.c	642	regA	reg_a	8
 8bab358	2026-09-20	3.2,3.4	local variable	src/devices/cdc/device_cdc.c	306	wordOff	word_off	11
-8bab358	2026-09-20	3.2,3.4	local variable	tests/test_cdc.c	20	Cdc_AttachBacking	cdc_attach_backing	1
-8bab358	2026-09-20	3.2,3.4	local variable	tests/test_cdc.c	20	Cdc_Destroy	cdc_destroy	1
-8bab358	2026-09-20	3.2,3.4	local variable	tests/test_cdc.c	19	Cdc_End	cdc_end	1
-8bab358	2026-09-20	3.2,3.4	local variable	tests/test_cdc.c	21	Cdc_EnsureSurface	cdc_ensure_surface	2
-8bab358	2026-09-20	3.2,3.4	local variable	tests/test_cdc.c	18	Cdc_ExecuteGO	cdc_execute_go	1
-8bab358	2026-09-20	3.2,3.4	local variable	tests/test_cdc.c	20	Cdc_Ident	cdc_ident	1
-8bab358	2026-09-20	3.2,3.4	local variable	tests/test_cdc.c	17	Cdc_Read	cdc_read	1
-8bab358	2026-09-20	3.2,3.4	local variable	tests/test_cdc.c	17	Cdc_Reset	cdc_reset	1
-8bab358	2026-09-20	3.2,3.4	local variable	tests/test_cdc.c	19	Cdc_Tick	cdc_tick	1
-8bab358	2026-09-20	3.2,3.4	local variable	tests/test_cdc.c	18	Cdc_Write	cdc_write	1
+8bab358	2026-09-20	3.2,3.4	comment reference	tests/test_cdc.c	20	Cdc_AttachBacking	cdc_attach_backing	1
+8bab358	2026-09-20	3.2,3.4	comment reference	tests/test_cdc.c	20	Cdc_Destroy	cdc_destroy	1
+8bab358	2026-09-20	3.2,3.4	comment reference	tests/test_cdc.c	19	Cdc_End	cdc_end	1
+8bab358	2026-09-20	3.2,3.4	comment reference	tests/test_cdc.c	21	Cdc_EnsureSurface	cdc_ensure_surface	2
+8bab358	2026-09-20	3.2,3.4	comment reference	tests/test_cdc.c	18	Cdc_ExecuteGO	cdc_execute_go	1
+8bab358	2026-09-20	3.2,3.4	comment reference	tests/test_cdc.c	20	Cdc_Ident	cdc_ident	1
+8bab358	2026-09-20	3.2,3.4	comment reference	tests/test_cdc.c	17	Cdc_Read	cdc_read	1
+8bab358	2026-09-20	3.2,3.4	comment reference	tests/test_cdc.c	17	Cdc_Reset	cdc_reset	1
+8bab358	2026-09-20	3.2,3.4	comment reference	tests/test_cdc.c	19	Cdc_Tick	cdc_tick	1
+8bab358	2026-09-20	3.2,3.4	comment reference	tests/test_cdc.c	18	Cdc_Write	cdc_write	1
 b0845de	2026-09-20	3.4,3.5	local variable	src/debugger/debugger.c	2103	PPN	ppn	5
 b0845de	2026-09-20	3.4,3.5	parameter	src/debugger/debugger.c	2094	PTe	p_te	13
 b0845de	2026-09-20	3.4,3.5	local variable	src/debugger/debugger.c	4225	byteCount	byte_count	8
@@ -706,7 +706,7 @@ a778c2a	2026-09-21	-	parameter	src/frontend/nd100x/vscreen.h	50	inputCapable	inp
 78ef468	2026-09-21	-	function	src/cpu/bcd.c	1032	ndfunc_shde	opcode_shde_decimal_shift	1
 78ef468	2026-09-21	-	function	src/cpu/bcd.c	697	ndfunc_subd	opcode_subd_subtract_two_decimal_operands	1
 78ef468	2026-09-21	-	function	src/cpu/bcd.c	1451	ndfunc_unpack	opcode_unpack_convert_from_decimal	1
-78ef468	2026-09-21	-	local variable	src/cpu/cpu.c	1173	ndfunc_versn	opcode_versn_read_cpu_version	1
+78ef468	2026-09-21	-	comment reference	src/cpu/cpu.c	1173	ndfunc_versn	opcode_versn_read_cpu_version	1
 78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	194	ndfunc_aaa	opcode_aaa_add_argument_to_a	2
 78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	204	ndfunc_aab	opcode_aab_add_argument_to_b	2
 78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	214	ndfunc_aat	opcode_aat_add_argument_to_t	2
@@ -829,8 +829,8 @@ a778c2a	2026-09-21	-	parameter	src/frontend/nd100x/vscreen.h	50	inputCapable	inp
 78ef468	2026-09-21	-	function	src/cpu/cpu_types.h	2056	ndfunc_addd	opcode_addd_add_two_decimal_operands	1
 78ef468	2026-09-21	-	function	src/cpu/cpu_types.h	1061	ndfunc_bfill_new	opcode_bfill_new_byte_fill	1
 78ef468	2026-09-21	-	function	src/cpu/cpu_types.h	2077	ndfunc_comd	opcode_comd_compare_two_decimal_operands	1
-78ef468	2026-09-21	-	local variable	src/cpu/cpu_types.h	1104	ndfunc_movb	opcode_movb_move_byte	1
-78ef468	2026-09-21	-	local variable	src/cpu/cpu_types.h	1112	ndfunc_movbf	opcode_movbf_move_bytes_forward	1
+78ef468	2026-09-21	-	comment reference	src/cpu/cpu_types.h	1104	ndfunc_movb	opcode_movb_move_byte	1
+78ef468	2026-09-21	-	comment reference	src/cpu/cpu_types.h	1112	ndfunc_movbf	opcode_movbf_move_bytes_forward	1
 78ef468	2026-09-21	-	function	src/cpu/cpu_types.h	2101	ndfunc_pack	opcode_pack_convert_to_decimal	1
 78ef468	2026-09-21	-	function	src/cpu/cpu_types.h	2090	ndfunc_shde	opcode_shde_decimal_shift	1
 78ef468	2026-09-21	-	function	src/cpu/cpu_types.h	2067	ndfunc_subd	opcode_subd_subtract_two_decimal_operands	1
@@ -843,111 +843,111 @@ a778c2a	2026-09-21	-	parameter	src/frontend/nd100x/vscreen.h	50	inputCapable	inp
 78ef468	2026-09-21	-	function	tests/test_bcd.c	66	ndfunc_subd	opcode_subd_subtract_two_decimal_operands	2
 78ef468	2026-09-21	-	function	tests/test_bcd.c	70	ndfunc_unpack	opcode_unpack_convert_from_decimal	2
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4742	A	Instruction	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	632	A	Opcode	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4847	A	STBNK	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	632	A	Opcode	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4847	A	STBNK	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1345	A	The	2
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1755	A	addressing	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	1755	A	addressing	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1353	A	as	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5235	A	beginning	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	5235	A	beginning	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5700	A	below	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4895	A	bit	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4562	A	bits	2
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4524	A	cpu_documentation	2
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4486	A	docs	2
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4524	A	cpu_documentation	2
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4486	A	docs	2
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4871	A	entry	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1761	A	fetched	2
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	1761	A	fetched	2
 9ba4e0d	2026-09-21	-	parameter	src/cpu/cpu_instr.c	5206	A	opcode	1
 9ba4e0d	2026-09-21	-	parameter	src/cpu/cpu_instr.c	4176	A	operand	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	658	A	par	3
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	658	A	par	3
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5091	ADDR	ENTR	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5090	ADDR	Privilege	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	5090	ADDR	Privilege	1
 9ba4e0d	2026-09-21	-	parameter	src/cpu/cpu_instr.c	5030	ADDR	address	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5029	ADDR	flag	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5029	ADDR	left	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5029	ADDR	maximum	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5076	ADDR	saves	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	5029	ADDR	maximum	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	5076	ADDR	saves	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5028	ADDR	stack	2
 9ba4e0d	2026-09-21	-	parameter	src/cpu/cpu_instr.c	6524	ALL	a	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1179	ALWAYS	TAD	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1344	ALWAYS	par	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4258	APT	docs	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	834	Affected	Registers	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	1179	ALWAYS	TAD	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	1344	ALWAYS	par	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4258	APT	docs	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	834	Affected	Registers	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5206	Affected	The	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1555	Affected	as	1
 9ba4e0d	2026-09-21	-	parameter	src/cpu/cpu_instr.c	1514	Affected	mask	1
 9ba4e0d	2026-09-21	-	parameter	src/cpu/cpu_instr.c	1460	Affected	operand	2
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	636	Affected	par	9
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	636	Affected	par	9
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5235	Affected	string	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4027	Atomic	See	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4097	Atomic	par	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4027	Atomic	See	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4097	Atomic	par	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4740	Atomically	and	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4258	B	cpu_documentation	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1555	B	fetched	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	950	BFILL	BFILL_NEW	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	952	BFILL	param	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1182	BOTH	contents	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4445	BOTH	description	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1345	BOTH	type	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4258	B	cpu_documentation	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	1555	B	fetched	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	950	BFILL	BFILL_NEW	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	952	BFILL	param	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	1182	BOTH	contents	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4445	BOTH	description	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	1345	BOTH	type	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	950	Byte	see	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3703	CHREENTPAGES	par	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4168	CLNR4	_1111_1111_1111	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	3703	CHREENTPAGES	par	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4168	CLNR4	_1111_1111_1111	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3967	CMBUK	CMBNK	1
 9ba4e0d	2026-09-21	-	parameter	src/cpu/cpu_instr.c	3999	CMBUK	bank	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4895	CMBUK	entry	2
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4165	CNRE1	SINTRAN	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1188	CPU	disp	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3701	Change	CHREENT_PAGES	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	1188	CPU	disp	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	3701	Change	CHREENT_PAGES	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1449	Code	A	3
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1543	Code	B	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1577	Code	EA	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	659	Code	Opcode	4
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	1577	Code	EA	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	659	Code	Opcode	4
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1479	Code	X	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5188	Code	from	2
 9ba4e0d	2026-09-21	-	parameter	src/cpu/cpu_instr.c	632	Code	mask	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	950	Code	notes	2
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	685	Code	par	4
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	950	Code	notes	2
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	685	Code	par	4
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1199	Consequence	as	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	746	Count	Increment	2
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	746	Count	Increment	2
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1182	CurrentFPPType	and	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1514	D	Opcode	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1345	D	determines	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1353	D	fetched	2
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	1514	D	Opcode	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	1345	D	determines	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	1353	D	fetched	2
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1755	D	mode	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1354	DELILAH	section	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1182	Deliberately	floating	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	1354	DELILAH	section	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	1182	Deliberately	floating	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1513	EL	Instruction	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1555	EL	The	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1514	EL	octal	1
 9ba4e0d	2026-09-21	-	parameter	src/cpu/cpu_instr.c	1555	EL	operand	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1460	EL	param	2
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	1460	EL	param	2
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5037	ELEAV	word	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3967	EN	divisible	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	3967	EN	divisible	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4422	ENPK1	octal	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4445	ENPT	B	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5037	ENTR	par	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	5037	ENTR	par	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4173	Early	what	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5090	Error	User	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	5090	Error	User	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1191	FPP	bits	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1182	FPP	of	2
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1740	FPP32	Add	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	1740	FPP32	Add	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1743	FSB	by	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4457	Faithful	md	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4457	Faithful	md	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4165	Faithful	non	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4421	Faithful	par	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4421	Faithful	par	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	950	Fill	the	1
 9ba4e0d	2026-09-21	-	parameter	src/cpu/cpu_instr.c	6403	Fix	a	1
 9ba4e0d	2026-09-21	-	parameter	src/cpu/cpu_instr.c	5029	Flag	address	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1509	Format	D	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1577	Format	EA	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5275	Format	Take	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	1577	Format	EA	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	5275	Format	Take	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	950	Format	below	2
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1543	Format	ea	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5188	Format	memory	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5074	IN	Enter	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	5074	IN	Enter	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5028	IN	of	1
 9ba4e0d	2026-09-21	-	parameter	src/cpu/cpu_instr.c	5028	INIT	address	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4445	Identical	See	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1577	Increment	Memory	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4445	Identical	See	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	1577	Increment	Memory	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4509	LBIT	with	1
 9ba4e0d	2026-09-21	-	parameter	src/cpu/cpu_instr.c	4647	LBYT	a	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4662	LBYT	see	1
@@ -958,20 +958,20 @@ a778c2a	2026-09-21	-	parameter	src/frontend/nd100x/vscreen.h	50	inputCapable	inp
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1349	LDF1	bits	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5037	LEAVE	Instruction	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4423	LISTING	Control	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4167	LISTING	par	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4167	LISTING	par	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4473	LOGICAL	A	2
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4173	LSB	bits	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1579	MIN	ea	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4165	ND	K	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4422	ND	_1111_1111_1111	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4422	ND	_1111_1111_1111	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3967	ND	be	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5041	ND	full	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1354	ND	md	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5039	ND	occurs	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1182	NOT	accumulator	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	2848	NOTE	Transfer	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5093	Normal	par	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5029	Not	empty	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	5041	ND	full	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	1354	ND	md	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	5039	ND	occurs	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	1182	NOT	accumulator	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	2848	NOTE	Transfer	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	5093	Normal	par	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	5029	Not	empty	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	2931	Note	Write	1
 9ba4e0d	2026-09-21	-	parameter	src/cpu/cpu_instr.c	4103	ONLY	opcode	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1555	OR	word	1
@@ -983,467 +983,577 @@ a778c2a	2026-09-21	-	parameter	src/frontend/nd100x/vscreen.h	50	inputCapable	inp
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4509	PHYSICAL	bit	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4692	PHYSICAL	byte	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4774	PHYSICAL	physical	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4597	PHYSICAL	single	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4597	PHYSICAL	single	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3453	Page	page	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3701	Page	see	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4423	Port	Privilege	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4662	Port	docs	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3970	Port	par	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4612	Port	section	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4423	Port	Privilege	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4662	Port	docs	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	3970	Port	par	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4612	Port	section	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	2848	Privileged	IDENT	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4173	R1	The	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4423	RASK	Category	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4422	RASK	Opcode	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4423	RASK	Category	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4422	RASK	Opcode	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5041	RASK	instruction	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4165	RASK	only	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4165	RASK	pages	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5041	RASK	param	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4774	RDUS	without	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	5041	RASK	param	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4774	RDUS	without	1
 9ba4e0d	2026-09-21	-	parameter	src/cpu/cpu_instr.c	4422	REPK2	mask	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4566	Read	md	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4566	Read	md	1
 9ba4e0d	2026-09-21	-	parameter	src/cpu/cpu_instr.c	4703	Read	opcode	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3967	Ref	must	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3999	Ref	number	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3999	RetroCore	core	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4662	RetroCore	md	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4662	RetroCore	md	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3976	RetroCore	operation	3
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4779	RetroCore	this	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	427	SAD	the	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4169	SAME	Privilege	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4169	SAME	Privilege	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4597	SBIT	K	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4692	SBYT	memory	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	427	SHA	see	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	427	SHD	SHIFTS	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	427	SHT	brief	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	427	SHD	SHIFTS	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	427	SHT	brief	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4038	STBNK	The	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1179	STF	Store	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3703	Segment	Registers	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	1179	STF	Store	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	3703	Segment	Registers	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1761	T	as	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1345	T	bits	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4649	T	containing	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4707	T	docs	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4523	T	fetched	2
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4649	T	containing	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4707	T	docs	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4523	T	fetched	2
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1194	T	instruction	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4694	T	number	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4777	T	old	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3998	T	table	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	6403	TODO	moves	2
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	6403	TODO	moves	2
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4167	TXT	Instruction	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4423	TXT	Instructions	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3453	Tables	tables	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	3453	Tables	tables	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3701	Tables	the	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5188	The	A	1
 9ba4e0d	2026-09-21	-	parameter	src/cpu/cpu_instr.c	4692	The	a	2
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4509	The	single	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4509	The	single	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4597	The	the	2
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	2931	This	A	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	2985	This	specified	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3206	Turn	Interrupt	2
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1555	V	full	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1555	V	param	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5038	Verified	type	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	3206	Turn	Interrupt	2
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	1555	V	full	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	1555	V	param	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	5038	Verified	type	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3998	WGLOB	segment	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4258	WITHOUT	md	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4248	Walks	par	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4258	WITHOUT	md	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4248	Walks	par	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1507	Word	word	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1490	X	The	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4176	X	as	2
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4658	X	bits	2
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4511	X	containing	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4177	X	cpu_documentation	2
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4524	X	docs	2
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4511	X	containing	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4177	X	cpu_documentation	2
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4524	X	docs	2
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4943	X	entry	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3706	X	full	2
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	3706	X	full	2
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4106	X	instruction	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4599	X	number	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4778	X	of	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	753	X	par	3
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4177	X	section	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	753	X	par	3
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4177	X	section	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4177	X	see	2
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4473	X	to	2
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	834	_	par	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	834	_	par	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4248	a	Instruction	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	2931	a	on	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4740	a	physical	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4445	a	reentrant	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4445	a	reentrant	1
 9ba4e0d	2026-09-21	-	parameter	src/cpu/cpu_instr.c	4173	advances	opcode	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5038	against	of	1
 9ba4e0d	2026-09-21	-	parameter	src/cpu/cpu_instr.c	4743	all	mask	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1743	also	to	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	952	always	as	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4748	always	what	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4745	and	Format	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4745	and	Format	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4447	and	Instruction	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4743	and	Opcode	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4743	and	Opcode	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1191	and	The	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5038	and	bits	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4486	and	cpu_documentation	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1762	and	md	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4524	and	section	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4486	and	cpu_documentation	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	1762	and	md	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4524	and	section	1
 9ba4e0d	2026-09-21	-	parameter	src/cpu/cpu_instr.c	5235	are	a	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1188	are	addressing_mode	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	1188	are	addressing_mode	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1757	are	the	1
 9ba4e0d	2026-09-21	-	parameter	src/cpu/cpu_instr.c	1191	arithmetic	opcode	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4777	at	The	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1743	at	added	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	1743	at	added	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4611	at	as	2
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4744	back	Control	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4512	bank	array	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4512	bank	array	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5234	being	byte	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	658	bit	Instruction	3
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4448	bit	Opcode	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1200	bit	cpu_documentation	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4448	bit	Opcode	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	1200	bit	cpu_documentation	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	632	bit	octal	1
 9ba4e0d	2026-09-21	-	parameter	src/cpu/cpu_instr.c	4562	bit	opcode	2
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4447	bit	par	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4447	bit	par	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4566	bit	see	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5193	bits	The	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3000	bits	X	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	2999	bits	br	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	2999	bits	br	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5231	bits	to	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4177	bound	docs	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4177	bound	docs	1
 9ba4e0d	2026-09-21	-	parameter	src/cpu/cpu_instr.c	4658	byte	opcode	2
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4779	cache	Note	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4779	cache	Note	1
 9ba4e0d	2026-09-21	-	parameter	src/cpu/cpu_instr.c	4249	chain	mask	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4173	clean	of	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4169	clear	Category	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4169	clear	Category	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4257	clear	as	1
 9ba4e0d	2026-09-21	-	parameter	src/cpu/cpu_instr.c	5206	cleared	opcode	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5702	code	full	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4173	continuously	determines	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4039	core	cpu_documentation	2
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4257	core	full	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	5702	code	full	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4173	continuously	determines	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4039	core	cpu_documentation	2
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4257	core	full	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4254	core	operation	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	2999	current	DT	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	2999	current	DT	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	2945	current	T	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1190	data	par	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4821	delta	Load	2
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4845	delta	Store	2
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5090	demand	Operations	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4454	descriptor	occurs	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4038	descriptor	param	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	952	destination	full	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	1190	data	par	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4821	delta	Load	2
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4845	delta	Store	2
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	5090	demand	Operations	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4454	descriptor	occurs	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4038	descriptor	param	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	952	destination	full	1
 9ba4e0d	2026-09-21	-	parameter	src/cpu/cpu_instr.c	634	disp	displacement	8
 9ba4e0d	2026-09-21	-	static function	src/cpu/cpu_instr.c	6422	do_movb	opcode_movb_move_byte	1
 9ba4e0d	2026-09-21	-	static function	src/cpu/cpu_instr.c	6543	do_movbf	opcode_movbf_move_bytes_forward	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	6405	document	T	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5276	e	place	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1181	ea	Store	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	5276	e	place	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	1181	ea	Store	1
 9ba4e0d	2026-09-21	-	parameter	src/cpu/cpu_instr.c	1345	ea	opcode	2
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1743	ea	the	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1743	ea	to	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1344	ea	word	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	6403	edge	block	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5234	effective	Store	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5700	emulator	notes	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	6403	edge	block	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	5234	effective	Store	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	5700	emulator	notes	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5700	emulator	see	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4457	entered	see	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4039	entry	section	2
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4039	entry	section	2
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4258	entry	see	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4707	even	section	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4707	even	section	1
 9ba4e0d	2026-09-21	-	parameter	src/cpu/cpu_instr.c	3998	exact	bank	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5702	exit	The	1
 9ba4e0d	2026-09-21	-	parameter	src/cpu/cpu_instr.c	935	extra	destination	1
 9ba4e0d	2026-09-21	-	parameter	src/cpu/cpu_instr.c	4173	first	opcode	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1757	floats	field	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4249	forward	Opcode	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4249	forward	Opcode	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1200	fpp	see	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4473	from	array	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4748	from	type	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3703	function	affected	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4473	from	array	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4748	from	type	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	3703	function	affected	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1348	funnel	the	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1182	gated	T	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5234	half	If	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	5234	half	If	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5233	half	X	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	952	have	fetched	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	952	have	fetched	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	6406	here	point	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5276	i	and	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5233	in	EL	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4553	in	array	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4661	in	fetched	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	5233	in	EL	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4553	in	array	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4661	in	fetched	1
 9ba4e0d	2026-09-21	-	parameter	src/cpu/cpu_instr.c	4038	in	operand	2
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1182	in	the	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1345	in	what	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1555	inclusive	instruction	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	753	incremented	affected	2
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4515	index	Opcode	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	753	incremented	affected	2
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4515	index	Opcode	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4562	index	The	3
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5028	instruction	number	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	2931	instruction	to	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	918	instructions	Instruction	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5034	instructions	Operations	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	5034	instructions	Operations	1
 9ba4e0d	2026-09-21	-	parameter	src/cpu/cpu_instr.c	933	instructions	destination	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	919	interleaves	Format	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	919	interleaves	Format	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	2995	into	from	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4551	into	in	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1348	into	instruction	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4742	into	par	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4742	into	par	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3998	inverse	number	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	2945	is	DX	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	753	is	Registers	2
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	2945	is	DX	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	753	is	Registers	2
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4779	is	The	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4523	is	as	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4748	is	determines	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4485	is	fetched	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4106	is	full	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4748	is	determines	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4485	is	fetched	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4106	is	full	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5231	is	memory	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	2985	is	on	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1747	is	par	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	1747	is	par	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3706	is	word	1
 9ba4e0d	2026-09-21	-	parameter	src/cpu/cpu_instr.c	4445	it	a	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1743	layout	pointed	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	2945	level	br	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	1743	layout	pointed	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	2945	level	br	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4249	linked	octal	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4038	list	instruction	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1743	lives	are	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1200	lives	section	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1342	load	addressing_mode	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	1200	lives	section	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	1342	load	addressing_mode	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1757	load	bits	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1354	load	see	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4774	load	using	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5234	location	left	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4169	loop	Control	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4098	loop	Opcode	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4098	loop	Opcode	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4169	loop	Privileged	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4039	map	md	2
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4255	map	occurs	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4039	map	md	2
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4255	map	occurs	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4456	marking	as	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4445	masks	software	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1577	memory	increment	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4473	memory	points	2
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4445	masks	software	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	1577	memory	increment	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4473	memory	points	2
 9ba4e0d	2026-09-21	-	parameter	src/cpu/cpu_instr.c	5041	microcode	operand	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	935	might	bits	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5275	minus	as	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1580	mode	are	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4779	modelled	time	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4779	modelled	time	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1345	modes	operation	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1182	modes	the	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4608	modify	determines	2
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4566	modify	section	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4608	modify	determines	2
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4566	modify	section	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1190	movers	Instruction	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4747	multi	word	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5276	multiplied	Multiply	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	5276	multiplied	Multiply	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1449	n0	ea	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1479	n1	ea	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1509	n2	ea	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1543	n3	OR	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1354	need	cpu_documentation	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	1354	need	cpu_documentation	1
 9ba4e0d	2026-09-21	-	parameter	src/cpu/cpu_instr.c	935	need	dr	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4027	no	Appendix	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4027	no	Appendix	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4097	no	Instruction	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4173	no	operation	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	2931	no	specified	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4257	nodes	param	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4257	nodes	param	1
 9ba4e0d	2026-09-21	-	parameter	src/cpu/cpu_instr.c	1349	none	displacement	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4098	normal	octal	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4779	not	execution	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	722	not	par	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4779	not	execution	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	722	not	par	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1190	not	word	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5074	nothing	stack	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5028	nothing	words	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4509	of	K	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4597	of	accumulator	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4597	of	accumulator	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4038	of	as	2
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	2945	of	br	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4662	of	cpu_documentation	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	2945	of	br	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4662	of	cpu_documentation	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4692	of	physical	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4647	of	with	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4774	of	word	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3206	off	System	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	3206	off	System	1
 9ba4e0d	2026-09-21	-	parameter	src/cpu/cpu_instr.c	4512	offset	a	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1182	on	A	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3235	on	System	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	2999	on	br	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	3235	on	System	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	2999	on	br	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5233	one	T	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	918	one	User	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4743	ones	_1111_1111_1111	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4174	op	occurs	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1762	opcode_ldf_load_floating_accumulator	cpu_documentation	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	918	one	User	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4743	ones	_1111_1111_1111	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4174	op	occurs	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	1762	opcode_ldf_load_floating_accumulator	cpu_documentation	1
 9ba4e0d	2026-09-21	-	function	src/cpu/cpu_instr.c	6833	opcode_movb_move_byte	opcode_movb_move_byte_buggy	1
 9ba4e0d	2026-09-21	-	function	src/cpu/cpu_instr.c	6861	opcode_movbf_move_bytes_forward	opcode_movbf_move_bytes_forward_buggy	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1762	opcode_stf_store_floating_accumulator	docs	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	1762	opcode_stf_store_floating_accumulator	docs	1
 9ba4e0d	2026-09-21	-	parameter	src/cpu/cpu_instr.c	1743	operand	address	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1743	operand	locations	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	1743	operand	locations	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	2931	operation	level	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4176	or	The	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	631	or	par	2
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	631	or	par	2
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	933	other	the	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4448	out	octal	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4173	out	type	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4173	out	type	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5038	page	The	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3968	page	by	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4038	page	full	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4038	page	full	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4039	page	see	2
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4457	pages	docs	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4457	pages	docs	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	6405	params	registers	1
 9ba4e0d	2026-09-21	-	parameter	src/cpu/cpu_instr.c	1757	path	displacement	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4744	physical	Privilege	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4744	physical	Privilege	1
 9ba4e0d	2026-09-21	-	parameter	src/cpu/cpu_instr.c	4520	physical	opcode	2
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1762	place	FAD	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4168	plus	Opcode	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	1762	place	FAD	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4168	plus	Opcode	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4871	privileged	CMBNK	4
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4165	privileged	Clear	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4509	privileged	Load	2
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4774	privileged	Read	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4597	privileged	Store	2
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4740	privileged	Test	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4509	privileged	Load	2
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4774	privileged	Read	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4597	privileged	Store	2
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4740	privileged	Test	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4821	privileged	the	3
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4965	privileged	zero	1
 9ba4e0d	2026-09-21	-	parameter	src/cpu/cpu_instr.c	5702	process	operand	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4748	processor	bits	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	2999	program	T	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3582	re	reentrant	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	3582	re	reentrant	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4485	read	as	1
 9ba4e0d	2026-09-21	-	parameter	src/cpu/cpu_instr.c	4608	read	opcode	2
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4740	read	set	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4172	reads	par	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4457	reentrant	cpu_documentation	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5233	registers	Store	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1581	result	new	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4172	reads	par	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4457	reentrant	cpu_documentation	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	5233	registers	Store	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	1581	result	new	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	2931	results	specified	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4039	s	docs	2
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4039	s	docs	2
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4027	s	in	3
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4258	saving	section	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4258	saving	section	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5234	second	byte	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4036	segment	occurs	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4486	selected	section	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4036	segment	occurs	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4486	selected	section	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4745	set	TSETP	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4257	set	word	1
 9ba4e0d	2026-09-21	-	parameter	src/cpu/cpu_instr.c	4168	shared	mask	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	935	some	The	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5041	source	The	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5191	specified	If	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4556	start	par	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	5191	specified	If	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4556	start	par	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1349	starts	bit	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1179	store	floating	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	1179	store	floating	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1756	store	instruction	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5233	stored	Addressing	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	5233	stored	Addressing	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3589	summary	Instruction	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3208	summary	On	2
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3460	summary	Registers	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	629	summary	brief	24
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5206	summary	determines	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1460	summary	full	2
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	639	summary	par	11
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1521	summary	param	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	3208	summary	On	2
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	3460	summary	Registers	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	629	summary	brief	24
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	5206	summary	determines	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	1460	summary	full	2
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	639	summary	par	11
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	1521	summary	param	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1556	summary	see	1
 9ba4e0d	2026-09-21	-	parameter	src/cpu/cpu_instr.c	4748	synchronisation	opcode	1
 9ba4e0d	2026-09-21	-	parameter	src/cpu/cpu_instr.c	5038	table	opcode	1
 9ba4e0d	2026-09-21	-	parameter	src/cpu/cpu_instr.c	4562	target	opcode	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4744	test	Privileged	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	2945	the	DT	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	2945	the	DT	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	2933	the	Instruction	2
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4169	the	Instructions	2
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3998	the	T	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4257	the	The	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1200	the	docs	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3706	the	fetched	5
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4486	the	md	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	1200	the	docs	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	3706	the	fetched	5
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4486	the	md	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4168	the	octal	1
 9ba4e0d	2026-09-21	-	parameter	src/cpu/cpu_instr.c	5038	the	opcode	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4035	the	operation	5
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5234	the	right	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	2995	the	specified	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5038	they	determines	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1757	they	gives	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	918	this	Privilege	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	5038	they	determines	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	1757	they	gives	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	918	this	Privilege	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5234	this	X	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4445	to	Appendix	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4445	to	Appendix	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4421	to	Instruction	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4165	to	reentrant	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4457	to	section	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4165	to	reentrant	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4457	to	section	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5041	uc	word	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5235	unchanged	character	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	5235	unchanged	character	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1757	unconditional	memory	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5038	use	what	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	2946	used	X	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5030	used	error	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4747	used	par	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4747	used	par	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	2985	used	specified	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5076	uses	This	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5028	uses	allocated	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4170	validated	Format	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4509	variant	accumulator	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	5028	uses	allocated	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4170	validated	Format	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4509	variant	accumulator	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4597	variant	bit	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4692	variant	in	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4774	variant	memory	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4176	vs	fetched	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4177	vs	md	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1349	which	gives	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4176	vs	fetched	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4177	vs	md	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	1349	which	gives	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	952	will	word	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	2999	with	DX	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5193	with	higher	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1743	word	effective	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	2999	with	DX	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	5193	with	higher	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	1743	word	effective	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4512	word	of	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1344	words	Instruction	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1179	words	to	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1354	would	docs	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1762	would	section	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	1354	would	docs	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	1762	would	section	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4743	write	octal	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4608	write	what	2
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4566	xF	cpu_documentation	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4777	xFF	content	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4566	xF	cpu_documentation	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4777	xFF	content	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4524	xFF	see	3
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4744	xFFFF	Category	1
-9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4524	xFFFF	md	3
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4744	xFFFF	Category	1
+9ba4e0d	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	4524	xFFFF	md	3
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4778	xFFFF	the	1
 9ba4e0d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	631	zero	Instruction	3
 9ba4e0d	2026-09-21	-	function	src/cpu/cpu_types.h	1104	opcode_movb_move_byte	opcode_movb_move_byte_buggy	1
 9ba4e0d	2026-09-21	-	function	src/cpu/cpu_types.h	1112	opcode_movbf_move_bytes_forward	opcode_movbf_move_bytes_forward_buggy	1
-a84775d	2026-09-21	-	local variable	src/cpu/cpu.c	612	STS_IONI	STS_INTERRUPT_ON_IS_SET	2
-a84775d	2026-09-21	-	local variable	src/cpu/cpu.c	476	STS_PONI	STS_PAGING_ON_IS_SET	3
-a84775d	2026-09-21	-	local variable	src/cpu/cpu.c	667	STS_SEXI	STS_EXTENDED_ADDRESSING_IS_SET	1
-a84775d	2026-09-21	-	local variable	src/cpu/cpu.c	1159	_N100	STS_ND100_INDICATOR	2
-a84775d	2026-09-21	-	local variable	src/cpu/cpu.c	389	_Z	STS_ERROR_INDICATOR	1
-a84775d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5673	STS_IONI	STS_INTERRUPT_ON_IS_SET	2
-a84775d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4586	STS_K	STS_BIT_ACCUMULATOR_IS_SET	2
-a84775d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	74	STS_PONI	STS_PAGING_ON_IS_SET	4
-a84775d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	117	_C	STS_CARRY	11
-a84775d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3150	_IONI	STS_INTERRUPT_ON	4
-a84775d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	4506	_K	STS_BIT_ACCUMULATOR	19
-a84775d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	6096	_M	STS_SHIFT_OUT	4
-a84775d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	127	_O	STS_STATIC_OVERFLOW	7
-a84775d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3119	_PONI	STS_PAGING_ON	4
-a84775d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	128	_Q	STS_DYNAMIC_OVERFLOW	16
-a84775d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3284	_SEXI	STS_EXTENDED_ADDRESSING	2
-a84775d	2026-09-21	-	local variable	src/cpu/cpu_instr.c	1953	_Z	STS_ERROR_INDICATOR	6
-a84775d	2026-09-21	-	local variable	src/cpu/cpu_mms.c	479	STS_PONI	STS_PAGING_ON_IS_SET	3
-a84775d	2026-09-21	-	local variable	src/cpu/cpu_mms.c	491	STS_PTM	STS_PAGE_TABLE_MODE_IS_SET	3
-a84775d	2026-09-21	-	local variable	src/cpu/cpu_mms.c	101	STS_SEXI	STS_EXTENDED_ADDRESSING_IS_SET	14
-a84775d	2026-09-21	-	local variable	src/cpu/cpu_regs.c	184	_C	STS_CARRY	2
-a84775d	2026-09-21	-	local variable	src/cpu/cpu_regs.c	195	_O	STS_STATIC_OVERFLOW	1
-a84775d	2026-09-21	-	local variable	src/cpu/cpu_regs.c	196	_Q	STS_DYNAMIC_OVERFLOW	2
-a84775d	2026-09-21	-	local variable	src/cpu/cpu_regs.c	166	_Z	STS_ERROR_INDICATOR	1
-a84775d	2026-09-21	-	local variable	src/cpu/cpu_types.h	552	STS_C	STS_CARRY_IS_SET	1
-a84775d	2026-09-21	-	local variable	src/cpu/cpu_types.h	563	STS_IONI	STS_INTERRUPT_ON_IS_SET	1
-a84775d	2026-09-21	-	local variable	src/cpu/cpu_types.h	548	STS_K	STS_BIT_ACCUMULATOR_IS_SET	1
-a84775d	2026-09-21	-	local variable	src/cpu/cpu_types.h	553	STS_M	STS_SHIFT_OUT_IS_SET	1
-a84775d	2026-09-21	-	local variable	src/cpu/cpu_types.h	557	STS_N100	STS_ND100_INDICATOR_IS_SET	1
-a84775d	2026-09-21	-	local variable	src/cpu/cpu_types.h	551	STS_O	STS_STATIC_OVERFLOW_IS_SET	1
-a84775d	2026-09-21	-	local variable	src/cpu/cpu_types.h	556	STS_PL	STS_PROGRAM_LEVEL_IS_SET	1
-a84775d	2026-09-21	-	local variable	src/cpu/cpu_types.h	561	STS_PONI	STS_PAGING_ON_IS_SET	2
-a84775d	2026-09-21	-	local variable	src/cpu/cpu_types.h	546	STS_PTM	STS_PAGE_TABLE_MODE_IS_SET	1
-a84775d	2026-09-21	-	local variable	src/cpu/cpu_types.h	550	STS_Q	STS_DYNAMIC_OVERFLOW_IS_SET	1
-a84775d	2026-09-21	-	local variable	src/cpu/cpu_types.h	558	STS_SEXI	STS_EXTENDED_ADDRESSING_IS_SET	5
-a84775d	2026-09-21	-	local variable	src/cpu/cpu_types.h	547	STS_TG	STS_FLOAT_OVERFLOW_IS_SET	1
-a84775d	2026-09-21	-	local variable	src/cpu/cpu_types.h	549	STS_Z	STS_ERROR_INDICATOR_IS_SET	1
+a84775d	2026-09-21	-	macro use	src/cpu/cpu.c	612	STS_IONI	STS_INTERRUPT_ON_IS_SET	2
+a84775d	2026-09-21	-	macro use	src/cpu/cpu.c	476	STS_PONI	STS_PAGING_ON_IS_SET	3
+a84775d	2026-09-21	-	macro use	src/cpu/cpu.c	667	STS_SEXI	STS_EXTENDED_ADDRESSING_IS_SET	1
+a84775d	2026-09-21	-	macro use	src/cpu/cpu.c	1159	_N100	STS_ND100_INDICATOR	2
+a84775d	2026-09-21	-	macro use	src/cpu/cpu.c	389	_Z	STS_ERROR_INDICATOR	1
+a84775d	2026-09-21	-	macro use	src/cpu/cpu_instr.c	5673	STS_IONI	STS_INTERRUPT_ON_IS_SET	2
+a84775d	2026-09-21	-	macro use	src/cpu/cpu_instr.c	4586	STS_K	STS_BIT_ACCUMULATOR_IS_SET	2
+a84775d	2026-09-21	-	macro use	src/cpu/cpu_instr.c	74	STS_PONI	STS_PAGING_ON_IS_SET	4
+a84775d	2026-09-21	-	macro use	src/cpu/cpu_instr.c	117	_C	STS_CARRY	11
+a84775d	2026-09-21	-	macro use	src/cpu/cpu_instr.c	3150	_IONI	STS_INTERRUPT_ON	4
+a84775d	2026-09-21	-	macro use	src/cpu/cpu_instr.c	4506	_K	STS_BIT_ACCUMULATOR	19
+a84775d	2026-09-21	-	macro use	src/cpu/cpu_instr.c	6096	_M	STS_SHIFT_OUT	4
+a84775d	2026-09-21	-	macro use	src/cpu/cpu_instr.c	127	_O	STS_STATIC_OVERFLOW	7
+a84775d	2026-09-21	-	macro use	src/cpu/cpu_instr.c	3119	_PONI	STS_PAGING_ON	4
+a84775d	2026-09-21	-	macro use	src/cpu/cpu_instr.c	128	_Q	STS_DYNAMIC_OVERFLOW	16
+a84775d	2026-09-21	-	macro use	src/cpu/cpu_instr.c	3284	_SEXI	STS_EXTENDED_ADDRESSING	2
+a84775d	2026-09-21	-	macro use	src/cpu/cpu_instr.c	1953	_Z	STS_ERROR_INDICATOR	6
+a84775d	2026-09-21	-	macro use	src/cpu/cpu_mms.c	479	STS_PONI	STS_PAGING_ON_IS_SET	3
+a84775d	2026-09-21	-	macro use	src/cpu/cpu_mms.c	491	STS_PTM	STS_PAGE_TABLE_MODE_IS_SET	3
+a84775d	2026-09-21	-	macro use	src/cpu/cpu_mms.c	101	STS_SEXI	STS_EXTENDED_ADDRESSING_IS_SET	14
+a84775d	2026-09-21	-	macro use	src/cpu/cpu_regs.c	184	_C	STS_CARRY	2
+a84775d	2026-09-21	-	macro use	src/cpu/cpu_regs.c	195	_O	STS_STATIC_OVERFLOW	1
+a84775d	2026-09-21	-	macro use	src/cpu/cpu_regs.c	196	_Q	STS_DYNAMIC_OVERFLOW	2
+a84775d	2026-09-21	-	macro use	src/cpu/cpu_regs.c	166	_Z	STS_ERROR_INDICATOR	1
+a84775d	2026-09-21	-	macro definition	src/cpu/cpu_types.h	552	STS_C	STS_CARRY_IS_SET	1
+a84775d	2026-09-21	-	macro definition	src/cpu/cpu_types.h	563	STS_IONI	STS_INTERRUPT_ON_IS_SET	1
+a84775d	2026-09-21	-	macro definition	src/cpu/cpu_types.h	548	STS_K	STS_BIT_ACCUMULATOR_IS_SET	1
+a84775d	2026-09-21	-	macro definition	src/cpu/cpu_types.h	553	STS_M	STS_SHIFT_OUT_IS_SET	1
+a84775d	2026-09-21	-	macro definition	src/cpu/cpu_types.h	557	STS_N100	STS_ND100_INDICATOR_IS_SET	1
+a84775d	2026-09-21	-	macro definition	src/cpu/cpu_types.h	551	STS_O	STS_STATIC_OVERFLOW_IS_SET	1
+a84775d	2026-09-21	-	macro definition	src/cpu/cpu_types.h	556	STS_PL	STS_PROGRAM_LEVEL_IS_SET	1
+a84775d	2026-09-21	-	macro definition	src/cpu/cpu_types.h	561	STS_PONI	STS_PAGING_ON_IS_SET	2
+a84775d	2026-09-21	-	macro definition	src/cpu/cpu_types.h	546	STS_PTM	STS_PAGE_TABLE_MODE_IS_SET	1
+a84775d	2026-09-21	-	macro definition	src/cpu/cpu_types.h	550	STS_Q	STS_DYNAMIC_OVERFLOW_IS_SET	1
+a84775d	2026-09-21	-	macro definition	src/cpu/cpu_types.h	558	STS_SEXI	STS_EXTENDED_ADDRESSING_IS_SET	5
+a84775d	2026-09-21	-	macro definition	src/cpu/cpu_types.h	547	STS_TG	STS_FLOAT_OVERFLOW_IS_SET	1
+a84775d	2026-09-21	-	macro definition	src/cpu/cpu_types.h	549	STS_Z	STS_ERROR_INDICATOR_IS_SET	1
 a84775d	2026-09-21	-	local variable	src/cpu/cpu_types.h	228	Status	Bit	1
-a84775d	2026-09-21	-	local variable	src/cpu/cpu_types.h	250	_C	STS_CARRY	1
-a84775d	2026-09-21	-	local variable	src/cpu/cpu_types.h	256	_IONI	STS_INTERRUPT_ON	1
-a84775d	2026-09-21	-	local variable	src/cpu/cpu_types.h	246	_K	STS_BIT_ACCUMULATOR	1
-a84775d	2026-09-21	-	local variable	src/cpu/cpu_types.h	251	_M	STS_SHIFT_OUT	1
-a84775d	2026-09-21	-	local variable	src/cpu/cpu_types.h	253	_N100	STS_ND100_INDICATOR	1
-a84775d	2026-09-21	-	local variable	src/cpu/cpu_types.h	249	_O	STS_STATIC_OVERFLOW	1
-a84775d	2026-09-21	-	local variable	src/cpu/cpu_types.h	252	_PL	STS_PROGRAM_LEVEL	1
-a84775d	2026-09-21	-	local variable	src/cpu/cpu_types.h	255	_PONI	STS_PAGING_ON	1
-a84775d	2026-09-21	-	local variable	src/cpu/cpu_types.h	244	_PTM	STS_PAGE_TABLE_MODE	1
-a84775d	2026-09-21	-	local variable	src/cpu/cpu_types.h	248	_Q	STS_DYNAMIC_OVERFLOW	1
-a84775d	2026-09-21	-	local variable	src/cpu/cpu_types.h	254	_SEXI	STS_EXTENDED_ADDRESSING	1
-a84775d	2026-09-21	-	local variable	src/cpu/cpu_types.h	245	_TG	STS_FLOAT_OVERFLOW	1
-a84775d	2026-09-21	-	local variable	src/cpu/cpu_types.h	247	_Z	STS_ERROR_INDICATOR	3
-a84775d	2026-09-21	-	local variable	src/cpu/float.c	480	_Z	STS_ERROR_INDICATOR	2
-a84775d	2026-09-21	-	local variable	src/debugger/debugger.c	638	STS_PTM	STS_PAGE_TABLE_MODE_IS_SET	3
-a84775d	2026-09-21	-	local variable	src/debugger/debugger.c	2105	STS_SEXI	STS_EXTENDED_ADDRESSING_IS_SET	1
-a84775d	2026-09-21	-	local variable	src/frontend/nd100wasm/nd100wasm.c	2806	STS_SEXI	STS_EXTENDED_ADDRESSING_IS_SET	2
-a84775d	2026-09-21	-	local variable	tests/test_bcd.c	217	STS_O	STS_STATIC_OVERFLOW_IS_SET	1
-a84775d	2026-09-21	-	local variable	tests/test_float.c	48	_Z	STS_ERROR_INDICATOR	2
+a84775d	2026-09-21	-	macro definition	src/cpu/cpu_types.h	250	_C	STS_CARRY	1
+a84775d	2026-09-21	-	macro definition	src/cpu/cpu_types.h	256	_IONI	STS_INTERRUPT_ON	1
+a84775d	2026-09-21	-	macro definition	src/cpu/cpu_types.h	246	_K	STS_BIT_ACCUMULATOR	1
+a84775d	2026-09-21	-	macro definition	src/cpu/cpu_types.h	251	_M	STS_SHIFT_OUT	1
+a84775d	2026-09-21	-	macro definition	src/cpu/cpu_types.h	253	_N100	STS_ND100_INDICATOR	1
+a84775d	2026-09-21	-	macro definition	src/cpu/cpu_types.h	249	_O	STS_STATIC_OVERFLOW	1
+a84775d	2026-09-21	-	macro definition	src/cpu/cpu_types.h	252	_PL	STS_PROGRAM_LEVEL	1
+a84775d	2026-09-21	-	macro definition	src/cpu/cpu_types.h	255	_PONI	STS_PAGING_ON	1
+a84775d	2026-09-21	-	macro definition	src/cpu/cpu_types.h	244	_PTM	STS_PAGE_TABLE_MODE	1
+a84775d	2026-09-21	-	macro definition	src/cpu/cpu_types.h	248	_Q	STS_DYNAMIC_OVERFLOW	1
+a84775d	2026-09-21	-	macro definition	src/cpu/cpu_types.h	254	_SEXI	STS_EXTENDED_ADDRESSING	1
+a84775d	2026-09-21	-	macro definition	src/cpu/cpu_types.h	245	_TG	STS_FLOAT_OVERFLOW	1
+a84775d	2026-09-21	-	macro definition	src/cpu/cpu_types.h	247	_Z	STS_ERROR_INDICATOR	3
+a84775d	2026-09-21	-	macro use	src/cpu/float.c	480	_Z	STS_ERROR_INDICATOR	2
+a84775d	2026-09-21	-	macro use	src/debugger/debugger.c	638	STS_PTM	STS_PAGE_TABLE_MODE_IS_SET	3
+a84775d	2026-09-21	-	macro use	src/debugger/debugger.c	2105	STS_SEXI	STS_EXTENDED_ADDRESSING_IS_SET	1
+a84775d	2026-09-21	-	macro use	src/frontend/nd100wasm/nd100wasm.c	2806	STS_SEXI	STS_EXTENDED_ADDRESSING_IS_SET	2
+a84775d	2026-09-21	-	macro use	tests/test_bcd.c	217	STS_O	STS_STATIC_OVERFLOW_IS_SET	1
+a84775d	2026-09-21	-	macro use	tests/test_float.c	48	_Z	STS_ERROR_INDICATOR	2
+2153b84	2026-09-21	3.2-3.7	typedef	src/cpu/bcd.c	123	bcd_operand	BcdOperand	36
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu.c	291	P	p	4
+2153b84	2026-09-21	3.2-3.7	parameter	src/cpu/cpu.c	564	UseAPT	use_apt	8
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu.c	125	_NDRAM_	Ndram	1
+2153b84	2026-09-21	3.2-3.7	parameter	src/cpu/cpu.c	1149	debuggerEnabled	debugger_enabled	2
+2153b84	2026-09-21	3.2-3.7	parameter	src/cpu/cpu.c	1149	debuggerPort	debugger_port	2
+2153b84	2026-09-21	3.2-3.7	parameter	src/cpu/cpu.c	488	interruptBits	interrupt_bits	3
+2153b84	2026-09-21	3.2-3.7	parameter	src/cpu/cpu.c	240	isEXR	is_exr	2
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu.c	625	isRTC	is_rtc	2
+2153b84	2026-09-21	3.2-3.7	parameter	src/cpu/cpu.c	533	isWrite	is_write	2
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu.c	364	priorityCode	priority_code	3
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu.c	493	validBits	valid_bits	3
+2153b84	2026-09-21	3.2-3.7	macro use	src/cpu/cpu_bkpt.c	551	CurrLEVEL	CURR_LEVEL	2
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_bkpt.c	337	btType	bt_type	3
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_bkpt.c	551	curPIL	cur_pil	4
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_bkpt.c	377	hitCondVal	hit_cond_val	2
+2153b84	2026-09-21	3.2-3.7	parameter	src/cpu/cpu_bkpt.c	111	hitCondition	hit_condition	3
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_bkpt.c	336	hitCount	hit_count	3
+2153b84	2026-09-21	3.2-3.7	parameter	src/cpu/cpu_bkpt.c	549	isWrite	is_write	8
+2153b84	2026-09-21	3.2-3.7	parameter	src/cpu/cpu_bkpt.c	111	logMessage	log_message	3
+2153b84	2026-09-21	3.2-3.7	parameter	src/cpu/cpu_bkpt.c	258	matchCount	match_count	7
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_bkpt.c	264	tempCount	temp_count	7
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_bkpt.c	263	tempList	temp_list	3
+2153b84	2026-09-21	3.2-3.7	parameter	src/cpu/cpu_bkpt.c	549	useAPT	use_apt	3
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_bkpt.c	266	userCount	user_count	7
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_bkpt.c	265	userList	user_list	3
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_disasm.c	775	disasm_entry	DisasmEntry	2
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_instr.c	5398	CLD	cld	3
+2153b84	2026-09-21	3.2-3.7	macro use	src/cpu/cpu_instr.c	80	CurrLEVEL	CURR_LEVEL	27
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_instr.c	144	EL	el	29
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_instr.c	3411	EffectiveAddress	effective_address	4
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_instr.c	6681	LEN_MASK	len_mask	6
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_instr.c	5398	RAD	rad	3
+2153b84	2026-09-21	3.2-3.7	parameter	src/cpu/cpu_instr.c	6636	UseAPT	use_apt	4
+2153b84	2026-09-21	3.2-3.7	parameter	src/cpu/cpu_instr.c	6679	checkOverlapping	check_overlapping	3
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_instr.c	6273	destinationAddress	destination_address	17
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_instr.c	6710	destinationEnd	destination_end	2
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_instr.c	6708	destinationStart	destination_start	3
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_instr.c	6984	dividendMag	dividend_mag	5
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_instr.c	6988	dividendMagHigh	dividend_mag_high	3
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_instr.c	6965	dividendNegative	dividend_negative	5
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_instr.c	6986	divisorMag	divisor_mag	6
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_instr.c	6280	isDestinationPhysical	is_destination_physical	5
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_instr.c	6279	isSourcePhysical	is_source_physical	5
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_instr.c	7092	lowWord	low_word	3
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_instr.c	7062	minusCnt	minus_cnt	4
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_instr.c	6973	negOvf	neg_ovf	3
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_instr.c	3547	nextX	next_x	4
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_instr.c	6685	numBytesDest	num_bytes_dest	3
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_instr.c	6684	numBytesSource	num_bytes_source	5
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_instr.c	6704	numWordsD	num_words_d	3
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_instr.c	5104	oldB	old_b	3
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_instr.c	603	old_gPC	old_g_pc	8
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_instr.c	6966	origLow	orig_low	3
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_instr.c	7003	quotientMag	quotient_mag	5
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_instr.c	7007	quotientNegative	quotient_negative	3
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_instr.c	6723	readMode	read_mode	5
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_instr.c	6682	readValue	read_value	13
+2153b84	2026-09-21	3.2-3.7	parameter	src/cpu/cpu_instr.c	2719	regA	reg_a	1
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_instr.c	7004	remainderMag	remainder_mag	3
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_instr.c	6272	sourceAddress	source_address	17
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_instr.c	6709	sourceEnd	source_end	2
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_instr.c	6707	sourceStart	source_start	3
+2153b84	2026-09-21	3.2-3.7	parameter	src/cpu/cpu_instr.c	958	useAPT	use_apt	8
+2153b84	2026-09-21	3.2-3.7	struct	src/cpu/cpu_instr.c	2123	versn_identity	VersnIdentity	2
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_instr.c	6724	writeMode	write_mode	5
+2153b84	2026-09-21	3.2-3.7	function	src/cpu/cpu_mms.c	98	CalcPageTableAddress	calc_page_table_address	2
+2153b84	2026-09-21	3.2-3.7	static function	src/cpu/cpu_mms.c	83	ConvertFrom16BitPTE	convert_from_16_bit_pte	4
+2153b84	2026-09-21	3.2-3.7	static function	src/cpu/cpu_mms.c	89	ConvertTo16BitPTE	convert_to_16_bit_pte	2
+2153b84	2026-09-21	3.2-3.7	macro use	src/cpu/cpu_mms.c	470	CurrLEVEL	CURR_LEVEL	13
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_mms.c	487	DIP	dip	4
+2153b84	2026-09-21	3.2-3.7	function	src/cpu/cpu_mms.c	1290	Dbg_MapVirtualToPhysical	dbg_map_virtual_to_physical	5
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_mms.c	397	PPN	ppn	12
+2153b84	2026-09-21	3.2-3.7	parameter	src/cpu/cpu_mms.c	246	PTe	p_te	39
+2153b84	2026-09-21	3.2-3.7	parameter	src/cpu/cpu_mms.c	453	UseAPT	use_apt	10
+2153b84	2026-09-21	3.2-3.7	parameter	src/cpu/cpu_mms.c	134	VPN	vpn	39
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_mms.c	712	accessBits	access_bits	6
+2153b84	2026-09-21	3.2-3.7	static variable	src/cpu/cpu_mms.c	393	debugInfo	debug_info	31
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_mms.c	1018	eccBits	ecc_bits	6
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_mms.c	1038	errorCode	error_code	5
+2153b84	2026-09-21	3.2-3.7	global variable	src/cpu/cpu_mms.c	941	gEccLatch	g_ecc_latch	11
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_mms.c	810	mms2Enabled	mms2_enabled	2
+2153b84	2026-09-21	3.2-3.7	parameter	src/cpu/cpu_mms.c	134	pageTable	page_table	52
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_mms.c	100	pageTableAddress	page_table_address	28
+2153b84	2026-09-21	3.2-3.7	parameter	src/cpu/cpu_mms.c	89	pageTableEntry	page_table_entry	33
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_mms.c	545	pageTableRing	page_table_ring	8
+2153b84	2026-09-21	3.2-3.7	parameter	src/cpu/cpu_mms.c	650	permitViolation	permit_violation	2
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_mms.c	713	pfMask	pf_mask	2
+2153b84	2026-09-21	3.2-3.7	parameter	src/cpu/cpu_mms.c	617	physicalAddress	physical_address	61
+2153b84	2026-09-21	3.2-3.7	parameter	src/cpu/cpu_mms.c	909	physicalWordAddress	physical_word_address	4
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_mms.c	443	ppnStr	ppn_str	4
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_mms.c	438	ringStr	ring_str	4
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_mms.c	1036	tmpPEA	tmp_pea	2
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_mms.c	1037	tmpPES	tmp_pes	4
+2153b84	2026-09-21	3.2-3.7	local variable	src/cpu/cpu_mms.c	652	tmpPGS	tmp_pgs	4
+2153b84	2026-09-21	3.2-3.7	parameter	src/cpu/cpu_mms.c	1216	useAPT	use_apt	4
+2153b84	2026-09-21	3.2-3.7	parameter	src/cpu/cpu_mms.c	453	virtualAddress	virtual_address	54
+2153b84	2026-09-21	3.2-3.7	macro definition	src/cpu/cpu_model.c	26	nd_strcasecmp	ND_STRCASECMP	2
+2153b84	2026-09-21	3.2-3.7	macro use	src/cpu/cpu_regs.c	97	CurrLEVEL	CURR_LEVEL	9
+2153b84	2026-09-21	3.2-3.7	parameter	src/cpu/cpu_regs.c	38	newLevel	new_level	4
+2153b84	2026-09-21	3.2-3.7	comment reference	src/cpu/cpu_types.h	1329	ConvertFrom16BitPTE	convert_from_16_bit_pte	1
+2153b84	2026-09-21	3.2-3.7	comment reference	src/cpu/cpu_types.h	1358	ConvertTo16BitPTE	convert_to_16_bit_pte	1
+2153b84	2026-09-21	3.2-3.7	macro definition	src/cpu/cpu_types.h	525	CurrLEVEL	CURR_LEVEL	1
+2153b84	2026-09-21	3.2-3.7	macro definition	src/cpu/cpu_types.h	537	InstructionRegister	INSTRUCTION_REGISTER	1
+2153b84	2026-09-21	3.2-3.7	macro definition	src/cpu/cpu_types.h	538	PrefetchBuffer	PREFETCH_BUFFER	1
+2153b84	2026-09-21	3.2-3.7	typedef	src/cpu/cpu_types.h	287	_NDRAM_	Ndram	2
+2153b84	2026-09-21	3.2-3.7	struct	src/cpu/cpu_types.h	598	disasm_entry	DisasmEntry	2
+2153b84	2026-09-21	3.2-3.7	union	src/cpu/cpu_types.h	282	ndram	Ndram	1
+2153b84	2026-09-21	3.2-3.7	parameter	src/cpu/cpu_types.h	629	regA	reg_a	1
+2153b84	2026-09-21	3.2-3.7	parameter	src/cpu/float.c	156	isZero	is_zero	12
