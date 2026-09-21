@@ -163,7 +163,7 @@ void setbit(uint16_t regnum, uint16_t stsbit, char val)
         thebit = (1 << stsbit);
         g_reg->reg[CurrLEVEL][regnum] = (thebit | g_reg->reg[CurrLEVEL][regnum]);
 
-        if (stsbit == _Z) // error bit is set
+        if (stsbit == STS_ERROR_INDICATOR) // error bit is set
         {
             gCHKIT = true; // we need to check PK after this
         }
@@ -181,22 +181,22 @@ void AdjustSTS(uint16_t reg_a, uint16_t operand, int result)
     /* C (carry) */
     if (result > 0xFFFF)
     {
-        setbit(_STS, _C, 1);
+        setbit(_STS, STS_CARRY, 1);
     }
     else
     {
-        setbit(_STS, _C, 0);
+        setbit(_STS, STS_CARRY, 0);
     }
 
     /* O(static overflow), Q (dynamic overflow) */
     if (!(((1 << 15) & reg_a) ^ ((1 << 15) & operand)) &&
         (((1 << 15) & reg_a) ^ ((1 << 15) & result)))
     {
-        setbit(_STS, _O, 1);
-        setbit(_STS, _Q, 1);
+        setbit(_STS, STS_STATIC_OVERFLOW, 1);
+        setbit(_STS, STS_DYNAMIC_OVERFLOW, 1);
     }
     else
     {
-        setbit(_STS, _Q, 0);
+        setbit(_STS, STS_DYNAMIC_OVERFLOW, 0);
     }
 }

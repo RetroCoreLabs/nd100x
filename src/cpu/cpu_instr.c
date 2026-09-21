@@ -71,7 +71,7 @@ InstrFunc g_instr_funcs[65536];
 /// <returns>TRUE if allowed to execute</returns>
 static bool check_priv(void)
 {
-    if (!STS_PONI)
+    if (!STS_PAGING_ON_IS_SET)
     {
         return true; // memory protection disabled
     }
@@ -114,23 +114,24 @@ static uint16_t do_add(uint16_t a, uint16_t b, uint16_t k)
     /* C (carry) */
     if (tmp & 0xffff0000)
     {
-        setbit(_STS, _C, 1);
+        setbit(_STS, STS_CARRY, 1);
     }
     else
     {
-        setbit(_STS, _C, 0);
+        setbit(_STS, STS_CARRY, 0);
     }
     /* O(static overflow), Q (dynamic overflow) */
     is_diff = (((1 << 15) & a) ^ ((1 << 15) & b)); /* is bit 15 of the two operands different? */
     if (!(is_diff) && (((1 << 15) & a) ^ ((1 << 15) & tmp)))
-    {                        /* if equal and result is different... */
-        setbit(_STS, _O, 1); // Static overflow
-        setbit(_STS, _Q, 1); // Dynamic overflow (Instruction test shows Q must be set)
+    {                                         /* if equal and result is different... */
+        setbit(_STS, STS_STATIC_OVERFLOW, 1); // Static overflow
+        setbit(_STS, STS_DYNAMIC_OVERFLOW,
+               1); // Dynamic overflow (Instruction test shows Q must be set)
     }
     else
     {
-        setbit(_STS, _Q, 0);
-        //setbit(_STS, _O, 0); NO!
+        setbit(_STS, STS_DYNAMIC_OVERFLOW, 0);
+        //setbit(_STS, STS_STATIC_OVERFLOW, 0); NO!
     }
     return (uint16_t)tmp;
 }
@@ -711,7 +712,7 @@ static void opcode_jaz_jump_if_a_zero(uint16_t operand)
      * JAF 007314, JPC 007320, JNC 007324, JXZ 007330, JXN 007334).
      * The live RASK oracle confirms it: with A=0 and C seeded 0 the taken jump leaves C=0,
      * with C seeded 1 it leaves C=1 - C is simply PRESERVED.
-     * The removed line ("setbit(_STS, _C, gA == 0)") was a fabricated carry side effect.
+     * The removed line ("setbit(_STS, STS_CARRY, gA == 0)") was a fabricated carry side effect.
      */
     cjp(gA == 0, operand);
 }
@@ -1949,7 +1950,7 @@ static void opcode_fdv_divide_floating_accumulator(uint16_t operand)
         if (NDFloat_Div(a, b, r))
         {
             /* Division by zero - set error indicator Z */
-            setbit(_STS, _Z, 1);
+            setbit(_STS, STS_ERROR_INDICATOR, 1);
         }
         gT = r[0];
         gA = r[1];
@@ -1966,7 +1967,7 @@ static void opcode_fdv_divide_floating_accumulator(uint16_t operand)
         if (NDFloat_Div32(a, b, r))
         {
             /* Division by zero - set error indicator Z */
-            setbit(_STS, _Z, 1);
+            setbit(_STS, STS_ERROR_INDICATOR, 1);
         }
         gA = r[0];
         gD = r[1]; /* gT untouched */
@@ -3115,7 +3116,7 @@ static void opcode_pof_paging_off(uint16_t operand)
     {
         return;
     }
-    setbit_STS_MSB(_PONI, 0);
+    setbit_STS_MSB(STS_PAGING_ON, 0);
 }
 
 /**
@@ -3146,8 +3147,8 @@ static void opcode_piof_paging_and_interrupt_off(uint16_t operand)
         return;
     }
 
-    setbit_STS_MSB(_IONI, 0);
-    setbit_STS_MSB(_PONI, 0);
+    setbit_STS_MSB(STS_INTERRUPT_ON, 0);
+    setbit_STS_MSB(STS_PAGING_ON, 0);
 }
 
 /**
@@ -3173,7 +3174,7 @@ static void opcode_piof_paging_and_interrupt_off(uint16_t operand)
 static void opcode_pon_paging_on(uint16_t operand)
 {
     (void)operand;
-    setbit_STS_MSB(_PONI, 1);
+    setbit_STS_MSB(STS_PAGING_ON, 1);
 }
 
 /**
@@ -3197,8 +3198,8 @@ static void opcode_pon_paging_on(uint16_t operand)
 static void opcode_pion_paging_and_interrupt_on(uint16_t operand)
 {
     (void)operand;
-    setbit_STS_MSB(_IONI, 1);
-    setbit_STS_MSB(_PONI, 1);
+    setbit_STS_MSB(STS_INTERRUPT_ON, 1);
+    setbit_STS_MSB(STS_PAGING_ON, 1);
     gCHKIT = true; // recalc PK
 }
 
@@ -3228,7 +3229,7 @@ static void opcode_iof_interrupt_off(uint16_t operand)
         return;
     }
 
-    setbit_STS_MSB(_IONI, 0);
+    setbit_STS_MSB(STS_INTERRUPT_ON, 0);
 }
 
 /**
@@ -3252,7 +3253,7 @@ static void opcode_iof_interrupt_off(uint16_t operand)
 static void opcode_ion_interrupt_on(uint16_t operand)
 {
     (void)operand;
-    setbit_STS_MSB(_IONI, 1);
+    setbit_STS_MSB(STS_INTERRUPT_ON, 1);
     gCHKIT = true; // recalc PK
 }
 
@@ -3280,7 +3281,7 @@ static void opcode_rex_reset_extended_address_mode(uint16_t operand)
         return;
     }
 
-    setbit_STS_MSB(_SEXI, 0);
+    setbit_STS_MSB(STS_EXTENDED_ADDRESSING, 0);
 }
 
 /**
@@ -3306,7 +3307,7 @@ static void opcode_sex_set_extended_address_mode(uint16_t operand)
         return;
     }
 
-    setbit_STS_MSB(_SEXI, 1);
+    setbit_STS_MSB(STS_EXTENDED_ADDRESSING, 1);
 }
 
 /******************** CX FUNCTIONS  *******************/
@@ -4347,7 +4348,7 @@ static void opcode_clpt_clear_segment_from_page_tables(uint16_t operand)
                     g_nd110_trace_fp,
                     "  CLPT node X=%06o e=%06o -> B=%06o APT[B]=%06o shadow=%d PCR=%06o PONI=%d\n",
                     x_reg, entry, b_reg, r3, IsAddressShadowMemory(b_reg, false) ? 1 : 0,
-                    g_reg->reg_PCR[CurrLEVEL], STS_PONI ? 1 : 0);
+                    g_reg->reg_PCR[CurrLEVEL], STS_PAGING_ON_IS_SET ? 1 : 0);
                 fflush(g_nd110_trace_fp);
             }
         }
@@ -4406,7 +4407,7 @@ static void nd110_enter_page_table(uint16_t r4_mask)
                     "shadow=%d PCR=%06o PONI=%d\n",
                     x_reg, word0, word1, b_reg, gA, (uint16_t)(x_reg >> 2),
                     IsAddressShadowMemory(b_reg, false) ? 1 : 0, g_reg->reg_PCR[CurrLEVEL],
-                    STS_PONI ? 1 : 0);
+                    STS_PAGING_ON_IS_SET ? 1 : 0);
             fflush(g_nd110_trace_fp);
         }
 
@@ -4502,7 +4503,7 @@ static void opcode_lbit_load_bit_accumulator_from_logical_memory(uint16_t operan
     word_addr = (uint32_t)((gX + (bit_index >> 4)) & 0xFFFF);
     bit_in_word = (int)(bit_index & 0x0F);
     word = (uint16_t)ReadVirtualMemory(word_addr, true);
-    setbit(_STS, _K, (char)((word >> bit_in_word) & 1));
+    setbit(_STS, STS_BIT_ACCUMULATOR, (char)((word >> bit_in_word) & 1));
 }
 
 /**
@@ -4544,7 +4545,7 @@ static void opcode_lbitp_load_bit_accumulator_from_physical_memory(uint16_t oper
     phys_addr = (bank << 16) | word_offset;
     bit_in_word = (int)(bit_index & 0x0F);
     word = (uint16_t)ReadPhysicalMemory((int)phys_addr, true);
-    setbit(_STS, _K, (char)((word >> bit_in_word) & 1));
+    setbit(_STS, STS_BIT_ACCUMULATOR, (char)((word >> bit_in_word) & 1));
 }
 
 /**
@@ -4582,7 +4583,7 @@ static void opcode_sbit_store_bit_accumulator_to_logical_memory(uint16_t operand
     word_addr = (uint32_t)((gX + (bit_index >> 4)) & 0xFFFF);
     bit_in_word = (int)(bit_index & 0x0F);
     word = (uint16_t)ReadVirtualMemory(word_addr, true);
-    if (STS_K)
+    if (STS_BIT_ACCUMULATOR_IS_SET)
     {
         word |= (uint16_t)(1 << bit_in_word);
     }
@@ -4632,7 +4633,7 @@ static void opcode_sbitp_store_bit_accumulator_to_physical_memory(uint16_t opera
     phys_addr = (bank << 16) | word_offset;
     bit_in_word = (int)(bit_index & 0x0F);
     word = (uint16_t)ReadPhysicalMemory((int)phys_addr, true);
-    if (STS_K)
+    if (STS_BIT_ACCUMULATOR_IS_SET)
     {
         word |= (uint16_t)(1 << bit_in_word);
     }
@@ -5372,10 +5373,10 @@ static inline void regop_arith(uint16_t operand, uint16_t dr, uint16_t source, u
         tmp = do_add(destination, ~source, 1);
         break; /* RADD AD1 CM1 */
     case 4:
-        tmp = do_add(destination, source, getbit(_STS, _C));
+        tmp = do_add(destination, source, getbit(_STS, STS_CARRY));
         break; /* RADD ADC */
     case 5:
-        tmp = do_add(destination, ~source, getbit(_STS, _C));
+        tmp = do_add(destination, ~source, getbit(_STS, STS_CARRY));
         break; /* RADD ADC CM1 */
     case 6:    /* NOOP */
         break;
@@ -5641,8 +5642,8 @@ static void do_exr(uint16_t instr)
     }
 
     if (0140600 == extract_opcode(exr_instr))
-    {                        /* ILLEGAL:: EXR of EXR */
-        setbit(_STS, _Z, 1); //: TODO: activate CPU trap on level 14!!!
+    {                                         /* ILLEGAL:: EXR of EXR */
+        setbit(_STS, STS_ERROR_INDICATOR, 1); //: TODO: activate CPU trap on level 14!!!
         return;
     }
     if (g_disasm)
@@ -5669,15 +5670,15 @@ static void do_wait(uint16_t instr)
     }
 
     uint16_t temp;
-    if (!STS_IONI)
+    if (!STS_INTERRUPT_ON_IS_SET)
     {
         // If the interrupt system is OFF
         // The ND-110 stops with the program counter (P register) pointing at the instruction after the WAIT and the front panel RUN indicator is turned off.
         // To restart the system, type ! on the console terminal
         printf("\r\nWAIT when IONI is off PIL[%d] PC[%6o] PID[0x%4X] PIE[0x%4X] IONI[%d] PONI[%d] "
                "STS_HI[%4X] STS_LO[%4X] A[%6o]\r\n",
-               gPIL, gPC, gPID, gPIE, STS_IONI, STS_PONI, g_reg->reg_STS, g_reg->reg[gPIL][_STS],
-               gA);
+               gPIL, gPC, gPID, gPIE, STS_INTERRUPT_ON_IS_SET, STS_PAGING_ON_IS_SET, g_reg->reg_STS,
+               g_reg->reg[gPIL][_STS], gA);
         g_cpu_exit_code = (int)(short)gA;
         set_cpu_run_mode(CPU_STOPPED);
         return;
@@ -6022,7 +6023,7 @@ static void do_bops(uint16_t operand)
         setbit(dr, bn, desti);
         break;
     case 3: /* BSET BAC */
-        setbit(dr, bn, getbit(_STS, _K));
+        setbit(dr, bn, getbit(_STS, STS_BIT_ACCUMULATOR));
         break;
     case 4: /* BSKP ZRO */
         if (!getbit(dr, bn))
@@ -6037,42 +6038,44 @@ static void do_bops(uint16_t operand)
         }
         break;
     case 6: /* BSKP BCM */
-        if ((getbit(dr, bn) ^ 1) == getbit(_STS, _K))
+        if ((getbit(dr, bn) ^ 1) == getbit(_STS, STS_BIT_ACCUMULATOR))
         {
             gPC++; /* Skip next instruction if bit complement */
         }
         break;
     case 7: /* BSKP BAC */
-        if (getbit(dr, bn) == getbit(_STS, _K))
+        if (getbit(dr, bn) == getbit(_STS, STS_BIT_ACCUMULATOR))
         {
             gPC++; /* Skip next instruction if equal */
         }
         break;
     case 8: /* BSTC */
-        setbit(dr, bn, (getbit(_STS, _K) ^ 1));
-        setbit(_STS, _K, 1);
+        setbit(dr, bn, (getbit(_STS, STS_BIT_ACCUMULATOR) ^ 1));
+        setbit(_STS, STS_BIT_ACCUMULATOR, 1);
         break;
     case 9: /* BSTA */
-        setbit(dr, bn, getbit(_STS, _K));
-        setbit(_STS, _K, 0);
+        setbit(dr, bn, getbit(_STS, STS_BIT_ACCUMULATOR));
+        setbit(_STS, STS_BIT_ACCUMULATOR, 0);
         break;
     case 10: /* BLDC */
-        setbit(_STS, _K, getbit(dr, bn) ^ 1);
+        setbit(_STS, STS_BIT_ACCUMULATOR, getbit(dr, bn) ^ 1);
         break;
     case 11: /* BLDA */
-        setbit(_STS, _K, getbit(dr, bn));
+        setbit(_STS, STS_BIT_ACCUMULATOR, getbit(dr, bn));
         break;
     case 12: /* BANC */
-        setbit(_STS, _K, ((getbit(dr, bn) ^ 1) & getbit(_STS, _K)));
+        setbit(_STS, STS_BIT_ACCUMULATOR,
+               ((getbit(dr, bn) ^ 1) & getbit(_STS, STS_BIT_ACCUMULATOR)));
         break;
     case 13: /* BAND */
-        setbit(_STS, _K, (getbit(dr, bn) & getbit(_STS, _K)));
+        setbit(_STS, STS_BIT_ACCUMULATOR, (getbit(dr, bn) & getbit(_STS, STS_BIT_ACCUMULATOR)));
         break;
     case 14: /* BORC */
-        setbit(_STS, _K, ((getbit(dr, bn) ^ 1) | getbit(_STS, _K)));
+        setbit(_STS, STS_BIT_ACCUMULATOR,
+               ((getbit(dr, bn) ^ 1) | getbit(_STS, STS_BIT_ACCUMULATOR)));
         break;
     case 15: /* BORA */
-        setbit(_STS, _K, (getbit(dr, bn) | getbit(_STS, _K)));
+        setbit(_STS, STS_BIT_ACCUMULATOR, (getbit(dr, bn) | getbit(_STS, STS_BIT_ACCUMULATOR)));
         break;
     default:
         break;
@@ -6090,7 +6093,7 @@ static uint16_t shift_reg(uint16_t reg, uint16_t instr)
         (isneg) ? (uint16_t)((~((instr & 0x003F) | 0xFFC0) + 1) & 0x1F) : (instr & 0x003F);
     uint16_t shifttype = ((instr >> 9) & 0x03);
     int i, tmp, msb;
-    int m = getbit(_STS, _M);
+    int m = getbit(_STS, STS_SHIFT_OUT);
     tmp = m; /* just in case.. */
     for (i = 1; i <= offset; i++)
     {
@@ -6115,7 +6118,7 @@ static uint16_t shift_reg(uint16_t reg, uint16_t instr)
             break;
         }
     }
-    setbit(_STS, _M, tmp);
+    setbit(_STS, STS_SHIFT_OUT, tmp);
     return reg;
 }
 
@@ -6132,7 +6135,7 @@ static uint32_t shift_double_reg(uint32_t reg, uint16_t instr)
     uint16_t shifttype = ((instr >> 9) & 0x03);
     int i;
     uint32_t tmp, msb;
-    uint32_t m = (uint32_t)getbit(_STS, _M);
+    uint32_t m = (uint32_t)getbit(_STS, STS_SHIFT_OUT);
     tmp = m; /* just in case.. */
     for (i = 1; i <= offset; i++)
     {
@@ -6157,7 +6160,7 @@ static uint32_t shift_double_reg(uint32_t reg, uint16_t instr)
             break;
         }
     }
-    setbit(_STS, _M, (char)tmp);
+    setbit(_STS, STS_SHIFT_OUT, (char)tmp);
     return reg;
 }
 
@@ -6640,26 +6643,26 @@ void add_A_mem(uint16_t eff_addr, bool UseAPT)
 
     if ((temp > 0xFFFF) || (temp < 0))
     {
-        setbit(_STS, _C, 1);
+        setbit(_STS, STS_CARRY, 1);
         if ((oldreg & 0x8000) && (data & 0x8000) && !(temp & 0x8000))
         {
-            setbit(_STS, _Q, 1);
+            setbit(_STS, STS_DYNAMIC_OVERFLOW, 1);
         }
         else
         {
-            setbit(_STS, _Q, 0);
+            setbit(_STS, STS_DYNAMIC_OVERFLOW, 0);
         }
     }
     else
     {
-        setbit(_STS, _C, 0);
+        setbit(_STS, STS_CARRY, 0);
         if (!(oldreg & 0x8000) && !(data & 0x8000) && (temp & 0x8000))
         {
-            setbit(_STS, _Q, 1);
+            setbit(_STS, STS_DYNAMIC_OVERFLOW, 1);
         }
         else
         {
-            setbit(_STS, _Q, 0);
+            setbit(_STS, STS_DYNAMIC_OVERFLOW, 0);
         }
     }
 
@@ -6875,26 +6878,26 @@ void sub_A_mem(uint16_t eff_addr, bool UseAPT)
      */
     if ((temp > 0xFFFF) || (temp < 0))
     {
-        setbit(_STS, _C, 0);
+        setbit(_STS, STS_CARRY, 0);
         if ((oldreg & 0x8000) && (data & 0x8000) && !(temp & 0x8000))
         {
-            setbit(_STS, _Q, 1);
+            setbit(_STS, STS_DYNAMIC_OVERFLOW, 1);
         }
         else
         {
-            setbit(_STS, _Q, 0);
+            setbit(_STS, STS_DYNAMIC_OVERFLOW, 0);
         }
     }
     else
     {
-        setbit(_STS, _C, 1);
+        setbit(_STS, STS_CARRY, 1);
         if (!(oldreg & 0x8000) && !(data & 0x8000) && (temp & 0x8000))
         {
-            setbit(_STS, _Q, 1);
+            setbit(_STS, STS_DYNAMIC_OVERFLOW, 1);
         }
         else
         {
-            setbit(_STS, _Q, 0);
+            setbit(_STS, STS_DYNAMIC_OVERFLOW, 0);
         }
     }
 
@@ -6917,7 +6920,7 @@ void rdiv_org(uint16_t instr)
     if (divider == 0)
     {
         // Division by zero
-        setbit(_STS, _Z, 1);
+        setbit(_STS, STS_ERROR_INDICATOR, 1);
         return;
     }
 
@@ -6968,11 +6971,11 @@ static void rdiv(uint16_t instr)
     {
         int negOvf =
             (origLow == 0x8000); /* only 0x8000 overflows a 16-bit two's-complement negate */
-        setbit(_STS, _C, (origLow == 0)); /* carry-out of -Dlow set iff Dlow == 0 */
-        setbit(_STS, _Q, negOvf);
+        setbit(_STS, STS_CARRY, (origLow == 0)); /* carry-out of -Dlow set iff Dlow == 0 */
+        setbit(_STS, STS_DYNAMIC_OVERFLOW, negOvf);
         if (negOvf)
         {
-            setbit(_STS, _O, 1); /* static overflow is sticky */
+            setbit(_STS, STS_STATIC_OVERFLOW, 1); /* static overflow is sticky */
         }
     }
 
@@ -6991,7 +6994,7 @@ static void rdiv(uint16_t instr)
     {
         gA = (uint16_t)(dividendMagHigh - divisorMag);
         gD = (uint16_t)(dividendMag & 0xFFFF);
-        setbit(_STS, _Z, 1);
+        setbit(_STS, STS_ERROR_INDICATOR, 1);
         return;
     }
 
@@ -7008,7 +7011,7 @@ static void rdiv(uint16_t instr)
      * -32768 quotient is VALID and does NOT set Z, unlike a naive |q| >= 32768 test). */
     if (quotientNegative ? (quotientMag > 0x8000u) : (quotientMag > 0x7FFFu))
     {
-        setbit(_STS, _Z, 1);
+        setbit(_STS, STS_ERROR_INDICATOR, 1);
     }
 }
 
@@ -7024,14 +7027,14 @@ void rmpy_org(uint16_t instr)
     result = a * b;
     if (abs(result) > INT_MAX)
     { /* Set O and Q */
-        setbit(_STS, _Q, 1);
-        setbit(_STS, _O, 1);
+        setbit(_STS, STS_DYNAMIC_OVERFLOW, 1);
+        setbit(_STS, STS_STATIC_OVERFLOW, 1);
     }
     else
     {
         ; //: TODO: Carry???;
-        setbit(_STS, _Q, 0);
-        setbit(_STS, _O, 0);
+        setbit(_STS, STS_DYNAMIC_OVERFLOW, 0);
+        setbit(_STS, STS_STATIC_OVERFLOW, 0);
     }
     gA = (int16_t)((result & 0xffff0000) >> 16);
     gD = (int16_t)(result & 0x0000ffff);
@@ -7087,11 +7090,11 @@ static void rmpy(uint16_t instr)
     {
         int lowWord = result & 0xFFFF; /* low word of the positive magnitude (what -Q negates) */
         int ovf = (lowWord == 0x8000); /* only 0x8000 overflows a 16-bit two's-complement negate */
-        setbit(_STS, _C, (lowWord == 0)); /* carry-out of -Q is set iff Q == 0 */
-        setbit(_STS, _Q, ovf);
+        setbit(_STS, STS_CARRY, (lowWord == 0)); /* carry-out of -Q is set iff Q == 0 */
+        setbit(_STS, STS_DYNAMIC_OVERFLOW, ovf);
         if (ovf)
         {
-            setbit(_STS, _O, 1); /* static overflow is sticky (OVF | O) */
+            setbit(_STS, STS_STATIC_OVERFLOW, 1); /* static overflow is sticky (OVF | O) */
         }
         result = -result; /* sign-correct the product */
     }
@@ -7114,14 +7117,14 @@ static void mpy(uint16_t operand)
     uint16_t mem = MemoryRead(gEA, gUseAPT);
     b = (int16_t)mem;
 
-    setbit(_STS, _Q, 0);
+    setbit(_STS, STS_DYNAMIC_OVERFLOW, 0);
 
     result = a * b;
 
     if (abs(result) > 32767)
     { /* Set O and Q */
-        setbit(_STS, _Q, 1);
-        setbit(_STS, _O, 1);
+        setbit(_STS, STS_DYNAMIC_OVERFLOW, 1);
+        setbit(_STS, STS_STATIC_OVERFLOW, 1);
     }
     gA = (int16_t)result;
 }

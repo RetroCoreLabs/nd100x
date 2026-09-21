@@ -224,21 +224,36 @@ extern InstrFunc g_instr_funcs[65536];
  */
 
 
-/* Status register flags */
-
-#define _PTM  0
-#define _TG   1
-#define _K    2
-#define _Z    3
-#define _Q    4
-#define _O    5
-#define _C    6
-#define _M    7
-#define _PL   8
-#define _N100 12
-#define _SEXI 13
-#define _PONI 14
-#define _IONI 15
+/*
+ * Bit positions in the status register (STS). These are bit NUMBERS, for
+ * shifting and for getbit/setbit; the STS_..._IS_SET macros further down read
+ * the value of the same bit.
+ *
+ * The two halves of STS have different scope, which is easy to get wrong:
+ *
+ *   bits 0-7   per-level condition flags. Part of each program level's own
+ *              register bank, saved and restored when the level changes.
+ *   bits 8-15  machine state, global to the CPU. These do NOT change when
+ *              the level changes. The kernel sets them once at boot (SEX,
+ *              PON, ION) and they stay set. They cannot be changed while
+ *              memory management is on except from ring 3.
+ *
+ * Bits 8-11 hold the current program level, so STS_PROGRAM_LEVEL is the
+ * position of that 4-bit field, not a single flag.
+ */
+#define STS_PAGE_TABLE_MODE     0  /* 0 = main page table, 1 = alternative */
+#define STS_FLOAT_OVERFLOW      1  /* TG, floating point overflow */
+#define STS_BIT_ACCUMULATOR     2  /* K, the single bit accumulator */
+#define STS_ERROR_INDICATOR     3  /* Z */
+#define STS_DYNAMIC_OVERFLOW    4  /* Q */
+#define STS_STATIC_OVERFLOW     5  /* O */
+#define STS_CARRY               6  /* C */
+#define STS_SHIFT_OUT           7  /* M, the bit shifted out */
+#define STS_PROGRAM_LEVEL       8  /* bits 8-11, current level 0-15 */
+#define STS_ND100_INDICATOR     12 /* always 1 on an ND-100 */
+#define STS_EXTENDED_ADDRESSING 13 /* SEXI: 24-bit physical, 16 page tables */
+#define STS_PAGING_ON           14 /* PONI: memory management enabled */
+#define STS_INTERRUPT_ON        15 /* IONI: interrupt system enabled */
 
 
 #define PAGINGSYSTEM   0
@@ -528,23 +543,25 @@ typedef enum {
 // clang-format on
 
 // clang-format off
-#define STS_PTM  ((g_reg->reg[gPIL][_STS]>>0) & 0x01)   /* */
-#define STS_TG   ((g_reg->reg[gPIL][_STS]>>1) & 0x01)   /* */
-#define STS_K    ((g_reg->reg[gPIL][_STS]>>2) & 0x01)   /* */
-#define STS_Z    ((g_reg->reg[gPIL][_STS]>>3) & 0x01)   /* */
-#define STS_Q    ((g_reg->reg[gPIL][_STS]>>4) & 0x01)   /* */
-#define STS_O    ((g_reg->reg[gPIL][_STS]>>5) & 0x01)   /* */
-#define STS_C    ((g_reg->reg[gPIL][_STS]>>6) & 0x01)   /* */
-#define STS_M    ((g_reg->reg[gPIL][_STS]>>7) & 0x01)   /* */
+#define STS_PAGE_TABLE_MODE_IS_SET  ((g_reg->reg[gPIL][_STS]>>0) & 0x01)   /* */
+#define STS_FLOAT_OVERFLOW_IS_SET   ((g_reg->reg[gPIL][_STS]>>1) & 0x01)   /* */
+#define STS_BIT_ACCUMULATOR_IS_SET    ((g_reg->reg[gPIL][_STS]>>2) & 0x01)   /* */
+#define STS_ERROR_INDICATOR_IS_SET    ((g_reg->reg[gPIL][_STS]>>3) & 0x01)   /* */
+#define STS_DYNAMIC_OVERFLOW_IS_SET    ((g_reg->reg[gPIL][_STS]>>4) & 0x01)   /* */
+#define STS_STATIC_OVERFLOW_IS_SET    ((g_reg->reg[gPIL][_STS]>>5) & 0x01)   /* */
+#define STS_CARRY_IS_SET    ((g_reg->reg[gPIL][_STS]>>6) & 0x01)   /* */
+#define STS_SHIFT_OUT_IS_SET    ((g_reg->reg[gPIL][_STS]>>7) & 0x01)   /* */
 // clang-format on
 
-#define STS_PL   ((g_reg->reg_STS >> 8) & 0x0F)  /* Program runlevel */
-#define STS_N100 ((g_reg->reg_STS >> 12) & 0x01) /* Nord 100 indicator */
-#define STS_SEXI                                                                                   \
+#define STS_PROGRAM_LEVEL_IS_SET   ((g_reg->reg_STS >> 8) & 0x0F)  /* Program runlevel */
+#define STS_ND100_INDICATOR_IS_SET ((g_reg->reg_STS >> 12) & 0x01) /* Nord 100 indicator */
+#define STS_EXTENDED_ADDRESSING_IS_SET                                                             \
     ((g_reg->reg_STS >> 13) &                                                                      \
      0x01) /* Extended MMS adressing on/off indicator (24 bit instead of 19 bit*/
-#define STS_PONI ((g_reg->reg_STS >> 14) & 0x01) /* Memory management on/off indicator */
-#define STS_IONI ((g_reg->reg_STS >> 15) & 0x01) /* Interrupt system on/off indicator */
+#define STS_PAGING_ON_IS_SET                                                                       \
+    ((g_reg->reg_STS >> 14) & 0x01) /* Memory management on/off indicator */
+#define STS_INTERRUPT_ON_IS_SET                                                                    \
+    ((g_reg->reg_STS >> 15) & 0x01) /* Interrupt system on/off indicator */
 
 #define gDebuggerEnabled g_reg->debugger_enabled
 #define gDebuggerPort    g_reg->debugger_port
@@ -1277,7 +1294,7 @@ void DestroyPagingTables(void);
 
 /**
  * @brief Compute the word offset into g_paging_tables.shadowRam for a given page
- * table and virtual page number, taking into account extended (STS_SEXI) vs
+ * table and virtual page number, taking into account extended (STS_EXTENDED_ADDRESSING_IS_SET) vs
  * normal mode and four- vs sixteen-page-table layout.
  * @param pageTable Page table number.
  * @param VPN Virtual page number (index within the page table).
@@ -1308,7 +1325,7 @@ uint16_t PT_Read(uint32_t);
 
 /**
  * @brief Read a full page table entry (PTE) from shadow RAM for the current
- * STS_SEXI mode: 32-bit PTE from two consecutive words in extended mode, or a
+ * STS_EXTENDED_ADDRESSING_IS_SET mode: 32-bit PTE from two consecutive words in extended mode, or a
  * 16-bit PTE expanded via ConvertFrom16BitPTE() in normal mode (page tables 0-3
  * only). Trap-free.
  * @param pageTable Page table number (0-15).
@@ -1323,7 +1340,7 @@ uint32_t GetPageTableEntry(uint32_t, uint32_t, PageTableMode);
 
 /**
  * @brief Debugger/inspector variant of GetPageTableEntry() that reads by
- * g_mms_type (hardware format) instead of the current level's STS_SEXI flag, so
+ * g_mms_type (hardware format) instead of the current level's STS_EXTENDED_ADDRESSING_IS_SET flag, so
  * page tables 4-15 can be inspected even when SEXI is currently off for the
  * paused level. Trap-free; does not modify CPU or PGU/WIP state.
  * @param pageTable Page table number (0-15).
@@ -1338,7 +1355,7 @@ uint32_t GetPageTableEntryForDebugger(uint32_t, uint32_t, PageTableMode);
 
 /**
  * @brief Write a page table entry back into shadow RAM, packing it as two words
- * in extended mode (STS_SEXI) or as a 16-bit PTE via ConvertTo16BitPTE() in
+ * in extended mode (STS_EXTENDED_ADDRESSING_IS_SET) or as a 16-bit PTE via ConvertTo16BitPTE() in
  * normal mode. Trap-free.
  * @param pageTable Page table number (0-15).
  * @param VPN Virtual page number.
@@ -1389,7 +1406,7 @@ const char *GetPageTableEntryDebugInfo(uint32_t);
  * permission via checkPageProtection() and ring protection against the PCR ring,
  * then computes the physical page from the PTE and checks it against
  * g_nd_memsize. Marks PGU (and WIP on write) via SetPageUsed()/SetPageWritten().
- * Ring-3 accesses to shadow memory and STS_PONI-disabled (unmapped) accesses are
+ * Ring-3 accesses to shadow memory and STS_PAGING_ON_IS_SET-disabled (unmapped) accesses are
  * returned directly as identity-mapped. Traps: raises MPV (HandleMPV) on a ring
  * violation, PF/MPV via checkPageProtection() on a page fault or permit
  * violation, and a memory-out-of-range interrupt (HandleMemoryOutOfRange) if the
@@ -1969,7 +1986,7 @@ void DoNLZ(char);
 /**
  * @brief Denormalize the 48-bit floating accumulator {T,A,D} into the
  *        integer register A (DNZ), serving the 48-bit FPP. Sets the Z error
- *        indicator (_STS/_Z) on overflow; deep downscale underflows to zero
+ *        indicator (_STS/STS_ERROR_INDICATOR) on overflow; deep downscale underflows to zero
  *        instead of invoking undefined-behaviour shifts.
  * @param scaling Signed scaling factor added to the exponent; -16 for a
  *                plain float-to-integer conversion.
@@ -2035,7 +2052,7 @@ void DoNLZ32(char);
 /**
  * @brief Denormalize the 32-bit floating accumulator A,D pair into the
  *        integer register A (DNZ), serving the optional 32-bit FPP; the T
- *        register is never touched. Sets the Z error indicator (_STS/_Z) on
+ *        register is never touched. Sets the Z error indicator (_STS/STS_ERROR_INDICATOR) on
  *        overflow. Behaviour for scaling factors other than -16 is an
  *        unverified known gap per the source comment.
  * @param scaling Signed scaling factor added to the exponent; -16 for a

@@ -98,7 +98,7 @@ static uint16_t ConvertTo16BitPTE(uint32_t pageTableEntry)
 static uint32_t CalcPageTableAddress(uint32_t address)
 {
     uint32_t pageTableAddress;
-    if (STS_SEXI)
+    if (STS_EXTENDED_ADDRESSING_IS_SET)
     {
         // Extended, check if we have MM-1 or MM-II
         if (g_paging_tables.mmsType == MMS1)
@@ -135,7 +135,7 @@ uint16_t GetPTShadowAddress(uint32_t pageTable, uint32_t VPN, PageTableMode ptm)
 {
     uint32_t offset = 0;
 
-    if (STS_SEXI)
+    if (STS_EXTENDED_ADDRESSING_IS_SET)
     {
         // EXTENDED MODE
         switch (ptm)
@@ -157,7 +157,7 @@ uint16_t GetPTShadowAddress(uint32_t pageTable, uint32_t VPN, PageTableMode ptm)
     }
 
     uint32_t pageTableAddress = (pageTable << 6) | VPN;
-    if (STS_SEXI)
+    if (STS_EXTENDED_ADDRESSING_IS_SET)
     {
         // Extended mode, PTe is stored in 2x 16 bits memory addresses
         pageTableAddress = pageTableAddress << 1; // left shift1 == *2
@@ -190,7 +190,7 @@ void PT_Write(uint32_t address, uint16_t value)
         uint32_t pageTableAddress = CalcPageTableAddress(address);
         uint32_t pageTable = pageTableAddress >> 6;
 
-        if (!STS_SEXI)
+        if (!STS_EXTENDED_ADDRESSING_IS_SET)
         {
             pageTableEntry = ConvertFrom16BitPTE(value);
         }
@@ -208,8 +208,8 @@ void PT_Write(uint32_t address, uint16_t value)
             }
         }
         Log_Write(LOG_CAT_MMS, LOG_TRACE, "PT W A=%o PT=%d VPN=%d SEXI=%d V=%o => 0x%08X (%s)\n",
-                  address, pageTable, pageTableAddress & 0x3F, STS_SEXI, value, pageTableEntry,
-                  GetPageTableEntryDebugInfo(pageTableEntry));
+                  address, pageTable, pageTableAddress & 0x3F, STS_EXTENDED_ADDRESSING_IS_SET,
+                  value, pageTableEntry, GetPageTableEntryDebugInfo(pageTableEntry));
     }
 }
 
@@ -246,7 +246,7 @@ uint32_t GetPageTableEntry(uint32_t pageTable, uint32_t VPN, PageTableMode ptm)
     uint32_t PTe = 0;
     int pageTableAddress = GetPTShadowAddress(pageTable, VPN, ptm);
 
-    if (STS_SEXI)
+    if (STS_EXTENDED_ADDRESSING_IS_SET)
     {
         PTe = ((uint32_t)g_paging_tables.shadowRam[pageTableAddress] << 16) |
               g_paging_tables.shadowRam[pageTableAddress + 1];
@@ -264,7 +264,7 @@ uint32_t GetPageTableEntry(uint32_t pageTable, uint32_t VPN, PageTableMode ptm)
 
 // Get page table entry for debugger/inspector use.
 //
-// GetPageTableEntry() checks STS_SEXI to decide shadow RAM format. STS_SEXI
+// GetPageTableEntry() checks STS_EXTENDED_ADDRESSING_IS_SET to decide shadow RAM format. STS_EXTENDED_ADDRESSING_IS_SET
 // reflects the SEXI flag of the currently executing interrupt level, so when
 // SEXI is off, PT 4-15 return 0. This is correct for normal CPU operation.
 //
@@ -275,7 +275,7 @@ uint32_t GetPageTableEntry(uint32_t pageTable, uint32_t VPN, PageTableMode ptm)
 // content is still valid - the hardware format (MMS1=4PT/16-bit vs
 // MMS2=16PT/32-bit) is fixed and does not depend on the runtime SEXI state.
 //
-// This function uses mmsType instead of STS_SEXI so the debugger can always
+// This function uses mmsType instead of STS_EXTENDED_ADDRESSING_IS_SET so the debugger can always
 // read all page tables regardless of which level happens to be active.
 uint32_t GetPageTableEntryForDebugger(uint32_t pageTable, uint32_t VPN, PageTableMode ptm)
 {
@@ -329,7 +329,7 @@ bool UpdatePageTableEntry(uint32_t pageTable, uint32_t VPN, PageTableMode ptm, u
 
     int pageTableAddress = GetPTShadowAddress(pageTable, VPN, ptm);
 
-    if (STS_SEXI)
+    if (STS_EXTENDED_ADDRESSING_IS_SET)
     {
         g_paging_tables.shadowRam[pageTableAddress] = (uint16_t)(PTe >> 16);
         g_paging_tables.shadowRam[pageTableAddress + 1] = (uint16_t)(PTe);
@@ -395,7 +395,7 @@ const char *GetPageTableEntryDebugInfo(uint32_t PTe)
 
     // Map to physical page
     uint16_t PPN = 0;
-    if (STS_SEXI)
+    if (STS_EXTENDED_ADDRESSING_IS_SET)
     {
         // Use lower 14-bit
         PPN = (uint16_t)(PTe & 0x3FFF);
@@ -476,7 +476,7 @@ int mapVirtualToPhysical(uint32_t virtualAddress, AccessMode am, bool UseAPT)
     }
 
     // If memory management is not enabled, don't use mapping (physical = virtual)
-    if (!STS_PONI)
+    if (!STS_PAGING_ON_IS_SET)
     {
         return (int)(virtualAddress & 0xFFFF);
     }
@@ -488,7 +488,7 @@ int mapVirtualToPhysical(uint32_t virtualAddress, AccessMode am, bool UseAPT)
     PageTableMode ptm = Four; // Default to four page tables
 
     // Find PageTable Number and identify if we have the optional 16 page-table mode
-    if ((STS_PTM) && (UseAPT))
+    if ((STS_PAGE_TABLE_MODE_IS_SET) && (UseAPT))
     {
         if ((pcr & (1 << 2)) != 0 && (g_mms_type == MMS2))
         {
@@ -600,7 +600,7 @@ int mapVirtualToPhysical(uint32_t virtualAddress, AccessMode am, bool UseAPT)
 
     // Map to physical page
     uint16_t PPN = 0;
-    if (STS_SEXI)
+    if (STS_EXTENDED_ADDRESSING_IS_SET)
     {
         // Use lower 14-bit
         PPN = (uint16_t)(pageTableEntry & 0x3FFF);
@@ -809,10 +809,10 @@ bool IsAddressShadowMemory(uint32_t addr, bool privileged)
         ((pcr & 1 << 2) != 0); // Is MMS-2 with 16-page-tables enabled on this PCR level ?
 
 
-    if ((ring == 3) || (!STS_PONI) || privileged)
+    if ((ring == 3) || (!STS_PAGING_ON_IS_SET) || privileged)
     {
 
-        if (STS_SEXI)
+        if (STS_EXTENDED_ADDRESSING_IS_SET)
         {
             if ((g_mms_type == MMS2) && mms2Enabled)
             {
@@ -1211,7 +1211,7 @@ void HandleMPV(uint32_t virtualAddress)
         {
             /* Also dump the PTE that was used */
             uint16_t pcr = g_reg->reg_PCR[CurrLEVEL];
-            int useAPT = STS_PTM; /* data access uses APT when PTM=1 */
+            int useAPT = STS_PAGE_TABLE_MODE_IS_SET; /* data access uses APT when PTM=1 */
             uint32_t pt;
             if (useAPT)
             {
@@ -1277,7 +1277,7 @@ int Dbg_WritePhysicalMemory(uint32_t physicalAddress, uint16_t value)
 // Debugger-only I-space / D-space virtual memory reads.
 //
 // These explicitly select the instruction (PT) or data (APT) page table
-// from the current level's PCR, bypassing the STS_PTM + UseAPT logic in
+// from the current level's PCR, bypassing the STS_PAGE_TABLE_MODE_IS_SET + UseAPT logic in
 // mapVirtualToPhysical.  No traps are generated and PGU/WIP bits are not
 // modified, so these are safe to call from debugger command handlers
 // without disturbing CPU state.
@@ -1305,7 +1305,7 @@ static int Dbg_MapVirtualToPhysical(uint32_t virtualAddress, bool useAPT, int8_t
     }
 
     // No paging = identity map
-    if (!STS_PONI)
+    if (!STS_PAGING_ON_IS_SET)
     {
         return (int)(virtualAddress & 0xFFFF);
     }
@@ -1353,7 +1353,7 @@ static int Dbg_MapVirtualToPhysical(uint32_t virtualAddress, bool useAPT, int8_t
     }
 
     uint16_t PPN;
-    if (STS_SEXI)
+    if (STS_EXTENDED_ADDRESSING_IS_SET)
     {
         PPN = (uint16_t)(pageTableEntry & 0x3FFF);
     }

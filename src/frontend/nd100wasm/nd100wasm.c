@@ -2803,7 +2803,7 @@ EMSCRIPTEN_EXPORT int Dbg_GetPageTableEntryRaw(int pageTable, int vpn)
         return 0;
     }
 
-    /* Use debugger reader which checks mmsType instead of STS_SEXI,
+    /* Use debugger reader which checks mmsType instead of STS_EXTENDED_ADDRESSING_IS_SET,
        so we can read all 16 page tables even when paused at a level without SEXI. */
     PageTableMode ptm = (g_mms_type == MMS2) ? Sixteen : Four;
     uint32_t pte = GetPageTableEntryForDebugger((uint32_t)pageTable, (uint32_t)vpn, ptm);
@@ -2812,7 +2812,7 @@ EMSCRIPTEN_EXPORT int Dbg_GetPageTableEntryRaw(int pageTable, int vpn)
 
 EMSCRIPTEN_EXPORT int Dbg_GetExtendedMode(void)
 {
-    return STS_SEXI ? 1 : 0;
+    return STS_EXTENDED_ADDRESSING_IS_SET ? 1 : 0;
 }
 
 // --- Drive Info (unified mount registry query) ---

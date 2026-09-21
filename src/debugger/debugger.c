@@ -635,18 +635,19 @@ static bool is_procedure_call(uint16_t operand)
 /// Dbg_* accessors instead (they return -1 on a bad page and raise no trap).
 ///
 /// mapVirtualToPhysical selects the alternative page table (D-space) only when
-/// (STS_PTM && UseAPT); the CPU accesses data with UseAPT=true. So a faithful
+/// (STS_PAGE_TABLE_MODE_IS_SET && UseAPT); the CPU accesses data with UseAPT=true. So a faithful
 /// data read is: split-I/D on -> D-space, otherwise the normal page table
 /// (which the I-space accessor selects). This matches ReadVirtualMemory(addr,
 /// true) in every mode, without the trap.
 static int dbg_read_data(uint16_t addr)
 {
-    return STS_PTM ? Dbg_ReadVirtualMemoryDSpace(addr) : Dbg_ReadVirtualMemoryISpace(addr);
+    return STS_PAGE_TABLE_MODE_IS_SET ? Dbg_ReadVirtualMemoryDSpace(addr)
+                                      : Dbg_ReadVirtualMemoryISpace(addr);
 }
 
 static void dbg_write_data(uint16_t addr, uint16_t value)
 {
-    if (STS_PTM)
+    if (STS_PAGE_TABLE_MODE_IS_SET)
     {
         Dbg_WriteVirtualMemoryDSpace(addr, value);
     }
@@ -2101,7 +2102,7 @@ static char *get_page_table_entry_info(uint32_t p_te)
 
     // Map to physical page
     uint16_t ppn = 0;
-    if (STS_SEXI)
+    if (STS_EXTENDED_ADDRESSING_IS_SET)
     {
         // Use lower 14-bit
         ppn = (uint16_t)(p_te & 0x3FFF);

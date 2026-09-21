@@ -60,6 +60,29 @@ def inside_module(path, module_dir):
 # sit inside src/.
 PROTECTED = ("ncr5386.h", "ncr5386.c")
 
+# Names this tool must leave alone, with the reason. Each was proposed by
+# clang-tidy and rejected after looking at what it actually is.
+EXEMPT = {
+    # Register file indices 8-15, siblings of _A, _T and _X. Those are used
+    # from other modules so they are excluded anyway; renaming only the _U
+    # half would leave _A and U0 next to each other in the same table.
+    "_U0", "_U1", "_U2", "_U3", "_U4", "_U5", "_U6", "_U7",
+    # A behavioural flag, documented as such in docs/ND-DOMAIN-GOTCHAS.md,
+    # and an open decision in docs/TODO.md (C.5).
+    "_DEGRADE_",
+    # Names the misleading MOVB/MOVBF switch documented in cpu_instr.c; part
+    # of the same open decision.
+    "_removed_MOVB_AND_MOVBF_",
+}
+
+# The g-prefixed macros of src/cpu/cpu_types.h are a documented convention,
+# not a naming violation: CLAUDE.md lists "Register macros
+# (src/cpu/cpu_types.h): gPC, gA, gD, gB, gT, gX, gL" and the nd100-asm
+# reference uses the same spelling. They also form one table - gEA is used
+# from other modules and so is excluded anyway, while gUseAPT on the very
+# next line is not - and renaming half a table is worse than renaming none.
+EXEMPT_MACRO = re.compile(r"^g[A-Z]")
+
 
 def generated(path):
     """True for a file that must never be edited (see CLAUDE.md)."""
@@ -173,7 +196,9 @@ def load_renames(fix_files, module_dir):
                 # is done by the clang-rename pass, not here.
                 continue
             where = message.get("FilePath", "")
-            if generated(where):
+            if generated(where) or old in EXEMPT:
+                continue
+            if kind == "macro definition" and EXEMPT_MACRO.match(old):
                 continue
             new = fix_prefix(kind, message)
             if not new:
@@ -356,6 +381,11 @@ def filter_fixes(fix_files, module_dir, out_dir, escapes=()):
             if found:
                 if found.group(1) == "global function":
                     continue  # rule 3.1, left to the clang-rename pass
+                if found.group(2) in EXEMPT:
+                    continue  # see EXEMPT for why
+                if found.group(1) == "macro definition" and \
+                        EXEMPT_MACRO.match(found.group(2)):
+                    continue  # documented g-prefix convention
                 if found.group(2) in escapes:
                     continue  # used from another module; not ours to rewrite
                 spelled = fix_prefix(found.group(1), message)

@@ -477,7 +477,7 @@ void DoDNZ(char scaling)
         val <<= sh;
         if (val > 32767)
         {
-            setbit(_STS, _Z, 1);
+            setbit(_STS, STS_ERROR_INDICATOR, 1);
         }
     }
 
@@ -892,7 +892,7 @@ void DoDNZ32(char scaling)
 
     if (val > 32767)
     {
-        setbit(_STS, _Z, 1);
+        setbit(_STS, STS_ERROR_INDICATOR, 1);
     }
     if (s)
     {

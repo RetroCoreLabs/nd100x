@@ -45,7 +45,7 @@ void setbit(uint16_t regnum, uint16_t stsbit, char val);
 void setbit(uint16_t regnum, uint16_t stsbit, char val)
 {
     (void)regnum;
-    if (stsbit == _Z && val)
+    if (stsbit == STS_ERROR_INDICATOR && val)
     {
         fptest_z_set = 1;
     }
@@ -261,7 +261,7 @@ typedef struct {
     int    scaling;   /* NLZ scaling; DNZ uses the negation */
     uint16_t nlz[3];    /* expected {T,A,D} after DoNLZ(scaling) */
     uint16_t dnz[3];    /* expected {T,A,D} after DoDNZ(-scaling) */
-    int    z;         /* expected _Z set during the round trip */
+    int    z;         /* expected STS_ERROR_INDICATOR set during the round trip */
 } fp48_nlz_case;
 // clang-format on
 

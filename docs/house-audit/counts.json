@@ -177,7 +177,7 @@
     "src/cpu/cpu_mms.c": 94,
     "src/cpu/cpu_model.c": 1,
     "src/cpu/cpu_regs.c": 1,
-    "src/cpu/cpu_types.h": 82,
+    "src/cpu/cpu_types.h": 69,
     "src/cpu/float.c": 5,
     "src/devices/scsi/device_scsi.h": 1,
     "src/frontend/nd100x/nd100x.c": 1,
@@ -204,7 +204,7 @@
     "tools/reth-tap/test-framing.c": 1,
     "tools/reth-tap/test-gateway.c": 1
    },
-   "total": 396
+   "total": 383
   },
   "3.8": {
    "files": {

@@ -214,7 +214,7 @@ static void bcdtest_run(const bcd_test_case *tc)
 
     /* STS.O (overflow) must be left ALONE by every decimal instruction -
      * oracle- and TPE-confirmed, including on the overflow error return. */
-    if (STS_O != 0)
+    if (STS_STATIC_OVERFLOW_IS_SET != 0)
     {
         printf("  FAIL  %-46s STS.O was set (must stay clear)\n", tc->name);
         bcdtest_failed++;

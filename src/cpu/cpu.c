@@ -386,7 +386,7 @@ uint16_t calcIIC(void)
 static void recalc_internal_interrupt_bits(void)
 {
     // Check for Z (error) flag
-    if (getbit(_STS, _Z))
+    if (getbit(_STS, STS_ERROR_INDICATOR))
     {
         gIID |= 1 << 5;
     }
@@ -473,8 +473,9 @@ void interrupt(uint16_t lvl, uint16_t sub)
         {
             fprintf(stderr,
                     "*** TRAP lvl=14 sub=%d(0x%x) P=%06o PGS=%04x PEA=%06o PIL=%d MMU=%d %s%s%s\n",
-                    sub, sub, gPC, gPGS, gPEA, gPIL, STS_PONI, (sub & (1 << 2)) ? "MPV " : "",
-                    (sub & (1 << 3)) ? "PF " : "", (sub & (1 << 4)) ? "ILL " : "");
+                    sub, sub, gPC, gPGS, gPEA, gPIL, STS_PAGING_ON_IS_SET,
+                    (sub & (1 << 2)) ? "MPV " : "", (sub & (1 << 3)) ? "PF " : "",
+                    (sub & (1 << 4)) ? "ILL " : "");
         }
         if (ND100X_HOT_TRACE && Log_IsEnabled(LOG_CAT_TRAP, LOG_TRACE))
         {
@@ -608,7 +609,7 @@ static bool check_and_switch(void)
         // recalc internal interrupt bits
         recalc_internal_interrupt_bits();
 
-        if (!STS_IONI)
+        if (!STS_INTERRUPT_ON_IS_SET)
         {
             return false;
         }
@@ -662,7 +663,8 @@ static void trace_before_exec(void)
             "%06o %06o %-24s PIL=%d prevPIL=%d A=%06o D=%06o T=%06o X=%06o B=%06o L=%06o P=%06o "
             "STS=%04x PIE=%04x PID=%04x IIE=%04x IID=%04x PGS=%04x MMU=%d INT=%d SEX=%d\n",
             gPC, g_operand, disasm_str, gPIL, (g_reg->reg_STS >> 8) & 0x0F, gA, gD, gT, gX, gB, gL,
-            gPC, gSTSr, gPIE, gPID, gIIE, gIID, gPGS, STS_PONI, STS_IONI, STS_SEXI);
+            gPC, gSTSr, gPIE, gPID, gIIE, gIID, gPGS, STS_PAGING_ON_IS_SET, STS_INTERRUPT_ON_IS_SET,
+            STS_EXTENDED_ADDRESSING_IS_SET);
     }
 
     // BSD kernel-stack high-water: track deepest kernel frame pointer (B).
@@ -963,7 +965,7 @@ int cpu_run(int ticks_arg)
         if (g_cpu_trace)
         {
             fprintf(stderr, "*** FAULT RETURN PC=%06o PGS=%04x PEA=%06o PIL=%d MMU=%d\n", gPC, gPGS,
-                    gPEA, gPIL, STS_PONI);
+                    gPEA, gPIL, STS_PAGING_ON_IS_SET);
         }
         if (ND100X_HOT_TRACE && Log_IsEnabled(LOG_CAT_TRAP, LOG_TRACE))
         {
@@ -1154,7 +1156,7 @@ void cpu_init(bool debuggerEnabled, int debuggerPort)
     /* Initialize volatile memory to zero */
     memset(&g_volatile_memory, 0, sizeof(g_volatile_memory));
 
-    setbit_STS_MSB(_N100, 1);
+    setbit_STS_MSB(STS_ND100_INDICATOR, 1);
     gCSR = 1 << 2; /* this bit sets the cache as not available */
 
     /* Set cpu as running for now. Probably should depend on settings */
@@ -1221,7 +1223,7 @@ void cpu_reset(void)
     gDebuggerEnabled = saved_debugger_enabled;
 #endif
 
-    setbit_STS_MSB(_N100, 1);
+    setbit_STS_MSB(STS_ND100_INDICATOR, 1);
     gCSR = 1 << 2; /* this bit sets the cache as not available */
 
     // Destroy paging tables (they will be recreated when cpu is initialized)
