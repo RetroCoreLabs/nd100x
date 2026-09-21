@@ -617,3 +617,86 @@ b0845de	2026-09-20	3.4,3.5	parameter	src/debugger/debugger.c	4540	virtualAddress
 0dc46db	2026-09-21	3.2,3.4-3.7	parameter	src/ndlib/telnetserver.h	142	clientAddr	client_addr	1
 0dc46db	2026-09-21	3.2,3.4-3.7	parameter	src/ndlib/telnetserver.h	141	identCode	ident_code	1
 0dc46db	2026-09-21	3.2,3.4-3.7	parameter	src/ndlib/telnetserver.h	141	locallyActive	locally_active	1
+a778c2a	2026-09-21	-	parameter	src/frontend/nd100x/config.c	114	Config_t	Config	5
+a778c2a	2026-09-21	-	parameter	src/frontend/nd100x/config.c	221	bootStr	boot_str	13
+a778c2a	2026-09-21	-	local variable	src/frontend/nd100x/config.c	347	devNum	dev_num	6
+a778c2a	2026-09-21	-	local variable	src/frontend/nd100x/config.c	935	fppEnd	fpp_end	3
+a778c2a	2026-09-21	-	parameter	src/frontend/nd100x/config.c	318	hdlcStr	hdlc_str	3
+a778c2a	2026-09-21	-	local variable	src/frontend/nd100x/config.c	434	isPhys	is_phys	3
+a778c2a	2026-09-21	-	local variable	src/frontend/nd100x/config.c	915	memEnd	mem_end	3
+a778c2a	2026-09-21	-	local variable	src/frontend/nd100x/config.c	981	oprEnd	opr_end	3
+a778c2a	2026-09-21	-	function	src/frontend/nd100x/config.c	221	parseBootSpec	parse_boot_spec	2
+a778c2a	2026-09-21	-	function	src/frontend/nd100x/config.c	318	parseHDLCConfig	parse_hdlc_config	2
+a778c2a	2026-09-21	-	function	src/frontend/nd100x/config.c	415	parseWatchConfig	parse_watch_config	2
+a778c2a	2026-09-21	-	local variable	src/frontend/nd100x/config.c	573	portEnd	port_end	3
+a778c2a	2026-09-21	-	local variable	src/frontend/nd100x/config.c	376	portStr	port_str	2
+a778c2a	2026-09-21	-	parameter	src/frontend/nd100x/config.c	1216	progName	prog_name	11
+a778c2a	2026-09-21	-	parameter	src/frontend/nd100x/config.c	415	watchStr	watch_str	3
+a778c2a	2026-09-21	-	typedef	src/frontend/nd100x/menu.c	138	DirectoryPage_t	DirectoryPage	6
+a778c2a	2026-09-21	-	typedef	src/frontend/nd100x/menu.c	127	FloppyDisk_t	FloppyDisk	12
+a778c2a	2026-09-21	-	typedef	src/frontend/nd100x/menu.c	174	MenuState_t	FloppyMenuState	2
+a778c2a	2026-09-21	-	typedef	src/frontend/nd100x/menu.c	148	MountPopup_t	MountPopup	3
+a778c2a	2026-09-21	-	local variable	src/frontend/nd100x/nd100x.c	101	Config_t	Config	1
+a778c2a	2026-09-21	-	function	src/frontend/nd100x/nd100x.c	775	LogScreenHandler	log_screen_handler	2
+a778c2a	2026-09-21	-	function	src/frontend/nd100x/nd100x.c	732	PaperTapeWriterOutputHandler	paper_tape_writer_output_handler	2
+a778c2a	2026-09-21	-	function	src/frontend/nd100x/nd100x.c	698	PrinterOutputHandler	printer_output_handler	2
+a778c2a	2026-09-21	-	function	src/frontend/nd100x/nd100x.c	670	VScreenOutputHandler	v_screen_output_handler	3
+a778c2a	2026-09-21	-	global variable	src/frontend/nd100x/nd100x.c	628	activeScreen	active_screen	11
+a778c2a	2026-09-21	-	local variable	src/frontend/nd100x/nd100x.c	1467	altScreen	alt_screen	4
+a778c2a	2026-09-21	-	local variable	src/frontend/nd100x/nd100x.c	1246	extraTerminals	extra_terminals	9
+a778c2a	2026-09-21	-	function	src/frontend/nd100x/nd100x.c	807	findScreenForDevice	find_screen_for_device	3
+a778c2a	2026-09-21	-	global variable	src/frontend/nd100x/nd100x.c	106	g_machineConfig	machine_config	13
+a778c2a	2026-09-21	-	global variable	src/frontend/nd100x/nd100x.c	107	g_useMachineConfig	use_machine_config	4
+a778c2a	2026-09-21	-	local variable	src/frontend/nd100x/nd100x.c	896	iniName	ini_name	5
+a778c2a	2026-09-21	-	local variable	src/frontend/nd100x/nd100x.c	897	iniPath	ini_path	5
+a778c2a	2026-09-21	-	global variable	src/frontend/nd100x/nd100x.c	634	logScreenIndex	log_screen_index	5
+a778c2a	2026-09-21	-	global variable	src/frontend/nd100x/nd100x.c	635	logScreenMutex	log_screen_mutex	3
+a778c2a	2026-09-21	-	local variable	src/frontend/nd100x/nd100x.c	1515	mappedLen	mapped_len	2
+a778c2a	2026-09-21	-	local variable	src/frontend/nd100x/nd100x.c	1514	mappedSeq	mapped_seq	4
+a778c2a	2026-09-21	-	local variable	src/frontend/nd100x/nd100x.c	894	mcErr	mc_err	17
+a778c2a	2026-09-21	-	local variable	src/frontend/nd100x/nd100x.c	466	mcOpts	mc_opts	4
+a778c2a	2026-09-21	-	global variable	src/frontend/nd100x/nd100x.c	629	menuState	menu_state	10
+a778c2a	2026-09-21	-	local variable	src/frontend/nd100x/nd100x.c	1267	printDir	print_dir	2
+a778c2a	2026-09-21	-	global variable	src/frontend/nd100x/nd100x.c	640	printJob	print_job	9
+a778c2a	2026-09-21	-	local variable	src/frontend/nd100x/nd100x.c	1417	runMode	run_mode	7
+a778c2a	2026-09-21	-	global variable	src/frontend/nd100x/nd100x.c	627	screenCount	screen_count	20
+a778c2a	2026-09-21	-	global variable	src/frontend/nd100x/nd100x.c	730	tapeWriterActive	tape_writer_active	5
+a778c2a	2026-09-21	-	global variable	src/frontend/nd100x/nd100x.c	649	tapeWriterJobNumber	tape_writer_job_number	4
+a778c2a	2026-09-21	-	global variable	src/frontend/nd100x/nd100x.c	729	tapeWriterLastOutputTime	tape_writer_last_output_time	4
+a778c2a	2026-09-21	-	global variable	src/frontend/nd100x/nd100x.c	129	telnetServer	telnet_server	21
+a778c2a	2026-09-21	-	static variable	src/frontend/nd100x/nd100x.c	1245	termAddresses	term_addresses	2
+a778c2a	2026-09-21	-	local variable	src/frontend/nd100x/nd100x.c	1178	typeStr	type_str	2
+a778c2a	2026-09-21	-	parameter	src/frontend/nd100x/nd100x_shell.c	57	nd100Root	nd100_root	25
+a778c2a	2026-09-21	-	parameter	src/frontend/nd100x/nd100x_shell.c	623	scriptPath	script_path	4
+a778c2a	2026-09-21	-	parameter	src/frontend/nd100x/nd100x_shell.h	61	nd100Root	nd100_root	1
+a778c2a	2026-09-21	-	parameter	src/frontend/nd100x/nd100x_shell.h	61	scriptPath	script_path	1
+a778c2a	2026-09-21	-	typedef	src/frontend/nd100x/nd100x_types.h	165	Config_t	Config	3
+a778c2a	2026-09-21	-	typedef	src/frontend/nd100x/nd100x_types.h	55	PrintFormat_t	PrintFormat	2
+a778c2a	2026-09-21	-	typedef	src/frontend/nd100x/nd100x_types.h	47	PrinterType_t	PrinterType	2
+a778c2a	2026-09-21	-	parameter	src/frontend/nd100x/screenmenu.c	742	activeScreen	active_screen	2
+a778c2a	2026-09-21	-	local variable	src/frontend/nd100x/screenmenu.c	377	addrStr	addr_str	4
+a778c2a	2026-09-21	-	local variable	src/frontend/nd100x/screenmenu.c	388	hasStatus	has_status	10
+a778c2a	2026-09-21	-	local variable	src/frontend/nd100x/screenmenu.c	634	hasTelnet	has_telnet	3
+a778c2a	2026-09-21	-	parameter	src/frontend/nd100x/screenmenu.c	121	returnTo	return_to	2
+a778c2a	2026-09-21	-	local variable	src/frontend/nd100x/screenmenu.c	383	rxBytesStr	rx_bytes_str	4
+a778c2a	2026-09-21	-	local variable	src/frontend/nd100x/screenmenu.c	518	rxDrop	rx_drop	3
+a778c2a	2026-09-21	-	local variable	src/frontend/nd100x/screenmenu.c	522	rxDropStr	rx_drop_str	4
+a778c2a	2026-09-21	-	local variable	src/frontend/nd100x/screenmenu.c	413	rxState	rx_state	6
+a778c2a	2026-09-21	-	local variable	src/frontend/nd100x/screenmenu.c	593	rxStr	rx_str	9
+a778c2a	2026-09-21	-	parameter	src/frontend/nd100x/screenmenu.c	742	screenCount	screen_count	2
+a778c2a	2026-09-21	-	local variable	src/frontend/nd100x/screenmenu.c	661	statusBuf	status_buf	3
+a778c2a	2026-09-21	-	parameter	src/frontend/nd100x/screenmenu.c	46	telnetServer	telnet_server	54
+a778c2a	2026-09-21	-	local variable	src/frontend/nd100x/screenmenu.c	403	tmpBuf	tmp_buf	4
+a778c2a	2026-09-21	-	local variable	src/frontend/nd100x/screenmenu.c	382	txBytesStr	tx_bytes_str	4
+a778c2a	2026-09-21	-	local variable	src/frontend/nd100x/screenmenu.c	519	txDrop	tx_drop	3
+a778c2a	2026-09-21	-	local variable	src/frontend/nd100x/screenmenu.c	523	txDropStr	tx_drop_str	4
+a778c2a	2026-09-21	-	local variable	src/frontend/nd100x/screenmenu.c	462	txState	tx_state	2
+a778c2a	2026-09-21	-	local variable	src/frontend/nd100x/screenmenu.c	594	txStr	tx_str	9
+a778c2a	2026-09-21	-	parameter	src/frontend/nd100x/screenmenu.h	67	activeScreen	active_screen	1
+a778c2a	2026-09-21	-	parameter	src/frontend/nd100x/screenmenu.h	67	screenCount	screen_count	1
+a778c2a	2026-09-21	-	parameter	src/frontend/nd100x/screenmenu.h	83	telnetServer	telnet_server	3
+a778c2a	2026-09-21	-	parameter	src/frontend/nd100x/vscreen.c	24	inputCapable	input_capable	2
+a778c2a	2026-09-21	-	local variable	src/frontend/nd100x/vscreen.c	141	lineIdx	line_idx	2
+a778c2a	2026-09-21	-	local variable	src/frontend/nd100x/vscreen.c	120	numLines	num_lines	3
+a778c2a	2026-09-21	-	local variable	src/frontend/nd100x/vscreen.c	121	startLine	start_line	4
+a778c2a	2026-09-21	-	parameter	src/frontend/nd100x/vscreen.h	50	inputCapable	input_capable	1
