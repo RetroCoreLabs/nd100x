@@ -157,10 +157,9 @@
   },
   "3.2": {
    "files": {
-    "src/cpu/cpu_mms.c": 4,
     "src/ndlib/log.h": 1
    },
-   "total": 5
+   "total": 1
   },
   "3.3": {
    "files": {
@@ -170,15 +169,10 @@
   },
   "3.4-3.7": {
    "files": {
-    "src/cpu/bcd.c": 1,
-    "src/cpu/cpu.c": 13,
-    "src/cpu/cpu_bkpt.c": 16,
-    "src/cpu/cpu_instr.c": 52,
-    "src/cpu/cpu_mms.c": 94,
-    "src/cpu/cpu_model.c": 1,
-    "src/cpu/cpu_regs.c": 1,
-    "src/cpu/cpu_types.h": 69,
-    "src/cpu/float.c": 5,
+    "src/cpu/cpu.c": 1,
+    "src/cpu/cpu_instr.c": 1,
+    "src/cpu/cpu_types.h": 62,
+    "src/cpu/float.c": 1,
     "src/devices/scsi/device_scsi.h": 1,
     "src/frontend/nd100x/nd100x.c": 1,
     "src/machine/machine_config.h": 1,
@@ -204,7 +198,7 @@
     "tools/reth-tap/test-framing.c": 1,
     "tools/reth-tap/test-gateway.c": 1
    },
-   "total": 383
+   "total": 196
   },
   "3.8": {
    "files": {

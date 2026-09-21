@@ -77,7 +77,7 @@ static bool check_priv(void)
     }
 
     // Check ring
-    uint16_t pcr = g_reg->reg_PCR[CurrLEVEL];
+    uint16_t pcr = g_reg->reg_PCR[CURR_LEVEL];
     uint16_t ring = pcr & 0x03;
 
     if ((ring == 2) || (ring == 3))
@@ -141,11 +141,11 @@ static uint16_t do_add(uint16_t a, uint16_t b, uint16_t k)
 static unsigned int calc_el(uint8_t displacement)
 {
 
-    unsigned int EL = (gX + displacement) & 0xFFFF;
-    EL = (gT & 0xFF) << 16 | EL;
-    EL = EL & 0xFFFFFF; // Cap at 24 bits
+    unsigned int el = (gX + displacement) & 0xFFFF;
+    el = (gT & 0xFF) << 16 | el;
+    el = el & 0xFFFFFF; // Cap at 24 bits
 
-    return EL;
+    return el;
 }
 
 // read el value from memory
@@ -322,7 +322,7 @@ static void opcode_mon_monitor_call(uint16_t operand)
     }
     else
     {
-        if (CurrLEVEL < 14)
+        if (CURR_LEVEL < 14)
         {
             if ((monitor_number & (1 << 8)) != 0)
             {
@@ -600,7 +600,7 @@ static void cjp(bool jmp_flag, uint16_t operand)
 {
     if (jmp_flag)
     {
-        uint16_t old_gPC = gPC - 1;
+        uint16_t old_g_pc = gPC - 1;
 
         uint16_t temp = signExtend(operand & 0xff);
 
@@ -621,7 +621,7 @@ static void cjp(bool jmp_flag, uint16_t operand)
 
         if (g_disasm)
         {
-            disasm_userel(old_gPC, gPC);
+            disasm_userel(old_g_pc, gPC);
         }
     }
 }
@@ -877,7 +877,7 @@ static void opcode_jxz_jump_if_x_zero(uint16_t operand)
  */
 static void opcode_jpl_jump_if_last_result_positive(uint16_t operand)
 {
-    uint16_t old_gPC = gPC - 1;
+    uint16_t old_g_pc = gPC - 1;
 
     gEA = New_GetEffectiveAddr(operand, &gUseAPT);
 
@@ -907,7 +907,7 @@ static void opcode_jpl_jump_if_last_result_positive(uint16_t operand)
 
     if (g_disasm)
     {
-        disasm_userel(old_gPC, gPC);
+        disasm_userel(old_g_pc, gPC);
     }
 }
 
@@ -955,20 +955,20 @@ static void opcode_skp_skip_next_if_condition(uint16_t operand)
 void opcode_bfill_new_byte_fill(uint16_t operand)
 {
     (void)operand;
-    bool useAPT = false;
+    bool use_apt = false;
     WriteMode wm;
 
     // Check if we should use alternative page table, bit 14 in T register
     if ((gT & (1 << 14)) != 0)
     {
-        useAPT = true;
+        use_apt = true;
     }
 
     while ((gT & 0xfff) != 0)
     {
         // Bit 15:  0=>MSB, 1=> LSB
         wm = (gT & (1 << 15)) ? WRITEMODE_LSB : WRITEMODE_MSB;
-        WriteVirtualMemory(gX, gA & 0xFF, useAPT, wm);
+        WriteVirtualMemory(gX, gA & 0xFF, use_apt, wm);
 
         gT--;
 
@@ -1386,8 +1386,8 @@ static void opcode_stztx_store_zero_t_x_relative(uint16_t operand)
     }
 
     uint8_t displacement = (operand >> 3) & 0x07;
-    uint32_t EL = calc_el(displacement);
-    write_el(EL, 0);
+    uint32_t el = calc_el(displacement);
+    write_el(el, 0);
 }
 
 /**
@@ -1412,8 +1412,8 @@ static void opcode_statx_store_a_register_t_x_relative(uint16_t operand)
     }
 
     uint8_t displacement = (operand >> 3) & 0x07;
-    uint32_t EL = calc_el(displacement);
-    write_el(EL, gA);
+    uint32_t el = calc_el(displacement);
+    write_el(el, gA);
 }
 
 /**
@@ -1439,9 +1439,9 @@ static void opcode_stdtx_store_double_word_t_x_relative(uint16_t operand)
     }
 
     uint8_t displacement = (operand >> 3) & 0x07;
-    uint32_t EL = calc_el(displacement);
-    write_el(EL, gA);
-    write_el(EL + 1, gD);
+    uint32_t el = calc_el(displacement);
+    write_el(el, gA);
+    write_el(el + 1, gD);
 }
 
 /**
@@ -1470,8 +1470,8 @@ static void opcode_ldatx_load_a_register_t_x_relative(uint16_t operand)
 
     uint8_t displacement = (operand >> 3) & 0x07;
 
-    unsigned int EL = calc_el(displacement);
-    gA = read_el(EL);
+    unsigned int el = calc_el(displacement);
+    gA = read_el(el);
 }
 
 /**
@@ -1499,9 +1499,9 @@ static void opcode_ldxtx_load_x_register_t_x_relative(uint16_t operand)
     }
 
     uint8_t displacement = (operand >> 3) & 0x07;
-    unsigned int EL = calc_el(displacement);
+    unsigned int el = calc_el(displacement);
 
-    gX = read_el(EL);
+    gX = read_el(el);
 }
 
 /**
@@ -1531,11 +1531,11 @@ static void opcode_lddtx_load_double_word_t_x_relative(uint16_t operand)
     }
 
     uint8_t displacement = (operand >> 3) & 0x07;
-    unsigned int EL = calc_el(displacement);
+    unsigned int el = calc_el(displacement);
 
-    gA = read_el(EL);
-    EL++;
-    gD = read_el(EL);
+    gA = read_el(el);
+    el++;
+    gD = read_el(el);
 }
 
 /**
@@ -1567,9 +1567,9 @@ static void opcode_ldbtx_load_b_register_t_x_relative(uint16_t operand)
     }
 
     uint8_t displacement = (operand >> 3) & 0x07;
-    unsigned int EL = calc_el(displacement);
+    unsigned int el = calc_el(displacement);
 
-    temp = read_el(EL);
+    temp = read_el(el);
     result = (temp + temp) & 0xFFFF;
     gB = result | 0xFE00; // 0177000
 }
@@ -1999,14 +1999,14 @@ static void opcode_fdv_divide_floating_accumulator(uint16_t operand)
  */
 static void opcode_jmp_jump_unconditional(uint16_t operand)
 {
-    uint16_t old_gPC = gPC - 1;
+    uint16_t old_g_pc = gPC - 1;
 
     gEA = New_GetEffectiveAddr(operand, &gUseAPT);
     gPC = gEA;
 
     if (g_disasm)
     {
-        disasm_userel(old_gPC, gPC);
+        disasm_userel(old_g_pc, gPC);
     }
 }
 
@@ -2120,14 +2120,14 @@ static void opcode_geco_customer_specified_instruction(uint16_t operand)
  * Identity reported by VERSN. ONE named module-state struct instead of three
  * loose statics, so a re-init genuinely starts from a known state.
  */
-struct versn_identity
+struct VersnIdentity
 {
     unsigned char prom[VERSN_PROM_SIZE]; /* back-wiring PROM image, bytes 0-15 */
     int microcode_version;               /* T register; see VERSN_MIN_MICROCODE_VERSION */
     int print_version;                   /* A register, 12 bits (PCB artwork version) */
 };
 
-static struct versn_identity g_versn;
+static struct VersnIdentity g_versn;
 
 /*
  * Fill the PROM image with the default for the current CPU type.
@@ -2716,7 +2716,7 @@ static bool update_memory_io(void)
  */
 /* NORD-1 IOT dispatch, implemented in the device manager. Declared locally so
  * the CPU does not have to pull in the whole device-model header. */
-bool DeviceManager_IotOp(uint8_t devno, uint8_t func, uint16_t *regA, bool *skip);
+bool DeviceManager_IotOp(uint8_t devno, uint8_t func, uint16_t *reg_a, bool *skip);
 
 /**
  * @brief IOT - NORD-1 INSTRUCTION (DO NOT USE).
@@ -2959,12 +2959,12 @@ static void opcode_irw_inter_register_write(uint16_t operand)
     uint16_t level = (operand >> 3) & 0x0F;
     uint16_t dr = (operand & 0x07);
 
-    if ((level == CurrLEVEL) && (dr == _A))
+    if ((level == CURR_LEVEL) && (dr == _A))
     {
         return; // A on same level, do nothing (Write from A to A on same level== NOP)
     }
 
-    if ((level == CurrLEVEL) && (dr == _P))
+    if ((level == CURR_LEVEL) && (dr == _P))
     {
         return; // P on same level, do nothing (Because this is what the microcode does)
     }
@@ -3407,29 +3407,29 @@ static void opcode_setpt_set_page_tables(uint16_t operand)
     // JXZ * 10 % FINISHED
     while (gX != 0)
     {
-        uint32_t EL = 0;
-        uint32_t EffectiveAddress = 0;
+        uint32_t el = 0;
+        uint32_t effective_address = 0;
 
         //  LDDTX 20 <=  A: = (EL), D: = (EL + 1)
-        EL = calc_el(2); // Calculates using X, T and mriDisplacement // oct 020 >>3
-        gA = (uint16_t)read_el(EL);
-        gD = (uint16_t)read_el(EL + 1);
+        el = calc_el(2); // Calculates using X, T and mriDisplacement // oct 020 >>3
+        gA = (uint16_t)read_el(el);
+        gD = (uint16_t)read_el(el + 1);
 
         // BSET ZRO 130 DA % PGU - BIT *
 
         gA = gA & ~(1 << 0x0b); // 0x0b = 13 octalt. Clear bit 013 in register A
 
         // LDBTX 10
-        EL = calc_el(1); // oct 10 >> 3
-        uint32_t elval = read_el(EL);
+        el = calc_el(1); // oct 10 >> 3
+        uint32_t elval = read_el(el);
         gB = (uint16_t)(((elval + elval) & 0xFFFF) | 0xFE00); // 177000
 
         // 177777                   % OLD BUG IN LDBTX
 
         // STD ,B
-        EffectiveAddress = (uint32_t)(gB & 0xFFFF); // (+displacement, which is 0 here)
-        WriteVirtualMemory(EffectiveAddress, gA, true, WRITEMODE_WORD);
-        WriteVirtualMemory(EffectiveAddress + 1, gD, true, WRITEMODE_WORD);
+        effective_address = (uint32_t)(gB & 0xFFFF); // (+displacement, which is 0 here)
+        WriteVirtualMemory(effective_address, gA, true, WRITEMODE_WORD);
+        WriteVirtualMemory(effective_address + 1, gD, true, WRITEMODE_WORD);
 
         //  LDXTX 00 <=  X:= (EL)
         gX = (uint16_t)read_el(calc_el(0)); // Calculates using X, T and mriDisplacement
@@ -3544,16 +3544,16 @@ static void opcode_clept_clear_page_tables(uint16_t operand)
 
     while (1)
     {
-        uint16_t nextX;
+        uint16_t next_x;
         uint32_t elval;
 
         /* 004121-004122 (PATA2): read the next-node pointer at [X] (physical, bank T). */
-        nextX = (uint16_t)read_el(calc_el(0));
+        next_x = (uint16_t)read_el(calc_el(0));
 
         /* 004123: X == 0 ends the walk - but X is still loaded from [X] on this final pass. */
         if (gX == 0)
         {
-            gX = nextX;
+            gX = next_x;
             break;
         }
 
@@ -3575,7 +3575,7 @@ static void opcode_clept_clear_page_tables(uint16_t operand)
         }
 
         /* Advance to the next node (X := [X], already read at the top of this iteration). */
-        gX = nextX;
+        gX = next_x;
     }
 }
 
@@ -4348,7 +4348,7 @@ static void opcode_clpt_clear_segment_from_page_tables(uint16_t operand)
                     g_nd110_trace_fp,
                     "  CLPT node X=%06o e=%06o -> B=%06o APT[B]=%06o shadow=%d PCR=%06o PONI=%d\n",
                     x_reg, entry, b_reg, r3, IsAddressShadowMemory(b_reg, false) ? 1 : 0,
-                    g_reg->reg_PCR[CurrLEVEL], STS_PAGING_ON_IS_SET ? 1 : 0);
+                    g_reg->reg_PCR[CURR_LEVEL], STS_PAGING_ON_IS_SET ? 1 : 0);
                 fflush(g_nd110_trace_fp);
             }
         }
@@ -4406,7 +4406,7 @@ static void nd110_enter_page_table(uint16_t r4_mask)
                     "  ENPT node X=%06o w0=%06o w1=%06o -> B=%06o APT[B]=%06o APT[B+1]=%06o "
                     "shadow=%d PCR=%06o PONI=%d\n",
                     x_reg, word0, word1, b_reg, gA, (uint16_t)(x_reg >> 2),
-                    IsAddressShadowMemory(b_reg, false) ? 1 : 0, g_reg->reg_PCR[CurrLEVEL],
+                    IsAddressShadowMemory(b_reg, false) ? 1 : 0, g_reg->reg_PCR[CURR_LEVEL],
                     STS_PAGING_ON_IS_SET ? 1 : 0);
             fflush(g_nd110_trace_fp);
         }
@@ -5101,7 +5101,7 @@ static void opcode_init_initialize_stack(uint16_t operand)
 static void opcode_entr_enter_stack(uint16_t operand)
 {
     (void)operand;
-    uint16_t oldB, demand, smax, stp;
+    uint16_t old_b, demand, smax, stp;
     demand = MemoryRead(gPC + 0, 0);
     smax = MemoryRead(gB - 125, 1); /* SMAX */
     if ((gB + demand - 122) > (smax))
@@ -5110,10 +5110,10 @@ static void opcode_entr_enter_stack(uint16_t operand)
         return;
     }
     stp = MemoryRead(gB - 126, 1); /* STP */
-    oldB = gB;
+    old_b = gB;
     gB = stp + 128;                                 /* Advance stack frame */
     MemoryWrite(gL + 1, gB - 128, 1, 2);            /* L+1 ==> LINK */
-    MemoryWrite(oldB, gB - 127, 1, 2);              /* B   ==> PREVB */
+    MemoryWrite(old_b, gB - 127, 1, 2);             /* B   ==> PREVB */
     MemoryWrite(smax, gB - 125, 1, 2);              /* SMAX */
     MemoryWrite(gB + demand - 122, gB - 126, 1, 2); /* STP */
     gPC += 2;
@@ -5311,23 +5311,23 @@ static inline void regop_logical(uint16_t operand, uint16_t sr, uint16_t dr, uin
     {
     case 0: /* SWAP: dr <- source (cm1->~source), sr <- old dr (cld->0) */
     {
-        uint16_t old_dr = (dr == 0) ? 0 : (uint16_t)(g_reg->reg[CurrLEVEL][dr] & 0xFFFF);
+        uint16_t old_dr = (dr == 0) ? 0 : (uint16_t)(g_reg->reg[CURR_LEVEL][dr] & 0xFFFF);
         uint16_t new_dr = (cm1) ? (uint16_t)~source : source;
         uint16_t new_sr = (cld) ? 0 : old_dr;
         if (dr != 0)
         {
-            g_reg->reg[CurrLEVEL][dr] = new_dr; /* discard write to register 0 (=STS) */
+            g_reg->reg[CURR_LEVEL][dr] = new_dr; /* discard write to register 0 (=STS) */
         }
         if (sr != 0)
         {
-            g_reg->reg[CurrLEVEL][sr] = new_sr; /* discard write to register 0 (=STS) */
+            g_reg->reg[CURR_LEVEL][sr] = new_sr; /* discard write to register 0 (=STS) */
         }
         break;
     }
     case 1: /* RAND: dr <- dest & (cm1?~src:src) */
         if (dr != 0)
         {
-            g_reg->reg[CurrLEVEL][dr] =
+            g_reg->reg[CURR_LEVEL][dr] =
                 (uint16_t)(destination & ((cm1) ? (uint16_t)~source : source));
         }
         break;
@@ -5335,14 +5335,14 @@ static inline void regop_logical(uint16_t operand, uint16_t sr, uint16_t dr, uin
              * REXO;cm1;cld=0 routes through REX02 (ALUF,ORAB). cld (dest=0) yields ~src / src for free. */
         if (dr != 0)
         {
-            g_reg->reg[CurrLEVEL][dr] = (cm1) ? (uint16_t)(destination | (uint16_t)~source)
-                                              : (uint16_t)(destination ^ source);
+            g_reg->reg[CURR_LEVEL][dr] = (cm1) ? (uint16_t)(destination | (uint16_t)~source)
+                                               : (uint16_t)(destination ^ source);
         }
         break;
     case 3: /* RORA: dr <- dest | (cm1?~src:src) */
         if (dr != 0)
         {
-            g_reg->reg[CurrLEVEL][dr] =
+            g_reg->reg[CURR_LEVEL][dr] =
                 (uint16_t)(destination | ((cm1) ? (uint16_t)~source : source));
         }
         break;
@@ -5356,8 +5356,9 @@ static inline void regop_arith(uint16_t operand, uint16_t dr, uint16_t source, u
 {
     int tmp;
 
-    tmp = (dr == 0) ? 0
-                    : g_reg->reg[CurrLEVEL][dr]; /* NOOP-variant fallthrough value (unchanged dr) */
+    tmp = (dr == 0)
+              ? 0
+              : g_reg->reg[CURR_LEVEL][dr]; /* NOOP-variant fallthrough value (unchanged dr) */
     switch ((operand & 0x0380) >> 7)
     {
     case 0:
@@ -5387,19 +5388,19 @@ static inline void regop_arith(uint16_t operand, uint16_t dr, uint16_t source, u
     }
     if (dr != 0)
     {
-        g_reg->reg[CurrLEVEL][dr] =
+        g_reg->reg[CURR_LEVEL][dr] =
             (uint16_t)(tmp & 0xFFFF); /* discard write to register 0 (=STS) */
     }
 }
 
 static void regop(uint16_t operand)
 { /* SWAP RAND REXO RORA RADD RCLR EXIT RDCR RING RSUB */
-    int RAD, CLD;
+    int rad, cld;
     uint16_t sr, dr, source, destination;
-    uint16_t old_gPC = gPC - 1;
+    uint16_t old_g_pc = gPC - 1;
 
-    RAD = ((operand & 0x0400) >> 10);
-    CLD = ((operand & 0x0040) >> 6);
+    rad = ((operand & 0x0400) >> 10);
+    cld = ((operand & 0x0040) >> 6);
 
     sr = ((operand & 0x0038) >> 3);
     dr = (operand & 0x0007);
@@ -5408,10 +5409,10 @@ static void regop(uint16_t operand)
      * the STS register, so a write to register 0 must be suppressed or it corrupts STS. dr=0 must read
      * as 0 here too (NOT reg[0]=STS). Oracle-validated against the RASK microcode; see RetroCore commits
      * 0890b6fbb (SWAP reg-0), 7dbdbe729 (REXO;CM1), 581e7270a (RADD dr=0). */
-    source = (sr == 0) ? 0 : g_reg->reg[CurrLEVEL][sr] & 0xFFFF;
-    destination = (CLD) ? 0 : ((dr == 0) ? 0 : g_reg->reg[CurrLEVEL][dr] & 0xFFFF);
+    source = (sr == 0) ? 0 : g_reg->reg[CURR_LEVEL][sr] & 0xFFFF;
+    destination = (cld) ? 0 : ((dr == 0) ? 0 : g_reg->reg[CURR_LEVEL][dr] & 0xFFFF);
 
-    switch (RAD)
+    switch (rad)
     {
     case 0: /* Logical operation - SWAP RAND REXO RORA. NO dr!=0 guard: reg field 0 writes are discarded
              * (SWAP writes BOTH sr and dr, so dr=0 still writes the source-register half). */
@@ -5428,7 +5429,7 @@ static void regop(uint16_t operand)
 
     if ((g_disasm) && (dr == _P))
     {
-        disasm_userel(old_gPC, gPC);
+        disasm_userel(old_g_pc, gPC);
     }
 }
 
@@ -5455,7 +5456,7 @@ static void do_mcl(uint16_t instr)
     switch (instr & 0x0F)
     {
     case 01: // STS
-        g_reg->reg[CurrLEVEL][_STS] &= ~(gA & 0x00FF);
+        g_reg->reg[CURR_LEVEL][_STS] &= ~(gA & 0x00FF);
         break;
     case 06: // PID
         /* This affects interrupt, so do locking and checking. */
@@ -5494,7 +5495,7 @@ static void do_mst(uint16_t instr)
     switch (instr & 0x0F)
     {
     case 01: // STS
-        g_reg->reg[CurrLEVEL][0] |= (gA & 0x00ff);
+        g_reg->reg[CURR_LEVEL][0] |= (gA & 0x00ff);
         break;
     case 06: // PID
         /* This affects interrupt, so do locking and checking. */
@@ -5581,7 +5582,7 @@ static void do_tra(uint16_t instr)
              << 3); // Always report bit 2 and 3 as 1. Bit 2="MAN DIS" (Cache disabled manually as Emulator doesnt need caching. Bit 3=Cache Clear Finished
         break;
     case 011: /* TRA ACTL */
-        gA = 1 << CurrLEVEL;
+        gA = 1 << CURR_LEVEL;
         break;
     case 012: /* TRA ALD */
         gA = gALD;
@@ -5634,7 +5635,7 @@ static void do_exr(uint16_t instr)
     sr = (instr >> 3) & 0x07;
     if (sr)
     {
-        exr_instr = g_reg->reg[CurrLEVEL][sr];
+        exr_instr = g_reg->reg[CURR_LEVEL][sr];
     }
     else
     {
@@ -5684,15 +5685,15 @@ static void do_wait(uint16_t instr)
         return;
     }
 
-    if (CurrLEVEL == 0)
+    if (CURR_LEVEL == 0)
     {
         // Cant go lower
         return;
     }
 
 
-    temp = ~(1 << CurrLEVEL); /* Now we have a 0 in the position we want */
-    gPID &= temp;             /* Give up this level */
+    temp = ~(1 << CURR_LEVEL); /* Now we have a 0 in the position we want */
+    gPID &= temp;              /* Give up this level */
 
     gCHKIT = true; // recalc PK (and do a level switch if needed)
 }
@@ -5779,8 +5780,8 @@ static void do_trr(uint16_t instr)
         break;
     case 01: // TRR STS
         /* ND-06.029.1 ND-110 Instruction Set, lists only lower 8 bits as changeable... */
-        g_reg->reg[CurrLEVEL][_STS] =
-            (g_reg->reg[CurrLEVEL][_STS] & 0xff00) | (gA & 0x00ff); /* Only change LSB  */
+        g_reg->reg[CURR_LEVEL][_STS] =
+            (g_reg->reg[CURR_LEVEL][_STS] & 0xff00) | (gA & 0x00ff); /* Only change LSB  */
         break;
     case 02: // TRR LMP
         gLMP = gA;
@@ -5910,7 +5911,7 @@ static void do_lrb(uint16_t operand)
     addr = gX;
 
 
-    if (lvl != CurrLEVEL)
+    if (lvl != CURR_LEVEL)
     { /* Dont change P on current level if this happens to be specified */
         g_reg->reg[lvl][_P] = MemoryRead(addr, true);
     }
@@ -5932,9 +5933,9 @@ static bool is_skip(uint16_t instr)
     sr = (instr >> 3) & 0x07;
     dr = (instr >> 0) & 0x07;
     source =
-        (0 == sr) ? 0 : g_reg->reg[CurrLEVEL][sr]; /* Never use STS reg but zero value instead */
+        (0 == sr) ? 0 : g_reg->reg[CURR_LEVEL][sr]; /* Never use STS reg but zero value instead */
     desti =
-        (0 == dr) ? 0 : g_reg->reg[CurrLEVEL][dr]; /* Never use STS reg but zero value instead */
+        (0 == dr) ? 0 : g_reg->reg[CURR_LEVEL][dr]; /* Never use STS reg but zero value instead */
     ss = (signed short)source;
     sd = (signed short)desti;
 
@@ -6268,42 +6269,42 @@ static void do_tset(uint16_t instr)
 /// </summary>
 static void do_movew(uint16_t instr)
 {
-    unsigned int sourceAddress = gD;
-    unsigned int destinationAddress = gT;
+    unsigned int source_address = gD;
+    unsigned int destination_address = gT;
     uint16_t cnt = gL;
 
     uint16_t displacement = (instr & 0x00F);
 
     // Check if source and destination are in physical memory
-    bool isSourcePhysical = false;
-    bool isDestinationPhysical = false;
+    bool is_source_physical = false;
+    bool is_destination_physical = false;
 
     switch (displacement)
     {
     case 2:
     case 5:
-        destinationAddress = (destinationAddress | (gX << 16)) & 0xFFFFFF;
-        isDestinationPhysical = true;
+        destination_address = (destination_address | (gX << 16)) & 0xFFFFFF;
+        is_destination_physical = true;
         break;
 
     case 6:
     case 7:
-        sourceAddress = (sourceAddress | (gA << 16)) & 0xFFFFFF;
-        isSourcePhysical = true;
+        source_address = (source_address | (gA << 16)) & 0xFFFFFF;
+        is_source_physical = true;
         break;
     case 8:
-        destinationAddress = (destinationAddress | (gX << 16)) & 0xFFFFFF;
-        isDestinationPhysical = true;
+        destination_address = (destination_address | (gX << 16)) & 0xFFFFFF;
+        is_destination_physical = true;
 
-        sourceAddress = (sourceAddress | (gA << 16)) & 0xFFFFFF;
-        isSourcePhysical = true;
+        source_address = (source_address | (gA << 16)) & 0xFFFFFF;
+        is_source_physical = true;
         break;
     default:
         break;
     }
 
     // Check for priveleged instruction
-    if (isSourcePhysical || isDestinationPhysical)
+    if (is_source_physical || is_destination_physical)
     {
         if (!check_priv())
         {
@@ -6319,48 +6320,48 @@ static void do_movew(uint16_t instr)
         switch (displacement)
         {
         case 0: // move from PT to PT
-            temp = MemoryRead(sourceAddress, false);
-            MemoryWrite(temp, destinationAddress, false, 2);
+            temp = MemoryRead(source_address, false);
+            MemoryWrite(temp, destination_address, false, 2);
             break;
         case 1: // move from PT to APT
-            temp = MemoryRead(sourceAddress, false);
-            MemoryWrite(temp, destinationAddress, true, 2);
+            temp = MemoryRead(source_address, false);
+            MemoryWrite(temp, destination_address, true, 2);
             break;
         case 2: // move from PT to physical memory
-            temp = MemoryRead(sourceAddress, false);
-            WritePhysicalMemory(destinationAddress, temp, true);
+            temp = MemoryRead(source_address, false);
+            WritePhysicalMemory(destination_address, temp, true);
             break;
         case 3: // move from APT to PT
-            temp = (uint16_t)MemoryRead(sourceAddress, true);
-            MemoryWrite(temp, destinationAddress, false, 2);
+            temp = (uint16_t)MemoryRead(source_address, true);
+            MemoryWrite(temp, destination_address, false, 2);
             break;
         case 4: // move from APT to APT
-            temp = (uint16_t)MemoryRead(sourceAddress, true);
-            MemoryWrite(temp, destinationAddress, true, 2);
+            temp = (uint16_t)MemoryRead(source_address, true);
+            MemoryWrite(temp, destination_address, true, 2);
             break;
         case 5: // move from APT to physical memory
-            temp = (uint16_t)MemoryRead(sourceAddress, true);
-            WritePhysicalMemory(destinationAddress, temp, true);
+            temp = (uint16_t)MemoryRead(source_address, true);
+            WritePhysicalMemory(destination_address, temp, true);
             break;
         case 6: // move from physical memory to PT
-            temp = ReadPhysicalMemory(sourceAddress, true);
-            MemoryWrite(temp, destinationAddress, false, 2);
+            temp = ReadPhysicalMemory(source_address, true);
+            MemoryWrite(temp, destination_address, false, 2);
             break;
         case 7: // move from physical memory to APT
-            temp = ReadPhysicalMemory(sourceAddress, true);
-            MemoryWrite(temp, destinationAddress, true, 2);
+            temp = ReadPhysicalMemory(source_address, true);
+            MemoryWrite(temp, destination_address, true, 2);
             break;
 
         case 8: // move from physical memory to physical memory
-            temp = ReadPhysicalMemory(sourceAddress, true);
-            WritePhysicalMemory(destinationAddress, temp, true);
+            temp = ReadPhysicalMemory(source_address, true);
+            WritePhysicalMemory(destination_address, temp, true);
             break;
 
         default:
             break;
         }
-        sourceAddress++;
-        destinationAddress++;
+        source_address++;
+        destination_address++;
         cnt--;
     }
 
@@ -6370,17 +6371,17 @@ static void do_movew(uint16_t instr)
     gL = cnt;
 
     // Update Source with the new address
-    gD = (sourceAddress & 0xFFFF);
-    if (isSourcePhysical)
+    gD = (source_address & 0xFFFF);
+    if (is_source_physical)
     {
-        gA = (sourceAddress >> 16) & 0xFFFF;
+        gA = (source_address >> 16) & 0xFFFF;
     }
 
     // Update destination
-    gT = (destinationAddress & 0xFFFF);
-    if (isDestinationPhysical)
+    gT = (destination_address & 0xFFFF);
+    if (is_destination_physical)
     {
-        gX = (destinationAddress >> 16) & 0xFFFF;
+        gX = (destination_address >> 16) & 0xFFFF;
     }
 }
 
@@ -6632,11 +6633,11 @@ static void opcode_movbf_move_bytes_forward(uint16_t instr)
 #endif
 
 
-void add_A_mem(uint16_t eff_addr, bool UseAPT)
+void add_A_mem(uint16_t eff_addr, bool use_apt)
 {
     int temp, data, oldreg;
     oldreg = gA;
-    data = MemoryRead(eff_addr, UseAPT);
+    data = MemoryRead(eff_addr, use_apt);
     temp = gA + data;
 
     // FIXME - ADD FLAG HANDLING CORRECTLY FOR C,O,Q FLAGS (CHECK AGAIN THINK WE MIGHT HAVE SUBTLE BUGS)
@@ -6675,42 +6676,42 @@ void add_A_mem(uint16_t eff_addr, bool UseAPT)
  * It seems SINTRAN doesnt use this function for booting and operating
  * checkOverlapping: MOVBF sets this to true, MOVB sets this to false
  */
-static void do_move_bytes(bool checkOverlapping)
+static void do_move_bytes(bool check_overlapping)
 {
-    const int LEN_MASK = 0xFFF;
-    int readValue;
+    const int len_mask = 0xFFF;
+    int read_value;
 
-    int numBytesSource = gD & LEN_MASK; // Source length
-    int numBytesDest = gT & LEN_MASK;   // Destination length
-    if (numBytesDest < numBytesSource)
+    int num_bytes_source = gD & len_mask; // Source length
+    int num_bytes_dest = gT & len_mask;   // Destination length
+    if (num_bytes_dest < num_bytes_source)
     {
-        numBytesSource = numBytesDest; // Cap number of bytes to max length of Destination
+        num_bytes_source = num_bytes_dest; // Cap number of bytes to max length of Destination
     }
 
     // If Bit 13 is set, then setup has been executed and we are returning from an interrupt
     if (!(gD & (1 << 13)))
     {
-        gT = (gT & 0xC000) | numBytesSource;
+        gT = (gT & 0xC000) | num_bytes_source;
         gD = (gT & 0xC000);
 
         // Mark D bit 13 with setup done
         gD |= (1 << 13);
     }
 
-    if (checkOverlapping)
+    if (check_overlapping)
     {
         // Convert byte count to word count for addressing
-        int numWordsD = numBytesSource >> 1; // Same as numBytesD / 2
+        int num_words_d = num_bytes_source >> 1; // Same as numBytesD / 2
 
         // Calculate start and end positions for source and destination in terms of words
-        int sourceStart = gA;
-        int destinationStart = gX;
-        int sourceEnd = sourceStart + numWordsD;
-        int destinationEnd = destinationStart + numWordsD;
+        int source_start = gA;
+        int destination_start = gX;
+        int source_end = source_start + num_words_d;
+        int destination_end = destination_start + num_words_d;
 
         // Check for forbidden overlap
         // Overlap is forbidden if destination overlaps source before it is read
-        if (destinationStart < sourceEnd && destinationEnd > sourceStart)
+        if (destination_start < source_end && destination_end > source_start)
         {
             // OVERLAP EXISTS - ILLEGAL IF 'MOVBF'!!
             // Forbidden overlap exists, return with error (no skip)
@@ -6718,30 +6719,30 @@ static void do_move_bytes(bool checkOverlapping)
         }
     }
 
-    bool useAPT = true; // Use alternative page table
-    WriteMode readMode;
-    WriteMode writeMode;
+    bool use_apt = true; // Use alternative page table
+    WriteMode read_mode;
+    WriteMode write_mode;
 
     if (gX < gA)
     {
         // High to low
-        for (int i = (gT & LEN_MASK); i > 0; i--)
+        for (int i = (gT & len_mask); i > 0; i--)
         {
             // Bit 15: 0=>MSB, 1=> LSB
-            readMode = (gD & (1 << 15)) ? WRITEMODE_LSB : WRITEMODE_MSB;
-            readValue = MemoryRead(gA, useAPT);
+            read_mode = (gD & (1 << 15)) ? WRITEMODE_LSB : WRITEMODE_MSB;
+            read_value = MemoryRead(gA, use_apt);
 
-            if (readMode == WRITEMODE_MSB)
+            if (read_mode == WRITEMODE_MSB)
             {
-                readValue = (readValue >> 8) & 0xFF;
+                read_value = (read_value >> 8) & 0xFF;
             }
             else
             {
-                readValue = readValue & 0xFF;
+                read_value = read_value & 0xFF;
             }
 
-            writeMode = (gT & (1 << 15)) ? WRITEMODE_LSB : WRITEMODE_MSB;
-            MemoryWrite(readValue, gX, useAPT, writeMode);
+            write_mode = (gT & (1 << 15)) ? WRITEMODE_LSB : WRITEMODE_MSB;
+            MemoryWrite(read_value, gX, use_apt, write_mode);
 
             gD ^= (1 << 15); // Flip D bit 15
             if (!(gD & (1 << 15)))
@@ -6759,23 +6760,23 @@ static void do_move_bytes(bool checkOverlapping)
     else
     {
         // Low to High
-        for (int i = (gD & LEN_MASK); i < (gT & LEN_MASK); i++)
+        for (int i = (gD & len_mask); i < (gT & len_mask); i++)
         {
             // Bit 15: 0=>MSB, 1=> LSB
-            readMode = (gD & (1 << 15)) ? WRITEMODE_LSB : WRITEMODE_MSB;
-            readValue = MemoryRead(gA, useAPT);
+            read_mode = (gD & (1 << 15)) ? WRITEMODE_LSB : WRITEMODE_MSB;
+            read_value = MemoryRead(gA, use_apt);
 
-            if (readMode == WRITEMODE_MSB)
+            if (read_mode == WRITEMODE_MSB)
             {
-                readValue = (readValue >> 8) & 0xFF;
+                read_value = (read_value >> 8) & 0xFF;
             }
             else
             {
-                readValue = readValue & 0xFF;
+                read_value = read_value & 0xFF;
             }
 
-            writeMode = (gT & (1 << 15)) ? WRITEMODE_LSB : WRITEMODE_MSB;
-            MemoryWrite(readValue, gX, useAPT, writeMode);
+            write_mode = (gT & (1 << 15)) ? WRITEMODE_LSB : WRITEMODE_MSB;
+            MemoryWrite(read_value, gX, use_apt, write_mode);
 
             gD ^= (1 << 15); // Flip D bit 15
             if (!(gD & (1 << 15)))
@@ -6799,7 +6800,7 @@ static void do_move_bytes(bool checkOverlapping)
     gD &= 0xC000;
 
     // Documentation for MOVB and MOVBF says the same but implementation differs
-    if (checkOverlapping)
+    if (check_overlapping)
     {
         gT &= 0xC000; // MOVBF
     }
@@ -6867,11 +6868,11 @@ void opcode_movbf_move_bytes_forward_buggy(uint16_t instr)
     do_move_bytes(true);
 }
 
-void sub_A_mem(uint16_t eff_addr, bool UseAPT)
+void sub_A_mem(uint16_t eff_addr, bool use_apt)
 {
     int temp, data, oldreg;
     oldreg = gA;
-    data = MemoryRead(eff_addr, UseAPT);
+    data = MemoryRead(eff_addr, use_apt);
     temp = gA - data;
     /*
      * FIXME - ADD FLAG HANDLING CORRECTLY FOR C,O,Q FLAGS (CHECK AGAIN THINK WE MIGHT HAVE SUBTLE BUGS)
@@ -6961,55 +6962,55 @@ static void rdiv(uint16_t instr)
     int dividend = ((int)gA << 16) | (int)gD;
     short divisor = ((instr & 0x0038) >> 3) ? (short)g_reg->reg[gPIL][((instr & 0x0038) >> 3)] : 0;
 
-    int dividendNegative = (dividend < 0);
-    uint16_t origLow = gD; /* low word the microcode negates at CS 000434 (`-B`) */
+    int dividend_negative = (dividend < 0);
+    uint16_t orig_low = gD; /* low word the microcode negates at CS 000434 (`-B`) */
 
     /* CS 000434 (NEGATIVE DIVIDEND): negate the 32-bit dividend to its magnitude; STS,EA latches the
      * flags of the LOW-word (D) two's-complement negation. This precedes the STS save that brackets the
      * loop, so these flags PERSIST on both the loop and error paths. Positive dividend: C/O/Q untouched. */
-    if (dividendNegative)
+    if (dividend_negative)
     {
-        int negOvf =
-            (origLow == 0x8000); /* only 0x8000 overflows a 16-bit two's-complement negate */
-        setbit(_STS, STS_CARRY, (origLow == 0)); /* carry-out of -Dlow set iff Dlow == 0 */
-        setbit(_STS, STS_DYNAMIC_OVERFLOW, negOvf);
-        if (negOvf)
+        int neg_ovf =
+            (orig_low == 0x8000); /* only 0x8000 overflows a 16-bit two's-complement negate */
+        setbit(_STS, STS_CARRY, (orig_low == 0)); /* carry-out of -Dlow set iff Dlow == 0 */
+        setbit(_STS, STS_DYNAMIC_OVERFLOW, neg_ovf);
+        if (neg_ovf)
         {
             setbit(_STS, STS_STATIC_OVERFLOW, 1); /* static overflow is sticky */
         }
     }
 
     /* Operand magnitudes via UNSIGNED arithmetic (correct even for 0x80000000 / -32768). */
-    unsigned int dividendMag =
-        dividendNegative ? (0u - (unsigned int)dividend) : (unsigned int)dividend;
-    uint16_t divisorMag =
+    unsigned int dividend_mag =
+        dividend_negative ? (0u - (unsigned int)dividend) : (unsigned int)dividend;
+    uint16_t divisor_mag =
         (uint16_t)((divisor < 0) ? (0u - (unsigned int)(int)divisor) : (unsigned int)(int)divisor);
-    uint16_t dividendMagHigh = (uint16_t)(dividendMag >> 16);
+    uint16_t dividend_mag_high = (uint16_t)(dividend_mag >> 16);
 
     /* CS 000436 RDIV2 overflow PRE-CHECK: A := |dividend|_high - |divisor| (written back, ALUD,B). If
      * |dividend|_high >= |divisor| (unsigned, no borrow) OR divisor == 0, the quotient cannot fit 16
      * bits, so branch to RDIVZ BEFORE the loop: OR-set Z, leave A = that subtract and D = |dividend| low.
      * The quotient/remainder are NEVER computed on this path. */
-    if (divisorMag == 0 || dividendMagHigh >= divisorMag)
+    if (divisor_mag == 0 || dividend_mag_high >= divisor_mag)
     {
-        gA = (uint16_t)(dividendMagHigh - divisorMag);
-        gD = (uint16_t)(dividendMag & 0xFFFF);
+        gA = (uint16_t)(dividend_mag_high - divisor_mag);
+        gD = (uint16_t)(dividend_mag & 0xFFFF);
         setbit(_STS, STS_ERROR_INDICATOR, 1);
         return;
     }
 
     /* LOOP PATH (|dividend|_high < |divisor|): the quotient magnitude fits 16 bits. */
-    unsigned int quotientMag = dividendMag / divisorMag;
-    unsigned int remainderMag = dividendMag % divisorMag;
+    unsigned int quotient_mag = dividend_mag / divisor_mag;
+    unsigned int remainder_mag = dividend_mag % divisor_mag;
 
     /* Quotient sign = sign(AD) XOR sign(SRCE); remainder sign = dividend sign (CS 000456). */
-    int quotientNegative = dividendNegative ^ (divisor < 0);
-    gA = quotientNegative ? (uint16_t)(0u - quotientMag) : (uint16_t)quotientMag;
-    gD = dividendNegative ? (uint16_t)(0u - remainderMag) : (uint16_t)remainderMag;
+    int quotient_negative = dividend_negative ^ (divisor < 0);
+    gA = quotient_negative ? (uint16_t)(0u - quotient_mag) : (uint16_t)quotient_mag;
+    gD = dividend_negative ? (uint16_t)(0u - remainder_mag) : (uint16_t)remainder_mag;
 
     /* CS 000457 RDIV5 sign check: Z on SIGNED overflow (positive q > 32767, negative q > 32768 - so a
      * -32768 quotient is VALID and does NOT set Z, unlike a naive |q| >= 32768 test). */
-    if (quotientNegative ? (quotientMag > 0x8000u) : (quotientMag > 0x7FFFu))
+    if (quotient_negative ? (quotient_mag > 0x8000u) : (quotient_mag > 0x7FFFu))
     {
         setbit(_STS, STS_ERROR_INDICATOR, 1);
     }
@@ -7058,7 +7059,7 @@ void rmpy_org(uint16_t instr)
 /// </summary>
 static void rmpy(uint16_t instr)
 {
-    int minusCnt = 0;
+    int minus_cnt = 0;
     short source_value =
         (short)((instr & 0x0038) >> 3) ? (short)g_reg->reg[gPIL][((instr & 0x0038) >> 3)] : 0;
     short dest_value = (short)(instr & 0x0007) ? (short)g_reg->reg[gPIL][(instr & 0x0007)] : 0;
@@ -7070,13 +7071,13 @@ static void rmpy(uint16_t instr)
     if (abs_src < 0)
     {
         abs_src = -abs_src;
-        minusCnt++;
+        minus_cnt++;
     }
 
     if (abs_dst < 0)
     {
         abs_dst = -abs_dst;
-        minusCnt++;
+        minus_cnt++;
     }
 
     int result = abs_src * abs_dst; /* magnitude of the product (always non-negative here) */
@@ -7086,11 +7087,11 @@ static void rmpy(uint16_t instr)
      * left unchanged); an OPPOSITE-SIGN result negates the product and STS,EA (CS 004362) latches the
      * flags of the LOW-word two's-complement negation: C = carry-out (low word == 0), Q = overflow
      * (low word == 0x8000), O = O OR that overflow. Oracle-validated (RetroCore 135a2ff28). */
-    if (minusCnt == 1)
+    if (minus_cnt == 1)
     {
-        int lowWord = result & 0xFFFF; /* low word of the positive magnitude (what -Q negates) */
-        int ovf = (lowWord == 0x8000); /* only 0x8000 overflows a 16-bit two's-complement negate */
-        setbit(_STS, STS_CARRY, (lowWord == 0)); /* carry-out of -Q is set iff Q == 0 */
+        int low_word = result & 0xFFFF; /* low word of the positive magnitude (what -Q negates) */
+        int ovf = (low_word == 0x8000); /* only 0x8000 overflows a 16-bit two's-complement negate */
+        setbit(_STS, STS_CARRY, (low_word == 0)); /* carry-out of -Q is set iff Q == 0 */
         setbit(_STS, STS_DYNAMIC_OVERFLOW, ovf);
         if (ovf)
         {

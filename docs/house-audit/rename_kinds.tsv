@@ -179,3 +179,104 @@ src/frontend/nd100x	typedef	src/frontend/nd100x/menu.c	MountPopup_t	MountPopup
 src/frontend/nd100x	typedef	src/frontend/nd100x/nd100x_types.h	PrintFormat_t	PrintFormat
 src/frontend/nd100x	typedef	src/frontend/nd100x/nd100x_types.h	PrinterType_t	PrinterType
 src/frontend/nd100x	typedef	src/frontend/nd100x/nd100x_types.h	Config_t	Config
+src/cpu	function	src/cpu/cpu_mms.c	CalcPageTableAddress	calc_page_table_address
+src/cpu	function	src/cpu/cpu_mms.c	Dbg_MapVirtualToPhysical	dbg_map_virtual_to_physical
+src/cpu	global variable	src/cpu/cpu_mms.c	gEccLatch	g_ecc_latch
+src/cpu	local variable	src/cpu/cpu_instr.c	CLD	cld
+src/cpu	local variable	src/cpu/cpu_mms.c	DIP	dip
+src/cpu	local variable	src/cpu/cpu_instr.c	EL	el
+src/cpu	local variable	src/cpu/cpu_instr.c	EffectiveAddress	effective_address
+src/cpu	local variable	src/cpu/cpu_instr.c	LEN_MASK	len_mask
+src/cpu	local variable	src/cpu/cpu.c	P	p
+src/cpu	local variable	src/cpu/cpu_mms.c	PPN	ppn
+src/cpu	local variable	src/cpu/cpu_mms.c	PTe	p_te
+src/cpu	local variable	src/cpu/cpu_instr.c	RAD	rad
+src/cpu	local variable	src/cpu/cpu_mms.c	VPN	vpn
+src/cpu	local variable	src/cpu/cpu_mms.c	accessBits	access_bits
+src/cpu	local variable	src/cpu/cpu_bkpt.c	btType	bt_type
+src/cpu	local variable	src/cpu/cpu_bkpt.c	curPIL	cur_pil
+src/cpu	local variable	src/cpu/cpu_instr.c	destinationAddress	destination_address
+src/cpu	local variable	src/cpu/cpu_instr.c	destinationEnd	destination_end
+src/cpu	local variable	src/cpu/cpu_instr.c	destinationStart	destination_start
+src/cpu	local variable	src/cpu/cpu_instr.c	dividendMag	dividend_mag
+src/cpu	local variable	src/cpu/cpu_instr.c	dividendMagHigh	dividend_mag_high
+src/cpu	local variable	src/cpu/cpu_instr.c	dividendNegative	dividend_negative
+src/cpu	local variable	src/cpu/cpu_instr.c	divisorMag	divisor_mag
+src/cpu	local variable	src/cpu/cpu_mms.c	eccBits	ecc_bits
+src/cpu	local variable	src/cpu/cpu_mms.c	errorCode	error_code
+src/cpu	local variable	src/cpu/cpu_bkpt.c	hitCondVal	hit_cond_val
+src/cpu	local variable	src/cpu/cpu_bkpt.c	hitCount	hit_count
+src/cpu	local variable	src/cpu/cpu_instr.c	isDestinationPhysical	is_destination_physical
+src/cpu	local variable	src/cpu/cpu.c	isRTC	is_rtc
+src/cpu	local variable	src/cpu/cpu_instr.c	isSourcePhysical	is_source_physical
+src/cpu	local variable	src/cpu/float.c	isZero	is_zero
+src/cpu	local variable	src/cpu/cpu_instr.c	lowWord	low_word
+src/cpu	local variable	src/cpu/cpu_instr.c	minusCnt	minus_cnt
+src/cpu	local variable	src/cpu/cpu_mms.c	mms2Enabled	mms2_enabled
+src/cpu	local variable	src/cpu/cpu_instr.c	negOvf	neg_ovf
+src/cpu	local variable	src/cpu/cpu_instr.c	nextX	next_x
+src/cpu	local variable	src/cpu/cpu_instr.c	numBytesDest	num_bytes_dest
+src/cpu	local variable	src/cpu/cpu_instr.c	numBytesSource	num_bytes_source
+src/cpu	local variable	src/cpu/cpu_instr.c	numWordsD	num_words_d
+src/cpu	local variable	src/cpu/cpu_instr.c	oldB	old_b
+src/cpu	local variable	src/cpu/cpu_instr.c	old_gPC	old_g_pc
+src/cpu	local variable	src/cpu/cpu_instr.c	origLow	orig_low
+src/cpu	local variable	src/cpu/cpu_mms.c	pageTable	page_table
+src/cpu	local variable	src/cpu/cpu_mms.c	pageTableAddress	page_table_address
+src/cpu	local variable	src/cpu/cpu_mms.c	pageTableEntry	page_table_entry
+src/cpu	local variable	src/cpu/cpu_mms.c	pageTableRing	page_table_ring
+src/cpu	local variable	src/cpu/cpu_mms.c	pfMask	pf_mask
+src/cpu	local variable	src/cpu/cpu_mms.c	physicalAddress	physical_address
+src/cpu	local variable	src/cpu/cpu_mms.c	ppnStr	ppn_str
+src/cpu	local variable	src/cpu/cpu.c	priorityCode	priority_code
+src/cpu	local variable	src/cpu/cpu_instr.c	quotientMag	quotient_mag
+src/cpu	local variable	src/cpu/cpu_instr.c	quotientNegative	quotient_negative
+src/cpu	local variable	src/cpu/cpu_instr.c	readMode	read_mode
+src/cpu	local variable	src/cpu/cpu_instr.c	readValue	read_value
+src/cpu	local variable	src/cpu/cpu_instr.c	remainderMag	remainder_mag
+src/cpu	local variable	src/cpu/cpu_mms.c	ringStr	ring_str
+src/cpu	local variable	src/cpu/cpu_instr.c	sourceAddress	source_address
+src/cpu	local variable	src/cpu/cpu_instr.c	sourceEnd	source_end
+src/cpu	local variable	src/cpu/cpu_instr.c	sourceStart	source_start
+src/cpu	local variable	src/cpu/cpu_bkpt.c	tempCount	temp_count
+src/cpu	local variable	src/cpu/cpu_bkpt.c	tempList	temp_list
+src/cpu	local variable	src/cpu/cpu_mms.c	tmpPEA	tmp_pea
+src/cpu	local variable	src/cpu/cpu_mms.c	tmpPES	tmp_pes
+src/cpu	local variable	src/cpu/cpu_mms.c	tmpPGS	tmp_pgs
+src/cpu	local variable	src/cpu/cpu_mms.c	useAPT	use_apt
+src/cpu	local variable	src/cpu/cpu_bkpt.c	userCount	user_count
+src/cpu	local variable	src/cpu/cpu_bkpt.c	userList	user_list
+src/cpu	local variable	src/cpu/cpu.c	validBits	valid_bits
+src/cpu	local variable	src/cpu/cpu_instr.c	writeMode	write_mode
+src/cpu	macro definition	src/cpu/cpu_types.h	CurrLEVEL	CURR_LEVEL
+src/cpu	macro definition	src/cpu/cpu_types.h	InstructionRegister	INSTRUCTION_REGISTER
+src/cpu	macro definition	src/cpu/cpu_types.h	PrefetchBuffer	PREFETCH_BUFFER
+src/cpu	macro definition	src/cpu/cpu_model.c	nd_strcasecmp	ND_STRCASECMP
+src/cpu	parameter	src/cpu/cpu_mms.c	PTe	p_te
+src/cpu	parameter	src/cpu/cpu_mms.c	UseAPT	use_apt
+src/cpu	parameter	src/cpu/cpu_mms.c	VPN	vpn
+src/cpu	parameter	src/cpu/cpu_instr.c	checkOverlapping	check_overlapping
+src/cpu	parameter	src/cpu/cpu.c	debuggerEnabled	debugger_enabled
+src/cpu	parameter	src/cpu/cpu.c	debuggerPort	debugger_port
+src/cpu	parameter	src/cpu/cpu_bkpt.c	hitCondition	hit_condition
+src/cpu	parameter	src/cpu/cpu.c	interruptBits	interrupt_bits
+src/cpu	parameter	src/cpu/cpu.c	isEXR	is_exr
+src/cpu	parameter	src/cpu/cpu_bkpt.c	isWrite	is_write
+src/cpu	parameter	src/cpu/float.c	isZero	is_zero
+src/cpu	parameter	src/cpu/cpu_bkpt.c	logMessage	log_message
+src/cpu	parameter	src/cpu/cpu_bkpt.c	matchCount	match_count
+src/cpu	parameter	src/cpu/cpu_regs.c	newLevel	new_level
+src/cpu	parameter	src/cpu/cpu_mms.c	pageTable	page_table
+src/cpu	parameter	src/cpu/cpu_mms.c	pageTableEntry	page_table_entry
+src/cpu	parameter	src/cpu/cpu_mms.c	permitViolation	permit_violation
+src/cpu	parameter	src/cpu/cpu_mms.c	physicalAddress	physical_address
+src/cpu	parameter	src/cpu/cpu_mms.c	physicalWordAddress	physical_word_address
+src/cpu	parameter	src/cpu/cpu_types.h	regA	reg_a
+src/cpu	parameter	src/cpu/cpu_mms.c	useAPT	use_apt
+src/cpu	parameter	src/cpu/cpu_mms.c	virtualAddress	virtual_address
+src/cpu	static variable	src/cpu/cpu_mms.c	debugInfo	debug_info
+src/cpu	struct	src/cpu/cpu_types.h	disasm_entry	DisasmEntry
+src/cpu	struct	src/cpu/cpu_instr.c	versn_identity	VersnIdentity
+src/cpu	typedef	src/cpu/cpu_types.h	_NDRAM_	Ndram
+src/cpu	typedef	src/cpu/bcd.c	bcd_operand	BcdOperand
+src/cpu	union	src/cpu/cpu_types.h	ndram	Ndram

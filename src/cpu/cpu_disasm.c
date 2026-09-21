@@ -772,7 +772,7 @@ static void disasm_allocate(uint16_t addr)
     }
 
     // Allocate memory for the disasm entry at the given address
-    (*g_dis)[addr] = calloc(1, sizeof(struct disasm_entry));
+    (*g_dis)[addr] = calloc(1, sizeof(struct DisasmEntry));
 }
 
 void disasm_instr(uint16_t addr, uint16_t instr)
@@ -815,7 +815,7 @@ void disasm_addword(uint16_t addr, uint16_t myword)
         return; /* already exists */
     }
 
-    (*g_dis)[addr] = calloc(1, sizeof(struct disasm_entry));
+    (*g_dis)[addr] = calloc(1, sizeof(struct DisasmEntry));
     if ((*g_dis)[addr] != NULL)
     {
         (*g_dis)[addr]->theword = myword;

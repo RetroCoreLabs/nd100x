@@ -234,7 +234,9 @@ SPELLINGS = {
 
 # Split a name the way a reader would: an all-capitals run with any trailing
 # digits is one word (COM5025, IRQ12, B1), otherwise a capital starts a word.
-WORD = re.compile(r"[A-Z]+(?![a-z])[0-9]*|[A-Z][a-z0-9]*|[a-z][a-z0-9]*|[0-9]+")
+# An all-capitals run keeps its trailing digits (COM5025, IRQ12, B1), but a
+# capitalised word does not: ConvertFrom16BitPTE is from_16, not from16.
+WORD = re.compile(r"[A-Z]+(?![a-z])[0-9]*|[A-Z][a-z]+|[a-z]+[0-9]*|[0-9]+")
 
 
 def expected_snake(old):

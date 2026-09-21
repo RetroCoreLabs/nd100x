@@ -108,7 +108,7 @@ void breakpoint_manager_step_one(void)
 /// @param hitCondition Hit condition expression (optional)
 /// @param logMessage Log message (optional)
 void breakpoint_manager_add(uint16_t address, BreakpointType type, const char *condition,
-                            const char *hitCondition, const char *logMessage)
+                            const char *hit_condition, const char *log_message)
 {
 
     if (g_breakpoint_mgr == NULL)
@@ -137,8 +137,8 @@ void breakpoint_manager_add(uint16_t address, BreakpointType type, const char *c
     entry->address = address;
     entry->type = type;
     entry->condition = condition ? strdup(condition) : NULL;
-    entry->hitCondition = hitCondition ? strdup(hitCondition) : NULL;
-    entry->logMessage = logMessage ? strdup(logMessage) : NULL;
+    entry->hitCondition = hit_condition ? strdup(hit_condition) : NULL;
+    entry->logMessage = log_message ? strdup(log_message) : NULL;
     entry->hitCount = 0;
     entry->next = g_breakpoint_mgr->buckets[h];
 
@@ -255,15 +255,15 @@ void breakpoint_manager_clear_type(BreakpointType type)
 /// @param matches Array to store matching breakpoints
 /// @param matchCount Number of matching breakpoints
 /// @return Number of matching entries
-static int breakpoint_manager_check(uint16_t address, BreakpointEntry **matches[], int *matchCount)
+static int breakpoint_manager_check(uint16_t address, BreakpointEntry **matches[], int *match_count)
 {
     int h = hash_address(address);
     BreakpointEntry *curr = g_breakpoint_mgr->buckets[h];
 
-    BreakpointEntry *tempList[10];
-    int tempCount = 0;
-    BreakpointEntry *userList[10];
-    int userCount = 0;
+    BreakpointEntry *temp_list[10];
+    int temp_count = 0;
+    BreakpointEntry *user_list[10];
+    int user_count = 0;
 
     while (curr)
     {
@@ -271,16 +271,16 @@ static int breakpoint_manager_check(uint16_t address, BreakpointEntry **matches[
         {
             if (curr->type == BP_TYPE_TEMPORARY)
             {
-                tempList[tempCount++] = curr;
-                if (tempCount >= 10)
+                temp_list[temp_count++] = curr;
+                if (temp_count >= 10)
                 {
                     break;
                 }
             }
             else
             {
-                userList[userCount++] = curr;
-                if (userCount >= 10)
+                user_list[user_count++] = curr;
+                if (user_count >= 10)
                 {
                     break;
                 }
@@ -289,35 +289,35 @@ static int breakpoint_manager_check(uint16_t address, BreakpointEntry **matches[
         curr = curr->next;
     }
 
-    if (tempCount > 0)
+    if (temp_count > 0)
     {
-        *matches = malloc(sizeof(BreakpointEntry *) * tempCount);
+        *matches = malloc(sizeof(BreakpointEntry *) * temp_count);
         if (!*matches)
         {
-            *matchCount = 0;
+            *match_count = 0;
             return 0;
         }
-        memcpy(*matches, tempList, sizeof(BreakpointEntry *) * tempCount);
-        *matchCount = tempCount;
+        memcpy(*matches, temp_list, sizeof(BreakpointEntry *) * temp_count);
+        *match_count = temp_count;
     }
-    else if (userCount > 0)
+    else if (user_count > 0)
     {
-        *matches = malloc(sizeof(BreakpointEntry *) * userCount);
+        *matches = malloc(sizeof(BreakpointEntry *) * user_count);
         if (!*matches)
         {
-            *matchCount = 0;
+            *match_count = 0;
             return 0;
         }
-        memcpy(*matches, userList, sizeof(BreakpointEntry *) * userCount);
-        *matchCount = userCount;
+        memcpy(*matches, user_list, sizeof(BreakpointEntry *) * user_count);
+        *match_count = user_count;
     }
     else
     {
         *matches = NULL;
-        *matchCount = 0;
+        *match_count = 0;
     }
 
-    return *matchCount;
+    return *match_count;
 }
 
 /// @brief Check if the current program counter (PC) matches any breakpoints.
@@ -333,8 +333,8 @@ int check_for_breakpoint(void)
     }
 
     BreakpointEntry **hits;
-    int hitCount;
-    BreakpointType btType = BT_NONE;
+    int hit_count;
+    BreakpointType bt_type = BT_NONE;
     uint16_t pc = gPC;
 
     // Check for single step
@@ -351,9 +351,9 @@ int check_for_breakpoint(void)
     }
 
     // Check for breakpoints
-    if (breakpoint_manager_check(pc, &hits, &hitCount))
+    if (breakpoint_manager_check(pc, &hits, &hit_count))
     {
-        for (int i = 0; i < hitCount; i++)
+        for (int i = 0; i < hit_count; i++)
         {
             BreakpointEntry *bp = hits[i];
 
@@ -374,8 +374,8 @@ int check_for_breakpoint(void)
 
             if (bp->hitCondition)
             {
-                int hitCondVal = (int)strtol(bp->hitCondition, NULL, 10);
-                hit_ok = (bp->hitCount == hitCondVal);
+                int hit_cond_val = (int)strtol(bp->hitCondition, NULL, 10);
+                hit_ok = (bp->hitCount == hit_cond_val);
             }
 
             if (condition_ok && hit_ok)
@@ -388,7 +388,7 @@ int check_for_breakpoint(void)
                 else
                 {
                     // Trigger stop event with proper reason based on breakpoint type
-                    btType = bp->type;
+                    bt_type = bp->type;
                     CpuStopReason sr = (bp->type == BP_TYPE_TEMPORARY)
                                            ? STOP_REASON_STEP
                                            : stop_reason_from_breakpoint(bp->type);
@@ -409,7 +409,7 @@ int check_for_breakpoint(void)
         free(hits); // free list
     }
 
-    return btType;
+    return bt_type;
 }
 
 /// @brief Convert breakpoint type to stop reason
@@ -546,9 +546,9 @@ void watchpoint_remove(uint16_t address)
 /// @param isWrite true if write, false if read
 /// @param useAPT true if D-space access, false if I-space
 /// @return 1 if watchpoint hit, 0 otherwise
-int watchpoint_check_slow(uint16_t address, bool isWrite, bool useAPT)
+int watchpoint_check_slow(uint16_t address, bool is_write, bool use_apt)
 {
-    int8_t curPIL = (int8_t)CurrLEVEL;
+    int8_t cur_pil = (int8_t)CURR_LEVEL;
     for (int i = 0; i < g_watchpoint_count; i++)
     {
         WatchpointEntry *w = &s_watchpoints[i];
@@ -560,21 +560,21 @@ int watchpoint_check_slow(uint16_t address, bool isWrite, bool useAPT)
         {
             continue;
         }
-        if (w->pil >= 0 && w->pil != curPIL)
+        if (w->pil >= 0 && w->pil != cur_pil)
         {
             continue;
         }
-        if (w->space == WATCH_SPACE_ISPACE && useAPT)
+        if (w->space == WATCH_SPACE_ISPACE && use_apt)
         {
             continue;
         }
-        if (w->space == WATCH_SPACE_DSPACE && !useAPT)
+        if (w->space == WATCH_SPACE_DSPACE && !use_apt)
         {
             continue;
         }
         WatchpointType t = w->type;
-        int matched = (t == WATCH_READWRITE) || (isWrite && t == WATCH_WRITE) ||
-                      (!isWrite && t == WATCH_READ);
+        int matched = (t == WATCH_READWRITE) || (is_write && t == WATCH_WRITE) ||
+                      (!is_write && t == WATCH_READ);
         if (matched)
         {
             /* Ignore-count: swallow the first N matches, halt after. */
@@ -590,9 +590,9 @@ int watchpoint_check_slow(uint16_t address, bool isWrite, bool useAPT)
 }
 
 /// @brief Legacy check (backward compat, no UseAPT)
-int watchpoint_check(uint16_t address, bool isWrite)
+int watchpoint_check(uint16_t address, bool is_write)
 {
-    return watchpoint_check_slow(address, isWrite, false);
+    return watchpoint_check_slow(address, is_write, false);
 }
 
 /// @brief Clear all watchpoints
@@ -693,9 +693,9 @@ void phys_watchpoint_remove(uint32_t address)
 }
 
 /// @brief Check if a physical memory access hits a watchpoint (with PIL check)
-int phys_watchpoint_check(uint32_t address, bool isWrite)
+int phys_watchpoint_check(uint32_t address, bool is_write)
 {
-    int8_t curPIL = (int8_t)CurrLEVEL;
+    int8_t cur_pil = (int8_t)CURR_LEVEL;
     for (int i = 0; i < g_phys_watchpoint_count; i++)
     {
         if (!phys_watchpoints[i].active)
@@ -706,7 +706,7 @@ int phys_watchpoint_check(uint32_t address, bool isWrite)
         {
             continue;
         }
-        if (phys_watchpoints[i].pil >= 0 && phys_watchpoints[i].pil != curPIL)
+        if (phys_watchpoints[i].pil >= 0 && phys_watchpoints[i].pil != cur_pil)
         {
             continue;
         }
@@ -715,11 +715,11 @@ int phys_watchpoint_check(uint32_t address, bool isWrite)
         {
             return 1;
         }
-        if (isWrite && (t == WATCH_WRITE))
+        if (is_write && (t == WATCH_WRITE))
         {
             return 1;
         }
-        if (!isWrite && (t == WATCH_READ))
+        if (!is_write && (t == WATCH_READ))
         {
             return 1;
         }

@@ -120,7 +120,7 @@ typedef struct
     uint16_t words[BCD_MAX_WORDS]; /* the field's memory words            */
     bool error;                    /* take the error return (no skip)     */
     uint8_t error_code;            /* BCD_ERR_* (PACK/UPACK only)         */
-} bcd_operand;
+} BcdOperand;
 
 /* ================================================================ */
 /* Field geometry                                                   */
@@ -131,7 +131,7 @@ typedef struct
  * Meaningful for packed BCD only - ASCII field lengths already count whole
  * bytes, so the ASCII paths index bytes directly and never call this.
  */
-static int bcd_byte_aligned_nibbles(const bcd_operand *op)
+static int bcd_byte_aligned_nibbles(const BcdOperand *op)
 {
     return op->field_length + (op->field_length & 1);
 }
@@ -146,7 +146,7 @@ static int bcd_byte_aligned_nibbles(const bcd_operand *op)
  * The words[] array is oversized so this can never corrupt memory outside the
  * struct.  Kept identical to RetroCore on purpose - do not "fix" one side only.
  */
-static int bcd_mem_words(const bcd_operand *op)
+static int bcd_mem_words(const BcdOperand *op)
 {
     int len;
 
@@ -194,13 +194,13 @@ static int bcd_mem_words(const bcd_operand *op)
  * counts DOWN the word from the top; `lr` shifts the whole field right by one
  * byte (= two nibbles).
  */
-static int bcd_get_nibble(const bcd_operand *op, int i)
+static int bcd_get_nibble(const BcdOperand *op, int i)
 {
     int p = i + (op->starts_in_right_byte ? 2 : 0);
     return (op->words[p >> 2] >> ((3 - (p & 3)) * 4)) & 0x0F;
 }
 
-static void bcd_set_nibble(bcd_operand *op, int i, int val)
+static void bcd_set_nibble(BcdOperand *op, int i, int val)
 {
     int p = i + (op->starts_in_right_byte ? 2 : 0);
     int idx = p >> 2;
@@ -213,7 +213,7 @@ static void bcd_set_nibble(bcd_operand *op, int i, int val)
  * Logical field BYTE i (ASCII operands).  Byte 0 is the leftmost / most
  * significant byte = the HIGH 8 bits of the word (ND is big endian).
  */
-static uint8_t bcd_get_byte(const bcd_operand *op, int i)
+static uint8_t bcd_get_byte(const BcdOperand *op, int i)
 {
     int p = i + (op->starts_in_right_byte ? 1 : 0);
     uint16_t w = op->words[p >> 1];
@@ -221,7 +221,7 @@ static uint8_t bcd_get_byte(const bcd_operand *op, int i)
     return (uint8_t)(((p & 1) == 0) ? (w >> 8) : (w & 0x00FF));
 }
 
-static void bcd_set_byte(bcd_operand *op, int i, uint8_t val)
+static void bcd_set_byte(BcdOperand *op, int i, uint8_t val)
 {
     int p = i + (op->starts_in_right_byte ? 1 : 0);
     int idx = p >> 1;
@@ -251,7 +251,7 @@ static void bcd_set_byte(bcd_operand *op, int i, uint8_t val)
  * An EMPTY field (L = 0) is perfectly legal - nothing is read, and the operand
  * behaves as a positive zero with ZERO significant-digit capacity.
  */
-static bool bcd_get_operand(bcd_operand *op, uint16_t d1, uint16_t d2, bool is_ascii)
+static bool bcd_get_operand(BcdOperand *op, uint16_t d1, uint16_t d2, bool is_ascii)
 {
     int mem_len;
     int i;
@@ -301,7 +301,7 @@ static bool bcd_get_operand(bcd_operand *op, uint16_t d1, uint16_t d2, bool is_a
  * and every update went through bcd_set_nibble/bcd_set_byte, so this is a
  * read-modify-write: bits of a boundary word outside the field survive.
  */
-static void bcd_store_operand(bcd_operand *op)
+static void bcd_store_operand(BcdOperand *op)
 {
     int mem_len;
     int i;
@@ -335,7 +335,7 @@ static void bcd_store_operand(bcd_operand *op)
  * BYTE ALIGNED: the sign is the LAST nibble of the byte-aligned field, index
  * M-1, NOT L-1.  For even L these coincide.
  */
-static void bcd_decode_sign(const bcd_operand *op, int *sign, bool *is_unsigned)
+static void bcd_decode_sign(const BcdOperand *op, int *sign, bool *is_unsigned)
 {
     int sign_nib;
 
@@ -374,7 +374,7 @@ static void bcd_decode_sign(const bcd_operand *op, int *sign, bool *is_unsigned)
  * the leading nibble is a zero PAD, so reading M-1 nibbles yields exactly the
  * same numeric value as reading L-1.
  */
-static void bcd_extract_magnitude(const bcd_operand *op, uint8_t *dst, int dst_len)
+static void bcd_extract_magnitude(const BcdOperand *op, uint8_t *dst, int dst_len)
 {
     int digits = (op->field_length == 0) ? 0 : bcd_byte_aligned_nibbles(op) - 1;
     int base;
@@ -484,7 +484,7 @@ static int bcd_cmp_magnitude(const uint8_t *a, const uint8_t *b, int len)
  * written to memory either way.  This is the TFIRE rule - an empty first
  * operand is NOT an error by itself.
  */
-static void bcd_pack_magnitude_to_field(bcd_operand *op, const uint8_t *digits, int len,
+static void bcd_pack_magnitude_to_field(BcdOperand *op, const uint8_t *digits, int len,
                                         int out_sign_nibble, bool *overflow)
 {
     int m;
@@ -553,7 +553,7 @@ static void bcd_pack_magnitude_to_field(bcd_operand *op, const uint8_t *digits, 
  * error return.  The ONLY error return is decimal OVERFLOW (OVFLO, CS 011054);
  * illegal digit/sign nibbles are NOT validated - see bcd_decode_sign.
  */
-static bool bcd_add_sub(bcd_operand *op1, const bcd_operand *op2, int op2_sign_flip)
+static bool bcd_add_sub(BcdOperand *op1, const BcdOperand *op2, int op2_sign_flip)
 {
     uint8_t a[BCD_MAX_NIBBLES + 2]; /* result magnitude, MSD-first */
     uint8_t b[BCD_MAX_NIBBLES + 2];
@@ -664,8 +664,8 @@ static bool bcd_add_sub(bcd_operand *op1, const bcd_operand *op2, int op2_sign_f
  */
 void opcode_addd_add_two_decimal_operands(uint16_t instr)
 {
-    bcd_operand op1;
-    bcd_operand op2;
+    BcdOperand op1;
+    BcdOperand op2;
 
     (void)instr;
 
@@ -696,8 +696,8 @@ void opcode_addd_add_two_decimal_operands(uint16_t instr)
  */
 void opcode_subd_subtract_two_decimal_operands(uint16_t instr)
 {
-    bcd_operand op1;
-    bcd_operand op2;
+    BcdOperand op1;
+    BcdOperand op2;
 
     (void)instr;
 
@@ -732,7 +732,7 @@ void opcode_subd_subtract_two_decimal_operands(uint16_t instr)
  * which silently lost precision past ~15 digits - the very bug this file was
  * rewritten to remove.)
  */
-static int bcd_compare(const bcd_operand *op1, const bcd_operand *op2)
+static int bcd_compare(const BcdOperand *op1, const BcdOperand *op2)
 {
     uint8_t a[2 * (BCD_MAX_NIBBLES + 2)];
     uint8_t b[2 * (BCD_MAX_NIBBLES + 2)];
@@ -807,8 +807,8 @@ static int bcd_compare(const bcd_operand *op1, const bcd_operand *op2)
  */
 void opcode_comd_compare_two_decimal_operands(uint16_t instr)
 {
-    bcd_operand op1;
-    bcd_operand op2;
+    BcdOperand op1;
+    BcdOperand op2;
     int cmp;
 
     (void)instr;
@@ -880,7 +880,7 @@ void opcode_comd_compare_two_decimal_operands(uint16_t instr)
  * Like ADDD/SUBD, input digit/sign nibbles are NOT validated (the oracle was
  * never probed for SHDE illegal-code reporting).
  */
-static bool bcd_shde(bcd_operand *dst, const bcd_operand *src)
+static bool bcd_shde(BcdOperand *dst, const BcdOperand *src)
 {
     uint8_t digits[BCD_MAX_NIBBLES + 2];   /* op1's significant digits, MSD-first */
     uint8_t work[2 * BCD_MAX_NIBBLES + 4]; /* shifted magnitude, MSD-first */
@@ -1031,8 +1031,8 @@ static bool bcd_shde(bcd_operand *dst, const bcd_operand *src)
 
 void opcode_shde_decimal_shift(uint16_t instr)
 {
-    bcd_operand op1;
-    bcd_operand op2;
+    BcdOperand op1;
+    BcdOperand op2;
 
     (void)instr;
 
@@ -1067,7 +1067,7 @@ void opcode_shde_decimal_shift(uint16_t instr)
  * byte).  The exact low-bit byte pointer is UNCERTAIN - only bit 15 is pinned by
  * the manual, so only bit 15 is set here.
  */
-static void bcd_report_error(bcd_operand *op, uint8_t code)
+static void bcd_report_error(BcdOperand *op, uint8_t code)
 {
     op->error = true;
     op->error_code = code;
@@ -1119,7 +1119,7 @@ static void bcd_ascii_layout(int format, int len, int *sign_byte, int *first, in
  * (unpacked) to Packed Decimal Number (packed), and the result put in the
  * second operand location."
  */
-static bool bcd_convert_to_packed(bcd_operand *dst, const bcd_operand *src)
+static bool bcd_convert_to_packed(BcdOperand *dst, const BcdOperand *src)
 {
     uint8_t digits[BCD_MAX_NIBBLES]; /* MSD..LSD */
     int n_digits = 0;
@@ -1281,8 +1281,8 @@ static bool bcd_convert_to_packed(bcd_operand *dst, const bcd_operand *src)
 
 void opcode_pack_convert_to_decimal(uint16_t instr)
 {
-    bcd_operand op1; /* A/D: ASCII source      */
-    bcd_operand op2; /* X/T: packed BCD dest   */
+    BcdOperand op1; /* A/D: ASCII source      */
+    BcdOperand op2; /* X/T: packed BCD dest   */
 
     (void)instr;
 
@@ -1325,8 +1325,8 @@ void opcode_pack_convert_to_decimal(uint16_t instr)
 /* The unpacked (ASCII) byte for one digit at byte position pos: the plain
  * digit 0x30|digit, or, at the sign byte of an embedded-sign format, the
  * Manual Table 5 overpunch of sign and digit. */
-static uint8_t unpacked_digit_byte(const bcd_operand *dst, int pos, int sign_byte,
-                                   bool unsigned_req, int sign, int digit)
+static uint8_t unpacked_digit_byte(const BcdOperand *dst, int pos, int sign_byte, bool unsigned_req,
+                                   int sign, int digit)
 {
     uint8_t b;
 
@@ -1351,7 +1351,7 @@ static uint8_t unpacked_digit_byte(const bcd_operand *dst, int pos, int sign_byt
     return b;
 }
 
-static bool bcd_convert_to_unpacked(bcd_operand *dst, const bcd_operand *src)
+static bool bcd_convert_to_unpacked(BcdOperand *dst, const BcdOperand *src)
 {
     uint8_t digits[BCD_MAX_NIBBLES]; /* MSD..LSD */
     int n_digits = 0;
@@ -1450,8 +1450,8 @@ static bool bcd_convert_to_unpacked(bcd_operand *dst, const bcd_operand *src)
 
 void opcode_unpack_convert_from_decimal(uint16_t instr)
 {
-    bcd_operand op1; /* A/D: packed BCD source */
-    bcd_operand op2; /* X/T: ASCII destination */
+    BcdOperand op1; /* A/D: packed BCD source */
+    BcdOperand op2; /* X/T: ASCII destination */
 
     (void)instr;
 

@@ -153,13 +153,13 @@ static void add48(struct fp *f1, struct fp *f2, uint16_t *r)
  * FSB(4-3) -> 040100, FSB(3-2) -> 040100, FSB(4-3.875) -> 037600. The FAD/FSB
  * microcode has no format-specific exponent path.)
  */
-static void sub_core(struct fp *f1, struct fp *f2, int *s, int *e, uint64_t *m3, bool *isZero)
+static void sub_core(struct fp *f1, struct fp *f2, int *s, int *e, uint64_t *m3, bool *is_zero)
 {
     struct fp *ft;
     int scale;
     int gbit;
 
-    *isZero = false;
+    *is_zero = false;
 
     /* Ensure f1 has the larger exponent */
     if (f2->e > f1->e)
@@ -195,7 +195,7 @@ static void sub_core(struct fp *f1, struct fp *f2, int *s, int *e, uint64_t *m3,
     {
         *s = 0;
         *e = 0;
-        *isZero = true;
+        *is_zero = true;
         return;
     }
 
@@ -220,11 +220,11 @@ static void sub48(struct fp *f1, struct fp *f2, uint16_t *r)
     uint64_t m3;
     int s;
     int e;
-    bool isZero;
+    bool is_zero;
 
-    sub_core(f1, f2, &s, &e, &m3, &isZero);
+    sub_core(f1, f2, &s, &e, &m3, &is_zero);
 
-    if (isZero)
+    if (is_zero)
     {
         r[0] = r[1] = r[2] = 0;
         return;
@@ -605,7 +605,7 @@ int NDFloat_Add32(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
     int s;
     int e;
     uint64_t m3;
-    bool isZero;
+    bool is_zero;
 
     mkfp32(&f1, p_a[0], p_a[1]);
     mkfp32(&f2, p_b[0], p_b[1]);
@@ -625,8 +625,8 @@ int NDFloat_Add32(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
 
     if (f1.s ^ f2.s)
     {
-        sub_core(&f1, &f2, &s, &e, &m3, &isZero);
-        if (isZero)
+        sub_core(&f1, &f2, &s, &e, &m3, &is_zero);
+        if (is_zero)
         {
             p_r[0] = 0;
             p_r[1] = 0;
@@ -651,7 +651,7 @@ int NDFloat_Sub32(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
     int s;
     int e;
     uint64_t m3;
-    bool isZero;
+    bool is_zero;
 
     mkfp32(&f1, p_a[0], p_a[1]);
     mkfp32(&f2, p_b[0], p_b[1]);
@@ -673,8 +673,8 @@ int NDFloat_Sub32(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r)
 
     if (f1.s ^ f2.s)
     {
-        sub_core(&f1, &f2, &s, &e, &m3, &isZero);
-        if (isZero)
+        sub_core(&f1, &f2, &s, &e, &m3, &is_zero);
+        if (is_zero)
         {
             p_r[0] = 0;
             p_r[1] = 0;

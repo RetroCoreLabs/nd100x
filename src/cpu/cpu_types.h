@@ -279,12 +279,12 @@ extern InstrFunc g_instr_funcs[65536];
  * Backing store fixed at MEMPTSIZE KWords (the 16 MB maximum); the installed
  * size that the CPU/probe honour is ND_Memsize.
  */
-typedef union ndram
+typedef union Ndram
 {
     unsigned char c_Array[MEMPTSIZE * 1024 * 2];
     uint16_t n_Array[MEMPTSIZE * 1024];
     uint16_t n_Pages[MEMPTSIZE][1024];
-} _NDRAM_;
+} Ndram;
 
 
 // Installed main-memory size, in 16-bit WORDS. Runtime-configurable 1..16 MB
@@ -522,8 +522,8 @@ typedef enum {
 #define gIIC_Lock g_reg->mylock_IIC
 
 
-#define CurrLEVEL ((g_reg->reg_STS & 0x0f00) >> 8)
-#define gPIL      ((g_reg->reg_STS & 0x0f00) >> 8)
+#define CURR_LEVEL ((g_reg->reg_STS & 0x0f00) >> 8)
+#define gPIL       ((g_reg->reg_STS & 0x0f00) >> 8)
 
 /* Highest runlevel with PIE AND PID bits both set */
 #define gPK g_reg->myreg_PK
@@ -534,8 +534,8 @@ typedef enum {
 /* The complete Status register both MSB and LSB for current runlevel. Read only MACRO */
 #define gSTSr ((g_reg->reg_STS & 0xFF00) | (g_reg->reg[gPIL][_STS] & 0x00FF))
 
-#define InstructionRegister g_reg->myreg_IR
-#define PrefetchBuffer      g_reg->myreg_PFB
+#define INSTRUCTION_REGISTER g_reg->myreg_IR
+#define PREFETCH_BUFFER      g_reg->myreg_PFB
 
 // clang-format off
 #define gEA                 g_reg->effectiveAddress
@@ -595,7 +595,7 @@ ALD SWITCH
 
 //********** Disassembly **********
 
-struct disasm_entry
+struct DisasmEntry
 {
     bool isdata;
     bool iscode;
@@ -608,14 +608,14 @@ struct disasm_entry
     uint16_t theword;
 };
 
-typedef struct disasm_entry *DisasmArray[65536];
+typedef struct DisasmEntry *DisasmArray[65536];
 extern DisasmArray g_disasm_arr;
 extern DisasmArray *g_dis;
 
 
 // Global CPU variable definitions
 extern struct CpuRegs *g_reg;
-extern _NDRAM_ g_volatile_memory;
+extern Ndram g_volatile_memory;
 extern CpuType g_current_cpu_type;
 extern FppType g_current_fpp_type;
 
@@ -626,9 +626,9 @@ extern int g_disasm;
 /* Called by the CPU but defined in other modules, whose prototypes are only
  * in their generated *_protos.h. Declared here so the defining files, which
  * include this header, are checked against the same signature. */
-uint16_t io_op(uint16_t ioadd, uint16_t regA); /* machine/io.c */
-int IO_Ident(uint16_t level);                  /* machine/io.c */
-void start_debugger(void);                     /* debugger/debugger.c */
+uint16_t io_op(uint16_t ioadd, uint16_t reg_a); /* machine/io.c */
+int IO_Ident(uint16_t level);                   /* machine/io.c */
+void start_debugger(void);                      /* debugger/debugger.c */
 
 /* Set by device DMA (devices/device.c) around a transfer so the shadow-RAM
  * check in cpu_mms.c is skipped: DMA is a physical bus access. */
@@ -1326,7 +1326,7 @@ uint16_t PT_Read(uint32_t);
 /**
  * @brief Read a full page table entry (PTE) from shadow RAM for the current
  * STS_EXTENDED_ADDRESSING_IS_SET mode: 32-bit PTE from two consecutive words in extended mode, or a
- * 16-bit PTE expanded via ConvertFrom16BitPTE() in normal mode (page tables 0-3
+ * 16-bit PTE expanded via convert_from_16_bit_pte() in normal mode (page tables 0-3
  * only). Trap-free.
  * @param pageTable Page table number (0-15).
  * @param VPN Virtual page number.
@@ -1355,7 +1355,7 @@ uint32_t GetPageTableEntryForDebugger(uint32_t, uint32_t, PageTableMode);
 
 /**
  * @brief Write a page table entry back into shadow RAM, packing it as two words
- * in extended mode (STS_EXTENDED_ADDRESSING_IS_SET) or as a 16-bit PTE via ConvertTo16BitPTE() in
+ * in extended mode (STS_EXTENDED_ADDRESSING_IS_SET) or as a 16-bit PTE via convert_to_16_bit_pte() in
  * normal mode. Trap-free.
  * @param pageTable Page table number (0-15).
  * @param VPN Virtual page number.

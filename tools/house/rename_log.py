@@ -131,9 +131,42 @@ def load_kinds():
     return kinds
 
 
+MACRO_DEF = r"^\s*#\s*define\s+{name}\b"
 FUNC_DEF = r"^[A-Za-z_][\w \*]*\b{name}\s*\("
 STATIC_FUNC = r"^\s*static\b[\w \*]*\b{name}\s*\("
 STATIC_VAR = r"^\s*static\b[\w \*]*\b{name}\s*(\[|=|;)"
+
+
+_MACROS = None
+
+
+def macro_names():
+    """Every name #defined anywhere in src/ or tests/.
+
+    A use of a macro in another file has no #define beside it, so it was
+    being logged as a local variable - the STS_CARRY uses in cpu_instr.c for
+    example. Knowing the whole set lets a use be named for what it is.
+    """
+    global _MACROS
+    if _MACROS is not None:
+        return _MACROS
+    _MACROS = set()
+    for top in ("src", "tests"):
+        for base, dirs, files in os.walk(os.path.join(REPO, top)):
+            dirs[:] = [d for d in dirs if d != "external"]
+            for name in files:
+                if not name.endswith((".c", ".h")) or name.endswith("_protos.h"):
+                    continue
+                try:
+                    with open(os.path.join(base, name), encoding="utf-8",
+                              errors="replace") as handle:
+                        for line in handle:
+                            got = re.match(r"\s*#\s*define\s+(\w+)", line)
+                            if got:
+                                _MACROS.add(got.group(1))
+                except OSError:
+                    continue
+    return _MACROS
 
 
 def classify(path, new):
@@ -150,6 +183,13 @@ def classify(path, new):
     except OSError:
         return "identifier"
     name = re.escape(new)
+    # A macro first: renames driven by a script rather than by
+    # rename_naming.py record no kind, and a #define was coming out as
+    # "local variable" - STS_CARRY is a macro, not a local.
+    if re.search(MACRO_DEF.format(name=name), text, re.M):
+        return "macro definition"
+    if new in macro_names():
+        return "macro use"
     if re.search(STATIC_FUNC.format(name=name), text, re.M):
         return "static function"
     if re.search(FUNC_DEF.format(name=name), text, re.M):
@@ -163,6 +203,13 @@ def classify(path, new):
             head = line[line.index("("):]
             if re.search(r"\b" + name + r"\b", head):
                 return "parameter"
+    # A name that survives only inside a comment is a documentation
+    # reference, not a declaration - device_winchester.c mentioning
+    # PaperTape_Ident was being logged as a local variable.
+    code = "\n".join(l for l in text.splitlines()
+                      if not l.strip().startswith(("*", "//", "/*")))
+    if not re.search(r"\b" + name + r"\b", code):
+        return "comment reference"
     return "local variable"
 
 

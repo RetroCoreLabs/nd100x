@@ -23,7 +23,7 @@
 #define nd_strcasecmp _stricmp
 #else
 #include <strings.h>
-#define nd_strcasecmp strcasecmp
+#define ND_STRCASECMP strcasecmp
 #endif
 
 // clang-format off
@@ -52,7 +52,7 @@ bool CpuModel_FromName(const char *name, CpuType *out)
     }
     for (int i = 0; i < MODEL_COUNT; i++)
     {
-        if (nd_strcasecmp(name, g_models[i].name) == 0)
+        if (ND_STRCASECMP(name, g_models[i].name) == 0)
         {
             if (out)
             {

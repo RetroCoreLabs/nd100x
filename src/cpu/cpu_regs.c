@@ -35,13 +35,13 @@
 /// @brief Set the PIL (Program Interrupt Level)
 /// @param newLevel The new level to set
 /// @return Returns true if the level was set, false otherwise
-bool setPIL(char newLevel)
+bool setPIL(char new_level)
 {
-    if (newLevel >= 16)
+    if (new_level >= 16)
     {
         return false;
     }
-    if (newLevel == gPIL)
+    if (new_level == gPIL)
     {
         return true; // already set
     }
@@ -49,7 +49,7 @@ bool setPIL(char newLevel)
     gPVL = gPIL; /* Save current runlevel */
 
     // Update SYSTEM bits - PIL
-    g_reg->reg_STS = (g_reg->reg_STS & 0xF000) | ((newLevel & 0x0f) << 8);
+    g_reg->reg_STS = (g_reg->reg_STS & 0xF000) | ((new_level & 0x0f) << 8);
     return true;
 }
 
@@ -94,11 +94,11 @@ void setreg(int r, int val)
 {
     if (r == _STS)
     {
-        g_reg->reg[CurrLEVEL][r] = (uint16_t)(val & 0x00FF); // Only lower 8 bits
+        g_reg->reg[CURR_LEVEL][r] = (uint16_t)(val & 0x00FF); // Only lower 8 bits
     }
     else
     {
-        g_reg->reg[CurrLEVEL][r] = (uint16_t)(val & 0xFFFF);
+        g_reg->reg[CURR_LEVEL][r] = (uint16_t)(val & 0xFFFF);
     }
 }
 
@@ -113,7 +113,7 @@ uint16_t getbit(uint16_t regnum, uint16_t stsbit)
     }
     else
     {
-        tmp = g_reg->reg[CurrLEVEL][regnum];
+        tmp = g_reg->reg[CURR_LEVEL][regnum];
     }
     result = (tmp >> stsbit) & 1;
     return result;
@@ -123,7 +123,7 @@ void clrbit(uint16_t regnum, uint16_t stsbit)
 {
     uint16_t thebit;
     thebit = (1 << stsbit) ^ 0xFFFF;
-    g_reg->reg[CurrLEVEL][regnum] = (thebit & g_reg->reg[CurrLEVEL][regnum]);
+    g_reg->reg[CURR_LEVEL][regnum] = (thebit & g_reg->reg[CURR_LEVEL][regnum]);
 }
 
 /*
@@ -161,7 +161,7 @@ void setbit(uint16_t regnum, uint16_t stsbit, char val)
     if (val)
     {
         thebit = (1 << stsbit);
-        g_reg->reg[CurrLEVEL][regnum] = (thebit | g_reg->reg[CurrLEVEL][regnum]);
+        g_reg->reg[CURR_LEVEL][regnum] = (thebit | g_reg->reg[CURR_LEVEL][regnum]);
 
         if (stsbit == STS_ERROR_INDICATOR) // error bit is set
         {
@@ -171,7 +171,7 @@ void setbit(uint16_t regnum, uint16_t stsbit, char val)
     else
     {
         thebit = (1 << stsbit) ^ 0xFFFF;
-        g_reg->reg[CurrLEVEL][regnum] = (thebit & g_reg->reg[CurrLEVEL][regnum]);
+        g_reg->reg[CURR_LEVEL][regnum] = (thebit & g_reg->reg[CURR_LEVEL][regnum]);
     }
 }
 

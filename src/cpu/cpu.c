@@ -122,7 +122,7 @@ void debugger_update_jpl_entrypoint(uint16_t ea);
 
 
 // Global CPU variable definitions
-_NDRAM_ g_volatile_memory;
+Ndram g_volatile_memory;
 
 /*
  * The CPU model this emulator presents to the guest.
@@ -237,10 +237,10 @@ int cpu_trace_nd110_set(const char *path)
     return 0;
 }
 
-void do_op(uint16_t operand, bool isEXR)
+void do_op(uint16_t operand, bool is_exr)
 {
 
-    if (!isEXR)
+    if (!is_exr)
     {
         gPC++; // Move P before starting instruction. (but not if executed from register)
     }
@@ -288,12 +288,12 @@ uint16_t New_GetEffectiveAddr(uint16_t instr, bool *use_apt)
     int disp = signExtend(instr & 0xFF);
     uint16_t eff_addr;
 
-    uint16_t P = (gPC - 1) & 0xFFFF;
+    uint16_t p = (gPC - 1) & 0xFFFF;
 
     switch ((instr >> 8) & 0x07)
     {
     case 0: /* (P) + disp */
-        eff_addr = P + disp;
+        eff_addr = p + disp;
         *use_apt = false;
         break;
     case 1: /* (B) + disp */
@@ -301,7 +301,7 @@ uint16_t New_GetEffectiveAddr(uint16_t instr, bool *use_apt)
         *use_apt = true;
         break;
     case 2: /* ((P) + disp) */
-        eff_addr = P + disp;
+        eff_addr = p + disp;
         eff_addr = ReadIndirectVirtualMemory(eff_addr, false);
         *use_apt = true;
         break;
@@ -319,7 +319,7 @@ uint16_t New_GetEffectiveAddr(uint16_t instr, bool *use_apt)
         *use_apt = true;
         break;
     case 6: /* ((P) + disp) + (X) */
-        eff_addr = P + disp;
+        eff_addr = p + disp;
         eff_addr = gX + ReadIndirectVirtualMemory(eff_addr, false);
         *use_apt = true;
         break;
@@ -361,8 +361,8 @@ uint16_t New_GetEffectiveAddr(uint16_t instr, bool *use_apt)
 ///  ----+----------+----------+------------------------------------------------------------------------
 uint16_t calcIIC(void)
 {
-    uint16_t priorityCode = gIID & gIIE;
-    if (priorityCode == 0)
+    uint16_t priority_code = gIID & gIIE;
+    if (priority_code == 0)
     {
         return 0;
     }
@@ -370,7 +370,7 @@ uint16_t calcIIC(void)
 
     for (int i = 10; i >= 0; i--)
     {
-        if ((priorityCode & (1 << i)) != 0)
+        if ((priority_code & (1 << i)) != 0)
         {
             return (uint16_t)i;
         }
@@ -485,20 +485,20 @@ void interrupt(uint16_t lvl, uint16_t sub)
     }
 }
 
-void device_interrupt(uint16_t interruptBits)
+void device_interrupt(uint16_t interrupt_bits)
 {
-    last_device_irq_bits = interruptBits;
+    last_device_irq_bits = interrupt_bits;
 
     // Only process bits 10-13 and 15 for device interrupts
-    uint16_t validBits = interruptBits & 0xBC00; // Mask for bits 10-13,15 (0b1111010000000000)
+    uint16_t valid_bits = interrupt_bits & 0xBC00; // Mask for bits 10-13,15 (0b1111010000000000)
 
     uint16_t tmp = gPID;
 
     // clear gIID bits 10-13,15
-    gPID &= ~validBits;
+    gPID &= ~valid_bits;
 
     // set gIID bits from device(s)
-    gPID |= validBits;
+    gPID |= valid_bits;
 
     if (tmp != gPID)
     {
@@ -530,14 +530,14 @@ uint16_t PhysMemRead(uint32_t addr)
  * With a debugger attached, enter CPU_BREAKPOINT so DAP can report and resume.
  * Without a debugger (CLI --watch), halt the machine like the -B breakpoint does.
  */
-void cpu_watchpoint_triggered(uint32_t addr, bool isWrite)
+void cpu_watchpoint_triggered(uint32_t addr, bool is_write)
 {
     set_cpu_stop_reason(STOP_REASON_DATA_BREAKPOINT);
     set_cpu_run_mode(CPU_BREAKPOINT);
     if (!gDebuggerEnabled)
     {
         fprintf(stderr, "\n--- CPU stopped: watchpoint %s at %06o (PC=%06o) ---\n",
-                isWrite ? "write" : "read", addr, gPC);
+                is_write ? "write" : "read", addr, gPC);
         /* Caller frame context: B, B[-1]=NNN (frame size), and a window
          * so the offending .word NNN and arg-store offset can be read
          * directly instead of reconstructed. D-space (UseAPT=true). */
@@ -561,7 +561,7 @@ void cpu_watchpoint_triggered(uint32_t addr, bool isWrite)
  * Write a word to memory.
  * Here we implement all Memory Management System functions.
  */
-void MemoryWrite(uint16_t value, uint16_t addr, bool UseAPT, uint8_t byte_select)
+void MemoryWrite(uint16_t value, uint16_t addr, bool use_apt, uint8_t byte_select)
 {
 #ifdef WITH_DEBUGGER
     // Hot path: counter check -> bitmap check -> slow path
@@ -569,33 +569,33 @@ void MemoryWrite(uint16_t value, uint16_t addr, bool UseAPT, uint8_t byte_select
     // Cost when watchpoints active but addr miss: + 1 byte load + 1 bit test
     if (g_watchpoint_count > 0 && (g_watchpoint_bitmap[addr >> 3] & (1 << (addr & 7))) &&
         (g_watchpoint_min_value == 0 || value >= (uint16_t)g_watchpoint_min_value) &&
-        watchpoint_check_slow(addr, true, UseAPT))
+        watchpoint_check_slow(addr, true, use_apt))
     {
         cpu_watchpoint_triggered(addr, true);
     }
 #endif
-    WriteVirtualMemory(addr, value, UseAPT, byte_select); // in cpu_mms.c
+    WriteVirtualMemory(addr, value, use_apt, byte_select); // in cpu_mms.c
 }
 
 /*
  * Read a word from memory.
  * Here we implement all Memory Management System functions.
  */
-uint16_t MemoryRead(uint16_t addr, bool UseAPT)
+uint16_t MemoryRead(uint16_t addr, bool use_apt)
 {
 #ifdef WITH_DEBUGGER
     if (g_watchpoint_count > 0 && (g_watchpoint_bitmap[addr >> 3] & (1 << (addr & 7))) &&
-        watchpoint_check_slow(addr, false, UseAPT))
+        watchpoint_check_slow(addr, false, use_apt))
     {
         cpu_watchpoint_triggered(addr, false);
     }
 #endif
-    return ReadVirtualMemory(addr, UseAPT); // in cpu_mms.c
+    return ReadVirtualMemory(addr, use_apt); // in cpu_mms.c
 }
 
-static uint16_t memory_fetch(uint16_t addr, bool UseAPT)
+static uint16_t memory_fetch(uint16_t addr, bool use_apt)
 {
-    return FetchVirtualMemory(addr, UseAPT); // in cpu_mms.c
+    return FetchVirtualMemory(addr, use_apt); // in cpu_mms.c
 }
 
 /// @brief Check if we need to switch runlevel
@@ -622,8 +622,8 @@ static bool check_and_switch(void)
 
             if (ND100X_HOT_TRACE && Log_IsEnabled(LOG_CAT_PKSWITCH, LOG_TRACE))
             {
-                bool isRTC = ((gPVL == 13) || (gPIL == 13));
-                if (!isRTC)
+                bool is_rtc = ((gPVL == 13) || (gPIL == 13));
+                if (!is_rtc)
                 {
                     Log_Write(LOG_CAT_PKSWITCH, LOG_TRACE, "Switched from %d P[%6o] to %d P[%6o]",
                               gPVL, g_reg->reg[gPVL][_P], gPIL, g_reg->reg[gPIL][_P]);
@@ -1146,7 +1146,7 @@ void cpu_set_type_from_env(void)
     }
 }
 
-void cpu_init(bool debuggerEnabled, int debuggerPort)
+void cpu_init(bool debugger_enabled, int debugger_port)
 {
     /* initialize an empty register set (static storage: never freed, cannot fail) */
     static struct CpuRegs s_cpu_regs;
@@ -1182,8 +1182,8 @@ void cpu_init(bool debuggerEnabled, int debuggerPort)
 
     gALD = 01560; // oct 1560 (ALD position 4, Binary load from 1560) // Floppy
 
-    gDebuggerEnabled = debuggerEnabled;
-    gDebuggerPort = debuggerPort;
+    gDebuggerEnabled = debugger_enabled;
+    gDebuggerPort = debugger_port;
 
     if (g_disasm)
     {
