@@ -700,3 +700,145 @@ a778c2a	2026-09-21	-	local variable	src/frontend/nd100x/vscreen.c	141	lineIdx	li
 a778c2a	2026-09-21	-	local variable	src/frontend/nd100x/vscreen.c	120	numLines	num_lines	3
 a778c2a	2026-09-21	-	local variable	src/frontend/nd100x/vscreen.c	121	startLine	start_line	4
 a778c2a	2026-09-21	-	parameter	src/frontend/nd100x/vscreen.h	50	inputCapable	input_capable	1
+78ef468	2026-09-21	-	function	src/cpu/bcd.c	665	ndfunc_addd	opcode_addd_add_two_decimal_operands	1
+78ef468	2026-09-21	-	function	src/cpu/bcd.c	808	ndfunc_comd	opcode_comd_compare_two_decimal_operands	1
+78ef468	2026-09-21	-	function	src/cpu/bcd.c	1282	ndfunc_pack	opcode_pack_convert_to_decimal	1
+78ef468	2026-09-21	-	function	src/cpu/bcd.c	1032	ndfunc_shde	opcode_shde_decimal_shift	1
+78ef468	2026-09-21	-	function	src/cpu/bcd.c	697	ndfunc_subd	opcode_subd_subtract_two_decimal_operands	1
+78ef468	2026-09-21	-	function	src/cpu/bcd.c	1451	ndfunc_unpack	opcode_unpack_convert_from_decimal	1
+78ef468	2026-09-21	-	local variable	src/cpu/cpu.c	1173	ndfunc_versn	opcode_versn_read_cpu_version	1
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	194	ndfunc_aaa	opcode_aaa_add_argument_to_a	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	204	ndfunc_aab	opcode_aab_add_argument_to_b	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	214	ndfunc_aat	opcode_aat_add_argument_to_t	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	224	ndfunc_aax	opcode_aax_add_argument_to_x	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	933	ndfunc_add	opcode_add_add_to_a_register	3
+78ef468	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5652	ndfunc_addd	opcode_addd_add_two_decimal_operands	1
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	952	ndfunc_and	opcode_and_logical_and_to_a_register	3
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	617	ndfunc_bfill	opcode_bfill_byte_fill	2
+78ef468	2026-09-21	-	function	src/cpu/cpu_instr.c	587	ndfunc_bfill_new	opcode_bfill_new_byte_fill	1
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	2501	ndfunc_chreent_pages	opcode_chreent_pages	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	2263	ndfunc_clept	opcode_clept_clear_page_tables	3
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	2619	ndfunc_clepu	opcode_clepu_clear_page_tables_and_collect_page_used	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	2387	ndfunc_clnreent	opcode_clnreent_clear_non_reentrant_pages	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	3005	ndfunc_clpt	opcode_clpt_clear_segment_from_page_tables	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	2925	ndfunc_cnrek	opcode_cnrek_clear_non_reentrant_pages_sintran_k	2
+78ef468	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5654	ndfunc_comd	opcode_comd_compare_two_decimal_operands	1
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	2020	ndfunc_depo	opcode_depo_deposit_memory	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	331	ndfunc_dnz	opcode_dnz_denormalize_to_fixed_point	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	3668	ndfunc_eleav	opcode_eleav_error_leave_stack	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	3168	ndfunc_enpt	opcode_enpt_enter_segment_in_page_tables	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	3636	ndfunc_entr	opcode_entr_enter_stack	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	2004	ndfunc_exam	opcode_exam_examine_memory	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	974	ndfunc_fad	opcode_fad_add_to_floating_accumulator	3
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	1079	ndfunc_fdv	opcode_fdv_divide_floating_accumulator	3
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	1044	ndfunc_fmu	opcode_fmu_multiply_floating_accumulator	3
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	1009	ndfunc_fsb	opcode_fsb_subtract_from_floating_accumulator	3
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	1137	ndfunc_geco	opcode_geco_customer_specified_instruction	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	4164	ndfunc_halt	opcode_halt	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	1896	ndfunc_ident	opcode_ident_identify_interrupting_device	5
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	3599	ndfunc_init	opcode_init_initialize_stack	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	2791	ndfunc_inspl	opcode_inspl_insert_page_in_page_list	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	2081	ndfunc_iof	opcode_iof_interrupt_off	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	2097	ndfunc_ion	opcode_ion_interrupt_on	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	1806	ndfunc_iot	opcode_iot_nord_1_legacy_do_not_use	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	1861	ndfunc_iox	opcode_iox_exchange_with_io_system	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	1876	ndfunc_ioxt	opcode_ioxt_exchange_with_io_system_t_addressed	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	1982	ndfunc_irr	opcode_irr_inter_register_read	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	1943	ndfunc_irw	opcode_irw_inter_register_write	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	467	ndfunc_jaf	opcode_jaf_jump_if_a_not_zero	3
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	431	ndfunc_jan	opcode_jan_jump_if_a_negative	3
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	418	ndfunc_jap	opcode_jap_jump_if_a_positive	3
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	444	ndfunc_jaz	opcode_jaz_jump_if_a_zero	3
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	1122	ndfunc_jmp	opcode_jmp_jump_unconditional	3
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	495	ndfunc_jnc	opcode_jnc_increment_x_and_jump_if_x_negative	3
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	480	ndfunc_jpc	opcode_jpc_increment_x_and_jump_if_x_positive	3
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	527	ndfunc_jpl	opcode_jpl_jump_if_last_result_positive	3
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	508	ndfunc_jxn	opcode_jxn_jump_if_x_negative	3
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	520	ndfunc_jxz	opcode_jxz_jump_if_x_zero	3
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	3490	ndfunc_lacb	opcode_lacb_load_a_from_core_map_bank	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	3468	ndfunc_lasb	opcode_lasb_load_a_from_segment_table_bank	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	3206	ndfunc_lbit	opcode_lbit_load_bit_accumulator_from_logical_memory	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	3234	ndfunc_lbitp	opcode_lbitp_load_bit_accumulator_from_physical_memory	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	3692	ndfunc_lbyt	opcode_lbyt_load_byte_to_a_register	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	3341	ndfunc_lbytp	opcode_lbytp_load_byte_from_physical_memory	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	705	ndfunc_lda	opcode_lda_load_a_register	3
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	813	ndfunc_ldatx	opcode_ldatx_load_a_register_t_x_relative	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	889	ndfunc_ldbtx	opcode_ldbtx_load_b_register_t_x_relative	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	729	ndfunc_ldd	opcode_ldd_load_double_word	3
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	861	ndfunc_lddtx	opcode_lddtx_load_double_word_t_x_relative	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	748	ndfunc_ldf	opcode_ldf_load_floating_accumulator	4
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	713	ndfunc_ldt	opcode_ldt_load_t_register	3
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	721	ndfunc_ldx	opcode_ldx_load_x_register	3
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	837	ndfunc_ldxtx	opcode_ldxtx_load_x_register_t_x_relative	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	3659	ndfunc_leave	opcode_leave_leave_stack	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	358	ndfunc_lrb	opcode_lrb_load_register_block	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	4174	ndfunc_lwcs	opcode_lwcs_load_writable_control_store	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	3523	ndfunc_lxcb	opcode_lxcb_load_x_from_core_map_bank	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	3512	ndfunc_lxsb	opcode_lxsb_load_x_from_segment_table_bank	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	917	ndfunc_min	opcode_min_memory_increment_and_skip_if_zero	3
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	3753	ndfunc_mix3	opcode_mix3_multiply_index_by_three	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	235	ndfunc_mon	opcode_mon_monitor_call	2
+78ef468	2026-09-21	-	function	src/cpu/cpu_instr.c	5199	ndfunc_movb	opcode_movb_move_byte	2
+78ef468	2026-09-21	-	function	src/cpu/cpu_instr.c	5208	ndfunc_movbf	opcode_movbf_move_bytes_forward	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	317	ndfunc_nlz	opcode_nlz_normalize_floating_accumulator	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	1927	ndfunc_opcom	opcode_opcom_operator_communication	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	960	ndfunc_ora	opcode_ora_logical_or_to_a_register	3
+78ef468	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5655	ndfunc_pack	opcode_pack_convert_to_decimal	1
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	2047	ndfunc_piof	opcode_piof_paging_and_interrupt_off	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	2070	ndfunc_pion	opcode_pion_paging_and_interrupt_on	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	2034	ndfunc_pof	opcode_pof_paging_off	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	2062	ndfunc_pon	opcode_pon_paging_on	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	3442	ndfunc_rdusp	opcode_rdusp_read_physical_word_bypassing_cache	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	2855	ndfunc_rempl	opcode_rempl_remove_page_from_page_list	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	3186	ndfunc_rept	opcode_rept_enter_reentrant_segment_in_page_tables	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	2107	ndfunc_rex	opcode_rex_reset_extended_address_mode	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	2767	ndfunc_rglob	opcode_rglob_examine_global_pointers	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	262	ndfunc_saa	opcode_saa_set_argument_to_a	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	269	ndfunc_sab	opcode_sab_set_argument_to_b	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	3501	ndfunc_sacb	opcode_sacb_store_a_in_core_map_bank	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	3479	ndfunc_sasb	opcode_sasb_store_a_in_segment_table_bank	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	276	ndfunc_sat	opcode_sat_set_argument_to_t	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	283	ndfunc_sax	opcode_sax_set_argument_to_x	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	3266	ndfunc_sbit	opcode_sbit_store_bit_accumulator_to_logical_memory	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	3301	ndfunc_sbitp	opcode_sbitp_store_bit_accumulator_to_physical_memory	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	3720	ndfunc_sbyt	opcode_sbyt_store_byte_from_a_register	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	3376	ndfunc_sbytp	opcode_sbytp_store_byte_in_physical_memory	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	2187	ndfunc_setpt	opcode_setpt_set_page_tables	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	2120	ndfunc_sex	opcode_sex_set_extended_address_mode	2
+78ef468	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5657	ndfunc_shde	opcode_shde_decimal_shift	1
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	290	ndfunc_shifts	opcode_shift_group	6
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	566	ndfunc_skp	opcode_skp_skip_next_if_condition	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	345	ndfunc_srb	opcode_srb_store_register_block	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	651	ndfunc_sta	opcode_sta_store_a_register	3
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	774	ndfunc_statx	opcode_statx_store_a_register_t_x_relative	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	676	ndfunc_std	opcode_std_store_double_word	3
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	788	ndfunc_stdtx	opcode_stdtx_store_double_word_t_x_relative	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	695	ndfunc_stf	opcode_stf_store_floating_accumulator	4
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	660	ndfunc_stt	opcode_stt_store_t_register	3
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	668	ndfunc_stx	opcode_stx_store_x_register	3
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	643	ndfunc_stz	opcode_stz_store_zero	3
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	760	ndfunc_stztx	opcode_stztx_store_zero_t_x_relative	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	943	ndfunc_sub	opcode_sub_subtract_from_a_register	3
+78ef468	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5653	ndfunc_subd	opcode_subd_subtract_two_decimal_operands	1
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	3545	ndfunc_szcb	opcode_szcb_store_zero_in_core_map_bank	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	3534	ndfunc_szsb	opcode_szsb_store_zero_in_segment_table_bank	2
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	3416	ndfunc_tsetp	opcode_tsetp_test_and_set_physical_word	2
+78ef468	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5656	ndfunc_unpack	opcode_unpack_convert_from_decimal	1
+78ef468	2026-09-21	-	function	src/cpu/cpu_instr.c	48	ndfunc_versn	opcode_versn_read_cpu_version	4
+78ef468	2026-09-21	-	static function	src/cpu/cpu_instr.c	2747	ndfunc_wglob	opcode_wglob_initialize_global_pointers	2
+78ef468	2026-09-21	-	function	src/cpu/cpu_types.h	2056	ndfunc_addd	opcode_addd_add_two_decimal_operands	1
+78ef468	2026-09-21	-	function	src/cpu/cpu_types.h	1061	ndfunc_bfill_new	opcode_bfill_new_byte_fill	1
+78ef468	2026-09-21	-	function	src/cpu/cpu_types.h	2077	ndfunc_comd	opcode_comd_compare_two_decimal_operands	1
+78ef468	2026-09-21	-	function	src/cpu/cpu_types.h	1104	ndfunc_movb	opcode_movb_move_byte	1
+78ef468	2026-09-21	-	function	src/cpu/cpu_types.h	1112	ndfunc_movbf	opcode_movbf_move_bytes_forward	1
+78ef468	2026-09-21	-	function	src/cpu/cpu_types.h	2101	ndfunc_pack	opcode_pack_convert_to_decimal	1
+78ef468	2026-09-21	-	function	src/cpu/cpu_types.h	2090	ndfunc_shde	opcode_shde_decimal_shift	1
+78ef468	2026-09-21	-	function	src/cpu/cpu_types.h	2067	ndfunc_subd	opcode_subd_subtract_two_decimal_operands	1
+78ef468	2026-09-21	-	function	src/cpu/cpu_types.h	2113	ndfunc_unpack	opcode_unpack_convert_from_decimal	1
+78ef468	2026-09-21	-	function	src/cpu/cpu_types.h	1088	ndfunc_versn	opcode_versn_read_cpu_version	1
+78ef468	2026-09-21	-	function	tests/test_bcd.c	65	ndfunc_addd	opcode_addd_add_two_decimal_operands	2
+78ef468	2026-09-21	-	function	tests/test_bcd.c	67	ndfunc_comd	opcode_comd_compare_two_decimal_operands	2
+78ef468	2026-09-21	-	function	tests/test_bcd.c	69	ndfunc_pack	opcode_pack_convert_to_decimal	2
+78ef468	2026-09-21	-	function	tests/test_bcd.c	68	ndfunc_shde	opcode_shde_decimal_shift	2
+78ef468	2026-09-21	-	function	tests/test_bcd.c	66	ndfunc_subd	opcode_subd_subtract_two_decimal_operands	2
+78ef468	2026-09-21	-	function	tests/test_bcd.c	70	ndfunc_unpack	opcode_unpack_convert_from_decimal	2
