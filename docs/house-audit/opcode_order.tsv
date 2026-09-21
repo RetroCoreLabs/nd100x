@@ -118,3 +118,5 @@ Monitor, examine and CPU information	150416	opcode_exam_examine_memory
 Monitor, examine and CPU information	150417	opcode_depo_deposit_memory
 Monitor, examine and CPU information	153000	opcode_mon_monitor_call
 Monitor, examine and CPU information	-	opcode_halt
+Kept but not dispatched	140131	opcode_movb_move_byte_buggy
+Kept but not dispatched	140132	opcode_movbf_move_bytes_forward_buggy

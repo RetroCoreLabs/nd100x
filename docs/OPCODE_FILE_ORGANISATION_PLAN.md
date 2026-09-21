@@ -72,10 +72,32 @@ hand before the sort runs:
 
 ## How it will be verified
 
-Reordering functions is behaviour-neutral, so **G9 must report every object
-identical** - `tools/house/objcompare.sh <base>` with no rename map, since no
-name changes. If G9 reports a difference, the move was not clean and the
-commit does not happen.
+An earlier version of this plan said G9 must report every object identical.
+**That was wrong, and it cost a gate cycle.** Moving a function changes its
+address, so branch targets and RIP-relative displacements change with it. The
+object differs although the behaviour does not; G9 compares whole objects and
+correctly reports `cpu_instr.c.o: code or data differs`.
+
+The right check compares **function by function**, ignoring where each one
+landed. Disassemble both objects, split on the symbol, drop objdump's
+resolved-address note after `#`, and rewrite `<hex> <symbol+0xNN>` to
+`<symbol+0xNN>` - the symbol-relative form is the meaning, the absolute
+address is just where it landed. Then assert the same set of functions and
+identical instruction text for each.
+
+Measured on the real move: 148 functions, same set, 147 identical, and the
+only difference is `Setup_Instructions` - the registration table, which holds
+RIP-relative displacements to every function it registers, so its distances
+must change. Confirm the differences there are only `lea -0x17e8(%rip)` style
+displacements with no instruction added, removed or altered.
+
+Normalise carefully. A first attempt stripped hex runs of four digits or
+more, which hid real differences while leaving short addresses visible, and
+reported ten functions differing when the answer was one. Look at a diff of
+one differing function before believing any count.
+
+The full gate still runs with `--extra=cpu` so G10 drives the TPE instruction
+verifier over the reordered file.
 
 The full gate runs with `--extra=cpu` so G10 drives the TPE instruction
 verifier over the reordered file.
