@@ -133,7 +133,7 @@ WHAT = {
     "4.5": "#include with \"../\"",
     "4.6": "non-static symbol not used outside its file",
     "5.2": "short / long / unsigned char used",
-    "5.3": "bitwise operator on signed operand",
+    "5.3": "shift of a negative value / shift count out of range (compiler)",
     "5.5": "signed/unsigned mixing (-Wsign-compare/-Wsign-conversion)",
     "5.6": "char widened without unsigned char cast",
     "5.7": "type punning / cast-align",
@@ -168,7 +168,14 @@ TIDY_RULES = {
     "readability-braces-around-statements": "2.2",
     "readability-isolate-declaration": "2.4",
     "readability-identifier-naming": "3.4-3.7",
-    "hicpp-signed-bitwise": "5.3",
+    # hicpp-signed-bitwise removed 21-SEP-2026. It flags every signed
+    # operand, which on this codebase is 3,102 correct lines: int is 32
+    # bits, the emulated machine is 16, so a register value in an int has
+    # 15 bits of headroom and the operations are well defined. Clearing it
+    # would mean retyping ~1,124 variables for no behavioural gain, and an
+    # index that legitimately reaches -1 would become four billion.
+    # Rule 5.3 now targets the real hazards, which the compiler catches:
+    # -Wshift-negative-value, -Wshift-overflow, -Wshift-count-overflow.
     "bugprone-signed-char-misuse": "5.6",
     "bugprone-casting-through-void": "5.7",
     "readability-non-const-parameter": "5.9",
@@ -186,6 +193,14 @@ TIDY_RULES = {
 }
 
 CC_FLAGS = {
+    # Rule 5.3, narrowed 21-SEP-2026: these catch the cases that are actually
+    # wrong - shifting a negative value, shifting past the sign bit, a shift
+    # count at or beyond the width. The old blanket check reported every
+    # signed operand, which here meant 3,102 correct lines.
+    "-Wshift-negative-value": "5.3",
+    "-Wshift-overflow": "5.3",
+    "-Wshift-count-overflow": "5.3",
+    "-Wshift-count-negative": "5.3",
     "-Wsign-compare": "5.5",
     "-Wsign-conversion": "5.5",
     "-Wswitch-default": "2.7",

@@ -7,7 +7,6 @@ Checks: >
   readability-braces-around-statements,
   readability-isolate-declaration,
   readability-identifier-naming,
-  hicpp-signed-bitwise,
   bugprone-signed-char-misuse,
   bugprone-casting-through-void,
   readability-non-const-parameter,
