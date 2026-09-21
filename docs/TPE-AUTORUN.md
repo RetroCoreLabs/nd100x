@@ -183,3 +183,28 @@ printf '\rinstr\rset-para,N,N,Y,N,Y\rrun\r' | \
 (Timing matters — the emulator must reach `TPE>` before each line is consumed; the Python
 runner waits for the prompt instead of relying on `printf` timing, which is why it is more
 reliable.)
+
+## 6. DISC-TEMA: what is known so far (21-SEP-2026)
+
+Probed while starting the SMD test harness Ronny asked for. Recorded here so
+the next attempt does not repeat it.
+
+- `DISC-TEMA-J02` **loads and starts** under automation with an SMD attached:
+
+  ```
+  nd100x --boot=floppy --image=<scratch tpe.img> --smd0=<scratch smd.img> --pipe
+  TPE>disc        ->  "DISC-TEMA - VERSION: J02 - 1990-04-02", back at TPE>
+  ```
+
+- It does **not** use `run`. That answers `*** No such command ***`. Unlike the
+  CPU/memory tests, this program has its own command set, so the RECIPES table
+  in `tools/house/../tpe_autorun.py` - which assumes
+  `name` -> optional `set-para` -> `run` - cannot express it as it stands.
+- `help` answers with a `Command:` prompt and the word `All-commands`. Sending
+  a bare carriage return there produces nothing further, so the command list
+  needs some other interaction (a word to type, or a different key). That is
+  where the next attempt should start.
+
+**Always give it a scratch copy of the disk.** These device tests write to the
+pack; section 3 marks them "often destructive". Never point `--smd0` at the
+real `SMD0.IMG`.
