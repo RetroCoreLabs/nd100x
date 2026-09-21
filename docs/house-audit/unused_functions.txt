@@ -27,11 +27,14 @@ PrinterGetType	src/frontend/nd100wasm/nd100wasm.c	keep: WASM API
 PrinterIsJobActive	src/frontend/nd100wasm/nd100wasm.c	keep: WASM API
 PrinterSetType	src/frontend/nd100wasm/nd100wasm.c	keep: WASM API
 #
-# NEED A DECISION (7): Ronny rules on these one at a time (21-SEP-2026).
-charset_short	src/frontend/nd100x/charset.c	undecided
-dap_server_send_stopped_event_ex	src/debugger/debugger.c	undecided
-debugger_dbg_get_server	src/debugger/debugger.c	undecided
-floppydb_get	src/ndlib/floppydb.c	undecided
-hdlc_frame_add_bytes	src/devices/hdlc/hdlc_frame.c	undecided
-hdlc_frame_is_frame_complete	src/devices/hdlc/hdlc_frame.c	undecided
-telnet_set_terminal_locally_active	src/ndlib/telnetserver.c	undecided
+# ACCEPTED, KEPT AND MARKED (7). Ronny, 21-SEP-2026: keep them, each now
+# carries a "Currently unused ... kept deliberately" comment above its
+# definition. They are not findings any more; do not delete them without
+# asking Ronny.
+charset_short	src/frontend/nd100x/charset.c	kept: marked in source
+dap_server_send_stopped_event_ex	src/debugger/debugger.c	kept: marked in source
+debugger_dbg_get_server	src/debugger/debugger.c	kept: marked in source
+floppydb_get	src/ndlib/floppydb.c	kept: marked in source
+hdlc_frame_add_bytes	src/devices/hdlc/hdlc_frame.c	kept: marked in source
+hdlc_frame_is_frame_complete	src/devices/hdlc/hdlc_frame.c	kept: marked in source
+telnet_set_terminal_locally_active	src/ndlib/telnetserver.c	kept: marked in source

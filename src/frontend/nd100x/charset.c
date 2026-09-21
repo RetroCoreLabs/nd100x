@@ -119,6 +119,7 @@ const char *charset_name(CharsetVariant v)
     return variants[v].name;
 }
 
+/* Currently unused: nothing in this tree calls it. Kept deliberately. */
 const char *charset_short(CharsetVariant v)
 {
     if (v < 0 || v >= CHARSET_COUNT)

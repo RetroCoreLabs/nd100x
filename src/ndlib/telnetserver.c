@@ -561,6 +561,7 @@ int telnet_get_port(TelnetServer *server)
     return server ? server->config.port : 0;
 }
 
+/* Currently unused: nothing in this tree calls it. Kept deliberately. */
 bool telnet_set_terminal_locally_active(TelnetServer *server, int index, bool active)
 {
     if (!server || index < 0 || index >= server->terminalCount)

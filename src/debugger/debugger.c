@@ -130,6 +130,7 @@ int dap_server_send_stopped_event(DAPServer *s, const char *reason, const char *
     (void)desc;
     return 0;
 }
+/* Currently unused: nothing in this tree calls it. Kept deliberately. */
 int dap_server_send_stopped_event_ex(DAPServer *s, const char *reason, const char *desc,
                                      const int *hit_bp_ids, int hit_bp_count)
 {
@@ -5186,6 +5187,7 @@ static int ndx_server_init_wasm(void)
 }
 
 /// @brief Get the DAP server pointer for direct struct access
+/* Currently unused: nothing in this tree calls it. Kept deliberately. */
 DAPServer *debugger_dbg_get_server(void)
 {
     return g_dap_server;

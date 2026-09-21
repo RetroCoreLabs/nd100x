@@ -2066,8 +2066,8 @@ static void do_movew(uint16_t instr)
  * This pair is registered at 0140131 and 0140132. The other pair,
  * opcode_movb_move_byte_buggy and opcode_movbf_move_bytes_forward_buggy,
  * is further down; it calls do_move_bytes and its registration is commented
- * out. It is kept on purpose (Ronny, 21-SEP-2026) because it does not work,
- * not because it is dead code - do not delete it.
+ * out. It is kept on purpose because it does not work, not because it is
+ * dead code - do not delete it.
  *
  * The macro name below is misleading and is kept only because it is
  * referenced elsewhere: set to 1, it COMPILES this pair rather than removing

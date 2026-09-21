@@ -349,6 +349,7 @@ int floppydb_count(void)
     return s_count;
 }
 
+/* Currently unused: nothing in this tree calls it. Kept deliberately. */
 const FloppyDbEntry *floppydb_get(int index)
 {
     if (index < 0 || index >= s_count)

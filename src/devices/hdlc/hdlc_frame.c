@@ -84,6 +84,7 @@ uint16_t hdlc_frame_calculate_crc(const uint8_t *data, int length)
 }
 
 
+/* Currently unused: nothing in this tree calls it. Kept deliberately. */
 void hdlc_frame_add_bytes(HDLCFrame *frame, const uint8_t *data, int length)
 {
     for (int i = 0; i < length; i++)
@@ -197,6 +198,7 @@ bool hdlc_frame_add_byte(HDLCFrame *frame, uint8_t data)
     return false;
 }
 
+/* Currently unused: nothing in this tree calls it. Kept deliberately. */
 bool hdlc_frame_is_frame_complete(HDLCFrame *frame)
 {
     return frame ? frame->frameComplete : false;
