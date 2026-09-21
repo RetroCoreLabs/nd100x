@@ -1,0 +1,120 @@
+group	opcode	function
+Argument and register set	143200	opcode_mix3_multiply_index_by_three
+Argument and register set	170000	opcode_sab_set_argument_to_b
+Argument and register set	170400	opcode_saa_set_argument_to_a
+Argument and register set	171000	opcode_sat_set_argument_to_t
+Argument and register set	171400	opcode_sax_set_argument_to_x
+Argument and register set	172000	opcode_aab_add_argument_to_b
+Argument and register set	172400	opcode_aaa_add_argument_to_a
+Argument and register set	173000	opcode_aat_add_argument_to_t
+Argument and register set	173400	opcode_aax_add_argument_to_x
+Memory transfer - load	020000	opcode_std_store_double_word
+Memory transfer - load	024000	opcode_ldd_load_double_word
+Memory transfer - load	044000	opcode_lda_load_a_register
+Memory transfer - load	050000	opcode_ldt_load_t_register
+Memory transfer - load	054000	opcode_ldx_load_x_register
+Memory transfer - store	000000	opcode_stz_store_zero
+Memory transfer - store	004000	opcode_sta_store_a_register
+Memory transfer - store	010000	opcode_stt_store_t_register
+Memory transfer - store	014000	opcode_stx_store_x_register
+Memory transfer - store	040000	opcode_min_memory_increment_and_skip_if_zero
+Memory transfer - general	143300	opcode_ldatx_load_a_register_t_x_relative
+Memory transfer - general	143301	opcode_ldxtx_load_x_register_t_x_relative
+Memory transfer - general	143302	opcode_lddtx_load_double_word_t_x_relative
+Memory transfer - general	143303	opcode_ldbtx_load_b_register_t_x_relative
+Memory transfer - general	143304	opcode_statx_store_a_register_t_x_relative
+Memory transfer - general	143305	opcode_stztx_store_zero_t_x_relative
+Memory transfer - general	143306	opcode_stdtx_store_double_word_t_x_relative
+Arithmetic and logical	060000	opcode_add_add_to_a_register
+Arithmetic and logical	064000	opcode_sub_subtract_from_a_register
+Arithmetic and logical	070000	opcode_and_logical_and_to_a_register
+Arithmetic and logical	074000	opcode_ora_logical_or_to_a_register
+Floating point	030000	opcode_stf_store_floating_accumulator
+Floating point	034000	opcode_ldf_load_floating_accumulator
+Floating point	100000	opcode_fad_add_to_floating_accumulator
+Floating point	104000	opcode_fsb_subtract_from_floating_accumulator
+Floating point	110000	opcode_fmu_multiply_floating_accumulator
+Floating point	114000	opcode_fdv_divide_floating_accumulator
+Floating point	151400	opcode_nlz_normalize_floating_accumulator
+Floating point	152000	opcode_dnz_denormalize_to_fixed_point
+Decimal	140120	opcode_addd_add_two_decimal_operands
+Decimal	140121	opcode_subd_subtract_two_decimal_operands
+Decimal	140122	opcode_comd_compare_two_decimal_operands
+Decimal	140124	opcode_pack_convert_to_decimal
+Decimal	140126	opcode_shde_decimal_shift
+Decimal	-	opcode_unpack_convert_from_decimal
+Byte and word block	140130	opcode_bfill_byte_fill
+Byte and word block	140131	opcode_movb_move_byte
+Byte and word block	140132	opcode_movbf_move_bytes_forward
+Byte and word block	142200	opcode_lbyt_load_byte_to_a_register
+Byte and word block	142600	opcode_sbyt_store_byte_from_a_register
+Byte and word block	-	opcode_bfill_new_byte_fill
+Shift	-	opcode_shift_group
+Sequencing	124000	opcode_jmp_jump_unconditional
+Sequencing	130000	opcode_jap_jump_if_a_positive
+Sequencing	130400	opcode_jan_jump_if_a_negative
+Sequencing	131000	opcode_jaz_jump_if_a_zero
+Sequencing	131400	opcode_jaf_jump_if_a_not_zero
+Sequencing	132000	opcode_jpc_increment_x_and_jump_if_x_positive
+Sequencing	132400	opcode_jnc_increment_x_and_jump_if_x_negative
+Sequencing	133000	opcode_jxz_jump_if_x_zero
+Sequencing	133400	opcode_jxn_jump_if_x_negative
+Sequencing	134000	opcode_jpl_jump_if_last_result_positive
+Sequencing	140000	opcode_skp_skip_next_if_condition
+Stack	140134	opcode_init_initialize_stack
+Stack	140135	opcode_entr_enter_stack
+Stack	140136	opcode_leave_leave_stack
+Stack	140137	opcode_eleav_error_leave_stack
+Input and output	150415	opcode_ioxt_exchange_with_io_system_t_addressed
+Input and output	160000	opcode_iot_nord_1_legacy_do_not_use
+Input and output	164000	opcode_iox_exchange_with_io_system
+Interrupt control	143600	opcode_ident_identify_interrupting_device
+Interrupt control	150400	opcode_opcom_operator_communication
+Interrupt control	150401	opcode_iof_interrupt_off
+Interrupt control	150402	opcode_ion_interrupt_on
+Interrupt control	150404	opcode_pof_paging_off
+Interrupt control	153400	opcode_irw_inter_register_write
+Interrupt control	153600	opcode_irr_inter_register_read
+Register block	152402	opcode_srb_store_register_block
+Register block	152600	opcode_lrb_load_register_block
+Paging control	150405	opcode_piof_paging_and_interrupt_off
+Paging control	150406	opcode_sex_set_extended_address_mode
+Paging control	150407	opcode_rex_reset_extended_address_mode
+Paging control	150410	opcode_pon_paging_on
+Paging control	150412	opcode_pion_paging_and_interrupt_on
+Page tables (140300-140304)	140300	opcode_setpt_set_page_tables
+Page tables (140300-140304)	140301	opcode_clept_clear_page_tables
+Page tables (140300-140304)	140302	opcode_clnreent_clear_non_reentrant_pages
+Page tables (140300-140304)	140304	opcode_clepu_clear_page_tables_and_collect_page_used
+Page tables (140300-140304)	-	opcode_chreent_pages
+Page list and segments (140500-140507)	140500	opcode_wglob_initialize_global_pointers
+Page list and segments (140500-140507)	140501	opcode_rglob_examine_global_pointers
+Page list and segments (140500-140507)	140502	opcode_inspl_insert_page_in_page_list
+Page list and segments (140500-140507)	140503	opcode_rempl_remove_page_from_page_list
+Page list and segments (140500-140507)	140504	opcode_cnrek_clear_non_reentrant_pages_sintran_k
+Page list and segments (140500-140507)	140505	opcode_clpt_clear_segment_from_page_tables
+Page list and segments (140500-140507)	140506	opcode_enpt_enter_segment_in_page_tables
+Page list and segments (140500-140507)	140507	opcode_rept_enter_reentrant_segment_in_page_tables
+Bit, byte and physical memory (140510-140517)	140510	opcode_lbit_load_bit_accumulator_from_logical_memory
+Bit, byte and physical memory (140510-140517)	140511	opcode_lbitp_load_bit_accumulator_from_physical_memory
+Bit, byte and physical memory (140510-140517)	140512	opcode_sbit_store_bit_accumulator_to_logical_memory
+Bit, byte and physical memory (140510-140517)	140513	opcode_sbitp_store_bit_accumulator_to_physical_memory
+Bit, byte and physical memory (140510-140517)	140514	opcode_lbytp_load_byte_from_physical_memory
+Bit, byte and physical memory (140510-140517)	140515	opcode_sbytp_store_byte_in_physical_memory
+Bit, byte and physical memory (140510-140517)	140516	opcode_tsetp_test_and_set_physical_word
+Bit, byte and physical memory (140510-140517)	140517	opcode_rdusp_read_physical_word_bypassing_cache
+Bank registers (140700-140707)	140700	opcode_lasb_load_a_from_segment_table_bank
+Bank registers (140700-140707)	140701	opcode_sasb_store_a_in_segment_table_bank
+Bank registers (140700-140707)	140702	opcode_lacb_load_a_from_core_map_bank
+Bank registers (140700-140707)	140703	opcode_sacb_store_a_in_core_map_bank
+Bank registers (140700-140707)	140704	opcode_lxsb_load_x_from_segment_table_bank
+Bank registers (140700-140707)	140705	opcode_lxcb_load_x_from_core_map_bank
+Bank registers (140700-140707)	140706	opcode_szsb_store_zero_in_segment_table_bank
+Bank registers (140700-140707)	140707	opcode_szcb_store_zero_in_core_map_bank
+Monitor, examine and CPU information	140133	opcode_versn_read_cpu_version
+Monitor, examine and CPU information	142700	opcode_geco_customer_specified_instruction
+Monitor, examine and CPU information	143500	opcode_lwcs_load_writable_control_store
+Monitor, examine and CPU information	150416	opcode_exam_examine_memory
+Monitor, examine and CPU information	150417	opcode_depo_deposit_memory
+Monitor, examine and CPU information	153000	opcode_mon_monitor_call
+Monitor, examine and CPU information	-	opcode_halt
