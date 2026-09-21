@@ -270,9 +270,9 @@ b0845de	2026-09-20	3.4,3.5	parameter	src/debugger/debugger.c	4540	virtualAddress
 5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/hdlc/dma_control_blocks.c	47	DMAControlBlocks_DMAWrite	dma_control_blocks_dma_write	7
 5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_control_blocks.c	805	DMAControlBlocks_InterruptCallback	DmaControlBlocksInterruptCallback	1
 5e56442	2026-09-21	3.2,3.4-3.7	static function	src/devices/hdlc/dma_control_blocks.c	49	DMAControlBlocks_Log	dma_control_blocks_log	34
-5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_control_blocks.c	771	DMAControlBlocks_ReadCallback	DmaControlBlocksReadCallback	1
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/dma_control_blocks.c	771	DMAControlBlocks_ReadCallback	DmaControlBlocksReadCallback	1
 5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_control_blocks.c	793	DMAControlBlocks_SendFrameCallback	DmaControlBlocksSendFrameCallback	1
-5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_control_blocks.c	782	DMAControlBlocks_WriteCallback	DmaControlBlocksWriteCallback	1
+5e56442	2026-09-21	3.2,3.4-3.7	parameter	src/devices/hdlc/dma_control_blocks.c	782	DMAControlBlocks_WriteCallback	DmaControlBlocksWriteCallback	1
 5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_control_blocks.c	514	actualListPointer	actual_list_pointer	5
 5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_control_blocks.c	479	byteCount	byte_count	2
 5e56442	2026-09-21	3.2,3.4-3.7	local variable	src/devices/hdlc/dma_control_blocks.c	629	bytesRead	bytes_read	7
@@ -1655,3 +1655,1798 @@ e29a234	2026-09-21	3.4-3.7	global variable	tests/wd_trace.c	71	g_pendingParam	pe
 e29a234	2026-09-21	3.4-3.7	global variable	tests/wd_trace.c	73	g_pendingSet	pending_set	4
 e29a234	2026-09-21	3.4-3.7	parameter	tests/wd_trace.c	184	readOnly	read_only	3
 e29a234	2026-09-21	3.4-3.7	local variable	tests/wd_trace.c	222	wds_step	WdsStep	1
+8607644	2026-09-21	-	local variable	src/cpu/cpu_instr.c	6677	After	A_in	1
+8607644	2026-09-21	-	parameter	src/cpu/cpu_instr.c	3935	Bit	address	1
+8607644	2026-09-21	-	local variable	src/cpu/cpu_instr.c	6657	CLEAR	microprogram	1
+8607644	2026-09-21	-	local variable	src/cpu/cpu_instr.c	6631	DON	a_in	1
+8607644	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3933	High	specified	1
+8607644	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3893	Low	Skip	1
+8607644	2026-09-21	-	macro use	src/cpu/cpu_instr.c	6785	MOVB	gA	1
+8607644	2026-09-21	-	local variable	src/cpu/cpu_instr.c	6793	MOVBF	D	1
+8607644	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	3882	MemoryWrite	WriteVirtualMemory	1
+8607644	2026-09-21	-	parameter	src/cpu/cpu_instr.c	6631	Note	uint16_t	1
+8607644	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3872	WriteMode	T	1
+8607644	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3872	WriteMode	bit	1
+8607644	2026-09-21	-	static function	src/cpu/cpu_instr.c	3801	add_A_mem	opcode_lbyt_load_byte_to_a_register	1
+8607644	2026-09-21	-	local variable	src/cpu/cpu_instr.c	6677	and	VERSN	1
+8607644	2026-09-21	-	macro use	src/cpu/cpu_instr.c	6630	been	gA	1
+8607644	2026-09-21	-	local variable	src/cpu/cpu_instr.c	6677	bits	LOG_DEBUG	1
+8607644	2026-09-21	-	macro use	src/cpu/cpu_instr.c	6677	but	LOG	1
+8607644	2026-09-21	-	local variable	src/cpu/cpu_instr.c	6677	clear	LOG_CAT_CPU	1
+8607644	2026-09-21	-	local variable	src/cpu/cpu_instr.c	6714	count	X	1
+8607644	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3870	data	wm	1
+8607644	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	6878	differs	dispatched	1
+8607644	2026-09-21	-	parameter	src/cpu/cpu_instr.c	3801	eff_addr	operand	1
+8607644	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	3777	endif	brief	1
+8607644	2026-09-21	-	local variable	src/cpu/cpu_instr.c	6677	execution	o	1
+8607644	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	6628	field	array	1
+8607644	2026-09-21	-	local variable	src/cpu/cpu_instr.c	6677	field	d	1
+8607644	2026-09-21	-	macro use	src/cpu/cpu_instr.c	3884	gD	gT	1
+8607644	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3935	gD	instruction	1
+8607644	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3935	gT	from	1
+8607644	2026-09-21	-	parameter	src/cpu/cpu_instr.c	6630	has	offset	1
+8607644	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	3935	i	effective	1
+8607644	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3935	i	next	1
+8607644	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	3935	i	taken	1
+8607644	2026-09-21	-	local variable	src/cpu/cpu_instr.c	6878	implementation	not	1
+8607644	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3935	len_mask	is	1
+8607644	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3935	len_mask	the	1
+8607644	2026-09-21	-	parameter	src/cpu/cpu_instr.c	3875	len_mask	use_apt	1
+8607644	2026-09-21	-	local variable	src/cpu/cpu_instr.c	6677	length	PC	1
+8607644	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	6630	moved	x0F	1
+8607644	2026-09-21	-	local variable	src/cpu/cpu_instr.c	6657	of	SET	1
+8607644	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3872	oldreg	Check	1
+8607644	2026-09-21	-	local variable	src/cpu/cpu_instr.c	5277	point	The	1
+8607644	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3872	read_mode	in	1
+8607644	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3881	read_mode	wm	1
+8607644	2026-09-21	-	comment reference	src/cpu/cpu_instr.c	6834	same	system	1
+8607644	2026-09-21	-	local variable	src/cpu/cpu_instr.c	6714	source	A	1
+8607644	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3870	temp	WriteMode	1
+8607644	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3872	temp	we	1
+8607644	2026-09-21	-	local variable	src/cpu/cpu_instr.c	6677	the	off	1
+8607644	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3882	write_mode	wm	1
+8607644	2026-09-21	-	local variable	src/cpu/cpu_instr.c	3872	xFFFF	should	1
+5607077	2026-09-21	3.1	local variable	src/cpu/bcd.c	293	MemoryRead	cpu_memory_read	1
+5607077	2026-09-21	3.1	local variable	src/cpu/bcd.c	317	MemoryWrite	cpu_memory_write	1
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu.c	1167	CreatePagingTables	mms_create_paging_tables	2
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu.c	1230	DestroyPagingTables	mms_destroy_paging_tables	2
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu.c	598	FetchVirtualMemory	mms_fetch_virtual_memory	1
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu.c	482	Log_Write	log_write	4
+5607077	2026-09-21	3.1	function	src/cpu/cpu.c	584	MemoryRead	cpu_memory_read	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu.c	564	MemoryWrite	cpu_memory_write	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu.c	286	New_GetEffectiveAddr	cpu_get_effective_addr	1
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu.c	660	OpToStr	disasm_op_to_str	2
+5607077	2026-09-21	3.1	function	src/cpu/cpu.c	522	PhysMemRead	cpu_phys_mem_read	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu.c	513	PhysMemWrite	cpu_phys_mem_write	1
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu.c	305	ReadIndirectVirtualMemory	mms_read_indirect_virtual_memory	4
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu.c	524	ReadPhysicalMemory	mms_read_physical_memory	1
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu.c	550	ReadVirtualMemory	mms_read_virtual_memory	2
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu.c	1181	Setup_Instructions	cpu_instructions	1
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu.c	515	WritePhysicalMemory	mms_write_physical_memory	1
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu.c	577	WriteVirtualMemory	mms_write_virtual_memory	1
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu.c	1204	breakpoint_manager_init	bkpt_manager_init	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu.c	362	calcIIC	cpu_calc_iic	2
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu.c	1071	check_for_breakpoint	bkpt_check_hit	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu.c	1242	cleanup_cpu	cpu_cleanup	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu.c	488	device_interrupt	cpu_device_interrupt	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu.c	240	do_op	cpu_do_op	2
+5607077	2026-09-21	3.1	function	src/cpu/cpu.c	980	get_cpu_run_mode	cpu_get_run_mode	2
+5607077	2026-09-21	3.1	function	src/cpu/cpu.c	1345	get_cpu_stop_reason	cpu_get_stop_reason	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu.c	941	get_debugger_control_granted	cpu_get_debugger_control_granted	2
+5607077	2026-09-21	3.1	function	src/cpu/cpu.c	998	get_debugger_request_pause	cpu_get_debugger_request_pause	2
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu.c	389	getbit	cpu_getbit	1
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu.c	250	illegal_instr	cpu_illegal_instr	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu.c	1197	init_cpu_debugger	cpu_init_debugger	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu.c	432	interrupt	cpu_interrupt	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu.c	82	ring_dump	cpu_ring_dump	6
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu.c	621	setPIL	cpu_set_pil	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu.c	536	set_cpu_run_mode	cpu_set_run_mode	8
+5607077	2026-09-21	3.1	function	src/cpu/cpu.c	535	set_cpu_stop_reason	cpu_set_stop_reason	2
+5607077	2026-09-21	3.1	function	src/cpu/cpu.c	1295	set_debugger_control_granted	cpu_set_debugger_control_granted	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu.c	1258	set_debugger_request_pause	cpu_set_debugger_request_pause	1
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu.c	1159	setbit_STS_MSB	cpu_setbit_sts_msb	2
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu.c	288	signExtend	cpu_sign_extend	1
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu.c	1205	start_debugger	debugger_start	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu.c	86	stop_debugger_thread	debugger_stop_thread	2
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu.c	572	watchpoint_check_slow	bkpt_watchpoint_check_slow	2
+5607077	2026-09-21	3.1	function	src/cpu/cpu_bkpt.c	110	breakpoint_manager_add	bkpt_manager_add	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_bkpt.c	86	breakpoint_manager_cleanup	bkpt_manager_cleanup	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_bkpt.c	90	breakpoint_manager_clear	bkpt_manager_clear	2
+5607077	2026-09-21	3.1	function	src/cpu/cpu_bkpt.c	214	breakpoint_manager_clear_type	bkpt_manager_clear_type	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_bkpt.c	438	breakpoint_manager_get_last_hit	bkpt_manager_get_last_hit	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_bkpt.c	72	breakpoint_manager_init	bkpt_manager_init	3
+5607077	2026-09-21	3.1	function	src/cpu/cpu_bkpt.c	154	breakpoint_manager_remove	bkpt_manager_remove	2
+5607077	2026-09-21	3.1	function	src/cpu/cpu_bkpt.c	98	breakpoint_manager_step_one	bkpt_manager_step_one	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_bkpt.c	326	check_for_breakpoint	bkpt_check_hit	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_bkpt.c	653	phys_watchpoint_add	bkpt_phys_watchpoint_add	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_bkpt.c	696	phys_watchpoint_check	bkpt_phys_watchpoint_check	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_bkpt.c	731	phys_watchpoint_clear	bkpt_phys_watchpoint_clear	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_bkpt.c	748	phys_watchpoint_get	bkpt_phys_watchpoint_get	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_bkpt.c	742	phys_watchpoint_get_count	bkpt_phys_watchpoint_get_count	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_bkpt.c	680	phys_watchpoint_remove	bkpt_phys_watchpoint_remove	1
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu_bkpt.c	348	set_cpu_run_mode	cpu_set_run_mode	2
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu_bkpt.c	347	set_cpu_stop_reason	cpu_set_stop_reason	2
+5607077	2026-09-21	3.1	function	src/cpu/cpu_bkpt.c	501	watchpoint_add	bkpt_watchpoint_add	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_bkpt.c	593	watchpoint_check	bkpt_watchpoint_check	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_bkpt.c	549	watchpoint_check_slow	bkpt_watchpoint_check_slow	2
+5607077	2026-09-21	3.1	function	src/cpu/cpu_bkpt.c	599	watchpoint_clear	bkpt_watchpoint_clear	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_bkpt.c	616	watchpoint_get	bkpt_watchpoint_get	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_bkpt.c	610	watchpoint_get_count	bkpt_watchpoint_get_count	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_bkpt.c	529	watchpoint_remove	bkpt_watchpoint_remove	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_disasm.c	72	OpToStr	disasm_op_to_str	4
+5607077	2026-09-21	3.1	function	src/cpu/cpu_disasm.c	97	extract_opcode	disasm_extract_opcode	2
+5607077	2026-09-21	3.1	function	src/cpu/cpu_instr.c	827	DeviceManager_IotOp	devmgr_iot_op	2
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu_instr.c	3494	DoDNZ	float_do_dnz	1
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu_instr.c	3498	DoDNZ32	float_do_dnz32	1
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu_instr.c	3464	DoNLZ	float_do_nlz	1
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu_instr.c	3468	DoNLZ32	float_do_nlz32	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_instr.c	7213	GetBCD	cpu_get_bcd	1
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu_instr.c	1850	IO_Ident	io_ident	1
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu_instr.c	999	IsAddressShadowMemory	mms_is_address_shadow_memory	2
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu_instr.c	1589	MemoryRead	cpu_memory_read	72
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu_instr.c	1540	MemoryWrite	cpu_memory_write	43
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu_instr.c	3244	NDFloat_Add	float_add	1
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu_instr.c	3257	NDFloat_Add32	float_add_32	1
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu_instr.c	3415	NDFloat_Div	float_div	1
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu_instr.c	3432	NDFloat_Div32	float_div_32	1
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu_instr.c	3358	NDFloat_Mul	float_mul	1
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu_instr.c	3371	NDFloat_Mul32	float_mul_32	1
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu_instr.c	3301	NDFloat_Sub	float_sub	1
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu_instr.c	3314	NDFloat_Sub32	float_sub_32	1
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu_instr.c	2511	New_GetEffectiveAddr	cpu_get_effective_addr	23
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu_instr.c	1461	ProcessTerminalLamp	panel_process_terminal_lamp	1
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu_instr.c	1451	ProcessTerminalPanc	panel_process_terminal_panc	1
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu_instr.c	154	ReadPhysicalMemory	mms_read_physical_memory	30
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu_instr.c	5259	ReadVirtualMemory	mms_read_virtual_memory	7
+5607077	2026-09-21	3.1	function	src/cpu/cpu_instr.c	7281	Setup_Instructions	cpu_instructions	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_instr.c	7219	StoreBCD	cpu_store_bcd	1
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu_instr.c	160	WritePhysicalMemory	mms_write_physical_memory	25
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu_instr.c	988	WriteVirtualMemory	mms_write_virtual_memory	14
+5607077	2026-09-21	3.1	function	src/cpu/cpu_instr.c	2083	add_A_mem	cpu_add_a_mem	1
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu_instr.c	1288	calcIIC	cpu_calc_iic	1
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu_instr.c	1382	do_op	cpu_do_op	1
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu_instr.c	1371	extract_opcode	disasm_extract_opcode	1
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu_instr.c	1103	getbit	cpu_getbit	24
+5607077	2026-09-21	3.1	function	src/cpu/cpu_instr.c	166	illegal_instr	cpu_illegal_instr	2
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu_instr.c	90	interrupt	cpu_interrupt	4
+5607077	2026-09-21	3.1	function	src/cpu/cpu_instr.c	6984	rdiv_org	cpu_rdiv_org	1
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu_instr.c	5995	ring_dump	cpu_ring_dump	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_instr.c	7095	rmpy_org	cpu_rmpy_org	1
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu_instr.c	1410	set_cpu_run_mode	cpu_set_run_mode	3
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu_instr.c	117	setbit	cpu_setbit	54
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu_instr.c	4699	setbit_STS_MSB	cpu_setbit_sts_msb	10
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu_instr.c	2311	setreg	cpu_setreg	4
+5607077	2026-09-21	3.1	function	src/cpu/cpu_instr.c	95	signExtend	cpu_sign_extend	10
+5607077	2026-09-21	3.1	function	src/cpu/cpu_instr.c	6944	sub_A_mem	cpu_sub_a_mem	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_mms.c	54	CreatePagingTables	mms_create_paging_tables	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_mms.c	124	DestroyPagingTables	mms_destroy_paging_tables	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_mms.c	875	FetchVirtualMemory	mms_fetch_virtual_memory	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_mms.c	134	GetPTShadowAddress	mms_get_pt_shadow_address	3
+5607077	2026-09-21	3.1	function	src/cpu/cpu_mms.c	235	GetPageTableEntry	mms_get_page_table_entry	4
+5607077	2026-09-21	3.1	function	src/cpu/cpu_mms.c	212	GetPageTableEntryDebugInfo	mms_get_page_table_entry_debug_info	6
+5607077	2026-09-21	3.1	function	src/cpu/cpu_mms.c	280	GetPageTableEntryForDebugger	mms_get_page_table_entry_for_debugger	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_mms.c	910	GetPhysicalMemoryType	mms_get_physical_memory_type	3
+5607077	2026-09-21	3.1	function	src/cpu/cpu_mms.c	600	HandleMPV	mms_handle_mpv	3
+5607077	2026-09-21	3.1	function	src/cpu/cpu_mms.c	624	HandleMemoryOutOfRange	mms_handle_memory_out_of_range	4
+5607077	2026-09-21	3.1	function	src/cpu/cpu_mms.c	762	HandlePF	mms_handle_pf	2
+5607077	2026-09-21	3.1	function	src/cpu/cpu_mms.c	475	IsAddressShadowMemory	mms_is_address_shadow_memory	5
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu_mms.c	210	Log_Write	log_write	9
+5607077	2026-09-21	3.1	function	src/cpu/cpu_mms.c	217	PT_Read	mms_read	4
+5607077	2026-09-21	3.1	function	src/cpu/cpu_mms.c	171	PT_Write	mms_write	4
+5607077	2026-09-21	3.1	function	src/cpu/cpu_mms.c	864	ReadIndirectVirtualMemory	mms_read_indirect_virtual_memory	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_mms.c	860	ReadPhysicalMemory	mms_read_physical_memory	4
+5607077	2026-09-21	3.1	function	src/cpu/cpu_mms.c	848	ReadVirtualMemory	mms_read_virtual_memory	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_mms.c	347	SetPageUsed	mms_set_page_used	2
+5607077	2026-09-21	3.1	function	src/cpu/cpu_mms.c	364	SetPageWritten	mms_set_page_written	2
+5607077	2026-09-21	3.1	function	src/cpu/cpu_mms.c	591	UpdatePGS	mms_update_pgs	5
+5607077	2026-09-21	3.1	function	src/cpu/cpu_mms.c	319	UpdatePageTableEntry	mms_update_page_table_entry	3
+5607077	2026-09-21	3.1	function	src/cpu/cpu_mms.c	1120	WritePhysicalMemory	mms_write_physical_memory	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_mms.c	899	WritePhysicalMemoryWM	mms_write_physical_memory_wm	3
+5607077	2026-09-21	3.1	function	src/cpu/cpu_mms.c	886	WriteVirtualMemory	mms_write_virtual_memory	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_mms.c	540	checkPageProtection	mms_check_page_protection	2
+5607077	2026-09-21	3.1	function	src/cpu/cpu_mms.c	46	cpu_set_ring_at_pf	mms_cpu_set_ring_at_pf	1
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu_mms.c	1083	interrupt	cpu_interrupt	4
+5607077	2026-09-21	3.1	function	src/cpu/cpu_mms.c	454	mapVirtualToPhysical	mms_map_virtual_to_physical	5
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu_mms.c	1096	phys_watchpoint_check	bkpt_phys_watchpoint_check	2
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu_mms.c	694	ring_dump	cpu_ring_dump	1
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu_mms.c	1076	setPEA	cpu_set_pea	2
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu_mms.c	1077	setPES	cpu_set_pes	2
+5607077	2026-09-21	3.1	local variable	src/cpu/cpu_mms.c	674	setPGS	cpu_set_pgs	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_model.c	114	CpuModel_Count	cpumodel_count	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_model.c	83	CpuModel_DisplayName	cpumodel_display_name	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_model.c	47	CpuModel_FromName	cpumodel_from_name	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_model.c	67	CpuModel_Name	cpumodel_name	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_model.c	119	CpuModel_NameByIndex	cpumodel_name_by_index	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_model.h	54	CpuModel_Count	cpumodel_count	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_model.h	47	CpuModel_DisplayName	cpumodel_display_name	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_model.h	29	CpuModel_FromName	cpumodel_from_name	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_model.h	38	CpuModel_Name	cpumodel_name	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_model.h	61	CpuModel_NameByIndex	cpumodel_name_by_index	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_regs.c	179	AdjustSTS	cpu_adjust_sts	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_regs.c	122	clrbit	cpu_clrbit	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_regs.c	105	getbit	cpu_getbit	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_regs.c	57	setPEA	cpu_set_pea	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_regs.c	68	setPES	cpu_set_pes	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_regs.c	79	setPGS	cpu_set_pgs	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_regs.c	38	setPIL	cpu_set_pil	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_regs.c	151	setbit	cpu_setbit	6
+5607077	2026-09-21	3.1	function	src/cpu/cpu_regs.c	134	setbit_STS_MSB	cpu_setbit_sts_msb	2
+5607077	2026-09-21	3.1	function	src/cpu/cpu_regs.c	93	setreg	cpu_setreg	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1270	AdjustSTS	cpu_adjust_sts	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1288	CreatePagingTables	mms_create_paging_tables	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1293	DestroyPagingTables	mms_destroy_paging_tables	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1994	DoDNZ	float_do_dnz	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	2061	DoDNZ32	float_do_dnz32	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1984	DoNLZ	float_do_nlz	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	2050	DoNLZ32	float_do_nlz32	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1500	FetchVirtualMemory	mms_fetch_virtual_memory	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1167	GetBCD	cpu_get_bcd	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1305	GetPTShadowAddress	mms_get_pt_shadow_address	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1339	GetPageTableEntry	mms_get_page_table_entry	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1400	GetPageTableEntryDebugInfo	mms_get_page_table_entry_debug_info	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1354	GetPageTableEntryForDebugger	mms_get_page_table_entry_for_debugger	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1521	GetPhysicalMemoryType	mms_get_physical_memory_type	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1575	HandleMPV	mms_handle_mpv	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1566	HandleMemoryOutOfRange	mms_handle_memory_out_of_range	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1583	HandlePF	mms_handle_pf	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	630	IO_Ident	io_ident	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1467	IsAddressShadowMemory	mms_is_address_shadow_memory	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	894	MemoryRead	cpu_memory_read	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	884	MemoryWrite	cpu_memory_write	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1941	NDFloat_Add	float_add	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	2004	NDFloat_Add32	float_add_32	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1976	NDFloat_Div	float_div	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	2040	NDFloat_Div32	float_div_32	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1962	NDFloat_Mul	float_mul	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	2026	NDFloat_Mul32	float_mul_32	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1951	NDFloat_Sub	float_sub	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	2015	NDFloat_Sub32	float_sub_32	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	816	New_GetEffectiveAddr	cpu_get_effective_addr	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1871	OpToStr	disasm_op_to_str	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1324	PT_Read	mms_read	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1315	PT_Write	mms_write	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	862	PhysMemRead	cpu_phys_mem_read	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	854	PhysMemWrite	cpu_phys_mem_write	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1489	ReadIndirectVirtualMemory	mms_read_indirect_virtual_memory	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1534	ReadPhysicalMemory	mms_read_physical_memory	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1478	ReadVirtualMemory	mms_read_virtual_memory	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1379	SetPageUsed	mms_set_page_used	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1391	SetPageWritten	mms_set_page_written	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1183	Setup_Instructions	cpu_instructions	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1175	StoreBCD	cpu_store_bcd	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1436	UpdatePGS	mms_update_pgs	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1368	UpdatePageTableEntry	mms_update_page_table_entry	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1544	WritePhysicalMemory	mms_write_physical_memory	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1558	WritePhysicalMemoryWM	mms_write_physical_memory_wm	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1512	WriteVirtualMemory	mms_write_virtual_memory	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1114	add_A_mem	cpu_add_a_mem	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1719	breakpoint_manager_add	bkpt_manager_add	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1704	breakpoint_manager_cleanup	bkpt_manager_cleanup	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1731	breakpoint_manager_clear	bkpt_manager_clear	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1737	breakpoint_manager_clear_type	bkpt_manager_clear_type	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1755	breakpoint_manager_get_last_hit	bkpt_manager_get_last_hit	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1699	breakpoint_manager_init	bkpt_manager_init	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1726	breakpoint_manager_remove	bkpt_manager_remove	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1709	breakpoint_manager_step_one	bkpt_manager_step_one	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	825	calcIIC	cpu_calc_iic	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1454	checkPageProtection	mms_check_page_protection	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1746	check_for_breakpoint	bkpt_check_hit	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	964	cleanup_cpu	cpu_cleanup	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1240	clrbit	cpu_clrbit	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1279	cpu_set_ring_at_pf	mms_cpu_set_ring_at_pf	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	846	device_interrupt	cpu_device_interrupt	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	803	do_op	cpu_do_op	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1931	extract_opcode	disasm_extract_opcode	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1021	get_cpu_run_mode	cpu_get_run_mode	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1007	get_cpu_stop_reason	cpu_get_stop_reason	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	993	get_debugger_control_granted	cpu_get_debugger_control_granted	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	978	get_debugger_request_pause	cpu_get_debugger_request_pause	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1233	getbit	cpu_getbit	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1070	illegal_instr	cpu_illegal_instr	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	950	init_cpu_debugger	cpu_init_debugger	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	837	interrupt	cpu_interrupt	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1422	mapVirtualToPhysical	mms_map_virtual_to_physical	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1823	phys_watchpoint_add	bkpt_phys_watchpoint_add	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1839	phys_watchpoint_check	bkpt_phys_watchpoint_check	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1844	phys_watchpoint_clear	bkpt_phys_watchpoint_clear	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1861	phys_watchpoint_get	bkpt_phys_watchpoint_get	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1851	phys_watchpoint_get_count	bkpt_phys_watchpoint_get_count	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1830	phys_watchpoint_remove	bkpt_phys_watchpoint_remove	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1148	rdiv_org	cpu_rdiv_org	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	912	ring_dump	cpu_ring_dump	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1158	rmpy_org	cpu_rmpy_org	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1200	setPEA	cpu_set_pea	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1207	setPES	cpu_set_pes	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1215	setPGS	cpu_set_pgs	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1193	setPIL	cpu_set_pil	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1015	set_cpu_run_mode	cpu_set_run_mode	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1000	set_cpu_stop_reason	cpu_set_stop_reason	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	986	set_debugger_control_granted	cpu_set_debugger_control_granted	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	971	set_debugger_request_pause	cpu_set_debugger_request_pause	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1259	setbit	cpu_setbit	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1249	setbit_STS_MSB	cpu_setbit_sts_msb	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1223	setreg	cpu_setreg	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1061	signExtend	cpu_sign_extend	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	631	start_debugger	debugger_start	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1138	sub_A_mem	cpu_sub_a_mem	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1766	watchpoint_add	bkpt_watchpoint_add	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1793	watchpoint_check	bkpt_watchpoint_check	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1784	watchpoint_check_slow	bkpt_watchpoint_check_slow	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1798	watchpoint_clear	bkpt_watchpoint_clear	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1813	watchpoint_get	bkpt_watchpoint_get	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1804	watchpoint_get_count	bkpt_watchpoint_get_count	1
+5607077	2026-09-21	3.1	function	src/cpu/cpu_types.h	1773	watchpoint_remove	bkpt_watchpoint_remove	1
+5607077	2026-09-21	3.1	local variable	src/cpu/expr_eval.c	415	ReadVirtualMemory	mms_read_virtual_memory	1
+5607077	2026-09-21	3.1	function	src/cpu/float.c	56	DoDNZ	float_do_dnz	2
+5607077	2026-09-21	3.1	function	src/cpu/float.c	519	DoDNZ32	float_do_dnz32	2
+5607077	2026-09-21	3.1	function	src/cpu/float.c	55	DoNLZ	float_do_nlz	2
+5607077	2026-09-21	3.1	function	src/cpu/float.c	518	DoNLZ32	float_do_nlz32	2
+5607077	2026-09-21	3.1	function	src/cpu/float.c	52	NDFloat_Add	float_add	2
+5607077	2026-09-21	3.1	function	src/cpu/float.c	514	NDFloat_Add32	float_add_32	2
+5607077	2026-09-21	3.1	function	src/cpu/float.c	50	NDFloat_Div	float_div	2
+5607077	2026-09-21	3.1	function	src/cpu/float.c	517	NDFloat_Div32	float_div_32	2
+5607077	2026-09-21	3.1	function	src/cpu/float.c	51	NDFloat_Mul	float_mul	2
+5607077	2026-09-21	3.1	function	src/cpu/float.c	516	NDFloat_Mul32	float_mul_32	2
+5607077	2026-09-21	3.1	function	src/cpu/float.c	53	NDFloat_Sub	float_sub	2
+5607077	2026-09-21	3.1	function	src/cpu/float.c	515	NDFloat_Sub32	float_sub_32	2
+5607077	2026-09-21	3.1	local variable	src/cpu/float.c	480	setbit	cpu_setbit	2
+5607077	2026-09-21	3.1	local variable	src/debugger/debugger.c	4719	DeviceManager_GetDeviceByAddress	devmgr_get_device_by_address	2
+5607077	2026-09-21	3.1	local variable	src/debugger/debugger.c	4734	Device_SetCharacterOutput	dev_set_character_output	2
+5607077	2026-09-21	3.1	local variable	src/debugger/debugger.c	2281	GetPageTableEntry	mms_get_page_table_entry	1
+5607077	2026-09-21	3.1	function	src/debugger/debugger.c	2162	GetPageTableMemoryRange	debugger_get_page_table_memory_range	1
+5607077	2026-09-21	3.1	function	src/debugger/debugger.c	4475	OpToStr	disasm_op_to_str	3
+5607077	2026-09-21	3.1	local variable	src/debugger/debugger.c	4788	Terminal_QueueKeyCode	terminal_queue_key_code	2
+5607077	2026-09-21	3.1	local variable	src/debugger/debugger.c	852	breakpoint_manager_add	bkpt_manager_add	13
+5607077	2026-09-21	3.1	local variable	src/debugger/debugger.c	3907	breakpoint_manager_clear	bkpt_manager_clear	1
+5607077	2026-09-21	3.1	local variable	src/debugger/debugger.c	2991	breakpoint_manager_clear_type	bkpt_manager_clear_type	4
+5607077	2026-09-21	3.1	local variable	src/debugger/debugger.c	861	breakpoint_manager_step_one	bkpt_manager_step_one	3
+5607077	2026-09-21	3.1	function	src/debugger/debugger.c	5235	dbg_get_scopes_json	debugger_dbg_get_scopes_json	1
+5607077	2026-09-21	3.1	function	src/debugger/debugger.c	5189	dbg_get_server	debugger_dbg_get_server	1
+5607077	2026-09-21	3.1	function	src/debugger/debugger.c	5333	dbg_get_stack_trace_json	debugger_dbg_get_stack_trace_json	1
+5607077	2026-09-21	3.1	function	src/debugger/debugger.c	5400	dbg_get_threads_json	debugger_dbg_get_threads_json	1
+5607077	2026-09-21	3.1	function	src/debugger/debugger.c	5290	dbg_get_variables_json	debugger_dbg_get_variables_json	1
+5607077	2026-09-21	3.1	function	src/debugger/debugger.c	5439	dbg_step_in	debugger_dbg_step_in	1
+5607077	2026-09-21	3.1	function	src/debugger/debugger.c	5461	dbg_step_out	debugger_dbg_step_out	1
+5607077	2026-09-21	3.1	function	src/debugger/debugger.c	5450	dbg_step_over	debugger_dbg_step_over	1
+5607077	2026-09-21	3.1	function	src/debugger/debugger.c	712	find_stack_return_address	debugger_find_stack_return_address	1
+5607077	2026-09-21	3.1	function	src/debugger/debugger.c	5481	find_symbol_by_address	debugger_find_symbol_by_address	2
+5607077	2026-09-21	3.1	local variable	src/debugger/debugger.c	498	get_cpu_run_mode	cpu_get_run_mode	5
+5607077	2026-09-21	3.1	local variable	src/debugger/debugger.c	538	get_cpu_stop_reason	cpu_get_stop_reason	1
+5607077	2026-09-21	3.1	local variable	src/debugger/debugger.c	506	get_debugger_control_granted	cpu_get_debugger_control_granted	1
+5607077	2026-09-21	3.1	function	src/debugger/debugger.c	5515	get_source_location	debugger_get_source_location	1
+5607077	2026-09-21	3.1	function	src/debugger/debugger.c	4586	get_symbol_for_address	debugger_get_symbol_for_address	3
+5607077	2026-09-21	3.1	function	src/debugger/debugger.c	366	ndx_server_init	debugger_ndx_server_init	3
+5607077	2026-09-21	3.1	function	src/debugger/debugger.c	5076	ndx_server_stop	debugger_ndx_server_stop	2
+5607077	2026-09-21	3.1	function	src/debugger/debugger.c	414	ndx_server_terminate	debugger_ndx_server_terminate	2
+5607077	2026-09-21	3.1	local variable	src/debugger/debugger.c	3386	phys_watchpoint_add	bkpt_phys_watchpoint_add	1
+5607077	2026-09-21	3.1	local variable	src/debugger/debugger.c	3305	phys_watchpoint_clear	bkpt_phys_watchpoint_clear	1
+5607077	2026-09-21	3.1	local variable	src/debugger/debugger.c	3648	program_load	machine_program_load	1
+5607077	2026-09-21	3.1	local variable	src/debugger/debugger.c	394	set_cpu_run_mode	cpu_set_run_mode	9
+5607077	2026-09-21	3.1	local variable	src/debugger/debugger.c	580	set_cpu_stop_reason	cpu_set_stop_reason	2
+5607077	2026-09-21	3.1	local variable	src/debugger/debugger.c	492	set_debugger_control_granted	cpu_set_debugger_control_granted	2
+5607077	2026-09-21	3.1	local variable	src/debugger/debugger.c	491	set_debugger_request_pause	cpu_set_debugger_request_pause	3
+5607077	2026-09-21	3.1	function	src/debugger/debugger.c	405	start_debugger	debugger_start	3
+5607077	2026-09-21	3.1	function	src/debugger/debugger.c	822	step_cpu	debugger_step_cpu	7
+5607077	2026-09-21	3.1	function	src/debugger/debugger.c	423	stop_debugger_thread	debugger_stop_thread	2
+5607077	2026-09-21	3.1	function	src/debugger/debugger.c	2422	update_stack_frame	debugger_update_stack_frame	1
+5607077	2026-09-21	3.1	local variable	src/debugger/debugger.c	3390	watchpoint_add	bkpt_watchpoint_add	1
+5607077	2026-09-21	3.1	local variable	src/debugger/debugger.c	3304	watchpoint_clear	bkpt_watchpoint_clear	1
+5607077	2026-09-21	3.1	function	src/debugger/debugger.h	175	GetPageTableMemoryRange	debugger_get_page_table_memory_range	1
+5607077	2026-09-21	3.1	function	src/debugger/debugger.h	206	dbg_get_scopes_json	debugger_dbg_get_scopes_json	1
+5607077	2026-09-21	3.1	function	src/debugger/debugger.h	208	dbg_get_stack_trace_json	debugger_dbg_get_stack_trace_json	1
+5607077	2026-09-21	3.1	function	src/debugger/debugger.h	209	dbg_get_threads_json	debugger_dbg_get_threads_json	1
+5607077	2026-09-21	3.1	function	src/debugger/debugger.h	207	dbg_get_variables_json	debugger_dbg_get_variables_json	1
+5607077	2026-09-21	3.1	function	src/debugger/debugger.h	210	dbg_step_in	debugger_dbg_step_in	1
+5607077	2026-09-21	3.1	function	src/debugger/debugger.h	212	dbg_step_out	debugger_dbg_step_out	1
+5607077	2026-09-21	3.1	function	src/debugger/debugger.h	211	dbg_step_over	debugger_dbg_step_over	1
+5607077	2026-09-21	3.1	function	src/debugger/debugger.h	144	find_stack_return_address	debugger_find_stack_return_address	1
+5607077	2026-09-21	3.1	function	src/debugger/debugger.h	127	ndx_server_init	debugger_ndx_server_init	1
+5607077	2026-09-21	3.1	function	src/debugger/debugger.h	193	ndx_server_stop	debugger_ndx_server_stop	1
+5607077	2026-09-21	3.1	function	src/debugger/debugger.h	133	ndx_server_terminate	debugger_ndx_server_terminate	1
+5607077	2026-09-21	3.1	function	src/debugger/debugger.h	117	start_debugger	debugger_start	1
+5607077	2026-09-21	3.1	function	src/debugger/debugger.h	166	step_cpu	debugger_step_cpu	1
+5607077	2026-09-21	3.1	function	src/debugger/debugger.h	138	stop_debugger_thread	debugger_stop_thread	1
+5607077	2026-09-21	3.1	function	src/debugger/debugger.h	186	update_stack_frame	debugger_update_stack_frame	1
+5607077	2026-09-21	3.1	function	src/debugger/symbols_support.h	22	find_symbol_by_address	debugger_find_symbol_by_address	1
+5607077	2026-09-21	3.1	function	src/debugger/symbols_support.h	41	get_source_location	debugger_get_source_location	1
+5607077	2026-09-21	3.1	function	src/debugger/symbols_support.h	31	get_symbol_for_address	debugger_get_symbol_for_address	1
+5607077	2026-09-21	3.1	function	src/devices/cdc/device_cdc.c	50	CdcDevice_SetBackingFile	cdc_set_backing_file	1
+5607077	2026-09-21	3.1	function	src/devices/cdc/device_cdc.c	735	CreateCdcDevice	cdc_create_device	1
+5607077	2026-09-21	3.1	local variable	src/devices/cdc/device_cdc.c	384	Device_DMARead	dev_dma_read	2
+5607077	2026-09-21	3.1	local variable	src/devices/cdc/device_cdc.c	344	Device_DMAWrite	dev_dma_write	3
+5607077	2026-09-21	3.1	local variable	src/devices/cdc/device_cdc.c	754	Device_Init	dev_init	1
+5607077	2026-09-21	3.1	local variable	src/devices/cdc/device_cdc.c	354	Device_QueueIODelay	dev_queue_io_delay	3
+5607077	2026-09-21	3.1	local variable	src/devices/cdc/device_cdc.c	475	Device_SetInterruptStatus	dev_set_interrupt_status	2
+5607077	2026-09-21	3.1	local variable	src/devices/cdc/device_cdc.c	487	Device_TickIODelay	dev_tick_io_delay	1
+5607077	2026-09-21	3.1	function	src/devices/cdc/device_cdc.h	284	CdcDevice_SetBackingFile	cdc_set_backing_file	1
+5607077	2026-09-21	3.1	function	src/devices/cdc/device_cdc.h	291	CreateCdcDevice	cdc_create_device	1
+5607077	2026-09-21	3.1	function	src/devices/device.c	154	Device_Boot	dev_boot	1
+5607077	2026-09-21	3.1	function	src/devices/device.c	437	Device_DMARead	dev_dma_read	1
+5607077	2026-09-21	3.1	function	src/devices/device.c	430	Device_DMAWrite	dev_dma_write	1
+5607077	2026-09-21	3.1	function	src/devices/device.c	108	Device_Destroy	dev_destroy	1
+5607077	2026-09-21	3.1	function	src/devices/device.c	261	Device_GenerateInterrupt	dev_generate_interrupt	3
+5607077	2026-09-21	3.1	function	src/devices/device.c	53	Device_GetOddParity	dev_get_odd_parity	1
+5607077	2026-09-21	3.1	function	src/devices/device.c	357	Device_IO_BufferReadWord	dev_io_buffer_read_word	1
+5607077	2026-09-21	3.1	function	src/devices/device.c	408	Device_IO_BufferWriteWord	dev_io_buffer_write_word	1
+5607077	2026-09-21	3.1	function	src/devices/device.c	332	Device_IO_ReadWord	dev_io_read_word	1
+5607077	2026-09-21	3.1	function	src/devices/device.c	321	Device_IO_Seek	dev_io_seek	1
+5607077	2026-09-21	3.1	function	src/devices/device.c	385	Device_IO_WriteWord	dev_io_write_word	1
+5607077	2026-09-21	3.1	function	src/devices/device.c	204	Device_Ident	dev_ident	1
+5607077	2026-09-21	3.1	function	src/devices/device.c	59	Device_Init	dev_init	1
+5607077	2026-09-21	3.1	function	src/devices/device.c	481	Device_InputCharacter	dev_input_character	1
+5607077	2026-09-21	3.1	function	src/devices/device.c	168	Device_IsInAddress	dev_is_in_address	1
+5607077	2026-09-21	3.1	function	src/devices/device.c	470	Device_OutputCharacter	dev_output_character	1
+5607077	2026-09-21	3.1	function	src/devices/device.c	213	Device_QueueIODelay	dev_queue_io_delay	1
+5607077	2026-09-21	3.1	function	src/devices/device.c	186	Device_Read	dev_read	1
+5607077	2026-09-21	3.1	function	src/devices/device.c	535	Device_ReadBlock	dev_read_block	1
+5607077	2026-09-21	3.1	function	src/devices/device.c	177	Device_RegisterAddress	dev_register_address	1
+5607077	2026-09-21	3.1	function	src/devices/device.c	134	Device_Reset	dev_reset	1
+5607077	2026-09-21	3.1	function	src/devices/device.c	521	Device_SetBlockDiskInfo	dev_set_block_disk_info	1
+5607077	2026-09-21	3.1	function	src/devices/device.c	494	Device_SetBlockRead	dev_set_block_read	1
+5607077	2026-09-21	3.1	function	src/devices/device.c	506	Device_SetBlockWrite	dev_set_block_write	1
+5607077	2026-09-21	3.1	function	src/devices/device.c	459	Device_SetCharacterInput	dev_set_character_input	1
+5607077	2026-09-21	3.1	function	src/devices/device.c	448	Device_SetCharacterOutput	dev_set_character_output	1
+5607077	2026-09-21	3.1	function	src/devices/device.c	304	Device_SetInterruptStatus	dev_set_interrupt_status	1
+5607077	2026-09-21	3.1	function	src/devices/device.c	143	Device_Tick	dev_tick	1
+5607077	2026-09-21	3.1	function	src/devices/device.c	244	Device_TickIODelay	dev_tick_io_delay	1
+5607077	2026-09-21	3.1	function	src/devices/device.c	195	Device_Write	dev_write	1
+5607077	2026-09-21	3.1	function	src/devices/device.c	547	Device_WriteBlock	dev_write_block	1
+5607077	2026-09-21	3.1	local variable	src/devices/device.c	440	ReadPhysicalMemory	mms_read_physical_memory	1
+5607077	2026-09-21	3.1	local variable	src/devices/device.c	433	WritePhysicalMemory	mms_write_physical_memory	1
+5607077	2026-09-21	3.1	local variable	src/devices/devicemanager.c	269	CreateCdcDevice	cdc_create_device	1
+5607077	2026-09-21	3.1	local variable	src/devices/devicemanager.c	261	CreateDrumDevice	drum_create_device	1
+5607077	2026-09-21	3.1	local variable	src/devices/devicemanager.c	277	CreateFloppyDMADevice	floppy_dma_create_device	1
+5607077	2026-09-21	3.1	local variable	src/devices/devicemanager.c	228	CreateFloppyPIODevice	floppy_pio_create_device	1
+5607077	2026-09-21	3.1	local variable	src/devices/devicemanager.c	301	CreateHDLCDevice	hdlc_create_device	1
+5607077	2026-09-21	3.1	local variable	src/devices/devicemanager.c	285	CreateLinePrinterDevice	lp_create_line_printer_device	1
+5607077	2026-09-21	3.1	local variable	src/devices/devicemanager.c	220	CreatePaperTapeDevice	ptr_create_paper_tape_device	1
+5607077	2026-09-21	3.1	local variable	src/devices/devicemanager.c	293	CreatePaperTapeWriterDevice	ptp_create_paper_tape_writer_device	1
+5607077	2026-09-21	3.1	local variable	src/devices/devicemanager.c	204	CreateRTCDevice	rtc_create_device	1
+5607077	2026-09-21	3.1	local variable	src/devices/devicemanager.c	253	CreateSCSIDevice	scsi_create_device	1
+5607077	2026-09-21	3.1	local variable	src/devices/devicemanager.c	237	CreateSMDDevice	smd_create_device	1
+5607077	2026-09-21	3.1	local variable	src/devices/devicemanager.c	212	CreateTerminalDevice	terminal_create_device	1
+5607077	2026-09-21	3.1	local variable	src/devices/devicemanager.c	245	CreateWinchesterDevice	wd_create_winchester_device	1
+5607077	2026-09-21	3.1	function	src/devices/devicemanager.c	93	DeviceManager_AddAllDevices	devmgr_add_all_devices	1
+5607077	2026-09-21	3.1	function	src/devices/devicemanager.c	100	DeviceManager_AddDevice	devmgr_add_device	10
+5607077	2026-09-21	3.1	function	src/devices/devicemanager.c	169	DeviceManager_AddHDLCDevice_WithConfig	devmgr_add_hdlc_device_with_config	1
+5607077	2026-09-21	3.1	function	src/devices/devicemanager.c	146	DeviceManager_AddSCSIDevice_WithConfig	devmgr_add_scsi_device_with_config	1
+5607077	2026-09-21	3.1	function	src/devices/devicemanager.c	539	DeviceManager_BootFrom	devmgr_boot_from	1
+5607077	2026-09-21	3.1	function	src/devices/devicemanager.c	70	DeviceManager_Destroy	devmgr_destroy	1
+5607077	2026-09-21	3.1	function	src/devices/devicemanager.c	153	DeviceManager_GetDeviceByAddress	devmgr_get_device_by_address	3
+5607077	2026-09-21	3.1	function	src/devices/devicemanager.c	499	DeviceManager_GetDeviceByIndex	devmgr_get_device_by_index	1
+5607077	2026-09-21	3.1	function	src/devices/devicemanager.c	494	DeviceManager_GetDeviceCount	devmgr_get_device_count	1
+5607077	2026-09-21	3.1	function	src/devices/devicemanager.c	435	DeviceManager_Ident	devmgr_ident	1
+5607077	2026-09-21	3.1	function	src/devices/devicemanager.c	51	DeviceManager_Init	devmgr_init	1
+5607077	2026-09-21	3.1	function	src/devices/devicemanager.c	520	DeviceManager_IotOp	devmgr_iot_op	1
+5607077	2026-09-21	3.1	function	src/devices/devicemanager.c	324	DeviceManager_MasterClear	devmgr_master_clear	1
+5607077	2026-09-21	3.1	function	src/devices/devicemanager.c	395	DeviceManager_Read	devmgr_read	1
+5607077	2026-09-21	3.1	function	src/devices/devicemanager.c	466	DeviceManager_Tick	devmgr_tick	1
+5607077	2026-09-21	3.1	function	src/devices/devicemanager.c	413	DeviceManager_Write	devmgr_write	1
+5607077	2026-09-21	3.1	local variable	src/devices/devicemanager.c	546	Device_Boot	dev_boot	1
+5607077	2026-09-21	3.1	local variable	src/devices/devicemanager.c	77	Device_Destroy	dev_destroy	2
+5607077	2026-09-21	3.1	local variable	src/devices/devicemanager.c	442	Device_Ident	dev_ident	1
+5607077	2026-09-21	3.1	local variable	src/devices/devicemanager.c	402	Device_IsInAddress	dev_is_in_address	3
+5607077	2026-09-21	3.1	local variable	src/devices/devicemanager.c	404	Device_Read	dev_read	1
+5607077	2026-09-21	3.1	local variable	src/devices/devicemanager.c	318	Device_Reset	dev_reset	2
+5607077	2026-09-21	3.1	local variable	src/devices/devicemanager.c	382	Device_SetBlockDiskInfo	dev_set_block_disk_info	1
+5607077	2026-09-21	3.1	local variable	src/devices/devicemanager.c	380	Device_SetBlockRead	dev_set_block_read	1
+5607077	2026-09-21	3.1	local variable	src/devices/devicemanager.c	381	Device_SetBlockWrite	dev_set_block_write	1
+5607077	2026-09-21	3.1	local variable	src/devices/devicemanager.c	474	Device_Tick	dev_tick	1
+5607077	2026-09-21	3.1	local variable	src/devices/devicemanager.c	426	Device_Write	dev_write	1
+5607077	2026-09-21	3.1	local variable	src/devices/devicemanager.c	187	Modem_StartModem	modem_start	1
+5607077	2026-09-21	3.1	local variable	src/devices/devicemanager.c	160	SCSI_SetUnitType	scsi_set_unit_type	1
+5607077	2026-09-21	3.1	local variable	src/devices/devicemanager.c	408	interrupt	cpu_interrupt	2
+5607077	2026-09-21	3.1	local variable	src/devices/devicemanager.c	97	setup_pap	panel_setup_pap	1
+5607077	2026-09-21	3.1	function	src/devices/devices_types.h	524	DeviceManager_AddAllDevices	devmgr_add_all_devices	1
+5607077	2026-09-21	3.1	function	src/devices/devices_types.h	534	DeviceManager_AddDevice	devmgr_add_device	1
+5607077	2026-09-21	3.1	function	src/devices/devices_types.h	552	DeviceManager_AddHDLCDevice_WithConfig	devmgr_add_hdlc_device_with_config	1
+5607077	2026-09-21	3.1	function	src/devices/devices_types.h	663	DeviceManager_AddSCSIDevice_WithConfig	devmgr_add_scsi_device_with_config	1
+5607077	2026-09-21	3.1	function	src/devices/devices_types.h	621	DeviceManager_BootFrom	devmgr_boot_from	1
+5607077	2026-09-21	3.1	function	src/devices/devices_types.h	516	DeviceManager_Destroy	devmgr_destroy	1
+5607077	2026-09-21	3.1	function	src/devices/devices_types.h	541	DeviceManager_GetDeviceByAddress	devmgr_get_device_by_address	1
+5607077	2026-09-21	3.1	function	src/devices/devices_types.h	600	DeviceManager_GetDeviceByIndex	devmgr_get_device_by_index	1
+5607077	2026-09-21	3.1	function	src/devices/devices_types.h	593	DeviceManager_GetDeviceCount	devmgr_get_device_count	1
+5607077	2026-09-21	3.1	function	src/devices/devices_types.h	581	DeviceManager_Ident	devmgr_ident	1
+5607077	2026-09-21	3.1	function	src/devices/devices_types.h	511	DeviceManager_Init	devmgr_init	1
+5607077	2026-09-21	3.1	function	src/devices/devices_types.h	612	DeviceManager_IotOp	devmgr_iot_op	1
+5607077	2026-09-21	3.1	function	src/devices/devices_types.h	557	DeviceManager_MasterClear	devmgr_master_clear	1
+5607077	2026-09-21	3.1	function	src/devices/devices_types.h	565	DeviceManager_Read	devmgr_read	1
+5607077	2026-09-21	3.1	function	src/devices/devices_types.h	587	DeviceManager_Tick	devmgr_tick	1
+5607077	2026-09-21	3.1	function	src/devices/devices_types.h	572	DeviceManager_Write	devmgr_write	1
+5607077	2026-09-21	3.1	function	src/devices/devices_types.h	274	Device_Boot	dev_boot	1
+5607077	2026-09-21	3.1	function	src/devices/devices_types.h	409	Device_DMARead	dev_dma_read	1
+5607077	2026-09-21	3.1	function	src/devices/devices_types.h	401	Device_DMAWrite	dev_dma_write	1
+5607077	2026-09-21	3.1	function	src/devices/devices_types.h	253	Device_Destroy	dev_destroy	1
+5607077	2026-09-21	3.1	function	src/devices/devices_types.h	340	Device_GenerateInterrupt	dev_generate_interrupt	1
+5607077	2026-09-21	3.1	function	src/devices/devices_types.h	236	Device_GetOddParity	dev_get_odd_parity	1
+5607077	2026-09-21	3.1	function	src/devices/devices_types.h	374	Device_IO_BufferReadWord	dev_io_buffer_read_word	1
+5607077	2026-09-21	3.1	function	src/devices/devices_types.h	393	Device_IO_BufferWriteWord	dev_io_buffer_write_word	1
+5607077	2026-09-21	3.1	function	src/devices/devices_types.h	365	Device_IO_ReadWord	dev_io_read_word	1
+5607077	2026-09-21	3.1	function	src/devices/devices_types.h	357	Device_IO_Seek	dev_io_seek	1
+5607077	2026-09-21	3.1	function	src/devices/devices_types.h	383	Device_IO_WriteWord	dev_io_write_word	1
+5607077	2026-09-21	3.1	function	src/devices/devices_types.h	315	Device_Ident	dev_ident	1
+5607077	2026-09-21	3.1	function	src/devices/devices_types.h	246	Device_Init	dev_init	1
+5607077	2026-09-21	3.1	function	src/devices/devices_types.h	437	Device_InputCharacter	dev_input_character	1
+5607077	2026-09-21	3.1	function	src/devices/devices_types.h	282	Device_IsInAddress	dev_is_in_address	1
+5607077	2026-09-21	3.1	function	src/devices/devices_types.h	430	Device_OutputCharacter	dev_output_character	1
+5607077	2026-09-21	3.1	function	src/devices/devices_types.h	325	Device_QueueIODelay	dev_queue_io_delay	1
+5607077	2026-09-21	3.1	function	src/devices/devices_types.h	299	Device_Read	dev_read	1
+5607077	2026-09-21	3.1	function	src/devices/devices_types.h	476	Device_ReadBlock	dev_read_block	1
+5607077	2026-09-21	3.1	function	src/devices/devices_types.h	291	Device_RegisterAddress	dev_register_address	1
+5607077	2026-09-21	3.1	function	src/devices/devices_types.h	259	Device_Reset	dev_reset	1
+5607077	2026-09-21	3.1	function	src/devices/devices_types.h	464	Device_SetBlockDiskInfo	dev_set_block_disk_info	1
+5607077	2026-09-21	3.1	function	src/devices/devices_types.h	446	Device_SetBlockRead	dev_set_block_read	1
+5607077	2026-09-21	3.1	function	src/devices/devices_types.h	455	Device_SetBlockWrite	dev_set_block_write	1
+5607077	2026-09-21	3.1	function	src/devices/devices_types.h	423	Device_SetCharacterInput	dev_set_character_input	1
+5607077	2026-09-21	3.1	function	src/devices/devices_types.h	416	Device_SetCharacterOutput	dev_set_character_output	1
+5607077	2026-09-21	3.1	function	src/devices/devices_types.h	348	Device_SetInterruptStatus	dev_set_interrupt_status	1
+5607077	2026-09-21	3.1	function	src/devices/devices_types.h	266	Device_Tick	dev_tick	1
+5607077	2026-09-21	3.1	function	src/devices/devices_types.h	333	Device_TickIODelay	dev_tick_io_delay	1
+5607077	2026-09-21	3.1	function	src/devices/devices_types.h	307	Device_Write	dev_write	1
+5607077	2026-09-21	3.1	function	src/devices/devices_types.h	488	Device_WriteBlock	dev_write_block	1
+5607077	2026-09-21	3.1	function	src/devices/devices_types.h	43	ReadPhysicalMemory	mms_read_physical_memory	1
+5607077	2026-09-21	3.1	function	src/devices/devices_types.h	44	WritePhysicalMemory	mms_write_physical_memory	1
+5607077	2026-09-21	3.1	function	src/devices/devices_types.h	40	interrupt	cpu_interrupt	1
+5607077	2026-09-21	3.1	function	src/devices/drum/device_drum.c	328	CreateDrumDevice	drum_create_device	1
+5607077	2026-09-21	3.1	local variable	src/devices/drum/device_drum.c	198	Device_DMARead	dev_dma_read	2
+5607077	2026-09-21	3.1	local variable	src/devices/drum/device_drum.c	194	Device_DMAWrite	dev_dma_write	1
+5607077	2026-09-21	3.1	local variable	src/devices/drum/device_drum.c	346	Device_Init	dev_init	1
+5607077	2026-09-21	3.1	local variable	src/devices/drum/device_drum.c	183	Device_QueueIODelay	dev_queue_io_delay	2
+5607077	2026-09-21	3.1	local variable	src/devices/drum/device_drum.c	278	Device_SetInterruptStatus	dev_set_interrupt_status	1
+5607077	2026-09-21	3.1	local variable	src/devices/drum/device_drum.c	266	Device_TickIODelay	dev_tick_io_delay	1
+5607077	2026-09-21	3.1	function	src/devices/drum/device_drum.c	41	DrumDevice_SetBackingFile	drum_set_backing_file	1
+5607077	2026-09-21	3.1	function	src/devices/drum/device_drum.h	152	CreateDrumDevice	drum_create_device	1
+5607077	2026-09-21	3.1	function	src/devices/drum/device_drum.h	145	DrumDevice_SetBackingFile	drum_set_backing_file	1
+5607077	2026-09-21	3.1	function	src/devices/floppy/device_floppy_dma.c	867	CreateFloppyDMADevice	floppy_dma_create_device	1
+5607077	2026-09-21	3.1	local variable	src/devices/floppy/device_floppy_dma.c	444	Device_DMARead	dev_dma_read	8
+5607077	2026-09-21	3.1	local variable	src/devices/floppy/device_floppy_dma.c	352	Device_DMAWrite	dev_dma_write	9
+5607077	2026-09-21	3.1	local variable	src/devices/floppy/device_floppy_dma.c	601	Device_IO_BufferReadWord	dev_io_buffer_read_word	1
+5607077	2026-09-21	3.1	local variable	src/devices/floppy/device_floppy_dma.c	643	Device_IO_BufferWriteWord	dev_io_buffer_write_word	1
+5607077	2026-09-21	3.1	local variable	src/devices/floppy/device_floppy_dma.c	886	Device_Init	dev_init	1
+5607077	2026-09-21	3.1	local variable	src/devices/floppy/device_floppy_dma.c	385	Device_QueueIODelay	dev_queue_io_delay	14
+5607077	2026-09-21	3.1	local variable	src/devices/floppy/device_floppy_dma.c	158	Device_RegisterAddress	dev_register_address	2
+5607077	2026-09-21	3.1	local variable	src/devices/floppy/device_floppy_dma.c	217	Device_SetInterruptStatus	dev_set_interrupt_status	11
+5607077	2026-09-21	3.1	local variable	src/devices/floppy/device_floppy_dma.c	265	Device_TickIODelay	dev_tick_io_delay	1
+5607077	2026-09-21	3.1	local variable	src/devices/floppy/device_floppy_dma.c	182	Log_Write	log_write	13
+5607077	2026-09-21	3.1	function	src/devices/floppy/device_floppy_dma.h	406	CreateFloppyDMADevice	floppy_dma_create_device	1
+5607077	2026-09-21	3.1	function	src/devices/floppy/device_floppy_pio.c	784	CreateFloppyPIODevice	floppy_pio_create_device	1
+5607077	2026-09-21	3.1	local variable	src/devices/floppy/device_floppy_pio.c	719	Device_IO_ReadWord	dev_io_read_word	1
+5607077	2026-09-21	3.1	local variable	src/devices/floppy/device_floppy_pio.c	536	Device_IO_WriteWord	dev_io_write_word	3
+5607077	2026-09-21	3.1	local variable	src/devices/floppy/device_floppy_pio.c	800	Device_Init	dev_init	1
+5607077	2026-09-21	3.1	local variable	src/devices/floppy/device_floppy_pio.c	553	Device_QueueIODelay	dev_queue_io_delay	7
+5607077	2026-09-21	3.1	local variable	src/devices/floppy/device_floppy_pio.c	103	Device_RegisterAddress	dev_register_address	2
+5607077	2026-09-21	3.1	local variable	src/devices/floppy/device_floppy_pio.c	258	Device_SetInterruptStatus	dev_set_interrupt_status	2
+5607077	2026-09-21	3.1	local variable	src/devices/floppy/device_floppy_pio.c	90	Device_TickIODelay	dev_tick_io_delay	1
+5607077	2026-09-21	3.1	local variable	src/devices/floppy/device_floppy_pio.c	111	Log_Write	log_write	20
+5607077	2026-09-21	3.1	function	src/devices/floppy/device_floppy_pio.h	214	CreateFloppyPIODevice	floppy_pio_create_device	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/chip_com5025.c	661	COM5025Registers_AggregateTXCrc	com5025_reg_aggregate_tx_crc	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/chip_com5025.c	82	COM5025Registers_Clear	com5025_reg_clear	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/chip_com5025.c	60	COM5025Registers_Init	com5025_reg_init	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/chip_com5025.c	668	COM5025Registers_IsProtocolModeCCP	com5025_reg_is_protocol_mode_ccp	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/chip_com5025.c	538	COM5025Registers_QueueReceivedData	com5025_reg_queue_received_data	2
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/chip_com5025.c	209	COM5025Registers_SetModeControl	com5025_reg_set_mode_control	2
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/chip_com5025.c	744	COM5025Registers_SetReceiverStatus	com5025_reg_set_receiver_status	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025.c	384	COM5025_ClockReceiver	com5025_clock_receiver	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025.c	395	COM5025_ClockTransmitter	com5025_clock_transmitter	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025.c	366	COM5025_GetInputPin	com5025_get_input_pin	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025.c	375	COM5025_GetOutputPin	com5025_get_output_pin	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025.c	52	COM5025_Init	com5025_init	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025.c	111	COM5025_ReadByte	com5025_read_byte	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025.c	226	COM5025_ReadWord	com5025_read_word	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025.c	528	COM5025_ReceiveData	com5025_receive_data	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025.c	70	COM5025_Reset	com5025_reset	2
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025.c	310	COM5025_SetInputPin	com5025_set_input_pin	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025.c	130	COM5025_SetReceiverStatus	com5025_set_receiver_status	3
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025.c	542	COM5025_TransmitData	com5025_transmit_data	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025.c	166	COM5025_WriteByte	com5025_write_byte	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025.c	264	COM5025_WriteWord	com5025_write_word	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025.h	383	COM5025_ClockReceiver	com5025_clock_receiver	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025.h	392	COM5025_ClockTransmitter	com5025_clock_transmitter	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025.h	366	COM5025_GetInputPin	com5025_get_input_pin	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025.h	374	COM5025_GetOutputPin	com5025_get_output_pin	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025.h	296	COM5025_Init	com5025_init	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025.h	315	COM5025_ReadByte	com5025_read_byte	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025.h	336	COM5025_ReadWord	com5025_read_word	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025.h	403	COM5025_ReceiveData	com5025_receive_data	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025.h	305	COM5025_Reset	com5025_reset	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025.h	358	COM5025_SetInputPin	com5025_set_input_pin	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025.h	425	COM5025_SetReceiverStatus	com5025_set_receiver_status	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025.h	413	COM5025_TransmitData	com5025_transmit_data	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025.h	326	COM5025_WriteByte	com5025_write_byte	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025.h	347	COM5025_WriteWord	com5025_write_word	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025_registers.c	482	COM5025IOTimer_SetCallback	com5025_reg_set_callback	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025_registers.c	198	COM5025Registers_AdjustTimer	com5025_reg_adjust_timer	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025_registers.c	416	COM5025Registers_AggregateTXCrc	com5025_reg_aggregate_tx_crc	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025_registers.c	442	COM5025Registers_CalcFinalTxCrc	com5025_reg_calc_final_tx_crc	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025_registers.c	381	COM5025Registers_CalcRXCrc	com5025_reg_calc_rx_crc	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025_registers.c	51	COM5025Registers_Clear	com5025_reg_clear	2
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025_registers.c	188	COM5025Registers_Clock	com5025_reg_clock	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025_registers.c	272	COM5025Registers_DataReceived	com5025_reg_data_received	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025_registers.c	104	COM5025Registers_Destroy	com5025_reg_destroy	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025_registers.c	129	COM5025Registers_GetReceiverCharacterLen	com5025_reg_get_receiver_character_len	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025_registers.c	138	COM5025Registers_GetTransmitterCharacterLen	com5025_reg_get_transmitter_character_len	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025_registers.c	43	COM5025Registers_Init	com5025_reg_init	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025_registers.c	292	COM5025Registers_IsNextByteSync	com5025_reg_is_next_byte_sync	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025_registers.c	169	COM5025Registers_IsProtocolModeCCP	com5025_reg_is_protocol_mode_ccp	2
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025_registers.c	407	COM5025Registers_IsRxCrcEqual	com5025_reg_is_rx_crc_equal	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025_registers.c	452	COM5025Registers_IsTxCrcEqual	com5025_reg_is_tx_crc_equal	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025_registers.c	328	COM5025Registers_MarkDataAsReceived	com5025_reg_mark_data_as_received	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025_registers.c	216	COM5025Registers_QueueReceivedData	com5025_reg_queue_received_data	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025_registers.c	178	COM5025Registers_SetClockSpeed	com5025_reg_set_clock_speed	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025_registers.c	147	COM5025Registers_SetModeControl	com5025_reg_set_mode_control	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025_registers.c	120	COM5025Registers_SetReceiverStatus	com5025_reg_set_receiver_status	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/chip_com5025_registers.c	356	HDLC_CRC_CalcCCITT	hdlc_crc_crc_calc_ccitt	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/chip_com5025_registers.c	360	HDLC_CRC_CalcCrc16	hdlc_crc_crc_calc_crc_16	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025_registers.h	351	COM5025IOTimer_SetCallback	com5025_reg_set_callback	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025_registers.h	248	COM5025Registers_AdjustTimer	com5025_reg_adjust_timer	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025_registers.h	318	COM5025Registers_AggregateTXCrc	com5025_reg_aggregate_tx_crc	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025_registers.h	327	COM5025Registers_CalcFinalTxCrc	com5025_reg_calc_final_tx_crc	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025_registers.h	299	COM5025Registers_CalcRXCrc	com5025_reg_calc_rx_crc	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025_registers.h	169	COM5025Registers_Clear	com5025_reg_clear	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025_registers.h	237	COM5025Registers_Clock	com5025_reg_clock	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025_registers.h	271	COM5025Registers_DataReceived	com5025_reg_data_received	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025_registers.h	176	COM5025Registers_Destroy	com5025_reg_destroy	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025_registers.h	194	COM5025Registers_GetReceiverCharacterLen	com5025_reg_get_receiver_character_len	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025_registers.h	202	COM5025Registers_GetTransmitterCharacterLen	com5025_reg_get_transmitter_character_len	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025_registers.h	161	COM5025Registers_Init	com5025_reg_init	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025_registers.h	281	COM5025Registers_IsNextByteSync	com5025_reg_is_next_byte_sync	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025_registers.h	220	COM5025Registers_IsProtocolModeCCP	com5025_reg_is_protocol_mode_ccp	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025_registers.h	308	COM5025Registers_IsRxCrcEqual	com5025_reg_is_rx_crc_equal	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025_registers.h	337	COM5025Registers_IsTxCrcEqual	com5025_reg_is_tx_crc_equal	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025_registers.h	288	COM5025Registers_MarkDataAsReceived	com5025_reg_mark_data_as_received	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025_registers.h	262	COM5025Registers_QueueReceivedData	com5025_reg_queue_received_data	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025_registers.h	230	COM5025Registers_SetClockSpeed	com5025_reg_set_clock_speed	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025_registers.h	212	COM5025Registers_SetModeControl	com5025_reg_set_mode_control	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/chip_com5025_registers.h	186	COM5025Registers_SetReceiverStatus	com5025_reg_set_receiver_status	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/device_hdlc.c	281	COM5025Registers_Clock	com5025_reg_clock	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/device_hdlc.c	278	COM5025_ClockReceiver	com5025_clock_receiver	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/device_hdlc.c	277	COM5025_ClockTransmitter	com5025_clock_transmitter	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/device_hdlc.c	217	COM5025_Init	com5025_init	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/device_hdlc.c	303	COM5025_ReadByte	com5025_read_byte	3
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/device_hdlc.c	223	COM5025_Reset	com5025_reset	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/device_hdlc.c	451	COM5025_SetInputPin	com5025_set_input_pin	3
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/device_hdlc.c	311	COM5025_WriteByte	com5025_write_byte	5
+5607077	2026-09-21	3.1	function	src/devices/hdlc/device_hdlc.c	684	CreateHDLCDevice	hdlc_create_device	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/device_hdlc.c	569	DMAEngine_CommandDeviceClear	dma_engine_command_device_clear	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/device_hdlc.c	588	DMAEngine_CommandDumpDataModule	dma_engine_command_dump_data_module	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/device_hdlc.c	591	DMAEngine_CommandDumpRegisters	dma_engine_command_dump_registers	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/device_hdlc.c	572	DMAEngine_CommandInitialize	dma_engine_command_initialize	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/device_hdlc.c	594	DMAEngine_CommandLoadRegisters	dma_engine_command_load_registers	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/device_hdlc.c	580	DMAEngine_CommandReceiverContinue	dma_engine_command_receiver_continue	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/device_hdlc.c	577	DMAEngine_CommandReceiverStart	dma_engine_command_receiver_start	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/device_hdlc.c	585	DMAEngine_CommandTransmitterStart	dma_engine_command_transmitter_start	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/device_hdlc.c	660	DMAEngine_Destroy	dma_engine_destroy	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/device_hdlc.c	787	DMAEngine_Init	dma_engine_init	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/device_hdlc.c	812	DMAEngine_SetClearCommandCallback	dma_engine_set_clear_command_callback	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/device_hdlc.c	564	DMAEngine_SetDMAAddress	dma_engine_set_dma_address	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/device_hdlc.c	808	DMAEngine_SetInterruptCallback	dma_engine_set_interrupt_callback	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/device_hdlc.c	807	DMAEngine_SetReadDMACallback	dma_engine_set_read_dma_callback	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/device_hdlc.c	809	DMAEngine_SetSendFrameCallback	dma_engine_set_send_frame_callback	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/device_hdlc.c	810	DMAEngine_SetUpdateReceiverStatusCallback	dma_engine_set_update_receiver_status_callback	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/device_hdlc.c	806	DMAEngine_SetWriteDMACallback	dma_engine_set_write_dma_callback	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/device_hdlc.c	264	DMAEngine_Tick	dma_engine_tick	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/device_hdlc.c	839	DMAReceiver_ReceiveDataFromModem	dma_rx_receive_data_from_modem	2
+5607077	2026-09-21	3.1	comment reference	src/devices/hdlc/device_hdlc.c	1020	Device_DMARead	dev_dma_read	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/device_hdlc.c	1009	Device_DMAWrite	dev_dma_write	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/device_hdlc.c	703	Device_Init	dev_init	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/device_hdlc.c	298	Device_RegisterAddress	dev_register_address	2
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/device_hdlc.c	496	Device_SetInterruptStatus	dev_set_interrupt_status	9
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/device_hdlc.c	255	Device_TickIODelay	dev_tick_io_delay	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/device_hdlc.c	820	HDLC_BridgeInjectRx	hdlc_bridge_inject_rx	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/device_hdlc.c	1381	HDLC_GetRxFrameStatus	hdlc_get_rx_frame_status	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/device_hdlc.c	88	Log_Write	log_write	2
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/device_hdlc.c	668	Modem_Destroy	modem_destroy	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/device_hdlc.c	783	Modem_Init	modem_init	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/device_hdlc.c	1065	Modem_SendBytes	modem_send_bytes	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/device_hdlc.c	980	Modem_SetCTS	modem_set_cts	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/device_hdlc.c	801	Modem_SetClearToSendCallback	modem_set_clear_to_send_callback	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/device_hdlc.c	998	Modem_SetDSR	modem_set_dsr	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/device_hdlc.c	464	Modem_SetDTR	modem_set_dtr	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/device_hdlc.c	799	Modem_SetDataSetReadyCallback	modem_set_data_set_ready_callback	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/device_hdlc.c	803	Modem_SetDataTerminalReadyCallback	modem_set_data_terminal_ready_callback	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/device_hdlc.c	1350	Modem_SetRTS	modem_set_rts	2
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/device_hdlc.c	797	Modem_SetReceivedDataCallback	modem_set_received_data_callback	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/device_hdlc.c	802	Modem_SetRequestToSendCallback	modem_set_request_to_send_callback	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/device_hdlc.c	798	Modem_SetRingIndicatorCallback	modem_set_ring_indicator_callback	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/device_hdlc.c	800	Modem_SetSignalDetectorCallback	modem_set_signal_detector_callback	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/device_hdlc.c	785	Modem_SetWasmBridgeChannel	modem_set_wasm_bridge_channel	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/device_hdlc.c	260	Modem_Tick	modem_tick	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/device_hdlc.c	1410	TcpReceiveBuffer_Available	rxbuf_available	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/device_hdlc.h	392	CreateHDLCDevice	hdlc_create_device	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/device_hdlc.h	414	HDLC_BridgeInjectRx	hdlc_bridge_inject_rx	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/device_hdlc.h	403	HDLC_GetRxFrameStatus	hdlc_get_rx_frame_status	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_control_blocks.c	265	DCB_GetBufferAddress	dcb_get_buffer_address	8
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_control_blocks.c	547	DCB_GetByteCount	dcb_get_byte_count	4
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_control_blocks.c	638	DCB_GetDMAAddress	dcb_get_dma_address	9
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_control_blocks.c	627	DCB_GetDMABytesRead	dcb_get_dma_bytes_read	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_control_blocks.c	440	DCB_GetDMABytesWritten	dcb_get_dma_bytes_written	4
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_control_blocks.c	652	DCB_GetDMAReadData	dcb_get_dma_read_data	2
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_control_blocks.c	257	DCB_GetDataFlowCost	dcb_get_data_flow_cost	2
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_control_blocks.c	444	DCB_GetDataMemoryAddress	dcb_get_data_memory_address	5
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_control_blocks.c	628	DCB_GetDisplacement	dcb_get_displacement	2
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_control_blocks.c	241	DCB_GetKey	dcb_get_key	9
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_control_blocks.c	388	DCB_GetKeyValue	dcb_get_key_value	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_control_blocks.c	423	DCB_GetListPointer	dcb_get_list_pointer	2
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_control_blocks.c	409	DCB_HasREOMFlag	dcb_has_reom_flag	3
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_control_blocks.c	404	DCB_HasRSOMFlag	dcb_has_rsom_flag	3
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_control_blocks.c	521	DCB_Init	dcb_init	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_control_blocks.c	524	DCB_SetBufferAddress	dcb_set_buffer_address	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_control_blocks.c	482	DCB_SetByteCount	dcb_set_byte_count	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_control_blocks.c	444	DCB_SetDMAAddress	dcb_set_dma_address	7
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_control_blocks.c	597	DCB_SetDMABytesRead	dcb_set_dma_bytes_read	3
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_control_blocks.c	596	DCB_SetDMABytesWritten	dcb_set_dma_bytes_written	3
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_control_blocks.c	595	DCB_SetDMAReadData	dcb_set_dma_read_data	3
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_control_blocks.c	486	DCB_SetDataMemoryAddress	dcb_set_data_memory_address	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_control_blocks.c	530	DCB_SetDisplacement	dcb_set_displacement	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_control_blocks.c	259	DCB_SetKeyValue	dcb_set_key_value	3
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_control_blocks.c	522	DCB_SetListPointer	dcb_set_list_pointer	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_control_blocks.c	523	DCB_SetOffsetFromLP	dcb_set_offset_from_lp	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_control_blocks.c	140	DMAControlBlocks_Clear	dmacb_clear	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_control_blocks.c	187	DMAControlBlocks_DebugTXFrames	dmacb_debug_tx_frames	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_control_blocks.c	104	DMAControlBlocks_Destroy	dmacb_destroy	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_control_blocks.c	52	DMAControlBlocks_Init	dmacb_init	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_control_blocks.c	353	DMAControlBlocks_IsNextRXbufValid	dmacb_is_next_r_xbuf_valid	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_control_blocks.c	227	DMAControlBlocks_LoadBufferDescription	dmacb_load_buffer_description	3
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_control_blocks.c	300	DMAControlBlocks_LoadNextRXBuffer	dmacb_load_next_rx_buffer	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_control_blocks.c	231	DMAControlBlocks_LoadNextTXBuffer	dmacb_load_next_tx_buffer	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_control_blocks.c	281	DMAControlBlocks_LoadRXBuffer	dmacb_load_rx_buffer	4
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_control_blocks.c	184	DMAControlBlocks_LoadTXBuffer	dmacb_load_tx_buffer	3
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_control_blocks.c	373	DMAControlBlocks_MarkBufferReceived	dmacb_mark_buffer_received	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_control_blocks.c	244	DMAControlBlocks_MarkBufferSent	dmacb_mark_buffer_sent	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_control_blocks.c	450	DMAControlBlocks_ReadNextByteDMA	dmacb_read_next_byte_dma	3
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_control_blocks.c	271	DMAControlBlocks_SetRXPointer	dmacb_set_rx_pointer	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_control_blocks.c	768	DMAControlBlocks_SetReadDMACallback	dmacb_set_read_dma_callback	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_control_blocks.c	173	DMAControlBlocks_SetTXPointer	dmacb_set_tx_pointer	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_control_blocks.c	779	DMAControlBlocks_SetWriteDMACallback	dmacb_set_write_dma_callback	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_control_blocks.c	671	DMAControlBlocks_WriteNextByteDMA	dmacb_write_next_byte_dma	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_control_blocks.c	87	HDLCFrame_Init	hdlc_frame_init	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_control_blocks.c	848	Log_Write	log_write	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_control_blocks.h	112	DMAControlBlocks_Clear	dmacb_clear	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_control_blocks.h	128	DMAControlBlocks_DebugTXFrames	dmacb_debug_tx_frames	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_control_blocks.h	105	DMAControlBlocks_Destroy	dmacb_destroy	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_control_blocks.h	98	DMAControlBlocks_Init	dmacb_init	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_control_blocks.h	185	DMAControlBlocks_IsNextRXbufValid	dmacb_is_next_r_xbuf_valid	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_control_blocks.h	208	DMAControlBlocks_LoadBufferDescription	dmacb_load_buffer_description	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_control_blocks.h	176	DMAControlBlocks_LoadNextRXBuffer	dmacb_load_next_rx_buffer	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_control_blocks.h	143	DMAControlBlocks_LoadNextTXBuffer	dmacb_load_next_tx_buffer	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_control_blocks.h	167	DMAControlBlocks_LoadRXBuffer	dmacb_load_rx_buffer	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_control_blocks.h	135	DMAControlBlocks_LoadTXBuffer	dmacb_load_tx_buffer	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_control_blocks.h	195	DMAControlBlocks_MarkBufferReceived	dmacb_mark_buffer_received	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_control_blocks.h	151	DMAControlBlocks_MarkBufferSent	dmacb_mark_buffer_sent	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_control_blocks.h	219	DMAControlBlocks_ReadNextByteDMA	dmacb_read_next_byte_dma	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_control_blocks.h	160	DMAControlBlocks_SetRXPointer	dmacb_set_rx_pointer	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_control_blocks.h	237	DMAControlBlocks_SetReadDMACallback	dmacb_set_read_dma_callback	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_control_blocks.h	121	DMAControlBlocks_SetTXPointer	dmacb_set_tx_pointer	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_control_blocks.h	246	DMAControlBlocks_SetWriteDMACallback	dmacb_set_write_dma_callback	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_control_blocks.h	229	DMAControlBlocks_WriteNextByteDMA	dmacb_write_next_byte_dma	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.c	63	DCB_Clear	dcb_clear	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.c	347	DCB_ClearDMAReadData	dcb_clear_dma_read_data	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.c	145	DCB_GetBufferAddress	dcb_get_buffer_address	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.c	205	DCB_GetByteCount	dcb_get_byte_count	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.c	267	DCB_GetDMAAddress	dcb_get_dma_address	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.c	287	DCB_GetDMABytesRead	dcb_get_dma_bytes_read	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.c	307	DCB_GetDMABytesWritten	dcb_get_dma_bytes_written	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.c	327	DCB_GetDMAReadData	dcb_get_dma_read_data	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.c	103	DCB_GetDataFlowCost	dcb_get_data_flow_cost	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.c	113	DCB_GetDataMemoryAddress	dcb_get_data_memory_address	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.c	225	DCB_GetDisplacement	dcb_get_displacement	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.c	73	DCB_GetKey	dcb_get_key	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.c	185	DCB_GetKeyValue	dcb_get_key_value	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.c	245	DCB_GetListPointer	dcb_get_list_pointer	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.c	165	DCB_GetOffsetFromLP	dcb_get_offset_from_lp	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.c	93	DCB_HasREOMFlag	dcb_has_reom_flag	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.c	83	DCB_HasRSOMFlag	dcb_has_rsom_flag	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.c	37	DCB_Init	dcb_init	2
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.c	337	DCB_IsDMAReadDataValid	dcb_is_dma_read_data_valid	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.c	135	DCB_SetBufferAddress	dcb_set_buffer_address	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.c	195	DCB_SetByteCount	dcb_set_byte_count	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.c	257	DCB_SetDMAAddress	dcb_set_dma_address	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.c	277	DCB_SetDMABytesRead	dcb_set_dma_bytes_read	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.c	297	DCB_SetDMABytesWritten	dcb_set_dma_bytes_written	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.c	317	DCB_SetDMAReadData	dcb_set_dma_read_data	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.c	124	DCB_SetDataMemoryAddress	dcb_set_data_memory_address	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.c	215	DCB_SetDisplacement	dcb_set_displacement	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.c	175	DCB_SetKeyValue	dcb_set_key_value	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.c	235	DCB_SetListPointer	dcb_set_list_pointer	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.c	155	DCB_SetOffsetFromLP	dcb_set_offset_from_lp	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.h	119	DCB_Clear	dcb_clear	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.h	318	DCB_ClearDMAReadData	dcb_clear_dma_read_data	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.h	177	DCB_GetBufferAddress	dcb_get_buffer_address	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.h	219	DCB_GetByteCount	dcb_get_byte_count	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.h	263	DCB_GetDMAAddress	dcb_get_dma_address	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.h	277	DCB_GetDMABytesRead	dcb_get_dma_bytes_read	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.h	291	DCB_GetDMABytesWritten	dcb_get_dma_bytes_written	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.h	305	DCB_GetDMAReadData	dcb_get_dma_read_data	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.h	147	DCB_GetDataFlowCost	dcb_get_data_flow_cost	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.h	154	DCB_GetDataMemoryAddress	dcb_get_data_memory_address	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.h	233	DCB_GetDisplacement	dcb_get_displacement	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.h	126	DCB_GetKey	dcb_get_key	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.h	205	DCB_GetKeyValue	dcb_get_key_value	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.h	247	DCB_GetListPointer	dcb_get_list_pointer	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.h	191	DCB_GetOffsetFromLP	dcb_get_offset_from_lp	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.h	140	DCB_HasREOMFlag	dcb_has_reom_flag	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.h	133	DCB_HasRSOMFlag	dcb_has_rsom_flag	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.h	113	DCB_Init	dcb_init	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.h	312	DCB_IsDMAReadDataValid	dcb_is_dma_read_data_valid	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.h	170	DCB_SetBufferAddress	dcb_set_buffer_address	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.h	212	DCB_SetByteCount	dcb_set_byte_count	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.h	256	DCB_SetDMAAddress	dcb_set_dma_address	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.h	270	DCB_SetDMABytesRead	dcb_set_dma_bytes_read	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.h	284	DCB_SetDMABytesWritten	dcb_set_dma_bytes_written	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.h	298	DCB_SetDMAReadData	dcb_set_dma_read_data	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.h	161	DCB_SetDataMemoryAddress	dcb_set_data_memory_address	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.h	226	DCB_SetDisplacement	dcb_set_displacement	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.h	198	DCB_SetKeyValue	dcb_set_key_value	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.h	240	DCB_SetListPointer	dcb_set_list_pointer	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_dcb.h	184	DCB_SetOffsetFromLP	dcb_set_offset_from_lp	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_engine.c	560	COM5025_ReadByte	com5025_read_byte	5
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_engine.c	347	COM5025_Reset	com5025_reset	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_engine.c	405	COM5025_WriteByte	com5025_write_byte	3
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_engine.c	216	DMAControlBlocks_Clear	dmacb_clear	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_engine.c	514	DMAControlBlocks_DebugTXFrames	dmacb_debug_tx_frames	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_engine.c	190	DMAControlBlocks_Destroy	dmacb_destroy	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_engine.c	116	DMAControlBlocks_Init	dmacb_init	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_engine.c	461	DMAControlBlocks_SetRXPointer	dmacb_set_rx_pointer	2
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_engine.c	159	DMAControlBlocks_SetReadDMACallback	dmacb_set_read_dma_callback	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_engine.c	513	DMAControlBlocks_SetTXPointer	dmacb_set_tx_pointer	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_engine.c	160	DMAControlBlocks_SetWriteDMACallback	dmacb_set_write_dma_callback	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_engine.c	329	DMAEngine_CommandDeviceClear	dma_engine_command_device_clear	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_engine.c	525	DMAEngine_CommandDumpDataModule	dma_engine_command_dump_data_module	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_engine.c	589	DMAEngine_CommandDumpRegisters	dma_engine_command_dump_registers	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_engine.c	353	DMAEngine_CommandInitialize	dma_engine_command_initialize	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_engine.c	656	DMAEngine_CommandLoadRegisters	dma_engine_command_load_registers	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_engine.c	472	DMAEngine_CommandReceiverContinue	dma_engine_command_receiver_continue	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_engine.c	446	DMAEngine_CommandReceiverStart	dma_engine_command_receiver_start	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_engine.c	498	DMAEngine_CommandTransmitterStart	dma_engine_command_transmitter_start	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_engine.c	167	DMAEngine_Destroy	dma_engine_destroy	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_engine.c	302	DMAEngine_ExecuteCommand	dma_engine_execute_command	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_engine.c	736	DMAEngine_GetBufferKeyVault	dma_engine_get_buffer_key_vault	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_engine.c	98	DMAEngine_Init	dma_engine_init	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_engine.c	286	DMAEngine_OnReadDMA	dma_engine_on_read_dma	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_engine.c	276	DMAEngine_OnWriteDMA	dma_engine_on_write_dma	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_engine.c	748	DMAEngine_ScanNextTXBuffer	dma_engine_scan_next_tx_buffer	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_engine.c	830	DMAEngine_SetClearCommandCallback	dma_engine_set_clear_command_callback	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_engine.c	713	DMAEngine_SetDMAAddress	dma_engine_set_dma_address	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_engine.c	802	DMAEngine_SetInterruptCallback	dma_engine_set_interrupt_callback	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_engine.c	793	DMAEngine_SetReadDMACallback	dma_engine_set_read_dma_callback	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_engine.c	811	DMAEngine_SetSendFrameCallback	dma_engine_set_send_frame_callback	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_engine.c	820	DMAEngine_SetUpdateReceiverStatusCallback	dma_engine_set_update_receiver_status_callback	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_engine.c	784	DMAEngine_SetWriteDMACallback	dma_engine_set_write_dma_callback	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_engine.c	220	DMAEngine_Tick	dma_engine_tick	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_engine.c	211	DMAReceiver_Clear	dma_rx_clear	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_engine.c	183	DMAReceiver_Destroy	dma_rx_destroy	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_engine.c	139	DMAReceiver_Init	dma_rx_init	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_engine.c	141	DMAReceiver_SetInterruptCallback	dma_rx_set_interrupt_callback	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_engine.c	466	DMAReceiver_SetReceiverState	dma_rx_set_receiver_state	2
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_engine.c	231	DMAReceiver_Tick	dma_rx_tick	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_engine.c	206	DMATransmitter_Clear	dma_tx_clear	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_engine.c	176	DMATransmitter_Destroy	dma_tx_destroy	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_engine.c	130	DMATransmitter_Init	dma_tx_init	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_engine.c	133	DMATransmitter_SetInterruptCallback	dma_tx_set_interrupt_callback	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_engine.c	132	DMATransmitter_SetSendFrameCallback	dma_tx_set_send_frame_callback	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_engine.c	519	DMATransmitter_SetSenderState	dma_tx_set_sender_state	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_engine.c	236	DMATransmitter_Tick	dma_tx_tick	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_engine.c	858	Log_Write	log_write	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_engine.c	150	ParameterBuffer_Init	dma_params_init	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_engine.c	397	ParameterBuffer_SetCharacterLength	dma_params_set_character_length	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_engine.c	398	ParameterBuffer_SetDisplacement1	dma_params_set_displacement_1	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_engine.c	399	ParameterBuffer_SetDisplacement2	dma_params_set_displacement_2	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_engine.c	400	ParameterBuffer_SetMaxReceiverBlockLength	dma_params_set_max_receiver_block_length	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_engine.c	395	ParameterBuffer_SetParameterControlRegister	dma_params_set_control_register	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_engine.c	396	ParameterBuffer_SetSyncAddressRegister	dma_params_set_sync_address_register	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_engine.h	137	DMAEngine_CommandDeviceClear	dma_engine_command_device_clear	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_engine.h	177	DMAEngine_CommandDumpDataModule	dma_engine_command_dump_data_module	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_engine.h	185	DMAEngine_CommandDumpRegisters	dma_engine_command_dump_registers	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_engine.h	147	DMAEngine_CommandInitialize	dma_engine_command_initialize	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_engine.h	193	DMAEngine_CommandLoadRegisters	dma_engine_command_load_registers	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_engine.h	161	DMAEngine_CommandReceiverContinue	dma_engine_command_receiver_continue	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_engine.h	154	DMAEngine_CommandReceiverStart	dma_engine_command_receiver_start	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_engine.h	169	DMAEngine_CommandTransmitterStart	dma_engine_command_transmitter_start	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_engine.h	111	DMAEngine_Destroy	dma_engine_destroy	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_engine.h	128	DMAEngine_ExecuteCommand	dma_engine_execute_command	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_engine.h	214	DMAEngine_GetBufferKeyVault	dma_engine_get_buffer_key_vault	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_engine.h	104	DMAEngine_Init	dma_engine_init	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_engine.h	242	DMAEngine_OnReadDMA	dma_engine_on_read_dma	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_engine.h	234	DMAEngine_OnWriteDMA	dma_engine_on_write_dma	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_engine.h	224	DMAEngine_ScanNextTXBuffer	dma_engine_scan_next_tx_buffer	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_engine.h	288	DMAEngine_SetClearCommandCallback	dma_engine_set_clear_command_callback	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_engine.h	205	DMAEngine_SetDMAAddress	dma_engine_set_dma_address	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_engine.h	265	DMAEngine_SetInterruptCallback	dma_engine_set_interrupt_callback	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_engine.h	258	DMAEngine_SetReadDMACallback	dma_engine_set_read_dma_callback	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_engine.h	272	DMAEngine_SetSendFrameCallback	dma_engine_set_send_frame_callback	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_engine.h	280	DMAEngine_SetUpdateReceiverStatusCallback	dma_engine_set_update_receiver_status_callback	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_engine.h	251	DMAEngine_SetWriteDMACallback	dma_engine_set_write_dma_callback	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_engine.h	119	DMAEngine_Tick	dma_engine_tick	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_param_buf.c	45	ParameterBuffer_Clear	dma_params_clear	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_param_buf.c	83	ParameterBuffer_GetCharacterLength	dma_params_get_character_length	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_param_buf.c	92	ParameterBuffer_GetDisplacement1	dma_params_get_displacement_1	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_param_buf.c	101	ParameterBuffer_GetDisplacement2	dma_params_get_displacement_2	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_param_buf.c	137	ParameterBuffer_GetDmaBankBits	dma_params_get_dma_bank_bits	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_param_buf.c	110	ParameterBuffer_GetMaxReceiverBlockLength	dma_params_get_max_receiver_block_length	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_param_buf.c	65	ParameterBuffer_GetParameterControlRegister	dma_params_get_control_register	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_param_buf.c	119	ParameterBuffer_GetReceiverStatusReg	dma_params_get_receiver_status_reg	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_param_buf.c	74	ParameterBuffer_GetSyncAddressRegister	dma_params_get_sync_address_register	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_param_buf.c	128	ParameterBuffer_GetTransmitterStatusReg	dma_params_get_transmitter_status_reg	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_param_buf.c	35	ParameterBuffer_Init	dma_params_init	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_param_buf.c	166	ParameterBuffer_SetCharacterLength	dma_params_set_character_length	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_param_buf.c	175	ParameterBuffer_SetDisplacement1	dma_params_set_displacement_1	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_param_buf.c	184	ParameterBuffer_SetDisplacement2	dma_params_set_displacement_2	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_param_buf.c	220	ParameterBuffer_SetDmaBankBits	dma_params_set_dma_bank_bits	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_param_buf.c	193	ParameterBuffer_SetMaxReceiverBlockLength	dma_params_set_max_receiver_block_length	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_param_buf.c	148	ParameterBuffer_SetParameterControlRegister	dma_params_set_control_register	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_param_buf.c	202	ParameterBuffer_SetReceiverStatusReg	dma_params_set_receiver_status_reg	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_param_buf.c	157	ParameterBuffer_SetSyncAddressRegister	dma_params_set_sync_address_register	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_param_buf.c	211	ParameterBuffer_SetTransmitterStatusReg	dma_params_set_transmitter_status_reg	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_param_buf.h	111	ParameterBuffer_Clear	dma_params_clear	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_param_buf.h	134	ParameterBuffer_GetCharacterLength	dma_params_get_character_length	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_param_buf.h	142	ParameterBuffer_GetDisplacement1	dma_params_get_displacement_1	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_param_buf.h	150	ParameterBuffer_GetDisplacement2	dma_params_get_displacement_2	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_param_buf.h	178	ParameterBuffer_GetDmaBankBits	dma_params_get_dma_bank_bits	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_param_buf.h	157	ParameterBuffer_GetMaxReceiverBlockLength	dma_params_get_max_receiver_block_length	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_param_buf.h	120	ParameterBuffer_GetParameterControlRegister	dma_params_get_control_register	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_param_buf.h	164	ParameterBuffer_GetReceiverStatusReg	dma_params_get_receiver_status_reg	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_param_buf.h	127	ParameterBuffer_GetSyncAddressRegister	dma_params_get_sync_address_register	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_param_buf.h	171	ParameterBuffer_GetTransmitterStatusReg	dma_params_get_transmitter_status_reg	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_param_buf.h	104	ParameterBuffer_Init	dma_params_init	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_param_buf.h	201	ParameterBuffer_SetCharacterLength	dma_params_set_character_length	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_param_buf.h	209	ParameterBuffer_SetDisplacement1	dma_params_set_displacement_1	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_param_buf.h	217	ParameterBuffer_SetDisplacement2	dma_params_set_displacement_2	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_param_buf.h	245	ParameterBuffer_SetDmaBankBits	dma_params_set_dma_bank_bits	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_param_buf.h	224	ParameterBuffer_SetMaxReceiverBlockLength	dma_params_set_max_receiver_block_length	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_param_buf.h	187	ParameterBuffer_SetParameterControlRegister	dma_params_set_control_register	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_param_buf.h	231	ParameterBuffer_SetReceiverStatusReg	dma_params_set_receiver_status_reg	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_param_buf.h	194	ParameterBuffer_SetSyncAddressRegister	dma_params_set_sync_address_register	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_param_buf.h	238	ParameterBuffer_SetTransmitterStatusReg	dma_params_set_transmitter_status_reg	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_receiver.c	583	COM5025_SetInputPin	com5025_set_input_pin	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_receiver.c	386	COM5025_SetReceiverStatus	com5025_set_receiver_status	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_receiver.c	269	DCB_GetKey	dcb_get_key	4
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_receiver.c	529	DMAControlBlocks_IsNextRXbufValid	dmacb_is_next_r_xbuf_valid	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_receiver.c	271	DMAControlBlocks_LoadNextRXBuffer	dmacb_load_next_rx_buffer	3
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_receiver.c	190	DMAControlBlocks_LoadRXBuffer	dmacb_load_rx_buffer	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_receiver.c	390	DMAControlBlocks_MarkBufferReceived	dmacb_mark_buffer_received	2
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_receiver.c	494	DMAControlBlocks_WriteNextByteDMA	dmacb_write_next_byte_dma	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_receiver.c	84	DMAReceiver_Clear	dma_rx_clear	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_receiver.c	73	DMAReceiver_Destroy	dma_rx_destroy	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_receiver.c	48	DMAReceiver_Init	dma_rx_init	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_receiver.c	202	DMAReceiver_ReceiveDataFromModem	dma_rx_receive_data_from_modem	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_receiver.c	421	DMAReceiver_SetInterruptCallback	dma_rx_set_interrupt_callback	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_receiver.c	161	DMAReceiver_SetReceiverState	dma_rx_set_receiver_state	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_receiver.c	100	DMAReceiver_Tick	dma_rx_tick	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_receiver.c	290	HDLCFrame_AddByte	hdlc_frame_add_byte	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_receiver.c	326	HDLCFrame_GetFrameData	hdlc_frame_get_frame_data	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_receiver.c	327	HDLCFrame_GetFrameLength	hdlc_frame_get_frame_length	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_receiver.c	330	HDLCFrame_IsCRCValid	hdlc_frame_is_crc_valid	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_receiver.c	417	HDLCFrame_Reset	hdlc_frame_reset	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_receiver.c	217	Log_Write	log_write	2
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_receiver.c	118	TcpReceiveBuffer_Available	rxbuf_available	4
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_receiver.c	91	TcpReceiveBuffer_Clear	rxbuf_clear	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_receiver.c	284	TcpReceiveBuffer_DequeueByte	rxbuf_dequeue_byte	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_receiver.c	79	TcpReceiveBuffer_Destroy	rxbuf_destroy	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_receiver.c	211	TcpReceiveBuffer_Enqueue	rxbuf_enqueue	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_receiver.c	65	TcpReceiveBuffer_Init	rxbuf_init	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_receiver.h	103	DMAReceiver_Clear	dma_rx_clear	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_receiver.h	95	DMAReceiver_Destroy	dma_rx_destroy	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_receiver.h	87	DMAReceiver_Init	dma_rx_init	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_receiver.h	137	DMAReceiver_ReceiveDataFromModem	dma_rx_receive_data_from_modem	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_receiver.h	152	DMAReceiver_SetInterruptCallback	dma_rx_set_interrupt_callback	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_receiver.h	124	DMAReceiver_SetReceiverState	dma_rx_set_receiver_state	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_receiver.h	112	DMAReceiver_Tick	dma_rx_tick	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_transmitter.c	195	DCB_GetBufferAddress	dcb_get_buffer_address	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_transmitter.c	196	DCB_GetDataMemoryAddress	dcb_get_data_memory_address	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_transmitter.c	266	DCB_GetKey	dcb_get_key	2
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_transmitter.c	198	DCB_GetKeyValue	dcb_get_key_value	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_transmitter.c	303	DCB_HasREOMFlag	dcb_has_reom_flag	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_transmitter.c	283	DCB_HasRSOMFlag	dcb_has_rsom_flag	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_transmitter.c	272	DMAControlBlocks_LoadNextTXBuffer	dmacb_load_next_tx_buffer	2
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_transmitter.c	256	DMAControlBlocks_LoadTXBuffer	dmacb_load_tx_buffer	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_transmitter.c	310	DMAControlBlocks_MarkBufferSent	dmacb_mark_buffer_sent	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_transmitter.c	292	DMAControlBlocks_ReadNextByteDMA	dmacb_read_next_byte_dma	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_transmitter.c	75	DMATransmitter_Clear	dma_tx_clear	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_transmitter.c	65	DMATransmitter_Destroy	dma_tx_destroy	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_transmitter.c	46	DMATransmitter_Init	dma_tx_init	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_transmitter.c	388	DMATransmitter_SetInterruptCallback	dma_tx_set_interrupt_callback	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_transmitter.c	378	DMATransmitter_SetSendFrameCallback	dma_tx_set_send_frame_callback	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_transmitter.c	367	DMATransmitter_SetSenderState	dma_tx_set_sender_state	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_transmitter.c	89	DMATransmitter_Tick	dma_tx_tick	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_transmitter.c	215	HDLCFrame_BuildFrame	hdlc_frame_build_frame	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/dma_transmitter.c	222	HDLCFrame_Init	hdlc_frame_init	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_transmitter.h	87	DMATransmitter_Clear	dma_tx_clear	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_transmitter.h	80	DMATransmitter_Destroy	dma_tx_destroy	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_transmitter.h	72	DMATransmitter_Init	dma_tx_init	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_transmitter.h	132	DMATransmitter_SetInterruptCallback	dma_tx_set_interrupt_callback	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_transmitter.h	122	DMATransmitter_SetSendFrameCallback	dma_tx_set_send_frame_callback	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_transmitter.h	107	DMATransmitter_SetSenderState	dma_tx_set_sender_state	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/dma_transmitter.h	96	DMATransmitter_Tick	dma_tx_tick	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/hdlc_crc.c	140	HDLC_CRC_AddParityBit	hdlc_crc_crc_add_parity_bit	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/hdlc_crc.c	106	HDLC_CRC_CalcCCITT	hdlc_crc_crc_calc_ccitt	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/hdlc_crc.c	92	HDLC_CRC_CalcCrc16	hdlc_crc_crc_calc_crc_16	2
+5607077	2026-09-21	3.1	function	src/devices/hdlc/hdlc_crc.c	83	HDLC_CRC_CalculateCRC16Buffer	hdlc_crc_crc_calculate_crc16_buffer	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/hdlc_crc.c	149	HDLC_CRC_CheckParity	hdlc_crc_crc_check_parity	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/hdlc_crc.h	80	HDLC_CRC_AddParityBit	hdlc_crc_crc_add_parity_bit	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/hdlc_crc.h	69	HDLC_CRC_CalcCCITT	hdlc_crc_crc_calc_ccitt	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/hdlc_crc.h	59	HDLC_CRC_CalcCrc16	hdlc_crc_crc_calc_crc_16	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/hdlc_crc.h	50	HDLC_CRC_CalculateCRC16Buffer	hdlc_crc_crc_calculate_crc16_buffer	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/hdlc_crc.h	90	HDLC_CRC_CheckParity	hdlc_crc_crc_check_parity	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/hdlc_frame.c	91	HDLCFrame_AddByte	hdlc_frame_add_byte	2
+5607077	2026-09-21	3.1	function	src/devices/hdlc/hdlc_frame.c	87	HDLCFrame_AddBytes	hdlc_frame_add_bytes	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/hdlc_frame.c	250	HDLCFrame_BuildFrame	hdlc_frame_build_frame	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/hdlc_frame.c	72	HDLCFrame_CalculateCRC	hdlc_frame_calculate_crc	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/hdlc_frame.c	244	HDLCFrame_DestuffByte	hdlc_frame_destuff_byte	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/hdlc_frame.c	215	HDLCFrame_GetFrameData	hdlc_frame_get_frame_data	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/hdlc_frame.c	210	HDLCFrame_GetFrameLength	hdlc_frame_get_frame_length	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/hdlc_frame.c	43	HDLCFrame_Init	hdlc_frame_init	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/hdlc_frame.c	205	HDLCFrame_IsCRCValid	hdlc_frame_is_crc_valid	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/hdlc_frame.c	200	HDLCFrame_IsFrameComplete	hdlc_frame_is_frame_complete	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/hdlc_frame.c	49	HDLCFrame_Reset	hdlc_frame_reset	6
+5607077	2026-09-21	3.1	function	src/devices/hdlc/hdlc_frame.c	220	HDLCFrame_StuffByte	hdlc_frame_stuff_byte	4
+5607077	2026-09-21	3.1	function	src/devices/hdlc/hdlc_frame.c	67	HDLCFrame_UpdateCRC	hdlc_frame_update_crc	1
+5607077	2026-09-21	3.1	local variable	src/devices/hdlc/hdlc_frame.c	69	HDLC_CRC_CalcCCITT	hdlc_crc_crc_calc_ccitt	5
+5607077	2026-09-21	3.1	function	src/devices/hdlc/hdlc_frame.h	104	HDLCFrame_AddByte	hdlc_frame_add_byte	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/hdlc_frame.h	142	HDLCFrame_AddBytes	hdlc_frame_add_bytes	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/hdlc_frame.h	156	HDLCFrame_BuildFrame	hdlc_frame_build_frame	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/hdlc_frame.h	67	HDLCFrame_CalculateCRC	hdlc_frame_calculate_crc	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/hdlc_frame.h	177	HDLCFrame_DestuffByte	hdlc_frame_destuff_byte	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/hdlc_frame.h	132	HDLCFrame_GetFrameData	hdlc_frame_get_frame_data	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/hdlc_frame.h	125	HDLCFrame_GetFrameLength	hdlc_frame_get_frame_length	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/hdlc_frame.h	84	HDLCFrame_Init	hdlc_frame_init	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/hdlc_frame.h	118	HDLCFrame_IsCRCValid	hdlc_frame_is_crc_valid	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/hdlc_frame.h	111	HDLCFrame_IsFrameComplete	hdlc_frame_is_frame_complete	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/hdlc_frame.h	92	HDLCFrame_Reset	hdlc_frame_reset	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/hdlc_frame.h	169	HDLCFrame_StuffByte	hdlc_frame_stuff_byte	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/hdlc_frame.h	75	HDLCFrame_UpdateCRC	hdlc_frame_update_crc	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/modem.c	601	Modem_Destroy	modem_destroy	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/modem.c	580	Modem_Init	modem_init	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/modem.c	710	Modem_SendByte	modem_send_byte	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/modem.c	731	Modem_SendBytes	modem_send_bytes	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/modem.c	772	Modem_SetCTS	modem_set_cts	2
+5607077	2026-09-21	3.1	function	src/devices/hdlc/modem.c	881	Modem_SetCarrierPresent	modem_set_carrier_present	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/modem.c	837	Modem_SetClearToSendCallback	modem_set_clear_to_send_callback	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/modem.c	758	Modem_SetDSR	modem_set_dsr	2
+5607077	2026-09-21	3.1	function	src/devices/hdlc/modem.c	751	Modem_SetDTR	modem_set_dtr	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/modem.c	823	Modem_SetDataSetReadyCallback	modem_set_data_set_ready_callback	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/modem.c	851	Modem_SetDataTerminalReadyCallback	modem_set_data_terminal_ready_callback	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/modem.c	765	Modem_SetRTS	modem_set_rts	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/modem.c	809	Modem_SetReceivedDataCallback	modem_set_received_data_callback	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/modem.c	844	Modem_SetRequestToSendCallback	modem_set_request_to_send_callback	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/modem.c	816	Modem_SetRingIndicatorCallback	modem_set_ring_indicator_callback	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/modem.c	830	Modem_SetSignalDetectorCallback	modem_set_signal_detector_callback	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/modem.c	860	Modem_SetWasmBridgeChannel	modem_set_wasm_bridge_channel	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/modem.c	625	Modem_StartModem	modem_start	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/modem.c	869	Modem_StartWasmBridge	modem_start_wasm_bridge	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/modem.c	687	Modem_Tick	modem_tick	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/modem.h	146	Modem_Destroy	modem_destroy	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/modem.h	137	Modem_Init	modem_init	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/modem.h	212	Modem_SendByte	modem_send_byte	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/modem.h	223	Modem_SendBytes	modem_send_bytes	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/modem.h	203	Modem_SetCTS	modem_set_cts	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/modem.h	288	Modem_SetCarrierPresent	modem_set_carrier_present	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/modem.h	265	Modem_SetClearToSendCallback	modem_set_clear_to_send_callback	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/modem.h	195	Modem_SetDSR	modem_set_dsr	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/modem.h	177	Modem_SetDTR	modem_set_dtr	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/modem.h	248	Modem_SetDataSetReadyCallback	modem_set_data_set_ready_callback	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/modem.h	283	Modem_SetDataTerminalReadyCallback	modem_set_data_terminal_ready_callback	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/modem.h	187	Modem_SetRTS	modem_set_rts	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/modem.h	232	Modem_SetReceivedDataCallback	modem_set_received_data_callback	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/modem.h	274	Modem_SetRequestToSendCallback	modem_set_request_to_send_callback	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/modem.h	240	Modem_SetRingIndicatorCallback	modem_set_ring_indicator_callback	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/modem.h	257	Modem_SetSignalDetectorCallback	modem_set_signal_detector_callback	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/modem.h	286	Modem_SetWasmBridgeChannel	modem_set_wasm_bridge_channel	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/modem.h	158	Modem_StartModem	modem_start	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/modem.h	287	Modem_StartWasmBridge	modem_start_wasm_bridge	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/modem.h	167	Modem_Tick	modem_tick	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/tcp_receive_buffer.c	121	TcpReceiveBuffer_Available	rxbuf_available	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/tcp_receive_buffer.c	130	TcpReceiveBuffer_Clear	rxbuf_clear	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/tcp_receive_buffer.c	104	TcpReceiveBuffer_DequeueByte	rxbuf_dequeue_byte	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/tcp_receive_buffer.c	50	TcpReceiveBuffer_Destroy	rxbuf_destroy	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/tcp_receive_buffer.c	67	TcpReceiveBuffer_Enqueue	rxbuf_enqueue	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/tcp_receive_buffer.c	32	TcpReceiveBuffer_Init	rxbuf_init	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/tcp_receive_buffer.h	97	TcpReceiveBuffer_Available	rxbuf_available	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/tcp_receive_buffer.h	107	TcpReceiveBuffer_Clear	rxbuf_clear	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/tcp_receive_buffer.h	88	TcpReceiveBuffer_DequeueByte	rxbuf_dequeue_byte	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/tcp_receive_buffer.h	64	TcpReceiveBuffer_Destroy	rxbuf_destroy	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/tcp_receive_buffer.h	76	TcpReceiveBuffer_Enqueue	rxbuf_enqueue	1
+5607077	2026-09-21	3.1	function	src/devices/hdlc/tcp_receive_buffer.h	57	TcpReceiveBuffer_Init	rxbuf_init	1
+5607077	2026-09-21	3.1	function	src/devices/lineprinter/device_line_printer.c	185	CreateLinePrinterDevice	lp_create_line_printer_device	1
+5607077	2026-09-21	3.1	local variable	src/devices/lineprinter/device_line_printer.c	201	Device_Init	dev_init	1
+5607077	2026-09-21	3.1	local variable	src/devices/lineprinter/device_line_printer.c	114	Device_OutputCharacter	dev_output_character	1
+5607077	2026-09-21	3.1	local variable	src/devices/lineprinter/device_line_printer.c	77	Device_RegisterAddress	dev_register_address	2
+5607077	2026-09-21	3.1	local variable	src/devices/lineprinter/device_line_printer.c	133	Device_SetInterruptStatus	dev_set_interrupt_status	3
+5607077	2026-09-21	3.1	function	src/devices/lineprinter/device_line_printer.h	108	CreateLinePrinterDevice	lp_create_line_printer_device	1
+5607077	2026-09-21	3.1	function	src/devices/panel/panel.c	240	ProcessTerminalLamp	panel_process_terminal_lamp	1
+5607077	2026-09-21	3.1	function	src/devices/panel/panel.c	95	ProcessTerminalPanc	panel_process_terminal_panc	1
+5607077	2026-09-21	3.1	function	src/devices/panel/panel.c	46	setup_pap	panel_setup_pap	1
+5607077	2026-09-21	3.1	function	src/devices/panel/panel.h	188	ProcessTerminalLamp	panel_process_terminal_lamp	1
+5607077	2026-09-21	3.1	function	src/devices/panel/panel.h	183	ProcessTerminalPanc	panel_process_terminal_panc	1
+5607077	2026-09-21	3.1	function	src/devices/panel/panel.h	194	setup_pap	panel_setup_pap	1
+5607077	2026-09-21	3.1	function	src/devices/papertape/device_paper_tape.c	260	CreatePaperTapeDevice	ptr_create_paper_tape_device	1
+5607077	2026-09-21	3.1	local variable	src/devices/papertape/device_paper_tape.c	276	Device_Init	dev_init	1
+5607077	2026-09-21	3.1	local variable	src/devices/papertape/device_paper_tape.c	78	Device_RegisterAddress	dev_register_address	2
+5607077	2026-09-21	3.1	local variable	src/devices/papertape/device_paper_tape.c	153	Device_SetInterruptStatus	dev_set_interrupt_status	3
+5607077	2026-09-21	3.1	local variable	src/devices/papertape/device_paper_tape.c	65	Device_TickIODelay	dev_tick_io_delay	1
+5607077	2026-09-21	3.1	function	src/devices/papertape/device_paper_tape.c	223	PaperTape_LoadTape	ptr_load_tape	1
+5607077	2026-09-21	3.1	function	src/devices/papertape/device_paper_tape.h	123	CreatePaperTapeDevice	ptr_create_paper_tape_device	1
+5607077	2026-09-21	3.1	function	src/devices/papertape/device_paper_tape.h	132	PaperTape_LoadTape	ptr_load_tape	1
+5607077	2026-09-21	3.1	function	src/devices/papertapewriter/device_paper_tape_writer.c	289	CreatePaperTapeWriterDevice	ptp_create_paper_tape_writer_device	1
+5607077	2026-09-21	3.1	local variable	src/devices/papertapewriter/device_paper_tape_writer.c	305	Device_Init	dev_init	1
+5607077	2026-09-21	3.1	local variable	src/devices/papertapewriter/device_paper_tape_writer.c	204	Device_OutputCharacter	dev_output_character	1
+5607077	2026-09-21	3.1	local variable	src/devices/papertapewriter/device_paper_tape_writer.c	209	Device_QueueIODelay	dev_queue_io_delay	1
+5607077	2026-09-21	3.1	local variable	src/devices/papertapewriter/device_paper_tape_writer.c	78	Device_RegisterAddress	dev_register_address	2
+5607077	2026-09-21	3.1	local variable	src/devices/papertapewriter/device_paper_tape_writer.c	183	Device_SetInterruptStatus	dev_set_interrupt_status	2
+5607077	2026-09-21	3.1	local variable	src/devices/papertapewriter/device_paper_tape_writer.c	65	Device_TickIODelay	dev_tick_io_delay	1
+5607077	2026-09-21	3.1	function	src/devices/papertapewriter/device_paper_tape_writer.c	271	PaperTapeWriter_GetTapeData	ptp_get_tape_data	1
+5607077	2026-09-21	3.1	function	src/devices/papertapewriter/device_paper_tape_writer.h	115	CreatePaperTapeWriterDevice	ptp_create_paper_tape_writer_device	1
+5607077	2026-09-21	3.1	function	src/devices/papertapewriter/device_paper_tape_writer.h	123	PaperTapeWriter_GetTapeData	ptp_get_tape_data	1
+5607077	2026-09-21	3.1	function	src/devices/rtc/device_rtc.c	310	CreateRTCDevice	rtc_create_device	1
+5607077	2026-09-21	3.1	local variable	src/devices/rtc/device_rtc.c	326	Device_Init	dev_init	1
+5607077	2026-09-21	3.1	local variable	src/devices/rtc/device_rtc.c	192	Device_RegisterAddress	dev_register_address	2
+5607077	2026-09-21	3.1	local variable	src/devices/rtc/device_rtc.c	153	Device_SetInterruptStatus	dev_set_interrupt_status	5
+5607077	2026-09-21	3.1	local variable	src/devices/rtc/device_rtc.c	128	Device_TickIODelay	dev_tick_io_delay	1
+5607077	2026-09-21	3.1	local variable	src/devices/rtc/device_rtc.c	210	Log_Write	log_write	3
+5607077	2026-09-21	3.1	function	src/devices/rtc/device_rtc.c	53	RTC_SetWallClockMode	rtc_set_wall_clock_mode	1
+5607077	2026-09-21	3.1	function	src/devices/rtc/device_rtc.h	119	CreateRTCDevice	rtc_create_device	1
+5607077	2026-09-21	3.1	function	src/devices/rtc/device_rtc.h	127	RTC_SetWallClockMode	rtc_set_wall_clock_mode	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/device_scsi.c	898	CreateSCSIDevice	scsi_create_device	1
+5607077	2026-09-21	3.1	local variable	src/devices/scsi/device_scsi.c	249	Device_DMARead	dev_dma_read	3
+5607077	2026-09-21	3.1	local variable	src/devices/scsi/device_scsi.c	273	Device_DMAWrite	dev_dma_write	4
+5607077	2026-09-21	3.1	local variable	src/devices/scsi/device_scsi.c	317	Device_GenerateInterrupt	dev_generate_interrupt	2
+5607077	2026-09-21	3.1	local variable	src/devices/scsi/device_scsi.c	869	Device_IO_BufferReadWord	dev_io_buffer_read_word	1
+5607077	2026-09-21	3.1	local variable	src/devices/scsi/device_scsi.c	918	Device_Init	dev_init	1
+5607077	2026-09-21	3.1	local variable	src/devices/scsi/device_scsi.c	499	Device_RegisterAddress	dev_register_address	2
+5607077	2026-09-21	3.1	local variable	src/devices/scsi/device_scsi.c	767	Device_SetInterruptStatus	dev_set_interrupt_status	1
+5607077	2026-09-21	3.1	local variable	src/devices/scsi/device_scsi.c	738	Device_TickIODelay	dev_tick_io_delay	1
+5607077	2026-09-21	3.1	local variable	src/devices/scsi/device_scsi.c	94	Log_Write	log_write	5
+5607077	2026-09-21	3.1	local variable	src/devices/scsi/device_scsi.c	740	SCSIBus_Clock	scsi_bus_clock	1
+5607077	2026-09-21	3.1	local variable	src/devices/scsi/device_scsi.c	982	SCSIBus_Init	scsi_bus_init	1
+5607077	2026-09-21	3.1	local variable	src/devices/scsi/device_scsi.c	185	SCSIHDD_Init	scsi_hdd_init	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/device_scsi.c	112	SCSI_ParseUnitType	scsi_parse_unit_type	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/device_scsi.c	159	SCSI_SetUnitType	scsi_set_unit_type	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/device_scsi.c	140	SCSI_UnitTypeName	scsi_unit_type_name	3
+5607077	2026-09-21	3.1	function	src/devices/scsi/device_scsi.h	168	CreateSCSIDevice	scsi_create_device	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/device_scsi.h	151	SCSI_ParseUnitType	scsi_parse_unit_type	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/device_scsi.h	178	SCSI_SetUnitType	scsi_set_unit_type	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/device_scsi.h	159	SCSI_UnitTypeName	scsi_unit_type_name	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/disk_scsi.c	40	DiskSCSI_LastLBA	scsi_disk_last_lba	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/disk_scsi.c	69	DiskSCSI_SetDiskType	scsi_disk_set_type	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/disk_scsi.h	79	DiskSCSI_LastLBA	scsi_disk_last_lba	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/disk_scsi.h	86	DiskSCSI_SetDiskType	scsi_disk_set_type	1
+5607077	2026-09-21	3.1	local variable	src/devices/scsi/ncr5386.c	804	SCSIBus_AddDevice	scsi_bus_add_device	1
+5607077	2026-09-21	3.1	local variable	src/devices/scsi/ncr5386.c	180	SCSIBus_ControlRead	scsi_bus_control_read	7
+5607077	2026-09-21	3.1	local variable	src/devices/scsi/ncr5386.c	823	SCSIBus_ControlWait	scsi_bus_control_wait	1
+5607077	2026-09-21	3.1	local variable	src/devices/scsi/ncr5386.c	234	SCSIBus_ControlWrite	scsi_bus_control_write	17
+5607077	2026-09-21	3.1	local variable	src/devices/scsi/ncr5386.c	480	SCSIBus_DataRead	scsi_bus_data_read	2
+5607077	2026-09-21	3.1	local variable	src/devices/scsi/ncr5386.c	473	SCSIBus_DataWrite	scsi_bus_data_write	6
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_bus.c	43	SCSIBus_AddDevice	scsi_bus_add_device	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_bus.c	67	SCSIBus_Clock	scsi_bus_clock	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_bus.c	139	SCSIBus_ControlRead	scsi_bus_control_read	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_bus.c	150	SCSIBus_ControlWait	scsi_bus_control_wait	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_bus.c	166	SCSIBus_ControlWrite	scsi_bus_control_write	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_bus.c	185	SCSIBus_DataRead	scsi_bus_data_read	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_bus.c	195	SCSIBus_DataWrite	scsi_bus_data_write	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_bus.c	33	SCSIBus_Init	scsi_bus_init	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_bus.c	27	SCSIBus_PhaseName	scsi_bus_phase_name	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_bus.h	111	SCSIBus_AddDevice	scsi_bus_add_device	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_bus.h	117	SCSIBus_Clock	scsi_bus_clock	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_bus.h	124	SCSIBus_ControlRead	scsi_bus_control_read	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_bus.h	145	SCSIBus_ControlWait	scsi_bus_control_wait	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_bus.h	135	SCSIBus_ControlWrite	scsi_bus_control_write	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_bus.h	152	SCSIBus_DataRead	scsi_bus_data_read	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_bus.h	161	SCSIBus_DataWrite	scsi_bus_data_write	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_bus.h	102	SCSIBus_Init	scsi_bus_init	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_bus.h	168	SCSIBus_PhaseName	scsi_bus_phase_name	1
+5607077	2026-09-21	3.1	local variable	src/devices/scsi/scsi_device.c	87	Log_Write	log_write	1
+5607077	2026-09-21	3.1	local variable	src/devices/scsi/scsi_device.c	712	SCSIBus_AddDevice	scsi_bus_add_device	1
+5607077	2026-09-21	3.1	local variable	src/devices/scsi/scsi_device.c	415	SCSIBus_ControlRead	scsi_bus_control_read	1
+5607077	2026-09-21	3.1	local variable	src/devices/scsi/scsi_device.c	331	SCSIBus_ControlWait	scsi_bus_control_wait	7
+5607077	2026-09-21	3.1	local variable	src/devices/scsi/scsi_device.c	333	SCSIBus_ControlWrite	scsi_bus_control_write	14
+5607077	2026-09-21	3.1	local variable	src/devices/scsi/scsi_device.c	416	SCSIBus_DataRead	scsi_bus_data_read	2
+5607077	2026-09-21	3.1	local variable	src/devices/scsi/scsi_device.c	342	SCSIBus_DataWrite	scsi_bus_data_write	4
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_device.c	215	SCSITarget_DataIn	scsi_device_data_in	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_device.c	226	SCSITarget_DataOut	scsi_device_data_out	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_device.c	143	SCSITarget_DefaultGetData	scsi_device_default_get_data	2
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_device.c	166	SCSITarget_DefaultPutData	scsi_device_default_put_data	2
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_device.c	423	SCSITarget_DeviceReset	scsi_device_device_reset	3
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_device.c	701	SCSITarget_Init	scsi_device_init	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_device.c	312	SCSITarget_ReportBadCmd	scsi_device_report_bad_cmd	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_device.c	319	SCSITarget_ReportBadLun	scsi_device_report_bad_lun	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_device.c	293	SCSITarget_Sense	scsi_device_sense	2
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_device.c	236	SCSITarget_StatusComplete	scsi_device_status_complete	2
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_device.c	56	scsi_get_u16be	scsi_device_scsi_get_u16_be	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_device.c	61	scsi_get_u24be	scsi_device_scsi_get_u24_be	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_device.c	66	scsi_get_u32be	scsi_device_scsi_get_u32_be	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_device.c	35	scsi_put_u16be	scsi_device_scsi_put_u16_be	2
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_device.c	41	scsi_put_u24be	scsi_device_scsi_put_u24_be	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_device.c	48	scsi_put_u32be	scsi_device_scsi_put_u32_be	2
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_device.h	205	SCSITarget_DataIn	scsi_device_data_in	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_device.h	213	SCSITarget_DataOut	scsi_device_data_out	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_device.h	257	SCSITarget_DefaultGetData	scsi_device_default_get_data	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_device.h	267	SCSITarget_DefaultPutData	scsi_device_default_put_data	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_device.h	196	SCSITarget_DeviceReset	scsi_device_device_reset	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_device.h	190	SCSITarget_Init	scsi_device_init	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_device.h	238	SCSITarget_ReportBadCmd	scsi_device_report_bad_cmd	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_device.h	246	SCSITarget_ReportBadLun	scsi_device_report_bad_lun	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_device.h	231	SCSITarget_Sense	scsi_device_sense	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_device.h	220	SCSITarget_StatusComplete	scsi_device_status_complete	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_device.h	302	scsi_get_u16be	scsi_device_scsi_get_u16_be	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_device.h	310	scsi_get_u24be	scsi_device_scsi_get_u24_be	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_device.h	317	scsi_get_u32be	scsi_device_scsi_get_u32_be	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_device.h	281	scsi_put_u16be	scsi_device_scsi_put_u16_be	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_device.h	288	scsi_put_u24be	scsi_device_scsi_put_u24_be	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_device.h	295	scsi_put_u32be	scsi_device_scsi_put_u32_be	1
+5607077	2026-09-21	3.1	local variable	src/devices/scsi/scsi_hdd.c	91	DiskSCSI_LastLBA	scsi_disk_last_lba	7
+5607077	2026-09-21	3.1	local variable	src/devices/scsi/scsi_hdd.c	820	DiskSCSI_SetDiskType	scsi_disk_set_type	1
+5607077	2026-09-21	3.1	local variable	src/devices/scsi/scsi_hdd.c	42	Log_Write	log_write	1
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_hdd.c	811	SCSIHDD_Init	scsi_hdd_init	1
+5607077	2026-09-21	3.1	local variable	src/devices/scsi/scsi_hdd.c	262	SCSITarget_DataIn	scsi_device_data_in	7
+5607077	2026-09-21	3.1	local variable	src/devices/scsi/scsi_hdd.c	632	SCSITarget_DataOut	scsi_device_data_out	4
+5607077	2026-09-21	3.1	local variable	src/devices/scsi/scsi_hdd.c	156	SCSITarget_DefaultGetData	scsi_device_default_get_data	1
+5607077	2026-09-21	3.1	local variable	src/devices/scsi/scsi_hdd.c	210	SCSITarget_DefaultPutData	scsi_device_default_put_data	1
+5607077	2026-09-21	3.1	local variable	src/devices/scsi/scsi_hdd.c	800	SCSITarget_DeviceReset	scsi_device_device_reset	1
+5607077	2026-09-21	3.1	local variable	src/devices/scsi/scsi_hdd.c	829	SCSITarget_Init	scsi_device_init	1
+5607077	2026-09-21	3.1	local variable	src/devices/scsi/scsi_hdd.c	726	SCSITarget_ReportBadCmd	scsi_device_report_bad_cmd	3
+5607077	2026-09-21	3.1	local variable	src/devices/scsi/scsi_hdd.c	560	SCSITarget_ReportBadLun	scsi_device_report_bad_lun	1
+5607077	2026-09-21	3.1	local variable	src/devices/scsi/scsi_hdd.c	533	SCSITarget_Sense	scsi_device_sense	4
+5607077	2026-09-21	3.1	local variable	src/devices/scsi/scsi_hdd.c	263	SCSITarget_StatusComplete	scsi_device_status_complete	24
+5607077	2026-09-21	3.1	local variable	src/devices/scsi/scsi_hdd.c	638	scsi_get_u16be	scsi_device_scsi_get_u16_be	3
+5607077	2026-09-21	3.1	local variable	src/devices/scsi/scsi_hdd.c	591	scsi_get_u24be	scsi_device_scsi_get_u24_be	3
+5607077	2026-09-21	3.1	local variable	src/devices/scsi/scsi_hdd.c	637	scsi_get_u32be	scsi_device_scsi_get_u32_be	2
+5607077	2026-09-21	3.1	local variable	src/devices/scsi/scsi_hdd.c	432	scsi_put_u16be	scsi_device_scsi_put_u16_be	4
+5607077	2026-09-21	3.1	local variable	src/devices/scsi/scsi_hdd.c	375	scsi_put_u24be	scsi_device_scsi_put_u24_be	3
+5607077	2026-09-21	3.1	local variable	src/devices/scsi/scsi_hdd.c	253	scsi_put_u32be	scsi_device_scsi_put_u32_be	2
+5607077	2026-09-21	3.1	function	src/devices/scsi/scsi_hdd.h	100	SCSIHDD_Init	scsi_hdd_init	1
+5607077	2026-09-21	3.1	function	src/devices/smd/device_smd.c	1835	CreateSMDDevice	smd_create_device	1
+5607077	2026-09-21	3.1	local variable	src/devices/smd/device_smd.c	1170	Device_DMARead	dev_dma_read	2
+5607077	2026-09-21	3.1	local variable	src/devices/smd/device_smd.c	926	Device_DMAWrite	dev_dma_write	2
+5607077	2026-09-21	3.1	local variable	src/devices/smd/device_smd.c	923	Device_IO_BufferReadWord	dev_io_buffer_read_word	4
+5607077	2026-09-21	3.1	local variable	src/devices/smd/device_smd.c	1181	Device_IO_BufferWriteWord	dev_io_buffer_write_word	1
+5607077	2026-09-21	3.1	local variable	src/devices/smd/device_smd.c	1854	Device_Init	dev_init	1
+5607077	2026-09-21	3.1	local variable	src/devices/smd/device_smd.c	1145	Device_QueueIODelay	dev_queue_io_delay	9
+5607077	2026-09-21	3.1	local variable	src/devices/smd/device_smd.c	195	Device_RegisterAddress	dev_register_address	2
+5607077	2026-09-21	3.1	local variable	src/devices/smd/device_smd.c	582	Device_SetInterruptStatus	dev_set_interrupt_status	5
+5607077	2026-09-21	3.1	local variable	src/devices/smd/device_smd.c	809	Device_TickIODelay	dev_tick_io_delay	1
+5607077	2026-09-21	3.1	local variable	src/devices/smd/device_smd.c	874	DiskSMD_SetDiskType	smd_disk_set_type	2
+5607077	2026-09-21	3.1	local variable	src/devices/smd/device_smd.c	202	Log_Write	log_write	20
+5607077	2026-09-21	3.1	function	src/devices/smd/device_smd.h	335	CreateSMDDevice	smd_create_device	1
+5607077	2026-09-21	3.1	function	src/devices/smd/disk_smd.c	37	DiskSMD_SetDiskType	smd_disk_set_type	1
+5607077	2026-09-21	3.1	function	src/devices/smd/disk_smd.h	133	DiskSMD_SetDiskType	smd_disk_set_type	1
+5607077	2026-09-21	3.1	function	src/devices/terminal/device_terminal.c	475	CreateTerminalDevice	terminal_create_device	1
+5607077	2026-09-21	3.1	local variable	src/devices/terminal/device_terminal.c	170	Device_GetOddParity	dev_get_odd_parity	2
+5607077	2026-09-21	3.1	local variable	src/devices/terminal/device_terminal.c	491	Device_Init	dev_init	1
+5607077	2026-09-21	3.1	local variable	src/devices/terminal/device_terminal.c	356	Device_OutputCharacter	dev_output_character	1
+5607077	2026-09-21	3.1	local variable	src/devices/terminal/device_terminal.c	366	Device_QueueIODelay	dev_queue_io_delay	1
+5607077	2026-09-21	3.1	local variable	src/devices/terminal/device_terminal.c	219	Device_RegisterAddress	dev_register_address	2
+5607077	2026-09-21	3.1	local variable	src/devices/terminal/device_terminal.c	540	Device_SetCharacterInput	dev_set_character_input	1
+5607077	2026-09-21	3.1	local variable	src/devices/terminal/device_terminal.c	200	Device_SetInterruptStatus	dev_set_interrupt_status	7
+5607077	2026-09-21	3.1	local variable	src/devices/terminal/device_terminal.c	148	Device_TickIODelay	dev_tick_io_delay	1
+5607077	2026-09-21	3.1	local variable	src/devices/terminal/device_terminal.c	255	Log_Write	log_write	2
+5607077	2026-09-21	3.1	function	src/devices/terminal/device_terminal.c	349	Terminal_QueueKeyCode	terminal_queue_key_code	3
+5607077	2026-09-21	3.1	function	src/devices/terminal/device_terminal.h	171	CreateTerminalDevice	terminal_create_device	1
+5607077	2026-09-21	3.1	function	src/devices/terminal/device_terminal.h	179	Terminal_QueueKeyCode	terminal_queue_key_code	1
+5607077	2026-09-21	3.1	function	src/devices/winchester/device_winchester.c	866	CreateWinchesterDevice	wd_create_winchester_device	1
+5607077	2026-09-21	3.1	local variable	src/devices/winchester/device_winchester.c	600	Device_DMARead	dev_dma_read	2
+5607077	2026-09-21	3.1	local variable	src/devices/winchester/device_winchester.c	635	Device_DMAWrite	dev_dma_write	2
+5607077	2026-09-21	3.1	local variable	src/devices/winchester/device_winchester.c	634	Device_IO_BufferReadWord	dev_io_buffer_read_word	3
+5607077	2026-09-21	3.1	local variable	src/devices/winchester/device_winchester.c	601	Device_IO_BufferWriteWord	dev_io_buffer_write_word	1
+5607077	2026-09-21	3.1	local variable	src/devices/winchester/device_winchester.c	884	Device_Init	dev_init	1
+5607077	2026-09-21	3.1	local variable	src/devices/winchester/device_winchester.c	522	Device_QueueIODelay	dev_queue_io_delay	4
+5607077	2026-09-21	3.1	local variable	src/devices/winchester/device_winchester.c	229	Device_RegisterAddress	dev_register_address	2
+5607077	2026-09-21	3.1	local variable	src/devices/winchester/device_winchester.c	151	Device_SetInterruptStatus	dev_set_interrupt_status	6
+5607077	2026-09-21	3.1	local variable	src/devices/winchester/device_winchester.c	683	Device_TickIODelay	dev_tick_io_delay	1
+5607077	2026-09-21	3.1	local variable	src/devices/winchester/device_winchester.c	539	DiskWinchester_ChsToLba	wd_disk_chs_to_lba	1
+5607077	2026-09-21	3.1	local variable	src/devices/winchester/device_winchester.c	487	DiskWinchester_SetDiskType	wd_disk_set_type	3
+5607077	2026-09-21	3.1	local variable	src/devices/winchester/device_winchester.c	275	Log_Write	log_write	6
+5607077	2026-09-21	3.1	function	src/devices/winchester/device_winchester.h	215	CreateWinchesterDevice	wd_create_winchester_device	1
+5607077	2026-09-21	3.1	function	src/devices/winchester/disk_winchester.c	109	DiskWinchester_ChsToLba	wd_disk_chs_to_lba	1
+5607077	2026-09-21	3.1	function	src/devices/winchester/disk_winchester.c	40	DiskWinchester_SetDiskType	wd_disk_set_type	1
+5607077	2026-09-21	3.1	function	src/devices/winchester/disk_winchester.h	121	DiskWinchester_ChsToLba	wd_disk_chs_to_lba	1
+5607077	2026-09-21	3.1	function	src/devices/winchester/disk_winchester.h	110	DiskWinchester_SetDiskType	wd_disk_set_type	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	397	DeviceManager_AddDevice	devmgr_add_device	4
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	1129	DeviceManager_AddSCSIDevice_WithConfig	devmgr_add_scsi_device_with_config	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	280	DeviceManager_GetDeviceByAddress	devmgr_get_device_by_address	10
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	259	DeviceManager_GetDeviceByIndex	devmgr_get_device_by_index	2
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	252	DeviceManager_GetDeviceCount	devmgr_get_device_count	2
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	542	Device_InputCharacter	dev_input_character	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	269	Device_SetCharacterOutput	dev_set_character_output	4
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	626	Device_SetInterruptStatus	dev_set_interrupt_status	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	2811	GetPageTableEntryForDebugger	mms_get_page_table_entry_for_debugger	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	1759	HDLC_BridgeInjectRx	hdlc_bridge_inject_rx	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	344	Log_ParseSpec	log_parse_spec	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	340	MachineConfig_ApplyCpu	mc_apply_cpu	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	388	MachineConfig_ApplyDevices	mc_apply_devices	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	1660	MachineConfig_InitBaseline	mc_init_baseline	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	1661	MachineConfig_LoadFile	mc_load_file	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	1707	MachineConfig_ToJson	mc_to_json	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	1665	MachineConfig_Validate	mc_validate	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	2441	MemoryRead	cpu_memory_read	3
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	2463	MemoryWrite	cpu_memory_write	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	1803	Modem_SetCarrierPresent	modem_set_carrier_present	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	286	Modem_StartWasmBridge	modem_start_wasm_bridge	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	2610	OpToStr	disasm_op_to_str	2
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	2059	PaperTapeWriter_GetTapeData	ptp_get_tape_data	2
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	2044	PaperTape_LoadTape	ptr_load_tape	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	1940	PrintJob_CheckTimeout	pj_check_timeout	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	411	PrintJob_Create	pj_create	2
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	2027	PrintJob_Destroy	pj_destroy	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	1948	PrintJob_Flush	pj_flush	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	1889	PrintJob_PutChar	pj_put_char	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	728	RTC_SetWallClockMode	rtc_set_wall_clock_mode	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	1134	SCSI_SetUnitType	scsi_set_unit_type	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	620	Terminal_QueueKeyCode	terminal_queue_key_code	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	2502	breakpoint_manager_add	bkpt_manager_add	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	2512	breakpoint_manager_clear	bkpt_manager_clear	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	2507	breakpoint_manager_remove	bkpt_manager_remove	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	363	cpu_set_ring_at_pf	mms_cpu_set_ring_at_pf	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	2725	dbg_get_scopes_json	debugger_dbg_get_scopes_json	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	2740	dbg_get_stack_trace_json	debugger_dbg_get_stack_trace_json	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	2735	dbg_get_threads_json	debugger_dbg_get_threads_json	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	2730	dbg_get_variables_json	debugger_dbg_get_variables_json	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	2124	dbg_step_in	debugger_dbg_step_in	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	2181	dbg_step_out	debugger_dbg_step_out	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	2153	dbg_step_over	debugger_dbg_step_over	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	2105	get_cpu_run_mode	cpu_get_run_mode	7
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	2434	get_cpu_stop_reason	cpu_get_stop_reason	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	834	init_drive_arrays	machine_init_drive_arrays	5
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	460	isMounted	machine_is_mounted	35
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	480	list_mount	machine_list_mount	18
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	781	mount_drive	machine_mount_drive	4
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	1079	mount_drive_gateway	machine_mount_drive_gateway	4
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	805	mount_drive_opfs	machine_mount_drive_opfs	4
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	462	mount_floppy	machine_mount_floppy	2
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	472	mount_smd	machine_mount_smd	4
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	496	program_load	machine_program_load	4
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	2088	set_cpu_run_mode	cpu_set_run_mode	9
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	2090	set_debugger_control_granted	cpu_set_debugger_control_granted	6
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	2089	set_debugger_request_pause	cpu_set_debugger_request_pause	6
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	777	unmount_drive	machine_unmount_drive	20
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	2552	watchpoint_add	bkpt_watchpoint_add	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	2563	watchpoint_clear	bkpt_watchpoint_clear	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	2575	watchpoint_get	bkpt_watchpoint_get	2
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	2568	watchpoint_get_count	bkpt_watchpoint_get_count	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100wasm/nd100wasm.c	2558	watchpoint_remove	bkpt_watchpoint_remove	1
+5607077	2026-09-21	3.1	function	src/frontend/nd100x/config.c	114	Config_Init	config_init	1
+5607077	2026-09-21	3.1	function	src/frontend/nd100x/config.c	485	Config_ParseCommandLine	config_parse_command_line	1
+5607077	2026-09-21	3.1	function	src/frontend/nd100x/config.c	1216	Config_PrintHelp	config_print_help	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/config.c	1034	Log_ParseSpec	log_parse_spec	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/config.c	817	SCSI_ParseUnitType	scsi_parse_unit_type	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/config.c	1143	SCSI_UnitTypeName	scsi_unit_type_name	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/menu.c	504	download_file	dl_download_file	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/menu.c	1277	list_mount	machine_list_mount	4
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/menu.c	1383	mount_drive	machine_mount_drive	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/menu.c	1799	read_key_event	kbd_read_key_event	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/menu.c	1575	unmount_drive	machine_unmount_drive	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	487	CdcDevice_SetBackingFile	cdc_set_backing_file	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	872	Config_Init	config_init	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	875	Config_ParseCommandLine	config_parse_command_line	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	877	Config_PrintHelp	config_print_help	2
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	472	CpuModel_DisplayName	cpumodel_display_name	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	371	CpuModel_FromName	cpumodel_from_name	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	488	DeviceManager_AddDevice	devmgr_add_device	10
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	571	DeviceManager_AddSCSIDevice_WithConfig	devmgr_add_scsi_device_with_config	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	1230	DeviceManager_GetDeviceByAddress	devmgr_get_device_by_address	5
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	1242	Device_SetCharacterOutput	dev_set_character_output	5
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	497	DrumDevice_SetBackingFile	drum_set_backing_file	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	1010	Log_ParseSpec	log_parse_spec	2
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	1134	Log_SetLevel	log_set_level	2
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	1299	Log_SetSink	log_set_sink	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	469	MachineConfig_ApplyCpu	mc_apply_cpu	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	507	MachineConfig_ApplyDevices	mc_apply_devices	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	901	MachineConfig_DefaultIniName	mc_default_ini_name	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	914	MachineConfig_InitBaseline	mc_init_baseline	2
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	915	MachineConfig_LoadFile	mc_load_file	2
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	947	MachineConfig_Print	mc_print	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	927	MachineConfig_SetDefaults	mc_set_defaults	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	930	MachineConfig_Validate	mc_validate	2
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	938	MachineConfig_WriteFile	mc_write_file	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	753	PaperTapeWriter_GetTapeData	ptp_get_tape_data	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	863	PaperTape_LoadTape	ptr_load_tape	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	1430	PrintJob_CheckTimeout	pj_check_timeout	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	1269	PrintJob_Create	pj_create	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	1558	PrintJob_Destroy	pj_destroy	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	709	PrintJob_PutChar	pj_put_char	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	451	RTC_SetWallClockMode	rtc_set_wall_clock_mode	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	1315	TelnetServer_Create	telnet_create	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	270	TelnetServer_Destroy	telnet_destroy	2
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	1475	TelnetServer_IsDeviceConnected	telnet_is_device_connected	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	1338	TelnetServer_RegisterTerminal	telnet_register_terminal	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	1363	TelnetServer_SetDeviceLocallyActive	telnet_set_device_locally_active	2
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	1368	TelnetServer_Start	telnet_start	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	269	TelnetServer_Stop	telnet_stop	2
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	150	Terminal_QueueKeyCode	terminal_queue_key_code	3
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	1579	VScreen_Destroy	vscreen_destroy	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	1241	VScreen_Init	vscreen_init	5
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	1494	VScreen_Redraw	vscreen_redraw	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	682	VScreen_Write	vscreen_write	3
+5607077	2026-09-21	3.1	function	src/frontend/nd100x/nd100x.c	617	cleanup	nd100x_cleanup	2
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	619	cleanup_machine	machine_cleanup	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	1155	cpu_set_ring_at_pf	mms_cpu_set_ring_at_pf	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	1418	get_cpu_run_mode	cpu_get_run_mode	3
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	403	keyboard_set_pipe_mode	kbd_set_pipe_mode	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	567	mount_scsi	machine_mount_scsi	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	538	mount_smd	machine_mount_smd	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	553	mount_winchester	machine_mount_winchester	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	1183	phys_watchpoint_add	bkpt_phys_watchpoint_add	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	576	program_load	machine_program_load	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	1447	read_key_event	kbd_read_key_event	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	1375	set_cpu_run_mode	cpu_set_run_mode	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	612	setcbreak	ndlib_setcbreak	2
+5607077	2026-09-21	3.1	function	src/frontend/nd100x/nd100x.c	71	stop_debugger_thread	debugger_stop_thread	3
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	284	unsetcbreak	ndlib_unsetcbreak	3
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x.c	1187	watchpoint_add	bkpt_watchpoint_add	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x_shell.c	419	GetLastBPUNHeader	bpun_get_last_header	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x_shell.c	385	GetLastPROGHeader	prog_get_last_header	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x_shell.c	378	program_load	machine_program_load	2
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/nd100x_shell.c	398	set_cpu_run_mode	cpu_set_run_mode	3
+5607077	2026-09-21	3.1	function	src/frontend/nd100x/nd100x_types.h	173	Config_Init	config_init	1
+5607077	2026-09-21	3.1	function	src/frontend/nd100x/nd100x_types.h	184	Config_ParseCommandLine	config_parse_command_line	1
+5607077	2026-09-21	3.1	function	src/frontend/nd100x/nd100x_types.h	190	Config_PrintHelp	config_print_help	1
+5607077	2026-09-21	3.1	function	src/frontend/nd100x/nd100x_types.h	210	cleanup	nd100x_cleanup	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/screenmenu.c	363	DeviceManager_GetDeviceByIndex	devmgr_get_device_by_index	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/screenmenu.c	358	DeviceManager_GetDeviceCount	devmgr_get_device_count	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/screenmenu.c	388	HDLC_GetRxFrameStatus	hdlc_get_rx_frame_status	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/screenmenu.c	921	TelnetServer_ClearDeviceCarrier	telnet_clear_device_carrier	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/screenmenu.c	970	TelnetServer_DisconnectDevice	telnet_disconnect_device	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/screenmenu.c	1045	TelnetServer_DropAllPending	telnet_drop_all_pending	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/screenmenu.c	1023	TelnetServer_DropPending	telnet_drop_pending	2
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/screenmenu.c	586	TelnetServer_GetDeviceClientAddr	telnet_get_device_client_addr	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/screenmenu.c	642	TelnetServer_GetPendingCount	telnet_get_pending_count	3
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/screenmenu.c	721	TelnetServer_GetPendingInfo	telnet_get_pending_info	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/screenmenu.c	645	TelnetServer_GetPort	telnet_get_port	3
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/screenmenu.c	548	TelnetServer_GetTerminalCount	telnet_get_terminal_count	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/screenmenu.c	556	TelnetServer_GetTerminalStats	telnet_get_terminal_stats	1
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/screenmenu.c	584	TelnetServer_IsDeviceConnected	telnet_is_device_connected	3
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/screenmenu.c	919	TelnetServer_SetDeviceLocallyActive	telnet_set_device_locally_active	2
+5607077	2026-09-21	3.1	local variable	src/frontend/nd100x/screenmenu.c	80	VScreen_Redraw	vscreen_redraw	1
+5607077	2026-09-21	3.1	function	src/frontend/nd100x/vscreen.c	160	VScreen_Destroy	vscreen_destroy	1
+5607077	2026-09-21	3.1	function	src/frontend/nd100x/vscreen.c	24	VScreen_Init	vscreen_init	1
+5607077	2026-09-21	3.1	function	src/frontend/nd100x/vscreen.c	106	VScreen_Redraw	vscreen_redraw	1
+5607077	2026-09-21	3.1	function	src/frontend/nd100x/vscreen.c	63	VScreen_Write	vscreen_write	1
+5607077	2026-09-21	3.1	function	src/frontend/nd100x/vscreen.h	74	VScreen_Destroy	vscreen_destroy	1
+5607077	2026-09-21	3.1	function	src/frontend/nd100x/vscreen.h	50	VScreen_Init	vscreen_init	1
+5607077	2026-09-21	3.1	function	src/frontend/nd100x/vscreen.h	68	VScreen_Redraw	vscreen_redraw	1
+5607077	2026-09-21	3.1	function	src/frontend/nd100x/vscreen.h	59	VScreen_Write	vscreen_write	1
+5607077	2026-09-21	3.1	local variable	src/machine/io.c	46	DeviceManager_AddAllDevices	devmgr_add_all_devices	1
+5607077	2026-09-21	3.1	local variable	src/machine/io.c	52	DeviceManager_Destroy	devmgr_destroy	1
+5607077	2026-09-21	3.1	local variable	src/machine/io.c	67	DeviceManager_Ident	devmgr_ident	1
+5607077	2026-09-21	3.1	local variable	src/machine/io.c	42	DeviceManager_Init	devmgr_init	1
+5607077	2026-09-21	3.1	local variable	src/machine/io.c	57	DeviceManager_Read	devmgr_read	1
+5607077	2026-09-21	3.1	local variable	src/machine/io.c	73	DeviceManager_Tick	devmgr_tick	1
+5607077	2026-09-21	3.1	local variable	src/machine/io.c	62	DeviceManager_Write	devmgr_write	1
+5607077	2026-09-21	3.1	function	src/machine/io.c	50	IO_Destroy	io_destroy	1
+5607077	2026-09-21	3.1	function	src/machine/io.c	65	IO_Ident	io_ident	1
+5607077	2026-09-21	3.1	function	src/machine/io.c	40	IO_Init	io_init	1
+5607077	2026-09-21	3.1	local variable	src/machine/io.c	77	device_interrupt	cpu_device_interrupt	1
+5607077	2026-09-21	3.1	local variable	src/machine/machine.c	239	DeviceManager_AddHDLCDevice_WithConfig	devmgr_add_hdlc_device_with_config	1
+5607077	2026-09-21	3.1	local variable	src/machine/machine.c	938	DeviceManager_BootFrom	devmgr_boot_from	4
+5607077	2026-09-21	3.1	local variable	src/machine/machine.c	841	DeviceManager_GetDeviceByAddress	devmgr_get_device_by_address	1
+5607077	2026-09-21	3.1	local variable	src/machine/machine.c	262	IO_Destroy	io_destroy	1
+5607077	2026-09-21	3.1	local variable	src/machine/machine.c	226	IO_Init	io_init	1
+5607077	2026-09-21	3.1	local variable	src/machine/machine.c	882	LoadBPUN	bpun_load	2
+5607077	2026-09-21	3.1	local variable	src/machine/machine.c	909	LoadPROG	prog_load	1
+5607077	2026-09-21	3.1	local variable	src/machine/machine.c	1471	Log_Write	log_write	1
+5607077	2026-09-21	3.1	local variable	src/machine/machine.c	844	PaperTape_LoadTape	ptr_load_tape	1
+5607077	2026-09-21	3.1	local variable	src/machine/machine.c	417	WritePhysicalMemory	mms_write_physical_memory	2
+5607077	2026-09-21	3.1	function	src/machine/machine.c	700	autoMountDrives	machine_auto_mount_drives	2
+5607077	2026-09-21	3.1	local variable	src/machine/machine.c	873	bp_load	bpun_bp_load	1
+5607077	2026-09-21	3.1	local variable	src/machine/machine.c	261	cleanup_cpu	cpu_cleanup	1
+5607077	2026-09-21	3.1	function	src/machine/machine.c	259	cleanup_machine	machine_cleanup	1
+5607077	2026-09-21	3.1	local variable	src/machine/machine.c	1144	download_file	dl_download_file	1
+5607077	2026-09-21	3.1	local variable	src/machine/machine.c	324	get_cpu_run_mode	cpu_get_run_mode	3
+5607077	2026-09-21	3.1	local variable	src/machine/machine.c	333	get_debugger_control_granted	cpu_get_debugger_control_granted	2
+5607077	2026-09-21	3.1	local variable	src/machine/machine.c	331	get_debugger_request_pause	cpu_get_debugger_request_pause	1
+5607077	2026-09-21	3.1	local variable	src/machine/machine.c	1150	get_downloaded_size	dl_get_downloaded_size	1
+5607077	2026-09-21	3.1	local variable	src/machine/machine.c	223	init_cpu_debugger	cpu_init_debugger	1
+5607077	2026-09-21	3.1	function	src/machine/machine.c	73	init_drive_arrays	machine_init_drive_arrays	5
+5607077	2026-09-21	3.1	function	src/machine/machine.c	455	isMounted	machine_is_mounted	9
+5607077	2026-09-21	3.1	function	src/machine/machine.c	1256	list_mount	machine_list_mount	1
+5607077	2026-09-21	3.1	function	src/machine/machine.c	434	mount_drive	machine_mount_drive	10
+5607077	2026-09-21	3.1	function	src/machine/machine.c	1374	mount_drive_gateway	machine_mount_drive_gateway	1
+5607077	2026-09-21	3.1	function	src/machine/machine.c	1331	mount_drive_opfs	machine_mount_drive_opfs	1
+5607077	2026-09-21	3.1	function	src/machine/machine.c	425	mount_floppy	machine_mount_floppy	3
+5607077	2026-09-21	3.1	function	src/machine/machine.c	665	mount_scsi	machine_mount_scsi	2
+5607077	2026-09-21	3.1	function	src/machine/machine.c	598	mount_smd	machine_mount_smd	3
+5607077	2026-09-21	3.1	function	src/machine/machine.c	630	mount_winchester	machine_mount_winchester	2
+5607077	2026-09-21	3.1	function	src/machine/machine.c	864	program_load	machine_program_load	1
+5607077	2026-09-21	3.1	local variable	src/machine/machine.c	233	set_cpu_run_mode	cpu_set_run_mode	2
+5607077	2026-09-21	3.1	local variable	src/machine/machine.c	335	set_debugger_control_granted	cpu_set_debugger_control_granted	1
+5607077	2026-09-21	3.1	function	src/machine/machine.c	393	setdefaultconfig	machine_setdefaultconfig	1
+5607077	2026-09-21	3.1	function	src/machine/machine.c	273	unmount_drive	machine_unmount_drive	7
+5607077	2026-09-21	3.1	local variable	src/machine/machine_config.c	1292	CpuModel_DisplayName	cpumodel_display_name	1
+5607077	2026-09-21	3.1	local variable	src/machine/machine_config.c	663	CpuModel_FromName	cpumodel_from_name	1
+5607077	2026-09-21	3.1	local variable	src/machine/machine_config.c	1414	CpuModel_Name	cpumodel_name	1
+5607077	2026-09-21	3.1	function	src/machine/machine_config.c	98	MC_CtrlTypeName	mc_ctrl_type_name	6
+5607077	2026-09-21	3.1	function	src/machine/machine_config.c	64	MC_DescriptorForType	mc_descriptor_for_type	7
+5607077	2026-09-21	3.1	function	src/machine/machine_config.c	649	MachineConfig_CpuTypeForNumber	mc_cpu_type_for_number	3
+5607077	2026-09-21	3.1	function	src/machine/machine_config.c	262	MachineConfig_DefaultIniName	mc_default_ini_name	1
+5607077	2026-09-21	3.1	function	src/machine/machine_config.c	179	MachineConfig_InitBaseline	mc_init_baseline	2
+5607077	2026-09-21	3.1	function	src/machine/machine_config.c	487	MachineConfig_LoadFile	mc_load_file	1
+5607077	2026-09-21	3.1	function	src/machine/machine_config.c	1284	MachineConfig_Print	mc_print	1
+5607077	2026-09-21	3.1	function	src/machine/machine_config.c	223	MachineConfig_SetDefaults	mc_set_defaults	1
+5607077	2026-09-21	3.1	function	src/machine/machine_config.c	1204	MachineConfig_Validate	mc_validate	1
+5607077	2026-09-21	3.1	function	src/machine/machine_config.c	1387	MachineConfig_WriteFile	mc_write_file	1
+5607077	2026-09-21	3.1	local variable	src/machine/machine_config.c	459	SCSI_ParseUnitType	scsi_parse_unit_type	1
+5607077	2026-09-21	3.1	local variable	src/machine/machine_config.c	1197	SCSI_UnitTypeName	scsi_unit_type_name	3
+5607077	2026-09-21	3.1	function	src/machine/machine_config.h	206	MC_CtrlTypeName	mc_ctrl_type_name	1
+5607077	2026-09-21	3.1	function	src/machine/machine_config.h	197	MC_DescriptorForType	mc_descriptor_for_type	1
+5607077	2026-09-21	3.1	function	src/machine/machine_config.h	286	MachineConfig_CpuTypeForNumber	mc_cpu_type_for_number	1
+5607077	2026-09-21	3.1	function	src/machine/machine_config.h	298	MachineConfig_DefaultIniName	mc_default_ini_name	1
+5607077	2026-09-21	3.1	function	src/machine/machine_config.h	216	MachineConfig_InitBaseline	mc_init_baseline	1
+5607077	2026-09-21	3.1	function	src/machine/machine_config.h	238	MachineConfig_LoadFile	mc_load_file	1
+5607077	2026-09-21	3.1	function	src/machine/machine_config.h	261	MachineConfig_Print	mc_print	1
+5607077	2026-09-21	3.1	function	src/machine/machine_config.h	226	MachineConfig_SetDefaults	mc_set_defaults	1
+5607077	2026-09-21	3.1	function	src/machine/machine_config.h	251	MachineConfig_Validate	mc_validate	1
+5607077	2026-09-21	3.1	function	src/machine/machine_config.h	274	MachineConfig_WriteFile	mc_write_file	1
+5607077	2026-09-21	3.1	local variable	src/machine/machine_config_apply.c	70	DeviceManager_AddDevice	devmgr_add_device	2
+5607077	2026-09-21	3.1	local variable	src/machine/machine_config_apply.c	129	DeviceManager_AddSCSIDevice_WithConfig	devmgr_add_scsi_device_with_config	1
+5607077	2026-09-21	3.1	function	src/machine/machine_config_apply.c	19	MachineConfig_ApplyCpu	mc_apply_cpu	1
+5607077	2026-09-21	3.1	function	src/machine/machine_config_apply.c	61	MachineConfig_ApplyDevices	mc_apply_devices	1
+5607077	2026-09-21	3.1	local variable	src/machine/machine_config_apply.c	40	MachineConfig_CpuTypeForNumber	mc_cpu_type_for_number	1
+5607077	2026-09-21	3.1	local variable	src/machine/machine_config_apply.c	57	RTC_SetWallClockMode	rtc_set_wall_clock_mode	1
+5607077	2026-09-21	3.1	local variable	src/machine/machine_config_apply.c	97	mount_floppy	machine_mount_floppy	1
+5607077	2026-09-21	3.1	local variable	src/machine/machine_config_apply.c	126	mount_scsi	machine_mount_scsi	1
+5607077	2026-09-21	3.1	local variable	src/machine/machine_config_apply.c	87	mount_smd	machine_mount_smd	1
+5607077	2026-09-21	3.1	local variable	src/machine/machine_config_apply.c	110	mount_winchester	machine_mount_winchester	1
+5607077	2026-09-21	3.1	function	src/machine/machine_config_apply.h	65	MachineConfig_ApplyCpu	mc_apply_cpu	1
+5607077	2026-09-21	3.1	function	src/machine/machine_config_apply.h	77	MachineConfig_ApplyDevices	mc_apply_devices	1
+5607077	2026-09-21	3.1	local variable	src/machine/machine_config_json.c	158	CpuModel_Count	cpumodel_count	1
+5607077	2026-09-21	3.1	local variable	src/machine/machine_config_json.c	149	CpuModel_DisplayName	cpumodel_display_name	1
+5607077	2026-09-21	3.1	local variable	src/machine/machine_config_json.c	148	CpuModel_Name	cpumodel_name	1
+5607077	2026-09-21	3.1	local variable	src/machine/machine_config_json.c	160	CpuModel_NameByIndex	cpumodel_name_by_index	1
+5607077	2026-09-21	3.1	local variable	src/machine/machine_config_json.c	203	MC_CtrlTypeName	mc_ctrl_type_name	2
+5607077	2026-09-21	3.1	local variable	src/machine/machine_config_json.c	178	MC_DescriptorForType	mc_descriptor_for_type	2
+5607077	2026-09-21	3.1	function	src/machine/machine_config_json.c	130	MachineConfig_ToJson	mc_to_json	1
+5607077	2026-09-21	3.1	function	src/machine/machine_config_json.h	36	MachineConfig_ToJson	mc_to_json	1
+5607077	2026-09-21	3.1	function	src/machine/machine_types.h	116	IO_Destroy	io_destroy	1
+5607077	2026-09-21	3.1	function	src/machine/machine_types.h	123	IO_Ident	io_ident	1
+5607077	2026-09-21	3.1	function	src/machine/machine_types.h	111	IO_Init	io_init	1
+5607077	2026-09-21	3.1	function	src/machine/machine_types.h	278	autoMountDrives	machine_auto_mount_drives	1
+5607077	2026-09-21	3.1	function	src/machine/machine_types.h	180	cleanup_machine	machine_cleanup	1
+5607077	2026-09-21	3.1	function	src/machine/machine_types.h	157	init_drive_arrays	machine_init_drive_arrays	1
+5607077	2026-09-21	3.1	function	src/machine/machine_types.h	248	isMounted	machine_is_mounted	1
+5607077	2026-09-21	3.1	function	src/machine/machine_types.h	299	list_mount	machine_list_mount	1
+5607077	2026-09-21	3.1	function	src/machine/machine_types.h	231	mount_drive	machine_mount_drive	1
+5607077	2026-09-21	3.1	function	src/machine/machine_types.h	321	mount_drive_gateway	machine_mount_drive_gateway	1
+5607077	2026-09-21	3.1	function	src/machine/machine_types.h	310	mount_drive_opfs	machine_mount_drive_opfs	1
+5607077	2026-09-21	3.1	function	src/machine/machine_types.h	220	mount_floppy	machine_mount_floppy	1
+5607077	2026-09-21	3.1	function	src/machine/machine_types.h	272	mount_scsi	machine_mount_scsi	1
+5607077	2026-09-21	3.1	function	src/machine/machine_types.h	256	mount_smd	machine_mount_smd	1
+5607077	2026-09-21	3.1	function	src/machine/machine_types.h	264	mount_winchester	machine_mount_winchester	1
+5607077	2026-09-21	3.1	function	src/machine/machine_types.h	292	program_load	machine_program_load	1
+5607077	2026-09-21	3.1	function	src/machine/machine_types.h	204	setdefaultconfig	machine_setdefaultconfig	1
+5607077	2026-09-21	3.1	function	src/machine/machine_types.h	187	unmount_drive	machine_unmount_drive	1
+5607077	2026-09-21	3.1	function	src/ndlib/download.c	48	download_file	dl_download_file	2
+5607077	2026-09-21	3.1	function	src/ndlib/download.c	42	get_downloaded_size	dl_get_downloaded_size	2
+5607077	2026-09-21	3.1	function	src/ndlib/download.h	43	download_file	dl_download_file	1
+5607077	2026-09-21	3.1	function	src/ndlib/download.h	52	get_downloaded_size	dl_get_downloaded_size	1
+5607077	2026-09-21	3.1	function	src/ndlib/escp.c	300	Escp_Create	escp_create	1
+5607077	2026-09-21	3.1	function	src/ndlib/escp.c	483	Escp_Destroy	escp_destroy	1
+5607077	2026-09-21	3.1	function	src/ndlib/escp.c	446	Escp_GetPageCount	escp_get_page_count	1
+5607077	2026-09-21	3.1	function	src/ndlib/escp.c	425	Escp_GetSpans	escp_get_spans	1
+5607077	2026-09-21	3.1	function	src/ndlib/escp.c	329	Escp_PutChar	escp_put_char	1
+5607077	2026-09-21	3.1	function	src/ndlib/escp.c	460	Escp_Reset	escp_reset	1
+5607077	2026-09-21	3.1	function	src/ndlib/escp.c	499	Escp_StripToPlainChar	escp_strip_to_plain_char	1
+5607077	2026-09-21	3.1	function	src/ndlib/escp.h	104	Escp_Create	escp_create	1
+5607077	2026-09-21	3.1	function	src/ndlib/escp.h	144	Escp_Destroy	escp_destroy	1
+5607077	2026-09-21	3.1	function	src/ndlib/escp.h	131	Escp_GetPageCount	escp_get_page_count	1
+5607077	2026-09-21	3.1	function	src/ndlib/escp.h	123	Escp_GetSpans	escp_get_spans	1
+5607077	2026-09-21	3.1	function	src/ndlib/escp.h	113	Escp_PutChar	escp_put_char	1
+5607077	2026-09-21	3.1	function	src/ndlib/escp.h	138	Escp_Reset	escp_reset	1
+5607077	2026-09-21	3.1	function	src/ndlib/escp.h	157	Escp_StripToPlainChar	escp_strip_to_plain_char	1
+5607077	2026-09-21	3.1	local variable	src/ndlib/floppydb.c	218	download_file	dl_download_file	1
+5607077	2026-09-21	3.1	function	src/ndlib/keyboard.c	60	keyboard_set_pipe_mode	kbd_set_pipe_mode	2
+5607077	2026-09-21	3.1	function	src/ndlib/keyboard.c	76	read_key_event	kbd_read_key_event	2
+5607077	2026-09-21	3.1	function	src/ndlib/keyboard.h	51	keyboard_set_pipe_mode	kbd_set_pipe_mode	1
+5607077	2026-09-21	3.1	function	src/ndlib/keyboard.h	40	read_key_event	kbd_read_key_event	1
+5607077	2026-09-21	3.1	function	src/ndlib/load_bpun.c	47	GetLastBPUNHeader	bpun_get_last_header	1
+5607077	2026-09-21	3.1	function	src/ndlib/load_bpun.c	57	LoadBPUN	bpun_load	1
+5607077	2026-09-21	3.1	local variable	src/ndlib/load_bpun.c	262	WritePhysicalMemory	mms_write_physical_memory	2
+5607077	2026-09-21	3.1	function	src/ndlib/load_bpun.c	370	bp_load	bpun_bp_load	1
+5607077	2026-09-21	3.1	function	src/ndlib/load_prog.c	61	GetLastPROGHeader	prog_get_last_header	1
+5607077	2026-09-21	3.1	function	src/ndlib/load_prog.c	131	LoadPROG	prog_load	1
+5607077	2026-09-21	3.1	local variable	src/ndlib/load_prog.c	122	WritePhysicalMemory	mms_write_physical_memory	1
+5607077	2026-09-21	3.1	function	src/ndlib/log.c	100	Log_CategoryName	log_category_name	2
+5607077	2026-09-21	3.1	function	src/ndlib/log.c	187	Log_ParseSpec	log_parse_spec	1
+5607077	2026-09-21	3.1	function	src/ndlib/log.c	72	Log_SetLevel	log_set_level	2
+5607077	2026-09-21	3.1	function	src/ndlib/log.c	88	Log_SetSink	log_set_sink	1
+5607077	2026-09-21	3.1	function	src/ndlib/log.c	118	Log_Write	log_write	1
+5607077	2026-09-21	3.1	function	src/ndlib/log.h	138	Log_CategoryName	log_category_name	1
+5607077	2026-09-21	3.1	function	src/ndlib/log.h	122	Log_ParseSpec	log_parse_spec	1
+5607077	2026-09-21	3.1	function	src/ndlib/log.h	106	Log_SetLevel	log_set_level	1
+5607077	2026-09-21	3.1	function	src/ndlib/log.h	131	Log_SetSink	log_set_sink	1
+5607077	2026-09-21	3.1	function	src/ndlib/log.h	98	Log_Write	log_write	2
+5607077	2026-09-21	3.1	function	src/ndlib/ndlib.c	52	setcbreak	ndlib_setcbreak	2
+5607077	2026-09-21	3.1	function	src/ndlib/ndlib.c	44	unsetcbreak	ndlib_unsetcbreak	2
+5607077	2026-09-21	3.1	function	src/ndlib/ndlib_types.h	128	GetLastBPUNHeader	bpun_get_last_header	1
+5607077	2026-09-21	3.1	function	src/ndlib/ndlib_types.h	154	GetLastPROGHeader	prog_get_last_header	1
+5607077	2026-09-21	3.1	function	src/ndlib/ndlib_types.h	138	LoadBPUN	bpun_load	1
+5607077	2026-09-21	3.1	function	src/ndlib/ndlib_types.h	170	LoadPROG	prog_load	1
+5607077	2026-09-21	3.1	function	src/ndlib/ndlib_types.h	63	ReadPhysicalMemory	mms_read_physical_memory	1
+5607077	2026-09-21	3.1	function	src/ndlib/ndlib_types.h	64	WritePhysicalMemory	mms_write_physical_memory	1
+5607077	2026-09-21	3.1	function	src/ndlib/ndlib_types.h	146	bp_load	bpun_bp_load	1
+5607077	2026-09-21	3.1	function	src/ndlib/ndlib_types.h	182	setcbreak	ndlib_setcbreak	1
+5607077	2026-09-21	3.1	function	src/ndlib/ndlib_types.h	188	unsetcbreak	ndlib_unsetcbreak	1
+5607077	2026-09-21	3.1	function	src/ndlib/pdfwriter.c	89	Pdf_AddPage	pdf_add_page	1
+5607077	2026-09-21	3.1	function	src/ndlib/pdfwriter.c	121	Pdf_AddTextSpan	pdf_add_text_span	1
+5607077	2026-09-21	3.1	function	src/ndlib/pdfwriter.c	69	Pdf_Create	pdf_create	1
+5607077	2026-09-21	3.1	function	src/ndlib/pdfwriter.c	383	Pdf_Destroy	pdf_destroy	1
+5607077	2026-09-21	3.1	function	src/ndlib/pdfwriter.c	303	Pdf_WriteToFile	pdf_write_to_file	1
+5607077	2026-09-21	3.1	function	src/ndlib/pdfwriter.h	81	Pdf_AddPage	pdf_add_page	1
+5607077	2026-09-21	3.1	function	src/ndlib/pdfwriter.h	95	Pdf_AddTextSpan	pdf_add_text_span	1
+5607077	2026-09-21	3.1	function	src/ndlib/pdfwriter.h	72	Pdf_Create	pdf_create	1
+5607077	2026-09-21	3.1	function	src/ndlib/pdfwriter.h	115	Pdf_Destroy	pdf_destroy	1
+5607077	2026-09-21	3.1	function	src/ndlib/pdfwriter.h	108	Pdf_WriteToFile	pdf_write_to_file	1
+5607077	2026-09-21	3.1	local variable	src/ndlib/printjob.c	88	Escp_Create	escp_create	1
+5607077	2026-09-21	3.1	local variable	src/ndlib/printjob.c	483	Escp_Destroy	escp_destroy	1
+5607077	2026-09-21	3.1	local variable	src/ndlib/printjob.c	275	Escp_GetSpans	escp_get_spans	1
+5607077	2026-09-21	3.1	local variable	src/ndlib/printjob.c	263	Escp_PutChar	escp_put_char	1
+5607077	2026-09-21	3.1	local variable	src/ndlib/printjob.c	152	Escp_Reset	escp_reset	1
+5607077	2026-09-21	3.1	local variable	src/ndlib/printjob.c	247	Escp_StripToPlainChar	escp_strip_to_plain_char	1
+5607077	2026-09-21	3.1	local variable	src/ndlib/printjob.c	146	Pdf_AddPage	pdf_add_page	4
+5607077	2026-09-21	3.1	local variable	src/ndlib/printjob.c	187	Pdf_AddTextSpan	pdf_add_text_span	2
+5607077	2026-09-21	3.1	local variable	src/ndlib/printjob.c	140	Pdf_Create	pdf_create	1
+5607077	2026-09-21	3.1	local variable	src/ndlib/printjob.c	374	Pdf_Destroy	pdf_destroy	1
+5607077	2026-09-21	3.1	local variable	src/ndlib/printjob.c	365	Pdf_WriteToFile	pdf_write_to_file	1
+5607077	2026-09-21	3.1	function	src/ndlib/printjob.c	447	PrintJob_CheckTimeout	pj_check_timeout	1
+5607077	2026-09-21	3.1	function	src/ndlib/printjob.c	68	PrintJob_Create	pj_create	1
+5607077	2026-09-21	3.1	function	src/ndlib/printjob.c	472	PrintJob_Destroy	pj_destroy	1
+5607077	2026-09-21	3.1	function	src/ndlib/printjob.c	463	PrintJob_Flush	pj_flush	1
+5607077	2026-09-21	3.1	function	src/ndlib/printjob.c	384	PrintJob_PutChar	pj_put_char	1
+5607077	2026-09-21	3.1	function	src/ndlib/printjob.h	121	PrintJob_CheckTimeout	pj_check_timeout	1
+5607077	2026-09-21	3.1	function	src/ndlib/printjob.h	101	PrintJob_Create	pj_create	1
+5607077	2026-09-21	3.1	function	src/ndlib/printjob.h	135	PrintJob_Destroy	pj_destroy	1
+5607077	2026-09-21	3.1	function	src/ndlib/printjob.h	128	PrintJob_Flush	pj_flush	1
+5607077	2026-09-21	3.1	function	src/ndlib/printjob.h	113	PrintJob_PutChar	pj_put_char	1
+5607077	2026-09-21	3.1	function	src/ndlib/telnetserver.c	599	TelnetServer_ClearDeviceCarrier	telnet_clear_device_carrier	1
+5607077	2026-09-21	3.1	function	src/ndlib/telnetserver.c	213	TelnetServer_Create	telnet_create	1
+5607077	2026-09-21	3.1	function	src/ndlib/telnetserver.c	439	TelnetServer_Destroy	telnet_destroy	1
+5607077	2026-09-21	3.1	function	src/ndlib/telnetserver.c	543	TelnetServer_DisconnectDevice	telnet_disconnect_device	1
+5607077	2026-09-21	3.1	function	src/ndlib/telnetserver.c	712	TelnetServer_DropAllPending	telnet_drop_all_pending	1
+5607077	2026-09-21	3.1	function	src/ndlib/telnetserver.c	691	TelnetServer_DropPending	telnet_drop_pending	1
+5607077	2026-09-21	3.1	function	src/ndlib/telnetserver.c	631	TelnetServer_GetDeviceClientAddr	telnet_get_device_client_addr	1
+5607077	2026-09-21	3.1	function	src/ndlib/telnetserver.c	645	TelnetServer_GetPendingCount	telnet_get_pending_count	1
+5607077	2026-09-21	3.1	function	src/ndlib/telnetserver.c	657	TelnetServer_GetPendingInfo	telnet_get_pending_info	1
+5607077	2026-09-21	3.1	function	src/ndlib/telnetserver.c	559	TelnetServer_GetPort	telnet_get_port	1
+5607077	2026-09-21	3.1	function	src/ndlib/telnetserver.c	470	TelnetServer_GetTerminalCount	telnet_get_terminal_count	1
+5607077	2026-09-21	3.1	function	src/ndlib/telnetserver.c	612	TelnetServer_GetTerminalStats	telnet_get_terminal_stats	1
+5607077	2026-09-21	3.1	function	src/ndlib/telnetserver.c	589	TelnetServer_IsDeviceConnected	telnet_is_device_connected	1
+5607077	2026-09-21	3.1	function	src/ndlib/telnetserver.c	252	TelnetServer_RegisterTerminal	telnet_register_terminal	1
+5607077	2026-09-21	3.1	function	src/ndlib/telnetserver.c	574	TelnetServer_SetDeviceLocallyActive	telnet_set_device_locally_active	1
+5607077	2026-09-21	3.1	function	src/ndlib/telnetserver.c	564	TelnetServer_SetTerminalLocallyActive	telnet_set_terminal_locally_active	1
+5607077	2026-09-21	3.1	function	src/ndlib/telnetserver.c	276	TelnetServer_Start	telnet_start	1
+5607077	2026-09-21	3.1	function	src/ndlib/telnetserver.c	378	TelnetServer_Stop	telnet_stop	2
+5607077	2026-09-21	3.1	function	src/ndlib/telnetserver.h	217	TelnetServer_ClearDeviceCarrier	telnet_clear_device_carrier	1
+5607077	2026-09-21	3.1	function	src/ndlib/telnetserver.h	75	TelnetServer_Create	telnet_create	1
+5607077	2026-09-21	3.1	function	src/ndlib/telnetserver.h	114	TelnetServer_Destroy	telnet_destroy	1
+5607077	2026-09-21	3.1	function	src/ndlib/telnetserver.h	164	TelnetServer_DisconnectDevice	telnet_disconnect_device	1
+5607077	2026-09-21	3.1	function	src/ndlib/telnetserver.h	265	TelnetServer_DropAllPending	telnet_drop_all_pending	1
+5607077	2026-09-21	3.1	function	src/ndlib/telnetserver.h	258	TelnetServer_DropPending	telnet_drop_pending	1
+5607077	2026-09-21	3.1	function	src/ndlib/telnetserver.h	226	TelnetServer_GetDeviceClientAddr	telnet_get_device_client_addr	1
+5607077	2026-09-21	3.1	function	src/ndlib/telnetserver.h	234	TelnetServer_GetPendingCount	telnet_get_pending_count	1
+5607077	2026-09-21	3.1	function	src/ndlib/telnetserver.h	248	TelnetServer_GetPendingInfo	telnet_get_pending_info	1
+5607077	2026-09-21	3.1	function	src/ndlib/telnetserver.h	178	TelnetServer_GetPort	telnet_get_port	1
+5607077	2026-09-21	3.1	function	src/ndlib/telnetserver.h	121	TelnetServer_GetTerminalCount	telnet_get_terminal_count	1
+5607077	2026-09-21	3.1	function	src/ndlib/telnetserver.h	152	TelnetServer_GetTerminalStats	telnet_get_terminal_stats	1
+5607077	2026-09-21	3.1	function	src/ndlib/telnetserver.h	208	TelnetServer_IsDeviceConnected	telnet_is_device_connected	1
+5607077	2026-09-21	3.1	function	src/ndlib/telnetserver.h	85	TelnetServer_RegisterTerminal	telnet_register_terminal	1
+5607077	2026-09-21	3.1	function	src/ndlib/telnetserver.h	199	TelnetServer_SetDeviceLocallyActive	telnet_set_device_locally_active	1
+5607077	2026-09-21	3.1	function	src/ndlib/telnetserver.h	188	TelnetServer_SetTerminalLocallyActive	telnet_set_terminal_locally_active	1
+5607077	2026-09-21	3.1	function	src/ndlib/telnetserver.h	98	TelnetServer_Start	telnet_start	1
+5607077	2026-09-21	3.1	function	src/ndlib/telnetserver.h	106	TelnetServer_Stop	telnet_stop	1
+5607077	2026-09-21	3.1	function	tests/test_bcd.c	48	MemoryRead	cpu_memory_read	2
+5607077	2026-09-21	3.1	function	tests/test_bcd.c	49	MemoryWrite	cpu_memory_write	2
+5607077	2026-09-21	3.1	local variable	tests/test_cdc.c	464	CdcDevice_SetBackingFile	cdc_set_backing_file	3
+5607077	2026-09-21	3.1	local variable	tests/test_cdc.c	166	CreateCdcDevice	cdc_create_device	3
+5607077	2026-09-21	3.1	function	tests/test_cdc.c	67	Device_DMARead	dev_dma_read	1
+5607077	2026-09-21	3.1	function	tests/test_cdc.c	59	Device_DMAWrite	dev_dma_write	1
+5607077	2026-09-21	3.1	function	tests/test_cdc.c	51	Device_Init	dev_init	1
+5607077	2026-09-21	3.1	function	tests/test_cdc.c	76	Device_QueueIODelay	dev_queue_io_delay	1
+5607077	2026-09-21	3.1	function	tests/test_cdc.c	102	Device_SetInterruptStatus	dev_set_interrupt_status	1
+5607077	2026-09-21	3.1	function	tests/test_cdc.c	89	Device_TickIODelay	dev_tick_io_delay	1
+5607077	2026-09-21	3.1	local variable	tests/test_drum.c	142	CreateDrumDevice	drum_create_device	1
+5607077	2026-09-21	3.1	function	tests/test_drum.c	55	Device_DMARead	dev_dma_read	1
+5607077	2026-09-21	3.1	function	tests/test_drum.c	47	Device_DMAWrite	dev_dma_write	1
+5607077	2026-09-21	3.1	function	tests/test_drum.c	39	Device_Init	dev_init	1
+5607077	2026-09-21	3.1	function	tests/test_drum.c	64	Device_QueueIODelay	dev_queue_io_delay	1
+5607077	2026-09-21	3.1	function	tests/test_drum.c	92	Device_SetInterruptStatus	dev_set_interrupt_status	1
+5607077	2026-09-21	3.1	function	tests/test_drum.c	79	Device_TickIODelay	dev_tick_io_delay	1
+5607077	2026-09-21	3.1	local variable	tests/test_escp.c	35	Escp_Create	escp_create	13
+5607077	2026-09-21	3.1	local variable	tests/test_escp.c	49	Escp_Destroy	escp_destroy	13
+5607077	2026-09-21	3.1	local variable	tests/test_escp.c	361	Escp_GetPageCount	escp_get_page_count	4
+5607077	2026-09-21	3.1	local variable	tests/test_escp.c	41	Escp_GetSpans	escp_get_spans	13
+5607077	2026-09-21	3.1	local variable	tests/test_escp.c	27	Escp_PutChar	escp_put_char	52
+5607077	2026-09-21	3.1	local variable	tests/test_escp.c	189	Escp_Reset	escp_reset	4
+5607077	2026-09-21	3.1	local variable	tests/test_escp.c	328	Escp_StripToPlainChar	escp_strip_to_plain_char	13
+5607077	2026-09-21	3.1	function	tests/test_float.c	60	DoDNZ	float_do_dnz	2
+5607077	2026-09-21	3.1	function	tests/test_float.c	66	DoDNZ32	float_do_dnz32	6
+5607077	2026-09-21	3.1	function	tests/test_float.c	59	DoNLZ	float_do_nlz	3
+5607077	2026-09-21	3.1	function	tests/test_float.c	65	DoNLZ32	float_do_nlz32	3
+5607077	2026-09-21	3.1	function	tests/test_float.c	55	NDFloat_Add	float_add	2
+5607077	2026-09-21	3.1	function	tests/test_float.c	61	NDFloat_Add32	float_add_32	2
+5607077	2026-09-21	3.1	function	tests/test_float.c	58	NDFloat_Div	float_div	2
+5607077	2026-09-21	3.1	function	tests/test_float.c	64	NDFloat_Div32	float_div_32	2
+5607077	2026-09-21	3.1	function	tests/test_float.c	57	NDFloat_Mul	float_mul	2
+5607077	2026-09-21	3.1	function	tests/test_float.c	63	NDFloat_Mul32	float_mul_32	3
+5607077	2026-09-21	3.1	function	tests/test_float.c	56	NDFloat_Sub	float_sub	2
+5607077	2026-09-21	3.1	function	tests/test_float.c	62	NDFloat_Sub32	float_sub_32	2
+5607077	2026-09-21	3.1	function	tests/test_float.c	43	setbit	cpu_setbit	2
+5607077	2026-09-21	3.1	function	tests/test_floppydb.c	36	download_file	dl_download_file	1
+5607077	2026-09-21	3.1	function	tests/test_floppydb.c	41	get_downloaded_size	dl_get_downloaded_size	1
+5607077	2026-09-21	3.1	local variable	tests/test_hdlc_crc.c	127	HDLCFrame_AddByte	hdlc_frame_add_byte	1
+5607077	2026-09-21	3.1	local variable	tests/test_hdlc_crc.c	71	HDLCFrame_CalculateCRC	hdlc_frame_calculate_crc	4
+5607077	2026-09-21	3.1	local variable	tests/test_hdlc_crc.c	139	HDLCFrame_GetFrameData	hdlc_frame_get_frame_data	1
+5607077	2026-09-21	3.1	local variable	tests/test_hdlc_crc.c	136	HDLCFrame_GetFrameLength	hdlc_frame_get_frame_length	1
+5607077	2026-09-21	3.1	local variable	tests/test_hdlc_crc.c	122	HDLCFrame_Init	hdlc_frame_init	1
+5607077	2026-09-21	3.1	local variable	tests/test_hdlc_crc.c	135	HDLCFrame_IsCRCValid	hdlc_frame_is_crc_valid	1
+5607077	2026-09-21	3.1	local variable	tests/test_hdlc_crc.c	86	HDLCFrame_UpdateCRC	hdlc_frame_update_crc	1
+5607077	2026-09-21	3.1	local variable	tests/test_hdlc_crc.c	50	HDLC_CRC_CalcCCITT	hdlc_crc_crc_calc_ccitt	5
+5607077	2026-09-21	3.1	local variable	tests/test_hdlc_frame.c	131	HDLCFrame_AddByte	hdlc_frame_add_byte	19
+5607077	2026-09-21	3.1	local variable	tests/test_hdlc_frame.c	97	HDLCFrame_BuildFrame	hdlc_frame_build_frame	7
+5607077	2026-09-21	3.1	local variable	tests/test_hdlc_frame.c	82	HDLCFrame_DestuffByte	hdlc_frame_destuff_byte	2
+5607077	2026-09-21	3.1	local variable	tests/test_hdlc_frame.c	237	HDLCFrame_GetFrameData	hdlc_frame_get_frame_data	5
+5607077	2026-09-21	3.1	local variable	tests/test_hdlc_frame.c	234	HDLCFrame_GetFrameLength	hdlc_frame_get_frame_length	4
+5607077	2026-09-21	3.1	local variable	tests/test_hdlc_frame.c	128	HDLCFrame_Init	hdlc_frame_init	9
+5607077	2026-09-21	3.1	local variable	tests/test_hdlc_frame.c	231	HDLCFrame_IsCRCValid	hdlc_frame_is_crc_valid	4
+5607077	2026-09-21	3.1	local variable	tests/test_hdlc_frame.c	318	HDLCFrame_Reset	hdlc_frame_reset	1
+5607077	2026-09-21	3.1	local variable	tests/test_hdlc_frame.c	49	HDLCFrame_StuffByte	hdlc_frame_stuff_byte	3
+5607077	2026-09-21	3.1	function	tests/test_hdlc_main.c	19	ReadPhysicalMemory	mms_read_physical_memory	2
+5607077	2026-09-21	3.1	function	tests/test_hdlc_main.c	20	WritePhysicalMemory	mms_write_physical_memory	2
+5607077	2026-09-21	3.1	function	tests/test_hdlc_main.c	21	interrupt	cpu_interrupt	2
+5607077	2026-09-21	3.1	local variable	tests/test_load_prog.c	122	GetLastPROGHeader	prog_get_last_header	2
+5607077	2026-09-21	3.1	local variable	tests/test_load_prog.c	112	LoadPROG	prog_load	4
+5607077	2026-09-21	3.1	function	tests/test_load_prog.c	22	WritePhysicalMemory	mms_write_physical_memory	2
+5607077	2026-09-21	3.1	local variable	tests/test_log.c	106	Log_CategoryName	log_category_name	1
+5607077	2026-09-21	3.1	local variable	tests/test_log.c	83	Log_ParseSpec	log_parse_spec	8
+5607077	2026-09-21	3.1	local variable	tests/test_log.c	60	Log_SetSink	log_set_sink	2
+5607077	2026-09-21	3.1	local variable	tests/test_machine_config.c	121	MachineConfig_InitBaseline	mc_init_baseline	13
+5607077	2026-09-21	3.1	local variable	tests/test_machine_config.c	122	MachineConfig_LoadFile	mc_load_file	13
+5607077	2026-09-21	3.1	local variable	tests/test_machine_config.c	113	MachineConfig_SetDefaults	mc_set_defaults	3
+5607077	2026-09-21	3.1	local variable	tests/test_machine_config.c	119	MachineConfig_WriteFile	mc_write_file	4
+5607077	2026-09-21	3.1	function	tests/test_machine_config.c	33	SCSI_ParseUnitType	scsi_parse_unit_type	1
+5607077	2026-09-21	3.1	function	tests/test_machine_config.c	58	SCSI_UnitTypeName	scsi_unit_type_name	1
+5607077	2026-09-21	3.1	local variable	tests/test_pdfwriter.c	81	Pdf_AddPage	pdf_add_page	16
+5607077	2026-09-21	3.1	local variable	tests/test_pdfwriter.c	102	Pdf_AddTextSpan	pdf_add_text_span	23
+5607077	2026-09-21	3.1	local variable	tests/test_pdfwriter.c	68	Pdf_Create	pdf_create	14
+5607077	2026-09-21	3.1	local variable	tests/test_pdfwriter.c	73	Pdf_Destroy	pdf_destroy	15
+5607077	2026-09-21	3.1	local variable	tests/test_pdfwriter.c	119	Pdf_WriteToFile	pdf_write_to_file	11
+5607077	2026-09-21	3.1	function	tests/test_printer_main.c	25	ReadPhysicalMemory	mms_read_physical_memory	2
+5607077	2026-09-21	3.1	function	tests/test_printer_main.c	26	WritePhysicalMemory	mms_write_physical_memory	2
+5607077	2026-09-21	3.1	local variable	tests/test_printjob.c	278	PrintJob_CheckTimeout	pj_check_timeout	1
+5607077	2026-09-21	3.1	local variable	tests/test_printjob.c	68	PrintJob_Create	pj_create	8
+5607077	2026-09-21	3.1	local variable	tests/test_printjob.c	84	PrintJob_Destroy	pj_destroy	8
+5607077	2026-09-21	3.1	local variable	tests/test_printjob.c	72	PrintJob_Flush	pj_flush	8
+5607077	2026-09-21	3.1	local variable	tests/test_printjob.c	57	PrintJob_PutChar	pj_put_char	9
+5607077	2026-09-21	3.1	function	tests/test_rtc.c	36	CreateRTCDevice	rtc_create_device	2
+5607077	2026-09-21	3.1	function	tests/test_rtc.c	41	Device_Init	dev_init	2
+5607077	2026-09-21	3.1	function	tests/test_rtc.c	44	Device_RegisterAddress	dev_register_address	2
+5607077	2026-09-21	3.1	function	tests/test_rtc.c	43	Device_SetInterruptStatus	dev_set_interrupt_status	2
+5607077	2026-09-21	3.1	function	tests/test_rtc.c	42	Device_TickIODelay	dev_tick_io_delay	2
+5607077	2026-09-21	3.1	function	tests/test_rtc.c	37	RTC_SetWallClockMode	rtc_set_wall_clock_mode	3
+5607077	2026-09-21	3.1	function	tests/test_shell.c	71	GetLastBPUNHeader	bpun_get_last_header	1
+5607077	2026-09-21	3.1	function	tests/test_shell.c	84	GetLastPROGHeader	prog_get_last_header	1
+5607077	2026-09-21	3.1	function	tests/test_shell.c	100	get_cpu_run_mode	cpu_get_run_mode	1
+5607077	2026-09-21	3.1	function	tests/test_shell.c	45	program_load	machine_program_load	1
+5607077	2026-09-21	3.1	function	tests/test_shell.c	96	set_cpu_run_mode	cpu_set_run_mode	1
+5607077	2026-09-21	3.1	local variable	tests/test_tcp_receive_buffer.c	47	TcpReceiveBuffer_Available	rxbuf_available	10
+5607077	2026-09-21	3.1	local variable	tests/test_tcp_receive_buffer.c	161	TcpReceiveBuffer_Clear	rxbuf_clear	1
+5607077	2026-09-21	3.1	local variable	tests/test_tcp_receive_buffer.c	66	TcpReceiveBuffer_DequeueByte	rxbuf_dequeue_byte	6
+5607077	2026-09-21	3.1	local variable	tests/test_tcp_receive_buffer.c	48	TcpReceiveBuffer_Destroy	rxbuf_destroy	7
+5607077	2026-09-21	3.1	local variable	tests/test_tcp_receive_buffer.c	59	TcpReceiveBuffer_Enqueue	rxbuf_enqueue	9
+5607077	2026-09-21	3.1	local variable	tests/test_tcp_receive_buffer.c	46	TcpReceiveBuffer_Init	rxbuf_init	7
+5607077	2026-09-21	3.1	local variable	tests/test_winchester.c	248	CreateWinchesterDevice	wd_create_winchester_device	2
+5607077	2026-09-21	3.1	function	tests/test_winchester.c	76	Device_DMARead	dev_dma_read	1
+5607077	2026-09-21	3.1	function	tests/test_winchester.c	68	Device_DMAWrite	dev_dma_write	1
+5607077	2026-09-21	3.1	function	tests/test_winchester.c	128	Device_IO_BufferReadWord	dev_io_buffer_read_word	1
+5607077	2026-09-21	3.1	function	tests/test_winchester.c	134	Device_IO_BufferWriteWord	dev_io_buffer_write_word	1
+5607077	2026-09-21	3.1	function	tests/test_winchester.c	60	Device_Init	dev_init	1
+5607077	2026-09-21	3.1	function	tests/test_winchester.c	85	Device_QueueIODelay	dev_queue_io_delay	1
+5607077	2026-09-21	3.1	function	tests/test_winchester.c	121	Device_RegisterAddress	dev_register_address	1
+5607077	2026-09-21	3.1	function	tests/test_winchester.c	109	Device_SetInterruptStatus	dev_set_interrupt_status	1
+5607077	2026-09-21	3.1	function	tests/test_winchester.c	96	Device_TickIODelay	dev_tick_io_delay	8
+5607077	2026-09-21	3.1	local variable	tests/wd_trace.c	209	CreateWinchesterDevice	wd_create_winchester_device	1
+5607077	2026-09-21	3.1	function	tests/wd_trace.c	95	Device_DMARead	dev_dma_read	1
+5607077	2026-09-21	3.1	function	tests/wd_trace.c	87	Device_DMAWrite	dev_dma_write	1
+5607077	2026-09-21	3.1	function	tests/wd_trace.c	145	Device_IO_BufferReadWord	dev_io_buffer_read_word	1
+5607077	2026-09-21	3.1	function	tests/wd_trace.c	151	Device_IO_BufferWriteWord	dev_io_buffer_write_word	1
+5607077	2026-09-21	3.1	function	tests/wd_trace.c	79	Device_Init	dev_init	1
+5607077	2026-09-21	3.1	function	tests/wd_trace.c	104	Device_QueueIODelay	dev_queue_io_delay	1
+5607077	2026-09-21	3.1	function	tests/wd_trace.c	140	Device_RegisterAddress	dev_register_address	1
+5607077	2026-09-21	3.1	function	tests/wd_trace.c	128	Device_SetInterruptStatus	dev_set_interrupt_status	1
+5607077	2026-09-21	3.1	function	tests/wd_trace.c	115	Device_TickIODelay	dev_tick_io_delay	2
