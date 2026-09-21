@@ -47,6 +47,32 @@ EXCLUDE = (
 # Names the profile keeps (nd100x profile A.5, A.6): WASM exports and main.
 KEEP_NAMES = {"main", "Init", "Boot", "SendKeyToTerminal", "scsi_debug_enabled"}
 
+# Decisions already taken, which the rule text alone would re-litigate.
+# rename_naming.py carries the same list; keep the two in step.
+#
+#   opcode_*   the instruction handlers are opcode_<mnemonic>_<what it does>
+#              by Ronny's choice (21-SEP-2026); the file prefix does not
+#              apply to them.
+#   g[A-Z]*    the register access macros gPC, gA, gD, gB, gT, gX, gL, which
+#              the repo CLAUDE.md documents as the convention.
+#   _A.._X     the register file indices and their enum constants. One family
+#              declared together in cpu_types.h; renaming half of it is worse
+#              than renaming none.
+#   _DEGRADE_  a behavioural flag, documented in docs/ND-DOMAIN-GOTCHAS.md.
+DECIDED_PREFIX = ("opcode_",)
+DECIDED_NAMES = {
+    "_A", "_B", "_D", "_L", "_P", "_T", "_X", "_STS",
+    "_U0", "_U1", "_U2", "_U3", "_U4", "_U5", "_U6", "_U7",
+    "Four", "Sixteen", "_DEGRADE_", "_removed_MOVB_AND_MOVBF_",
+}
+DECIDED_MACRO = re.compile(r"^g[A-Z]")
+
+
+def decided(name):
+    """True for a name whose spelling has already been settled."""
+    return (name in DECIDED_NAMES or name.startswith(DECIDED_PREFIX)
+            or DECIDED_MACRO.match(name) is not None)
+
 # Platform macros: profile A.2 chose the compiler macros.
 RETIRED_PLATFORM = re.compile(r"\bPLATFORM_(WASM|WINDOWS|LINUX|RISCV)\b")
 PLATFORM_TEST = re.compile(
@@ -496,6 +522,9 @@ def check_tidy(bdir, entries, files, f, jobs):
                         continue
                     if rule == "3.4-3.7" and static_ok(rel, int(m.group(2)), m.group(4)):
                         continue
+                    named = ANY_CASE_MSG.match(m.group(4))
+                    if rule == "3.4-3.7" and named and decided(named.group(1)):
+                        continue
                     f.add(rule, rel, int(m.group(2)), m.group(4))
 
 
@@ -506,6 +535,9 @@ def check_tidy(bdir, entries, files, f, jobs):
 # on compliant statics such as rtc_wall_clock_mode and s_wrtc_bits. Those are
 # not findings and are dropped here.
 CASE_MSG = re.compile(r"invalid case style for global variable '([^']+)'")
+# Any kind, not just global variable: the settled names include macros
+# (gPC), enum constants (Four, Sixteen) and the register indices.
+ANY_CASE_MSG = re.compile(r"invalid case style for .+? '([^']+)'")
 STATIC_NAME = re.compile(r"^(s_)?[a-z][a-z0-9_]*$")
 
 
@@ -662,7 +694,8 @@ def check_symbols(objmap, files, f):
     for rel, syms in per_file.items():
         prefixes = collections.Counter()
         for t, name in syms:
-            if t == "T" and name not in KEEP_NAMES and not JS_EXPORT.match(name):
+            if t == "T" and name not in KEEP_NAMES and not JS_EXPORT.match(name) \
+                    and not decided(name):
                 if not MODULE_VERB.fullmatch(name):
                     f.add("3.1", rel, find_def_line(rel, name), name)
                 else:
@@ -690,7 +723,8 @@ def check_symbols(objmap, files, f):
             main_prefix = prefixes.most_common(1)[0][0]
             for t, name in syms:
                 if t == "T" and MODULE_VERB.fullmatch(name) and not name.startswith(main_prefix + "_") \
-                        and not JS_EXPORT.match(name):
+                        and not JS_EXPORT.match(name) and not decided(name) \
+                        and not rel.startswith("tests/"):
                     f.add("3.1", rel, find_def_line(rel, name), name + " (prefix differs from " + main_prefix + "_)")
     return per_file
 
