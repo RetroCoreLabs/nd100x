@@ -20,6 +20,20 @@
 cd "$(dirname "$0")/../.." || exit 2
 REPO=$(pwd)
 
+# Only one gate at a time. The builds go into fixed directories in the repo
+# (build_gate_debug and friends) and each run wipes them, so a second gate
+# started while the first is running deletes the first one's build. It does
+# not look like a clash: it shows up as ctest failing with "Failed to change
+# working directory to .../build_gate_debug/tests", which reads like a broken
+# change and is not one.
+LOCK="$REPO/.gate.lock"
+if ! mkdir "$LOCK" 2>/dev/null; then
+    echo "gate: another gate is running (lock: $LOCK)"
+    echo "  wait for it, or remove the directory if no gate is actually running"
+    exit 2
+fi
+trap 'rmdir "$LOCK" 2>/dev/null' EXIT INT TERM
+
 GOLDEN_DIR=docs/house-audit/golden
 WRITE_GOLDEN=0
 EXTRA=""

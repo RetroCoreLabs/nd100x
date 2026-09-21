@@ -98,3 +98,4 @@ external/curl-*-win64-mingw.zip
 /*.img
 /*.image
 *:Zone.Identifier
+.gate.lock/
