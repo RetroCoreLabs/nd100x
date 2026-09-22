@@ -47,7 +47,7 @@
   },
   "12.2": {
    "files": {
-    "src/cpu/cpu.c": 23,
+    "src/cpu/cpu.c": 5,
     "src/cpu/cpu_model.c": 1,
     "src/cpu/cpu_types.h": 1,
     "src/devices/hdlc/device_hdlc.c": 1,
@@ -55,7 +55,7 @@
     "src/devices/hdlc/modem.h": 3,
     "src/devices/rtc/device_rtc.c": 2
    },
-   "total": 40
+   "total": 22
   },
   "2.2": {
    "files": {},
@@ -142,7 +142,7 @@
   },
   "4.4": {
    "files": {
-    "src/cpu/cpu.c": 7,
+    "src/cpu/cpu.c": 4,
     "src/cpu/cpu_instr.c": 3,
     "src/cpu/cpu_model.c": 1,
     "src/debugger/debugger.c": 6,
@@ -162,11 +162,11 @@
     "tools/reth-tap/test-framing.c": 1,
     "tools/reth-tap/test-gateway.c": 1
    },
-   "total": 43
+   "total": 40
   },
   "4.5": {
    "files": {
-    "src/cpu/cpu.c": 3,
+    "src/cpu/cpu.c": 2,
     "src/cpu/cpu_bkpt.c": 1,
     "src/cpu/cpu_instr.c": 2,
     "src/cpu/cpu_mms.c": 1,
@@ -234,7 +234,7 @@
     "tests/test_shell.c": 1,
     "tests/test_tcp_receive_buffer.c": 1
    },
-   "total": 163
+   "total": 162
   },
   "4.6": {
    "files": {
@@ -271,7 +271,7 @@
   },
   "5.10": {
    "files": {
-    "src/cpu/cpu.c": 13,
+    "src/cpu/cpu.c": 1,
     "src/debugger/debugger.c": 3,
     "src/devices/terminal/device_terminal.h": 1,
     "src/frontend/nd100wasm/nd100wasm.c": 6,
@@ -280,7 +280,7 @@
     "src/ndlib/telnetserver.c": 4,
     "tools/reth-tap/reth-tap.c": 1
    },
-   "total": 31
+   "total": 19
   },
   "5.2": {
    "files": {

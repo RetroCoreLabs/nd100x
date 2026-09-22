@@ -76,7 +76,8 @@ static uint64_t throttle_get_ns(void)
 
 #include "cpu_types.h"
 #include "cpu_protos.h"
-#include "../ndlib/log.h"
+#include "atomic_compat.h"
+#include "log.h"
 
 /**
  * @brief Append one formatted fragment to a line being assembled in a buffer.
@@ -129,28 +130,12 @@ void cpu_ring_dump(void);
 #ifdef WITH_DEBUGGER
 void debugger_stop_thread(void);
 
-#ifdef __EMSCRIPTEN__
-/* WASM: single-threaded, no atomics needed */
-static int s_cpu_run_mode;
-static int s_cpu_stop_reason;
-static bool s_debugger_request_pause;
-static bool s_debugger_control_granted;
-#elif defined(_WIN32)
-#include <windows.h>
-static volatile LONG s_cpu_run_mode;
-static volatile LONG s_cpu_stop_reason;
-static volatile LONG s_debugger_request_pause;
-static volatile LONG s_debugger_control_granted;
-#else
-#include <stdatomic.h>
-#include <pthread.h>
-
-static atomic_int s_cpu_run_mode;            // CPURunMode
-static atomic_int s_cpu_stop_reason;         // CpuStopReason
-static atomic_bool s_debugger_request_pause; // set by DAP thread to request pause
-static atomic_bool
-    s_debugger_control_granted; // set by CPU thread when paused and debugger can access
-#endif
+/* Shared with the DAP server thread; see ../ndlib/atomic_compat.h. */
+static NdAtomicInt s_cpu_run_mode;             // CPURunMode
+static NdAtomicInt s_cpu_stop_reason;          // CpuStopReason
+static NdAtomicInt s_debugger_request_pause;   // set by DAP thread to request pause
+static NdAtomicInt s_debugger_control_granted; // set by CPU thread when paused and debugger can
+                                               // access
 
 #else
 int CurrentCPURunMode;
@@ -1313,13 +1298,9 @@ void cpu_cleanup(void)
 void cpu_set_debugger_request_pause(bool requested)
 {
 #ifdef WITH_DEBUGGER
-#ifdef __EMSCRIPTEN__
-    s_debugger_request_pause = requested;
-#elif defined(_WIN32)
-    InterlockedExchange((volatile LONG *)&s_debugger_request_pause, (LONG)requested);
+    nd_atomic_store_bool(&s_debugger_request_pause, requested);
 #else
-    atomic_store(&s_debugger_request_pause, requested);
-#endif
+    (void)requested;
 #endif
 }
 
@@ -1329,16 +1310,7 @@ void cpu_set_debugger_request_pause(bool requested)
 bool cpu_get_debugger_request_pause(void)
 {
 #ifdef WITH_DEBUGGER
-#ifdef __EMSCRIPTEN__
-    return s_debugger_request_pause;
-#elif defined(_WIN32)
-    return (CPURunMode)InterlockedCompareExchange((volatile LONG *)&s_debugger_request_pause,
-                                                  0, // Exchange value (ignored)
-                                                  0  // Comparand (ignored)
-    );
-#else
-    return atomic_load(&s_debugger_request_pause);
-#endif
+    return nd_atomic_load_bool(&s_debugger_request_pause);
 #else
     return false;
 #endif
@@ -1350,13 +1322,9 @@ bool cpu_get_debugger_request_pause(void)
 void cpu_set_debugger_control_granted(bool requested)
 {
 #ifdef WITH_DEBUGGER
-#ifdef __EMSCRIPTEN__
-    s_debugger_control_granted = requested;
-#elif defined(_WIN32)
-    InterlockedExchange((volatile LONG *)&s_debugger_control_granted, (LONG)requested);
+    nd_atomic_store_bool(&s_debugger_control_granted, requested);
 #else
-    atomic_store(&s_debugger_control_granted, requested);
-#endif
+    (void)requested;
 #endif
 }
 
@@ -1366,16 +1334,7 @@ void cpu_set_debugger_control_granted(bool requested)
 bool cpu_get_debugger_control_granted(void)
 {
 #ifdef WITH_DEBUGGER
-#ifdef __EMSCRIPTEN__
-    return s_debugger_control_granted;
-#elif defined(_WIN32)
-    return (CPURunMode)InterlockedCompareExchange((volatile LONG *)&s_debugger_control_granted,
-                                                  0, // Exchange value (ignored)
-                                                  0  // Comparand (ignored)
-    );
-#else
-    return atomic_load(&s_debugger_control_granted);
-#endif
+    return nd_atomic_load_bool(&s_debugger_control_granted);
 #else
     return false;
 #endif
@@ -1386,13 +1345,9 @@ bool cpu_get_debugger_control_granted(void)
 void cpu_set_stop_reason(CpuStopReason reason)
 {
 #ifdef WITH_DEBUGGER
-#ifdef __EMSCRIPTEN__
-    s_cpu_stop_reason = reason;
-#elif defined(_WIN32)
-    InterlockedExchange((volatile LONG *)&s_cpu_stop_reason, (LONG)reason);
+    nd_atomic_store(&s_cpu_stop_reason, (int)reason);
 #else
-    atomic_store(&s_cpu_stop_reason, reason);
-#endif
+    (void)reason;
 #endif
 }
 
@@ -1400,16 +1355,7 @@ void cpu_set_stop_reason(CpuStopReason reason)
 CpuStopReason cpu_get_stop_reason(void)
 {
 #ifdef WITH_DEBUGGER
-#ifdef __EMSCRIPTEN__
-    return (CpuStopReason)s_cpu_stop_reason;
-#elif defined(_WIN32)
-    return (CpuStopReason)InterlockedCompareExchange((volatile LONG *)&s_cpu_stop_reason,
-                                                     0, // Exchange value (ignored)
-                                                     0  // Comparand (ignored)
-    );
-#else
-    return atomic_load(&s_cpu_stop_reason);
-#endif
+    return (CpuStopReason)nd_atomic_load(&s_cpu_stop_reason);
 #else
     return STOP_REASON_NONE;
 #endif
@@ -1419,13 +1365,7 @@ CpuStopReason cpu_get_stop_reason(void)
 void cpu_set_run_mode(CPURunMode new_mode)
 {
 #ifdef WITH_DEBUGGER
-#ifdef __EMSCRIPTEN__
-    s_cpu_run_mode = new_mode;
-#elif defined(_WIN32)
-    InterlockedExchange((volatile LONG *)&s_cpu_run_mode, (LONG)new_mode);
-#else
-    atomic_store(&s_cpu_run_mode, new_mode);
-#endif
+    nd_atomic_store(&s_cpu_run_mode, (int)new_mode);
 #else
     CurrentCPURunMode = new_mode;
 #endif
@@ -1435,16 +1375,7 @@ void cpu_set_run_mode(CPURunMode new_mode)
 CPURunMode cpu_get_run_mode(void)
 {
 #ifdef WITH_DEBUGGER
-#ifdef __EMSCRIPTEN__
-    return (CPURunMode)s_cpu_run_mode;
-#elif defined(_WIN32)
-    return (CPURunMode)InterlockedCompareExchange((volatile LONG *)&s_cpu_run_mode,
-                                                  0, // Exchange value (ignored)
-                                                  0  // Comparand (ignored)
-    );
-#else
-    return atomic_load(&s_cpu_run_mode);
-#endif
+    return (CPURunMode)nd_atomic_load(&s_cpu_run_mode);
 #else
     return CurrentCPURunMode;
 #endif
