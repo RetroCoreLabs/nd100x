@@ -883,11 +883,12 @@ void disasm_dump(void)
     uint16_t w;
     char disasm_str[BUFSTRSIZE];
 
-    //char* disasm_fname = "disasm.txt";
-    const char *disasm_fname = "/dev/stdout";
-    const char *disasm_ftype = "w";
-
-    FILE *disasm_file = fopen(disasm_fname, disasm_ftype);
+    /* This dump goes to the console. It used to get there by opening
+     * "/dev/stdout", which does not exist on Windows: fopen returned NULL,
+     * every fprintf below was handed that NULL and the final fclose(NULL)
+     * finished the job. Writing to stdout directly removes both the crash
+     * and the platform dependency, and there is nothing left to close. */
+    FILE *disasm_file = stdout;
 
     for (i = 0; i < 65536; i++)
     {
@@ -909,9 +910,13 @@ void disasm_dump(void)
             if ((*g_dis)[i]->iscode)
             {
                 fprintf(disasm_file, "%s", (*g_dis)[i]->asm_str);
-                tmp = strlen((const char *)(*g_dis)[i]->asm_str);
-                fprintf(disasm_file, "%.*s", (32 - tmp),
-                        "                                 "); /* align */
+                tmp = (int)strlen((const char *)(*g_dis)[i]->asm_str);
+                /* Pad to column 32. A negative precision is treated as if it
+                 * were omitted, so a mnemonic of 32 characters or more used
+                 * to emit the whole pad string and push the rest of the line
+                 * out instead of adding nothing. Clamp it. */
+                int pad = (tmp < 32) ? (32 - tmp) : 0;
+                fprintf(disasm_file, "%.*s", pad, "                                 "); /* align */
                 if ((*g_dis)[i]->use_rel)
                 {
                     fprintf(disasm_file, "%% L%05d ", (*g_dis)[i]->rel_acc_lbl);
@@ -953,7 +958,7 @@ void disasm_dump(void)
         }
     }
 
-    fclose(disasm_file);
+    fflush(disasm_file);
 }
 
 
