@@ -59,7 +59,10 @@ static inline int nd_atomic_load(NdAtomicInt *slot)
 
 #include <windows.h>
 
-typedef volatile LONG NdAtomicInt;
+/* Not declared volatile: every access below goes through an Interlocked
+ * call, which is a full barrier the compiler cannot reorder or cache across,
+ * and C adds the volatile qualifier implicitly when the pointer is passed. */
+typedef LONG NdAtomicInt;
 
 static inline void nd_atomic_store(NdAtomicInt *slot, int value)
 {

@@ -505,8 +505,8 @@
     "src/cpu/cpu_instr.c": 4,
     "src/cpu/cpu_mms.c": 13,
     "src/debugger/debugger.c": 101,
-    "src/devices/cdc/device_cdc.c": 16,
-    "src/devices/drum/device_drum.c": 14,
+    "src/devices/cdc/device_cdc.c": 14,
+    "src/devices/drum/device_drum.c": 12,
     "src/devices/floppy/device_floppy_dma.c": 2,
     "src/devices/hdlc/device_hdlc.c": 2,
     "src/devices/hdlc/dma_control_blocks.c": 7,
@@ -529,16 +529,16 @@
     "src/frontend/nd100x/nd100x_shell.c": 23,
     "src/frontend/nd100x/screenmenu.c": 34,
     "src/frontend/nd100x/vscreen.c": 2,
-    "src/machine/machine.c": 27,
-    "src/machine/machine_config.c": 109,
+    "src/machine/machine.c": 24,
+    "src/machine/machine_config.c": 108,
     "src/machine/machine_config_json.c": 1,
-    "src/ndlib/floppydb.c": 13,
+    "src/ndlib/floppydb.c": 11,
     "src/ndlib/load_bpun.c": 1,
     "src/ndlib/load_prog.c": 4,
     "src/ndlib/log.c": 1,
     "src/ndlib/ndlib.c": 1,
-    "src/ndlib/pdfwriter.c": 17,
-    "src/ndlib/printjob.c": 6,
+    "src/ndlib/pdfwriter.c": 16,
+    "src/ndlib/printjob.c": 5,
     "src/ndlib/telnetserver.c": 6,
     "tests/test_bcd.c": 1,
     "tests/test_cdc.c": 2,
@@ -554,7 +554,7 @@
     "tools/reth-tap/reth-tap.c": 26,
     "tools/reth-tap/test-gateway.c": 1
    },
-   "total": 737
+   "total": 725
   },
   "7.4": {
    "files": {},
@@ -624,6 +624,6 @@
    "total": 30300
   }
  },
- "files": 157,
+ "files": 158,
  "skipped": []
 }

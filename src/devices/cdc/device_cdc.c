@@ -554,9 +554,18 @@ static void cdc_destroy(Device *self)
                 putc((d->surface[i] >> 8) & 0xFF, d->backingFile); /* high byte */
                 putc(d->surface[i] & 0xFF, d->backingFile);        /* low byte  */
             }
-            fflush(d->backingFile);
-            fclose(d->backingFile);
+            /* Sticky error flag: one test covers the fseek and every putc
+             * above. A failure here leaves the cartridge image half written. */
+            bool lost = (ferror(d->backingFile) != 0);
+            if (fclose(d->backingFile) != 0)
+            {
+                lost = true;
+            }
             d->backingFile = NULL;
+            if (lost)
+            {
+                LOG(LOG_CAT_CDC, LOG_ERROR, "cartridge image was not written back completely");
+            }
         }
         free(d->surface);
         d->surface = NULL;

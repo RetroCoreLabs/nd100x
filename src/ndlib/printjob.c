@@ -344,9 +344,24 @@ static void flush_job(PrintJob *pj)
     {
         if (pj->txtFile)
         {
-            fclose(pj->txtFile);
+            /* The error flag is sticky, so this catches any failed write
+             * during the job as well as the final flush in fclose. */
+            bool lost = (ferror(pj->txtFile) != 0);
+            if (fclose(pj->txtFile) != 0)
+            {
+                lost = true;
+            }
             pj->txtFile = NULL;
-            LOG(LOG_CAT_PRINTER, LOG_INFO, "Printer job %d saved to %s\n", pj->jobNumber, filename);
+            if (lost)
+            {
+                LOG(LOG_CAT_PRINTER, LOG_ERROR, "printer job %d: %s is incomplete", pj->jobNumber,
+                    filename);
+            }
+            else
+            {
+                LOG(LOG_CAT_PRINTER, LOG_INFO, "Printer job %d saved to %s", pj->jobNumber,
+                    filename);
+            }
         }
     }
     else

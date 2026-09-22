@@ -41,6 +41,7 @@
 #include "cJSON.h" /* bundled external/cJSON - on every build (see top CMakeLists) */
 
 #include "floppydb.h"
+#include "log.h"
 #include "download.h"
 
 /* ---- catalog endpoints (same as the F12 browser) ------------------------ */
@@ -224,8 +225,18 @@ static char *fdb_get_json(bool force_refresh)
             FILE *f = fopen(path, "wb");
             if (f)
             {
-                fputs(net, f);
-                fclose(f);
+                /* Cache write only: a failure costs one refetch next time,
+                 * so it is logged and the fetched data still returned. */
+                bool lost = (fputs(net, f) == EOF);
+                if (fclose(f) != 0)
+                {
+                    lost = true;
+                }
+                if (lost)
+                {
+                    LOG(LOG_CAT_GENERAL, LOG_WARN, "could not cache the floppy database to %s",
+                        path);
+                }
             }
         }
         free(path);

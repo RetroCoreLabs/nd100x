@@ -1594,7 +1594,19 @@ bool mc_write_file(const MachineConfig *cfg, const char *path, char *err, size_t
         }
     }
 
-    fclose(f);
+    /* Sticky error flag: one test covers every fprintf above, and fclose
+     * reports the final flush. Either failure leaves a half-written config
+     * file that would load again with sections silently missing. */
+    bool lost = (ferror(f) != 0);
+    if (fclose(f) != 0)
+    {
+        lost = true;
+    }
+    if (lost)
+    {
+        return mc_err(err, errlen, path, 0, "config file was not written completely (%s).",
+                      strerror(errno));
+    }
     return true;
 }
 

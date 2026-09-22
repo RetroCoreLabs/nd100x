@@ -1234,8 +1234,20 @@ void machine_unmount_drive(DRIVE_TYPE drive_type, int unit)
         // Close local file
         if (drives[unit].data.local_file)
         {
-            fclose(drives[unit].data.local_file);
+            /* The image is open rb+, so a failed close can lose a buffered
+             * sector write. Nothing can be retried at this point, but it
+             * must not pass unnoticed. */
+            bool lost = (ferror(drives[unit].data.local_file) != 0);
+            if (fclose(drives[unit].data.local_file) != 0)
+            {
+                lost = true;
+            }
             drives[unit].data.local_file = NULL;
+            if (lost)
+            {
+                LOG(LOG_CAT_MACHINE, LOG_ERROR,
+                    "unit %d: the image may not have been written back completely", unit);
+            }
         }
     }
 
@@ -1632,8 +1644,19 @@ int machine_block_write(Device *device, const uint8_t *buffer, size_t size, uint
         {
             return -1;
         }
-        fwrite(buffer, 1, bytes, entry->data.local_file);
-        fflush(entry->data.local_file);
+        /* A short write loses part of a sector. Report it the same way a
+         * failed seek is reported, so the controller can raise an error
+         * instead of the guest believing the write succeeded. */
+        if (fwrite(buffer, 1, bytes, entry->data.local_file) != bytes)
+        {
+            LOG(LOG_CAT_MACHINE, LOG_ERROR, "short write to the image at offset %zu", offset);
+            return -1;
+        }
+        if (fflush(entry->data.local_file) != 0)
+        {
+            LOG(LOG_CAT_MACHINE, LOG_ERROR, "could not flush the image at offset %zu", offset);
+            return -1;
+        }
     }
     return (int)size;
 }

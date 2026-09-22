@@ -49,6 +49,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "log.h"
+
 // Initial capacities
 #define INITIAL_PAGES 8
 #define INITIAL_SPANS 64
@@ -376,7 +378,20 @@ bool pdf_write_to_file(PdfDocument *doc, const char *filename)
     free(content_bufs);
     free(content_lens);
     free(offsets);
-    fclose(f);
+
+    /* The stream error flag is sticky, so one test here covers every fprintf
+     * and fwrite above; fclose reports whatever the final flush could not
+     * write. Either failure means the file on disk is not a whole PDF. */
+    bool failed = (ferror(f) != 0);
+    if (fclose(f) != 0)
+    {
+        failed = true;
+    }
+    if (failed)
+    {
+        LOG(LOG_CAT_PRINTER, LOG_ERROR, "failed to write %s: the PDF is incomplete", filename);
+        return false;
+    }
     return true;
 }
 
