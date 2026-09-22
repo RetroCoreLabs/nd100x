@@ -11,7 +11,7 @@
 #            (phase 0.5 only).
 #
 # Builds are CLEAN builds in their own directories (build_gate_debug,
-# build_gate_release, build_gate_wasm): an incremental build does not
+# build_gate_release, build_gate_wasm, build_gate_wasm_std): an incremental build does not
 # recompile unchanged files and so would hide their warnings.
 #
 # Needs: cmake, gcc, python3. WASM: emcmake on PATH (source emsdk_env.sh).
@@ -125,8 +125,29 @@ if [ "$SKIP_WASM" -eq 0 ]; then
         echo "$W"
         fail "warnings in WASM build"
     fi
+
+    # ---- G3b: WASM standard build (debugger OFF) -------------------------
+    # The glass build above defines WITH_DEBUGGER; "make wasm" does not.
+    # Emscripten with the debugger off is therefore a combination no other
+    # step compiles, and code behind #ifdef WITH_DEBUGGER in a WASM build is
+    # invisible to every native compiler and to clang-tidy.
+    step "G3b WASM standard build (debugger off)"
+    rm -rf build_gate_wasm_std
+    mkdir -p build_gate_wasm_std
+    (cd build_gate_wasm_std &&
+        emcmake cmake .. -DBUILD_WASM=ON -DDEBUGGER_ENABLED=OFF >>"$LOG" 2>&1) ||
+        fail "WASM standard configure"
+    cmake --build build_gate_wasm_std -j"$(nproc)" -- -Oline \
+        >"$TMP/build_gate_wasm_std.build" 2>&1 || fail "WASM standard build"
+    make -B -C tools/mkptypes CC=gcc >>"$LOG" 2>&1 || fail "mkptypes repair"
+    W=$(project_warnings "$TMP/build_gate_wasm_std.build")
+    if [ -n "$W" ]; then
+        echo "$W"
+        fail "warnings in WASM standard build"
+    fi
 else
     echo "== G3 skipped (--skip-wasm)"
+    echo "== G3b skipped (--skip-wasm)"
 fi
 
 BIN="$REPO/build_gate_debug/bin/nd100x"
