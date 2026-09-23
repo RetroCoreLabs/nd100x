@@ -22,12 +22,10 @@
  * passing a pointer instead of an array is a compile error rather than a
  * sizeof that quietly evaluates to 8.
  *
- *   ND_FORMAT(line, "PIL=%d PC=%06o", pil, pc);
- *
- *   if (!ND_PATH(filename, "%s/print-%d.%s", dir, num, ext))
- *   {
- *       return false;   // too long: do NOT use filename
- *   }
+ * A log line is written with ND_FORMAT(line, "PIL=%d PC=%06o", pil, pc) and
+ * needs nothing further. A filename is built with ND_PATH(filename, "%s/print
+ * -%d.%s", dir, num, ext), which returns false when the name did not fit; the
+ * caller must then give up rather than use the truncated name.
  */
 
 #ifndef ND_FORMAT_H
