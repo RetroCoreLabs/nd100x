@@ -48,6 +48,7 @@
 #endif
 
 #include "log.h"
+#include "nd_format.h"
 #include "printjob.h"
 #include "ndlib_types.h"
 #include "ndlib_protos.h"
@@ -106,11 +107,16 @@ static void ensure_directory(const char *path)
     }
 }
 
-// Build the output filename for current job
-static void build_filename(PrintJob *pj, char *buf, size_t buf_size)
+/**
+ * @brief Build the output filename for the current job.
+ * @details A truncated name would open, and later overwrite, a file other than
+ *          the one meant, so the caller must not use buf when this fails.
+ * @return true if the whole path fitted in buf.
+ */
+static bool build_filename(PrintJob *pj, char *buf, size_t buf_size)
 {
     const char *ext = (pj->outputFormat == PJ_FORMAT_PDF) ? "pdf" : "txt";
-    snprintf(buf, buf_size, "%s/print-%d.%s", pj->outputDir, pj->jobNumber, ext);
+    return nd_format_checked(buf, buf_size, "%s/print-%d.%s", pj->outputDir, pj->jobNumber, ext);
 }
 
 // Start a new job
@@ -126,7 +132,13 @@ static void start_new_job(PrintJob *pj)
     if (pj->outputFormat == PJ_FORMAT_TXT)
     {
         char filename[MAX_PATH];
-        build_filename(pj, filename, sizeof(filename));
+        if (!build_filename(pj, filename, sizeof(filename)))
+        {
+            LOG(LOG_CAT_PRINTER, LOG_ERROR,
+                "printer job %d: output path does not fit; the job is dropped", pj->jobNumber);
+            pj->jobActive = false;
+            return;
+        }
         pj->txtFile = fopen(filename, "w");
         if (!pj->txtFile)
         {
@@ -338,7 +350,14 @@ static void flush_job(PrintJob *pj)
     pj->lastJobLines = pj->jobLineCount;
 
     char filename[MAX_PATH];
-    build_filename(pj, filename, sizeof(filename));
+    bool have_name = build_filename(pj, filename, sizeof(filename));
+    if (!have_name)
+    {
+        /* Cannot happen once a job has started, since start_new_job builds
+         * the same name and drops the job when it does not fit. Reported
+         * rather than assumed, and nothing is written under a cut-off name. */
+        LOG(LOG_CAT_PRINTER, LOG_ERROR, "printer job %d: output path does not fit", pj->jobNumber);
+    }
 
     if (pj->outputFormat == PJ_FORMAT_TXT)
     {
@@ -378,7 +397,7 @@ static void flush_job(PrintJob *pj)
 
         if (pj->pdfDoc)
         {
-            if (pdf_write_to_file(pj->pdfDoc, filename))
+            if (have_name && pdf_write_to_file(pj->pdfDoc, filename))
             {
                 LOG(LOG_CAT_PRINTER, LOG_INFO, "Printer job %d saved to %s\n", pj->jobNumber,
                     filename);

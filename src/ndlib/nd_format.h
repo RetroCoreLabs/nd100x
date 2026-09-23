@@ -44,7 +44,8 @@
  */
 #if defined(__GNUC__) || defined(__clang__)
 #define ND_REQUIRE_ARRAY(a)                                                                        \
-    ((void)sizeof(char[1 - 2 * !!__builtin_types_compatible_p(__typeof__(a), __typeof__(&(a)[0]))]))
+    ((void)sizeof(                                                                                 \
+        char[1 - (2 * !!__builtin_types_compatible_p(__typeof__(a), __typeof__(&(a)[0])))]))
 #else
 #define ND_REQUIRE_ARRAY(a) ((void)0)
 #endif

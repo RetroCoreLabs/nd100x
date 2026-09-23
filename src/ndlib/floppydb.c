@@ -42,6 +42,7 @@
 
 #include "floppydb.h"
 #include "log.h"
+#include "nd_format.h"
 #include "download.h"
 
 /* ---- catalog endpoints (same as the F12 browser) ------------------------ */
@@ -100,10 +101,15 @@ static void fdb_ensure_cache_dir(void)
         return;
     }
     char d[600];
-    snprintf(d, sizeof(d), "%s/.cache", home);
-    FDB_MKDIR(d);
-    snprintf(d, sizeof(d), "%s%s", home, FDB_CACHE_SUFFIX);
-    FDB_MKDIR(d);
+    /* A cut-off path would create a directory other than the one meant. */
+    if (ND_PATH(d, "%s/.cache", home))
+    {
+        FDB_MKDIR(d);
+    }
+    if (ND_PATH(d, "%s%s", home, FDB_CACHE_SUFFIX))
+    {
+        FDB_MKDIR(d);
+    }
 }
 
 static char *fdb_read_file(const char *path)

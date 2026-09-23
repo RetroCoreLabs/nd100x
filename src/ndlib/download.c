@@ -31,6 +31,7 @@
 #include <string.h>
 
 #include "log.h"
+#include "nd_format.h"
 
 #if defined(__EMSCRIPTEN__) || defined(__riscv) || !defined(HAVE_CURL)
 
@@ -102,8 +103,8 @@ static const char *win_ca_bundle(void)
 
 #ifdef ND100X_VENDORED_CA_BUNDLE
     // (2) compile-time vendored path (external/curl/bin/curl-ca-bundle.crt)
-    snprintf(path, sizeof(path), "%s", ND100X_VENDORED_CA_BUNDLE);
-    FILE *f2 = fopen(path, "rb");
+    /* A cut-off path would name a different file, so it is not opened. */
+    FILE *f2 = ND_PATH(path, "%s", ND100X_VENDORED_CA_BUNDLE) ? fopen(path, "rb") : NULL;
     if (f2)
     {
         fclose(f2);

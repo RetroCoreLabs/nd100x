@@ -32,6 +32,7 @@
 
 #include <pthread.h> /* winpthreads on MinGW; libpthread on POSIX */
 
+#include "nd_format.h"
 #include "net_compat.h" /* sockets, poll, loopback wake-pair */
 #include "ndlib_types.h"
 #include "ndlib_protos.h"
@@ -865,7 +866,7 @@ static bool try_assign_pending(TelnetServer *server, PendingClient *pc, int sele
 
     // Assign client to terminal
     rt->clientFd = pc->fd;
-    snprintf(rt->clientAddrStr, sizeof(rt->clientAddrStr), "%s", pc->addrStr);
+    ND_FORMAT(rt->clientAddrStr, "%s", pc->addrStr);
 
     // Clear the ring buffer
     pthread_mutex_lock(&rt->outputMutex);
@@ -875,7 +876,7 @@ static bool try_assign_pending(TelnetServer *server, PendingClient *pc, int sele
 
     // Send connected message
     char conn_msg[128];
-    snprintf(conn_msg, sizeof(conn_msg), "\r\nConnected to %s\r\n\r\n", rt->info.name);
+    ND_FORMAT(conn_msg, "\r\nConnected to %s\r\n\r\n", rt->info.name);
     send(ND_SOCK_NATIVE(pc->fd), conn_msg, (int)strlen(conn_msg), MSG_NOSIGNAL);
 
     // Clear carrier missing
@@ -1154,8 +1155,8 @@ static void *accept_thread_func(void *arg)
                  MSG_NOSIGNAL);
 
             char addr_str[48];
-            snprintf(addr_str, sizeof(addr_str), "%s:%d", inet_ntoa(client_addr.sin_addr),
-                     ntohs(client_addr.sin_port));
+            ND_FORMAT(addr_str, "%s:%d", inet_ntoa(client_addr.sin_addr),
+                      ntohs(client_addr.sin_port));
 
             LOG(LOG_CAT_NET, LOG_INFO, "Telnet: connection from %s\n", addr_str);
 
@@ -1185,7 +1186,7 @@ static void *accept_thread_func(void *arg)
                 {
                     PendingClient *pc = &server->pending[server->pendingCount];
                     pc->fd = client_fd;
-                    snprintf(pc->addrStr, sizeof(pc->addrStr), "%s", addr_str);
+                    ND_FORMAT(pc->addrStr, "%s", addr_str);
                     pc->connectTime = time(NULL);
                     pc->iacState = TELNET_STATE_DATA;
                     pc->bytesRx = 0;
