@@ -333,19 +333,34 @@ def check_text(path, f):
                   f"guard {m.group(1)} should be {guard}")
 
     # 4.4 include order and 4.5
+    #
+    # An include inside #if/#ifdef is conditional and CANNOT be moved into the
+    # groups at the top: <windows.h> belongs under #ifdef _WIN32 and <time.h>
+    # under its #else, and hoisting either breaks the build it belongs to. The
+    # ordering rule applies to the unconditional includes only, so conditional
+    # ones are recorded (they still count for 4.5) but take no part in the
+    # group-order comparison. Corrected 23-SEP-2026: 21 of 40 findings were
+    # correctly-placed conditional includes.
     incs = []
+    depth = 0
     for no, ln in enumerate(code_lines, 1):
+        stripped = ln.lstrip()
+        if re.match(r"#\s*(if|ifdef|ifndef)\b", stripped):
+            depth += 1
+        elif re.match(r"#\s*endif\b", stripped):
+            depth = max(0, depth - 1)
         m = INCLUDE.match(lines[no - 1])
         # the raw line matches, and the line is not inside a comment
-        if m and ln.lstrip().startswith("#"):
-            incs.append((no, m.group(1), m.group(2)))
+        if m and stripped.startswith("#"):
+            incs.append((no, m.group(1), m.group(2), depth > 0))
             if m.group(2).startswith("../"):
                 f.add("4.5", path, no, lines[no - 1])
     if incs and path.endswith(".c"):
         own = base[:-2] + ".h"
         own_exists = os.path.exists(os.path.join(REPO, os.path.dirname(path), own))
-        if own_exists and os.path.basename(incs[0][2]) != own:
-            f.add("4.4", path, incs[0][0], f"first include is not {own}")
+        plain = [i for i in incs if not i[3]]
+        if plain and own_exists and os.path.basename(plain[0][2]) != own:
+            f.add("4.4", path, plain[0][0], f"first include is not {own}")
         # group rank: C standard <..> (no '/'), other system <..>, project "..."
         c_std = {"assert.h", "complex.h", "ctype.h", "errno.h", "fenv.h", "float.h",
                  "inttypes.h", "iso646.h", "limits.h", "locale.h", "math.h",
@@ -354,7 +369,9 @@ def check_text(path, f):
                  "stdnoreturn.h", "string.h", "tgmath.h", "time.h", "uchar.h",
                  "wchar.h", "wctype.h"}
         ranks = []
-        for no, kind, name in incs:
+        for no, kind, name, conditional in incs:
+            if conditional:
+                continue
             if own_exists and os.path.basename(name) == own:
                 continue
             if kind == "<":
