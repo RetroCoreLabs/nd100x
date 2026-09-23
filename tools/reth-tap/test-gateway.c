@@ -19,10 +19,11 @@
  */
 
 #define main reth_tap_main
+#include <assert.h>
+
 #include "reth-tap.c"
 #undef main
 
-#include <assert.h>
 
 static int g_fail;
 

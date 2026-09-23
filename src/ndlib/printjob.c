@@ -33,6 +33,8 @@
  *   escp + pdf:  bytes -> ESC/P interpreter -> styled spans -> PDF pages -> .pdf file
  */
 
+#include "printjob.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -49,7 +51,6 @@
 
 #include "log.h"
 #include "nd_format.h"
-#include "printjob.h"
 #include "ndlib_types.h"
 #include "ndlib_protos.h"
 

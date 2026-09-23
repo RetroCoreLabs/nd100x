@@ -5,6 +5,8 @@
  * Copyright (c) 2025 Ronny Hansen
  */
 
+#include "debugger.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -29,7 +31,6 @@
 #endif
 
 #include "log.h"
-#include "debugger.h"
 #include "../cpu/cpu_types.h"
 #include "../cpu/cpu_protos.h"
 #include "../cpu/expr_eval.h"

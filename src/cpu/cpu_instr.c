@@ -28,6 +28,10 @@
  */
 
 
+#include <stdlib.h>
+#include <string.h> /* strlen()/strcmp() - VERSN identity parsing, see opcode_versn_read_cpu_version() */
+#include <stdio.h>
+
 #include "cpu_types.h"
 #include "cpu_protos.h"
 #include "../ndlib/log.h"
@@ -44,9 +48,6 @@ void cpu_set_ring_at_clpt(int64_t n)
 {
     s_ring_at_clpt = n > 0 ? n : 0;
 }
-#include <stdlib.h>
-#include <string.h> /* strlen()/strcmp() - VERSN identity parsing, see opcode_versn_read_cpu_version() */
-#include <stdio.h>
 static void do_ident(uint16_t);
 static void do_lrb(uint16_t);
 static void do_srb(uint16_t);

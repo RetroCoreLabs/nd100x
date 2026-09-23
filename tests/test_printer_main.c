@@ -13,14 +13,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
+#include <stdbool.h>
 
 #include <unistd.h>
 
 /* Linker stubs for symbols declared in ndlib_types.h but defined in
  * the cpu module.  The test code never calls these, but the linker
  * may pull them in transitively through ndlib object files. */
-#include <stdint.h>
-#include <stdbool.h>
 /* Prototypes match the real functions in src/cpu (cpu_protos.h). */
 int mms_read_physical_memory(int physical_address, bool privileged);
 void mms_write_physical_memory(int physical_address, uint16_t value, bool privileged);

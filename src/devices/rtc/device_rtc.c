@@ -25,6 +25,8 @@
  */
 
 
+#include "device_rtc.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -38,7 +40,6 @@
 #include "../devices_types.h"
 #include "../devices_protos.h"
 
-#include "device_rtc.h"
 
 #define TICKS_20MS 10550 // Ticks for 20ms timer (real-time at 0.5275 MIPS, the --throttle default)
 

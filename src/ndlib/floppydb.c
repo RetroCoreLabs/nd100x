@@ -21,6 +21,8 @@
  * the terms of the GNU General Public License, version 2 or (at your option) any
  * later version. See COPYING.
  */
+#include "floppydb.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -40,7 +42,6 @@
 
 #include "cJSON.h" /* bundled external/cJSON - on every build (see top CMakeLists) */
 
-#include "floppydb.h"
 #include "log.h"
 #include "nd_format.h"
 #include "download.h"
