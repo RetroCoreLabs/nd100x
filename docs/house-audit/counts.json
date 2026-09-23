@@ -142,27 +142,13 @@
   },
   "4.4": {
    "files": {
-    "src/cpu/cpu.c": 4,
-    "src/cpu/cpu_instr.c": 3,
-    "src/cpu/cpu_model.c": 1,
-    "src/debugger/debugger.c": 6,
-    "src/devices/hdlc/modem.c": 5,
-    "src/devices/rtc/device_rtc.c": 2,
     "src/devices/scsi/device_scsi.c": 1,
     "src/devices/scsi/disk_scsi.c": 1,
     "src/devices/scsi/scsi_bus.c": 1,
     "src/devices/scsi/scsi_device.c": 1,
-    "src/devices/scsi/scsi_hdd.c": 1,
-    "src/frontend/nd100x/nd100x_shell.c": 2,
-    "src/ndlib/download.c": 2,
-    "src/ndlib/floppydb.c": 2,
-    "src/ndlib/ndlib.c": 3,
-    "src/ndlib/printjob.c": 1,
-    "tests/test_printer_main.c": 2,
-    "tools/reth-tap/test-framing.c": 1,
-    "tools/reth-tap/test-gateway.c": 1
+    "src/devices/scsi/scsi_hdd.c": 1
    },
-   "total": 40
+   "total": 5
   },
   "4.5": {
    "files": {
