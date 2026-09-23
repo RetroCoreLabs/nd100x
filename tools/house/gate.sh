@@ -225,7 +225,7 @@ fi
 step "G8 rule counts"
 python3 tools/house/audit.py --compare docs/house-audit/counts.json >"$TMP/audit.txt" 2>&1 ||
     { cat "$TMP/audit.txt"; fail "a rule count went up (tools/house/audit.py)"; }
-tail -1 "$TMP/audit.txt"
+tail -2 "$TMP/audit.txt"   # TOTAL, then the REVIEW backlog that is not in it
 
 # ---- extra gates ---------------------------------------------------------
 if has_extra cpu; then

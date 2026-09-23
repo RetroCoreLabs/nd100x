@@ -187,7 +187,7 @@ WHAT = {
     "11.4": "FIXME / TODO without (name)",
     "12.1": "retired PLATFORM_* macro",
     "12.2": "platform #if in src/cpu or src/devices",
-    "REVIEW": "empty cells in docs/house-audit/review (manual rules)",
+    "REVIEW": "unfilled manual-checklist cells (1 function = 20 cells)",
 }
 
 TIDY_RULES = {
@@ -975,15 +975,25 @@ def main():
             print(f"{p}:{ln}: {text}")
         return 0
 
+    # REVIEW is NOT part of the total. It counts empty cells in the manual
+    # checklist: one row per function times twenty rule columns. Reading a
+    # function once answers all twenty, so 1557 unreviewed functions were
+    # being reported as 30300 findings and burying the real code count by a
+    # factor of twenty. It is printed under the total as its own backlog.
     total = 0
     for rule in sorted(counts, key=key):
         if a.rule and rule != a.rule:
+            continue
+        if rule == "REVIEW":
             continue
         n = counts[rule]["total"]
         total += n
         mark = " (not measured this run)" if rule in skipped else ""
         print(f"{rule:8} {n:7}  {WHAT.get(rule, '')}{mark}")
     print(f"{'TOTAL':8} {total:7}  in {len(files)} files")
+    if not a.rule or a.rule == "REVIEW":
+        print(f"{'REVIEW':8} {counts.get('REVIEW', {}).get('total', 0):7}  "
+              f"{WHAT['REVIEW']} - NOT in the total")
 
     if a.write:
         with open(a.write, "w") as fh:
