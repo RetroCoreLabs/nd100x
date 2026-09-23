@@ -173,7 +173,7 @@ WHAT = {
     "6.7": "#if 0 / commented-out code",
     "6.8": "macro hygiene",
     "7.1": "function over 100 lines or 6 parameters (no exemption)",
-    "7.3": "return value not checked",
+    "7.3": "return value not checked (console prints excluded, see ERR33_IGNORE)",
     "7.4": "exit/abort in library code",
     "7.6": "else after return",
     "8.3": "p = realloc(p, ...)",
@@ -522,6 +522,8 @@ def check_tidy(bdir, entries, files, f, jobs):
                         continue
                     if rule == "3.4-3.7" and static_ok(rel, int(m.group(2)), m.group(4)):
                         continue
+                    if rule == "7.3" and err33_ignorable(rel, int(m.group(2))):
+                        continue
                     named = ANY_CASE_MSG.match(m.group(4))
                     if rule == "3.4-3.7" and named and decided(named.group(1)):
                         continue
@@ -562,6 +564,37 @@ def static_ok(rel, line, message):
         if re.search(r"[;{}]", lines[no]) and no != line - 1:
             break
     return False
+
+
+# Rule 7.3 measures return values that can be discarded with real consequence:
+# a short fwrite, a failed fseek or fclose, a truncated snprintf. A console
+# print is different in kind - fprintf(stderr, ...) has no recoverable failure,
+# nothing sensible to do if it fails, and no caller that would act on the
+# result. clang-tidy's cert-err33-c does not distinguish the two, so the print
+# family is filtered out here rather than being silenced with (void) casts at
+# roughly 600 call sites. Decided 23-SEP-2026.
+ERR33_IGNORE = {"printf", "fprintf", "vfprintf", "vprintf",
+                "puts", "fputs", "putc", "putchar", "fputc", "fflush"}
+
+# The cert-err33-c message never names the function, so the call has to be
+# identified from the source line the diagnostic points at.
+ERR33_CALL = re.compile(r"\b([a-z_][a-z0-9_]*)\s*\(")
+
+
+def err33_ignorable(rel, line):
+    """True when the discarded return value belongs to a console print."""
+    try:
+        with open(os.path.join(REPO, rel), errors="replace") as fh:
+            lines = fh.read().split("\n")
+    except OSError:
+        return False
+    if line < 1 or line > len(lines):
+        return False
+    text = lines[line - 1].lstrip()
+    # A cast or an assignment means the result IS used or deliberately
+    # discarded already; only a bare statement call is filtered.
+    m = ERR33_CALL.match(text)
+    return bool(m) and m.group(1) in ERR33_IGNORE
 
 
 def size_exempt(rel, line):
