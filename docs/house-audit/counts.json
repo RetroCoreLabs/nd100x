@@ -528,13 +528,12 @@
     "src/machine/machine.c": 24,
     "src/machine/machine_config.c": 38,
     "src/machine/machine_config_json.c": 1,
-    "src/ndlib/floppydb.c": 11,
+    "src/ndlib/floppydb.c": 9,
     "src/ndlib/load_bpun.c": 1,
     "src/ndlib/load_prog.c": 4,
     "src/ndlib/ndlib.c": 1,
     "src/ndlib/pdfwriter.c": 2,
-    "src/ndlib/printjob.c": 1,
-    "src/ndlib/telnetserver.c": 6,
+    "src/ndlib/telnetserver.c": 2,
     "tests/test_bcd.c": 1,
     "tests/test_cdc.c": 2,
     "tests/test_float.c": 3,
@@ -549,7 +548,7 @@
     "tools/reth-tap/reth-tap.c": 5,
     "tools/reth-tap/test-gateway.c": 1
    },
-   "total": 427
+   "total": 420
   },
   "7.4": {
    "files": {},
