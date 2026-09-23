@@ -474,6 +474,13 @@ Remember to end your code with 'opcom' to make the emulator stop executing your 
 
 Overview of all [assembly instructions](docs/cpu_documentation.md)
 
+## Known unfinished work
+
+Every `TODO` and `FIXME` left in the source without an owner is catalogued in
+the [TODO and FIXME inventory](docs/TODO-INVENTORY.md) - 51 of them across 16
+files, with the file, line, enclosing function and the comment itself, so each
+can be judged on its own.
+
 ## Multiple systems
 
 The nd100x emulator has been compuiled and tested on multiple different systems.
