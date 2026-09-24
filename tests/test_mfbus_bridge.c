@@ -19,6 +19,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "cpu_types.h"
 #include "mfbus_bridge.h"
@@ -47,6 +48,15 @@ static struct CpuRegs s_test_regs;
 
 int main(void)
 {
+    /* A scratch directory for the load test's image. */
+    char dir_tmpl[] = "/tmp/nd100x_mfbus_testXXXXXX";
+    char *dir = mkdtemp(dir_tmpl);
+    if (dir == NULL)
+    {
+        printf("mkdtemp failed\n");
+        return 1;
+    }
+
     printf("MFbus bridge tests - the ND-100 / ND-5000 join\n");
     printf("==============================================\n\n");
 
@@ -242,6 +252,53 @@ int main(void)
      * owns_memory is for. Detaching afterwards is what frees it. */
     mfbus_detach();
     CHECK(!mfbus_is_attached(), "and detaching afterwards is clean");
+
+    /* ---- loading a program into the shared pool ---------------------------
+     * The pool is SHARED, so a loader that writes from offset 0 would land on
+     * the mailbox global header. The offset is explicit for that reason. */
+    CHECK(mfbus_attach(TEST_POOL_BYTES, TEST_BASE_PAGE), "reattach for the load test");
+    CHECK(mfbus_add_nd5000(56), "a station");
+    CHECK(mfbus_attach_cpu(56), "with a CPU");
+
+    CHECK(!mfbus_load_nd5000(57, "/nonexistent", 0), "loading for a station with no CPU fails");
+    CHECK(!mfbus_load_nd5000(56, NULL, 0), "a NULL path is refused");
+    CHECK(!mfbus_load_nd5000(56, "/nonexistent/image.bin", 0), "an unreadable file fails");
+
+    {
+        /* A small image with a recognisable pattern. */
+        char img[300];
+        snprintf(img, sizeof(img), "%s/mfbus_test_image.bin", dir);
+        FILE *f = fopen(img, "wb");
+        CHECK(f != NULL, "the test image is created");
+        if (f)
+        {
+            static const uint8_t pattern[8] = {0xDE, 0xAD, 0xBE, 0xEF, 0x01, 0x02, 0x03, 0x04};
+            fwrite(pattern, 1, sizeof(pattern), f);
+            fclose(f);
+
+            /* Load WELL AWAY from offset 0, where the mailbox lives. */
+            const uint32_t load_at = 0x1000;
+            CHECK(mfbus_load_nd5000(56, img, load_at), "the image loads at an explicit offset");
+            CHECK(ndbus_pool_read8(mfbus_pool(), load_at) == 0xDE, "byte 0 landed");
+            CHECK(ndbus_pool_read8(mfbus_pool(), load_at + 7) == 0x04, "and byte 7");
+            CHECK(ndbus_pool_read8(mfbus_pool(), 0) == 0,
+                  "and pool offset 0 - where the mailbox header lives - is UNTOUCHED");
+
+            /* An image that does not fit at that offset is refused. */
+            CHECK(!mfbus_load_nd5000(56, img, TEST_POOL_BYTES - 4),
+                  "an image that overruns the pool is refused");
+
+            /* A running CPU is refused: loading underneath a thread fetching
+             * instructions leaves it executing half of each image. */
+            CHECK(mfbus_start_nd5000(56), "start the CPU");
+            bool refused_while_running = !mfbus_load_nd5000(56, img, load_at);
+            mfbus_stop_nd5000(56);
+            CHECK(refused_while_running, "loading into a RUNNING CPU is refused");
+            CHECK(mfbus_load_nd5000(56, img, load_at), "and allowed again once it is stopped");
+        }
+    }
+
+    mfbus_detach();
 
     printf("\n%d check(s), %d failed\n", s_checks, s_failed);
     if (s_failed != 0)

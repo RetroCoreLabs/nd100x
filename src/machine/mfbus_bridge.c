@@ -347,6 +347,43 @@ bool mfbus_attach_cpu(uint8_t station_number)
     return true;
 }
 
+bool mfbus_load_nd5000(uint8_t station_number, const char *path, uint32_t pool_offset)
+{
+    int slot = mfbus_slot_of(station_number);
+    if (slot < 0 || !s_cpus[slot].present || path == NULL)
+    {
+        return false;
+    }
+
+    MfbusCpuSlot *c = &s_cpus[slot];
+
+    /* Refuse a running CPU: loading underneath a thread that is fetching
+     * instructions produces a machine executing half an old image and half a
+     * new one, which is not a state any diagnosis would guess. */
+    if (ndbus_runner_state(&c->runner) != NDBUS_RUNNER_IDLE)
+    {
+        LOG(LOG_CAT_MMS, LOG_ERROR, "MFbus: %s is running - stop it before loading\n", c->name);
+        return false;
+    }
+
+    /* nd500_load_file_to_memory() bounds-checks against the machine's memory
+     * size, which here is the whole pool. */
+    int rc = nd500_load_file_to_memory(&c->machine, path, pool_offset);
+    if (rc != 0)
+    {
+        LOG(LOG_CAT_MMS, LOG_ERROR, "MFbus: could not load %s at pool offset 0x%X for %s (%d)\n",
+            path, (unsigned)pool_offset, c->name, rc);
+        return false;
+    }
+
+    /* The image begins where it was put, so that is where execution starts. */
+    c->cpu.PC = pool_offset;
+
+    LOG(LOG_CAT_MMS, LOG_INFO, "MFbus: loaded %s at pool offset 0x%X for %s, PC set\n", path,
+        (unsigned)pool_offset, c->name);
+    return true;
+}
+
 bool mfbus_start_nd5000(uint8_t station_number)
 {
     int slot = mfbus_slot_of(station_number);

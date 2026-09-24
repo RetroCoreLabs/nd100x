@@ -171,7 +171,29 @@ void mc_apply_devices(const MachineConfig *mc)
                 {
                     continue;
                 }
-                (void)mfbus_add_nd5000((uint8_t)cpu5->station);
+                if (!mfbus_add_nd5000((uint8_t)cpu5->station))
+                {
+                    continue;
+                }
+                if (!mfbus_attach_cpu((uint8_t)cpu5->station))
+                {
+                    continue;
+                }
+
+                /*
+                 * A kernel named in the .ini is loaded at pool offset 0 ONLY
+                 * when no mailbox is configured there. Loading over the mailbox
+                 * global header would overwrite X5SEM with program text, and
+                 * the symptom is a semaphore that never unlocks.
+                 *
+                 * mc_validate() has already refused a configuration where more
+                 * than one enabled CPU names boot material, so at most one CPU
+                 * reaches this.
+                 */
+                if (cpu5->kernel[0] != '\0')
+                {
+                    (void)mfbus_load_nd5000((uint8_t)cpu5->station, cpu5->kernel, 0);
+                }
             }
         }
     }

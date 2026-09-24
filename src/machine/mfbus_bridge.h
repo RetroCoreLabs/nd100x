@@ -134,6 +134,28 @@ void mfbus_clear_nd5000(void);
 bool mfbus_attach_cpu(uint8_t station_number);
 
 /**
+ * @brief Load a program image into the shared pool for the CPU at this station.
+ *
+ * AN EXPLICIT POOL OFFSET, not "the start of memory". The pool is SHARED: its
+ * low bytes carry the mailbox global header, whose word 0 is the X5SEM
+ * semaphore. A loader that writes from offset 0 - which is what the plain a.out
+ * path does - would overwrite the semaphore with program text, and the symptom
+ * is a mailbox that never unlocks rather than anything that points at the load.
+ * So the caller says where, and the range is bounds-checked.
+ *
+ * The CPU's PC is set to @p pool_offset, because that is where the image now
+ * begins. The CPU is NOT started; the ND-120 does that with an ACCP STARTMIC.
+ *
+ * @param station_number The station whose CPU to load for.
+ * @param path           Host path of the image.
+ * @param pool_offset    Pool BYTE offset to load at, which is also the ND-500
+ *                       physical address, since the pool IS the CPU's memory.
+ * @return true on success; false when the station has no CPU, the file cannot
+ *         be read, or the image does not fit the pool at that offset.
+ */
+bool mfbus_load_nd5000(uint8_t station_number, const char *path, uint32_t pool_offset);
+
+/**
  * @brief Start the host thread of the CPU at this station.
  * @param station_number The station whose CPU to run.
  * @return true when the thread started; false when the station has no CPU, the
