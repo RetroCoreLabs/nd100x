@@ -521,3 +521,33 @@ target_link_libraries(test_octobus PRIVATE -Wl,--start-group ndlib -Wl,--end-gro
 add_dependencies(test_octobus cpu)
 
 add_test(NAME octobus_tests COMMAND test_octobus)
+
+# The MFbus bridge: the ND-100 / ND-5000 shared-memory join.
+#
+# Only when the ND-500 is built - the bridge compiles to nothing otherwise. Uses
+# the SAME group link as test_memory_banks, for the same reason: cpu, devices,
+# machine and the debugger call into each other.
+if(ND100X_WITH_ND500)
+    add_executable(test_mfbus_bridge
+        test_mfbus_bridge.c
+        ${CMAKE_SOURCE_DIR}/src/cpu/cpu_mms.c
+    )
+
+    target_compile_definitions(test_mfbus_bridge PRIVATE ND100X_WITH_ND500=1)
+
+    target_include_directories(test_mfbus_bridge PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_SOURCE_DIR}/src/cpu
+        ${CMAKE_SOURCE_DIR}/src/machine
+        ${CMAKE_SOURCE_DIR}/src/devices
+        ${CMAKE_SOURCE_DIR}/src/ndlib
+    )
+
+    target_link_libraries(test_mfbus_bridge PRIVATE
+        -Wl,--start-group cpu machine devices debugger ndlib -Wl,--end-group
+        nd500::ndbus nd500::machine nd500::cpu m)
+
+    add_dependencies(test_mfbus_bridge cpu)
+
+    add_test(NAME mfbus_bridge_tests COMMAND test_mfbus_bridge)
+endif()

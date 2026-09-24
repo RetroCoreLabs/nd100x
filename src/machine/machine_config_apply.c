@@ -15,6 +15,7 @@
 #include "../cpu/cpu_types.h"
 #include "../devices/devices_types.h"
 #include "../devices/devices_protos.h"
+#include "mfbus_bridge.h"
 
 void mc_apply_cpu(const MachineConfig *mc, const MachineConfigApplyOpts *opts)
 {
@@ -134,4 +135,53 @@ void mc_apply_devices(const MachineConfig *mc)
                              c->hdlc_port);
         }
     }
+
+#ifdef ND100X_WITH_ND500
+    /*
+     * The multifunction bus: ONE shared memory pool, the ND-100's octobus card,
+     * and a station per ND-5000.
+     *
+     * ORDER MATTERS. The pool is attached first because both of the others
+     * depend on it - a station with no shared memory has nowhere to execute -
+     * and it is registered as an ND_MEM_MPM5 bank, which is what makes SINTRAN
+     * find it at all.
+     */
+    if (mc->mfbus.enabled)
+    {
+        /* Defaults that match the schema's documented ones rather than zero: a
+         * pool of no size and a base page of 0 would both be accepted here and
+         * then fail deep inside the bank table. */
+        uint32_t size_mb = (mc->mfbus.size_mb > 0) ? (uint32_t)mc->mfbus.size_mb : 16u;
+        uint32_t base_page = mc->mfbus.base_page_set ? (uint32_t)mc->mfbus.base_page : 04100u;
+
+        if (mfbus_attach(size_mb * 1024u * 1024u, base_page))
+        {
+            /* The ND-100's way onto the bus. Station 1B is fixed in the
+             * hardware, so the card carries no station setting - only which of
+             * the four interfaces it is. */
+            if (mc->octobus.enabled)
+            {
+                devmgr_add_device(DEVICE_TYPE_OCTOBUS, 0);
+            }
+
+            for (int i = 0; i < mc->nd5000Count; i++)
+            {
+                const McNd5000 *cpu5 = &mc->nd5000[i];
+                if (!cpu5->enabled)
+                {
+                    continue;
+                }
+                (void)mfbus_add_nd5000((uint8_t)cpu5->station);
+            }
+        }
+    }
+    else if (mc->nd5000Count > 0)
+    {
+        /* mc_validate() refuses this, so reaching it means the configuration was
+         * applied without being validated. Say so rather than building a
+         * machine with CPUs that cannot run. */
+        LOG(LOG_CAT_MMS, LOG_WARN,
+            "ND-5000 CPUs are configured but there is no [mfbus] pool - none were added\n");
+    }
+#endif /* ND100X_WITH_ND500 */
 }

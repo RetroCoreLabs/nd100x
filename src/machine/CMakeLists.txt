@@ -51,6 +51,11 @@ target_link_libraries(machine
     PUBLIC devices
 )
 
+# NOTE: the MFbus bridge's compile definition and its nd500::ndbus link are
+# applied in the TOP-LEVEL CMakeLists, not here. This directory is added before
+# nd500x is detected, so ND100X_WITH_ND500 is still OFF at this point - testing
+# it here silently never fires.
+
 # Set properties
 set_target_properties(machine PROPERTIES
     POSITION_INDEPENDENT_CODE ON

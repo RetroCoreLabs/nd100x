@@ -337,6 +337,25 @@ if(ND100X_ND500X_DIR AND EXISTS "${ND100X_ND500X_DIR}/CMakeLists.txt")
     set(SKIP_LIBDAP ON CACHE BOOL "" FORCE)
     add_subdirectory(${ND100X_ND500X_DIR} ${CMAKE_BINARY_DIR}/nd500x EXCLUDE_FROM_ALL)
 
+    # The MFbus bridge, src/machine/mfbus_bridge.c, joins the shared ND-5000
+    # memory pool to the ND-100 bank table. It compiles to NOTHING without this
+    # definition, so a machine built with no ND-500 needs none of nd500x's
+    # headers.
+    #
+    # Applied HERE and not in src/machine/CMakeLists.txt: that directory is
+    # added further up this file, before nd500x is detected, so a test of
+    # ND100X_WITH_ND500 there is always false and never says so.
+    target_compile_definitions(machine PRIVATE ND100X_WITH_ND500=1)
+    # mfbus_bridge.c creates a real Nd500Machine per ND-5000 station, so the
+    # ND-500 CPU comes along. nd500x's libraries are all nd500_-prefixed, so
+    # nothing collides with nd100x's own cpu/machine/ndlib.
+    target_link_libraries(machine PUBLIC nd500::ndbus nd500::machine nd500::cpu)
+    # nd500::headers puts nd500x's src/ on the include path so mfbus_bridge.c can
+    # say "cpu/cpu_protos.h" and reach nd500x's, not nd100x's file of the same
+    # basename.
+    target_link_libraries(machine PRIVATE nd500::headers)
+    # machine_config_apply.c builds the MFbus, the octobus card and the ND-5000
+    # stations from the .ini, and is in the same library.
     message(STATUS "ND-500 ENABLED from ${ND100X_ND500X_DIR}")
     if(ND100X_ND500X_DIR STREQUAL "${CMAKE_CURRENT_LIST_DIR}/external/nd500x")
         message(STATUS "  (the external/nd500x submodule, at its pinned commit)")
