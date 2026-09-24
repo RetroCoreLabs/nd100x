@@ -71,13 +71,19 @@ target_link_libraries(nd100wasm PRIVATE
 # to compile either way - every ND-500 export is inside #ifdef and the module
 # simply does not offer them when there is no ND-500.
 if(ND100X_WITH_ND500)
-    # nd500x's src/ as a DIRECTORY, so its headers are reached as
-    # "machine/machine_types.h" and "cpu/cpu_protos.h". Both projects have
-    # files of those names and nd100x's src/machine and src/cpu are already on
-    # this target's include path, so an unqualified include resolves to the
+    # nd500::headers carries nd500x's src/ as a DIRECTORY, so its headers are
+    # reached as "machine/machine_types.h" and "cpu/cpu_protos.h". Both projects
+    # have files of those names and nd100x's src/machine and src/cpu are already
+    # on this target's include path, so an unqualified include resolves to the
     # ND-100's - see the note at the top of nd500_wasm.c.
-    target_include_directories(nd100wasm PRIVATE ${ND100X_ND500X_DIR}/src)
-    target_link_libraries(nd100wasm PRIVATE nd500_machine nd500_cpu nd500_ndlib)
+    #
+    # This used to be a hand-written target_include_directories() naming
+    # ${ND100X_ND500X_DIR}/src. It is now a property of the nd500_headers
+    # INTERFACE target declared in nd500x's own CMakeLists, so the path is
+    # defined once, next to the libraries it belongs with, and cannot be
+    # forgotten by a target that links them.
+    target_link_libraries(nd100wasm PRIVATE
+        nd500::headers nd500::machine nd500::cpu nd500::ndlib)
     target_compile_definitions(nd100wasm PRIVATE ND100X_WITH_ND500=1)
 endif()
 

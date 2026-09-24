@@ -900,30 +900,121 @@ void mms_write_virtual_memory(uint32_t virtual_address, uint16_t value, bool use
 }
 
 
-// Classify a PHYSICAL word address into its ND-100 memory TYPE (local vs shared).
+// -- Registered physical memory banks -------------------------------------------
 //
-// Mirrors RetroCore's ND100Memory.FindMemoryBank()/GetMemoryTypeCode(): walk the
-// memory-mapped regions in the same priority order - the ND-500 MPM5 window (a
-// documented STUB at ND_MPM5_WINDOW_*, above installed RAM at the default size),
-// then plain local ND-100 RAM. Only LOCAL RAM (KMECCR) is ECC/parity checked, so
-// this gates the parity path exactly like RetroCore's CheckECCR.
+// The single source of truth for "what kind of memory is at this physical word".
+// See the NdMemoryBank comment in cpu_types.h. Every address here is a WORD
+// address; a byte address would classify the wrong half of memory.
+static NdMemoryBank s_memory_banks[ND_MEMORY_BANK_MAX];
+static int          s_memory_bank_count = 0;
+
+void mms_memory_banks_init(void)
+{
+    s_memory_bank_count = 0;
+    memset(s_memory_banks, 0, sizeof(s_memory_banks));
+
+    // Installed local ND-100 RAM: g_nd_memsize words from word address 0. This is
+    // the ECC/parity-checked memory (KMECCR) that SINTRAN's OPPSTART probe finds by
+    // arming the ECCR simulate bits and reading a level-14 parity interrupt back.
+    if (g_nd_memsize > 0)
+    {
+        (void)mms_memory_bank_register(0, g_nd_memsize, ND_MEM_LOCAL);
+    }
+}
+
+bool mms_memory_bank_register(uint32_t start_word, uint32_t length_word, NDMemoryType type)
+{
+    return mms_memory_bank_register_backed(start_word, length_word, type, NULL, NULL, NULL);
+}
+
+bool mms_memory_bank_register_backed(uint32_t start_word, uint32_t length_word, NDMemoryType type,
+                                     NdBankReadFn read, NdBankWriteFn write, void *ctx)
+{
+    if (length_word == 0)
+    {
+        return false;
+    }
+    if (s_memory_bank_count >= ND_MEMORY_BANK_MAX)
+    {
+        return false;
+    }
+    // Refuse a range that wraps the 32-bit word address space.
+    if (start_word + length_word < start_word)
+    {
+        return false;
+    }
+    // Refuse any overlap with an already registered bank. Two banks claiming the
+    // same word have no single correct type to report, so this is an error at
+    // registration time rather than a silent priority rule at lookup time.
+    for (int i = 0; i < s_memory_bank_count; i++)
+    {
+        uint32_t existing_start = s_memory_banks[i].start_word;
+        uint32_t existing_end   = existing_start + s_memory_banks[i].length_word;
+        if ((start_word < existing_end) && ((start_word + length_word) > existing_start))
+        {
+            return false;
+        }
+    }
+
+    s_memory_banks[s_memory_bank_count].start_word  = start_word;
+    s_memory_banks[s_memory_bank_count].length_word = length_word;
+    s_memory_banks[s_memory_bank_count].type        = type;
+    s_memory_banks[s_memory_bank_count].read        = read;
+    s_memory_banks[s_memory_bank_count].write       = write;
+    s_memory_banks[s_memory_bank_count].ctx         = ctx;
+    s_memory_bank_count++;
+    return true;
+}
+
+bool mms_memory_bank_unregister(uint32_t start_word)
+{
+    for (int i = 0; i < s_memory_bank_count; i++)
+    {
+        if (s_memory_banks[i].start_word != start_word)
+        {
+            continue;
+        }
+        for (int j = i; j < s_memory_bank_count - 1; j++)
+        {
+            s_memory_banks[j] = s_memory_banks[j + 1];
+        }
+        s_memory_bank_count--;
+        memset(&s_memory_banks[s_memory_bank_count], 0, sizeof(s_memory_banks[0]));
+        return true;
+    }
+    return false;
+}
+
+const NdMemoryBank *mms_memory_bank_lookup(uint32_t physical_word_address)
+{
+    for (int i = 0; i < s_memory_bank_count; i++)
+    {
+        uint32_t start = s_memory_banks[i].start_word;
+        uint32_t end   = start + s_memory_banks[i].length_word;
+        if ((physical_word_address >= start) && (physical_word_address < end))
+        {
+            return &s_memory_banks[i];
+        }
+    }
+    return NULL;
+}
+
+// Classify a PHYSICAL WORD address into its ND-100 memory TYPE (local vs shared).
+//
+// A pure table lookup over the registered banks. Only LOCAL RAM (KMECCR) is
+// ECC/parity checked, so this gates the parity path exactly like RetroCore's
+// CheckECCR. An address no bank claims is ND_MEM_NONE.
+//
+// The argument is a WORD address. Passing a byte address here misclassifies
+// everything above half the installed size - keep the word-address rule.
 NDMemoryType mms_get_physical_memory_type(uint32_t physical_word_address)
 {
-    // ND-500 MPM5 shared-memory window (3022/5015 Port-A). Highest priority.
-    if ((physical_word_address >= ND_MPM5_WINDOW_START_WORD) &&
-        (physical_word_address < ND_MPM5_WINDOW_START_WORD + ND_MPM5_WINDOW_SIZE_WORD))
+    const NdMemoryBank *bank = mms_memory_bank_lookup(physical_word_address);
+    if (bank == NULL)
     {
-        return ND_MEM_MPM5; // KMPM5 - not ECC checked
+        return ND_MEM_NONE;
     }
-
-    // Installed local ND-100 RAM (ECC/parity checked).
-    if (physical_word_address < g_nd_memsize)
-    {
-        return ND_MEM_LOCAL; // KMECCR
-    }
-
-    // Nothing claims this address.
-    return ND_MEM_NONE;
+    return bank->type;
 }
 
 // -- ECC Memory Parity: store-on-write latch + detect-on-read --------------------
@@ -1105,6 +1196,20 @@ int mms_read_physical_memory(int physical_address, bool privileged)
         return tmp;
     }
 
+    /* A bank backed by something other than local RAM - an MPM-5 window on the
+     * shared MFbus pool - answers from ITS store, and can sit ABOVE g_nd_memsize
+     * because it is not local RAM at all. Checked before the bounds test for
+     * exactly that reason. No ECC: only LOCAL memory (KMECCR) carries the
+     * error-correction network, which is what the SINTRAN probe is detecting. */
+    if (physical_address >= 0)
+    {
+        const NdMemoryBank *bank = mms_memory_bank_lookup((uint32_t)physical_address);
+        if (bank != NULL && bank->read != NULL)
+        {
+            return bank->read(bank->ctx, (uint32_t)physical_address - bank->start_word);
+        }
+    }
+
     // Check memory bounds
     if (((uint32_t)physical_address >= g_nd_memsize) || (physical_address < 0))
     {
@@ -1160,6 +1265,18 @@ void mms_write_physical_memory_wm(int physical_address, uint16_t value, bool pri
     }
 
     // Check memory bounds
+    /* As in the read path: a backed bank answers from its own store, above
+     * installed local RAM if that is where it sits, and takes no ECC latch. */
+    if (physical_address >= 0)
+    {
+        const NdMemoryBank *bank = mms_memory_bank_lookup((uint32_t)physical_address);
+        if (bank != NULL && bank->write != NULL)
+        {
+            bank->write(bank->ctx, (uint32_t)physical_address - bank->start_word, value, wm);
+            return;
+        }
+    }
+
     if (((uint32_t)physical_address >= g_nd_memsize) || (physical_address < 0))
     {
         mms_handle_memory_out_of_range(physical_address);

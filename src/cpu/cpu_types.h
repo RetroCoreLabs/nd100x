@@ -339,24 +339,75 @@ typedef enum {
 // clang-format on
 
 /*
- * ND-500 shared (MPM5) window as seen from the ND-100 side.
+ * REGISTERED PHYSICAL MEMORY BANKS.
  *
- * RetroCore places Port-A of the 3022/5015 multiport memory at ND-100 physical
- * BYTE address 0x00420000 (physical page 0x420), 8 MB long.  nd100x is natively
- * WORD-addressed, so the same window in WORD address space is:
- *     base = 0x00420000 >> 1 = 0x00210000 words
- *     size = 0x00800000 >> 1 = 0x00400000 words (4 MW / 8 MB)
+ * Replaces the earlier hard-coded ND_MPM5_WINDOW_* stub.  Every region of the
+ * ND-100 physical address space that is backed by something - installed local
+ * RAM, an MPM-5 window shared with an ND-5000 - is REGISTERED here at start-up,
+ * and mms_get_physical_memory_type() answers purely from this table.  SINTRAN
+ * builds its MEMARRAY from the answers (see the NDMemoryType comment above), so
+ * a bank that is not registered reads back as ND_MEM_NONE and SINTRAN will not
+ * claim it.
  *
- * NOTE: with the default installed memory (ND_Memsize = 4 MW = 0x200000 words)
- * this window sits entirely ABOVE local RAM, so nd100x does not yet back it with
- * a device - it is a documented STUB used only for TYPE classification.  When an
- * ND-500 interface is ported it should register real backing over this range;
- * the classifier already reports it as ND_MEM_MPM5 so the ECC path skips it.
+ * ADDRESSES ARE WORD ADDRESSES, NEVER BYTE ADDRESSES.  The whole nd100x physical
+ * path is word-addressed (cpu_mms.c builds `((ppn << 10) | dip)`), and a bank
+ * table indexed with byte addresses classifies the wrong half of memory - that
+ * was a real regression once already.  Anything taken from a byte-addressed
+ * source (RetroCore, an ND-500 physical address) is converted with `>> 1` at the
+ * point of registration, not here.
  */
-// clang-format off
-#define ND_MPM5_WINDOW_START_WORD  0x00210000u   // ND-100 word address of MPM5 base
-#define ND_MPM5_WINDOW_SIZE_WORD   0x00400000u   // 4 MW (8 MB) MPM5 window
-// clang-format on
+/*
+ * A bank may be BACKED BY SOMETHING OTHER THAN LOCAL RAM.
+ *
+ * An MPM-5 bank is the shared MFbus pool an ND-5000 also runs out of, so an
+ * ND-100 access to it must reach that pool and not g_volatile_memory - the whole
+ * point is that both machines see the same bytes. The accessors take a WORD
+ * OFFSET INTO THE BANK, not a physical address: the bank knows where it starts,
+ * and making every backing store redo that subtraction is how an off-by-one
+ * base gets written three times.
+ *
+ * NULL means plain local RAM, which stays the fast path and pays nothing.
+ */
+typedef uint16_t (*NdBankReadFn)(void *ctx, uint32_t word_offset);
+typedef void (*NdBankWriteFn)(void *ctx, uint32_t word_offset, uint16_t value, WriteMode wm);
+
+typedef struct
+{
+    uint32_t     start_word;  // first ND-100 physical WORD address of the bank
+    uint32_t     length_word; // bank length in 16-bit WORDS (0 = unused slot)
+    NDMemoryType type;        // ND_MEM_LOCAL | ND_MEM_MPM5 | ...
+    /* Backing store. Both NULL = plain local RAM in g_volatile_memory. */
+    NdBankReadFn  read;
+    NdBankWriteFn write;
+    void         *ctx;
+} NdMemoryBank;
+
+// Maximum number of simultaneously registered banks: local RAM plus one MPM-5
+// window per ND-5000 octobus station (070B..076B = seven) plus slack.
+#define ND_MEMORY_BANK_MAX 16
+
+// Drop every registered bank and register installed local RAM (g_nd_memsize
+// words at word address 0) as ND_MEM_LOCAL.  Called from cpu_init() AFTER the
+// frontend has installed the configured memory size.
+void mms_memory_banks_init(void);
+
+// Register a bank.  Returns false and registers NOTHING if the range is empty,
+// would exceed ND_MEMORY_BANK_MAX, or OVERLAPS an already registered bank -
+// overlap is refused rather than resolved by priority, because two banks
+// claiming one word have no single correct type to report to SINTRAN.
+bool mms_memory_bank_register(uint32_t start_word, uint32_t length_word, NDMemoryType type);
+
+/* Register a bank backed by something other than local RAM - an MPM-5 window on
+ * the shared MFbus pool, for instance. Same overlap rule. Passing NULL for both
+ * accessors is the same as mms_memory_bank_register(). */
+bool mms_memory_bank_register_backed(uint32_t start_word, uint32_t length_word, NDMemoryType type,
+                                     NdBankReadFn read, NdBankWriteFn write, void *ctx);
+
+// Remove the bank whose start_word matches exactly. Returns false if none does.
+bool mms_memory_bank_unregister(uint32_t start_word);
+
+// The bank containing this word address, or NULL.
+const NdMemoryBank *mms_memory_bank_lookup(uint32_t physical_word_address);
 
 
 // clang-format off

@@ -300,7 +300,28 @@ endif()
 # for exactly this: nd500_cpu + nd500_machine with no ndmonlib, which still
 # boots NDIX (NDIX needs only MON 600, served by nd500_fecall.c). SINTRAN DOM
 # programs are what that leaves out, and those are not what the browser runs.
-set(ND100X_ND500X_DIR "${CMAKE_CURRENT_LIST_DIR}/../nd500x"
+# WHERE nd500x COMES FROM, AND WHY THE SIBLING CHECKOUT STILL WINS.
+#
+# nd500x is now a submodule at external/nd500x, so a fresh clone plus
+# `git submodule update --init external/nd500x` builds the ND-500 with no
+# machine-specific path anywhere.
+#
+# The DEFAULT is still the sibling checkout ../nd500x when one exists, and that
+# is deliberate: this repository is developed alongside a working nd500x tree,
+# and silently building the submodule's pinned commit instead would compile code
+# that is several changes behind the one being worked on - without saying so.
+# That failure does not error, it just answers a different question.
+#
+# So: sibling if present, submodule otherwise, and ND100X_ND500X_DIR overrides
+# both. The chosen path is printed below, so which one is in use is never a
+# guess.
+if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/../nd500x/CMakeLists.txt")
+    set(ND100X_ND500X_DEFAULT "${CMAKE_CURRENT_LIST_DIR}/../nd500x")
+else()
+    set(ND100X_ND500X_DEFAULT "${CMAKE_CURRENT_LIST_DIR}/external/nd500x")
+endif()
+
+set(ND100X_ND500X_DIR "${ND100X_ND500X_DEFAULT}"
     CACHE PATH "Path to the nd500x checkout (empty or missing = no ND-500)")
 
 set(ND100X_WITH_ND500 OFF)
@@ -315,10 +336,15 @@ if(ND100X_ND500X_DIR AND EXISTS "${ND100X_ND500X_DIR}/CMakeLists.txt")
     # its debugger and that is off in the WITH_NDMON=OFF configuration above.
     set(SKIP_LIBDAP ON CACHE BOOL "" FORCE)
     add_subdirectory(${ND100X_ND500X_DIR} ${CMAKE_BINARY_DIR}/nd500x EXCLUDE_FROM_ALL)
+
     message(STATUS "ND-500 ENABLED from ${ND100X_ND500X_DIR}")
+    if(ND100X_ND500X_DIR STREQUAL "${CMAKE_CURRENT_LIST_DIR}/external/nd500x")
+        message(STATUS "  (the external/nd500x submodule, at its pinned commit)")
+    endif()
 else()
     message(STATUS "ND-500 not built (no checkout at ${ND100X_ND500X_DIR})"
-                   " - set ND100X_ND500X_DIR to enable")
+                   " - run 'git submodule update --init external/nd500x',"
+                   " or set ND100X_ND500X_DIR to a checkout")
 endif()
 
 # Add frontend subdirectories conditionally

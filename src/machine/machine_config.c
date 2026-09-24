@@ -311,6 +311,10 @@ typedef enum
     SEC_BOOT,
     SEC_RUNTIME,
     SEC_ND500,
+    SEC_MFBUS,
+    SEC_MFBUS_PART,
+    SEC_OCTOBUS,
+    SEC_ND5000,
     SEC_UNKNOWN
 } SectionKind;
 
@@ -370,6 +374,67 @@ static McController *mc_get_controller(MachineConfig *cfg, CtrlType type, int wh
 }
 
 /* Parse a "controller.<name>.<wheel>" section header. Returns false + message. */
+
+/*
+ * A page number, the way every ND manual and every MEM-CONF listing writes it:
+ * OCTAL with a trailing B, decimal without. "004100B" is 2112, which is ND-100
+ * byte address 0x420000.
+ *
+ * Returns false for anything that is not a whole number in the stated base, so a
+ * typo becomes a configuration error rather than a silently different page.
+ */
+static bool mc_parse_page_number(const char *val, long *out)
+{
+    if (val == NULL || *val == '\0')
+    {
+        return false;
+    }
+
+    size_t len = strlen(val);
+    char  *endp = NULL;
+    long   n;
+
+    if (val[len - 1] == 'B' || val[len - 1] == 'b')
+    {
+        char buf[32];
+        if (len - 1 >= sizeof(buf))
+        {
+            return false;
+        }
+        memcpy(buf, val, len - 1);
+        buf[len - 1] = '\0';
+        if (buf[0] == '\0')
+        {
+            return false;
+        }
+        n = strtol(buf, &endp, 8);
+    }
+    else
+    {
+        n = strtol(val, &endp, 10);
+    }
+
+    if (endp == NULL || *endp != '\0' || n < 0)
+    {
+        return false;
+    }
+    *out = n;
+    return true;
+}
+
+/* The <n> of [nd5000.<n>] or [mfbus.part.<n>]. */
+static bool mc_parse_index(const char *rest, long *out)
+{
+    char *endp = NULL;
+    long  n = strtol(rest, &endp, 10);
+    if (endp == NULL || *endp != '\0' || n < 0)
+    {
+        return false;
+    }
+    *out = n;
+    return true;
+}
+
 static bool mc_parse_controller_header(const char *rest, CtrlType *type, int *wheel, char *err,
                                        size_t errlen, const char *path, int line)
 {
@@ -507,6 +572,8 @@ bool mc_load_file(MachineConfig *cfg, const char *path, char *err, size_t errlen
     CtrlType cur_type = CTRL_NONE;
     int cur_wheel = 0;
     McController *cur_ctrl = NULL;
+    int cur_part = -1;     /* the <n> of the [mfbus.part.<n>] being parsed */
+    int cur_nd5000 = -1;   /* index into cfg->nd5000[] of the [nd5000.<n>] being parsed */
     char periph_name[64] = {0};
 
     while (fgets(line, sizeof(line), f))
@@ -543,6 +610,8 @@ bool mc_load_file(MachineConfig *cfg, const char *path, char *err, size_t errlen
             str_lower(sec);
 
             cur_ctrl = NULL;
+            cur_part = -1;
+            cur_nd5000 = -1;
             if (str_ieq(sec, "machine"))
             {
                 kind = SEC_MACHINE;
@@ -566,6 +635,92 @@ bool mc_load_file(MachineConfig *cfg, const char *path, char *err, size_t errlen
                  * keeping a configuration around without building it. */
                 kind = SEC_ND500;
                 cfg->nd500.enabled = true;
+            }
+            else if (str_ieq(sec, "mfbus"))
+            {
+                /* Naming the section is what enables the pool, the same rule
+                 * [nd500] already uses. */
+                kind = SEC_MFBUS;
+                cfg->mfbus.enabled = true;
+            }
+            else if (strncmp(sec, "mfbus.part.", 11) == 0)
+            {
+                long idx = 0;
+                if (!mc_parse_index(sec + 11, &idx))
+                {
+                    fclose(f);
+                    return mc_err(err, errlen, path, lineno,
+                                  "[%s]: part number must be a number, e.g. [mfbus.part.0].", sec);
+                }
+                if (idx >= MC_MFBUS_MAX_PARTS)
+                {
+                    fclose(f);
+                    return mc_err(err, errlen, path, lineno,
+                                  "[%s]: part %ld out of range (0 to %d).", sec, idx,
+                                  MC_MFBUS_MAX_PARTS - 1);
+                }
+                kind = SEC_MFBUS_PART;
+                cur_part = (int)idx;
+                if (cur_part >= cfg->mfbus.partCount)
+                {
+                    cfg->mfbus.partCount = cur_part + 1;
+                }
+                /* Default is access for all, matching DEFINE-MEMORY-CONFIGURATION. */
+                cfg->mfbus.parts[cur_part].nd100 = true;
+                cfg->mfbus.parts[cur_part].nd500_p = true;
+                cfg->mfbus.parts[cur_part].nd500_d = true;
+            }
+            else if (str_ieq(sec, "controller.octobus.0") || str_ieq(sec, "octobus"))
+            {
+                /* The ND-100 is always station 1B, so presence is the whole
+                 * configuration. Accepted under the controller naming scheme
+                 * because that is where a reader will look for it. */
+                kind = SEC_OCTOBUS;
+                cfg->octobus.enabled = true;
+            }
+            else if (strncmp(sec, "nd5000.", 7) == 0)
+            {
+                long slot = 0;
+                if (!mc_parse_index(sec + 7, &slot))
+                {
+                    fclose(f);
+                    return mc_err(err, errlen, path, lineno,
+                                  "[%s]: CPU slot must be a number, e.g. [nd5000.1].", sec);
+                }
+                if (slot < 1 || slot > MC_ND5000_MAX_CPUS)
+                {
+                    fclose(f);
+                    return mc_err(err, errlen, path, lineno,
+                                  "[%s]: CPU slot %ld out of range. The hardware has %d ND-5000 "
+                                  "slots, 070B to 076B.",
+                                  sec, slot, MC_ND5000_MAX_CPUS);
+                }
+                /* A duplicate slot is an error, exactly as a duplicate
+                 * controller+thumbwheel is. */
+                for (int i = 0; i < cfg->nd5000Count; i++)
+                {
+                    if (cfg->nd5000[i].slot == (int)slot)
+                    {
+                        fclose(f);
+                        return mc_err(err, errlen, path, lineno,
+                                      "[%s]: duplicate CPU slot. [nd5000.%ld] is already defined.",
+                                      sec, slot);
+                    }
+                }
+                if (cfg->nd5000Count >= MC_ND5000_MAX_CPUS)
+                {
+                    fclose(f);
+                    return mc_err(err, errlen, path, lineno, "too many ND-5000 CPUs (max %d).",
+                                  MC_ND5000_MAX_CPUS);
+                }
+                kind = SEC_ND5000;
+                cur_nd5000 = cfg->nd5000Count++;
+                McNd5000 *c = &cfg->nd5000[cur_nd5000];
+                c->slot = (int)slot;
+                c->enabled = true;
+                c->cpu_type = 5000;
+                /* A section with no station gets 070B + (n-1). */
+                c->station = MC_ND5000_STATION_FIRST + (int)slot - 1;
             }
             else if (strncmp(sec, "controller.", 11) == 0)
             {
@@ -989,6 +1144,261 @@ bool mc_load_file(MachineConfig *cfg, const char *path, char *err, size_t errlen
             }
             break;
 
+        case SEC_MFBUS:
+            if (str_ieq(keyl, "enabled"))
+            {
+                int b = parse_bool(val);
+                if (b < 0)
+                {
+                    fclose(f);
+                    return mc_err(err, errlen, path, lineno, "[mfbus] enabled = %s: use yes or no.",
+                                  val);
+                }
+                cfg->mfbus.enabled = (b == 1);
+            }
+            else if (str_ieq(keyl, "size"))
+            {
+                char *ep;
+                long m = strtol(val, &ep, 10);
+                /* A real system is the sum of its RAM cards, each 4, 8 or 16 MB
+                 * (ND-05.020.01 T23). The ceiling here is the emulator's, not
+                 * the hardware's: the MFbus channel addresses 2 GB. */
+                if (*ep != '\0' || m < 1 || m > 2048)
+                {
+                    fclose(f);
+                    return mc_err(err, errlen, path, lineno,
+                                  "[mfbus] size = %s: megabytes, 1 to 2048.", val);
+                }
+                cfg->mfbus.size_mb = (int)m;
+            }
+            else if (str_ieq(keyl, "base_page"))
+            {
+                long pg = 0;
+                if (!mc_parse_page_number(val, &pg))
+                {
+                    fclose(f);
+                    return mc_err(err, errlen, path, lineno,
+                                  "[mfbus] base_page = %s: an ND-100 page number. Octal takes a "
+                                  "trailing B (004100B), decimal none (2112).",
+                                  val);
+                }
+                cfg->mfbus.base_page = (int)pg;
+                cfg->mfbus.base_page_set = true;
+            }
+            else
+            {
+                fclose(f);
+                return mc_err(err, errlen, path, lineno,
+                              "[mfbus]: unknown key '%s'. Known keys: enabled, size, base_page.",
+                              key);
+            }
+            break;
+
+        case SEC_MFBUS_PART:
+            if (cur_part < 0)
+            {
+                break;
+            }
+            if (str_ieq(keyl, "pages"))
+            {
+                char *ep;
+                long n = strtol(val, &ep, 10);
+                if (*ep != '\0' || n < 1)
+                {
+                    fclose(f);
+                    return mc_err(err, errlen, path, lineno,
+                                  "[mfbus.part.%d] pages = %s: a page count, 1 or more.", cur_part,
+                                  val);
+                }
+                cfg->mfbus.parts[cur_part].pages = (int)n;
+            }
+            else if (str_ieq(keyl, "nd100") || str_ieq(keyl, "nd500_p") ||
+                     str_ieq(keyl, "nd500_d"))
+            {
+                int b = parse_bool(val);
+                if (b < 0)
+                {
+                    fclose(f);
+                    return mc_err(err, errlen, path, lineno,
+                                  "[mfbus.part.%d] %s = %s: use yes or no.", cur_part, key, val);
+                }
+                if (str_ieq(keyl, "nd100"))
+                {
+                    /* A part with nd100 = no is memory the ND-100 cannot reach,
+                     * which is how a pool larger than the ND-100's 32 MB view is
+                     * expressed. */
+                    cfg->mfbus.parts[cur_part].nd100 = (b == 1);
+                }
+                else if (str_ieq(keyl, "nd500_p"))
+                {
+                    cfg->mfbus.parts[cur_part].nd500_p = (b == 1);
+                }
+                else
+                {
+                    cfg->mfbus.parts[cur_part].nd500_d = (b == 1);
+                }
+            }
+            else
+            {
+                fclose(f);
+                return mc_err(err, errlen, path, lineno,
+                              "[mfbus.part.%d]: unknown key '%s'. Known keys: pages, nd100, "
+                              "nd500_p, nd500_d.",
+                              cur_part, key);
+            }
+            break;
+
+        case SEC_OCTOBUS:
+            if (str_ieq(keyl, "enabled"))
+            {
+                int b = parse_bool(val);
+                if (b < 0)
+                {
+                    fclose(f);
+                    return mc_err(err, errlen, path, lineno,
+                                  "[controller.octobus.0] enabled = %s: use yes or no.", val);
+                }
+                cfg->octobus.enabled = (b == 1);
+            }
+            else
+            {
+                fclose(f);
+                return mc_err(err, errlen, path, lineno,
+                              "[controller.octobus.0]: unknown key '%s'. The ND-100 is always "
+                              "station 1B, so the only key is enabled.",
+                              key);
+            }
+            break;
+
+        case SEC_ND5000:
+        {
+            if (cur_nd5000 < 0)
+            {
+                break;
+            }
+            McNd5000 *c = &cfg->nd5000[cur_nd5000];
+            if (str_ieq(keyl, "enabled"))
+            {
+                int b = parse_bool(val);
+                if (b < 0)
+                {
+                    fclose(f);
+                    return mc_err(err, errlen, path, lineno,
+                                  "[nd5000.%d] enabled = %s: use yes or no.", c->slot, val);
+                }
+                c->enabled = (b == 1);
+            }
+            else if (str_ieq(keyl, "station"))
+            {
+                long st = 0;
+                if (!mc_parse_page_number(val, &st))
+                {
+                    fclose(f);
+                    return mc_err(err, errlen, path, lineno,
+                                  "[nd5000.%d] station = %s: a station number. Octal takes a "
+                                  "trailing B (070B), decimal none (56).",
+                                  c->slot, val);
+                }
+                if (st < MC_ND5000_STATION_FIRST || st > MC_ND5000_STATION_LAST)
+                {
+                    fclose(f);
+                    return mc_err(err, errlen, path, lineno,
+                                  "[nd5000.%d] station = %s: out of range. ND-5000 CPUs are at "
+                                  "070B to 076B (%d to %d decimal); other numbers belong to other "
+                                  "devices.",
+                                  c->slot, val, MC_ND5000_STATION_FIRST, MC_ND5000_STATION_LAST);
+                }
+                /* Two CPUs on one station is an error: on the real bus they
+                 * would answer each other's messages. */
+                for (int i = 0; i < cfg->nd5000Count; i++)
+                {
+                    if (i != cur_nd5000 && cfg->nd5000[i].station == (int)st)
+                    {
+                        fclose(f);
+                        return mc_err(err, errlen, path, lineno,
+                                      "[nd5000.%d] station = %s: already used by [nd5000.%d]. "
+                                      "Each octobus station may appear only once.",
+                                      c->slot, val, cfg->nd5000[i].slot);
+                    }
+                }
+                c->station = (int)st;
+            }
+            else if (str_ieq(keyl, "base_page"))
+            {
+                long pg = 0;
+                if (!mc_parse_page_number(val, &pg))
+                {
+                    fclose(f);
+                    return mc_err(err, errlen, path, lineno,
+                                  "[nd5000.%d] base_page = %s: an ND-100 page number. Octal takes "
+                                  "a trailing B (004100B), decimal none (2112).",
+                                  c->slot, val);
+                }
+                c->base_page = (int)pg;
+                c->base_page_set = true;
+            }
+            else if (str_ieq(keyl, "cpu_type"))
+            {
+                char *ep;
+                long t = strtol(val, &ep, 10);
+                if (*ep != '\0' || (t != 500 && t != 5000))
+                {
+                    fclose(f);
+                    return mc_err(err, errlen, path, lineno,
+                                  "[nd5000.%d] cpu_type = %s: 500 or 5000.", c->slot, val);
+                }
+                c->cpu_type = (int)t;
+            }
+            else if (str_ieq(keyl, "kernel"))
+            {
+                str_copy(c->kernel, MC_PATH_LEN, val);
+            }
+            else if (str_ieq(keyl, "pseg"))
+            {
+                str_copy(c->pseg, MC_PATH_LEN, val);
+            }
+            else if (str_ieq(keyl, "dseg"))
+            {
+                str_copy(c->dseg, MC_PATH_LEN, val);
+            }
+            else if (strncmp(keyl, "disk", 4) == 0 && keyl[4])
+            {
+                char *ep;
+                long n = strtol(keyl + 4, &ep, 10);
+                if (*ep != '\0' || n < 0 || n >= MC_ND500_MAX_DISKS)
+                {
+                    fclose(f);
+                    return mc_err(err, errlen, path, lineno,
+                                  "[nd5000.%d] unknown key '%s'. Disc slots are disk0 to disk%d.",
+                                  c->slot, key, MC_ND500_MAX_DISKS - 1);
+                }
+                /* Read-only by DEFAULT, as [nd500] has it: an NDIX root image is
+                 * the one thing here a mistake actually damages. */
+                const char *img = val;
+                bool writable = false;
+                if (strncmp(val, "rw:", 3) == 0)
+                {
+                    img = val + 3;
+                    writable = true;
+                }
+                else if (strncmp(val, "ro:", 3) == 0)
+                {
+                    img = val + 3;
+                }
+                str_copy(c->disks[n], MC_PATH_LEN, img);
+                c->disk_writable[n] = writable;
+            }
+            else
+            {
+                fclose(f);
+                return mc_err(err, errlen, path, lineno,
+                              "[nd5000.%d]: unknown key '%s'. Known keys: enabled, station, "
+                              "base_page, cpu_type, kernel, pseg, dseg, disk0-disk%d.",
+                              c->slot, key, MC_ND500_MAX_DISKS - 1);
+            }
+            break;
+        }
+
         case SEC_RUNTIME:
             if (str_ieq(keyl, "telnet"))
             {
@@ -1271,6 +1681,152 @@ bool mc_validate(const MachineConfig *cfg, char *err, size_t errlen)
                 /* non-hdd media is accepted but flagged as not-yet-usable at
                  * boot time; not a hard error here. */
             }
+        }
+    }
+
+    /*
+     * ND-5000 CPUs: every CPU's ND-500 address zero must be the SAME ND-100
+     * page, for now.
+     *
+     * SINTRAN stores this value PER CPU - DEFMC writes a CPU datafield and
+     * GCPUDF indexes an array - so the .ini allows a per-CPU base_page. But on
+     * all available evidence every CPU is given the SAME value, and nothing read
+     * so far shows a system where they differ. Whether they ever CAN differ is
+     * an open question with an experiment attached, not a settled fact.
+     *
+     * So a configuration that sets them differently is REFUSED rather than
+     * quietly built. Two CPUs with different address zeros over one shared pool
+     * would place every shared structure at two different ND-500 addresses, and
+     * the resulting corruption would look like a memory bug anywhere but here.
+     * When the question is settled, this check is what gets relaxed.
+     */
+    {
+        const McNd5000 *first_set = NULL;
+        for (int i = 0; i < cfg->nd5000Count; i++)
+        {
+            if (!cfg->nd5000[i].base_page_set)
+            {
+                continue;
+            }
+            if (first_set == NULL)
+            {
+                first_set = &cfg->nd5000[i];
+                continue;
+            }
+            if (cfg->nd5000[i].base_page != first_set->base_page)
+            {
+                return mc_err(err, errlen, path, 0,
+                              "[nd5000.%d] base_page = %o differs from [nd5000.%d] base_page = %o. "
+                              "Every ND-5000 must currently share one ND-500 address zero: SINTRAN "
+                              "stores it per CPU, but whether the values may differ is unsettled, "
+                              "and two different address zeros over one shared pool would place "
+                              "every shared structure at two different ND-500 addresses. Omit "
+                              "base_page on each CPU to inherit [mfbus] base_page.",
+                              cfg->nd5000[i].slot, (unsigned)cfg->nd5000[i].base_page,
+                              first_set->slot, (unsigned)first_set->base_page);
+            }
+        }
+
+        /* A per-CPU base_page that disagrees with the pool's own is the same
+         * mistake wearing a different hat. */
+        if (first_set != NULL && cfg->mfbus.base_page_set &&
+            first_set->base_page != cfg->mfbus.base_page)
+        {
+            return mc_err(err, errlen, path, 0,
+                          "[nd5000.%d] base_page = %o differs from [mfbus] base_page = %o. "
+                          "Until per-CPU address zeros are settled they must agree; omit the "
+                          "per-CPU key to inherit the pool's.",
+                          first_set->slot, (unsigned)first_set->base_page,
+                          (unsigned)cfg->mfbus.base_page);
+        }
+    }
+
+    /* An ND-5000 with no pool to run out of is a configuration that cannot
+     * work: the ND-5000 has no private memory at all (ND-05.020.01 T40), so
+     * without [mfbus] it has nowhere to execute. */
+    if (cfg->nd5000Count > 0 && !cfg->mfbus.enabled)
+    {
+        int enabled_cpus = 0;
+        for (int i = 0; i < cfg->nd5000Count; i++)
+        {
+            if (cfg->nd5000[i].enabled)
+            {
+                enabled_cpus++;
+            }
+        }
+        if (enabled_cpus > 0)
+        {
+            return mc_err(err, errlen, path, 0,
+                          "%d ND-5000 CPU(s) are enabled but there is no [mfbus] section. The "
+                          "ND-5000 has no private memory - it executes out of the shared MFbus "
+                          "pool - so it has nowhere to run without one.",
+                          enabled_cpus);
+        }
+    }
+
+    /*
+     * PER-CPU BOOT MATERIAL IS ACCEPTED IN THE SCHEMA BUT NOT YET HONOURED.
+     *
+     * Each [nd5000.N] may name its own kernel, segments and disc images,
+     * because that is what the hardware allows and what the schema should
+     * express. The ND-500 side does not yet serve them per CPU: its host
+     * interface (nd500_host.h) is one set of block devices and one console for
+     * the whole process, and its own comment says so - "ONE HOST PER PROCESS
+     * ... Revisit only if a second ND-500 ever has to exist side by side".
+     *
+     * So a configuration giving TWO enabled CPUs their own boot material is
+     * refused rather than built. Building it would quietly serve both CPUs the
+     * same disc, and a second guest silently reading the first one's root
+     * filesystem is a corruption that looks like anything except a
+     * configuration error.
+     *
+     * ONE CPU with boot material is fine, and is the NDIX case that works
+     * today. This check is what gets relaxed when the host interface becomes
+     * per instance.
+     */
+    {
+        int with_material = 0;
+        int first_slot = 0;
+        int second_slot = 0;
+        for (int i = 0; i < cfg->nd5000Count; i++)
+        {
+            const McNd5000 *c = &cfg->nd5000[i];
+            if (!c->enabled)
+            {
+                continue;
+            }
+            bool has_material = (c->kernel[0] != '\0') || (c->pseg[0] != '\0') ||
+                                (c->dseg[0] != '\0');
+            for (int d = 0; !has_material && d < MC_ND500_MAX_DISKS; d++)
+            {
+                if (c->disks[d][0] != '\0')
+                {
+                    has_material = true;
+                }
+            }
+            if (!has_material)
+            {
+                continue;
+            }
+            with_material++;
+            if (with_material == 1)
+            {
+                first_slot = c->slot;
+            }
+            else if (with_material == 2)
+            {
+                second_slot = c->slot;
+            }
+        }
+        if (with_material > 1)
+        {
+            return mc_err(err, errlen, path, 0,
+                          "[nd5000.%d] and [nd5000.%d] both specify their own kernel or disc "
+                          "images. The ND-500 host interface currently serves ONE set of block "
+                          "devices and one console for the whole process, so both CPUs would be "
+                          "given the same disc - a second guest reading the first one's root "
+                          "filesystem. Give boot material to one CPU only.",
+                          first_slot, second_slot);
         }
     }
 
@@ -1591,6 +2147,78 @@ bool mc_write_file(const MachineConfig *cfg, const char *path, char *err, size_t
              * should not have to remember which way round it is. */
             fprintf(f, "disk%d = %s:%s\n", i, cfg->nd500.disk_writable[i] ? "rw" : "ro",
                     cfg->nd500.disks[i]);
+        }
+    }
+
+    /* The MFbus pool. ONE for the whole machine - every ND-5000 runs out of it
+     * and the ND-100 sees it as MPM5 memory. */
+    if (cfg->mfbus.enabled)
+    {
+        fprintf(f, "\n[mfbus]\n");
+        if (cfg->mfbus.size_mb)
+        {
+            fprintf(f, "size = %d\n", cfg->mfbus.size_mb);
+        }
+        if (cfg->mfbus.base_page_set)
+        {
+            /* Written OCTAL with the trailing B, because that is how every
+             * manual and every MEM-CONF listing writes a page number, and a
+             * round trip through this file must not silently change the base. */
+            fprintf(f, "base_page = %06oB\n", (unsigned)cfg->mfbus.base_page);
+        }
+        for (int i = 0; i < cfg->mfbus.partCount; i++)
+        {
+            const McMfbusPart *part = &cfg->mfbus.parts[i];
+            if (part->pages == 0)
+            {
+                continue;
+            }
+            fprintf(f, "\n[mfbus.part.%d]\n", i);
+            fprintf(f, "pages = %d\n", part->pages);
+            fprintf(f, "nd100 = %s\n", part->nd100 ? "yes" : "no");
+            fprintf(f, "nd500_p = %s\n", part->nd500_p ? "yes" : "no");
+            fprintf(f, "nd500_d = %s\n", part->nd500_d ? "yes" : "no");
+        }
+    }
+
+    if (cfg->octobus.enabled)
+    {
+        fprintf(f, "\n[controller.octobus.0]\nenabled = yes\n");
+    }
+
+    for (int c = 0; c < cfg->nd5000Count; c++)
+    {
+        const McNd5000 *cpu5 = &cfg->nd5000[c];
+        fprintf(f, "\n[nd5000.%d]\n", cpu5->slot);
+        fprintf(f, "enabled = %s\n", cpu5->enabled ? "yes" : "no");
+        /* Octal with the trailing B: 070B is 56, and 70 decimal would not even
+         * fit the 6-bit station field. */
+        fprintf(f, "station = %03oB\n", (unsigned)cpu5->station);
+        if (cpu5->base_page_set)
+        {
+            fprintf(f, "base_page = %06oB\n", (unsigned)cpu5->base_page);
+        }
+        fprintf(f, "cpu_type = %d\n", cpu5->cpu_type ? cpu5->cpu_type : 5000);
+        if (cpu5->kernel[0])
+        {
+            fprintf(f, "kernel = %s\n", cpu5->kernel);
+        }
+        if (cpu5->pseg[0])
+        {
+            fprintf(f, "pseg = %s\n", cpu5->pseg);
+        }
+        if (cpu5->dseg[0])
+        {
+            fprintf(f, "dseg = %s\n", cpu5->dseg);
+        }
+        for (int i = 0; i < MC_ND500_MAX_DISKS; i++)
+        {
+            if (!cpu5->disks[i][0])
+            {
+                continue;
+            }
+            fprintf(f, "disk%d = %s:%s\n", i, cpu5->disk_writable[i] ? "rw" : "ro",
+                    cpu5->disks[i]);
         }
     }
 

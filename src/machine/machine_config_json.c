@@ -277,6 +277,81 @@ bool mc_to_json(const MachineConfig *cfg, char *out, size_t outlen)
     }
     put(&s, "]}");
 
+    /* The MFbus pool. ONE for the whole machine: every ND-5000 runs out of it
+     * and the ND-100 sees the same memory as MPM5. Always present as an object,
+     * like nd500 above, so the form has nothing to special-case.
+     *
+     * basePage is sent as a NUMBER, and the form displays it in octal. Every ND
+     * manual and every MEM-CONF listing writes page numbers in octal (004100B is
+     * 2112), but JSON has no octal literal, so the conversion belongs on the
+     * display side - not in a string the browser would have to parse. */
+    put(&s, ",\"mfbus\":{");
+    put(&s, "\"enabled\":%s,", cfg->mfbus.enabled ? "true" : "false");
+    put(&s, "\"sizeMb\":%d,", cfg->mfbus.size_mb);
+    put(&s, "\"basePage\":%d,", cfg->mfbus.base_page);
+    put(&s, "\"basePageSet\":%s,", cfg->mfbus.base_page_set ? "true" : "false");
+    put(&s, "\"parts\":[");
+    {
+        int first = 1;
+        for (int p = 0; p < cfg->mfbus.partCount; p++)
+        {
+            const McMfbusPart *part = &cfg->mfbus.parts[p];
+            if (part->pages == 0)
+            {
+                continue;
+            }
+            put(&s, "%s{\"index\":%d,", first ? "" : ",", p);
+            put(&s, "\"pages\":%d,", part->pages);
+            /* nd100 = false is memory the ND-100 cannot reach, which is how a
+             * pool larger than its 32 MB view is expressed. */
+            put(&s, "\"nd100\":%s,", part->nd100 ? "true" : "false");
+            put(&s, "\"nd500Program\":%s,", part->nd500_p ? "true" : "false");
+            put(&s, "\"nd500Data\":%s}", part->nd500_d ? "true" : "false");
+            first = 0;
+        }
+    }
+    put(&s, "]}");
+
+    /* The octobus controller in the ND-100. The ND-100 is always station 1B, so
+     * presence is the whole configuration. */
+    put(&s, ",\"octobus\":{\"enabled\":%s}", cfg->octobus.enabled ? "true" : "false");
+
+    /* The ND-5000 CPUs. An ARRAY, not seven objects: a machine has as many as it
+     * has, and the slot is carried in each entry so the form does not have to
+     * infer it from a position. station is decimal here for the same reason
+     * basePage is - 070B is 56, and the form renders the octal. */
+    put(&s, ",\"nd5000\":[");
+    for (int c = 0; c < cfg->nd5000Count; c++)
+    {
+        const McNd5000 *cpu5 = &cfg->nd5000[c];
+        put(&s, "%s{\"slot\":%d,", c ? "," : "", cpu5->slot);
+        put(&s, "\"enabled\":%s,", cpu5->enabled ? "true" : "false");
+        put(&s, "\"station\":%d,", cpu5->station);
+        put(&s, "\"basePage\":%d,", cpu5->base_page);
+        put(&s, "\"basePageSet\":%s,", cpu5->base_page_set ? "true" : "false");
+        put(&s, "\"cpuType\":%d,", cpu5->cpu_type);
+        kv_str(&s, "kernel", cpu5->kernel, 1);
+        kv_str(&s, "pseg", cpu5->pseg, 1);
+        kv_str(&s, "dseg", cpu5->dseg, 1);
+        put(&s, "\"disks\":[");
+        {
+            int first = 1;
+            for (int slot = 0; slot < MC_ND500_MAX_DISKS; slot++)
+            {
+                if (!cpu5->disks[slot][0])
+                {
+                    continue;
+                }
+                put(&s, "%s{\"slot\":%d,", first ? "" : ",", slot);
+                kv_str(&s, "image", cpu5->disks[slot], 1);
+                put(&s, "\"writable\":%s}", cpu5->disk_writable[slot] ? "true" : "false");
+                first = 0;
+            }
+        }
+        put(&s, "]}");
+    }
+    put(&s, "]");
+
     put(&s, "}");
 
     if (s.overflow)

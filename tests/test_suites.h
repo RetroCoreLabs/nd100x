@@ -19,6 +19,9 @@ int run_pdfwriter_tests(const char *tmpdir);
 int run_escp_tests(void);
 int run_printjob_tests(const char *tmpdir);
 
+/* test_memory_banks */
+int run_memory_bank_tests(void);
+
 /* test_hdlc */
 int run_tcp_receive_buffer_tests(void);
 int run_hdlc_frame_tests(void);

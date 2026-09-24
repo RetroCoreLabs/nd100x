@@ -19,10 +19,12 @@ file(GLOB CDC_SOURCES "cdc/*.c")
 file(GLOB HDLC_SOURCES "hdlc/*.c")
 file(GLOB LINEPRINTER_SOURCES "lineprinter/*.c")
 file(GLOB PAPERTAPEWRITER_SOURCES "papertapewriter/*.c")
+file(GLOB OCTOBUS_SOURCES "octobus/*.c")
 
 # Combine all sources
 list(APPEND SOURCES 
-    ${PANEL_SOURCES} 
+    ${PANEL_SOURCES}
+    ${OCTOBUS_SOURCES} 
     ${RTC_SOURCES} 
     ${TERMINAL_SOURCES} 
     ${PAPERTAPE_SOURCES} 

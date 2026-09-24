@@ -236,6 +236,9 @@ if(NOT PLATFORM_WINDOWS)
     add_executable(test_machine_config
         test_machine_config.c
         ${CMAKE_SOURCE_DIR}/src/machine/machine_config.c
+        # The JSON export is the browser's view of the SAME config, so it is
+        # tested beside the parser rather than left to be noticed in a UI.
+        ${CMAKE_SOURCE_DIR}/src/machine/machine_config_json.c
         # machine_config.c resolves 'cpu = ND110CX' through the model table.
         # A table of names, nothing else - it keeps this test free of the
         # machine and the devices, which is the point of building it this way.
@@ -458,3 +461,63 @@ foreach(_t IN LISTS _house_test_targets)
         target_compile_options(${_t} PRIVATE -UNDEBUG)
     endif()
 endforeach()
+
+# Physical memory bank table + LOCAL/MPM5 ECC probe unit tests
+#
+# cpu_mms.c is linked in DIRECTLY (it is the file under test) ahead of libcpu, so
+# the test always exercises the source tree and never a stale archive member. The
+# rest of the emulator comes from the static libraries because the physical
+# read/write path reaches cpu_interrupt() and the log; the test itself calls no
+# device and never starts the CPU (it installs a register set by hand instead of
+# cpu_init(), which would also build the paging and dispatch tables).
+add_executable(test_memory_banks
+    test_memory_banks_main.c
+    test_memory_banks.c
+    ${CMAKE_SOURCE_DIR}/src/cpu/cpu_mms.c
+)
+
+target_include_directories(test_memory_banks PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/cpu
+    ${CMAKE_SOURCE_DIR}/src/machine
+    ${CMAKE_SOURCE_DIR}/src/devices
+    ${CMAKE_SOURCE_DIR}/src/ndlib
+)
+
+# The link is a GROUP: cpu calls into devices and the debugger, devices calls
+# back into machine, and machine calls cpu. A single pass over the archives in
+# any order leaves some of those unresolved.
+target_link_libraries(test_memory_banks PRIVATE
+    -Wl,--start-group cpu machine devices debugger ndlib -Wl,--end-group m)
+
+# cpu_types.h #includes the generated cpu_protos.h; force the cpu target (which
+# runs mkptypes to emit it) to build first.
+add_dependencies(test_memory_banks cpu)
+
+add_test(NAME memory_bank_tests COMMAND test_memory_banks)
+
+# ND-100 octobus interface card unit tests
+#
+# device_octobus.c is linked in DIRECTLY with device.c for dev_init, so no
+# device manager and no machine are involved - a failure here is the card's.
+# The addresses and ident codes are the point: see device_octobus.h for the two
+# plausible ident claims that turned out to be wrong.
+add_executable(test_octobus
+    test_octobus.c
+    ${CMAKE_SOURCE_DIR}/src/devices/octobus/device_octobus.c
+    ${CMAKE_SOURCE_DIR}/src/devices/device.c
+)
+
+target_include_directories(test_octobus PRIVATE
+    ${CMAKE_SOURCE_DIR}/src/devices
+    ${CMAKE_SOURCE_DIR}/src/cpu
+    ${CMAKE_SOURCE_DIR}/src/machine
+    ${CMAKE_SOURCE_DIR}/src/ndlib
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(test_octobus PRIVATE -Wl,--start-group ndlib -Wl,--end-group m)
+add_dependencies(test_octobus cpu)
+
+add_test(NAME octobus_tests COMMAND test_octobus)

@@ -208,6 +208,14 @@ static Device *create_device(DeviceType type, uint8_t thumbwheel)
             return NULL;
         }
         break;
+    case DEVICE_TYPE_OCTOBUS:
+        dev = octobus_create_device(thumbwheel);
+        if (!dev)
+        {
+            LOG(LOG_CAT_DEVICE, LOG_ERROR, "Failed to create octobus device\n");
+            return NULL;
+        }
+        break;
     case DEVICE_TYPE_TERMINAL:
         dev = terminal_create_device(thumbwheel);
         if (!dev)

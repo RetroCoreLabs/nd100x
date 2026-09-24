@@ -143,6 +143,9 @@ typedef enum {
      * @ IOX 500-507 (system 1) or 510-517 (system 2). NOTE: system 1 shares its
      * address block with DEVICE_TYPE_CDC - a machine has one card or the other. */
     DEVICE_TYPE_DISC_WINCHESTER,
+    /* ND-100 octobus interface, IOX 100400-100437 across four cards, idents
+     * 40B..47B on level 13. The ND-100 is always octobus station 1B. */
+    DEVICE_TYPE_OCTOBUS,
     DEVICE_TYPE_MAX
 } DeviceType;
 // clang-format on

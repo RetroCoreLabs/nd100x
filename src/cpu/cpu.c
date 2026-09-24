@@ -1206,6 +1206,14 @@ void cpu_init(bool debugger_enabled, int debugger_port)
     // Allocate ShadowMemory for pagetables
     mms_create_paging_tables();
 
+    // Register the physical memory banks. Installed local RAM becomes an
+    // ND_MEM_LOCAL bank sized from g_nd_memsize, which the frontend has already
+    // set from --memory / the .ini memory= key. Shared MPM-5 windows are
+    // registered later, by whoever attaches an ND-5000. Done here and NOT in
+    // cpu_reset(): the banks are machine wiring, not CPU state, and a reset must
+    // not unplug memory that is still physically present.
+    mms_memory_banks_init();
+
     /* Pick the CPU model BEFORE the dispatch table is built - it gates whole groups. */
     cpu_set_type_from_env();
 

@@ -139,6 +139,76 @@ typedef struct
     bool disk_writable[MC_ND500_MAX_DISKS];
 } McNd500;
 
+/*
+ * THE MULTIFUNCTION BUS: ONE shared memory pool for the whole machine.
+ *
+ * Every ND-5000 runs out of this pool - the ND-5000 has no private RAM - and the
+ * ND-100 sees the same memory as MPM5 (ND-05.020.01 T40 and T99). This is NOT
+ * per-CPU memory, and a configuration that reads as though each CPU has its own
+ * 16 MB is describing a machine that never existed.
+ */
+#define MC_MFBUS_MAX_PARTS 8
+
+typedef struct
+{
+    int  pages;    /* part size in ND-100 pages */
+    bool nd100;    /* the ND-100 may access this part */
+    bool nd500_p;  /* usable as ND-500 program memory */
+    bool nd500_d;  /* usable as ND-500 data memory */
+} McMfbusPart;
+
+typedef struct
+{
+    bool enabled;   /* no [mfbus] section at all = false */
+    int  size_mb;   /* total pool. A real system is the sum of its RAM cards,
+                     * each 4, 8 or 16 MB - ND-05.020.01 T23. 0 = default */
+    /* The ND-100 PAGE at which ND-500 physical address 0 appears - exactly the
+     * parameter of the ND-500 monitor's DEFINE-MEMORY-CONFIGURATION
+     * (ND-60.136.04 T165). Octal with a trailing B, decimal without, because
+     * every page number in every manual and in MEM-CONF output is octal. */
+    int  base_page;
+    bool base_page_set;
+    McMfbusPart parts[MC_MFBUS_MAX_PARTS];
+    int  partCount;
+} McMfbus;
+
+/*
+ * ONE ND-5000 CPU.
+ *
+ * Station numbers are 070B..076B - seven slots, ND-05.020.01 T329 - and they are
+ * OCTAL in every ND document. 070B is 56 decimal; writing 70 would not even fit
+ * the 6-bit station field.
+ */
+#define MC_ND5000_MAX_CPUS 7
+#define MC_ND5000_STATION_FIRST 56 /* 070B */
+#define MC_ND5000_STATION_LAST  62 /* 076B */
+
+typedef struct
+{
+    bool enabled;
+    int  slot;        /* the <n> of [nd5000.<n>], 1..7 */
+    int  station;     /* 56..62 (070B..076B) */
+    /* Per-CPU ND-100 page for this CPU's ND-500 address 0. SINTRAN stores this
+     * per CPU, so it is stored per CPU here; on all available evidence the value
+     * is the same for every CPU, so an unset one inherits [mfbus] base_page.
+     * Do not set them differently without settling open item #1 first. */
+    int  base_page;
+    bool base_page_set;
+    int  cpu_type;    /* 500 or 5000 */
+    char kernel[MC_PATH_LEN];
+    char pseg[MC_PATH_LEN];
+    char dseg[MC_PATH_LEN];
+    char disks[MC_ND500_MAX_DISKS][MC_PATH_LEN];
+    bool disk_writable[MC_ND500_MAX_DISKS];
+} McNd5000;
+
+/* The octobus controller in the ND-100. The ND-100 is always station 1B
+ * (ND-05.020.01 T329), so there is nothing to configure but its presence. */
+typedef struct
+{
+    bool enabled;
+} McOctobus;
+
 typedef struct
 {
     /* The CPU family number, kept because that is what existing .ini files
@@ -167,6 +237,12 @@ typedef struct
     McBootSpec boot;
     MC_Runtime runtime;
     McNd500 nd500;
+
+    /* The MFbus pool, the octobus controller and the ND-5000 CPUs. */
+    McMfbus   mfbus;
+    McOctobus octobus;
+    McNd5000  nd5000[MC_ND5000_MAX_CPUS];
+    int       nd5000Count;
 
     bool loaded_from_file;
     char source_path[MC_PATH_LEN];
