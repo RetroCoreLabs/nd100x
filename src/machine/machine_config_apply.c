@@ -15,9 +15,8 @@
 #include "../cpu/cpu_types.h"
 #include "../devices/devices_types.h"
 #include "../devices/devices_protos.h"
-#include "mfbus_bridge.h"
 #ifdef ND100X_WITH_ND500
-#include "../devices/octobus/device_octobus.h"
+#include "mfbus_config.h"
 #endif
 
 void mc_apply_cpu(const MachineConfig *mc, const MachineConfigApplyOpts *opts)
@@ -140,91 +139,10 @@ void mc_apply_devices(const MachineConfig *mc)
     }
 
 #ifdef ND100X_WITH_ND500
-    /*
-     * The multifunction bus: ONE shared memory pool, the ND-100's octobus card,
-     * and a station per ND-5000.
-     *
-     * ORDER MATTERS. The pool is attached first because both of the others
-     * depend on it - a station with no shared memory has nowhere to execute -
-     * and it is registered as an ND_MEM_MPM5 bank, which is what makes SINTRAN
-     * find it at all.
-     */
-    if (mc->mfbus.enabled)
-    {
-        /* Defaults that match the schema's documented ones rather than zero: a
-         * pool of no size and a base page of 0 would both be accepted here and
-         * then fail deep inside the bank table. */
-        uint32_t size_mb = (mc->mfbus.size_mb > 0) ? (uint32_t)mc->mfbus.size_mb : 16u;
-        uint32_t base_page = mc->mfbus.base_page_set ? (uint32_t)mc->mfbus.base_page : 04100u;
-
-        if (mfbus_attach(size_mb * 1024u * 1024u, base_page))
-        {
-            /* The ND-100's way onto the bus. Station 1B is fixed in the
-             * hardware, so the card carries no station setting - only which of
-             * the four interfaces it is. */
-            if (mc->octobus.enabled)
-            {
-                devmgr_add_device(DEVICE_TYPE_OCTOBUS, 0);
-
-                /* Connect the card to the bus. Without this the card answers
-                 * SINTRAN's presence probes and then transmits into nothing -
-                 * a machine that looks configured and reaches no CPU. */
-                /* Found by its IOX address rather than by type: the device
-                 * manager already indexes by address, and 100400 is interface
-                 * 0's base (ND-05.020.01 T329 via the card's own header). */
-                Device *card = devmgr_get_device_by_address(OCTOBUS_BASE_ADDRESS);
-                if (card != NULL)
-                {
-                    (void)mfbus_attach_card(card);
-                }
-                else
-                {
-                    LOG(LOG_CAT_MMS, LOG_WARN,
-                        "MFbus: the octobus card was added but could not be found to "
-                        "connect to the bus\n");
-                }
-            }
-
-            for (int i = 0; i < mc->nd5000Count; i++)
-            {
-                const McNd5000 *cpu5 = &mc->nd5000[i];
-                if (!cpu5->enabled)
-                {
-                    continue;
-                }
-                if (!mfbus_add_nd5000((uint8_t)cpu5->station))
-                {
-                    continue;
-                }
-                if (!mfbus_attach_cpu((uint8_t)cpu5->station))
-                {
-                    continue;
-                }
-
-                /*
-                 * A kernel named in the .ini is loaded at pool offset 0 ONLY
-                 * when no mailbox is configured there. Loading over the mailbox
-                 * global header would overwrite X5SEM with program text, and
-                 * the symptom is a semaphore that never unlocks.
-                 *
-                 * mc_validate() has already refused a configuration where more
-                 * than one enabled CPU names boot material, so at most one CPU
-                 * reaches this.
-                 */
-                if (cpu5->kernel[0] != '\0')
-                {
-                    (void)mfbus_load_nd5000((uint8_t)cpu5->station, cpu5->kernel, 0);
-                }
-            }
-        }
-    }
-    else if (mc->nd5000Count > 0)
-    {
-        /* mc_validate() refuses this, so reaching it means the configuration was
-         * applied without being validated. Say so rather than building a
-         * machine with CPUs that cannot run. */
-        LOG(LOG_CAT_MMS, LOG_WARN,
-            "ND-5000 CPUs are configured but there is no [mfbus] pool - none were added\n");
-    }
+    /* The multifunction bus: the shared pool, the ND-100's octobus card and a
+     * station per ND-5000. The building lives in mfbus_bridge.c so it can be
+     * tested directly from a parsed configuration - a .ini that produces the
+     * wrong machine is a failure nothing else in this file would catch. */
+    (void)mfbus_apply_config(mc);
 #endif /* ND100X_WITH_ND500 */
 }

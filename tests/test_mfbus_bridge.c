@@ -27,6 +27,7 @@
 #include "devices_protos.h"
 #include "octobus/device_octobus.h"
 #include "ndbus_context.h"
+#include "mfbus_config.h"
 #include "ndbus_pool.h"
 
 static int s_failed = 0;
@@ -422,6 +423,63 @@ int main(void)
     }
 
     mfbus_detach();
+
+    /* ---- an .ini in, a working machine out --------------------------------
+     * The path Ronny actually uses. A configuration that parses cleanly and then
+     * builds the wrong machine is a failure no parser test catches, and until
+     * now mfbus_apply_config() had no test at all. */
+    {
+        char ini[300];
+        snprintf(ini, sizeof(ini), "%s/machine.ini", dir);
+        FILE *f = fopen(ini, "w");
+        CHECK(f != NULL, "an .ini to apply");
+        if (f)
+        {
+            /* A 2 MB pool so the test stays quick, at the live-captured base
+             * page, with one ND-5000 at 070B. No octobus card: adding one needs
+             * the device manager, which this test deliberately does not start. */
+            fprintf(f, "[mfbus]\nsize = 2\nbase_page = 004100B\n\n");
+            fprintf(f, "[nd5000.1]\nenabled = yes\nstation = 070B\n\n");
+            fprintf(f, "[nd5000.2]\nenabled = no\nstation = 071B\n");
+            fclose(f);
+
+            MachineConfig mc;
+            char cfgerr[MC_ERR_LEN];
+            mc_set_defaults(&mc);
+            CHECK(mc_load_file(&mc, ini, cfgerr, sizeof(cfgerr)), "the .ini loads");
+
+            CHECK(mfbus_apply_config(&mc), "and builds the bus");
+            CHECK(mfbus_is_attached(), "the pool is attached");
+            CHECK(mfbus_pool() != NULL, "and reachable");
+            CHECK(mfbus_pool()->size == 2u * 1024u * 1024u, "at the configured size");
+
+            /* THE THING SINTRAN WOULD SEE: local RAM LOCAL, the window MPM5. */
+            CHECK(mms_get_physical_memory_type(0) == ND_MEM_LOCAL, "local RAM reads LOCAL");
+            CHECK(mms_get_physical_memory_type(2112u * 1024u) == ND_MEM_MPM5,
+                  "and the configured page reads MPM5");
+
+            /* ONE station: the disabled CPU must not be built. A configuration
+             * that quietly enabled it would put a second CPU on the bus. */
+            CHECK(mfbus_nd5000_count() == 1, "exactly the enabled CPU was added");
+            CHECK(mfbus_nd5000_instructions(56) == 0, "it has a CPU, which has not run");
+            CHECK(mfbus_nd5000_instructions(57) == 0, "and 071B has none");
+
+            /* It can be started and stopped, which is the whole point of
+             * building it from configuration. */
+            CHECK(mfbus_start_nd5000(56), "the configured CPU starts");
+            mfbus_stop_nd5000(56);
+            CHECK(!mfbus_start_nd5000(57), "and the disabled one cannot be started");
+
+            mfbus_detach();
+
+            /* A configuration with no [mfbus] builds nothing and says so. */
+            MachineConfig empty;
+            mc_set_defaults(&empty);
+            CHECK(!mfbus_apply_config(&empty), "a config with no [mfbus] builds nothing");
+            CHECK(!mfbus_is_attached(), "and leaves nothing attached");
+            CHECK(!mfbus_apply_config(NULL), "a NULL config is refused");
+        }
+    }
 
     printf("\n%d check(s), %d failed\n", s_checks, s_failed);
     if (s_failed != 0)

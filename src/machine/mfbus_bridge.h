@@ -17,6 +17,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+
 #ifdef ND100X_WITH_ND500
 
 struct NdbusPool;
@@ -32,6 +33,17 @@ struct Device;
  * likely one: it means the configured base page falls inside installed ND-100
  * memory.
  */
+/* mfbus_apply_config() is declared in mfbus_config.h, NOT here.
+ *
+ * WHY THE SPLIT: both repositories have a machine_types.h and both guard it with
+ * #ifndef MACHINE_TYPES_H. Including nd100x's machine_config.h pulls in nd100x's
+ * machine_types.h and defines that guard, after which nd500x's machine_types.h is
+ * silently skipped and Nd500Machine is never declared - the build then fails
+ * inside nd500x's own cpu_protos.h, which reads like a missing library rather
+ * than a guard collision. So this file sees nd500x's headers and mfbus_config.c
+ * sees nd100x's, and the two never meet in one translation unit. */
+
+
 /**
  * @brief Allocate the shared MFbus pool and register it as an ND-100 MPM-5 bank.
  *

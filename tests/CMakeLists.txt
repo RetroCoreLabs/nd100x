@@ -533,6 +533,9 @@ if(ND100X_WITH_ND500)
         ${CMAKE_SOURCE_DIR}/src/cpu/cpu_mms.c
         # The octobus card, so the test can drive a real card on the real fabric.
         ${CMAKE_SOURCE_DIR}/src/devices/octobus/device_octobus.c
+        # The config-to-machine mapping, which is the path a user actually takes.
+        ${CMAKE_SOURCE_DIR}/src/machine/mfbus_config.c
+        ${CMAKE_SOURCE_DIR}/src/machine/machine_config.c
     )
 
     target_compile_definitions(test_mfbus_bridge PRIVATE ND100X_WITH_ND500=1)
