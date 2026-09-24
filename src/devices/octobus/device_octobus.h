@@ -66,7 +66,7 @@
 
 #include "../devices_types.h"
 
-/* Interface 0's register block. The others are +010 octal per interface. */
+/** Interface 0's register block. The others are +010 octal per interface. */
 #define OCTOBUS_BASE_ADDRESS 0100400
 #define OCTOBUS_REGISTERS    8
 #define OCTOBUS_MAX_CARDS    4
@@ -96,26 +96,44 @@
  *   +7  write control, the output controller's DCONT. OCSTART reaches it as
  *       "T+4" from +3 (PH-P2-OPPSTART.NPL:4055).
  */
+/** The eight registers of one octobus interface, as offsets from its base. */
 typedef enum
 {
-    OCTOBUS_REG_IN_READ_DATA    = 0,
-    OCTOBUS_REG_IN_WRITE_DATA   = 1,
-    OCTOBUS_REG_IN_READ_STATUS  = 2,
-    OCTOBUS_REG_IN_WRITE_CTRL   = 3,
-    OCTOBUS_REG_OUT_READ_DATA   = 4,
-    OCTOBUS_REG_OUT_WRITE_CMD   = 5,
-    OCTOBUS_REG_OUT_READ_STATUS = 6,
-    OCTOBUS_REG_OUT_WRITE_CTRL  = 7
+    OCTOBUS_REG_IN_READ_DATA    = 0, /**< +0 read data, input controller */
+    OCTOBUS_REG_IN_WRITE_DATA   = 1, /**< +1 write data */
+    OCTOBUS_REG_IN_READ_STATUS  = 2, /**< +2 read status; OCSTART's presence probe */
+    OCTOBUS_REG_IN_WRITE_CTRL   = 3, /**< +3 write control (DCONT); 20 octal clears */
+    OCTOBUS_REG_OUT_READ_DATA   = 4, /**< +4 read data, output controller */
+    OCTOBUS_REG_OUT_WRITE_CMD   = 5, /**< +5 write command; CMMACLE master clear */
+    OCTOBUS_REG_OUT_READ_STATUS = 6, /**< +6 read status; bit 3 is data ready */
+    OCTOBUS_REG_OUT_WRITE_CTRL  = 7  /**< +7 write control, the output DCONT */
 } OctobusRegister;
 
-/* Output status bit 3: data ready. CH5CPUPRESENT spins on it before sending a
- * command, so a card that never sets it hangs the probe rather than failing. */
-#define OCTOBUS_STATUS_DATA_READY (1u << 3)
+/**
+ * Output status bit 3: data ready.
+ *
+ * CH5CPUPRESENT spins on it before sending a command
+ * (PH-P2-OPPSTART.NPL:3923), so a card that never sets it HANGS the probe
+ * rather than reporting a missing CPU.
+ */
+#define OCTOBUS_STATUS_DATA_READY (1u << 3u)
 
-/* Control value 20 octal clears an interface (PH-P2-OPPSTART.NPL:4054). */
+/** Control value 20 octal clears an interface (PH-P2-OPPSTART.NPL:4054). */
 #define OCTOBUS_CTRL_CLEAR 020
 
-/* Create the octobus card for `thumbwheel` 0..3. NULL for anything else. */
+/**
+ * @brief Create one ND-100 octobus interface card.
+ *
+ * Interfaces are 010 octal apart: thumbwheel 0 is 100400-100407 with receive
+ * ident 40B and transmit ident 41B, thumbwheel 1 is 100410 with 42B/43B, and so
+ * on. All four are on interrupt level 13. SINTRAN's OCSTART only ever handles
+ * interface 0; the others exist in the hardware catalogue and in TPE's table.
+ *
+ * @param thumbwheel Which of the four interfaces, 0 to 3.
+ * @return The device, or NULL for a thumbwheel outside 0..3 or an allocation
+ *         failure. The caller owns the device and releases it through the
+ *         device manager.
+ */
 Device *octobus_create_device(uint8_t thumbwheel);
 
 #endif /* DEVICE_OCTOBUS_H */

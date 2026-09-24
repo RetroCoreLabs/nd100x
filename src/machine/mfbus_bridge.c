@@ -165,7 +165,7 @@ static void mfbus_bank_write(void *ctx, uint32_t word_offset, uint16_t value, Wr
     switch (wm)
     {
     case WRITEMODE_MSB:
-        (void)ndbus_window_write_msb(&s_window, word_offset, (uint8_t)(value >> 8));
+        (void)ndbus_window_write_msb(&s_window, word_offset, (uint8_t)(value >> 8u));
         break;
     case WRITEMODE_LSB:
         (void)ndbus_window_write_lsb(&s_window, word_offset, (uint8_t)(value & 0xFF));

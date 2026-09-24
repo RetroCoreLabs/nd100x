@@ -31,14 +31,44 @@ struct NdbusPool;
  * likely one: it means the configured base page falls inside installed ND-100
  * memory.
  */
+/**
+ * @brief Allocate the shared MFbus pool and register it as an ND-100 MPM-5 bank.
+ *
+ * An ND-100 page is 1024 WORDS, so the window's first word address is
+ * base_page * 1024. Page 004100B (2112) is word 0x210000, which is byte
+ * 0x420000 - the value captured from a live machine.
+ *
+ * @param size_bytes Pool size in bytes. Every ND-5000 runs out of this one pool.
+ * @param base_page  ND-100 page at which ND-500 physical address 0 appears -
+ *                   the parameter of the ND-500 monitor's
+ *                   DEFINE-MEMORY-CONFIGURATION.
+ * @return true on success; false having allocated NOTHING when the pool cannot
+ *         be allocated, when an MFbus is already attached, or when the bank
+ *         would OVERLAP memory that is already registered. Overlap is the
+ *         likely failure: it means the configured base page falls inside
+ *         installed ND-100 memory.
+ */
 bool mfbus_attach(uint32_t size_bytes, uint32_t base_page);
 
-/* Unregister the bank and free the pool. Safe when nothing is attached. */
+/**
+ * @brief Stop every CPU, drop every station, unregister the bank and free the pool.
+ *
+ * The order matters and is not an implementation detail: a running CPU thread
+ * holds pointers to its machine, its CPU and the pool, so the threads are
+ * stopped and JOINED before anything they touch is freed.
+ */
 void mfbus_detach(void);
 
-/* The pool, so an ND-5000 can be given the same bytes. NULL when detached. */
+/**
+ * @brief The shared pool, so an ND-5000 can be given the same bytes.
+ * @return The pool, or NULL when nothing is attached.
+ */
 struct NdbusPool *mfbus_pool(void);
 
+/**
+ * @brief Whether a shared MFbus pool is currently attached.
+ * @return true when a pool exists and is registered as an MPM-5 bank.
+ */
 bool mfbus_is_attached(void);
 
 /*
@@ -47,13 +77,33 @@ bool mfbus_is_attached(void);
  * duplicate, more than MC_ND5000_MAX_CPUS, or when no pool is attached - an
  * ND-5000 with no shared memory has nowhere to execute.
  */
+/**
+ * @brief Put an ND-5000 station on the octobus with the shared pool behind it.
+ *
+ * @param station_number Octobus station, 070B to 076B (56 to 62 decimal).
+ *                       Seven slots, ND-05.020.01 T329.
+ * @return true on success; false for a station number outside that range -
+ *         where other kinds of device live - for a duplicate, for more than
+ *         seven CPUs, or when no pool is attached. An ND-5000 with no shared
+ *         memory has nowhere to execute: it has no private RAM at all.
+ */
 bool mfbus_add_nd5000(uint8_t station_number);
 
-/* How many ND-5000 stations are on the bus. */
+/**
+ * @brief How many ND-5000 stations are on the bus.
+ * @return The station count, 0 to 7.
+ */
 int mfbus_nd5000_count(void);
 
 /* Drop every station. Called by mfbus_detach(); separate so a reconfiguration
  * can rebuild the bus without tearing down the pool. */
+/**
+ * @brief Stop, join and remove every ND-5000 station, leaving the pool attached.
+ *
+ * Separate from mfbus_detach() so a reconfiguration can rebuild the bus without
+ * tearing down shared memory. Each CPU's host thread is stopped and joined
+ * before its machine is freed.
+ */
 void mfbus_clear_nd5000(void);
 
 /*
@@ -67,14 +117,46 @@ void mfbus_clear_nd5000(void);
  * False when there is no station at that number, when it already has a CPU, or
  * when no pool is attached.
  */
+/**
+ * @brief Give an ND-5000 station a real ND-500 CPU running out of the shared pool.
+ *
+ * The machine's memory IS the pool - not a copy and not a window - so ND-500
+ * physical address 0 is pool offset 0, and an instruction the CPU fetches is a
+ * byte the ND-100 can write through its MPM-5 bank.
+ *
+ * The CPU is created, reset and left STOPPED. The ND-120 starts a microprogram
+ * with an ACCP STARTMIC over the octobus; the emulator does not decide to.
+ *
+ * @param station_number The station to give a CPU to.
+ * @return true on success; false when there is no station at that number, when
+ *         it already has a CPU, or when no pool is attached.
+ */
 bool mfbus_attach_cpu(uint8_t station_number);
 
-/* Start / stop the host thread of the CPU at `station_number`. Stopping WAITS
- * for the thread, because everything it touches must outlive it. */
+/**
+ * @brief Start the host thread of the CPU at this station.
+ * @param station_number The station whose CPU to run.
+ * @return true when the thread started; false when the station has no CPU, the
+ *         thread is already running, or the build has no host threads.
+ */
 bool mfbus_start_nd5000(uint8_t station_number);
+
+/**
+ * @brief Stop the host thread of the CPU at this station and WAIT for it.
+ *
+ * Asks and joins. Requesting a stop is not enough: the thread may be mid
+ * instruction when the request arrives, and the pool it is reading must outlive
+ * it. Safe on a station with no CPU and on one that is not running.
+ *
+ * @param station_number The station whose CPU to stop.
+ */
 void mfbus_stop_nd5000(uint8_t station_number);
 
-/* Instructions executed by the CPU at `station_number`, 0 if it has none. */
+/**
+ * @brief How many instructions the CPU at this station has executed.
+ * @param station_number The station to ask about.
+ * @return The instruction count, or 0 when the station has no CPU.
+ */
 unsigned long long mfbus_nd5000_instructions(uint8_t station_number);
 
 #endif /* ND100X_WITH_ND500 */

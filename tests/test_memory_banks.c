@@ -122,7 +122,8 @@ static int run_bank_table_tests(void)
         }
     }
     CHECK(registered == ND_MEMORY_BANK_MAX - 1, "local RAM plus the bound is what fits");
-    CHECK(mms_get_physical_memory_type(0) == ND_MEM_LOCAL, "local RAM still classified at the bound");
+    CHECK(mms_get_physical_memory_type(0) == ND_MEM_LOCAL,
+          "local RAM still classified at the bound");
 
     /* REGRESSION: classify by WORD address, never by byte address.
      * The physical path builds `((ppn << 10) | dip)`, a WORD address. If a
