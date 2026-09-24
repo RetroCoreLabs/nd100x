@@ -49,6 +49,15 @@
 
 typedef struct
 {
+    /*
+     * The receive FIFO: 16 words, which TPE's test 3 checks by counting how many
+     * it can write before input status bit 2 clears. A ring rather than a shift
+     * buffer so a drain is not quadratic - TPE drains the whole FIFO in a loop.
+     */
+    uint16_t rx_fifo[OCTOBUS_RX_FIFO_WORDS];
+    int      rx_head;  /* next word to read */
+    int      rx_count; /* words currently held */
+
     /* The card's own registers. Reads of a read register and writes of a write
      * register both land here, so a test can see what SINTRAN did. */
     uint16_t input_data;
@@ -65,6 +74,76 @@ typedef struct
     uint16_t      last_command;
 } OctobusData;
 
+/* Recompute the input status bits that describe the FIFO. Called after every
+ * push, pop and clear, so the two bits can never disagree with the count. */
+static void octobus_update_input_status(OctobusData *d)
+{
+    if (d->rx_count < OCTOBUS_RX_FIFO_WORDS)
+    {
+        d->input_status |= (uint16_t)OCTOBUS_IN_STATUS_FIFO_NOT_FULL;
+    }
+    else
+    {
+        d->input_status &= (uint16_t)~OCTOBUS_IN_STATUS_FIFO_NOT_FULL;
+    }
+
+    if (d->rx_count > 0)
+    {
+        d->input_status |= (uint16_t)OCTOBUS_IN_STATUS_DATA_AVAIL;
+    }
+    else
+    {
+        d->input_status &= (uint16_t)~OCTOBUS_IN_STATUS_DATA_AVAIL;
+    }
+}
+
+static bool octobus_rx_push_data(OctobusData *d, uint16_t word)
+{
+    if (d->rx_count >= OCTOBUS_RX_FIFO_WORDS)
+    {
+        /* Full: the word is DROPPED, which is what the hardware does. Reporting
+         * it lets a caller count losses instead of silently believing the frame
+         * arrived. */
+        return false;
+    }
+    int tail = (d->rx_head + d->rx_count) % OCTOBUS_RX_FIFO_WORDS;
+    d->rx_fifo[tail] = word;
+    d->rx_count++;
+    octobus_update_input_status(d);
+    return true;
+}
+
+static uint16_t octobus_rx_pop_data(OctobusData *d)
+{
+    if (d->rx_count == 0)
+    {
+        return 0;
+    }
+    uint16_t word = d->rx_fifo[d->rx_head];
+    d->rx_head = (d->rx_head + 1) % OCTOBUS_RX_FIFO_WORDS;
+    d->rx_count--;
+    octobus_update_input_status(d);
+    return word;
+}
+
+bool octobus_rx_push(Device *self, uint16_t word)
+{
+    if (!self || !self->deviceData)
+    {
+        return false;
+    }
+    return octobus_rx_push_data((OctobusData *)self->deviceData, word);
+}
+
+int octobus_rx_count(Device *self)
+{
+    if (!self || !self->deviceData)
+    {
+        return 0;
+    }
+    return ((OctobusData *)self->deviceData)->rx_count;
+}
+
 static void octobus_reset(Device *self)
 {
     if (!self || !self->deviceData)
@@ -73,6 +152,10 @@ static void octobus_reset(Device *self)
     }
     OctobusData *d = (OctobusData *)self->deviceData;
     memset(d, 0, sizeof(*d));
+
+    /* An empty FIFO has maximum space, so FIFO-not-full is SET and
+     * data-available is CLEAR. */
+    octobus_update_input_status(d);
 
     /* Data ready from the start. CH5CPUPRESENT spins on output status bit 3
      * before it sends a command (PH-P2-OPPSTART.NPL:3923), so a card that never
@@ -92,9 +175,9 @@ static uint16_t octobus_read(Device *self, uint32_t address)
     switch (reg)
     {
     case OCTOBUS_REG_IN_READ_DATA:
-        /* No fabric is attached yet, so there is nothing to hand over. 0, not a
-         * fabricated frame. */
-        return d->input_data;
+        /* Pops the receive FIFO. An empty FIFO reads 0, and input status bit 3
+         * is how software knows the difference between that and a real 0. */
+        return octobus_rx_pop_data(d);
 
     case OCTOBUS_REG_IN_READ_STATUS:
         /* OCSTART reads this purely to find out whether the card exists:
@@ -131,7 +214,11 @@ static void octobus_write(Device *self, uint32_t address, uint16_t value)
     switch (reg)
     {
     case OCTOBUS_REG_IN_WRITE_DATA:
+        /* Writing the input data register pushes into the receive FIFO. This is
+         * the standalone loopback TPE uses: its test 3 fills the FIFO this way
+         * and counts the writes that fit. */
         d->input_data = value;
+        (void)octobus_rx_push_data(d, value);
         break;
 
     case OCTOBUS_REG_IN_WRITE_CTRL:
@@ -142,6 +229,12 @@ static void octobus_write(Device *self, uint32_t address, uint16_t value)
             d->clears++;
             d->input_data = 0;
             d->input_status = 0;
+            /* Clearing empties the FIFO, so the status bits are recomputed
+             * rather than left at 0 - a cleared card has space, and software
+             * that polls bit 2 would otherwise see a full FIFO forever. */
+            d->rx_head = 0;
+            d->rx_count = 0;
+            octobus_update_input_status(d);
         }
         break;
 

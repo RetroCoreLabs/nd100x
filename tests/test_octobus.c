@@ -22,6 +22,7 @@
 
 #include "devices_types.h"
 #include "devices_protos.h"
+#include "octobus/device_octobus.h"
 
 static int s_failed = 0;
 static int s_checks = 0;
@@ -144,6 +145,120 @@ int main(void)
         }
         free(dev4);
     }
+
+    /* =====================================================================
+     * TPE's OWN OCTOBUS TESTS.
+     *
+     * RetroCore tests this card by mirroring the Test Program Environment's
+     * octobus tests, which is the strongest idea available here: the card is
+     * checked the way the real diagnostic checks it, so passing means the same
+     * thing it means on hardware. TPE's list:
+     *
+     *   Test 1  Check Ident                - interface detection
+     *   Test 2  Check data transmission
+     *   Test 3  Check receive FIFO length  - exactly 16 words
+     *   Test 4  Check octobus configuration - station discovery
+     *
+     * Tests 1 to 3 need only the card. Test 4 needs a populated bus.
+     * ===================================================================== */
+
+    Device *card = octobus_create_device(0);
+    CHECK(card != NULL, "TPE: a card to test");
+    if (card == NULL)
+    {
+        printf("\n%d check(s), %d failed\n", s_checks, s_failed);
+        return s_failed ? 1 : 0;
+    }
+
+    /* ---- TPE test 1: Check Ident ---------------------------------------- */
+    CHECK(card->identCode == 040, "TPE 1: interface 1 identifies as 40B");
+    CHECK(card->Ident(card, OCTOBUS_INT_LEVEL) == 040, "TPE 1: and answers on level 13");
+
+    /* ---- TPE test 3: Check receive FIFO length --------------------------
+     * The real loop: write words while input status bit 2 (FIFO NOT FULL)
+     * stays set, and count them. The answer must be 16.
+     *
+     * Bit 2 is INVERTED from how it reads: SET means space available. Getting
+     * that backwards either writes nothing or never terminates, so the loop is
+     * bounded well above 16 to fail as a wrong COUNT rather than as a hang. */
+    card->Reset(card);
+    CHECK((card->Read(card, 0100402) & OCTOBUS_IN_STATUS_FIFO_NOT_FULL) != 0,
+          "TPE 3: an empty FIFO reports space available");
+    CHECK((card->Read(card, 0100402) & OCTOBUS_IN_STATUS_DATA_AVAIL) == 0,
+          "TPE 3: and reports no data available");
+
+    int written = 0;
+    while ((card->Read(card, 0100402) & OCTOBUS_IN_STATUS_FIFO_NOT_FULL) != 0 && written < 64)
+    {
+        card->Write(card, 0100401, (uint16_t)(0x1000 + written));
+        written++;
+    }
+    CHECK(written == OCTOBUS_RX_FIFO_WORDS, "TPE 3: the receive FIFO holds exactly 16 words");
+    CHECK(octobus_rx_count(card) == OCTOBUS_RX_FIFO_WORDS, "TPE 3: and the card agrees");
+    CHECK((card->Read(card, 0100402) & OCTOBUS_IN_STATUS_DATA_AVAIL) != 0,
+          "TPE 3: a full FIFO reports data available");
+
+    /* A word written to a full FIFO is DROPPED, as the hardware drops it. */
+    CHECK(!octobus_rx_push(card, 0xFFFF), "TPE 3: a word past 16 is refused");
+    CHECK(octobus_rx_count(card) == OCTOBUS_RX_FIFO_WORDS, "TPE 3: and does not grow the FIFO");
+
+    /* ---- TPE test 2: Check data transmission ---------------------------
+     * Standalone, this is the loopback: what went in comes back out, in
+     * order, and the FIFO empties exactly. */
+    bool order_ok = true;
+    for (int i = 0; i < OCTOBUS_RX_FIFO_WORDS; i++)
+    {
+        uint16_t got = card->Read(card, 0100400);
+        if (got != (uint16_t)(0x1000 + i))
+        {
+            order_ok = false;
+        }
+    }
+    CHECK(order_ok, "TPE 2: every word comes back in the order it went in");
+    CHECK(octobus_rx_count(card) == 0, "TPE 2: and the FIFO is empty");
+    CHECK((card->Read(card, 0100402) & OCTOBUS_IN_STATUS_DATA_AVAIL) == 0,
+          "TPE 2: which the status bit reports");
+    CHECK((card->Read(card, 0100402) & OCTOBUS_IN_STATUS_FIFO_NOT_FULL) != 0,
+          "TPE 2: along with space being available again");
+    CHECK(card->Read(card, 0100400) == 0, "TPE 2: a drained FIFO reads 0");
+
+    /* The FIFO is a RING: drain some, refill, and it must not wrap wrongly.
+     * A shift buffer would pass the tests above and fail this one. */
+    card->Reset(card);
+    for (int i = 0; i < 10; i++)
+    {
+        (void)octobus_rx_push(card, (uint16_t)(0x2000 + i));
+    }
+    for (int i = 0; i < 6; i++)
+    {
+        (void)card->Read(card, 0100400);
+    }
+    for (int i = 0; i < 10; i++)
+    {
+        (void)octobus_rx_push(card, (uint16_t)(0x3000 + i));
+    }
+    CHECK(octobus_rx_count(card) == 14, "TPE 2: the ring holds 4 old plus 10 new");
+    CHECK(card->Read(card, 0100400) == 0x2006, "TPE 2: and reads the oldest remaining first");
+
+    /* Clearing the interface empties the FIFO and leaves the status bits
+     * describing an EMPTY one - not zeroed. Software polling bit 2 after a
+     * clear would otherwise see a permanently full FIFO. */
+    card->Write(card, 0100403, 020);
+    CHECK(octobus_rx_count(card) == 0, "clearing the interface empties the FIFO");
+    CHECK((card->Read(card, 0100402) & OCTOBUS_IN_STATUS_FIFO_NOT_FULL) != 0,
+          "and leaves FIFO-not-full SET, not zeroed");
+
+    /* ---- TPE test 4: Check octobus configuration ------------------------
+     * Station discovery needs a populated bus behind the card, and the frame
+     * path from the fabric to this card is not wired yet. Named here so the
+     * gap is visible in the test output rather than only in a document. */
+    printf("  TPE 4 (station discovery): NOT RUN - the card has no fabric attached yet\n");
+
+    if (card->Destroy)
+    {
+        card->Destroy(card);
+    }
+    free(card);
 
     printf("\n%d check(s), %d failed\n", s_checks, s_failed);
     if (s_failed != 0)

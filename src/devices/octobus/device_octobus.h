@@ -110,6 +110,64 @@ typedef enum
 } OctobusRegister;
 
 /**
+ * Receive FIFO depth, in 16-bit words.
+ *
+ * TPE's octobus test 3, "Check receive fifo length", verifies this exactly: it
+ * writes words while input status bit 2 stays set and counts how many it got in.
+ * The count must be 16.
+ */
+#define OCTOBUS_RX_FIFO_WORDS 16
+
+/**
+ * Input status bit 2: FIFO NOT FULL.
+ *
+ * INVERTED from what the name might suggest, and this is the bit TPE counts on:
+ *   SET   (1) = the FIFO has space and will accept another word
+ *   CLEAR (0) = the FIFO is full
+ *
+ * Set after reset or master clear, because an empty FIFO has maximum space.
+ * Reading it as "FIFO full" inverts the fill loop, which either writes nothing
+ * or never stops.
+ *
+ * Source: hardware test program decode, via RetroCore's ReceiveStatusBits.
+ */
+#define OCTOBUS_IN_STATUS_FIFO_NOT_FULL (1u << 2u)
+
+/**
+ * Input status bit 3: data available in the receive FIFO.
+ *
+ * RetroCore's enum calls this bit Ready For Transfer, noting it overlaps the
+ * speed field's low bit and that RFT is the primary meaning; its implementation
+ * sets it "when FIFO has data available", and its threaded test reads it as
+ * "RX data available". Those are the same bit with two names.
+ */
+#define OCTOBUS_IN_STATUS_DATA_AVAIL (1u << 3u)
+
+/** Input status bits 8-13 carry the station number of the sender. */
+#define OCTOBUS_IN_STATUS_STATION_SHIFT 8u
+#define OCTOBUS_IN_STATUS_STATION_MASK  (0x3Fu << OCTOBUS_IN_STATUS_STATION_SHIFT)
+
+/**
+ * @brief Push one word into a card's receive FIFO, as an arriving frame would.
+ *
+ * The frame path from a fabric is not wired yet; this is how a test - and later
+ * the octobus fabric - delivers a word to the ND-100 side.
+ *
+ * @param self Device returned by octobus_create_device().
+ * @param word The 16-bit frame to deliver.
+ * @return true when the word was queued; false when the FIFO is full, which is
+ *         the card dropping it exactly as the hardware does.
+ */
+bool octobus_rx_push(Device *self, uint16_t word);
+
+/**
+ * @brief How many words are in a card's receive FIFO.
+ * @param self Device returned by octobus_create_device().
+ * @return The count, 0 to OCTOBUS_RX_FIFO_WORDS.
+ */
+int octobus_rx_count(Device *self);
+
+/**
  * Output status bit 3: data ready.
  *
  * CH5CPUPRESENT spins on it before sending a command

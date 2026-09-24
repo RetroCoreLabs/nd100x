@@ -70,6 +70,8 @@ add_custom_command(
     COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/scsi/disk_scsi.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
     COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/scsi/scsi_hdd.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
     COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/scsi/device_scsi.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
+    # Add octobus device sources
+    COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/octobus/device_octobus.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
     # Add drum device sources
     COMMAND ${CMAKE_SOURCE_DIR}/tools/mkptypes/mkptypes ${CMAKE_CURRENT_SOURCE_DIR}/drum/device_drum.c >> ${CMAKE_CURRENT_SOURCE_DIR}/devices_protos.h
     # Add CDC system-disc device sources
