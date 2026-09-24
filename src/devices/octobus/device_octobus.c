@@ -79,6 +79,15 @@ typedef struct
     uint16_t      last_command;
 } OctobusData;
 
+/*
+ * NOTE ON THE STATION FIELD. Input status bits 8-13 carry the sender's station
+ * number on real hardware, and this card leaves them zero. That is not a gap in
+ * practice: octobus_rx_push() takes a whole frame, and the frame already carries
+ * the source in its own bits 13-8 after the bus's destination-to-source rewrite.
+ * Software reading the sender from the status register instead of from the frame
+ * would get 0 - if that ever matters, push would have to take the source too.
+ */
+
 /* Recompute the input status bits that describe the FIFO. Called after every
  * push, pop and clear, so the two bits can never disagree with the count. */
 static void octobus_update_input_status(OctobusData *d)
