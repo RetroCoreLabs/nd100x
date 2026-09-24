@@ -53,6 +53,8 @@
 #include "ndbus_window.h"
 
 #include "../cpu/cpu_types.h"
+#include "../devices/devices_types.h"
+#include "../devices/octobus/device_octobus.h"
 #include "../ndlib/ndlib_types.h"
 #include "../ndlib/ndlib_protos.h"
 
@@ -297,6 +299,62 @@ bool mfbus_add_nd5000(uint8_t station_number)
 int mfbus_nd5000_count(void)
 {
     return s_nd5000_count;
+}
+
+/*
+ * The ND-100 card's frame going onto the bus.
+ *
+ * The ND-100 is always octobus station 1B (ND-05.020.01 T329), so that is the
+ * source the fabric rewrites into the delivered frame - it is not configurable
+ * and must not be guessed from the card's thumbwheel, which selects the
+ * INTERFACE, not the station.
+ *
+ * A timeout - an illegal destination, or no station there - pushes NOTHING.
+ * That is what the hardware does: the real bus reports Ack=00 and the software
+ * times out on an empty receive FIFO. Pushing a synthetic "no answer" frame
+ * would make an absent station indistinguishable from a quiet one.
+ */
+static void mfbus_card_transmit(void *ctx, Device *card, uint16_t frame)
+{
+    (void)ctx;
+
+    uint16_t replies[NDBUS_MAX_REPLY_FRAMES];
+    int      n = ndbus_fabric_send(&s_fabric, (uint8_t)NDBUS_STATION_ND120_CPU, frame, replies);
+    if (n <= 0)
+    {
+        return;
+    }
+
+    for (int i = 0; i < n; i++)
+    {
+        if (!octobus_rx_push(card, replies[i]))
+        {
+            /* The 16-word FIFO is full and the rest of the reply is DROPPED,
+             * exactly as the card drops it. Said out loud because a truncated
+             * multibyte reply is a different message, and the guest will read it
+             * as one. */
+            LOG(LOG_CAT_MMS, LOG_WARN,
+                "MFbus: octobus card receive FIFO full - %d reply frame(s) dropped\n", n - i);
+            break;
+        }
+    }
+}
+
+bool mfbus_attach_card(Device *card)
+{
+    if (card == NULL)
+    {
+        return false;
+    }
+    if (!s_attached)
+    {
+        LOG(LOG_CAT_MMS, LOG_ERROR,
+            "MFbus: cannot connect the octobus card - no shared pool is attached\n");
+        return false;
+    }
+    octobus_set_transmit(card, mfbus_card_transmit, NULL);
+    LOG(LOG_CAT_MMS, LOG_INFO, "MFbus: octobus card connected to the bus as station 1B\n");
+    return true;
 }
 
 bool mfbus_attach_cpu(uint8_t station_number)

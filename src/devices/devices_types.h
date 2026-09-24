@@ -150,6 +150,23 @@ typedef enum {
 } DeviceType;
 // clang-format on
 
+/**
+ * @brief Send one frame from the card onto the bus.
+ *
+ * The seam between the ND-100 card and the octobus fabric. The card itself knows
+ * nothing about the fabric - src/devices/ does not link it - so whoever owns the
+ * bus installs a handler with octobus_set_transmit() and routes the frame.
+ *
+ * Replies go back by calling octobus_rx_push() on the card, which is how the
+ * hardware presents them: an answer arrives in the receive FIFO and raises the
+ * input status data-available bit, exactly like any other incoming frame.
+ *
+ * @param ctx   The context given to octobus_set_transmit().
+ * @param card  The card the frame came from, so the handler can push replies.
+ * @param frame The 16-bit frame written to the output command register.
+ */
+typedef void (*OctobusTransmitFn)(void *ctx, struct Device *card, uint16_t frame);
+
 // Device structure
 // clang-format off
 typedef struct Device {

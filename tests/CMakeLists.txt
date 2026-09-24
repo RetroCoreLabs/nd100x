@@ -531,6 +531,8 @@ if(ND100X_WITH_ND500)
     add_executable(test_mfbus_bridge
         test_mfbus_bridge.c
         ${CMAKE_SOURCE_DIR}/src/cpu/cpu_mms.c
+        # The octobus card, so the test can drive a real card on the real fabric.
+        ${CMAKE_SOURCE_DIR}/src/devices/octobus/device_octobus.c
     )
 
     target_compile_definitions(test_mfbus_bridge PRIVATE ND100X_WITH_ND500=1)

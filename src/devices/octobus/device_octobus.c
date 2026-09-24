@@ -68,6 +68,11 @@ typedef struct
     uint16_t output_status;
     uint16_t output_control;
 
+    /* The bus seam. NULL = standalone: writes to the command register transmit
+     * nothing, which is what lets TPE's tests 1 to 3 run with no bus. */
+    OctobusTransmitFn transmit;
+    void             *transmit_ctx;
+
     /* Diagnostics: what the probes did, so a failure names the step. */
     unsigned long clears;      /* control writes carrying 20 octal */
     unsigned long commands;    /* writes to the output command register */
@@ -124,6 +129,17 @@ static uint16_t octobus_rx_pop_data(OctobusData *d)
     d->rx_count--;
     octobus_update_input_status(d);
     return word;
+}
+
+void octobus_set_transmit(Device *self, OctobusTransmitFn fn, void *ctx)
+{
+    if (!self || !self->deviceData)
+    {
+        return;
+    }
+    OctobusData *d = (OctobusData *)self->deviceData;
+    d->transmit = fn;
+    d->transmit_ctx = ctx;
 }
 
 bool octobus_rx_push(Device *self, uint16_t word)
@@ -239,12 +255,18 @@ static void octobus_write(Device *self, uint32_t address, uint16_t value)
         break;
 
     case OCTOBUS_REG_OUT_WRITE_CMD:
-        /* CMMACLE (master clear SAMSON), CMACONT (continue ACCP) and the rest
-         * arrive here. Recorded, not acted on: acting on a master clear without
-         * an ND-5000 attached would be inventing a machine. */
+        /* CMMACLE (master clear SAMSON), CMACONT (continue ACCP) and every
+         * outgoing frame arrive here. Recorded either way, so a test can see
+         * what the guest sent even with no bus attached. */
         d->output_command = value;
         d->last_command = value;
         d->commands++;
+        if (d->transmit != NULL)
+        {
+            /* Onto the bus. The handler pushes any reply back into this card's
+             * receive FIFO, which is where the hardware puts it too. */
+            d->transmit(d->transmit_ctx, self, value);
+        }
         break;
 
     case OCTOBUS_REG_OUT_WRITE_CTRL:

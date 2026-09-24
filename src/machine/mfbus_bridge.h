@@ -20,6 +20,7 @@
 #ifdef ND100X_WITH_ND500
 
 struct NdbusPool;
+struct Device;
 
 /*
  * Allocate the shared pool and register it as an ND_MEM_MPM5 bank at
@@ -117,6 +118,20 @@ void mfbus_clear_nd5000(void);
  * False when there is no station at that number, when it already has a CPU, or
  * when no pool is attached.
  */
+/**
+ * @brief Connect an ND-100 octobus card to the MFbus fabric.
+ *
+ * After this, a frame the guest writes to the card's output command register
+ * goes onto the bus, and any reply arrives in the card's receive FIFO - which is
+ * where the hardware puts it. Station discovery, the ACCP bring-up sequence and
+ * every mailbox kick travel this path.
+ *
+ * @param card The device returned by octobus_create_device().
+ * @return true on success; false for a NULL card or when no pool is attached,
+ *         since without one there is no bus for the card to reach.
+ */
+bool mfbus_attach_card(struct Device *card);
+
 /**
  * @brief Give an ND-5000 station a real ND-500 CPU running out of the shared pool.
  *

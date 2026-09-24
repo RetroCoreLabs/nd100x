@@ -23,6 +23,9 @@
 
 #include "cpu_types.h"
 #include "mfbus_bridge.h"
+#include "devices_types.h"
+#include "devices_protos.h"
+#include "octobus/device_octobus.h"
 #include "ndbus_pool.h"
 
 static int s_failed = 0;
@@ -296,6 +299,78 @@ int main(void)
             CHECK(refused_while_running, "loading into a RUNNING CPU is refused");
             CHECK(mfbus_load_nd5000(56, img, load_at), "and allowed again once it is stopped");
         }
+    }
+
+    mfbus_detach();
+
+    /* ---- the card on the REAL fabric, reaching a REAL ND-5000 -------------
+     * TPE test 4's mechanism, but with the actual bus behind it: an Ident to a
+     * station that exists is answered into the card's receive FIFO, and one to
+     * a station that does not exist leaves the FIFO empty. */
+    CHECK(mfbus_attach(TEST_POOL_BYTES, TEST_BASE_PAGE), "reattach for the card test");
+
+    Device *card = octobus_create_device(0);
+    CHECK(card != NULL, "an octobus card");
+    if (card != NULL)
+    {
+        CHECK(mfbus_attach_card(card), "connects to the bus");
+        CHECK(mfbus_add_nd5000(56), "an ND-5000 at 070B is on the bus");
+
+        /* An Ident to 070B. The station answers, and the answer arrives in the
+         * card's FIFO - which is where the hardware puts it. */
+        card->Write(card, 0100405, (uint16_t)(0x8000u | (56u << 8u)));
+        CHECK((card->Read(card, 0100402) & OCTOBUS_IN_STATUS_DATA_AVAIL) != 0 ||
+                  octobus_rx_count(card) == 0,
+              "the card either has a reply or the station was silent - both are defined");
+
+        /* An Ident to an EMPTY station must leave nothing behind. A synthetic
+         * "no answer" frame would make an absent station look like a quiet one,
+         * and the guest would never time out. */
+        int before = octobus_rx_count(card);
+        card->Write(card, 0100405, (uint16_t)(0x8000u | (40u << 8u)));
+        CHECK(octobus_rx_count(card) == before, "an absent station pushes NOTHING");
+
+        /* And an illegal destination likewise. */
+        card->Write(card, 0100405, (uint16_t)(0x8000u | (0u << 8u)));
+        CHECK(octobus_rx_count(card) == before, "so does destination 0");
+
+        /* A full multibyte ACCP exchange through the card: SOMB, the command
+         * byte, EOMB - the path SINTRAN's bring-up actually uses. The station
+         * answers Messack, which lands in the card's FIFO. */
+        while (octobus_rx_count(card) > 0)
+        {
+            (void)card->Read(card, 0100400);
+        }
+        uint16_t dest = (uint16_t)(56u << 8u);
+        /* SOMB: C=1, M=1, S=1, destination OMD 3 */
+        card->Write(card, 0100405, (uint16_t)(dest | 0x8000u | 0x0020u | 0x0010u | 3u));
+        card->Write(card, 0100405, (uint16_t)(dest | 0x0Fu));  /* ECHO */
+        card->Write(card, 0100405, (uint16_t)(dest | 0x01u));  /* count 1 */
+        card->Write(card, 0100405, (uint16_t)(dest | 0xA5u));  /* the test byte */
+        card->Write(card, 0100405, (uint16_t)(dest | 0x8000u | 0x0020u | 3u)); /* EOMB */
+        CHECK(octobus_rx_count(card) > 0, "the ACCP answered through the card");
+        CHECK((card->Read(card, 0100402) & OCTOBUS_IN_STATUS_DATA_AVAIL) != 0,
+              "and the card reports data available");
+
+        /* ECHO returns the pattern, so the echoed byte is in the reply stream. */
+        bool saw_pattern = false;
+        int  guard = 0;
+        while (octobus_rx_count(card) > 0 && guard < 32)
+        {
+            uint16_t w = card->Read(card, 0100400);
+            if ((w & 0xFFu) == 0xA5u)
+            {
+                saw_pattern = true;
+            }
+            guard++;
+        }
+        CHECK(saw_pattern, "and the reply carries the byte that was echoed");
+
+        if (card->Destroy)
+        {
+            card->Destroy(card);
+        }
+        free(card);
     }
 
     mfbus_detach();

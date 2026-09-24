@@ -16,6 +16,9 @@
 #include "../devices/devices_types.h"
 #include "../devices/devices_protos.h"
 #include "mfbus_bridge.h"
+#ifdef ND100X_WITH_ND500
+#include "../devices/octobus/device_octobus.h"
+#endif
 
 void mc_apply_cpu(const MachineConfig *mc, const MachineConfigApplyOpts *opts)
 {
@@ -162,6 +165,24 @@ void mc_apply_devices(const MachineConfig *mc)
             if (mc->octobus.enabled)
             {
                 devmgr_add_device(DEVICE_TYPE_OCTOBUS, 0);
+
+                /* Connect the card to the bus. Without this the card answers
+                 * SINTRAN's presence probes and then transmits into nothing -
+                 * a machine that looks configured and reaches no CPU. */
+                /* Found by its IOX address rather than by type: the device
+                 * manager already indexes by address, and 100400 is interface
+                 * 0's base (ND-05.020.01 T329 via the card's own header). */
+                Device *card = devmgr_get_device_by_address(OCTOBUS_BASE_ADDRESS);
+                if (card != NULL)
+                {
+                    (void)mfbus_attach_card(card);
+                }
+                else
+                {
+                    LOG(LOG_CAT_MMS, LOG_WARN,
+                        "MFbus: the octobus card was added but could not be found to "
+                        "connect to the bus\n");
+                }
             }
 
             for (int i = 0; i < mc->nd5000Count; i++)

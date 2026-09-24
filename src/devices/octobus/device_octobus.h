@@ -147,6 +147,24 @@ typedef enum
 #define OCTOBUS_IN_STATUS_STATION_SHIFT 8u
 #define OCTOBUS_IN_STATUS_STATION_MASK  (0x3Fu << OCTOBUS_IN_STATUS_STATION_SHIFT)
 
+
+/* OctobusTransmitFn is declared in devices_types.h: the generated
+ * devices_protos.h names it in this function's prototype, and every consumer of
+ * that header must be able to see the type. */
+
+/**
+ * @brief Install the handler that carries frames from this card onto the bus.
+ *
+ * With no handler installed the card accepts writes to the output command
+ * register and transmits NOTHING - which is the correct standalone behaviour,
+ * and is why TPE's tests 1 to 3 pass without a bus.
+ *
+ * @param self Device returned by octobus_create_device().
+ * @param fn   The handler, or NULL to detach.
+ * @param ctx  Passed back to the handler unchanged.
+ */
+void octobus_set_transmit(Device *self, OctobusTransmitFn fn, void *ctx);
+
 /**
  * @brief Push one word into a card's receive FIFO, as an arriving frame would.
  *

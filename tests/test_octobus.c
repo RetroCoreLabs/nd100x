@@ -50,6 +50,32 @@ void mms_write_physical_memory(int addr, uint16_t v, bool priv)
     (void)priv;
 }
 
+/* A mock bus behind the card: a station registry and nothing else. What is
+ * under test is the CARD's half of the seam, so the bus is as simple as it can
+ * be while still answering for some stations and not others. */
+typedef struct
+{
+    bool          present[64];
+    unsigned long sent;
+} MockBus;
+
+static void mock_transmit(void *ctx, Device *card, uint16_t frame)
+{
+    MockBus *bus = (MockBus *)ctx;
+    bus->sent++;
+
+    uint8_t dest = (uint8_t)((frame >> 8u) & 0x3Fu);
+    if (dest == 0 || dest > 62 || !bus->present[dest])
+    {
+        return; /* nobody there: the real bus reports this as an Ack=00 timeout */
+    }
+
+    /* The answer carries the SOURCE in bits 13-8 - the destination-to-source
+     * rewrite the bus performs on delivery - and arrives in the card's FIFO. */
+    uint16_t reply = (uint16_t)((frame & 0xC0FFu) | ((uint32_t)dest << 8u));
+    (void)octobus_rx_push(card, reply);
+}
+
 int main(void)
 {
     printf("ND-100 octobus card tests\n");
@@ -248,11 +274,83 @@ int main(void)
     CHECK((card->Read(card, 0100402) & OCTOBUS_IN_STATUS_FIFO_NOT_FULL) != 0,
           "and leaves FIFO-not-full SET, not zeroed");
 
+    /* ---- TPE test 2, the real one: loop ALL patterns ---------------------
+     * TPE's test 2 is "Loop all possible patterns - exhaustive pattern test
+     * through loopback to verify data integrity across all bit combinations".
+     * All 65536 of them, in FIFO-sized batches, because a card that corrupts
+     * one bit in one pattern passes any sampled test. */
+    card->Reset(card);
+    unsigned long patterns = 0;
+    bool          pattern_ok = true;
+    for (uint32_t base = 0; base <= 0xFFFFu; base += OCTOBUS_RX_FIFO_WORDS)
+    {
+        int batch = 0;
+        while (batch < OCTOBUS_RX_FIFO_WORDS && (base + (uint32_t)batch) <= 0xFFFFu)
+        {
+            card->Write(card, 0100401, (uint16_t)(base + (uint32_t)batch));
+            batch++;
+        }
+        for (int i = 0; i < batch; i++)
+        {
+            uint16_t expect = (uint16_t)(base + (uint32_t)i);
+            if (card->Read(card, 0100400) != expect)
+            {
+                pattern_ok = false;
+            }
+            patterns++;
+        }
+    }
+    CHECK(pattern_ok, "TPE 2: all 65536 bit patterns survive the loopback");
+    CHECK(patterns == 65536ul, "TPE 2: and every one of them was tried");
+
     /* ---- TPE test 4: Check octobus configuration ------------------------
-     * Station discovery needs a populated bus behind the card, and the frame
-     * path from the fabric to this card is not wired yet. Named here so the
-     * gap is visible in the test output rather than only in a document. */
-    printf("  TPE 4 (station discovery): NOT RUN - the card has no fabric attached yet\n");
+     * Station discovery: send an "identify yourself" message to each station
+     * and see who answers. A present station replies and its answer arrives in
+     * the card's receive FIFO; an absent one answers nothing.
+     *
+     * The bus behind the card is a mock here on purpose. What is under test is
+     * the CARD's half - that a write to the command register goes out, that a
+     * reply comes back into the FIFO, and that silence stays silence. The real
+     * fabric is wired in mfbus_bridge and tested there. */
+    card->Reset(card);
+    MockBus bus;
+    memset(&bus, 0, sizeof(bus));
+    bus.present[8] = true;   /* 010B, a SCSI controller */
+    bus.present[56] = true;  /* 070B, an ND-5000 */
+    octobus_set_transmit(card, mock_transmit, &bus);
+
+    int answered = 0;
+    int probed = 0;
+    for (int st = 1; st <= 62; st++)
+    {
+        /* Ident: C=1, and E/K/M all clear. */
+        uint16_t ident = (uint16_t)(0x8000u | ((uint32_t)st << 8u));
+        card->Write(card, 0100405, ident);
+        probed++;
+        if ((card->Read(card, 0100402) & OCTOBUS_IN_STATUS_DATA_AVAIL) != 0)
+        {
+            uint16_t reply = card->Read(card, 0100400);
+            /* The answer names the station that sent it, in bits 13-8 - the
+             * destination-to-source rewrite the bus performs on delivery. */
+            if (((reply >> 8u) & 0x3Fu) == (uint16_t)st)
+            {
+                answered++;
+            }
+        }
+    }
+    CHECK(probed == 62, "TPE 4: every legal station was probed");
+    CHECK(answered == 2, "TPE 4: exactly the two present stations answered");
+    CHECK(bus.sent == 62, "TPE 4: and every probe actually went onto the bus");
+    CHECK(octobus_rx_count(card) == 0, "TPE 4: with no reply left unread");
+
+    /* Detaching the bus returns the card to standalone: writes to the command
+     * register transmit nothing, which is what makes tests 1 to 3 runnable
+     * without a bus at all. */
+    octobus_set_transmit(card, NULL, NULL);
+    unsigned long sent_before = bus.sent;
+    card->Write(card, 0100405, 0x8000u | (56u << 8u));
+    CHECK(bus.sent == sent_before, "a detached card transmits nothing");
+    CHECK(octobus_rx_count(card) == 0, "and receives nothing");
 
     if (card->Destroy)
     {
