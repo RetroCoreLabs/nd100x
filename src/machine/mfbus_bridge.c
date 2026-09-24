@@ -47,6 +47,7 @@
 #include "mfbus_bridge.h"
 
 #include "ndbus_context.h"
+#include "ndbus_cpunum.h"
 #include "ndbus_nd5000.h"
 #include "ndbus_runner.h"
 #include "ndbus_octobus.h"
@@ -455,9 +456,11 @@ bool mfbus_place_context(uint8_t station_number, uint32_t area_byte, uint32_t en
     }
     MfbusCpuSlot *c = &s_cpus[slot];
 
-    /* X5CPU is 0-based here and the station is 070B-based, so the CPU number is
-     * the station's distance from the first ND-5000 slot. */
-    int x5cpu = (int)station_number - (int)NDBUS_STATION_ND5000_FIRST;
+    /* Through the converter, NOT by hand. The context block's X5CPU is 0-based
+     * while the mailbox's CPUNO is 1-based, and both index a 256-byte stride -
+     * so a bare subtraction here is right for one structure and off by one for
+     * the other. ndbus_cpunum.h exists to keep that in one place. */
+    int x5cpu = ndbus_cpu_context_x5cpu(station_number);
 
     if (!ndbus_context_attach(&c->context, &s_pool, area_byte, x5cpu))
     {
