@@ -46,6 +46,7 @@
 
 #include "mfbus_bridge.h"
 
+#include "ndbus_context.h"
 #include "ndbus_nd5000.h"
 #include "ndbus_runner.h"
 #include "ndbus_octobus.h"
@@ -117,6 +118,8 @@ typedef struct
     Nd500Cpu     cpu;
     NdbusCpuOps  ops;
     NdbusRunner  runner;
+    NdbusContext context;      /* this CPU's SAMSON context block */
+    bool         context_set;  /* a block has been placed */
     char         name[32];
     bool         present;
 } MfbusCpuSlot;
@@ -439,6 +442,88 @@ bool mfbus_load_nd5000(uint8_t station_number, const char *path, uint32_t pool_o
 
     LOG(LOG_CAT_MMS, LOG_INFO, "MFbus: loaded %s at pool offset 0x%X for %s, PC set\n", path,
         (unsigned)pool_offset, c->name);
+    return true;
+}
+
+bool mfbus_place_context(uint8_t station_number, uint32_t area_byte, uint32_t entry_p,
+                         uint32_t local_base)
+{
+    int slot = mfbus_slot_of(station_number);
+    if (slot < 0 || !s_cpus[slot].present)
+    {
+        return false;
+    }
+    MfbusCpuSlot *c = &s_cpus[slot];
+
+    /* X5CPU is 0-based here and the station is 070B-based, so the CPU number is
+     * the station's distance from the first ND-5000 slot. */
+    int x5cpu = (int)station_number - (int)NDBUS_STATION_ND5000_FIRST;
+
+    if (!ndbus_context_attach(&c->context, &s_pool, area_byte, x5cpu))
+    {
+        LOG(LOG_CAT_MMS, LOG_ERROR,
+            "MFbus: a context block for %s does not fit at area 0x%X\n", c->name,
+            (unsigned)area_byte);
+        return false;
+    }
+    if (!ndbus_context_place(&c->context, entry_p, local_base))
+    {
+        return false;
+    }
+
+    c->context_set = true;
+    LOG(LOG_CAT_MMS, LOG_INFO, "MFbus: context for %s at 0x%X, P=0x%X B=0x%X\n", c->name,
+        (unsigned)ndbus_context_base(&c->context), (unsigned)entry_p, (unsigned)local_base);
+    return true;
+}
+
+bool mfbus_load_context(uint8_t station_number)
+{
+    int slot = mfbus_slot_of(station_number);
+    if (slot < 0 || !s_cpus[slot].present)
+    {
+        return false;
+    }
+    MfbusCpuSlot *c = &s_cpus[slot];
+    if (!c->context_set)
+    {
+        LOG(LOG_CAT_MMS, LOG_ERROR, "MFbus: no context block placed for %s\n", c->name);
+        return false;
+    }
+    if (ndbus_runner_state(&c->runner) != NDBUS_RUNNER_IDLE)
+    {
+        LOG(LOG_CAT_MMS, LOG_ERROR, "MFbus: %s is running - stop it before loading a context\n",
+            c->name);
+        return false;
+    }
+
+    /*
+     * NEWCNTXT, as far as the block goes.
+     *
+     * ONLY the fields the microcode actually loads. TOS, LL, HL, THA, CES, CAS
+     * and the trap enables live in the block but come from the Domain
+     * Information Table, so they are not copied - see
+     * ndbus_context_field_is_loaded(). Copying them would make this emulator
+     * honour a context the hardware ignores, and a bring-up that works here and
+     * not on the machine is worse than one that fails in both.
+     */
+    c->cpu.PC = ndbus_context_read(&c->context, NDBUS_CTX_P);
+    c->cpu.L = ndbus_context_read(&c->context, NDBUS_CTX_L);
+    c->cpu.B = ndbus_context_read(&c->context, NDBUS_CTX_B);
+    c->cpu.R = ndbus_context_read(&c->context, NDBUS_CTX_R);
+
+    for (int i = 0; i < 4; i++)
+    {
+        c->cpu.I[i] = ndbus_context_read(&c->context, NDBUS_CTX_I1 + (uint32_t)i * 4u);
+        c->cpu.A[i] = ndbus_context_read(&c->context, NDBUS_CTX_A1 + (uint32_t)i * 4u);
+        c->cpu.E[i] = ndbus_context_read(&c->context, NDBUS_CTX_E1 + (uint32_t)i * 4u);
+    }
+
+    c->cpu.CED = ndbus_context_read(&c->context, NDBUS_CTX_CED);
+    c->cpu.CAD = ndbus_context_read(&c->context, NDBUS_CTX_CAD);
+
+    LOG(LOG_CAT_MMS, LOG_INFO, "MFbus: %s loaded from its context block, P=0x%X\n", c->name,
+        (unsigned)c->cpu.PC);
     return true;
 }
 

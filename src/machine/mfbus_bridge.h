@@ -161,6 +161,12 @@ bool mfbus_attach_cpu(uint8_t station_number);
  * The CPU's PC is set to @p pool_offset, because that is where the image now
  * begins. The CPU is NOT started; the ND-120 does that with an ACCP STARTMIC.
  *
+ * SETTING PC IS A CONVENIENCE FOR A BARE HARNESS, not how the machine starts.
+ * The hardware start path is mfbus_place_context() followed by
+ * mfbus_load_context(): the ND-100 writes a register image into shared memory
+ * and NEWCNTXT loads the machine from it. Use those two when the question is
+ * whether the real bring-up works.
+ *
  * @param station_number The station whose CPU to load for.
  * @param path           Host path of the image.
  * @param pool_offset    Pool BYTE offset to load at, which is also the ND-500
@@ -169,6 +175,43 @@ bool mfbus_attach_cpu(uint8_t station_number);
  *         be read, or the image does not fit the pool at that offset.
  */
 bool mfbus_load_nd5000(uint8_t station_number, const char *path, uint32_t pool_offset);
+
+/**
+ * @brief Place a SAMSON context block for this station's CPU.
+ *
+ * The real start path. The ND-100 does not poke a program counter: it writes a
+ * register image into shared memory and the microcode's NEWCNTXT loads the
+ * machine from it when the microprogram starts.
+ *
+ * @param station_number The station whose CPU to place a context for.
+ * @param area_byte      Pool BYTE offset of the context block AREA - what the
+ *                       control-store cell OFFSET (0o20) is patched with. The
+ *                       CPU's own block is one stride past it.
+ * @param entry_p        P, the entry point.
+ * @param local_base     B, the local data base.
+ * @return true on success; false when the station has no CPU, or the block does
+ *         not fit the pool at that area base.
+ */
+bool mfbus_place_context(uint8_t station_number, uint32_t area_byte, uint32_t entry_p,
+                         uint32_t local_base);
+
+/**
+ * @brief Load this station's CPU from its context block, as NEWCNTXT does.
+ *
+ * Loads ONLY the fields NEWCNTXT loads. The DOMAIN registers in the block - TOS,
+ * LL, HL, THA, CES, CAS and the trap enables - are sourced from the Domain
+ * Information Table on real hardware, so they are deliberately NOT copied here
+ * however they were filled in. Copying them would make the emulator honour a
+ * context the hardware ignores, and a bring-up that works here and not on the
+ * machine is worse than one that fails in both.
+ *
+ * @param station_number The station whose CPU to load.
+ * @return true on success; false when the station has no CPU, no context has
+ *         been placed, or the CPU is running - loading registers underneath a
+ *         thread that is executing produces a machine halfway between two
+ *         contexts.
+ */
+bool mfbus_load_context(uint8_t station_number);
 
 /**
  * @brief Start the host thread of the CPU at this station.

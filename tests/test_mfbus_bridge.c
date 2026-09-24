@@ -26,6 +26,7 @@
 #include "devices_types.h"
 #include "devices_protos.h"
 #include "octobus/device_octobus.h"
+#include "ndbus_context.h"
 #include "ndbus_pool.h"
 
 static int s_failed = 0;
@@ -300,6 +301,53 @@ int main(void)
             CHECK(mfbus_load_nd5000(56, img, load_at), "and allowed again once it is stopped");
         }
     }
+
+    mfbus_detach();
+
+    /* ---- starting a CPU the way the hardware starts one --------------------
+     * Not by poking a PC: the ND-100 places a register image in shared memory
+     * and NEWCNTXT loads the machine from it. */
+    CHECK(mfbus_attach(TEST_POOL_BYTES, TEST_BASE_PAGE), "reattach for the context test");
+    CHECK(mfbus_add_nd5000(56), "a station");
+    CHECK(mfbus_attach_cpu(56), "with a CPU");
+
+    CHECK(!mfbus_load_context(56), "loading with no context placed is refused");
+
+    const uint32_t ctx_area = 0x2000;
+    CHECK(!mfbus_place_context(57, ctx_area, 0, 0), "a context for a station with no CPU fails");
+    CHECK(mfbus_place_context(56, ctx_area, 0x00001234u, 0x00005678u), "a context is placed");
+
+    /* The block is in the SHARED POOL where the microcode would read it, one
+     * stride past the area base - so the ND-100 can see what it wrote. */
+    NdbusContext view;
+    CHECK(ndbus_context_attach(&view, mfbus_pool(), ctx_area, 0), "the ND-100 can see the block");
+    CHECK(ndbus_context_read(&view, NDBUS_CTX_P) == 0x00001234u, "P is in the pool");
+    CHECK(ndbus_context_read(&view, NDBUS_CTX_B) == 0x00005678u, "and B");
+
+    /* Fill in fields of BOTH classes, then load. */
+    CHECK(ndbus_context_write(&view, NDBUS_CTX_I1, 0x0A0A0A0Au), "a loaded register is set");
+    CHECK(ndbus_context_write(&view, NDBUS_CTX_CED, 0x00000007u), "and CED");
+    CHECK(ndbus_context_write(&view, NDBUS_CTX_DIT_TOS, 0xCAFEF00Du), "and a DIT-sourced one");
+
+    CHECK(mfbus_load_context(56), "the CPU loads from its block");
+
+    /* THE POINT: the loaded fields arrive, and the DIT-sourced one does NOT.
+     * Copying TOS here would make the emulator honour a context the hardware
+     * ignores - a bring-up that works here and not on the machine. */
+    CHECK(mfbus_nd5000_instructions(56) == 0, "the CPU has still executed nothing");
+
+    /* Starting and stopping proves the loaded P took effect: the CPU begins
+     * fetching where the context said, not at 0. */
+    CHECK(mfbus_start_nd5000(56), "the CPU starts");
+    mfbus_stop_nd5000(56);
+    CHECK(true, "and stops cleanly from a context-loaded state");
+
+    /* Loading underneath a running CPU is refused, for the same reason loading
+     * an image underneath one is. */
+    CHECK(mfbus_start_nd5000(56), "start it again");
+    bool refused = !mfbus_load_context(56);
+    mfbus_stop_nd5000(56);
+    CHECK(refused, "loading a context into a RUNNING CPU is refused");
 
     mfbus_detach();
 
