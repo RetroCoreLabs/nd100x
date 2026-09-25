@@ -77,6 +77,10 @@ static void octobus_reset(Device *self)
     // An empty FIFO has maximum space, so fifoNotFull is SET.
     octobus_update_fifo_status(data);
 
+    // Our own station: the ND-100 is always 1B (T329).
+    data->stationAddress = OCTOBUS_ND100_STATION;
+    data->statusRegister.bits.station = (uint16_t)(OCTOBUS_ND100_STATION & 0x3F);
+
     // The output controller is ready from reset: CH5CPUPRESENT spins on this bit
     // before sending a command, so a card that never sets it hangs the probe
     // rather than reporting a missing CPU.
@@ -92,6 +96,25 @@ static uint16_t octobus_tick(Device *self)
         return 0;
     }
     dev_tick_io_delay(self);
+
+    // LEVEL-SENSITIVE RE-ASSERT. devmgr_ident() force-clears this device's level
+    // bit after any successful IDENT, which is right for a device with one
+    // request - but this card has TWO, and the second must still be served.
+    //
+    // The input controller has priority, so a write that raises both events is
+    // IDENTed as 40B and leaves the output request pending. Without re-asserting
+    // here the line stays down, the CPU never takes level 13 again, and TPE
+    // reports "Found identcodes : 40B and 0B" - it collected the input ident and
+    // never saw the output one.
+    //
+    // Recomputing from the request flip-flops every tick is what makes the line
+    // level-sensitive rather than edge-triggered, which is what the hardware is.
+    OctobusData *data = (OctobusData *)self->deviceData;
+    if (data)
+    {
+        octobus_update_interrupt(self, data);
+    }
+
     return self->interruptBits;
 }
 
@@ -136,6 +159,38 @@ static void octobus_raise_output_event(Device *self, OctobusData *data)
 {
     data->outputIrqPending = true;
     octobus_update_interrupt(self, data);
+}
+
+// Echo a transmitted frame into our own input side, as the hardware's local
+// loopback does.
+//
+// The received frame carries the SOURCE station in bits 13:8 - the hardware
+// stamps the sender's own station onto every received frame (manual ch. 3.2;
+// carve Q2 step 10 decodes +0 bits 13:8 as the source and compares it against
+// the +2 own-station field). For a self-loopback the source is THIS card, so
+// C and B (bits 15,14) and the information byte (7:0) are kept and the station
+// field is replaced. TPE's self-send cross-check requires the +0 source to equal
+// the +2 own-station field, so both must carry stationAddress.
+//
+// Returns false when the FIFO is full, leaving the caller to apply back-pressure.
+static bool octobus_loopback_echo(Device *self, OctobusData *data, uint16_t value)
+{
+    // The own-station field in the input status, which TPE compares against.
+    data->statusRegister.bits.station = (uint16_t)(data->stationAddress & 0x3F);
+
+    uint16_t frame =
+        (uint16_t)((value & 0xC0FF) | ((uint16_t)(data->stationAddress & 0x3F) << 8));
+
+    if (!octobus_fifo_push(data, frame))
+    {
+        data->outputStatusRegister.bits.readyForTransfer = 0;
+        octobus_update_interrupt(self, data);
+        return false;
+    }
+
+    data->inputData = frame;
+    octobus_raise_input_event(self, data);
+    return true;
 }
 
 static uint16_t octobus_read(Device *self, uint32_t address)
@@ -242,25 +297,32 @@ static void octobus_write(Device *self, uint32_t address, uint16_t value)
         data->lastCommand = value;
         data->commands++;
 
-        // A frame addressed to station 0 is the card testing ITSELF: echo it into
-        // our own receive FIFO instead of putting it on the bus. This must work
-        // whether or not a bus is attached - see device_octobus.h.
+        // A frame to destination 0, or to our own station, is a LOCAL hardware
+        // loopback and is decided BEFORE any bus routing - see device_octobus.h
+        // for why the order matters. With no bus attached at all, everything
+        // loops back, which is what lets the stand-alone tests run.
         uint16_t dest = (uint16_t)((value >> 8) & 0x3F);
-        if (dest == OCTOBUS_LOOPBACK_DEST)
+        if (OCTOBUS_IS_SELF_LOOP(dest, data->stationAddress) || !data->transmit)
         {
-            if (octobus_fifo_push(data, value))
+            if (!octobus_loopback_echo(self, data, value))
             {
-                octobus_raise_input_event(self, data);
+                // FIFO full: back-pressure. The output stays BUSY with
+                // ready-for-transfer CLEAR and the transfer does NOT complete, so
+                // the test sees the FIFO is full rather than losing a frame
+                // silently.
+                break;
             }
         }
-        else if (data->transmit)
+        else
         {
             // Onto the bus. The handler pushes any reply back into this card's
             // receive FIFO, which is where the hardware puts it too.
             data->transmit(data->transmitCtx, self, value);
         }
 
-        // The send completed, however it was routed.
+        // Transmission complete: clear busy, set ready, and raise the output
+        // event.
+        data->outputStatusRegister.bits.readyForTransfer = 1;
         octobus_raise_output_event(self, data);
         break;
     }

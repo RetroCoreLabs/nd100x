@@ -79,16 +79,28 @@
 #define OCTOBUS_RX_FIFO_WORDS 16
 
 /**
- * A frame addressed to station 0 is the card testing ITSELF: it is echoed into
- * this card's own receive FIFO instead of going onto the bus.
- *
- * Station 0 is not a legal octobus station (the T329 table starts at 1), which
- * is precisely why it can carry this meaning. TPE's stand-alone tests use it, and
- * it must keep working with a bus attached - otherwise those tests fail on every
- * machine that actually has an ND-5000, which is the configuration they get run
- * on.
+ * The ND-100's own octobus station number. Fixed in the hardware (the T329
+ * station table lists the ND-120 CPU at 1B), so it is not configurable - the
+ * thumbwheel selects the INTERFACE, not the station.
  */
-#define OCTOBUS_LOOPBACK_DEST 0
+#define OCTOBUS_ND100_STATION 1
+
+/**
+ * A frame addressed to station 0, OR to the card's own station, is a LOCAL
+ * HARDWARE LOOPBACK: the sender's own input side receives it - ready-for-transfer
+ * in +2 and the frame in +0 with our station stamped as the source.
+ *
+ * Both destinations are used, for different tests:
+ *   dest 0            TPE's LIST-HARDWARE-CONFIGURATION self-send cross-check
+ *   dest own station  TPE test 1 (carve Q4, ram:c1f2 / ram:c1a3)
+ *
+ * This MUST be decided BEFORE any bus routing. The card's own adapter is a
+ * station on the fabric at its own number, so routing a self-send out through
+ * the bus would deliver it during the output-interrupt service instead of
+ * consistently. Both tests poll with roughly a hundred-iteration window, so
+ * immediate delivery is the simplest valid model.
+ */
+#define OCTOBUS_IS_SELF_LOOP(dest, own) ((dest) == 0 || (dest) == (own))
 
 // Octobus registers. Input controller +0..+3, output controller +4..+7;
 // even addresses read, odd addresses write.
@@ -219,6 +231,9 @@ typedef struct
 
     uint16_t inputData;
     uint16_t outputData;
+
+    // This card's own octobus station number.
+    uint16_t stationAddress;
 
     // Receive FIFO: a ring, so a drain is not quadratic - TPE drains the whole
     // FIFO in a loop.

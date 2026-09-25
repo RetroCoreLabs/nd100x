@@ -180,8 +180,10 @@ int main(void)
     /* Reading a write register or writing a read register is a guest bug, not a
      * card feature. Neither may fault. */
     CHECK(dev->Read(dev, 0100401) == 0, "reading a write-only register is 0");
+    dev->Reset(dev);
     dev->Write(dev, 0100400, 0xFFFF);
-    CHECK(dev->Read(dev, 0100400) == 0, "writing a read-only register changes nothing");
+    CHECK(octobus_rx_count(dev) == 0, "writing the read-only data register queues nothing");
+    CHECK(dev->Read(dev, 0100400) == 0, "and it reads back 0");
 
     /* Reset returns the card to the state the probes expect. */
     dev->Reset(dev);
@@ -368,7 +370,16 @@ int main(void)
     CHECK(octobus_rx_count(card) == 1, "TPE-CONF: a dest-0 frame loops back");
     CHECK(octobus_in_status(card).bits.dataAvailable,
           "TPE-CONF: and the input channel reports test-data available");
-    CHECK(card->Read(card, 0100400) == 0x00A5u, "TPE-CONF: with the data intact");
+    /* The frame comes back with OUR STATION STAMPED into bits 13:8 - the hardware
+     * stamps the sender onto every received frame, and TPE's self-send
+     * cross-check compares this against the +2 own-station field. C/B (15,14) and
+     * the information byte (7:0) are preserved, which is what keeps TPE's pattern
+     * echo working. */
+    CHECK(card->Read(card, 0100400) ==
+              (uint16_t)((0x00A5u & 0xC0FFu) | (OCTOBUS_ND100_STATION << 8)),
+          "TPE-CONF: with the data intact and our station stamped as the source");
+    CHECK(octobus_in_status(card).bits.station == OCTOBUS_ND100_STATION,
+          "TPE-CONF: and the +2 own-station field matches it");
 
     /* Loopback must survive a bus being attached, or the standalone tests break
      * on any machine that has an ND-5000 - which is the configuration TPE was
@@ -467,6 +478,13 @@ int main(void)
     int probed = 0;
     for (int st = 1; st <= 62; st++)
     {
+        if (st == OCTOBUS_ND100_STATION)
+        {
+            /* Our own station is a LOCAL loopback, not a bus probe - see
+             * OCTOBUS_IS_SELF_LOOP. Probing it would answer from our own FIFO and
+             * tell us nothing about the bus. */
+            continue;
+        }
         /* Ident: C=1, and E/K/M all clear. */
         uint16_t ident = (uint16_t)(0x8000u | ((uint32_t)st << 8u));
         card->Write(card, 0100405, ident);
@@ -482,19 +500,34 @@ int main(void)
             }
         }
     }
-    CHECK(probed == 62, "TPE 4: every legal station was probed");
+    CHECK(probed == 61, "TPE 4: every legal station except our own was probed");
     CHECK(answered == 2, "TPE 4: exactly the two present stations answered");
-    CHECK(bus.sent == 62, "TPE 4: and every probe actually went onto the bus");
+    CHECK(bus.sent == 61, "TPE 4: and every probe actually went onto the bus");
+
     CHECK(octobus_rx_count(card) == 0, "TPE 4: with no reply left unread");
 
-    /* Detaching the bus returns the card to standalone: writes to the command
-     * register transmit nothing, which is what makes tests 1 to 3 runnable
-     * without a bus at all. */
+    /* Our own station answers from the LOCAL loopback, without the bus. */
+    {
+        unsigned long sent = bus.sent;
+        card->Write(card, 0100405,
+                    (uint16_t)(0x8000u | ((uint32_t)OCTOBUS_ND100_STATION << 8u)));
+        CHECK(octobus_rx_count(card) == 1, "TPE 4: our own station self-loops");
+        CHECK(bus.sent == sent, "TPE 4: and never reaches the bus");
+    }
+
+    /* Detaching the bus puts the card in LOOPBACK: with no CPU attached every
+     * frame is echoed to our own input side, whatever its destination. That is
+     * what makes TPE's stand-alone tests 1 to 3 runnable with no bus at all - and
+     * it is a MODE, not a destination rule. */
     octobus_set_transmit(card, NULL, NULL);
+    while (octobus_rx_count(card) > 0)
+    {
+        (void)card->Read(card, 0100400);
+    }
     unsigned long sent_before = bus.sent;
-    card->Write(card, 0100405, 0x8000u | (56u << 8u));
-    CHECK(bus.sent == sent_before, "a detached card transmits nothing");
-    CHECK(octobus_rx_count(card) == 0, "and receives nothing");
+    card->Write(card, 0100405, (uint16_t)(0x8000u | (56u << 8u)));
+    CHECK(bus.sent == sent_before, "a detached card transmits nothing onto the bus");
+    CHECK(octobus_rx_count(card) == 1, "and loops the frame back to its own input instead");
 
     if (card->Destroy)
     {
