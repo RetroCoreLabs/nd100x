@@ -24,6 +24,39 @@
 #include "devices_protos.h"
 #include "octobus/device_octobus.h"
 
+/* Read a card's status registers through the bitfield unions, the way the
+ * device itself works with them. */
+static OctobusInputStatus octobus_in_status(Device *card)
+{
+    OctobusInputStatus st;
+    st.raw = card->Read(card, 0100402);
+    return st;
+}
+
+static OctobusOutputStatus octobus_out_status(Device *card)
+{
+    OctobusOutputStatus st;
+    st.raw = card->Read(card, 0100406);
+    return st;
+}
+
+/* Control words with only the interrupt-enable bit set. */
+static uint16_t octobus_in_ctrl_int_enable(void)
+{
+    OctobusInputControl c;
+    c.raw = 0;
+    c.bits.interruptEnabled = 1;
+    return c.raw;
+}
+
+static uint16_t octobus_out_ctrl_int_enable(void)
+{
+    OctobusOutputControl c;
+    c.raw = 0;
+    c.bits.interruptEnabled = 1;
+    return c.raw;
+}
+
 static int s_failed = 0;
 static int s_checks = 0;
 
@@ -76,6 +109,8 @@ static void mock_transmit(void *ctx, Device *card, uint16_t frame)
     (void)octobus_rx_push(card, reply);
 }
 
+static MockBus bus_lb;
+
 int main(void)
 {
     printf("ND-100 octobus card tests\n");
@@ -101,7 +136,10 @@ int main(void)
     CHECK(dev->identCode == 040, "the receive ident is 40B");
     CHECK(dev->identCode != 060, "NOT 60B - the (addr-100200)/4+20 formula is refuted");
     CHECK(dev->identCode != 037, "NOT 37B - the L07 ITB13 slot index is not the ident code");
-    CHECK(dev->Ident(dev, 13) == 040, "and the ident hook answers on level 13");
+    /* IDENT answers only when this card has actually REQUESTED the interrupt.
+     * That is how devmgr_ident picks the right device off a shared level: a card
+     * answering unconditionally would steal another card's ident. */
+    CHECK(dev->Ident(dev, 13) == 0, "IDENT with nothing pending answers nothing");
     CHECK(dev->Ident(dev, 12) == 0, "and says nothing on any other level");
 
     /* Four interfaces, 010 octal apart, idents 40B 42B 44B 46B. SINTRAN's
@@ -123,15 +161,14 @@ int main(void)
     /* CH5CPUPRESENT spins on output status bit 3 before sending a command:
      * "T:=100406; *IOXT; WHILE A NBIT 3". A card that never sets it HANGS the
      * probe rather than reporting a missing CPU, so the bit is set from reset. */
-    uint16_t status = dev->Read(dev, 0100406);
-    CHECK((status & (1u << 3)) != 0, "output status reports DATA READY from reset");
+    CHECK(octobus_out_status(dev).bits.readyForTransfer,
+          "output status reports DATA READY from reset");
 
     /* Clearing an interface: value 20 octal to the control register
      * (PH-P2-OPPSTART.NPL:4054 for input, :4055 for output). */
     dev->Write(dev, 0100403, 020);
     dev->Write(dev, 0100407, 020);
-    status = dev->Read(dev, 0100406);
-    CHECK((status & (1u << 3)) != 0,
+    CHECK(octobus_out_status(dev).bits.readyForTransfer,
           "DATA READY survives the clear - OCSTART sends a command straight after");
 
     /* A command written to +5 is recorded. CMMACLE and the rest are NOT acted
@@ -198,7 +235,7 @@ int main(void)
 
     /* ---- TPE test 1: Check Ident ---------------------------------------- */
     CHECK(card->identCode == 040, "TPE 1: interface 1 identifies as 40B");
-    CHECK(card->Ident(card, OCTOBUS_INT_LEVEL) == 040, "TPE 1: and answers on level 13");
+    CHECK(card->interruptLevel == 13, "TPE 1: on interrupt level 13");
 
     /* ---- TPE test 3: Check receive FIFO length --------------------------
      * The real loop: write words while input status bit 2 (FIFO NOT FULL)
@@ -208,20 +245,20 @@ int main(void)
      * that backwards either writes nothing or never terminates, so the loop is
      * bounded well above 16 to fail as a wrong COUNT rather than as a hang. */
     card->Reset(card);
-    CHECK((card->Read(card, 0100402) & OCTOBUS_IN_STATUS_FIFO_NOT_FULL) != 0,
+    CHECK(octobus_in_status(card).bits.fifoNotFull,
           "TPE 3: an empty FIFO reports space available");
-    CHECK((card->Read(card, 0100402) & OCTOBUS_IN_STATUS_DATA_AVAIL) == 0,
+    CHECK(!octobus_in_status(card).bits.dataAvailable,
           "TPE 3: and reports no data available");
 
     int written = 0;
-    while ((card->Read(card, 0100402) & OCTOBUS_IN_STATUS_FIFO_NOT_FULL) != 0 && written < 64)
+    while (octobus_in_status(card).bits.fifoNotFull && written < 64)
     {
         card->Write(card, 0100401, (uint16_t)(0x1000 + written));
         written++;
     }
     CHECK(written == OCTOBUS_RX_FIFO_WORDS, "TPE 3: the receive FIFO holds exactly 16 words");
     CHECK(octobus_rx_count(card) == OCTOBUS_RX_FIFO_WORDS, "TPE 3: and the card agrees");
-    CHECK((card->Read(card, 0100402) & OCTOBUS_IN_STATUS_DATA_AVAIL) != 0,
+    CHECK(octobus_in_status(card).bits.dataAvailable,
           "TPE 3: a full FIFO reports data available");
 
     /* A word written to a full FIFO is DROPPED, as the hardware drops it. */
@@ -242,9 +279,9 @@ int main(void)
     }
     CHECK(order_ok, "TPE 2: every word comes back in the order it went in");
     CHECK(octobus_rx_count(card) == 0, "TPE 2: and the FIFO is empty");
-    CHECK((card->Read(card, 0100402) & OCTOBUS_IN_STATUS_DATA_AVAIL) == 0,
+    CHECK(!octobus_in_status(card).bits.dataAvailable,
           "TPE 2: which the status bit reports");
-    CHECK((card->Read(card, 0100402) & OCTOBUS_IN_STATUS_FIFO_NOT_FULL) != 0,
+    CHECK(octobus_in_status(card).bits.fifoNotFull,
           "TPE 2: along with space being available again");
     CHECK(card->Read(card, 0100400) == 0, "TPE 2: a drained FIFO reads 0");
 
@@ -271,7 +308,7 @@ int main(void)
      * clear would otherwise see a permanently full FIFO. */
     card->Write(card, 0100403, 020);
     CHECK(octobus_rx_count(card) == 0, "clearing the interface empties the FIFO");
-    CHECK((card->Read(card, 0100402) & OCTOBUS_IN_STATUS_FIFO_NOT_FULL) != 0,
+    CHECK(octobus_in_status(card).bits.fifoNotFull,
           "and leaves FIFO-not-full SET, not zeroed");
 
     /* ---- TPE test 2, the real one: loop ALL patterns ---------------------
@@ -303,6 +340,113 @@ int main(void)
     CHECK(pattern_ok, "TPE 2: all 65536 bit patterns survive the loopback");
     CHECK(patterns == 65536ul, "TPE 2: and every one of them was tried");
 
+    /* =====================================================================
+     * WHAT TPE'S *CONFIGURATION* PROGRAM CHECKS, AND REPORTED AS FAILING.
+     *
+     * A live run against a machine with [mfbus] + [controller.octobus.0] gave:
+     *
+     *   *** ERROR ***  Device number : 100400B
+     *                  Device status : 000004B
+     *                  Input channel did not receive test-data.
+     *                  No identcode found on level 13D
+     *                  Expected identcodes : 40B and 41B
+     *
+     * Two separate defects behind one report, so two groups of checks.
+     * ===================================================================== */
+
+    /* ---- (a) LOOPBACK: data written to the output must reach the input ----
+     * Status 000004B is FIFO-not-full set with data-available CLEAR - an empty
+     * receive FIFO. TPE wrote test data and nothing arrived.
+     *
+     * A frame addressed to station 0 is the card testing ITSELF: 0 is not a
+     * legal station, which is exactly why it can mean loopback. It must echo
+     * into this card's own receive FIFO, whether or not a bus is attached. */
+    card->Reset(card);
+    octobus_set_transmit(card, NULL, NULL);   /* standalone, no bus */
+    CHECK(octobus_rx_count(card) == 0, "TPE-CONF: the receive FIFO starts empty");
+    card->Write(card, 0100405, 0x00A5u);      /* destination 0 = loopback */
+    CHECK(octobus_rx_count(card) == 1, "TPE-CONF: a dest-0 frame loops back");
+    CHECK(octobus_in_status(card).bits.dataAvailable,
+          "TPE-CONF: and the input channel reports test-data available");
+    CHECK(card->Read(card, 0100400) == 0x00A5u, "TPE-CONF: with the data intact");
+
+    /* Loopback must survive a bus being attached, or the standalone tests break
+     * on any machine that has an ND-5000 - which is the configuration TPE was
+     * run on. */
+    card->Reset(card);
+    octobus_set_transmit(card, mock_transmit, &bus_lb);
+    memset(&bus_lb, 0, sizeof(bus_lb));
+    card->Write(card, 0100405, 0x00A5u);
+    CHECK(octobus_rx_count(card) == 1, "TPE-CONF: dest 0 still loops back with a bus attached");
+    CHECK(bus_lb.sent == 0, "TPE-CONF: and does NOT go out on the bus");
+
+    /* A frame with a real destination goes to the bus, not the FIFO. */
+    card->Reset(card);
+    memset(&bus_lb, 0, sizeof(bus_lb));
+    bus_lb.present[56] = true;
+    card->Write(card, 0100405, (uint16_t)(0x8000u | (56u << 8u)));
+    CHECK(bus_lb.sent == 1, "TPE-CONF: a real destination goes onto the bus");
+
+    /* ---- (b) IDENT ON LEVEL 13 -------------------------------------------
+     * "No identcode found on level 13D. Expected identcodes : 40B and 41B."
+     * The card must ASSERT level 13 when something happens and answer IDENT
+     * with 40B for the input controller or 41B for the output one. */
+    card->Reset(card);
+    octobus_set_transmit(card, NULL, NULL);
+    CHECK((card->interruptBits & (1u << card->interruptLevel)) == 0,
+          "TPE-CONF: no interrupt is asserted from reset");
+
+    /* Interrupts are enabled through bit 0 of each control register, and an
+     * event only raises the line when its enable is set - otherwise a card
+     * would interrupt before the driver was ready for it. */
+    card->Write(card, 0100403, octobus_in_ctrl_int_enable());
+    card->Write(card, 0100401, 0x1234u);      /* a word arrives: input event */
+    CHECK((card->interruptBits & (1u << card->interruptLevel)) != 0,
+          "TPE-CONF: an input event with the enable set asserts level 13");
+    CHECK(card->Ident(card, card->interruptLevel) == 040,
+          "TPE-CONF: and IDENT answers 40B for the INPUT controller");
+    CHECK((card->interruptBits & (1u << card->interruptLevel)) == 0,
+          "TPE-CONF: IDENT clears the request, so the level de-asserts");
+
+    /* One-shot: IDENT clears the ENABLE too, so a second event does not
+     * interrupt until the driver re-arms. Without that the level re-fires
+     * forever after being serviced. */
+    card->Write(card, 0100401, 0x5678u);
+    CHECK((card->interruptBits & (1u << card->interruptLevel)) == 0,
+          "TPE-CONF: a further event does not interrupt until re-armed");
+    CHECK(card->Ident(card, card->interruptLevel) == 0, "TPE-CONF: and IDENT answers nothing");
+
+    /* The OUTPUT controller answers 41B, and the input has priority when both
+     * are pending. */
+    card->Reset(card);
+    card->Write(card, 0100407, octobus_out_ctrl_int_enable());
+    card->Write(card, 0100405, (uint16_t)(0x8000u | (40u << 8u)));  /* a send completes */
+    CHECK((card->interruptBits & (1u << card->interruptLevel)) != 0,
+          "TPE-CONF: an output event asserts level 13");
+    CHECK(card->Ident(card, card->interruptLevel) == 041,
+          "TPE-CONF: and IDENT answers 41B for the OUTPUT controller");
+
+    card->Reset(card);
+    card->Write(card, 0100403, octobus_in_ctrl_int_enable());
+    card->Write(card, 0100407, octobus_out_ctrl_int_enable());
+    card->Write(card, 0100401, 0x1111u);                            /* input event */
+    card->Write(card, 0100405, (uint16_t)(0x8000u | (40u << 8u)));   /* output event */
+    CHECK(card->Ident(card, card->interruptLevel) == 040, "TPE-CONF: the INPUT has priority");
+    CHECK(card->Ident(card, card->interruptLevel) == 041, "TPE-CONF: then the output answers");
+
+    /* An event with the enable CLEAR must not assert the level. */
+    card->Reset(card);
+    card->Write(card, 0100401, 0x2222u);
+    CHECK((card->interruptBits & (1u << card->interruptLevel)) == 0,
+          "TPE-CONF: an event with interrupts disabled does not assert level 13");
+    CHECK(card->Ident(card, card->interruptLevel) == 0, "TPE-CONF: and IDENT answers nothing");
+
+    /* Another level must never be answered. */
+    card->Reset(card);
+    card->Write(card, 0100403, octobus_in_ctrl_int_enable());
+    card->Write(card, 0100401, 0x3333u);
+    CHECK(card->Ident(card, 11) == 0, "TPE-CONF: IDENT on level 11 answers nothing");
+
     /* ---- TPE test 4: Check octobus configuration ------------------------
      * Station discovery: send an "identify yourself" message to each station
      * and see who answers. A present station replies and its answer arrives in
@@ -327,7 +471,7 @@ int main(void)
         uint16_t ident = (uint16_t)(0x8000u | ((uint32_t)st << 8u));
         card->Write(card, 0100405, ident);
         probed++;
-        if ((card->Read(card, 0100402) & OCTOBUS_IN_STATUS_DATA_AVAIL) != 0)
+        if (octobus_in_status(card).bits.dataAvailable)
         {
             uint16_t reply = card->Read(card, 0100400);
             /* The answer names the station that sent it, in bits 13-8 - the

@@ -1,11 +1,13 @@
 /*
- * device_octobus.c - ND-100 octobus interface card
+ * device_octobus.c - ND-100 octobus interface card.
  *
  * nd100x - ND100 Virtual Machine
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Copyright (c) 2026 Ronny Hansen
+ *
+ * This file is originated from the nd100x project and the RetroCore project
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,21 +23,8 @@
  * along with this program (in the main directory of the nd100em
  * distribution in the file COPYING); if not, see <http://www.gnu.org/licenses/>.
  *
- *
- * WHAT THIS DOES AND DOES NOT DO YET.
- *
- * The register map, the addresses, the ident codes and the two probe sequences
- * SINTRAN uses are all evidenced - see device_octobus.h for where each number
- * comes from. What is implemented here is enough for those PROBES to give the
- * right answers: the card is present, it clears, and its output status reports
- * data ready.
- *
- * What is NOT implemented is the frame path: nothing is handed to an octobus
- * fabric and no ND-5000 is reached. That wiring is a separate step, and until it
- * exists a read of the data registers returns 0 rather than a made-up frame.
- * A card that answers a probe correctly and then invents traffic is worse than
- * one that answers the probe and stays quiet - the first produces a machine that
- * looks like it is working.
+ * Ported from RetroCore NDBusOctobus.cs
+ * Register map, ident codes and probe sequences: see device_octobus.h
  */
 
 #include "device_octobus.h"
@@ -44,270 +33,310 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../devices_protos.h"
 #include "../devices_types.h"
+#include "../devices_protos.h"
 
-typedef struct
+// Recompute the FIFO status bits from the ring, so the two bits can never
+// disagree with the count.
+static void octobus_update_fifo_status(OctobusData *data)
 {
-    /*
-     * The receive FIFO: 16 words, which TPE's test 3 checks by counting how many
-     * it can write before input status bit 2 clears. A ring rather than a shift
-     * buffer so a drain is not quadratic - TPE drains the whole FIFO in a loop.
-     */
-    uint16_t rx_fifo[OCTOBUS_RX_FIFO_WORDS];
-    int      rx_head;  /* next word to read */
-    int      rx_count; /* words currently held */
-
-    /* The card's own registers. Reads of a read register and writes of a write
-     * register both land here, so a test can see what SINTRAN did. */
-    uint16_t input_data;
-    uint16_t input_status;
-    uint16_t input_control;
-    uint16_t output_data;
-    uint16_t output_command;
-    uint16_t output_status;
-    uint16_t output_control;
-
-    /* The bus seam. NULL = standalone: writes to the command register transmit
-     * nothing, which is what lets TPE's tests 1 to 3 run with no bus. */
-    OctobusTransmitFn transmit;
-    void             *transmit_ctx;
-
-    /* Diagnostics: what the probes did, so a failure names the step. */
-    unsigned long clears;      /* control writes carrying 20 octal */
-    unsigned long commands;    /* writes to the output command register */
-    uint16_t      last_command;
-} OctobusData;
-
-/*
- * NOTE ON THE STATION FIELD. Input status bits 8-13 carry the sender's station
- * number on real hardware, and this card leaves them zero. That is not a gap in
- * practice: octobus_rx_push() takes a whole frame, and the frame already carries
- * the source in its own bits 13-8 after the bus's destination-to-source rewrite.
- * Software reading the sender from the status register instead of from the frame
- * would get 0 - if that ever matters, push would have to take the source too.
- */
-
-/* Recompute the input status bits that describe the FIFO. Called after every
- * push, pop and clear, so the two bits can never disagree with the count. */
-static void octobus_update_input_status(OctobusData *d)
-{
-    if (d->rx_count < OCTOBUS_RX_FIFO_WORDS)
-    {
-        d->input_status |= (uint16_t)OCTOBUS_IN_STATUS_FIFO_NOT_FULL;
-    }
-    else
-    {
-        d->input_status &= (uint16_t)~OCTOBUS_IN_STATUS_FIFO_NOT_FULL;
-    }
-
-    if (d->rx_count > 0)
-    {
-        d->input_status |= (uint16_t)OCTOBUS_IN_STATUS_DATA_AVAIL;
-    }
-    else
-    {
-        d->input_status &= (uint16_t)~OCTOBUS_IN_STATUS_DATA_AVAIL;
-    }
+    data->statusRegister.bits.fifoNotFull = (data->rxCount < OCTOBUS_RX_FIFO_WORDS) ? 1 : 0;
+    data->statusRegister.bits.dataAvailable = (data->rxCount > 0) ? 1 : 0;
 }
 
-static bool octobus_rx_push_data(OctobusData *d, uint16_t word)
+// Recompute the interrupt line from the two request flip-flops and their
+// enables. Called after every event and every IDENT.
+static void octobus_update_interrupt(Device *self, OctobusData *data)
 {
-    if (d->rx_count >= OCTOBUS_RX_FIFO_WORDS)
-    {
-        /* Full: the word is DROPPED, which is what the hardware does. Reporting
-         * it lets a caller count losses instead of silently believing the frame
-         * arrived. */
-        return false;
-    }
-    int tail = (d->rx_head + d->rx_count) % OCTOBUS_RX_FIFO_WORDS;
-    d->rx_fifo[tail] = word;
-    d->rx_count++;
-    octobus_update_input_status(d);
-    return true;
-}
+    bool inputActive = data->inputIrqPending && data->statusRegister.bits.interruptEnabled;
+    bool outputActive =
+        data->outputIrqPending && data->outputStatusRegister.bits.interruptEnabled;
 
-static uint16_t octobus_rx_pop_data(OctobusData *d)
-{
-    if (d->rx_count == 0)
-    {
-        return 0;
-    }
-    uint16_t word = d->rx_fifo[d->rx_head];
-    d->rx_head = (d->rx_head + 1) % OCTOBUS_RX_FIFO_WORDS;
-    d->rx_count--;
-    octobus_update_input_status(d);
-    return word;
-}
-
-void octobus_set_transmit(Device *self, OctobusTransmitFn fn, void *ctx)
-{
-    if (!self || !self->deviceData)
-    {
-        return;
-    }
-    OctobusData *d = (OctobusData *)self->deviceData;
-    d->transmit = fn;
-    d->transmit_ctx = ctx;
-}
-
-bool octobus_rx_push(Device *self, uint16_t word)
-{
-    if (!self || !self->deviceData)
-    {
-        return false;
-    }
-    return octobus_rx_push_data((OctobusData *)self->deviceData, word);
-}
-
-int octobus_rx_count(Device *self)
-{
-    if (!self || !self->deviceData)
-    {
-        return 0;
-    }
-    return ((OctobusData *)self->deviceData)->rx_count;
+    dev_set_interrupt_status(self, inputActive || outputActive, self->interruptLevel);
 }
 
 static void octobus_reset(Device *self)
 {
-    if (!self || !self->deviceData)
+    OctobusData *data = (OctobusData *)self->deviceData;
+    if (!data)
     {
         return;
     }
-    OctobusData *d = (OctobusData *)self->deviceData;
-    memset(d, 0, sizeof(*d));
 
-    /* An empty FIFO has maximum space, so FIFO-not-full is SET and
-     * data-available is CLEAR. */
-    octobus_update_input_status(d);
+    data->statusRegister.raw = 0;
+    data->controlWord.raw = 0;
+    data->outputStatusRegister.raw = 0;
+    data->outputControlWord.raw = 0;
+    data->inputData = 0;
+    data->outputData = 0;
+    data->rxHead = 0;
+    data->rxCount = 0;
+    data->inputIrqPending = false;
+    data->outputIrqPending = false;
 
-    /* Data ready from the start. CH5CPUPRESENT spins on output status bit 3
-     * before it sends a command (PH-P2-OPPSTART.NPL:3923), so a card that never
-     * sets it HANGS the probe rather than reporting a missing CPU. */
-    d->output_status = OCTOBUS_STATUS_DATA_READY;
+    // An empty FIFO has maximum space, so fifoNotFull is SET.
+    octobus_update_fifo_status(data);
+
+    // The output controller is ready from reset: CH5CPUPRESENT spins on this bit
+    // before sending a command, so a card that never sets it hangs the probe
+    // rather than reporting a missing CPU.
+    data->outputStatusRegister.bits.readyForTransfer = 1;
+
+    dev_set_interrupt_status(self, false, self->interruptLevel);
+}
+
+static uint16_t octobus_tick(Device *self)
+{
+    if (!self)
+    {
+        return 0;
+    }
+    dev_tick_io_delay(self);
+    return self->interruptBits;
+}
+
+// Push one word into the receive FIFO. Returns false when full, which is the
+// card dropping the frame exactly as the hardware does.
+static bool octobus_fifo_push(OctobusData *data, uint16_t word)
+{
+    if (data->rxCount >= OCTOBUS_RX_FIFO_WORDS)
+    {
+        return false;
+    }
+    int tail = (data->rxHead + data->rxCount) % OCTOBUS_RX_FIFO_WORDS;
+    data->rxFifo[tail] = word;
+    data->rxCount++;
+    octobus_update_fifo_status(data);
+    return true;
+}
+
+static uint16_t octobus_fifo_pop(OctobusData *data)
+{
+    if (data->rxCount == 0)
+    {
+        return 0;
+    }
+    uint16_t word = data->rxFifo[data->rxHead];
+    data->rxHead = (data->rxHead + 1) % OCTOBUS_RX_FIFO_WORDS;
+    data->rxCount--;
+    octobus_update_fifo_status(data);
+    return word;
+}
+
+// EVENT: a word arrived at the input controller. Latches the input request
+// flip-flop; the line fires only if the input interrupt is enabled.
+static void octobus_raise_input_event(Device *self, OctobusData *data)
+{
+    data->inputIrqPending = true;
+    octobus_update_interrupt(self, data);
+}
+
+// EVENT: the output controller completed a transfer.
+static void octobus_raise_output_event(Device *self, OctobusData *data)
+{
+    data->outputIrqPending = true;
+    octobus_update_interrupt(self, data);
 }
 
 static uint16_t octobus_read(Device *self, uint32_t address)
 {
-    if (!self || !self->deviceData)
+    if (!self)
     {
         return 0;
     }
-    OctobusData *d = (OctobusData *)self->deviceData;
-    uint32_t reg = address - self->startAddress;
+
+    OctobusData *data = (OctobusData *)self->deviceData;
+    uint16_t value = 0;
+    uint32_t reg = dev_register_address(self, address);
+
 
     switch (reg)
     {
-    case OCTOBUS_REG_IN_READ_DATA:
-        /* Pops the receive FIFO. An empty FIFO reads 0, and input status bit 3
-         * is how software knows the difference between that and a real 0. */
-        return octobus_rx_pop_data(d);
+    case OCTOBUS_READ_INPUT_DATA:
+        // Pops the FIFO. An empty FIFO reads 0; status bit 3 is how software
+        // tells that from a real 0.
+        value = octobus_fifo_pop(data);
+        break;
 
-    case OCTOBUS_REG_IN_READ_STATUS:
-        /* OCSTART reads this purely to find out whether the card exists:
-         * "T:=HDEV+2; *IOXT". Reaching this code AT ALL means it does - an
-         * absent card is an IOX error, which is the device manager's business,
-         * not a value returned from here. */
-        return d->input_status;
+    case OCTOBUS_READ_INPUT_STATUS:
+        // OCSTART reads this only to find out whether the card exists
+        // (PH-P2-OPPSTART.NPL:4049). Reaching this code AT ALL means it does; an
+        // absent card is an IOX error, which is the device manager's business.
+        value = data->statusRegister.raw;
+        break;
 
-    case OCTOBUS_REG_OUT_READ_DATA:
-        return d->output_data;
+    case OCTOBUS_READ_OUTPUT_DATA:
+        value = data->outputData;
+        break;
 
-    case OCTOBUS_REG_OUT_READ_STATUS:
-        /* Bit 3 is data ready. */
-        return d->output_status;
+    case OCTOBUS_READ_OUTPUT_STATUS:
+        value = data->outputStatusRegister.raw;
+        break;
 
     default:
-        /* An odd address is a WRITE register. Reading one is a guest bug, not a
-         * card feature, so it reads 0 and says so once. */
-        LOG(LOG_CAT_DEVICE, LOG_DEBUG, "Octobus: read of write-only register +%u\n",
-            (unsigned)reg);
-        return 0;
+        // An odd address is a WRITE register; reading one is a guest bug.
+        break;
     }
+
+    LOG(LOG_CAT_DEVICE, LOG_TRACE, "Octobus: READ  +%u = %06o (rx=%d ist=%06o ost=%06o)\n",
+        (unsigned)reg, (unsigned)value, data->rxCount, (unsigned)data->statusRegister.raw,
+        (unsigned)data->outputStatusRegister.raw);
+    return value;
 }
 
 static void octobus_write(Device *self, uint32_t address, uint16_t value)
 {
-    if (!self || !self->deviceData)
+    if (!self)
     {
         return;
     }
-    OctobusData *d = (OctobusData *)self->deviceData;
-    uint32_t reg = address - self->startAddress;
+
+    OctobusData *data = (OctobusData *)self->deviceData;
+    uint32_t reg = dev_register_address(self, address);
 
     switch (reg)
     {
-    case OCTOBUS_REG_IN_WRITE_DATA:
-        /* Writing the input data register pushes into the receive FIFO. This is
-         * the standalone loopback TPE uses: its test 3 fills the FIFO this way
-         * and counts the writes that fit. */
-        d->input_data = value;
-        (void)octobus_rx_push_data(d, value);
-        break;
-
-    case OCTOBUS_REG_IN_WRITE_CTRL:
-        d->input_control = value;
-        if (value == OCTOBUS_CTRL_CLEAR)
+    case OCTOBUS_WRITE_INPUT_DATA:
+        // Writing the input data register pushes into the receive FIFO. This is
+        // the stand-alone loopback TPE's test 3 fills the FIFO through.
+        data->inputData = value;
+        if (octobus_fifo_push(data, value))
         {
-            /* "T:=HDEV+DCONT; 20; *IOXT" - clear the input interface. */
-            d->clears++;
-            d->input_data = 0;
-            d->input_status = 0;
-            /* Clearing empties the FIFO, so the status bits are recomputed
-             * rather than left at 0 - a cleared card has space, and software
-             * that polls bit 2 would otherwise see a full FIFO forever. */
-            d->rx_head = 0;
-            d->rx_count = 0;
-            octobus_update_input_status(d);
+            octobus_raise_input_event(self, data);
         }
         break;
 
-    case OCTOBUS_REG_OUT_WRITE_CMD:
-        /* CMMACLE (master clear SAMSON), CMACONT (continue ACCP) and every
-         * outgoing frame arrive here. Recorded either way, so a test can see
-         * what the guest sent even with no bus attached. */
-        d->output_command = value;
-        d->last_command = value;
-        d->commands++;
-        if (d->transmit != NULL)
+    case OCTOBUS_WRITE_INPUT_CONTROL:
+        data->controlWord.raw = value;
+
+        // Bit 0: InterruptEnable from control -> status
+        data->statusRegister.bits.interruptEnabled =
+            data->controlWord.bits.interruptEnabled ? 1 : 0;
+
+        // Bit 4: DeviceClear - 20 octal clears the interface
+        // (PH-P2-OPPSTART.NPL:4054)
+        if (data->controlWord.bits.deviceClear)
         {
-            /* Onto the bus. The handler pushes any reply back into this card's
-             * receive FIFO, which is where the hardware puts it too. */
-            d->transmit(d->transmit_ctx, self, value);
+            data->clears++;
+            data->inputData = 0;
+            data->rxHead = 0;
+            data->rxCount = 0;
+            data->inputIrqPending = false;
+            // The FIFO bits are recomputed rather than zeroed: a cleared card has
+            // space, and software polling bit 2 would otherwise see a full FIFO
+            // forever.
+            octobus_update_fifo_status(data);
         }
+
+        octobus_update_interrupt(self, data);
         break;
 
-    case OCTOBUS_REG_OUT_WRITE_CTRL:
-        d->output_control = value;
-        if (value == OCTOBUS_CTRL_CLEAR)
+    case OCTOBUS_WRITE_OUTPUT_COMMAND:
+    {
+        // CMMACLE (master clear SAMSON), CMACONT (continue ACCP) and every
+        // outgoing frame arrive here. Recorded either way, so a test can see what
+        // the guest sent even with no bus attached.
+        // NOT copied into outputData: nothing evidences that the output data
+        // register reads a sent command back, and inventing a readback would let
+        // a guest "confirm" a transmission that never happened.
+        data->lastCommand = value;
+        data->commands++;
+
+        // A frame addressed to station 0 is the card testing ITSELF: echo it into
+        // our own receive FIFO instead of putting it on the bus. This must work
+        // whether or not a bus is attached - see device_octobus.h.
+        uint16_t dest = (uint16_t)((value >> 8) & 0x3F);
+        if (dest == OCTOBUS_LOOPBACK_DEST)
         {
-            d->clears++;
-            d->output_data = 0;
-            /* Data ready survives a clear: the card is still able to take a
-             * command afterwards, which is what OCSTART goes on to do. */
-            d->output_status = OCTOBUS_STATUS_DATA_READY;
+            if (octobus_fifo_push(data, value))
+            {
+                octobus_raise_input_event(self, data);
+            }
         }
+        else if (data->transmit)
+        {
+            // Onto the bus. The handler pushes any reply back into this card's
+            // receive FIFO, which is where the hardware puts it too.
+            data->transmit(data->transmitCtx, self, value);
+        }
+
+        // The send completed, however it was routed.
+        octobus_raise_output_event(self, data);
+        break;
+    }
+
+    case OCTOBUS_WRITE_OUTPUT_CONTROL:
+        data->outputControlWord.raw = value;
+
+        data->outputStatusRegister.bits.interruptEnabled =
+            data->outputControlWord.bits.interruptEnabled ? 1 : 0;
+
+        // OCSTART reaches +7 as "T+4" from +3 (PH-P2-OPPSTART.NPL:4055).
+        if (data->outputControlWord.bits.deviceClear)
+        {
+            data->clears++;
+            data->outputData = 0;
+            data->outputIrqPending = false;
+            // Ready survives the clear: OCSTART sends a command straight after.
+            data->outputStatusRegister.bits.readyForTransfer = 1;
+        }
+
+        octobus_update_interrupt(self, data);
         break;
 
     default:
-        LOG(LOG_CAT_DEVICE, LOG_DEBUG, "Octobus: write to read-only register +%u\n",
-            (unsigned)reg);
+        // An even address is a READ register; writing one is a guest bug.
         break;
     }
+
+    LOG(LOG_CAT_DEVICE, LOG_TRACE,
+        "Octobus: WRITE +%u = %06o (rx=%d ist=%06o ost=%06o irq=%d/%d)\n", (unsigned)reg,
+        (unsigned)value, data->rxCount, (unsigned)data->statusRegister.raw,
+        (unsigned)data->outputStatusRegister.raw, data->inputIrqPending,
+        data->outputIrqPending);
 }
 
 static uint16_t octobus_ident(Device *self, uint16_t level)
 {
-    if (!self || level != OCTOBUS_INT_LEVEL)
+    if (!self)
     {
         return 0;
     }
-    /* The card has TWO ident codes - receive and transmit - and this hook
-     * returns one. The receive code is returned because nothing here raises a
-     * transmit interrupt yet; when the frame path exists, whichever controller
-     * interrupted decides. */
-    return self->identCode;
+
+    LOG(LOG_CAT_DEVICE, LOG_TRACE, "Octobus: IDENT level %u (bits=%06o)\n", (unsigned)level,
+        (unsigned)self->interruptBits);
+
+    if ((self->interruptBits & (1 << level)) != 0)
+    {
+        OctobusData *data = (OctobusData *)self->deviceData;
+
+        // The card has TWO ident codes: the receive controller answers identCode
+        // and the transmit controller identCode + 1 (40B and 41B on interface 0).
+        // The INPUT has priority.
+        //
+        // IDENT is a one-shot acknowledge: it clears the request flip-flop AND
+        // the enable, so the driver must re-arm. Without clearing the enable the
+        // level re-fires forever after being serviced.
+        uint16_t activeIdent = 0;
+
+        if (data->inputIrqPending && data->statusRegister.bits.interruptEnabled)
+        {
+            data->inputIrqPending = false;
+            data->statusRegister.bits.interruptEnabled = 0;
+            activeIdent = self->identCode;
+        }
+        else if (data->outputIrqPending && data->outputStatusRegister.bits.interruptEnabled)
+        {
+            data->outputIrqPending = false;
+            data->outputStatusRegister.bits.interruptEnabled = 0;
+            activeIdent = (uint16_t)(self->identCode + 1);
+        }
+
+        octobus_update_interrupt(self, data);
+        LOG(LOG_CAT_DEVICE, LOG_TRACE, "Octobus: IDENT answered %02o\n", (unsigned)activeIdent);
+        return activeIdent;
+    }
+    return 0;
 }
 
 static void octobus_destroy(Device *self)
@@ -320,16 +349,43 @@ static void octobus_destroy(Device *self)
     self->deviceData = NULL;
 }
 
+void octobus_set_transmit(Device *self, OctobusTransmitFn fn, void *ctx)
+{
+    if (!self || !self->deviceData)
+    {
+        return;
+    }
+    OctobusData *data = (OctobusData *)self->deviceData;
+    data->transmit = fn;
+    data->transmitCtx = ctx;
+}
+
+bool octobus_rx_push(Device *self, uint16_t word)
+{
+    if (!self || !self->deviceData)
+    {
+        return false;
+    }
+    OctobusData *data = (OctobusData *)self->deviceData;
+    if (!octobus_fifo_push(data, word))
+    {
+        return false;
+    }
+    octobus_raise_input_event(self, data);
+    return true;
+}
+
+int octobus_rx_count(Device *self)
+{
+    if (!self || !self->deviceData)
+    {
+        return 0;
+    }
+    return ((OctobusData *)self->deviceData)->rxCount;
+}
+
 Device *octobus_create_device(uint8_t thumbwheel)
 {
-    if (thumbwheel >= OCTOBUS_MAX_CARDS)
-    {
-        LOG(LOG_CAT_DEVICE, LOG_WARN,
-            "Octobus: thumbwheel %u out of range - the hardware catalogue lists %d interfaces\n",
-            (unsigned)thumbwheel, OCTOBUS_MAX_CARDS);
-        return NULL;
-    }
-
     Device *dev = malloc(sizeof(Device));
     if (!dev)
     {
@@ -343,22 +399,55 @@ Device *octobus_create_device(uint8_t thumbwheel)
         return NULL;
     }
 
+    // Initialize device base structure
     dev_init(dev, thumbwheel, DEVICE_CLASS_STANDARD, 0);
-    memset(data, 0, sizeof(*data));
 
-    /* Interfaces are 010 octal apart: 100400, 100410, 100420, 100430. */
-    dev->startAddress = OCTOBUS_BASE_ADDRESS + ((uint32_t)thumbwheel * OCTOBUS_REGISTERS);
-    dev->endAddress = dev->startAddress + OCTOBUS_REGISTERS - 1;
-    dev->interruptLevel = OCTOBUS_INT_LEVEL;
+    // Set up device-specific data
+    memset(data, 0, sizeof(OctobusData));
 
-    /* Receive ident 40B for interface 0, then 42B, 44B, 46B; transmit is the
-     * receive code plus one. Live-verified from TPE OCTOBUS B00's own table -
-     * see the header, including the two plausible-looking claims it refutes. */
-    dev->identCode = (uint16_t)(040 + (thumbwheel * 2));
+    // Set up device properties based on thumbwheel. Interfaces are 010 octal
+    // apart and the receive ident advances by 2 per interface; the transmit ident
+    // is the receive one plus 1.
+    switch (thumbwheel)
+    {
+    case 0:
+        dev->identCode = 040;
+        dev->startAddress = 0100400;
+        dev->endAddress = 0100407;
+        dev->interruptLevel = 13;
+        snprintf(dev->memoryName, sizeof(dev->memoryName), "%s", "Octobus 1");
+        break;
+    case 1:
+        dev->identCode = 042;
+        dev->startAddress = 0100410;
+        dev->endAddress = 0100417;
+        dev->interruptLevel = 13;
+        snprintf(dev->memoryName, sizeof(dev->memoryName), "%s", "Octobus 2");
+        break;
+    case 2:
+        dev->identCode = 044;
+        dev->startAddress = 0100420;
+        dev->endAddress = 0100427;
+        dev->interruptLevel = 13;
+        snprintf(dev->memoryName, sizeof(dev->memoryName), "%s", "Octobus 3");
+        break;
+    case 3:
+        dev->identCode = 046;
+        dev->startAddress = 0100430;
+        dev->endAddress = 0100437;
+        dev->interruptLevel = 13;
+        snprintf(dev->memoryName, sizeof(dev->memoryName), "%s", "Octobus 4");
+        break;
+    default:
+        LOG(LOG_CAT_DEVICE, LOG_WARN, "Unexpected thumbwheel code %d\n", thumbwheel);
+        free(data);
+        free(dev);
+        return NULL;
+    }
 
-    snprintf(dev->memoryName, sizeof(dev->memoryName), "Octobus %u", (unsigned)(thumbwheel + 1));
-
+    // Set up device function pointers
     dev->Reset = octobus_reset;
+    dev->Tick = octobus_tick;
     dev->Read = octobus_read;
     dev->Write = octobus_write;
     dev->Ident = octobus_ident;
@@ -367,8 +456,9 @@ Device *octobus_create_device(uint8_t thumbwheel)
 
     octobus_reset(dev);
 
-    LOG(LOG_CAT_DEVICE, LOG_INFO, "Octobus device created: %s at %06o, ident %02o/%02o level %d\n",
-        dev->memoryName, (unsigned)dev->startAddress, (unsigned)dev->identCode,
-        (unsigned)(dev->identCode + 1), OCTOBUS_INT_LEVEL);
+    LOG(LOG_CAT_DEVICE, LOG_INFO,
+        "Octobus device created: %s at %o, ident %02o/%02o level %d\n", dev->memoryName,
+        (unsigned)dev->startAddress, (unsigned)dev->identCode, (unsigned)(dev->identCode + 1),
+        dev->interruptLevel);
     return dev;
 }

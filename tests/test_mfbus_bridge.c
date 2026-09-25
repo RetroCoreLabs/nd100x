@@ -30,6 +30,14 @@
 #include "mfbus_config.h"
 #include "ndbus_pool.h"
 
+/* Data-available through the bitfield union, the way the device works with it. */
+static bool octobus_in_status_ck(Device *card)
+{
+    OctobusInputStatus st;
+    st.raw = card->Read(card, 0100402);
+    return st.bits.dataAvailable != 0;
+}
+
 static int s_failed = 0;
 static int s_checks = 0;
 
@@ -368,7 +376,7 @@ int main(void)
         /* An Ident to 070B. The station answers, and the answer arrives in the
          * card's FIFO - which is where the hardware puts it. */
         card->Write(card, 0100405, (uint16_t)(0x8000u | (56u << 8u)));
-        CHECK((card->Read(card, 0100402) & OCTOBUS_IN_STATUS_DATA_AVAIL) != 0 ||
+        CHECK(octobus_in_status_ck(card) ||
                   octobus_rx_count(card) == 0,
               "the card either has a reply or the station was silent - both are defined");
 
@@ -379,9 +387,11 @@ int main(void)
         card->Write(card, 0100405, (uint16_t)(0x8000u | (40u << 8u)));
         CHECK(octobus_rx_count(card) == before, "an absent station pushes NOTHING");
 
-        /* And an illegal destination likewise. */
+        /* Destination 0 is NOT a timeout - it is the card testing ITSELF, and it
+         * loops back into the receive FIFO. That is why 0 is not a legal station:
+         * the number is free to mean something else. */
         card->Write(card, 0100405, (uint16_t)(0x8000u | (0u << 8u)));
-        CHECK(octobus_rx_count(card) == before, "so does destination 0");
+        CHECK(octobus_rx_count(card) == before + 1, "destination 0 loops back instead");
 
         /* A full multibyte ACCP exchange through the card: SOMB, the command
          * byte, EOMB - the path SINTRAN's bring-up actually uses. The station
@@ -398,7 +408,7 @@ int main(void)
         card->Write(card, 0100405, (uint16_t)(dest | 0xA5u));  /* the test byte */
         card->Write(card, 0100405, (uint16_t)(dest | 0x8000u | 0x0020u | 3u)); /* EOMB */
         CHECK(octobus_rx_count(card) > 0, "the ACCP answered through the card");
-        CHECK((card->Read(card, 0100402) & OCTOBUS_IN_STATUS_DATA_AVAIL) != 0,
+        CHECK(octobus_in_status_ck(card),
               "and the card reports data available");
 
         /* ECHO returns the pattern, so the echoed byte is in the reply stream. */
