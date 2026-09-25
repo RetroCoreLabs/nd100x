@@ -974,6 +974,52 @@ int main(int argc, char *argv[])
         {
             config.bootType = boot_type_for_ctrl(machine_config.boot.type);
             config.bootUnit = machine_config.boot.unit;
+
+            /*
+             * ...and its IMAGE, which the loader still needs as a filename.
+             *
+             * [boot] device = floppy.0.0 names controller floppy.0 unit 0, and
+             * that unit's image is in [controller.floppy.0] disk0 - but they are
+             * two different things to the loader: the disk0 key drives the
+             * CONTROLLER's mount table (via mc_apply_devices), while
+             * machine_program_load() takes the boot image as a separate
+             * image_file argument. Without this, a floppy boot from an INI
+             * reached bpun_load() with a NULL filename and failed with
+             * "Failed to open BPUN file '(null)'" - the .ini looked right and the
+             * boot device was right, and the filename simply never arrived.
+             *
+             * Harmless for the other disc types: BOOT_SMD, BOOT_SCSI and
+             * BOOT_WINCHESTER each mount only when machine_is_mounted() says the
+             * unit is not mounted yet, and mc_apply_devices() has already mounted
+             * it, so they ignore image_file and boot through devmgr_boot_from().
+             * BOOT_FLOPPY is the one that consumes it.
+             *
+             * A CLI --image still wins: only an unset imageFile is filled in.
+             */
+            if (!config.imageFile)
+            {
+                for (int bi = 0; bi < machine_config.controllerCount; bi++)
+                {
+                    const McController *bc = &machine_config.controllers[bi];
+                    if (bc->type != machine_config.boot.type ||
+                        bc->wheel != machine_config.boot.wheel)
+                    {
+                        continue;
+                    }
+                    int bu = machine_config.boot.unit;
+                    if (bu >= 0 && bu < MC_MAX_DISK_SLOTS && bc->disks[bu].present &&
+                        bc->disks[bu].image[0])
+                    {
+                        config.imageFile = strdup(bc->disks[bu].image);
+                        if (!config.imageFile)
+                        {
+                            fprintf(stderr, "nd100x: out of memory\n");
+                            exit(1);
+                        }
+                    }
+                    break;
+                }
+            }
         }
         else
         {
