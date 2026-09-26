@@ -522,6 +522,34 @@ add_dependencies(test_octobus cpu)
 
 add_test(NAME octobus_tests COMMAND test_octobus)
 
+# The SCSI controller's control word.
+#
+# device_scsi.c is INCLUDED by the test rather than listed here: the DMA byte
+# counters under test are in a file-local struct (see the file header). The NCR
+# chip and the SCSI bus ARE linked, because the control word reaches both.
+add_executable(test_scsi
+    test_scsi.c
+    ${CMAKE_SOURCE_DIR}/src/devices/scsi/ncr5386.c
+    ${CMAKE_SOURCE_DIR}/src/devices/scsi/scsi_bus.c
+    ${CMAKE_SOURCE_DIR}/src/devices/scsi/scsi_device.c
+    ${CMAKE_SOURCE_DIR}/src/devices/scsi/scsi_hdd.c
+    ${CMAKE_SOURCE_DIR}/src/devices/scsi/disk_scsi.c
+    ${CMAKE_SOURCE_DIR}/src/devices/device.c
+)
+
+target_include_directories(test_scsi PRIVATE
+    ${CMAKE_SOURCE_DIR}/src/devices
+    ${CMAKE_SOURCE_DIR}/src/cpu
+    ${CMAKE_SOURCE_DIR}/src/machine
+    ${CMAKE_SOURCE_DIR}/src/ndlib
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(test_scsi PRIVATE -Wl,--start-group ndlib -Wl,--end-group m)
+add_dependencies(test_scsi cpu)
+
+add_test(NAME scsi_tests COMMAND test_scsi)
+
 # The MFbus bridge: the ND-100 / ND-5000 shared-memory join.
 #
 # Only when the ND-500 is built - the bridge compiles to nothing otherwise. Uses

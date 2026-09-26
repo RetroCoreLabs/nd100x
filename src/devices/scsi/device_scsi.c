@@ -590,6 +590,20 @@ static void scsi_write_control(Device *self, SCSIData *data, uint16_t value)
                  data->writeNDMemory);
     }
 
+    /* A control-word write leaves the controller ready for transfer. Its
+     * registers are what the bit describes, and an idle controller's registers
+     * are always available; the activate branch below clears it again for the
+     * duration of a transfer.
+     *
+     * Evidence, not a port: RetroCore NDBusDiscControllerSCSI.cs does NOT do
+     * this, so it fails the same test. TPE CONFIGURATION D05 writes control
+     * word 1 (enable interrupt, activate clear) and then polls RSTAU bit 3,
+     * reporting "Device never ready for transfer / Expected identcode 140440B"
+     * when it never sets. device_smd.c does exactly this on every control-word
+     * write (statusRegister.bits.readyForTransfer = true) and passes the same
+     * TPE test, on the same generic TPE routine that produces that message. */
+    data->readyForTransfer = true;
+
     /* Test mode does a single PIO word through the DMA path. */
     if (data->testMode)
     {
@@ -625,6 +639,14 @@ static void scsi_write_control(Device *self, SCSIData *data, uint16_t value)
     if (data->resetOnSCSIBus)
     {
         NCR5386_InitiateResetSCSIBus(&data->ncr);
+        /* A bus reset leaves the controller ready, exactly as Clear Device
+         * above does. Ported from RetroCore NDBusDiscControllerSCSI.cs Write
+         * WCONT, where the resetOnSCSIBus branch ends in
+         * "regs.readyForTransfer = true;". Without it the card comes out of
+         * SCSI_Reset with readyForTransfer false and no control-word bit can
+         * ever set it again except bit 4, so a driver that resets the bus and
+         * then polls RSTAU bit 3 waits forever. */
+        data->readyForTransfer = true;
     }
 
     /* Writing the activate bit starts the transfer and clears
@@ -632,6 +654,14 @@ static void scsi_write_control(Device *self, SCSIData *data, uint16_t value)
     if (data->active)
     {
         data->readyForTransfer = false;
+        /* Each GO starts its own DMA run, so the byte counters restart with
+         * it. Ported from RetroCore NDBusDiscControllerSCSI.cs ExecuteGo(),
+         * whose one live statement is
+         * "dma_bytes_written = dma_bytes_read = 0;". Clearing them only on
+         * master clear and Clear Device (SCSI_Reset and the bit-4 branch
+         * above) let two consecutive GOs run on the first one's counts. */
+        data->dma_bytes_read = 0;
+        data->dma_bytes_written = 0;
     }
     else if (data->interruptEnabled && data->readyForTransfer)
     {
