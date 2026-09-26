@@ -1,0 +1,26 @@
+#!/bin/sh
+#
+# commit-msg hook: reject any commit message that mentions the AI assistant.
+#
+# Standing project rule: commit messages never mention Claude, Anthropic, or
+# any AI assistant. The rule exists in CLAUDE.md but has been violated by
+# default-generated trailers (Co-Authored-By: Claude ...), and cleaning that
+# up costs a git filter-branch across every affected repo. This hook makes
+# the mistake impossible instead of relying on anyone remembering the rule.
+#
+# Enable with (once per clone):
+#   git config core.hooksPath tools/git-hooks
+#
+# Comment lines (leading #) are stripped before checking, so words in the
+# commented-out status template do not trigger a false reject.
+
+MSG_FILE="$1"
+
+MATCH=$(grep -v '^#' "$MSG_FILE" | grep -n -i -E 'claude|anthropic|co-authored-by|generated with|ai assistant')
+if [ -n "$MATCH" ]; then
+    echo "commit-msg hook: REJECTED. The commit message mentions the AI assistant:" >&2
+    echo "$MATCH" >&2
+    echo "Remove the line(s) above and commit again." >&2
+    exit 1
+fi
+exit 0
