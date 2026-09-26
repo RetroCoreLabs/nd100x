@@ -172,26 +172,49 @@ typedef union {
 // CH5CPUPRESENT spins on bit 3 before sending a command
 // (PH-P2-OPPSTART.NPL:3923), so a card that never sets it HANGS the probe rather
 // than reporting a missing CPU.
+//
+// EVERY DEFINED BIT IS NAMED, and nine of them are defined. An earlier version of
+// this file named bits 0 and 3 and called the other fourteen "not used", which is
+// not what the hardware decode says and hid the one bit discovery needs: bit 6,
+// NOT PRESENT. Source for the layout: the hardware decode with value 0377 octal,
+// via RetroCore NDBusOctobus.cs TransmitStatusBits.
+//
+// ERROR (bit 4) and NOT PRESENT (bit 6) report the ACK RESULT OF THE LAST
+// TRANSFER ONLY - a write to +5 clears both before it attempts delivery, and sets
+// both when nothing answers at the destination (Ack=00, timeout after the 15
+// hardware retries). That is how a discovery scan tells an absent station from a
+// present but silent one.
+//
+// [INFERENCE] The exact positions of ERROR and NOT PRESENT come from the
+// TransmitStatusBits decode, not from a manual, and RetroCore labels them
+// inferred for the same reason. TPE OCTOBUS B00 test 4 and
+// LIST-HARDWARE-CONFIGURATION are the judges: both probe every station 1-62 with
+// unicast emergency frames and must be able to read the timeout result here.
+//
+// RETRY COUNTER 0 (bit 5), REQUEST ON (bit 2), PARITY ERROR (bit 8) and MASTER
+// (bit 15) are named because the hardware defines them, and are NEVER SET by this
+// card: no guest behaviour observed so far reads them, and inventing a rule for
+// when they assert would be a guess dressed as an emulation.
 // clang-format off
 typedef union {
     uint16_t raw;
     struct {
         uint16_t interruptEnabled : 1;    // Bit 0: Interrupt enabled
         uint16_t notUsed1 : 1;            // Bit 1: Not used
-        uint16_t notUsed2 : 1;            // Bit 2: Not used
+        uint16_t requestOn : 1;           // Bit 2: Request on (never set here)
         uint16_t readyForTransfer : 1;    // Bit 3: Ready to accept a command
-        uint16_t notUsed4 : 1;            // Bit 4: Not used
-        uint16_t notUsed5 : 1;            // Bit 5: Not used
-        uint16_t notUsed6 : 1;            // Bit 6: Not used
-        uint16_t notUsed7 : 1;            // Bit 7: Not used
-        uint16_t notUsed8 : 1;            // Bit 8: Not used
+        uint16_t error : 1;               // Bit 4: Last transfer failed
+        uint16_t retryCounter0 : 1;       // Bit 5: Retry counter 0 (never set here)
+        uint16_t notPresent : 1;          // Bit 6: No station answered the last frame
+        uint16_t busy : 1;                // Bit 7: Transfer in progress
+        uint16_t parityError : 1;         // Bit 8: Parity error (never set here)
         uint16_t notUsed9 : 1;            // Bit 9: Not used
         uint16_t notUsed10 : 1;           // Bit 10: Not used
         uint16_t notUsed11 : 1;           // Bit 11: Not used
         uint16_t notUsed12 : 1;           // Bit 12: Not used
         uint16_t notUsed13 : 1;           // Bit 13: Not used
         uint16_t notUsed14 : 1;           // Bit 14: Not used
-        uint16_t notUsed15 : 1;           // Bit 15: Not used
+        uint16_t master : 1;              // Bit 15: This card is bus master (never set here)
     } bits;
 } OctobusOutputStatus;
 // clang-format on

@@ -297,6 +297,12 @@ static void octobus_write(Device *self, uint32_t address, uint16_t value)
         data->lastCommand = value;
         data->commands++;
 
+        // ERROR and NOT PRESENT describe the LAST transfer only, so they are
+        // cleared here, before delivery is attempted, and set again below only if
+        // nothing answers. A discovery scan reads them once per frame.
+        data->outputStatusRegister.bits.error = 0;
+        data->outputStatusRegister.bits.notPresent = 0;
+
         // A frame to destination 0, or to our own station, is a LOCAL hardware
         // loopback and is decided BEFORE any bus routing - see device_octobus.h
         // for why the order matters. With no bus attached at all, everything
@@ -316,8 +322,17 @@ static void octobus_write(Device *self, uint32_t address, uint16_t value)
         else
         {
             // Onto the bus. The handler pushes any reply back into this card's
-            // receive FIFO, which is where the hardware puts it too.
-            data->transmit(data->transmitCtx, self, value);
+            // receive FIFO, which is where the hardware puts it too, and reports
+            // whether any station acknowledged the frame at all.
+            if (!data->transmit(data->transmitCtx, self, value))
+            {
+                // Nothing at that station: Ack=00 after the hardware retries. The
+                // transfer attempt itself still completes - ready-for-transfer is
+                // set and the output event is raised below, exactly as for a
+                // delivered frame - but the status now says why nothing arrived.
+                data->outputStatusRegister.bits.error = 1;
+                data->outputStatusRegister.bits.notPresent = 1;
+            }
         }
 
         // Transmission complete: clear busy, set ready, and raise the output

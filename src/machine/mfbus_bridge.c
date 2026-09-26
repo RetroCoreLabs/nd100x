@@ -318,15 +318,26 @@ int mfbus_nd5000_count(void)
  * times out on an empty receive FIFO. Pushing a synthetic "no answer" frame
  * would make an absent station indistinguishable from a quiet one.
  */
-static void mfbus_card_transmit(void *ctx, Device *card, uint16_t frame)
+static bool mfbus_card_transmit(void *ctx, Device *card, uint16_t frame)
 {
     (void)ctx;
 
     uint16_t replies[NDBUS_MAX_REPLY_FRAMES];
     int      n = ndbus_fabric_send(&s_fabric, (uint8_t)NDBUS_STATION_ND120_CPU, frame, replies);
-    if (n <= 0)
+
+    // THE TWO NEGATIVE-ISH RESULTS ARE DIFFERENT THINGS, and collapsing them into
+    // one "n <= 0" was hiding the answer discovery asks for. ndbus_fabric_send
+    // returns -1 when NO STATION is registered at the destination (Ack=00, the
+    // timeout after the hardware retries) and 0 when a station took the frame and
+    // simply had nothing to say back. The card turns the first into ERROR + NOT
+    // PRESENT in its output status; the second is a normal, acknowledged transfer.
+    if (n < 0)
     {
-        return;
+        return false;
+    }
+    if (n == 0)
+    {
+        return true;
     }
 
     for (int i = 0; i < n; i++)
@@ -342,6 +353,10 @@ static void mfbus_card_transmit(void *ctx, Device *card, uint16_t frame)
             break;
         }
     }
+
+    // The station answered, so the frame was acknowledged - a full FIFO loses the
+    // reply, not the acknowledge.
+    return true;
 }
 
 bool mfbus_attach_card(Device *card)

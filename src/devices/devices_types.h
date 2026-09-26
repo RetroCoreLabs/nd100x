@@ -165,7 +165,12 @@ typedef enum {
  * @param card  The card the frame came from, so the handler can push replies.
  * @param frame The 16-bit frame written to the output command register.
  */
-typedef void (*OctobusTransmitFn)(void *ctx, struct Device *card, uint16_t frame);
+/* Hand one frame to the bus. Returns true when a station ACKNOWLEDGED it
+ * (whether or not it also replied), false when nothing answered at the
+ * destination - Ack=00, the timeout after the 15 hardware retries. The card
+ * turns a false into ERROR + NOT PRESENT in its output status, which is how a
+ * discovery scan tells an absent station from a present but silent one. */
+typedef bool (*OctobusTransmitFn)(void *ctx, struct Device *card, uint16_t frame);
 
 // Device structure
 // clang-format off

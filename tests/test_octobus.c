@@ -92,7 +92,7 @@ typedef struct
     unsigned long sent;
 } MockBus;
 
-static void mock_transmit(void *ctx, Device *card, uint16_t frame)
+static bool mock_transmit(void *ctx, Device *card, uint16_t frame)
 {
     MockBus *bus = (MockBus *)ctx;
     bus->sent++;
@@ -100,13 +100,17 @@ static void mock_transmit(void *ctx, Device *card, uint16_t frame)
     uint8_t dest = (uint8_t)((frame >> 8u) & 0x3Fu);
     if (dest == 0 || dest > 62 || !bus->present[dest])
     {
-        return; /* nobody there: the real bus reports this as an Ack=00 timeout */
+        /* Nobody there: the real bus reports this as an Ack=00 timeout after the
+         * 15 hardware retries, and FALSE is how the card is told - it turns that
+         * into ERROR + NOT PRESENT in the output status. */
+        return false;
     }
 
     /* The answer carries the SOURCE in bits 13-8 - the destination-to-source
      * rewrite the bus performs on delivery - and arrives in the card's FIFO. */
     uint16_t reply = (uint16_t)((frame & 0xC0FFu) | ((uint32_t)dest << 8u));
     (void)octobus_rx_push(card, reply);
+    return true;
 }
 
 static MockBus bus_lb;
@@ -473,6 +477,57 @@ int main(void)
     bus.present[8] = true;   /* 010B, a SCSI controller */
     bus.present[56] = true;  /* 070B, an ND-5000 */
     octobus_set_transmit(card, mock_transmit, &bus);
+
+    /* ---- ERROR and NOT PRESENT: how a scan tells absent from silent ----
+     *
+     * These are the bits that answer "is there a CPU at this station". The
+     * register used to declare them "not used", which is how the ND-500 monitor's
+     * discovery had nothing to read. They describe the LAST transfer only, so each
+     * write clears them first.
+     *
+     * Source for the layout: the hardware decode via RetroCore NDBusOctobus.cs
+     * TransmitStatusBits, where the same two bits are set together on a timeout
+     * and cleared together at the top of every send. RetroCore labels the exact
+     * positions inferred; so does device_octobus.h. */
+    {
+        /* 070B is present in this mock and answers. */
+        card->Write(card, 0100405, (uint16_t)(0x8000u | (56u << 8u)));
+        CHECK(octobus_out_status(card).bits.notPresent == 0,
+              "a frame to a present station leaves NOT PRESENT clear");
+        CHECK(octobus_out_status(card).bits.error == 0, "and ERROR clear");
+
+        /* 077B is not a station at all - nothing can answer. */
+        card->Write(card, 0100405, (uint16_t)(0x8000u | (63u << 8u)));
+        CHECK(octobus_out_status(card).bits.notPresent == 1,
+              "a frame nobody answers sets NOT PRESENT");
+        CHECK(octobus_out_status(card).bits.error == 1, "and ERROR");
+        CHECK(octobus_out_status(card).bits.readyForTransfer == 1,
+              "the transfer attempt still completes - ready-for-transfer stays set");
+
+        /* And the next successful send clears them again: they are the last
+         * transfer's result, not a latched fault. */
+        card->Write(card, 0100405, (uint16_t)(0x8000u | (56u << 8u)));
+        CHECK(octobus_out_status(card).bits.notPresent == 0,
+              "the next answered frame clears NOT PRESENT again");
+        CHECK(octobus_out_status(card).bits.error == 0, "and ERROR again");
+
+        /* The bits this card never asserts, because no evidence says when they
+         * would. Named in the register, always zero here - so a later change that
+         * starts setting one has to come with its own evidence. */
+        OctobusOutputStatus ost = octobus_out_status(card);
+        CHECK(ost.bits.requestOn == 0 && ost.bits.retryCounter0 == 0
+                  && ost.bits.parityError == 0 && ost.bits.master == 0,
+              "REQUEST ON, RETRY COUNTER 0, PARITY ERROR and MASTER are never set");
+
+        /* Drain whatever the three sends above left in the FIFO, and forget them
+         * in the mock's own counter, so the station scan that follows starts from
+         * an empty FIFO and its send count still means what it says. */
+        while (octobus_in_status(card).bits.dataAvailable)
+        {
+            (void)card->Read(card, 0100400);
+        }
+        bus.sent = 0;
+    }
 
     int answered = 0;
     int probed = 0;

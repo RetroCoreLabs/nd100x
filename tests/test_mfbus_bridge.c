@@ -401,10 +401,17 @@ int main(void)
             (void)card->Read(card, 0100400);
         }
         uint16_t dest = (uint16_t)(56u << 8u);
+        /* THE MESSAGE CARRIES A TWO-BYTE HEADER IN FRONT OF THE COMMAND, and this
+         * test used to leave it off - the same mistake the station made reading
+         * it, which is why both agreed and neither was caught. On the wire it is
+         *   SOMB | source OMD | byte count | command | parameters... | EOMB
+         * exactly as captured from SINTRAN's ND-500 monitor. */
         /* SOMB: C=1, M=1, S=1, destination OMD 3 */
         card->Write(card, 0100405, (uint16_t)(dest | 0x8000u | 0x0020u | 0x0010u | 3u));
+        card->Write(card, 0100405, (uint16_t)(dest | 0x03u));  /* our source OMD */
+        card->Write(card, 0100405, (uint16_t)(dest | 0x03u));  /* 3 payload bytes */
         card->Write(card, 0100405, (uint16_t)(dest | 0x0Fu));  /* ECHO */
-        card->Write(card, 0100405, (uint16_t)(dest | 0x01u));  /* count 1 */
+        card->Write(card, 0100405, (uint16_t)(dest | 0x01u));  /* its count: 1 byte */
         card->Write(card, 0100405, (uint16_t)(dest | 0xA5u));  /* the test byte */
         card->Write(card, 0100405, (uint16_t)(dest | 0x8000u | 0x0020u | 3u)); /* EOMB */
         CHECK(octobus_rx_count(card) > 0, "the ACCP answered through the card");
