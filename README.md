@@ -481,6 +481,13 @@ the [TODO and FIXME inventory](docs/TODO-INVENTORY.md) - 51 of them across 16
 files, with the file, line, enclosing function and the comment itself, so each
 can be judged on its own.
 
+A separate, optional code-quality exercise measures the source against the
+house C standard (BARR-C:2018 plus SEI CERT C). What is left of it, batched by
+how much judgement each change needs, is written up in the
+[cleanup handoff](docs/CLEANUP-TODO.md), along with how to run the rule engine
+and the validation gate. None of it is required to build or run the emulator -
+it is there for whoever wants to improve the code quality.
+
 ## Multiple systems
 
 The nd100x emulator has been compuiled and tested on multiple different systems.
