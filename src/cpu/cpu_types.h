@@ -1968,7 +1968,7 @@ void disasm_set_isdata(uint16_t);
 void disasm_userel(uint16_t, uint16_t);
 
 /**
- * @brief Write the full 65536-word disassembly map to /dev/stdout as text.
+ * @brief Write the full 65536-word disassembly map to stdout as text.
  */
 void disasm_dump(void);
 
