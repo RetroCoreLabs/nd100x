@@ -83,10 +83,6 @@ jobs:
           STAGE="dist/nd100x-linux-${{ matrix.arch }}"
           mkdir -p "$STAGE"
           cp build_release/bin/nd100x "$STAGE/"
-          if [ -d images ]; then
-            mkdir -p "$STAGE/images"
-            cp -r images/. "$STAGE/images/" 2>/dev/null || true
-          fi
           cp README.md "$STAGE/" 2>/dev/null || true
           cp LICENSE   "$STAGE/" 2>/dev/null || true
           # An ELF binary has no place for an icon. The logo goes beside it
@@ -341,6 +337,15 @@ jobs:
           STAGE="dist/nd100x-windows-${{ matrix.arch }}"
           mkdir -p "$STAGE"
           cp build_release/bin/nd100x.exe "$STAGE/"
+          # The vendored libcurl (external/curl, see the top CMakeLists.txt) is
+          # not under /mingw64, so the ldd sweep below never finds it. The
+          # build copies the DLL and its CA bundle next to the exe; take them
+          # from there.
+          for f in libcurl-x64.dll curl-ca-bundle.crt; do
+            if [ -f "build_release/bin/$f" ]; then
+              cp "build_release/bin/$f" "$STAGE/"
+            fi
+          done
           # Discover and copy every non-system DLL the exe depends on. This
           # catches libcurl + its transitive deps (openssl, zstd, brotli,
           # nghttp2, ...) plus the MinGW runtime (libgcc_s_seh-1, libwinpthread-1)
@@ -352,15 +357,35 @@ jobs:
             | while read -r dll; do
                 [ -f "$dll" ] && cp "$dll" "$STAGE/"
               done
-          # Ship bundled images that live in the repo.
-          if [ -d images ]; then
-            mkdir -p "$STAGE/images"
-            cp -r images/. "$STAGE/images/" 2>/dev/null || true
-          fi
           cp README.md "$STAGE/" 2>/dev/null || true
           cp LICENSE "$STAGE/" 2>/dev/null || true
           echo "=== Staged contents ==="
           ls -la "$STAGE"
+
+      - name: Check every DLL the exe needs is in the zip or in Windows
+        # A missing DLL only shows up when a user starts the exe ("libcurl-x64.dll
+        # was not found", v1.0.13). objdump lists the DLLs each PE file imports;
+        # every one must be either staged beside the exe or a Windows system DLL.
+        # The staged DLLs are checked too, for their own imports.
+        run: |
+          set -euo pipefail
+          STAGE="dist/nd100x-windows-${{ matrix.arch }}"
+          SYS="$(cygpath -u "${WINDIR:-C:\\Windows}")/System32"
+          [ -d "$SYS" ] || { echo "::error::no System32 at $SYS"; exit 1; }
+          missing=0
+          for pe in "$STAGE"/*.exe "$STAGE"/*.dll; do
+            [ -f "$pe" ] || continue
+            for dll in $(objdump -p "$pe" | awk '/DLL Name:/ {print $3}'); do
+              # Windows file names are case-insensitive.
+              if ls "$STAGE" | grep -qixF "$dll"; then continue; fi
+              if ls "$SYS"   | grep -qixF "$dll"; then continue; fi
+              # api-ms-win-* are API set names resolved by the loader, not files.
+              case "$dll" in api-ms-win-*|API-MS-WIN-*) continue ;; esac
+              echo "::error::$(basename "$pe") needs $dll, which is neither staged nor in System32"
+              missing=1
+            done
+          done
+          exit $missing
 
       - name: Upload build artifact
         # Upload the staging DIRECTORY, not a pre-zipped file. GitHub wraps
@@ -487,10 +512,6 @@ jobs:
           STAGE="dist/nd100x-linux-riscv64"
           mkdir -p "$STAGE"
           cp build_riscv/bin/nd100x "$STAGE/"
-          if [ -d images ]; then
-            mkdir -p "$STAGE/images"
-            cp -r images/. "$STAGE/images/" 2>/dev/null || true
-          fi
           cp README.md "$STAGE/" 2>/dev/null || true
           cp LICENSE   "$STAGE/" 2>/dev/null || true
           echo "=== Staged contents ==="
@@ -550,10 +571,6 @@ jobs:
           STAGE="dist/nd100x-macos-${{ matrix.arch }}"
           mkdir -p "$STAGE"
           cp build_release/bin/nd100x "$STAGE/"
-          if [ -d images ]; then
-            mkdir -p "$STAGE/images"
-            cp -r images/. "$STAGE/images/" 2>/dev/null || true
-          fi
           cp README.md "$STAGE/" 2>/dev/null || true
           cp LICENSE   "$STAGE/" 2>/dev/null || true
           # nd100x.app beside the bare binary: a macOS executable cannot carry
