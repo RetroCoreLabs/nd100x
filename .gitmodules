@@ -22,4 +22,4 @@
 [submodule "external/nd500x"]
 	path = external/nd500x
 	url = https://github.com/RetroCoreLabs/nd500x.git
-	branch = 500x-improvements
+	branch = main
