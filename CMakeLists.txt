@@ -324,8 +324,22 @@ endif()
 set(ND100X_ND500X_DIR "${ND100X_ND500X_DEFAULT}"
     CACHE PATH "Path to the nd500x checkout (empty or missing = no ND-500)")
 
+# RISC-V: OFF by default. The Milk-V Duo the RISC-V build targets is too
+# small to run an ND-500 next to the ND-100.
+# ND-500 support on RISC-V is not supported for now; -DND100X_ENABLE_ND500=ON
+# turns it on for a larger RISC-V machine, at the user's own risk.
+if(PLATFORM_RISCV OR BUILD_RISCV)
+    set(ND100X_ENABLE_ND500_DEFAULT OFF)
+else()
+    set(ND100X_ENABLE_ND500_DEFAULT ON)
+endif()
+option(ND100X_ENABLE_ND500 "Build the ND-500 into nd100x when an nd500x checkout is found"
+    ${ND100X_ENABLE_ND500_DEFAULT})
+
 set(ND100X_WITH_ND500 OFF)
-if(ND100X_ND500X_DIR AND EXISTS "${ND100X_ND500X_DIR}/CMakeLists.txt")
+if(NOT ND100X_ENABLE_ND500)
+    message(STATUS "ND-500 not built (ND100X_ENABLE_ND500=OFF)")
+elseif(ND100X_ND500X_DIR AND EXISTS "${ND100X_ND500X_DIR}/CMakeLists.txt")
     set(ND100X_WITH_ND500 ON)
     # nd500x's libraries are all nd500_-prefixed, so nothing collides with
     # ndlib/cpu/machine/devices/debugger here.

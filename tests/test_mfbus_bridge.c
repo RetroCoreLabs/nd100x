@@ -452,10 +452,7 @@ int main(void)
         }
         CHECK(saw_pattern, "and the reply carries the byte that was echoed");
 
-        if (card->Destroy)
-        {
-            card->Destroy(card);
-        }
+        dev_destroy(card);
         free(card);
     }
 

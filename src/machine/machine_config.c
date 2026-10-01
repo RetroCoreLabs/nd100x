@@ -393,10 +393,12 @@ static bool mc_parse_page_number(const char *val, long *out)
     size_t len = strlen(val);
     char  *endp = NULL;
     long   n;
+    /* At function scope, not inside the octal branch: endp points into buf and
+     * is read after that branch ends. */
+    char   buf[32];
 
     if (val[len - 1] == 'B' || val[len - 1] == 'b')
     {
-        char buf[32];
         if (len - 1 >= sizeof(buf))
         {
             return false;

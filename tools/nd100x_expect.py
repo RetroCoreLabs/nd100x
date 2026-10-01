@@ -31,9 +31,11 @@ import threading
 import subprocess
 
 # Default location of the built binary, relative to this file (tools/ -> ../build/bin/).
+# $ND100X_EXE overrides it; CTest sets it to the binary of the build it runs in,
+# which is not build/ for every build directory (CI builds into build_test/).
 _HERE = os.path.dirname(os.path.abspath(__file__))
-DEFAULT_EXE = os.path.join(_HERE, "..", "build", "bin",
-                           "nd100x.exe" if os.name == "nt" else "nd100x")
+DEFAULT_EXE = os.environ.get("ND100X_EXE") or os.path.join(
+    _HERE, "..", "build", "bin", "nd100x.exe" if os.name == "nt" else "nd100x")
 
 # Bytes we drop from the output stream before matching: NUL, and CSI/ESC escape
 # sequences the emulated terminal may emit (cursor moves etc.). \r and \n are kept.

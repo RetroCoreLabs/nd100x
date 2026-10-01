@@ -43,6 +43,11 @@
 #if defined(_WIN32) || defined(_WIN64)
 #include <windows.h>
 #include <mmsystem.h> /* timeBeginPeriod - requires linking winmm */
+/* winpthreads' pthread.h names a parameter _T (pthread_mutex_timedlock), and
+ * the register index macro _T below would turn it into a number. Include it
+ * here, before the macros, so a later #include <pthread.h> (devices/hdlc/
+ * modem.h) is a no-op behind its include guard. */
+#include <pthread.h>
 static inline void sleep_ms(unsigned int ms)
 {
     static LONG period_raised = 0;

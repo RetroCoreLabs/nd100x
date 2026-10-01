@@ -88,8 +88,9 @@ endif()
 
 # RISC-V has no native 1-byte atomic instructions, so GCC turns the byte-wide
 # atomics in nd500x (nd500_mmu.c) into calls to __atomic_fetch_or_1 and
-# friends, which live in libatomic.
-if(PLATFORM_RISCV)
+# friends, which live in libatomic. Only needed when the ND-500 is built in,
+# which on RISC-V is off by default (ND100X_ENABLE_ND500, top CMakeLists.txt).
+if(PLATFORM_RISCV AND ND100X_WITH_ND500)
     target_link_libraries(nd100x PRIVATE atomic)
 endif()
 

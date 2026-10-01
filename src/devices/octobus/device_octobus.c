@@ -548,6 +548,7 @@ Device *octobus_create_device(uint8_t thumbwheel)
     default:
         LOG(LOG_CAT_DEVICE, LOG_WARN, "Unexpected thumbwheel code %d\n", thumbwheel);
         free(data);
+        free(dev->ioDelays); /* allocated by dev_init() above */
         free(dev);
         return NULL;
     }

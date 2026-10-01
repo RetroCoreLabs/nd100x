@@ -62,6 +62,7 @@ if(NOT PLATFORM_WASM AND NOT PLATFORM_RISCV)
             SKIP_RETURN_CODE 2      # exit 2 = image not found -> SKIPPED, not failed
             TIMEOUT 180             # a full TPE boot + INSTRUCTION run
             LABELS "integration;nd120;pipe"
+            ENVIRONMENT "ND100X_EXE=$<TARGET_FILE:nd100x>"
         )
     else()
         message(STATUS "Python not found - skipping the nd120_tpe_pipe integration test")

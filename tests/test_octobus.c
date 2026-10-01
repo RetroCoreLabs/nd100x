@@ -193,25 +193,16 @@ int main(void)
     dev->Reset(dev);
     CHECK((dev->Read(dev, 0100406) & (1u << 3)) != 0, "reset leaves DATA READY set");
 
-    if (dev->Destroy)
-    {
-        dev->Destroy(dev);
-    }
+    dev_destroy(dev);
     free(dev);
     if (dev2)
     {
-        if (dev2->Destroy)
-        {
-            dev2->Destroy(dev2);
-        }
+        dev_destroy(dev2);
         free(dev2);
     }
     if (dev4)
     {
-        if (dev4->Destroy)
-        {
-            dev4->Destroy(dev4);
-        }
+        dev_destroy(dev4);
         free(dev4);
     }
 
@@ -584,10 +575,7 @@ int main(void)
     CHECK(bus.sent == sent_before, "a detached card transmits nothing onto the bus");
     CHECK(octobus_rx_count(card) == 1, "and loops the frame back to its own input instead");
 
-    if (card->Destroy)
-    {
-        card->Destroy(card);
-    }
+    dev_destroy(card);
     free(card);
 
     printf("\n%d check(s), %d failed\n", s_checks, s_failed);
