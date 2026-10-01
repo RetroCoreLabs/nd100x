@@ -20,7 +20,7 @@
 
 #include "cpu_types.h"
 #ifdef _WIN32
-#define nd_strcasecmp _stricmp
+#define ND_STRCASECMP _stricmp
 #else
 #include <strings.h>
 #define ND_STRCASECMP strcasecmp
