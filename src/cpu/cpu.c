@@ -74,9 +74,12 @@ static uint64_t throttle_get_ns(void)
 #endif
 
 
+/* atomic_compat.h pulls in <windows.h> on Windows. It must come before
+ * cpu_types.h: the register index macros there (_T, _B, _A, ...) would
+ * otherwise rewrite identifiers inside the Windows headers. */
+#include "atomic_compat.h"
 #include "cpu_types.h"
 #include "cpu_protos.h"
-#include "atomic_compat.h"
 #include "log.h"
 
 /**

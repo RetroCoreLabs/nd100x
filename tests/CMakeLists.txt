@@ -485,15 +485,27 @@ target_include_directories(test_memory_banks PRIVATE
     ${CMAKE_SOURCE_DIR}/src/ndlib
 )
 
+# Archive groups. GNU ld needs --start-group/--end-group to resolve the
+# circular calls between cpu, machine, devices and the debugger. Apple's ld
+# does not know those options and already rescans archives until nothing is
+# left unresolved, so on macOS the group markers are left out.
+if(APPLE)
+    set(ND_LINK_GROUP_BEGIN "")
+    set(ND_LINK_GROUP_END "")
+else()
+    set(ND_LINK_GROUP_BEGIN "-Wl,--start-group")
+    set(ND_LINK_GROUP_END "-Wl,--end-group")
+endif()
+
 # The link is a GROUP: cpu calls into devices and the debugger, devices calls
 # back into machine, and machine calls cpu. A single pass over the archives in
 # any order leaves some of those unresolved.
 target_link_libraries(test_memory_banks PRIVATE
-    -Wl,--start-group cpu machine devices debugger ndlib -Wl,--end-group m)
+    ${ND_LINK_GROUP_BEGIN} cpu machine devices debugger ndlib ${ND_LINK_GROUP_END} m)
 
 # cpu_types.h #includes the generated cpu_protos.h; force the cpu target (which
 # runs mkptypes to emit it) to build first.
-add_dependencies(test_memory_banks cpu)
+add_dependencies(test_memory_banks cpu devices)
 
 add_test(NAME memory_bank_tests COMMAND test_memory_banks)
 
@@ -517,8 +529,8 @@ target_include_directories(test_octobus PRIVATE
     ${CMAKE_SOURCE_DIR}/src
 )
 
-target_link_libraries(test_octobus PRIVATE -Wl,--start-group ndlib -Wl,--end-group m)
-add_dependencies(test_octobus cpu)
+target_link_libraries(test_octobus PRIVATE ${ND_LINK_GROUP_BEGIN} ndlib ${ND_LINK_GROUP_END} m)
+add_dependencies(test_octobus cpu devices)
 
 add_test(NAME octobus_tests COMMAND test_octobus)
 
@@ -545,8 +557,8 @@ target_include_directories(test_scsi PRIVATE
     ${CMAKE_SOURCE_DIR}/src
 )
 
-target_link_libraries(test_scsi PRIVATE -Wl,--start-group ndlib -Wl,--end-group m)
-add_dependencies(test_scsi cpu)
+target_link_libraries(test_scsi PRIVATE ${ND_LINK_GROUP_BEGIN} ndlib ${ND_LINK_GROUP_END} m)
+add_dependencies(test_scsi cpu devices)
 
 add_test(NAME scsi_tests COMMAND test_scsi)
 
@@ -577,10 +589,10 @@ if(ND100X_WITH_ND500)
     )
 
     target_link_libraries(test_mfbus_bridge PRIVATE
-        -Wl,--start-group cpu machine devices debugger ndlib -Wl,--end-group
+        ${ND_LINK_GROUP_BEGIN} cpu machine devices debugger ndlib ${ND_LINK_GROUP_END}
         nd500::ndbus nd500::machine nd500::cpu m)
 
-    add_dependencies(test_mfbus_bridge cpu)
+    add_dependencies(test_mfbus_bridge cpu devices machine_protos_gen)
 
     add_test(NAME mfbus_bridge_tests COMMAND test_mfbus_bridge)
 endif()

@@ -86,6 +86,13 @@ if(NEED_MENU)
     )
 endif()
 
+# RISC-V has no native 1-byte atomic instructions, so GCC turns the byte-wide
+# atomics in nd500x (nd500_mmu.c) into calls to __atomic_fetch_or_1 and
+# friends, which live in libatomic.
+if(PLATFORM_RISCV)
+    target_link_libraries(nd100x PRIVATE atomic)
+endif()
+
 # Add debug flags as needed (matching Makefile)
 target_compile_definitions(nd100x PRIVATE
     _GNU_SOURCE
