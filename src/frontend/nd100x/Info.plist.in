@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Info.plist.in - macOS bundle description for nd100x.app
+
+  configure_file() in CMakeLists.txt fills in the @...@ fields and writes
+  Info.plist into the build tree; edit this file, not the generated one.
+  The release workflow builds nd100x.app from it: Contents/MacOS/nd100x is
+  the same binary the tarball ships on its own, and Contents/Resources/
+  nd100x.icns is assets/nd100x.icns, which Finder shows for the bundle.
+-->
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>
+    <string>nd100x</string>
+    <key>CFBundleDisplayName</key>
+    <string>nd100x</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.retrocorelabs.nd100x</string>
+    <key>CFBundleExecutable</key>
+    <string>nd100x</string>
+    <key>CFBundleIconFile</key>
+    <string>nd100x</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>@nd100x_VERSION@</string>
+    <key>CFBundleVersion</key>
+    <string>@nd100x_VERSION@</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>NSHumanReadableCopyright</key>
+    <string>Copyright (c) 2025-2026 Ronny Hansen</string>
+</dict>
+</plist>

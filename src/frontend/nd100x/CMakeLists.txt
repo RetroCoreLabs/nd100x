@@ -116,6 +116,32 @@ if(TARGET symbols_objects)
     )
 endif()
 
+# Icon and version metadata, from assets/ (made from assets/nd100x.svg).
+#
+# Windows: nd100x.rc puts assets/nd100x.ico and a VERSIONINFO block into the
+# .exe. It is compiled in an OBJECT library of its own so the resource
+# compiler gets none of the nd100x target's compile settings (include
+# directories, _GNU_SOURCE/DEBUG definitions). The house warning flags would
+# not reach it in any case: nd100x_apply_house_standard() limits them to C
+# with $<COMPILE_LANGUAGE:C>.
+#
+# macOS: a bare executable cannot carry an icon, so only Info.plist is made
+# here; the release workflow wraps the binary in nd100x.app with it and
+# assets/nd100x.icns.
+#
+# Linux: an ELF file has no icon. The release tarball carries nd100x.desktop
+# and nd100x.png beside the binary for the desktop menu to use.
+if(PLATFORM_WINDOWS)
+    enable_language(RC)
+    set(ND100X_ICO ${CMAKE_SOURCE_DIR}/assets/nd100x.ico)
+    configure_file(nd100x.rc.in ${CMAKE_CURRENT_BINARY_DIR}/nd100x.rc @ONLY)
+    add_library(nd100x_rc OBJECT ${CMAKE_CURRENT_BINARY_DIR}/nd100x.rc)
+    target_sources(nd100x PRIVATE $<TARGET_OBJECTS:nd100x_rc>)
+endif()
+if(APPLE)
+    configure_file(Info.plist.in ${CMAKE_CURRENT_BINARY_DIR}/Info.plist @ONLY)
+endif()
+
 # Copy config file to build output directory
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/nd100x.conf
     ${CMAKE_BINARY_DIR}/etc/nd100x.conf COPYONLY)

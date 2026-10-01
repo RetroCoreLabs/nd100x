@@ -1346,9 +1346,51 @@ void config_print_help(const char *prog_name)
     printf("  -R[N],   --ring-dump[=N]  Dump last N instructions on halt/crash (default: 50, max: "
            "65536)\n");
     printf("  -Z[MHZ], --throttle[=MHZ] Throttle CPU to real-time speed (default: 0.5275 MHz)\n");
-    printf("           --config=FILE  Machine configuration INI file\n");
+    printf("           --config=FILE  Machine configuration INI file (also --config FILE;\n");
+    printf("                          there is no short form)\n");
     printf("           --ini=FILE     Alias for --config\n");
-    printf("                          (default: autoload <binaryname>.ini in the current dir)\n");
+    printf("                          With no --config, the INI named after the binary in the\n");
+    printf("                          CURRENT directory is loaded if it exists: nd100x reads\n");
+    printf("                          nd100x.ini, nd110x reads nd110x.ini (a trailing .exe is\n");
+    printf("                          stripped). With no INI at all the built-in defaults are\n");
+    printf("                          used. An INI fully specifies the controllers, so loading\n");
+    printf("                          one starts from a controller-less baseline.\n");
+    printf("                          INI sections:\n");
+    printf("                            [machine]               cpu, fpp, rtc\n");
+    printf("                            [controller.smd.0]      enabled, disk0..disk3\n");
+    printf("                            [controller.floppy.0]   enabled, disk0..disk2\n");
+    printf("                            [controller.scsi.0-3]   enabled, disk0..disk6\n");
+    printf("                                                    ([media:]path; ID 7 = card)\n");
+    printf("                            [controller.wd.0]       enabled, disk0, disk1\n");
+    printf("                            [controller.hdlc.1-4]   enabled, mode, host, port\n");
+    printf("                            [terminals]             enabled = list of terminal "
+           "numbers\n");
+    printf("                            [peripheral.NAME]       enabled; NAME is one of\n");
+    printf("                                                    papertape-reader, "
+           "papertape-punch,\n");
+    printf("                                                    lineprinter\n");
+    printf("                            [boot]                  device = TYPE.WHEEL.UNIT, e.g.\n");
+    printf("                                                    smd.0.0\n");
+    printf("                            [runtime]               telnet, throttle, charset,\n");
+    printf("                                                    printdir, tapedir, debugger,\n");
+    printf("                                                    trace, trace_nd110, ring_at_pf,\n");
+    printf("                                                    ring_at_clpt, log, drum, cdc,\n");
+    printf("                                                    memory, shell, nd100_root, "
+           "script\n");
+    printf("                            [mfbus]                 enabled, size, base_page\n");
+    printf("                            [mfbus.part.N]          pages, nd100, nd500_p, nd500_d\n");
+    printf("                            [controller.octobus.0]  enabled (also spelled "
+           "[octobus])\n");
+    printf("                            [nd5000.N]              enabled, station, base_page,\n");
+    printf("                                                    cpu_type, kernel, pseg, dseg\n");
+    printf("                                                    N is the CPU slot, 1 upwards\n");
+    printf("                            [nd500]                 enabled, memory, kernel, pseg, "
+           "dseg\n");
+    printf("                          For [mfbus], [controller.octobus.0], [nd5000.N] and\n");
+    printf("                          [nd500], NAMING THE SECTION IS WHAT ENABLES THE HARDWARE:\n");
+    printf("                          the section header alone switches it on, so deleting or\n");
+    printf("                          commenting out the section is how it is turned off\n");
+    printf("                          ('enabled = no' keeps the section but builds nothing).\n");
     printf("           --show-config  Resolve+validate the machine config, print it, and exit\n");
     printf("           --write-config=FILE  Write the resolved machine config to an INI file and "
            "exit\n");
@@ -1370,6 +1412,9 @@ void config_print_help(const char *prog_name)
     printf("  %s --boot=smd1                  # Boot from SMD unit 1\n", prog_name);
     printf("  %s --boot=scsi0 --scsi0=hdd:SCSI-K.image  # Boot from SCSI ID 0\n", prog_name);
     printf("  %s --hdlc=1:5000 --hdlc=2:5001  # Two HDLC devices\n", prog_name);
+    printf("  %s --config ND5000.ini           # ND-100 booting SINTRAN from an SMD pack\n",
+           prog_name);
+    printf("                                    # with MFbus, octobus and an ND-5000 enabled\n");
 
     /*
      * Machine identity is configured through environment variables (nd100x has no

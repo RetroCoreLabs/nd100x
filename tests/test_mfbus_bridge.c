@@ -132,11 +132,19 @@ int main(void)
     CHECK(ndbus_pool_read16(pool, 8) == 0x5678, "the ND-5000 reads the same word back");
 
     /* ---- half-word writes -------------------------------------------------
-     * WRITEMODE_MSB is the HIGH byte, which is the FIRST byte of the pair.
-     * Backwards, every half-word write lands 256 off and surfaces much later as
-     * a corrupted page-table entry. */
+     * WRITEMODE_MSB is the HIGH byte, the FIRST byte of the pair. The byte to
+     * store arrives in the LOW 8 bits of `value` for BOTH modes: SBYT passes gA,
+     * BFILL passes `gA & 0xFF`, MOVB narrows with `& 0xFF` (cpu_instr.c), and
+     * local RAM builds the high half with `(value << 8)`
+     * (mms_write_physical_memory_wm in cpu_mms.c).
+     *
+     * THIS TEST USED TO PASS 0xEE00 FOR THE MSB WRITE, encoding the byte in the
+     * high half - the same mistake the MFbus bank write itself was making - so
+     * the two agreed with each other and disagreed with every real caller. Every
+     * even-byte write into the shared window stored 0. Pass the byte the way the
+     * CPU does, in the low half, or this check proves nothing. */
     mms_write_physical_memory((int)(base_word + 6), 0x0000, true);
-    mms_write_physical_memory_wm((int)(base_word + 6), 0xEE00, true, WRITEMODE_MSB);
+    mms_write_physical_memory_wm((int)(base_word + 6), 0x00EE, true, WRITEMODE_MSB);
     CHECK(ndbus_pool_read8(pool, 12) == 0xEE, "MSB lands in the FIRST byte of the pair");
     CHECK(ndbus_pool_read8(pool, 13) == 0x00, "and leaves the second alone");
     mms_write_physical_memory_wm((int)(base_word + 6), 0x0011, true, WRITEMODE_LSB);
@@ -144,6 +152,18 @@ int main(void)
     CHECK(ndbus_pool_read8(pool, 13) == 0x11, "and lands in the second byte");
     CHECK(mms_read_physical_memory((int)(base_word + 6), true) == 0xEE11,
           "so the whole word reads back correctly");
+
+    /* The same byte written to the window and to LOCAL RAM must end up in the
+     * same half of the word. This is the check that would have caught the bug:
+     * it compares the two backing stores against each other rather than against
+     * a hand-written expectation. */
+    mms_write_physical_memory((int)(base_word + 8), 0x0000, true);
+    mms_write_physical_memory(0x300, 0x0000, true);
+    mms_write_physical_memory_wm((int)(base_word + 8), 0x0042, true, WRITEMODE_MSB);
+    mms_write_physical_memory_wm(0x300, 0x0042, true, WRITEMODE_MSB);
+    CHECK(mms_read_physical_memory((int)(base_word + 8), true) ==
+              mms_read_physical_memory(0x300, true),
+          "an MSB byte write lands identically in the window and in local RAM");
 
     /* ---- the window does not bleed ---------------------------------------- */
     uint32_t last_word = base_word + (TEST_POOL_BYTES / 2u) - 1u;

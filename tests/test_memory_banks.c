@@ -6,7 +6,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  * Copyright (c) 2026 Ronny Hansen
  *
- * Two layers:
+ * Three layers:
  *
  *   Layer 1 - the bank table itself: register / lookup / unregister, the refusal
  *             of an overlapping range, and the WORD-address rule.
@@ -14,6 +14,10 @@
  *             (KMECCR) memory from MPM-5: arm the ECCR simulate bits, write,
  *             clear DisableECC, read back, and see whether a level-14 parity
  *             interrupt is raised. LOCAL must raise it, MPM-5 must stay silent.
+ *   Layer 3 - an MMU-TRANSLATED access into a registered non-local bank. The
+ *             translation used to range-check against installed local RAM and
+ *             raise MOR for a shared window above it, which is what stopped
+ *             SINTRAN finding the ND-500 memory.
  */
 
 #include <stdio.h>
@@ -230,10 +234,127 @@ static int run_ecc_probe_tests(void)
     return s_failed - before;
 }
 
+/* -- Layer 3: an MMU-TRANSLATED access into a registered non-local bank ------
+ *
+ * The physical read/write paths honoured the bank table from the start, but the
+ * MMU translation range-checked the translated address against g_nd_memsize -
+ * installed LOCAL RAM - and raised MOR for anything above it. A shared MPM-5
+ * window sits above local RAM, so EXAM/DEPO and DMA reached it while every
+ * MMU-mapped access trapped. SINTRAN's OPPSTART bank-sizing probe reads each
+ * candidate page THROUGH the page table and treats the resulting internal
+ * interrupt as "page absent", so the shared window was never recorded and the
+ * ND-500 monitor reported "No memory available for ND-500(0) buffers".
+ *
+ * None of the other suites covers this path, which is why the bug survived them.
+ */
+#define TEST_L3_BANK_WORDS 0x400u /* one page is enough to translate into */
+
+static uint16_t s_l3_backing[TEST_L3_BANK_WORDS];
+
+static uint16_t l3_bank_read(void *ctx, uint32_t word_offset)
+{
+    (void)ctx;
+    if (word_offset >= TEST_L3_BANK_WORDS)
+    {
+        return 0;
+    }
+    return s_l3_backing[word_offset];
+}
+
+static void l3_bank_write(void *ctx, uint32_t word_offset, uint16_t value, WriteMode wm)
+{
+    (void)ctx;
+    (void)wm;
+    if (word_offset < TEST_L3_BANK_WORDS)
+    {
+        s_l3_backing[word_offset] = value;
+    }
+}
+
+/* Put the CPU in the state the translation needs: paging on, extended
+ * addressing (a 14-bit page number - normal mode's 9 bits cannot even express a
+ * page above 511), ring 3 in PCR and page table 0. */
+static void l3_cpu_state(void)
+{
+    /* PONI and SEXI live in the GLOBAL status word reg_STS, not in the per-level
+     * reg[level][_STS] - see STS_PAGING_ON_IS_SET / STS_EXTENDED_ADDRESSING_IS_SET
+     * in cpu_types.h. Setting the per-level word instead leaves paging OFF, the
+     * translation returns the virtual address unchanged, and the test silently
+     * measures local RAM rather than the bank. */
+    g_reg->reg_STS    = (uint16_t)((1u << STS_PAGING_ON) | (1u << STS_EXTENDED_ADDRESSING));
+    g_reg->reg_PCR[0] = 0x0003; /* ring 3, page table 0, four-page-table mode */
+}
+
+/* Map virtual page vpn of page table 0 onto physical page ppn, all permissions. */
+static void l3_map_page(uint32_t vpn, uint32_t ppn)
+{
+    uint32_t p_te = (7uL << 29) | (ppn & 0x3FFF);
+    (void)mms_update_page_table_entry(0, vpn, Four, p_te);
+}
+
+static int run_mmu_bank_tests(void)
+{
+    int before = s_failed;
+    printf("Layer 3: MMU-translated access into a registered bank\n");
+
+    banks_fixture();
+    memset(s_l3_backing, 0, sizeof(s_l3_backing));
+    g_mms_type = MMS1;
+    CHECK(mms_create_paging_tables(), "paging tables allocate");
+    l3_cpu_state();
+    gIIE = 0xFFFF;
+
+    /* A BACKED bank one page long, placed above installed local RAM exactly as
+     * the MFbus shared pool is. Backed, so the round-trip proves the access
+     * reached the bank's own store and not local RAM. */
+    CHECK(mms_memory_bank_register_backed(TEST_MPM5_START, TEST_L3_BANK_WORDS, ND_MEM_MPM5,
+                                          l3_bank_read, l3_bank_write, NULL),
+          "backed MPM5 bank registers above local RAM");
+
+    uint32_t vpn = 4;
+    uint32_t va  = (vpn << 10) | 0x12;
+    l3_map_page(vpn, TEST_MPM5_START >> 10);
+
+    /* THE REGRESSION: this write used to raise MOR (IID bit 9) and be dropped. */
+    gIID = 0;
+    mms_write_virtual_memory(va, 0xBEEF, false, WRITEMODE_WORD);
+    CHECK((gIID & (1 << 9)) == 0, "MMU write into the bank does NOT raise MOR");
+    CHECK(s_l3_backing[0x12] == 0xBEEF, "the write reached the bank's own backing store");
+
+    gIID = 0;
+    int got = mms_read_virtual_memory(va, false);
+    CHECK((gIID & (1 << 9)) == 0, "MMU read from the bank does NOT raise MOR");
+    CHECK(got == 0xBEEF, "the value round-trips through the MMU");
+
+    /* Negative control: a page mapped where NO bank answers must still raise MOR,
+     * because that is how SINTRAN sizes memory in the first place. */
+    l3_map_page(vpn, (TEST_MPM5_START + 0x10000u) >> 10);
+    gIID = 0;
+    (void)mms_read_virtual_memory(va, false);
+    CHECK((gIID & (1 << 9)) != 0, "an unmapped physical page still raises MOR");
+
+    /* And an ordinary LOCAL page keeps working. */
+    l3_map_page(vpn, 0x20);
+    gIID = 0;
+    mms_write_virtual_memory(va, 0x1357, false, WRITEMODE_WORD);
+    got = mms_read_virtual_memory(va, false);
+    CHECK((gIID & (1 << 9)) == 0, "a LOCAL page raises no MOR");
+    CHECK(got == 0x1357, "a LOCAL page round-trips");
+
+    gIIE = 0;
+    gIID = 0;
+    g_reg->reg_STS = 0;
+    mms_destroy_paging_tables();
+
+    printf("  %d check(s) failed\n", s_failed - before);
+    return s_failed - before;
+}
+
 int run_memory_bank_tests(void)
 {
     int failed = 0;
     failed += run_bank_table_tests();
     failed += run_ecc_probe_tests();
+    failed += run_mmu_bank_tests();
     return failed;
 }

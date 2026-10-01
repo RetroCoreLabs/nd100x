@@ -1,0 +1,45 @@
+/*
+ * nd100x.rc.in - icon and version resource for nd100x.exe
+ *
+ * configure_file() in CMakeLists.txt fills in the @...@ fields and writes
+ * nd100x.rc into the build tree; edit this file, not the generated one.
+ *
+ * The icon is assets/nd100x.ico, which holds 16 to 256 px in nine sizes and
+ * is made from assets/nd100x.svg. Explorer shows it for the .exe, and the
+ * VERSIONINFO block is what Properties > Details lists.
+ *
+ * The FILEOS/FILETYPE numbers are written out rather than taken from
+ * winver.h so the file does not depend on which SDK's headers windres finds:
+ * 0x40004 = VOS_NT_WINDOWS32, 0x1 = VFT_APP.
+ */
+
+1 ICON "@ND100X_ICO@"
+
+1 VERSIONINFO
+FILEVERSION     @nd100x_VERSION_MAJOR@,@nd100x_VERSION_MINOR@,@nd100x_VERSION_PATCH@,0
+PRODUCTVERSION  @nd100x_VERSION_MAJOR@,@nd100x_VERSION_MINOR@,@nd100x_VERSION_PATCH@,0
+FILEFLAGSMASK   0x3FL
+FILEFLAGS       0x0L
+FILEOS          0x40004L
+FILETYPE        0x1L
+FILESUBTYPE     0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904B0"
+        BEGIN
+            VALUE "CompanyName",      "RetroCore Labs"
+            VALUE "FileDescription",  "ND-100 emulator"
+            VALUE "FileVersion",      "@nd100x_VERSION@"
+            VALUE "InternalName",     "nd100x"
+            VALUE "LegalCopyright",   "Copyright (c) 2025-2026 Ronny Hansen"
+            VALUE "OriginalFilename", "nd100x.exe"
+            VALUE "ProductName",      "nd100x"
+            VALUE "ProductVersion",   "@nd100x_VERSION@"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END

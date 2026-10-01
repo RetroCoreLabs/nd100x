@@ -12,7 +12,7 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
     )
 endif()
 
-project(nd100x VERSION 1.0.12 DESCRIPTION "ND100X Emulator" LANGUAGES C CXX)
+project(nd100x VERSION 1.0.13 DESCRIPTION "ND100X Emulator" LANGUAGES C CXX)
 
 # Options
 option(BUILD_DAP_TOOLS "Build libdap test tools" OFF)
@@ -346,6 +346,16 @@ if(ND100X_ND500X_DIR AND EXISTS "${ND100X_ND500X_DIR}/CMakeLists.txt")
     # added further up this file, before nd500x is detected, so a test of
     # ND100X_WITH_ND500 there is always false and never says so.
     target_compile_definitions(machine PRIVATE ND100X_WITH_ND500=1)
+    # THE OCTOBUS CARD NEEDS IT TOO, and it is in the devices library, not this
+    # one. src/devices/octobus/device_octobus.c calls
+    # mfbus_service_nd5000_mailboxes() from its tick - the mailbox poll that keeps
+    # the ND-500/5000 monitor from timing out after ENKICK - and that call is
+    # guarded by this definition. Without the line below the guard is silently
+    # false in the devices library, the poll is compiled out, and the machine times
+    # out exactly as if the poll had never been written. Same trap the comment
+    # above describes, one library along.
+    target_compile_definitions(devices PRIVATE ND100X_WITH_ND500=1)
+    target_link_libraries(devices PRIVATE nd500::ndbus nd500::headers)
     # mfbus_bridge.c creates a real Nd500Machine per ND-5000 station, so the
     # ND-500 CPU comes along. nd500x's libraries are all nd500_-prefixed, so
     # nothing collides with nd100x's own cpu/machine/ndlib.

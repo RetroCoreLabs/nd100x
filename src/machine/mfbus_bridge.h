@@ -251,6 +251,26 @@ void mfbus_stop_nd5000(uint8_t station_number);
  */
 unsigned long long mfbus_nd5000_instructions(uint8_t station_number);
 
+/**
+ * @brief Poll every configured ND-5000's mailbox doorbell once.
+ *
+ * SOMETHING HAS TO DO THIS OR THE MACHINE TIMES OUT. After ENKICK the ND-500/5000
+ * monitor stops talking on the octobus and waits on the mailbox in MPM-5 shared
+ * memory. SINTRAN's ACT51 rings the doorbell by writing X5ACT := 0 and sends NO
+ * kick, so the only way an ND-5000 learns of work is by polling - and with nothing
+ * polling, SINTRAN waits out its watchdog and the monitor prints
+ * "ND-500(0) timeout".
+ *
+ * Called from the octobus card's tick, which is where the ND-100 clock reaches
+ * this code. A poll with nothing pending is two shared-memory reads and a
+ * comparison.
+ *
+ * @return The number of stations that answered at least one message on this poll.
+ *         0 is the ordinary idle result, not an error.
+ */
+int mfbus_service_nd5000_mailboxes(void);
+
+
 #endif /* ND100X_WITH_ND500 */
 
 #endif /* MFBUS_BRIDGE_H */

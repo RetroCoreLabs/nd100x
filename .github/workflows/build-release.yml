@@ -65,6 +65,7 @@ jobs:
             external/cJSON \
             external/libdap \
             external/libsymbols \
+            external/nd500x \
             template-glass/external/RetroTermWeb
 
       - name: Show toolchain versions
@@ -88,6 +89,10 @@ jobs:
           fi
           cp README.md "$STAGE/" 2>/dev/null || true
           cp LICENSE   "$STAGE/" 2>/dev/null || true
+          # An ELF binary has no place for an icon. The logo goes beside it
+          # with a .desktop entry that names it (Icon=nd100x).
+          cp assets/nd100x-512.png "$STAGE/nd100x.png"
+          cp src/frontend/nd100x/nd100x.desktop "$STAGE/"
           echo "=== Staged contents ==="
           ls -la "$STAGE"
           echo "=== Dynamic library deps (informational) ==="
@@ -98,6 +103,72 @@ jobs:
         with:
           name: nd100x-linux-${{ matrix.arch }}
           path: dist/nd100x-linux-${{ matrix.arch }}/
+          if-no-files-found: error
+
+      # The .deb is what makes the icon show on Linux: it installs
+      # nd100x.desktop into /usr/share/applications and the icons into the
+      # hicolor theme, where the desktop looks them up (tools/stage-deb.sh).
+      - name: Compute package version
+        id: ver
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            V="${GITHUB_REF_NAME#v}"
+          else
+            V="0.0.0-dev"
+          fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+
+      - name: Install fpm (.deb packager)
+        run: |
+          sudo apt-get install -y --no-install-recommends ruby ruby-dev rubygems
+          sudo gem install --no-document fpm
+
+      - name: Build .deb
+        run: |
+          set -euo pipefail
+          case "${{ matrix.arch }}" in
+            x64)   DEB_ARCH=amd64 ;;
+            arm64) DEB_ARCH=arm64 ;;
+          esac
+          sh tools/stage-deb.sh build_release pkgroot
+          # Depends is read off the binary, not written by hand: every shared
+          # library ldd resolves is mapped to the package that owns it with
+          # dpkg -S. A hand-kept list goes stale when a link changes.
+          DEPS=()
+          for lib in $(ldd build_release/bin/nd100x | awk '$3 ~ /^\// {print $3}'); do
+            real=$(readlink -f "$lib")
+            pkg=$(dpkg -S "$lib" 2>/dev/null || dpkg -S "$real" 2>/dev/null || true)
+            pkg="${pkg%%:*}"
+            if [ -z "$pkg" ]; then
+              echo "::error::no package owns $lib"
+              exit 1
+            fi
+            DEPS+=("$pkg")
+          done
+          DEPARGS=()
+          for p in $(printf '%s\n' "${DEPS[@]}" | sort -u); do
+            DEPARGS+=(--depends "$p")
+          done
+          echo "Depends: ${DEPARGS[*]}"
+          mkdir -p debout
+          fpm -s dir -t deb \
+              "${DEPARGS[@]}" \
+              --name nd100x \
+              --version "${{ steps.ver.outputs.version }}" \
+              --architecture "$DEB_ARCH" \
+              --description "ND-100/CX emulator (Norsk Data minicomputer)" \
+              --maintainer "Ronny Hansen <noreply@github.com>" \
+              --url "https://github.com/${{ github.repository }}" \
+              --license "See LICENSE" \
+              --package debout/ \
+              -C pkgroot .
+          ls -la debout/
+
+      - name: Upload .deb
+        uses: actions/upload-artifact@v4
+        with:
+          name: nd100x-linux-${{ matrix.arch }}-deb
+          path: debout/*.deb
           if-no-files-found: error
 
   test-linux:
@@ -134,16 +205,44 @@ jobs:
           git submodule update --init --recursive \
             external/cJSON \
             external/libdap \
-            external/libsymbols
+            external/libsymbols \
+            external/nd500x
 
       - name: Configure (Debug, -Werror, ASan + UBSan)
         run: |
           cmake -S . -B build_test -G Ninja \
             -DCMAKE_BUILD_TYPE=Debug \
             -DHOUSE_WERROR=ON \
+            -DND100X_ND500X_DIR="${{ github.workspace }}/external/nd500x" \
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
             "-DCMAKE_C_FLAGS=-fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=undefined" \
             "-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address,undefined"
+
+      - name: Assert the ND-500 came from the submodule
+        run: |
+          set -euo pipefail
+          # WHY THIS GUARD EXISTS. Until 2026-09-30 no job initialised
+          # external/nd500x, so CMake found neither a sibling checkout nor the
+          # submodule, ND100X_WITH_ND500 went OFF, and every CI build shipped an
+          # nd100x with NO ND-500 at all - no octobus, no MFbus bridge, no ND-5000.
+          # Nothing failed: the option is meant to be absent on a machine without
+          # nd500x, so a missing ND-500 is indistinguishable from a deliberate one
+          # unless it is asserted.
+          #
+          # The default also PREFERS a sibling ../nd500x when one exists, which is
+          # right for a developer tree and wrong for a release build. Asserting the
+          # resolved path pins both facts at once.
+          CACHE=build_test/CMakeCache.txt
+          grep -q '^ND100X_ND500X_DIR:PATH=.*/external/nd500x$' "$CACHE" || {
+            echo "::error::ND100X_ND500X_DIR does not point at external/nd500x:"
+            grep '^ND100X_ND500X_DIR:PATH=' "$CACHE" || echo "  (not in the cache at all)"
+            exit 1
+          }
+          test -f external/nd500x/CMakeLists.txt || {
+            echo "::error::external/nd500x is not initialised, so the ND-500 is silently OFF."
+            exit 1
+          }
+          echo "ND-500 built from external/nd500x."
 
       - name: Build
         run: cmake --build build_test
@@ -216,6 +315,7 @@ jobs:
           # cJSON / RetroTermWeb pins are intact — initialise normally.
           git submodule update --init --recursive \
             external/cJSON \
+            external/nd500x \
             template-glass/external/RetroTermWeb
           # libdap and libsymbols are skipped by CMake on Windows until their
           # own Windows ports land; best-effort init so CI on Linux and any
@@ -339,7 +439,8 @@ jobs:
           git submodule update --init --recursive \
             external/cJSON \
             external/libdap \
-            external/libsymbols
+            external/libsymbols \
+            external/nd500x
 
       - name: Show toolchain versions
         run: |
@@ -431,6 +532,7 @@ jobs:
             external/cJSON \
             external/libdap \
             external/libsymbols \
+            external/nd500x \
             template-glass/external/RetroTermWeb
 
       - name: Show toolchain versions
@@ -454,6 +556,15 @@ jobs:
           fi
           cp README.md "$STAGE/" 2>/dev/null || true
           cp LICENSE   "$STAGE/" 2>/dev/null || true
+          # nd100x.app beside the bare binary: a macOS executable cannot carry
+          # an icon, a bundle can. Same binary; Info.plist (version from
+          # CMakeLists.txt) and the icon from assets/.
+          APP="$STAGE/nd100x.app/Contents"
+          mkdir -p "$APP/MacOS" "$APP/Resources"
+          cp build_release/bin/nd100x "$APP/MacOS/nd100x"
+          cp build_release/src/frontend/nd100x/Info.plist "$APP/Info.plist"
+          cp assets/nd100x.icns "$APP/Resources/nd100x.icns"
+          plutil -lint "$APP/Info.plist"
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
@@ -487,9 +598,16 @@ jobs:
           set -euo pipefail
           mkdir -p release
           cd dist
+          # upload-artifact stores every file as 644, so the binaries come
+          # back without their executable bit. Put it back before archiving,
+          # or neither the bare binary nor nd100x.app will start.
+          find . -path '*/nd100x' -type f -exec chmod +x {} +
           for d in */; do
             name="${d%/}"
             case "$name" in
+              *-deb)
+                cp "$name"/*.deb ../release/
+                ;;
               nd100x-windows-*)
                 zip -qr "../release/${name}.zip" "$name"
                 ;;

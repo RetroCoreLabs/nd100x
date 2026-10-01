@@ -264,9 +264,10 @@ uint32_t mms_get_page_table_entry(uint32_t page_table, uint32_t vpn, PageTableMo
 
 // Get page table entry for debugger/inspector use.
 //
-// GetPageTableEntry() checks STS_EXTENDED_ADDRESSING_IS_SET to decide shadow RAM format. STS_EXTENDED_ADDRESSING_IS_SET
-// reflects the SEXI flag of the currently executing interrupt level, so when
-// SEXI is off, PT 4-15 return 0. This is correct for normal CPU operation.
+// GetPageTableEntry() checks STS_EXTENDED_ADDRESSING_IS_SET to decide shadow RAM
+// format. STS_EXTENDED_ADDRESSING_IS_SET reflects the SEXI flag of the currently
+// executing interrupt level, so when SEXI is off, PT 4-15 return 0. This is
+// correct for normal CPU operation.
 //
 // The JS debugger however needs to read any page table at any time, including
 // DPIT (PT#7) for SINTRAN kernel inspection. When the CPU is paused, the
@@ -539,7 +540,8 @@ int mms_map_virtual_to_physical(uint32_t virtual_address, AccessMode am, bool us
     // Check for page protection
     if (!mms_check_page_protection(vpn, page_table, page_table_entry, am, virtual_address))
     {
-        // We should never get here, but added a return statement anyway! (Will end up here if interrupts are disabled?)
+        // We should never get here, but added a return statement anyway! (Will end
+        // up here if interrupts are disabled?)
         return -1;
     }
 
@@ -567,10 +569,13 @@ int mms_map_virtual_to_physical(uint32_t virtual_address, AccessMode am, bool us
 
     // Check for Ring Protection
     // INFO: For the ND CPU Ring 3 is most powerfull, ring 0 least powerfull.
-    // If the current level has a "ring level" that is smaller than the ring level on the page, generate a fault
+    // If the current level has a "ring level" that is smaller than the ring level
+    // on the page, generate a fault
     //
-    // The ring bits of the appropriate PCR are compared with the ring bits of the appropriate page table entry.
-    // The PCR ring bits should always be greater than or equal to the PT ring bits. If not, an internal interrupt (MPV) will be generated.
+    // The ring bits of the appropriate PCR are compared with the ring bits of the
+    // appropriate page table entry.
+    // The PCR ring bits should always be greater than or equal to the PT ring bits.
+    // If not, an internal interrupt (MPV) will be generated.
 
     if (ring < page_table_ring)
     {
@@ -617,8 +622,35 @@ int mms_map_virtual_to_physical(uint32_t virtual_address, AccessMode am, bool us
     // Calculate physical address (24-bit bus)
     int physical_address = ((ppn << 10) | dip) & 0xFFFFFF;
 
-    // Check if memory is out of range
-    if ((uint32_t)physical_address >= g_nd_memsize)
+    /*
+     * Check if memory is out of range.
+     *
+     * OUT OF RANGE MEANS NOTHING ON THE BUS ANSWERS THIS PHYSICAL ADDRESS - it does
+     * NOT mean "past installed local RAM". An MPM-5 window shared with an ND-5000
+     * sits ABOVE local RAM (mfbus_bridge.c registers it at ND-100 page 4100B by
+     * default) and is real memory, so a translated access into it must not trap.
+     *
+     * A plain `>= g_nd_memsize` test here raised MOR for every MMU-mapped access
+     * into that window, while the PHYSICAL read/write paths further down already
+     * honoured the bank table. EXAM/DEPO and DMA therefore reached the shared pool
+     * (which is why the ND TPE diagnostic reported 12 MB) but SINTRAN could not:
+     * its OPPSTART bank-sizing probe reads each candidate page THROUGH the page
+     * table and treats a non-zero IIC as "page absent". Measured 29-SEP-2026 with
+     * the SINTRAN III VSX/500 L pack: at the probe for page 4100B the read-back
+     * returned 0 and TRA IIC returned 9 (MOR), so the shared window was never
+     * recorded, the scan's highest-found page stayed at 3777B, that value was
+     * written back over ENDPAGE, and X5GBUFF then rejected every ND-500 memory
+     * part above page 2047 with "No memory available for ND-500(0) buffers".
+     *
+     * Ported from RetroCore, which asks the bus whether the address is MAPPED
+     * rather than comparing it against a RAM size:
+     * Emulated.HW/ND/CPU/ND100/CpuND100.MMS.cs:262-278 and
+     * Emulated.HW/Common/Chips/SystemBus.cs:1090-1113. mms_memory_bank_lookup() is
+     * this emulator's equivalent mapping table, and installed local RAM is itself
+     * registered as a bank covering [0, g_nd_memsize) in mms_memory_banks_init(),
+     * so on a machine with no shared window this is the same test as before.
+     */
+    if (mms_memory_bank_lookup((uint32_t)physical_address) == NULL)
     {
         mms_update_pgs(page_table, vpn, am, false);
         mms_handle_memory_out_of_range(physical_address);
@@ -728,7 +760,8 @@ bool mms_check_page_protection(uint32_t vpn, uint32_t page_table, uint32_t page_
 
     // Check if page is in memory
     // Page 89 (Chapter 3) in ND-110 Functional Description
-    // If the combination of WPM, RPM and FPM are all zero, this is interpreted as page not in memory and will generate an internal interrupt as page fault
+    // If the combination of WPM, RPM and FPM are all zero, this is interpreted as
+    // page not in memory and will generate an internal interrupt as page fault
     if ((page_table_entry & pf_mask) == 0)
     {
         // ---------------------------------------------------------------

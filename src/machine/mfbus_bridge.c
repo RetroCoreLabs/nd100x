@@ -42,6 +42,7 @@
 #ifdef ND100X_WITH_ND500
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "mfbus_bridge.h"
@@ -53,6 +54,7 @@
 #include "ndbus_octobus.h"
 #include "ndbus_pool.h"
 #include "ndbus_window.h"
+#include "ndbus_servicer.h"
 
 #include "../cpu/cpu_types.h"
 #include "../devices/devices_types.h"
@@ -72,6 +74,8 @@
  * machine/ prefixes are what make these unambiguous.
  */
 #include "cpu/cpu_protos.h"
+#include "cpu/nd500_mmu.h"
+#include "cpu/instruction_helpers.h"   /* ND500_FLAG_K - the monitor-call error flag */
 #include "machine/machine_protos.h"
 
 /*
@@ -123,17 +127,381 @@ typedef struct
     bool         context_set;  /* a block has been placed */
     char         name[32];
     bool         present;
+
+    /* Which process this CPU is currently running, as X5CPU numbers them, or -1
+     * when none has been started. A trap is reported on THAT process's message. */
+    int           loaded_x5cpu;
+    unsigned long parked_faults;   /* retryable faults reported to SINTRAN */
+    unsigned long steps_logged;    /* bounded start-of-run instruction log */
+    uint32_t      resume_trace_left; /* PCs still to log after a monitor-call resume */
+    unsigned long mon_calls;       /* monitor calls handed to SINTRAN */
+    unsigned long mon_resumes;     /* in-place resumes of the loaded process */
+
+    /* Set when the process has reported a stop and is waiting for SINTRAN. The
+     * RUNNER tests this, because machine.run_flag is not what it looks at and a
+     * monitor call returns INDIRECT_HANDLED - which tells the CPU to CONTINUE.
+     * MEASURED 30-SEP-2026: without it the swapper re-asked the same MON 377B
+     * fifteen million times in one run, with SINTRAN never having been given a
+     * chance to answer. */
+    bool          parked;
+    bool          stop_reported;  /* the non-retryable stop has been named once */
+    unsigned long steps_run;      /* instructions executed since attach */
+    unsigned long spin_samples;   /* periodic P samples already logged */
 } MfbusCpuSlot;
+
+/** How many instructions of a newly started process get named in the log. */
+#define MFBUS_STEP_LOG_LIMIT 20u
+/* A SECOND, LARGER TRACE THAT STARTS AT EACH RESUME. The boot step log covers the
+ * first instructions of the run and can never reach a monitor-call resume, but the
+ * swapper's fault happens on the path FROM a resume - so the branch that leads there
+ * is invisible to it. PCs only, which is what identifies a branch. */
+#define MFBUS_RESUME_TRACE_LIMIT 30000u
+
+/** How many monitor calls get named before the log falls silent. */
+#define MFBUS_MON_LOG_LIMIT 40u
+
+/** How often a still-running process reports where it is, in instructions. */
+#define MFBUS_SPIN_SAMPLE_STEPS 2000000u
+
+/** How many such samples before the log falls silent. */
+#define MFBUS_SPIN_SAMPLE_LIMIT 12u
 
 static MfbusCpuSlot s_cpus[MFBUS_MAX_ND5000];
 
 /* One instruction, as the runner sees it. Returns false when the CPU has
  * stopped on its own - halted, breakpoint, fault - and the runner then exits
  * without being asked. */
+/*
+ * One instruction, and on a RETRYABLE FAULT park the process and tell SINTRAN
+ * instead of letting the CPU stop.
+ *
+ * A PAGE FAULT IS NOT A CRASH ON THIS LANE, IT IS THE DEMAND-PAGING HANDSHAKE.
+ * The ND-5000 runs out of pages SINTRAN has not brought in yet; it reports the
+ * fault through its own activation message, SINTRAN's swapper reads the fault
+ * address and the physical segment out of the record, pages the page in, and sends
+ * 3TRACO (25B) to resume. The servicer already routes 25B through the start class,
+ * so the resume half was in place before this.
+ *
+ * MEASURED 30-SEP-2026: without this the swapper got eleven instructions into its
+ * entry point, took a data fault at logical 0x08012818 - page 37 of a page table
+ * whose entries 29-36 were correctly mapped and whose 37-45 SINTRAN had
+ * deliberately zeroed - and the CPU simply stopped. The monitor then printed
+ * nothing further, because nothing had told it a fault happened.
+ *
+ * P1, NOT PC, IS THE RESTART ADDRESS. A page fault and a protect violation both
+ * mean "this instruction did not complete", so the process must resume ON it. PC
+ * normally runs ahead of P1 by the time the trap is taken.
+ */
 static bool mfbus_cpu_step(void *ctx)
 {
     MfbusCpuSlot *slot = (MfbusCpuSlot *)ctx;
-    return nd500_cpu_step(&slot->cpu);
+
+    /* Parked processes do not step. The restart clears this. */
+    if (slot->parked)
+    {
+        return false;
+    }
+
+    /* WHERE A SPINNING PROCESS IS SPINNING. A CPU that never stops reports nothing
+     * at all - no stop reason, no park - and from the outside that is identical to
+     * one doing useful work. MEASURED 30-SEP-2026: the swapper completed its monitor
+     * call, took SINTRAN's answer and then ran without end, and neither the stop
+     * instrument nor the park counter could say a word about it. A periodic sample
+     * of P names the loop. Bounded, so a long healthy run does not fill the log. */
+    slot->steps_run++;
+    if ((slot->steps_run % MFBUS_SPIN_SAMPLE_STEPS) == 0u
+        && slot->spin_samples < MFBUS_SPIN_SAMPLE_LIMIT)
+    {
+        slot->spin_samples++;
+        LOG(LOG_CAT_MMS, LOG_INFO,
+            "MFbus: %s still running after %lu steps: P=0x%08X B=0x%08X I1=0x%08X ST1=0x%08X\n",
+            slot->name, slot->steps_run, (unsigned)slot->cpu.PC, (unsigned)slot->cpu.B,
+            (unsigned)slot->cpu.I[0], (unsigned)slot->cpu.ST1);
+    }
+
+    /* THE FIRST INSTRUCTIONS, NAMED. The swapper faults on its twelfth, and a fault
+     * address can be either the address the program meant or the address a
+     * mis-executed instruction produced. Only the run of PCs before it tells those
+     * apart. Bounded, and through the logger rather than stdout, because stdout on
+     * this lane is the HOST guest's console. */
+    if (slot->resume_trace_left > 0u)
+    {
+        slot->resume_trace_left--;
+        LOG(LOG_CAT_MMS, LOG_INFO, "MFbus: %s rt P=0x%08X\n",
+            slot->name, (unsigned)slot->cpu.PC);
+    }
+
+    if (slot->steps_logged < MFBUS_STEP_LOG_LIMIT)
+    {
+        slot->steps_logged++;
+        /* The bytes too, read through a NON-FAULTING peek - a diagnostic that could
+         * itself raise a page fault would corrupt the very run it is describing. */
+        uint32_t code_pa = nd500_mmu_peek_space(&slot->cpu, slot->cpu.PC,
+                                                (uint8_t)slot->cpu.CED, 1);
+        char bytes[40];
+        bytes[0] = '\0';
+        if (code_pa != 0xFFFFFFFFu)
+        {
+            for (uint32_t k = 0; k < 8u; k++)
+            {
+                char one[6];
+                (void)snprintf(one, sizeof one, "%02X ",
+                               (unsigned)ndbus_pool_read8(&s_pool, code_pa + k));
+                (void)strncat(bytes, one, sizeof bytes - strlen(bytes) - 1u);
+            }
+        }
+        LOG(LOG_CAT_MMS, LOG_INFO,
+            "MFbus: %s step %2lu: P=0x%08X B=0x%08X L=0x%08X R=0x%08X pa=0x%08X %s\n",
+            slot->name, slot->steps_logged, (unsigned)slot->cpu.PC, (unsigned)slot->cpu.B,
+            (unsigned)slot->cpu.L, (unsigned)slot->cpu.R, (unsigned)code_pa, bytes);
+    }
+
+    if (nd500_cpu_step(&slot->cpu))
+    {
+        return true;
+    }
+
+    StopReason why = slot->machine.stop_reason;
+    if (why != STOP_TRAP_PAGE_FAULT && why != STOP_TRAP_PROTECTION_VIOLATION)
+    {
+        /* NOT RETRYABLE - AND SAY SO. A silent stop here is indistinguishable from
+         * a parked process from the outside: SINTRAN keeps polling 3RMICV, the
+         * console prints nothing further, and the run looks like a hang with no
+         * cause. MEASURED 30-SEP-2026: the swapper resumed from its first monitor
+         * call, stopped for a reason nothing recorded, and SINTRAN polled for the
+         * remaining seven minutes of the run. Once per CPU, because a stopped CPU
+         * is re-entered on every poll. */
+        if (!slot->stop_reported)
+        {
+            slot->stop_reported = true;
+            LOG(LOG_CAT_MMS, LOG_WARN,
+                "MFbus: %s STOPPED and cannot continue: %s at P=0x%X (stop_addr=0x%X "
+                "stop_data=0x%X P1=0x%X) - nothing has been reported to SINTRAN, so it will "
+                "poll until it times out\n",
+                slot->name, nd500_stop_reason_str(why), (unsigned)slot->cpu.PC,
+                (unsigned)slot->machine.stop_addr, (unsigned)slot->machine.stop_data,
+                (unsigned)slot->cpu.P1);
+        }
+        return false;
+    }
+
+    /* s_cpus[] and s_nd5000[] are parallel arrays - same index, same machine. */
+    int nd_index = (int)(slot - s_cpus);
+    if (nd_index < 0 || nd_index >= s_nd5000_count || slot->loaded_x5cpu < 0)
+    {
+        return false;
+    }
+    NdbusNd5000 *nd = &s_nd5000[nd_index];
+
+    /* The trap number SINTRAN expects: 46B for a page fault, 44B for a protect
+     * violation. ND trap numbering, so octal. */
+    uint16_t trap_number = (why == STOP_TRAP_PAGE_FAULT) ? NDBUS_TRAP_PAGE_FAULT : 0x24u;
+
+    /* The composed MMS status word. Bits 31-29 carry the access class - 100 read,
+     * 101 write - and the low byte carries the fault-location nibble plus the
+     * instruction-side bit the walk latched.
+     *
+     * READ trap_saved_info, NOT mmu_pgf_where. raise_trap() copies the walk's
+     * fault-location code into trap_saved_info and then CLEARS mmu_pgf_where
+     * (cpu.c), so by the time the stop is noticed here the live field is always
+     * zero. MEASURED 30-SEP-2026: the record reached SINTRAN with a correct fault
+     * address, a correct physical segment and MEMORY MANAGEMENT STATUS
+     * 20000000000B - the access class alone, with no fault location - and SINTRAN
+     * answered "The Swapper stopped / Fatal intern" rather than paging the page in.
+     * trap_saved_info also carries the PFZ2 default for a page fault whose walk
+     * recorded nothing, which is the right value rather than a zero. */
+    uint32_t mms = (slot->cpu.mmu_pgf_is_write ? 0xA0000000u : 0x80000000u)
+                   | (slot->cpu.trap_saved_info & 0xFFu);
+
+    uint32_t restart_p = (slot->cpu.P1 != 0u) ? slot->cpu.P1 : slot->machine.stop_addr;
+
+    /* SET THE LIVE P. The microcode's context switch at 011473B compares the loaded
+     * process against the wanted one and skips BOTH the save and the load when they
+     * match, so a 3TRACO naming the running process resumes from the LIVE registers
+     * and never reads the context block back. P must therefore already hold the
+     * restart address at the moment of the park.
+     *
+     * WRITING THE BLOCK BACK TOO IS NOT DONE HERE, and that is a known gap rather
+     * than an oversight - the reference names it as its own outstanding item. It
+     * only matters once a DIFFERENT process is loaded in between, because that is
+     * the only case where the block is read again. */
+    slot->cpu.PC = restart_p;
+
+    if (!ndbus_servicer_answer_trap_stop(&nd->servicer, (uint16_t)slot->loaded_x5cpu, trap_number,
+                                        restart_p, slot->machine.stop_data, mms,
+                                        (uint16_t)slot->cpu.mmu_pgf_psn))
+    {
+        /* The servicer says why it refused. Nothing more to do here - the process
+         * stays parked and SINTRAN will time out, which is the honest outcome. */
+        return false;
+    }
+
+    slot->parked_faults++;
+    slot->parked = true;
+    LOG(LOG_CAT_MMS, LOG_INFO,
+        "MFbus: %s parked on trap %oB at P=0x%X fault=0x%X psn=%u mms=0x%08X - reported to "
+        "SINTRAN\n",
+        slot->name, (unsigned)trap_number, (unsigned)restart_p,
+        (unsigned)slot->machine.stop_data, (unsigned)slot->cpu.mmu_pgf_psn, (unsigned)mms);
+
+    /* WHICH REGISTER PRODUCED THE FAULTING ADDRESS. The trap says where the access
+     * went; it does not say what computed it. Without this a fault address can only
+     * be guessed at, and the guess is usually wrong - so print the registers an
+     * effective address is built from, once per parked fault and bounded by the same
+     * limit as the step log so a fault loop cannot flood the console. */
+    if (slot->parked_faults <= MFBUS_STEP_LOG_LIMIT)
+    {
+        LOG(LOG_CAT_MMS, LOG_INFO,
+            "MFbus: %s   at fault: B=0x%08X R=0x%08X L=0x%08X "
+            "I1=0x%08X I2=0x%08X I3=0x%08X I4=0x%08X\n",
+            slot->name,
+            (unsigned)slot->cpu.B, (unsigned)slot->cpu.R, (unsigned)slot->cpu.L,
+            (unsigned)slot->cpu.I[0], (unsigned)slot->cpu.I[1],
+            (unsigned)slot->cpu.I[2], (unsigned)slot->cpu.I[3]);
+
+        /* AND THE INSTRUCTION THAT DID IT. Through the same NON-FAULTING peek the
+         * step log uses: a diagnostic that could itself raise a page fault would
+         * corrupt the run it is describing. */
+        uint32_t fault_pa = nd500_mmu_peek_space(&slot->cpu, (uint32_t)restart_p,
+                                                 (uint8_t)slot->cpu.CED, 1);
+        char fbytes[40];
+        fbytes[0] = '\0';
+        if (fault_pa != 0xFFFFFFFFu)
+        {
+            for (uint32_t k = 0; k < 8u; k++)
+            {
+                char one[6];
+                (void)snprintf(one, sizeof one, "%02X ",
+                               (unsigned)ndbus_pool_read8(&s_pool, fault_pa + k));
+                (void)strncat(fbytes, one, sizeof fbytes - strlen(fbytes) - 1u);
+            }
+        }
+        LOG(LOG_CAT_MMS, LOG_INFO,
+            "MFbus: %s   faulting instruction at P=0x%08X pa=0x%08X: %s\n",
+            slot->name, (unsigned)restart_p, (unsigned)fault_pa, fbytes);
+
+        /* WHICH DOMAIN, AND WHICH CAPABILITY. A fault one page past a mapped region
+         * has two opposite causes: the wrong capability was resolved (the real
+         * segment is larger), or the program overran a correctly-sized segment.
+         * The domain and the capability word tell those apart; without them the
+         * choice is a guess. The capability address is the same one the MMU walk
+         * uses - DITBASE + domain*256 + 64 for data + segment*2. */
+        {
+            uint32_t seg = ((uint32_t)slot->machine.stop_data >> 27) & 0x1Fu;
+            uint32_t cap_a = slot->cpu.DITBASE + (uint32_t)slot->cpu.CED * 256u
+                           + 64u + seg * 2u;
+            uint32_t cap_v = ((uint32_t)ndbus_pool_read8(&s_pool, cap_a) << 8)
+                           |  (uint32_t)ndbus_pool_read8(&s_pool, cap_a + 1u);
+            LOG(LOG_CAT_MMS, LOG_INFO,
+                "MFbus: %s   CED=%u CAD=%u seg=%u data cap@0x%08X=0x%04X "
+                "DITBASE=0x%08X dit_configured=%d\n",
+                slot->name, (unsigned)slot->cpu.CED, (unsigned)slot->cpu.CAD,
+                (unsigned)seg, (unsigned)cap_a, (unsigned)cap_v,
+                (unsigned)slot->cpu.DITBASE, slot->cpu.dit_configured);
+        }
+
+        /* THE PCs THAT LED HERE. A faulting address whose value is wrong needs the
+         * loop that computed it, not just the instruction that used it. The CPU keeps
+         * a recent-PC ring for exactly this; gated on ND500X_STOPDBG. */
+        nd500_dump_pc_ring("swapper fault");
+
+        /* AN ARBITRARY CODE WINDOW (MFBUS_CODEDUMP_PC). The fault report dumps the
+         * code around the FAULTING PC, but the value that causes the fault is often
+         * written somewhere else entirely - here, by a loop at 0x08008E8C that a byte
+         * watch named. Dump that window too, so it can be disassembled from a
+         * trace-verified boundary. */
+        {
+            const char *e = getenv("MFBUS_CODEDUMP_PC");
+            if (e != NULL && e[0] != '\0')
+            {
+                uint32_t want = (uint32_t)strtoul(e, NULL, 0);
+                uint32_t pa = nd500_mmu_peek_space(&slot->cpu, want,
+                                                   (uint8_t)slot->cpu.CED, 1);
+                if (pa != 0xFFFFFFFFu && pa >= 0x20u)
+                {
+                    char line[100];
+                    for (uint32_t row = 0; row < 8u; row++)
+                    {
+                        uint32_t a = (pa - 0x20u) + row * 16u;
+                        int n = snprintf(line, sizeof line, "0x%08X:", (unsigned)a);
+                        for (uint32_t k = 0; k < 16u && n > 0 && (size_t)n < sizeof line; k++)
+                        {
+                            n += snprintf(line + n, sizeof line - (size_t)n, " %02X",
+                                          (unsigned)ndbus_pool_read8(&s_pool, a + k));
+                        }
+                        LOG(LOG_CAT_MMS, LOG_INFO, "MFbus: %s   want %s\n", slot->name, line);
+                    }
+                }
+            }
+        }
+
+        /* WAS THE ANSWER INTERRUPT ACTUALLY DELIVERED. RetroCore's own note on this
+         * path records "737 answers sent, 0 delivered" on its configuration, so the
+         * counters are the only way to tell a delivered GIVEINT from a dropped one.
+         * OctobusPhase3MonBringupTests.Samson3Start_ThenMon377_... requires the frame to
+         * reach the ND-100 card's receive FIFO after an answered MON stop. */
+        LOG(LOG_CAT_MMS, LOG_INFO,
+            "MFbus: %s   giveint: frames=%lu no_fabric=%lu no_mailbox=%lu last=0x%04X "
+            "lsyspar_w1=0x%04X model_reports=%lu no_store=%lu model=0x%02X ver=0x%04X "
+            "running=%d\n",
+            slot->name, nd->giveint_frames, nd->giveint_no_fabric, nd->giveint_no_mailbox,
+            (unsigned)nd->last_giveint_frame, (unsigned)nd->lsyspar_word1,
+            nd->model_reports, nd->report_no_store,
+            (unsigned)nd->last_model_report_model, (unsigned)nd->last_model_report_version,
+            nd->accp.microprogram_running ? 1 : 0);
+
+        /* THE WHOLE LOOP, NOT JUST THE FAULTING INSTRUCTION. The PC ring shows the
+         * fault sits inside a short loop; what the loop DOES decides whether the bad
+         * value is a bound, an index or a base. Dump the bytes from a little before
+         * the faulting PC so the loop can be disassembled. */
+        if (fault_pa != 0xFFFFFFFFu && fault_pa >= 0x120u)
+        {
+            char line[100];
+            for (uint32_t row = 0; row < 22u; row++)
+            {
+                uint32_t a = (fault_pa - 0x120u) + row * 16u;
+                int n = snprintf(line, sizeof line, "0x%08X:", (unsigned)a);
+                for (uint32_t k = 0; k < 16u && n > 0 && (size_t)n < sizeof line; k++)
+                {
+                    n += snprintf(line + n, sizeof line - (size_t)n, " %02X",
+                                  (unsigned)ndbus_pool_read8(&s_pool, a + k));
+                }
+                LOG(LOG_CAT_MMS, LOG_INFO, "MFbus: %s   code %s\n", slot->name, line);
+            }
+        }
+
+        /* THE FRAME THE LOOP READS ITS COUNTER AND LIMIT FROM. The faulting loop takes
+         * its index from b.28 and its bound from b.240, so the frame says whether the
+         * index ran away or the bound was wrong. Read through the DATA side, and
+         * through the non-faulting peek so the diagnostic cannot fault. */
+        {
+            char line[100];
+            for (uint32_t row = 0; row < 18u; row++)
+            {
+                uint32_t off = row * 16u;
+                uint32_t va = slot->cpu.B + off;
+                uint32_t pa = nd500_mmu_peek_space(&slot->cpu, va,
+                                                   (uint8_t)slot->cpu.CAD, 0);
+                if (pa == 0xFFFFFFFFu)
+                {
+                    continue;
+                }
+                int n = snprintf(line, sizeof line, "b.%-3u pa=0x%08X",
+                                 (unsigned)off, (unsigned)pa);
+                for (uint32_t k = 0; k < 16u && n > 0 && (size_t)n < sizeof line; k++)
+                {
+                    n += snprintf(line + n, sizeof line - (size_t)n, " %02X",
+                                  (unsigned)ndbus_pool_read8(&s_pool, pa + k));
+                }
+                LOG(LOG_CAT_MMS, LOG_INFO, "MFbus: %s   frame %s\n", slot->name, line);
+            }
+        }
+    }
+    (void)nd;
+
+    /* Parked, not dead: stop stepping and wait for the 3TRACO that follows the
+     * page-in. Returning false stops the runner; the start class restarts it. */
+    return false;
 }
 
 /* The slot index of a station, or -1. */
@@ -159,19 +527,54 @@ static uint16_t mfbus_bank_read(void *ctx, uint32_t word_offset)
 /*
  * The ND-100 writes a word, or half of one.
  *
- * WRITEMODE_MSB is the HIGH byte of the word. The ND-100 calls the EVEN byte
- * address MSB (see the WriteMode cases in cpu_mms.c), and the window's high byte
- * is pool byte 2N - the first of the pair - so the two agree and there is no
- * swap here. Getting this backwards puts every half-word write 256 off, which
- * shows up as a corrupted page-table entry long after the write.
+ * WHICH HALF OF THE WORD: WRITEMODE_MSB is the HIGH byte. The ND-100 calls the
+ * EVEN byte address MSB, and the window's high byte is pool byte 2N - the first
+ * of the pair - so ndbus_window_write_msb is the right target and there is no
+ * swap here.
+ *
+ * WHERE THE BYTE COMES FROM IN `value`: the LOW 8 bits, for BOTH modes. The
+ * callers put the byte there and let the write mode say which half it lands in -
+ * SBYT passes gA (cpu_instr.c), BFILL passes `gA & 0xFF`, MOVB narrows its byte
+ * with `& 0xFF` - and the local-RAM path agrees, building the high half with
+ * `(value << 8)` (mms_write_physical_memory_wm in cpu_mms.c). Taking the MSB
+ * byte from `value >> 8` instead stored 0 for every even-byte write into the
+ * shared window, because the high half of `value` is empty on this path. Word
+ * writes were unaffected, so a guest booted normally and then failed wherever it
+ * had built a string or a byte field in a page that happened to land in the
+ * window - measured 30-SEP-2026 as SINTRAN III VSX/500 L refusing every SYSTEM
+ * login once the window was reachable through the MMU.
  */
+/* WHO ON THE ND-100 SIDE WROTE A POOL CELL. Every ND-500-side watch is blind to this
+ * path, so a cell that changes with no ND-500 write logged can only be explained here.
+ * Set MFBUS_WWATCH_BYTE to a pool BYTE offset (decimal or 0x hex) to trace writes that
+ * touch its word. Bounded so a busy cell cannot flood the log. */
+static void mfbus_bank_write_watch(uint32_t word_offset, uint16_t value, WriteMode wm)
+{
+    static long watch_word = -2;
+    static unsigned hits = 0;
+    if (watch_word == -2)
+    {
+        const char *e = getenv("MFBUS_WWATCH_BYTE");
+        watch_word = (e != NULL && e[0] != '\0') ? (long)(strtoul(e, NULL, 0) / 2u) : -1;
+    }
+    if (watch_word < 0 || (long)word_offset != watch_word || hits >= 40u)
+    {
+        return;
+    }
+    hits++;
+    LOG(LOG_CAT_MMS, LOG_INFO,
+        "MFbus: ND-100 writes pool word 0x%06X (byte 0x%06X) = 0x%04X mode=%d\n",
+        (unsigned)word_offset, (unsigned)(word_offset * 2u), (unsigned)value, (int)wm);
+}
+
 static void mfbus_bank_write(void *ctx, uint32_t word_offset, uint16_t value, WriteMode wm)
 {
     (void)ctx;
+    mfbus_bank_write_watch(word_offset, value, wm);
     switch (wm)
     {
     case WRITEMODE_MSB:
-        (void)ndbus_window_write_msb(&s_window, word_offset, (uint8_t)(value >> 8u));
+        (void)ndbus_window_write_msb(&s_window, word_offset, (uint8_t)(value & 0xFF));
         break;
     case WRITEMODE_LSB:
         (void)ndbus_window_write_lsb(&s_window, word_offset, (uint8_t)(value & 0xFF));
@@ -190,6 +593,14 @@ bool mfbus_attach(uint32_t size_bytes, uint32_t base_page)
         LOG(LOG_CAT_MMS, LOG_WARN, "MFbus: already attached\n");
         return false;
     }
+
+    /* WE ARE THE EMBEDDER, SO SAY SO BEFORE ANYTHING CAN PRINT. nd500x is both a
+     * library and a free-running binary; as the binary it owns stdout and its
+     * diagnostics belong there, but in here stdout is the ND-100 GUEST'S console.
+     * Measured 30-SEP-2026: an ND-500 MMU line printed inside the ND-500 monitor's
+     * own "> Loading Swapper" output on the SINTRAN console. Set at attach, which is
+     * the earliest point this side exists. */
+    nd500_embedded = 1;
 
     if (!ndbus_pool_create(&s_pool, size_bytes))
     {
@@ -256,6 +667,579 @@ bool mfbus_attach(uint32_t size_bytes, uint32_t base_page)
     return true;
 }
 
+/**
+ * Route the ndbus layer's diagnostics into nd100x's logger.
+ *
+ * WITHOUT THIS THE ND-5000 SIDE IS SILENT. Every station and the mailbox
+ * servicer log through NdbusHostOps::log, and mfbus passed NULL for it, so a
+ * declined micro-function, a skipped ring insert or a semaphore that never freed
+ * produced no line anywhere - which reads exactly like a run where none of those
+ * happened.
+ */
+/**
+ * A start-class mailbox message arrived: start the process on this station's ND-500.
+ *
+ * This is the ND-5000 arm of RetroCore's INd500ProcessHost.OnStartProcessND5000.
+ * On this generation there is NO 21B register image - 3WREG is MSG_ILLEG on the B30
+ * - so the whole starting context comes from the per-process CONTEXT BLOCK the
+ * microcode's NEWCNTXT loads, and the servicer has already computed which block
+ * from the area base SINTRAN patched into control-store cell 0o20.
+ *
+ * TAKING THE START IS A PROMISE. Returning true tells the servicer to leave the
+ * message WAITING and NOT answer it, because the process's own stop answers it
+ * later. So this must only return true when a CPU really did begin running: a true
+ * with nothing started leaves SINTRAN waiting on an answer that can never come.
+ * Returning false is the honest outcome when there is no CPU or it cannot run, and
+ * the servicer then answers the way a station with no CPU behind it answers.
+ */
+/**
+ * Report the 256-byte block the servicer saw SINTRAN write trap configuration into.
+ *
+ * THIS IS A DIAGNOSTIC, NOT THE CAPABILITY TABLE BASE, and it used to be declared
+ * as one. RetroCore's Nd500CpuProcessBridge says the same thing about its own
+ * equivalent: the bridge does NOT hand a DIT base over, and the base it tracks is
+ * learned from the trap-config writes for reporting only. The capability table is
+ * found through PS - see mfbus_declare_capability_table() below.
+ *
+ * MEASURED 30-SEP-2026, which is why this changed: the learned base was 0x73000,
+ * its segment-1 capability named physical segment 83, and PST entry 83 was zero, so
+ * the first instruction fetch page-faulted and the ND-5000 stopped on an invalid
+ * instruction at its own entry point. The PST page then showed 0x73000 to be the
+ * segment of PST entry 1 - a DIFFERENT process. This process carried PS = 3, whose
+ * PST entry named 0x74000, whose segment-1 capability named physical segment 2.
+ */
+static void mfbus_declare_dit_base(void *ctx, uint32_t base)
+{
+    NdbusNd5000 *nd = (NdbusNd5000 *)ctx;
+
+    int slot = mfbus_slot_of(nd->station.number);
+    if (slot < 0 || !s_cpus[slot].present)
+    {
+        return;
+    }
+
+    LOG(LOG_CAT_MMS, LOG_INFO,
+        "MFbus: %s trap configuration was written into the 256-byte block at 0x%X "
+        "(reported, NOT used as the capability table base)\n",
+        s_cpus[slot].name, (unsigned)base);
+}
+
+/**
+ * Point the MMU at this process's capability table, found the way the machine finds
+ * it: through PS.
+ *
+ * PS is an INDEX into the physical segment table, not an address - ND-05.020.01
+ * section 6.6: "This register points to an element of the Physical Segment Table.
+ * The PST element addresses the process segment of the process." The capability of
+ * a logical segment then lies at process_segment + CED*256 + (program ? 0 : 64) +
+ * segment*2, which is the formula nd500x's walk already uses; only the base was
+ * coming from the wrong place.
+ *
+ * PS comes from the context block, so this runs AFTER mfbus_load_context().
+ */
+static void mfbus_declare_capability_table(MfbusCpuSlot *c)
+{
+    uint32_t ps = ndbus_context_read(&c->context, NDBUS_CTX_SRF13) & 0x1FFFu;
+    uint32_t base = 0u;
+
+    if (nd500_mmu_declare_process_segment(&c->cpu, ps, &base) != 0)
+    {
+        LOG(LOG_CAT_MMS, LOG_WARN,
+            "MFbus: %s PS=%u does not resolve to a process segment - the capability walk "
+            "will fall back to the emulator's own table\n",
+            c->name, (unsigned)ps);
+        return;
+    }
+
+    LOG(LOG_CAT_MMS, LOG_INFO, "MFbus: %s capability table := 0x%X from PS=%u via PSTP\n",
+        c->name, (unsigned)base, (unsigned)ps);
+}
+
+/*
+ * The ND-5000 made a monitor call, and SINTRAN on this ND-100 owns it.
+ *
+ * NOT SERVED HERE AND NOT SERVED BY nd500x EITHER. The record goes into the
+ * calling process's own activation message, SINTRAN performs the call, and the
+ * process is restarted with 3MONCO (24B) - which the servicer already routes
+ * through the start class. The process PARKS meanwhile, exactly as it does on a
+ * retryable trap, and for the same reason: there is nothing for it to run until
+ * an answer comes back.
+ *
+ * A MONITOR CALL RESUMES AFTER THE CALL, NOT ON IT. That is the opposite of a page
+ * fault or a protect violation, where the instruction did not complete.
+ * pending_call_return_address is the address the CALL already computed.
+ *
+ * Returns nonzero when the call has been taken, which is what tells nd500x not to
+ * run its own emulation.
+ */
+static int mfbus_mon_call(void *ctx, uint32_t mon_number, uint32_t arg_count,
+                          const uint32_t *arg_addresses, uint32_t *out_resolved)
+{
+    MfbusCpuSlot *c = (MfbusCpuSlot *)ctx;
+
+    int nd_index = (int)(c - s_cpus);
+    if (nd_index < 0 || nd_index >= s_nd5000_count || c->loaded_x5cpu < 0)
+    {
+        return 0;   /* not ours - let the local seam say what it says */
+    }
+    NdbusNd5000 *nd = &s_nd5000[nd_index];
+
+    /* The ARGUMENT VALUES as well as their addresses. SINTRAN reads both, and the
+     * value slots are not decoration: on the swapper path one of them IS
+     * SINTRAN's own SWPINFO cell. Read them through a NON-FAULTING peek - a
+     * monitor call must not turn into a page fault while being reported. */
+    uint32_t values[NDBUS_MON_MAX_ARGS];
+    uint32_t count = (arg_count > NDBUS_MON_MAX_ARGS) ? NDBUS_MON_MAX_ARGS : arg_count;
+    for (uint32_t k = 0; k < count; k++)
+    {
+        uint32_t va = (arg_addresses != NULL) ? arg_addresses[k] : 0u;
+        values[k] = 0u;
+        if (va != 0u)
+        {
+            uint32_t pa = nd500_mmu_peek_space(&c->cpu, va, (uint8_t)c->cpu.CED, 0);
+            if (pa != 0xFFFFFFFFu)
+            {
+                values[k] = ((uint32_t)ndbus_pool_read8(&s_pool, pa) << 24)
+                          | ((uint32_t)ndbus_pool_read8(&s_pool, pa + 1u) << 16)
+                          | ((uint32_t)ndbus_pool_read8(&s_pool, pa + 2u) << 8)
+                          |  (uint32_t)ndbus_pool_read8(&s_pool, pa + 3u);
+            }
+        }
+    }
+
+    uint32_t resume = c->cpu.pending_call_return_address;
+
+    if (!ndbus_servicer_answer_monitor_call(&nd->servicer, (uint16_t)c->loaded_x5cpu, resume,
+                                           (uint16_t)mon_number, count, arg_addresses, values))
+    {
+        /* The servicer said why. Do NOT claim a call that was not posted - letting
+         * the local seam report it is more honest than a silent hang. */
+        return 0;
+    }
+
+    c->mon_calls++;
+    if (c->mon_calls <= MFBUS_MON_LOG_LIMIT)
+    {
+        LOG(LOG_CAT_MMS, LOG_INFO,
+            "MFbus: %s monitor call MON %oB argc=%u resume=0x%X - reported to SINTRAN\n",
+            c->name, (unsigned)mon_number, (unsigned)count, (unsigned)resume);
+    }
+
+    /* PARK, AND PARK IN A WAY THE RUNNER ACTUALLY SEES. Returning INDIRECT_HANDLED
+     * tells the CPU the call is done and to carry on from the resume address, so
+     * the park cannot be expressed by that return value alone; and the runner does
+     * not test machine.run_flag. The flag below is what stops it. */
+    c->cpu.PC = resume;
+    c->parked = true;
+    if (out_resolved != NULL)
+    {
+        *out_resolved = resume;
+    }
+    return 1;
+}
+
+/*
+ * Put a parked process back on the CPU.
+ *
+ * A PARK STOPS THE RUNNER'S THREAD, AND A STOPPED RUNNER MUST BE JOINED BEFORE IT
+ * RUNS AGAIN. mfbus_cpu_step() returns false to park, which takes the runner to
+ * NDBUS_RUNNER_STOPPED - not IDLE - and ndbus_runner_start() refuses to start a
+ * runner whose previous thread has not been reaped.
+ *
+ * MEASURED 30-SEP-2026: the resume path tested for IDLE only, so after the swapper's
+ * first monitor call the restart silently did nothing. The process was never stepped
+ * again - no stop reason, no park, no instructions - and the periodic P sample that
+ * would have named a spin printed nothing either, because there was no spin. SINTRAN
+ * polled 3RMICV for the rest of the run.
+ */
+static bool mfbus_resume_runner(MfbusCpuSlot *c, uint8_t station_number)
+{
+    NdbusRunnerState state = ndbus_runner_state(&c->runner);
+
+    if (state == NDBUS_RUNNER_RUNNING || state == NDBUS_RUNNER_STOPPING)
+    {
+        return true;   /* already going */
+    }
+
+    if (state == NDBUS_RUNNER_STOPPED)
+    {
+        /* Reap the previous thread. Asks and waits, so the pool it was reading
+         * outlives it. */
+        ndbus_runner_stop_and_join(&c->runner);
+    }
+
+    return mfbus_start_nd5000(station_number);
+}
+
+static bool mfbus_start_process(void *ctx, uint32_t msg_byte, uint16_t micfu, uint32_t ctx_byte)
+{
+    NdbusNd5000 *nd = (NdbusNd5000 *)ctx;
+    (void)msg_byte;
+
+    int slot = mfbus_slot_of(nd->station.number);
+    if (slot < 0 || !s_cpus[slot].present)
+    {
+        return false;
+    }
+    MfbusCpuSlot *c = &s_cpus[slot];
+
+    /* A CONTINUE NAMING THE PROCESS ALREADY LOADED RESUMES FROM THE LIVE REGISTERS.
+     *
+     * The microcode's context switch at 011473B compares the loaded process against
+     * the wanted one and, when they match, "if same -> POPRET - save AND load both
+     * skipped". So a 3TRACO or 3MONCO for the running process must NOT re-read the
+     * context block.
+     *
+     * MEASURED 30-SEP-2026, and the reference records the same standoff: the block
+     * still holds the process's ENTRY POINT, so reloading it sends the swapper back
+     * to its own initialisation, which zeroes SWPINFO, asks the identical MON 377B
+     * again and can never make progress. The reference reached that state from the
+     * other side - it skipped the context SAVE and lost the CALLG return address
+     * 0x08008255 - and the loop is the same either way. Our own run showed exactly
+     * that return address repeating.
+     *
+     * This arm therefore only unparks and lets the CPU carry on. */
+    if (c->parked && c->loaded_x5cpu >= 0
+        && c->loaded_x5cpu == ndbus_cpu_context_x5cpu(nd->station.number))
+    {
+        c->parked = false;
+        c->stop_reported = false;
+        c->mon_resumes++;
+
+        /* APPLY SINTRAN'S ANSWER BEFORE LETTING THE PROCESS RUN. Three slots of the
+         * message carry the answer and two of them meant something else on the way
+         * out - see ndbus_servicer_read_monitor_result(). The write-back is what the
+         * program is actually waiting for: measured 30-SEP-2026, without it the
+         * swapper's MON 377B was reported, answered and resumed, and the process then
+         * spun forever on a cell whose new value had been written in the message and
+         * never carried across. */
+        if (micfu == NDBUS_MICFU_MONCO)
+        {
+            NdbusMonResult res;
+            if (ndbus_servicer_read_monitor_result(&nd->servicer, msg_byte, &res))
+            {
+                /* FUNCV -> I1, the call's result register. */
+                c->cpu.I[0] = res.funcv;
+
+                /* KFLIP -> the K flag in ST1. The ND-500 error convention: the
+                 * program branches on K, so a failed call whose flag never arrives
+                 * reads as success. */
+                if (res.kflip != 0u)
+                {
+                    c->cpu.ST1 |= ND500_FLAG_K;
+                }
+                else
+                {
+                    c->cpu.ST1 &= ~(uint32_t)ND500_FLAG_K;
+                }
+
+                /* The selected parameters, written into PROCESS memory - so they go
+                 * through the process's own MMU, not straight at the pool. A
+                 * write-back to an address the process cannot reach is reported
+                 * rather than dropped into whatever the flat address happens to hit. */
+                for (uint32_t k = 0; k < res.count; k++)
+                {
+                    uint32_t pa = nd500_mmu_peek_space(&c->cpu, res.addresses[k],
+                                                       (uint8_t)c->cpu.CED, 0);
+                    if (pa == 0xFFFFFFFFu)
+                    {
+                        LOG(LOG_CAT_MMS, LOG_WARN,
+                            "MFbus: %s monitor-call write-back to 0x%X does not translate - "
+                            "parameter dropped\n",
+                            c->name, (unsigned)res.addresses[k]);
+                        continue;
+                    }
+                    (void)ndbus_pool_write8(&s_pool, pa,
+                                            (uint8_t)(res.values[k] >> 24));
+                    (void)ndbus_pool_write8(&s_pool, pa + 1u,
+                                            (uint8_t)(res.values[k] >> 16));
+                    (void)ndbus_pool_write8(&s_pool, pa + 2u,
+                                            (uint8_t)(res.values[k] >> 8));
+                    (void)ndbus_pool_write8(&s_pool, pa + 3u,
+                                            (uint8_t)res.values[k]);
+
+                    /* NAME EACH WRITE-BACK. A count of parameters written says
+                     * nothing about whether the right cell got the right number,
+                     * and a value landing one halfword out is invisible in a
+                     * count. */
+                    if (c->mon_resumes <= MFBUS_MON_LOG_LIMIT)
+                    {
+                        LOG(LOG_CAT_MMS, LOG_INFO,
+                            "MFbus: %s   write-back param: logical 0x%08X -> physical 0x%08X "
+                            "= 0x%08X\n",
+                            c->name, (unsigned)res.addresses[k], (unsigned)pa,
+                            (unsigned)res.values[k]);
+                    }
+                }
+
+                if (c->mon_resumes <= MFBUS_MON_LOG_LIMIT)
+                {
+                    LOG(LOG_CAT_MMS, LOG_INFO,
+                        "MFbus: %s monitor-call answer: FUNCV=0x%X K=%u mask=0x%X, %u parameter(s) "
+                        "written back\n",
+                        c->name, (unsigned)res.funcv, (unsigned)(res.kflip != 0u),
+                        (unsigned)res.mask, (unsigned)res.count);
+                }
+            }
+        }
+        if (c->mon_resumes <= MFBUS_MON_LOG_LIMIT)
+        {
+            LOG(LOG_CAT_MMS, LOG_INFO,
+                "MFbus: %s MICFU %oB resumes the LOADED process in place at P=0x%X - no context "
+                "reload\n",
+                c->name, (unsigned)micfu, (unsigned)c->cpu.PC);
+        }
+        /* Trace the path out of this resume: the swapper's fault is reached from here,
+         * and only the PCs in between name the branch that skips the loop-limit
+         * initialisation. Armed once per resume, bounded. */
+        if (c->mon_resumes <= MFBUS_MON_LOG_LIMIT)
+        {
+            c->resume_trace_left = MFBUS_RESUME_TRACE_LIMIT;
+        }
+        if (!mfbus_resume_runner(c, nd->station.number))
+        {
+            LOG(LOG_CAT_MMS, LOG_ERROR,
+                "MFbus: %s MICFU %oB could not resume the runner - the process stays parked\n",
+                c->name, (unsigned)micfu);
+            return false;
+        }
+        return true;
+    }
+
+    /* Already running: this is a restart-class message for a process that is live,
+     * and stopping and reloading it here would discard its state. Declined rather
+     * than guessed at.
+     *
+     * STOPPED IS NOT RUNNING. A runner whose thread has exited - because the process
+     * parked or stopped - is a candidate for a fresh start, so only the two live
+     * states decline here. Testing "!= IDLE" also refused every message that arrived
+     * after a stop. */
+    NdbusRunnerState runner_state = ndbus_runner_state(&c->runner);
+    if (runner_state == NDBUS_RUNNER_RUNNING || runner_state == NDBUS_RUNNER_STOPPING)
+    {
+        LOG(LOG_CAT_MMS, LOG_INFO,
+            "MFbus: start MICFU %oB for %s declined - the CPU is already running\n",
+            (unsigned)micfu, c->name);
+        return false;
+    }
+
+    /* The servicer computed the BLOCK address; ndbus_context_attach() computes the
+     * same thing from the area base and X5CPU. Derive the area back out of the
+     * block so the one formula in ndbus_context.c stays the only one, rather than
+     * repeating it here where it could drift. */
+    int x5cpu = ndbus_cpu_context_x5cpu(nd->station.number);
+    uint32_t stride = NDBUS_CTX_STRIDE_BYTES;
+    uint32_t block_offset = stride + ((uint32_t)x5cpu * stride);
+    if (ctx_byte < block_offset)
+    {
+        LOG(LOG_CAT_MMS, LOG_ERROR,
+            "MFbus: start MICFU %oB for %s declined - context block 0x%X is below its own "
+            "area\n",
+            (unsigned)micfu, c->name, (unsigned)ctx_byte);
+        return false;
+    }
+    uint32_t area_byte = ctx_byte - block_offset;
+
+    if (!ndbus_context_attach(&c->context, &s_pool, area_byte, x5cpu))
+    {
+        LOG(LOG_CAT_MMS, LOG_ERROR,
+            "MFbus: start MICFU %oB for %s declined - context block at 0x%X does not fit the "
+            "pool\n",
+            (unsigned)micfu, c->name, (unsigned)ctx_byte);
+        return false;
+    }
+    c->context_set = true;
+
+    /* A CONTEXT WHOSE P IS ZERO IS NOT A PROCESS. RetroCore records exactly this
+     * case: when the block's P is 0 the start is declined, the servicer answers the
+     * placeholder way, and SINTRAN's SWPDECODER then reports a swapper fault. Which
+     * is the right outcome - starting a CPU at address 0 would fault somewhere else
+     * entirely and look like a different bug. */
+    uint32_t entry_p = ndbus_context_read(&c->context, NDBUS_CTX_P);
+    if (entry_p == 0u)
+    {
+        LOG(LOG_CAT_MMS, LOG_WARN,
+            "MFbus: start MICFU %oB for %s declined - context block at 0x%X has P = 0, so "
+            "there is no entry point to start\n",
+            (unsigned)micfu, c->name, (unsigned)ctx_byte);
+        return false;
+    }
+
+    /* HAND THE MMU ITS TABLE BEFORE THE FIRST FETCH. The context block's P is a
+     * LOGICAL ND-500 address - measured 0x08000004, i.e. segment 1 offset 4 - so
+     * without a physical segment table pointer the CPU fetches at 0x08000004
+     * PHYSICALLY, reads an uninitialised 0x00 and stops on an invalid instruction
+     * with paddr equal to P. That is the exact failure this line prevents.
+     *
+     * The base is the one SINTRAN patched into control-store cell 0o21, which the
+     * station read at microprogram start. RetroCore does the same thing at the same
+     * point: LoadMmsPointersFromControlStore writes PSTP on the attached CPU. It
+     * does NOT hand over a DIT base - the DIT base it tracks is a diagnostic learned
+     * from the trap-config writes - so neither does this. */
+    if (nd->pst_base != 0u)
+    {
+        c->cpu.PSTP = nd->pst_base;
+        LOG(LOG_CAT_MMS, LOG_INFO, "MFbus: %s PSTP := 0x%X from patched CS cell 0o21\n",
+            c->name, (unsigned)nd->pst_base);
+    }
+    else
+    {
+        /* Said out loud: a start with no segment table will fetch logical addresses
+         * as physical ones, which stops on whatever happens to be there. */
+        LOG(LOG_CAT_MMS, LOG_WARN,
+            "MFbus: starting %s with NO physical segment table - logical addresses will be "
+            "fetched as physical\n",
+            c->name);
+    }
+
+    /* TURN TRANSLATION ON, because the process's P is a LOGICAL address.
+     *
+     * MEASURED 30-SEP-2026, both halves: the context block holds P=0x08000004 and
+     * PS=0x3 - a real process segment, the same segment 3 the pre-start PHYSWR
+     * resolved against - and PSTP is 0x3A000 from patched CS cell 0o21. With all
+     * three set the fetch STILL came out at physical 0x08000004 and stopped on
+     * "Invalid instruction 0x00", because nd500x carries an explicit MMU switch that
+     * defaults off and nothing on this path set it.
+     *
+     * This is nd500x's own state, not a mechanism being invented: on the machine
+     * translation is simply in effect once PS and PSTP are set, and the reference
+     * has no equivalent switch to mirror. nd500_machine_enable_mmu() is the
+     * repository's existing entry point for it - the same one machine.c uses - so
+     * the state is set through that rather than by poking the flags. */
+    nd500_machine_enable_mmu(&c->machine);
+
+    if (!mfbus_load_context(nd->station.number))
+    {
+        return false;
+    }
+
+    /* PS is only known once the context block has been read, so this comes after
+     * the load and before the CPU is allowed to fetch anything. */
+    mfbus_declare_capability_table(c);
+
+    /* REMEMBER WHOSE PROCESS IS RUNNING. A trap is reported on that process's own
+     * activation message, so the step loop needs to know which X5CPU to name. */
+    c->loaded_x5cpu = x5cpu;
+
+    /* SINTRAN ON THIS ND-100 OWNS THE MONITOR CALLS. Installed per start, because
+     * that is when this CPU becomes a process belonging to that SINTRAN. */
+    c->cpu.mon_call_host = mfbus_mon_call;
+    c->cpu.mon_call_host_ctx = c;
+
+    /* Through the resume helper, because a CPU that stopped earlier has a thread to
+     * reap before a new one can be created. */
+    if (!mfbus_resume_runner(c, nd->station.number))
+    {
+        return false;
+    }
+
+    /* WHAT THE TABLES ACTUALLY SAY AT THE MOMENT OF THE START, read out of the pool
+     * rather than reasoned about. The first fetch walks DIT[domain][segment] to a
+     * capability, takes its low 13 bits as a physical segment number, and reads
+     * PST[psn] at PSTP. Measured 30-SEP-2026: that walk reported "PST entry 83 is
+     * ZERO", and a zero entry is a page fault, so the fetch never resolves. These
+     * three lines say which of the three cells is the empty one. */
+    if (nd->servicer.dit_base != 0u || nd->pst_base != 0u)
+    {
+        uint32_t seg = (entry_p >> 27u) & 0x1Fu;
+        uint32_t dit_word = nd->servicer.dit_base + (ndbus_context_read(&c->context, NDBUS_CTX_CED) & 0xFFu) * 256u + seg * 2u;
+        uint16_t cap = (uint16_t)((ndbus_pool_read8(&s_pool, dit_word) << 8)
+                                 | ndbus_pool_read8(&s_pool, dit_word + 1u));
+        uint32_t psn = (uint32_t)(cap & 0x1FFFu);
+        uint32_t pst_cell = nd->pst_base + psn * 4u;
+        uint32_t pste = 0u;
+        for (uint32_t i = 0u; i < 4u; i++)
+        {
+            pste = (pste << 8u) | ndbus_pool_read8(&s_pool, pst_cell + i);
+        }
+        LOG(LOG_CAT_MMS, LOG_INFO,
+            "MFbus: %s start tables: P=0x%X seg=%u DIT[0x%X]=0x%04X psn=%u "
+            "PST[0x%X]=0x%08X\n",
+            c->name, (unsigned)entry_p, (unsigned)seg, (unsigned)dit_word, (unsigned)cap,
+            (unsigned)psn, (unsigned)pst_cell, (unsigned)pste);
+
+        /* THE CAPABILITY TABLE IS FOUND THROUGH PS, NOT THROUGH A LEARNED BASE.
+         *
+         * RetroCore Nd500CpuProcessBridge.InstallGuestSegmentTable: "PS - the
+         * per-process context block at +0x48, whose low halfword is the
+         * process-segment index. MEASURED: the two live processes carry AL#17 =
+         * 0x4C48000A and 0x48480003, giving PS 10 and 3, and PST entries 10 and 3
+         * hold pages 0x16C and 0x0DE - exactly the capability-table bases
+         * (0xB6000 / 0x6F000) those processes use." So the walk starts at
+         * PST[PS], not at a DIT base, and the same file says outright that the
+         * bridge does NOT hand a DIT base over - the one it tracks is a
+         * diagnostic learned from the trap-config writes.
+         *
+         * Print what PST[PS] holds and what capability it implies, so the chain
+         * can be compared against the one the learned base produced. */
+        uint32_t ps = ndbus_context_read(&c->context, NDBUS_CTX_SRF13) & 0x1FFFu;
+        uint32_t ps_cell = nd->pst_base + ps * 4u;
+        uint32_t ps_pste = 0u;
+        for (uint32_t i = 0u; i < 4u; i++)
+        {
+            ps_pste = (ps_pste << 8u) | ndbus_pool_read8(&s_pool, ps_cell + i);
+        }
+        uint32_t captab = (ps_pste & 0x3FFFFFFFu) << 11u;
+        uint32_t cap_from_ps = (uint32_t)((ndbus_pool_read8(&s_pool, captab + seg * 2u) << 8)
+                                         | ndbus_pool_read8(&s_pool, captab + seg * 2u + 1u));
+        LOG(LOG_CAT_MMS, LOG_INFO,
+            "MFbus: %s PS=%u PST[0x%X]=0x%08X -> capability table 0x%X, cap[seg %u]=0x%04X "
+            "psn=%u\n",
+            c->name, (unsigned)ps, (unsigned)ps_cell, (unsigned)ps_pste, (unsigned)captab,
+            (unsigned)seg, (unsigned)cap_from_ps, (unsigned)(cap_from_ps & 0x1FFFu));
+
+        /* WHERE IS THE TABLE, THEN. A zero cell says nothing about whether the
+         * table is empty, in the wrong place, or on a different stride, so scan
+         * the 4 KB page that holds PSTP for the first nonzero 32-bit word and say
+         * how far it is from the base. */
+        uint32_t page = nd->pst_base & ~0xFFFu;
+        uint32_t first_nonzero = 0xFFFFFFFFu;
+        for (uint32_t off = 0u; off < 0x1000u; off += 4u)
+        {
+            uint32_t w = 0u;
+            for (uint32_t i = 0u; i < 4u; i++)
+            {
+                w = (w << 8u) | ndbus_pool_read8(&s_pool, page + off + i);
+            }
+            if (w != 0u)
+            {
+                first_nonzero = off;
+                LOG(LOG_CAT_MMS, LOG_INFO,
+                    "MFbus: %s PST page 0x%X: first nonzero word at +0x%X = 0x%08X "
+                    "(entry %u on a 4-byte stride)\n",
+                    c->name, (unsigned)page, (unsigned)off, (unsigned)w,
+                    (unsigned)(off / 4u));
+                break;
+            }
+        }
+        if (first_nonzero == 0xFFFFFFFFu)
+        {
+            LOG(LOG_CAT_MMS, LOG_INFO,
+                "MFbus: %s PST page 0x%X is entirely zero - the table is not there at all\n",
+                c->name, (unsigned)page);
+        }
+    }
+
+    LOG(LOG_CAT_MMS, LOG_INFO,
+        "MFbus: start MICFU %oB taken for %s - context 0x%X, P=0x%X\n", (unsigned)micfu,
+        c->name, (unsigned)ctx_byte, (unsigned)entry_p);
+    return true;
+}
+
+static void mfbus_ndbus_log(void *ctx, int level, const char *message)
+{
+    (void)ctx;
+    (void)level;
+    LOG(LOG_CAT_MMS, LOG_INFO, "MFbus/ND-5000: %s\n", message);
+}
+
+/** The callbacks every station and servicer on this bus logs through. */
+static const NdbusHostOps s_ndbus_host_ops = {
+    .log   = mfbus_ndbus_log,
+    .yield = NULL,
+    .ctx   = NULL,
+};
+
 bool mfbus_add_nd5000(uint8_t station_number)
 {
     if (!s_attached)
@@ -277,7 +1261,7 @@ bool mfbus_add_nd5000(uint8_t station_number)
     }
 
     NdbusNd5000 *nd = &s_nd5000[s_nd5000_count];
-    if (!ndbus_nd5000_init(nd, station_number, &s_pool, NULL, NULL))
+    if (!ndbus_nd5000_init(nd, station_number, &s_pool, &s_ndbus_host_ops, NULL))
     {
         /* Refused by the station itself: outside 070B..076B, where another kind
          * of device lives. */
@@ -294,7 +1278,28 @@ bool mfbus_add_nd5000(uint8_t station_number)
         return false;
     }
 
-    s_nd5000_count++;
+        /* WHO STARTS A PROCESS.
+     *
+     * THE MACRO LANE IS THE RIGHT ONE, confirmed from Ronny's own RetroCore script:
+     * `Nd5000 attach` with no --microword attaches the FUNCTIONAL ND-500 CPU on the
+     * octobus, and its own note reads "MACRO = the functional CpuND500 runs the
+     * ND-500 macro code directly. This is the lane the DOM programs run on", against
+     * "MICRO = ... NOT as far along as the macro CPU". So the bridge to mirror is
+     * Nd500CpuProcessBridge.OnStartProcessND5000 - which loads the context block -
+     * and NOT Nd5000CpuProcessBridge, the microword one that only unparks microcode.
+     *
+     * Comments in the reference claiming the octobus lane never gets this far are
+     * STALE RECORDS: the machine prints the "ND-5000:" monitor prompt in both, which
+     * is what identifies the lane, and Ronny's octobus run gets further than those
+     * comments describe. Read the code and measure, not the commentary.
+     *
+     * Without this the servicer declines every start and SINTRAN reports "The
+     * Swapper stopped".
+     */
+    (void)ndbus_nd5000_set_process_host(nd, mfbus_start_process);
+    (void)ndbus_nd5000_set_dit_declarer(nd, mfbus_declare_dit_base);
+
+s_nd5000_count++;
     LOG(LOG_CAT_MMS, LOG_INFO, "MFbus: ND-5000 on the octobus at station %o\n",
         (unsigned)station_number);
     return true;
@@ -405,6 +1410,46 @@ bool mfbus_attach_cpu(uint8_t station_number)
     nd500_machine_init_shared(&c->machine, s_pool.bytes, s_pool.size);
     nd500_cpu_init(&c->cpu, &c->machine);
     nd500_cpu_reset(&c->cpu);
+
+    /* ALLOCATE THE MMU TABLES. nd500_mmu_state_create() leaves the PST and the PCB
+     * table NULL on purpose (lazy), and nd500_mmu_translate_domain() refuses with
+     * "[MMU] Tables not initialized! PST=(nil) PCB=(nil)" and returns the virtual
+     * address unchanged before it ever reaches the guest-table branch. Measured
+     * 30-SEP-2026: the swapper's first fetch at 0x08000004 came back untranslated
+     * and stopped on byte 0x00. The free-running binary calls this in
+     * nd500x.c:572; an embedded CPU needs it for the same reason. */
+    nd500_mmu_init(&c->cpu);
+
+    /* WIRE THE ND-100 OPERAND MAPPING FOR RIOM, DERIVED FROM THE SERVICER.
+     *
+     * Without this the CPU keeps its field defaults, which are the ND-500 3022
+     * convention: base 0x40000, 2 host bytes per operand unit. On the octobus SINTRAN's
+     * CNVWADR emits a BYTE offset inside the 5MPM window instead, so the 3022 reading
+     * lands in memory that is backed but was never written.
+     *
+     * Measured 30-SEP-2026 before this call existed: the swapper's HSWPI arrived as
+     * 0x00008E30, RIOM moved 70 halfwords of zeros to 0x080240BC, and SINTRAN printed
+     *     ND-500(0) error: Fatal error from Swapper / ERROR CODE 201B
+     * because the swapper scanned a record that had never been filled.
+     *
+     * base is 0 and window_base is 0 because the operand is ALREADY window-relative and
+     * the CPU's own physical path treats ND-500 address 0 as the window start: adding
+     * the base again would overshoot into unbacked memory. The SCALE is asked of the
+     * servicer that defines the convention rather than restated here, so the copy engine
+     * and RIOM cannot drift apart. */
+    if (nd500_cpu_set_nd100_mapping(&c->cpu, 0u,
+                                    ndbus_servicer_nd100_bytes_per_unit(), 0) != 0)
+    {
+        /* Only reachable if the servicer ever reports a scale that is not an ND address
+         * convention. Say so rather than running on a silently wrong mapping. */
+        printf("[MFBUS] ND-100 operand mapping REFUSED: servicer reported %u bytes per "
+               "unit (expected 1 or 2); RIOM would read the wrong memory\n",
+               (unsigned)ndbus_servicer_nd100_bytes_per_unit());
+    }
+
+    /* -1, NOT 0: process 0 is a real X5CPU, so a zero here would name it as loaded
+     * before anything had started and a stray trap would be reported against it. */
+    c->loaded_x5cpu = -1;
 
     (void)snprintf(c->name, sizeof(c->name), "ND-5000 at %o", (unsigned)station_number);
     c->ops.name = c->name;
@@ -540,6 +1585,31 @@ bool mfbus_load_context(uint8_t station_number)
     c->cpu.CED = ndbus_context_read(&c->context, NDBUS_CTX_CED);
     c->cpu.CAD = ndbus_context_read(&c->context, NDBUS_CTX_CAD);
 
+    /* PS, THE PROCESS SEGMENT, AND WITHOUT IT NOTHING TRANSLATES.
+     *
+     * Block register 18 - offset 18 * 4 = 0x48, which this repo names SRF13 and
+     * whose own comment records that its low halfword goes to MM,PS. The reference
+     * masks it: RetroCore CpuND500.ProcessControl.cs case 18,
+     * `regs.PS = value & 0x1FFF`, "process segment (privileged)".
+     *
+     * MEASURED 30-SEP-2026 what leaving it out costs: the context block's P is the
+     * LOGICAL address 0x08000004, and with no process segment the CPU fetched at
+     * 0x08000004 PHYSICALLY - the stop line read "Invalid instruction 0x00
+     * (uninitialized memory) ... paddr=0x08000004", the same value as P. A fetch
+     * whose physical address equals its logical one is the signature of this
+     * missing register. */
+    c->cpu.PS = ndbus_context_read(&c->context, NDBUS_CTX_SRF13) & 0x1FFFu;
+
+    /* SAY WHAT THE BLOCK ACTUALLY HELD. "PS is loaded" and "PS is loaded and it is
+     * zero" produce the same untranslated fetch, and only the values tell them
+     * apart - the first run after adding the load still stopped with
+     * paddr == P, which could be either. */
+    LOG(LOG_CAT_MMS, LOG_INFO,
+        "MFbus: %s context block: P=0x%X PS=0x%X CED=0x%X CAD=0x%X SRF13=0x%X STATUS=0x%X\n",
+        c->name, (unsigned)c->cpu.PC, (unsigned)c->cpu.PS, (unsigned)c->cpu.CED,
+        (unsigned)c->cpu.CAD, (unsigned)ndbus_context_read(&c->context, NDBUS_CTX_SRF13),
+        (unsigned)ndbus_context_read(&c->context, NDBUS_CTX_STATUS));
+
     LOG(LOG_CAT_MMS, LOG_INFO, "MFbus: %s loaded from its context block, P=0x%X\n", c->name,
         (unsigned)c->cpu.PC);
     return true;
@@ -565,6 +1635,21 @@ void mfbus_stop_nd5000(uint8_t station_number)
     /* Asks AND waits: the thread may be mid-instruction when the request
      * arrives, and the pool it is reading must outlive it. */
     ndbus_runner_stop_and_join(&s_cpus[slot].runner);
+}
+
+int mfbus_service_nd5000_mailboxes(void)
+{
+    int answered = 0;
+
+    for (int i = 0; i < s_nd5000_count; i++)
+    {
+        if (ndbus_nd5000_service_mailbox(&s_nd5000[i]))
+        {
+            answered++;
+        }
+    }
+
+    return answered;
 }
 
 unsigned long long mfbus_nd5000_instructions(uint8_t station_number)
@@ -593,6 +1678,11 @@ void mfbus_clear_nd5000(void)
             memset(&s_cpus[i], 0, sizeof(s_cpus[i]));
         }
         (void)ndbus_fabric_unregister(&s_fabric, s_nd5000[i].station.number);
+        /* AFTER the unregister, so no frame can reach a station whose
+         * control-store buffer has just been freed. The station keeps a 256 KB
+         * control store once SINTRAN has loaded microcode into it, and the memset
+         * below would drop the pointer without freeing it. */
+        ndbus_nd5000_destroy(&s_nd5000[i]);
     }
     s_nd5000_count = 0;
     memset(s_nd5000, 0, sizeof(s_nd5000));

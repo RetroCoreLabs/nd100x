@@ -35,6 +35,7 @@
 
 #include "../devices_types.h"
 #include "../devices_protos.h"
+#include "../../machine/mfbus_bridge.h"
 
 // Recompute the FIFO status bits from the ring, so the two bits can never
 // disagree with the count.
@@ -114,6 +115,19 @@ static uint16_t octobus_tick(Device *self)
     {
         octobus_update_interrupt(self, data);
     }
+
+    // THE MAILBOX POLL. Past ENKICK the octobus carries no more commands: the
+    // monitor waits on the mailbox in MPM-5 shared memory instead, and SINTRAN's
+    // ACT51 rings that doorbell without sending any kick. So the ND-5000 side has
+    // to poll, and the ND-100 clock reaching this tick is where that poll gets its
+    // turn. Without it the monitor waits out its watchdog and reports
+    // "ND-500(0) timeout". See mfbus_service_nd5000_mailboxes().
+    // Guarded exactly like the header it calls into: the mfbus bridge and every
+    // ND-5000 station live behind ND100X_WITH_ND500, so a build without the ND-500
+    // side has no mailbox to poll.
+#ifdef ND100X_WITH_ND500
+    (void)mfbus_service_nd5000_mailboxes();
+#endif
 
     return self->interruptBits;
 }
@@ -345,18 +359,34 @@ static void octobus_write(Device *self, uint32_t address, uint16_t value)
     case OCTOBUS_WRITE_OUTPUT_CONTROL:
         data->outputControlWord.raw = value;
 
-        data->outputStatusRegister.bits.interruptEnabled =
-            data->outputControlWord.bits.interruptEnabled ? 1 : 0;
-
         // OCSTART reaches +7 as "T+4" from +3 (PH-P2-OPPSTART.NPL:4055).
+        //
+        // CLEAR DEVICE REPLACES THE WHOLE STATUS WORD, it does not merely set
+        // READY. TPE OCTOBUS B00 test 4 ("Check Octobus configuration") reads +6
+        // straight after the clear and demands exactly 000010B - READY and
+        // nothing else. Setting only READY leaves the ERROR (bit 4) and NOT
+        // PRESENT (bit 6) of the preceding probe standing, and the test reports
+        // "Wrong transmit status after Clear Device ... Found 000130B".
+        //
+        // Ported from RetroCore NDBusOctobus.cs:2854 (device clear), which is the
+        // same assignment its master clear (2928) and its reset (3363) make:
+        //     _outputStatus = TransmitStatusBits.ReadyForTransfer;
+        // Ready is set here rather than cleared because OCSTART sends a command
+        // straight after the clear.
         if (data->outputControlWord.bits.deviceClear)
         {
             data->clears++;
             data->outputData = 0;
             data->outputIrqPending = false;
-            // Ready survives the clear: OCSTART sends a command straight after.
+            data->outputStatusRegister.raw = 0;
             data->outputStatusRegister.bits.readyForTransfer = 1;
         }
+
+        // AFTER the clear, matching RetroCore's order: it applies the clear at
+        // 2854 and the interrupt enable at 2887, so a word carrying both ends
+        // with the enable set rather than cleared by the clear.
+        data->outputStatusRegister.bits.interruptEnabled =
+            data->outputControlWord.bits.interruptEnabled ? 1 : 0;
 
         octobus_update_interrupt(self, data);
         break;

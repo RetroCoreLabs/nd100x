@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=nd100x
+GenericName=ND-100 emulator
+Comment=Norsk Data ND-100/CX emulator
+Exec=nd100x
+Icon=nd100x
+Terminal=true
+Categories=System;Emulator;
