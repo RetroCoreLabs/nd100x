@@ -260,10 +260,16 @@ static bool mfbus_cpu_step(void *ctx)
          * read as the domain's when it was the swapper's - the swapper's entry
          * 0x04 -> 0x11 -> 0x14 -> 0x16 is its own correct stream (a 13-byte init,
          * then move, stz, comp2) and was mistaken for a broken 6-byte call. */
+        /* B AND L TOO. CPU-STAT's fourth page fault is a write to segment 0 offset
+         * 4 with B = 0x00000004 - the frame base itself is 4, so the address is
+         * wrong rather than missing, and no page-in can satisfy it. Which
+         * instruction put 4 in B is only visible if B is printed per step. */
         LOG(LOG_CAT_MMS, LOG_INFO,
-            "MFbus: %s rt x5=%d P=0x%08X pa=0x%08X %02X %02X CED=%u PS=0x%X DIT=0x%X\n",
+            "MFbus: %s rt x5=%d P=0x%08X pa=0x%08X %02X %02X B=0x%08X L=0x%08X R=0x%08X "
+            "CED=%u PS=0x%X DIT=0x%X\n",
             slot->name, slot->loaded_x5cpu, (unsigned)slot->cpu.PC, (unsigned)rt_pa,
-            b0, b1, (unsigned)slot->cpu.CED, (unsigned)slot->cpu.PS,
+            b0, b1, (unsigned)slot->cpu.B, (unsigned)slot->cpu.L, (unsigned)slot->cpu.R,
+            (unsigned)slot->cpu.CED, (unsigned)slot->cpu.PS,
             (unsigned)slot->cpu.DITBASE);
     }
 
@@ -994,6 +1000,65 @@ static int mfbus_mon_call(void *ctx, uint32_t mon_number, uint32_t arg_count,
         LOG(LOG_CAT_MMS, LOG_INFO, "MFbus: %s   %s\n", c->name, line);
     }
 
+    /* THE SWAPPER'S PER-SEGMENT DESCRIPTORS, READ IN THE SWAPPER'S OWN CONTEXT.
+     *
+     * They live at logical 0x08038000 with a stride of 0o144 = 100 DECIMAL bytes;
+     * the carve's anchor is PSN 14 at 0x08038578, and 0x08038000 + 14*100 = 0x08038578
+     * confirms the stride. The packed STATE word is at descriptor offset 0o36,
+     * decoded big-endian as (halfword >> 10) & 0xF - measured examples elsewhere:
+     * 0xDE00 -> 7, 0xE580 -> 9, 0xEB2C -> 0xA.
+     *
+     * READ HERE, NOT AT A TRAP PARK. This address belongs to the SWAPPER's data, and
+     * at a domain's page-fault park the domain is the loaded process, so the table
+     * does not translate at all - measured, every psn reported "does not translate".
+     * On a MON 377B the swapper IS the loaded process, so its own mapping is in
+     * force.
+     *
+     * WHY EVERY SEGMENT, NOT JUST THE FAULTING ONE. The carved finding is that DISK
+     * BACKING decides the outcome, not STATE: a segment with pages services the fault
+     * via LNEWSWAP whatever its STATE, while a fresh UNBACKED writable segment must
+     * take the grow path, which requires STATE in {13,14,15}. A STATE read for the
+     * failing segment alone therefore proves nothing - it has to be read beside ones
+     * that work. Here psn 11 and 12 back fine; psn 13, the scratch segment GSWSP
+     * connected for the domain, never receives an LSWPAGE and SWPFU=4 LALLOPAGE
+     * never fires at all. */
+    /* SAMPLED EARLY AND LATE. The first gate was mon_calls <= 2 and every descriptor
+     * read as 32 zero bytes - for psn 11 and 12 as well, which demonstrably back
+     * fine. That is the table not yet populated, not a defect: the swapper's first
+     * monitor calls happen before any segment is set up. The psn-13 fault arrives
+     * around the fifteenth call, so sample both ends and let the pair show when the
+     * table fills. */
+    if (mon_number == 0377u
+        && (c->mon_calls <= 2u || (c->mon_calls >= 13u && c->mon_calls <= 20u)))
+    {
+        for (uint32_t psn = 10u; psn <= 15u; psn++)
+        {
+            uint32_t dl = 0x08038000u + psn * 100u;
+            uint32_t dp = nd500_mmu_peek_space(&c->cpu, dl, (uint8_t)c->cpu.CED, 0);
+            if (dp == 0xFFFFFFFFu)
+            {
+                LOG(LOG_CAT_MMS, LOG_INFO,
+                    "MFbus: %s   seg-desc psn=%2u logical 0x%08X does not translate\n",
+                    c->name, (unsigned)psn, (unsigned)dl);
+                continue;
+            }
+            char hex[80];
+            int n = 0;
+            for (uint32_t k = 0; k < 32u && n >= 0 && (size_t)n < sizeof hex; k++)
+            {
+                n += snprintf(hex + n, sizeof hex - (size_t)n, "%02X",
+                              (unsigned)ndbus_pool_read8(&s_pool, dp + k));
+            }
+            uint32_t w36 = ((uint32_t)ndbus_pool_read8(&s_pool, dp + 036u) << 8)
+                         |  (uint32_t)ndbus_pool_read8(&s_pool, dp + 036u + 1u);
+            uint32_t st = (w36 >> 10) & 0x0Fu;
+            LOG(LOG_CAT_MMS, LOG_INFO,
+                "MFbus: %s   seg-desc psn=%2u pa=0x%08X w36=0x%04X STATE=0x%X grow=%d : %s\n",
+                c->name, (unsigned)psn, (unsigned)dp, (unsigned)w36, (unsigned)st,
+                (st >= 13u && st <= 15u) ? 1 : 0, hex);
+        }
+    }
+
     /* PARK, AND PARK IN A WAY THE RUNNER ACTUALLY SEES. Returning INDIRECT_HANDLED
      * tells the CPU the call is done and to carry on from the resume address, so
      * the park cannot be expressed by that return value alone; and the runner does
@@ -1340,6 +1405,26 @@ static bool mfbus_start_process(void *ctx, uint32_t msg_byte, uint16_t micfu, ui
                             "parameter dropped\n",
                             c->name, (unsigned)res.addresses[k]);
                         continue;
+                    }
+                    /* WHAT WAS ALREADY THERE. SINTRAN performs some monitor calls by
+                     * writing the answer into ND-500 memory itself with a PHYSWR and
+                     * then sending the 3MONCO - measured on CPU-STAT's MON 422B
+                     * GetScratchSegment, where a 31B PHYSWR addressed to the domain's
+                     * block arrives between the report and the restart. If that is
+                     * what happened, this write-back lands ON TOP of the real answer,
+                     * and only the previous value says so. */
+                    uint32_t was = ((uint32_t)ndbus_pool_read8(&s_pool, pa) << 24)
+                                 | ((uint32_t)ndbus_pool_read8(&s_pool, pa + 1u) << 16)
+                                 | ((uint32_t)ndbus_pool_read8(&s_pool, pa + 2u) << 8)
+                                 |  (uint32_t)ndbus_pool_read8(&s_pool, pa + 3u);
+                    if (was != res.values[k] && c->mon_resumes <= MFBUS_MON_LOG_LIMIT)
+                    {
+                        LOG(LOG_CAT_MMS, LOG_WARN,
+                            "MFbus: %s   write-back OVERWRITES 0x%08X with 0x%08X at "
+                            "logical 0x%08X - if the old value is the answer, this "
+                            "write-back is destroying it\n",
+                            c->name, (unsigned)was, (unsigned)res.values[k],
+                            (unsigned)res.addresses[k]);
                     }
                     (void)ndbus_pool_write8(&s_pool, pa,
                                             (uint8_t)(res.values[k] >> 24));
