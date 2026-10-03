@@ -148,6 +148,22 @@ typedef struct
      * chance to answer. */
     bool          parked;
     bool          stop_reported;  /* the non-retryable stop has been named once */
+
+    /* WHAT THE TRAP LOOKED LIKE AT THE MOMENT IT WAS RAISED.
+     *
+     * Filled by mfbus_trap_sink below, which the ND-500 CPU calls from raise_trap
+     * for any trap no local handler took. These three values CANNOT be recovered
+     * after nd500_cpu_step() returns, which is why the sink exists:
+     *
+     * machine->stop_reason collapses 64 trap conditions onto a handful of enum
+     * values (nd500x cpu.c trap_to_stop_reason) and gives DT and DE no value at
+     * all, so the number cannot be recovered after the stop. The MMU status word
+     * is NOT captured here - see mfbus_trap_sink for why that was tried and
+     * measured to be wrong.
+     *
+     * trap_captured says the number is a real reading, not a leftover one. */
+    uint16_t      trap_number_at_raise;
+    bool          trap_captured;
     unsigned long steps_run;      /* instructions executed since attach */
     unsigned long spin_samples;   /* periodic P samples already logged */
 } MfbusCpuSlot;
@@ -198,6 +214,65 @@ static MfbusCpuSlot s_cpus[MFBUS_MAX_ND5000];
 /* Defined below, next to the context switch it mirrors; both park sites above
  * need it, so it is declared here rather than moved away from its pair. */
 static bool mfbus_save_context(MfbusCpuSlot *c);
+
+/* THE TRAP-STOP SEAM, the nd100x end of it.
+ *
+ * Ported from RetroCore Nd500CpuProcessBridge.OnUnhandledTrap
+ * (Emulated.HW/ND/CPU/ND500/Servicer/, contract in ITrapSink.cs). The ND-500 CPU
+ * calls this from raise_trap() for any trap no local THA/DIT handler consumed.
+ *
+ * IT CAPTURES THE TRAP NUMBER AND NOTHING ELSE, because the trap number is the
+ * only thing that is genuinely gone by the time the stop is noticed:
+ * trap_to_stop_reason() in nd500x cpu.c collapses 64 trap conditions onto a
+ * handful of StopReason values in priority order, and DT and DE have no value at
+ * all. Without this, a report can only name the traps someone hand-listed - which
+ * is how a stack overflow came to be answered with silence.
+ *
+ * IT DELIBERATELY DOES NOT READ THE MMU LATCH. An earlier version of this
+ * function composed the memory-management status here on the reasoning that the
+ * latch must still be live at the raise. IT IS NOT: raise_trap() copies
+ * mmu_pgf_where into trap_saved_info and zeroes it (nd500x cpu.c:1340) EARLY,
+ * before the handler dispatch this callback sits after. MEASURED 04-OCT-2026 -
+ * the sink reported "trap 46B ... mms=0x00000000 psn=0" for a page fault whose
+ * status word had previously been composed correctly, so reading the latch here
+ * is not better than reading it later, it is worse. The status word is composed
+ * at the stop from trap_saved_info, which is the field that preserves it and
+ * carries the PFZ2 default; the comment at that site has said so since
+ * 30-SEP-2026 and it was right.
+ *
+ * It returns 0 - declines to park the CPU here. The reference parks from inside
+ * this callback, but on this lane the stop fields, the context save and the answer
+ * are already sequenced correctly after nd500_cpu_step() returns, and the
+ * page-fault path through them is the one measured serving psn 11 and psn 12.
+ * Rewriting a working sequence to gain nothing is not a port. If a trap is ever
+ * found that must park before the instruction unwinds, this is where to do it and
+ * the return value already says so. */
+static int mfbus_trap_sink(void *ctx, uint16_t trap_number, uint32_t trapping_pc,
+                           uint32_t trap_address)
+{
+    MfbusCpuSlot *slot = (MfbusCpuSlot *)ctx;
+    if (slot == NULL)
+    {
+        return 0;
+    }
+
+    slot->trap_number_at_raise = trap_number;
+    slot->trap_captured = true;
+
+    /* THE TRAP, AS RAISED. The status word is not shown here on purpose - it is
+     * composed at the stop, from the field that preserves it, and printing a
+     * second reading of it here would invite comparing two numbers that are
+     * measured at different moments and mean different things. THA is shown
+     * because THA=0 is what makes "no local handler" a certainty rather than a
+     * lookup that merely missed. */
+    LOG(LOG_CAT_MMS, LOG_INFO,
+        "MFbus: %s trap %oB raised at P=0x%08X addr=0x%08X (no local handler; "
+        "THA=0x%08X)\n",
+        slot->name, (unsigned)trap_number, (unsigned)trapping_pc,
+        (unsigned)trap_address, (unsigned)slot->cpu.THA);
+
+    return 0;  /* the stop path below reports it - see the comment above */
+}
 
 static bool mfbus_cpu_step(void *ctx)
 {
@@ -342,7 +417,21 @@ static bool mfbus_cpu_step(void *ctx)
             nd500_stop_reason_str(why), (unsigned)slot->machine.stop_addr,
             (unsigned)slot->machine.stop_data, (unsigned)slot->cpu.mmu_pgf_psn);
     }
-    if (why != STOP_TRAP_PAGE_FAULT && why != STOP_TRAP_PROTECTION_VIOLATION)
+    /* WHICH STOPS CAN BE REPORTED. Until 04-OCT-2026 this tested for exactly two
+     * StopReason values - page fault and protect violation - and every other trap
+     * fell through to the silent return below. That was not a port of anything: the
+     * reference has a GENERIC seam (ITrapSink.OnUnhandledTrap, any trap by number)
+     * and the two cases here were the only ones this bring-up had ever produced, so
+     * nothing failed and nothing flagged the gap.
+     *
+     * MEASURED 04-OCT-2026: the swapper took a stack overflow (33B) and this
+     * returned false without telling SINTRAN anything, so SINTRAN polled 3RMICV
+     * until it timed out. Ronny saw a monitor that printed nothing and had to be
+     * stopped with ESC.
+     *
+     * The gate is now "did the sink capture a trap number", which is true for every
+     * trap no local handler took, whatever it was. */
+    if (!slot->trap_captured)
     {
         /* NOT RETRYABLE - AND SAY SO. A silent stop here is indistinguishable from
          * a parked process from the outside: SINTRAN keeps polling 3RMICV, the
@@ -373,9 +462,12 @@ static bool mfbus_cpu_step(void *ctx)
     }
     NdbusNd5000 *nd = &s_nd5000[nd_index];
 
-    /* The trap number SINTRAN expects: 46B for a page fault, 44B for a protect
-     * violation. ND trap numbering, so octal. */
-    uint16_t trap_number = (why == STOP_TRAP_PAGE_FAULT) ? NDBUS_TRAP_PAGE_FAULT : 0x24u;
+    /* The trap number SINTRAN expects, taken from the sink rather than reconstructed
+     * from StopReason - which cannot name it (nd500x cpu.c trap_to_stop_reason
+     * collapses 64 conditions and gives DT and DE no value at all). ND trap
+     * numbering throughout, so octal: page fault 46B, protect violation 44B, stack
+     * overflow 33B. */
+    uint16_t trap_number = slot->trap_number_at_raise;
 
     /* The composed MMS status word. Bits 31-29 carry the access class - 100 read,
      * 101 write - and the low byte carries the fault-location nibble plus the
@@ -388,6 +480,19 @@ static bool mfbus_cpu_step(void *ctx)
      * address, a correct physical segment and MEMORY MANAGEMENT STATUS
      * 20000000000B - the access class alone, with no fault location - and SINTRAN
      * answered "The Swapper stopped / Fatal intern" rather than paging the page in.
+     * trap_saved_info also carries the PFZ2 default for a page fault whose walk
+     * recorded nothing, which is the right value rather than a zero. */
+    /* The composed MMS status word. Bits 31-29 carry the access class - 100 read,
+     * 101 write - and the low byte carries the fault-location nibble plus the
+     * instruction-side bit the walk latched.
+     *
+     * READ trap_saved_info, NOT mmu_pgf_where. raise_trap() copies the walk's
+     * fault-location code into trap_saved_info and then CLEARS mmu_pgf_where
+     * (nd500x cpu.c:1340), so the live field is zero by the time anything outside
+     * the walk looks at it - including the trap sink, which sits AFTER that clear
+     * and not before it. Measured both ways: composed from trap_saved_info the
+     * report carries a real fault location, composed from the live field it
+     * carries 0x00000000 and SINTRAN answers "NOT KNOWN TRAP".
      * trap_saved_info also carries the PFZ2 default for a page fault whose walk
      * recorded nothing, which is the right value rather than a zero. */
     uint32_t mms = (slot->cpu.mmu_pgf_is_write ? 0xA0000000u : 0x80000000u)
@@ -449,13 +554,20 @@ static bool mfbus_cpu_step(void *ctx)
      * delivered to anything, and discarding the trap there would lose the fault. */
     nd500_trap_clear();
 
+    /* AND CONSUME THE CAPTURE. trap_captured is the gate above, so a stale one
+     * would let the next stop for any reason at all re-report this same trap
+     * number and status word. Cleared only here, on the path where the report
+     * succeeded - the same rule nd500_trap_clear() above follows. */
+    slot->trap_captured = false;
+
     slot->parked_faults++;
     slot->parked = true;
     LOG(LOG_CAT_MMS, LOG_INFO,
         "MFbus: %s parked on trap %oB at P=0x%X fault=0x%X psn=%u mms=0x%08X - reported to "
         "SINTRAN\n",
         slot->name, (unsigned)trap_number, (unsigned)restart_p,
-        (unsigned)slot->machine.stop_data, (unsigned)slot->cpu.mmu_pgf_psn, (unsigned)mms);
+        (unsigned)slot->machine.stop_data, (unsigned)slot->cpu.mmu_pgf_psn,
+        (unsigned)mms);
 
     /* WHICH REGISTER PRODUCED THE FAULTING ADDRESS. The trap says where the access
      * went; it does not say what computed it. Without this a fault address can only
@@ -2025,6 +2137,17 @@ bool mfbus_attach_cpu(uint8_t station_number)
         printf("[MFBUS] ND-100 operand mapping REFUSED: servicer reported %u bytes per "
                "unit (expected 1 or 2); RIOM would read the wrong memory\n",
                (unsigned)ndbus_servicer_nd100_bytes_per_unit());
+    }
+
+    /* INSTALL THE TRAP-STOP SEAM. Without it the CPU keeps its free-running
+     * behaviour, which is to halt on a trap no local handler took - correct for a
+     * machine with nobody to report to, and wrong here, because on this lane
+     * SINTRAN IS the trap handler and is reached through the message the sink's
+     * data lets us fill in. See mfbus_trap_sink. */
+    if (nd500_cpu_set_trap_sink(&c->cpu, mfbus_trap_sink, c) != 0)
+    {
+        printf("[MFBUS] trap sink REFUSED - traps would halt this CPU instead of "
+               "being reported to SINTRAN\n");
     }
 
     /* -1, NOT 0: process 0 is a real X5CPU, so a zero here would name it as loaded
