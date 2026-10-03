@@ -912,7 +912,6 @@ static bool mfbus_resume_runner(MfbusCpuSlot *c, uint8_t station_number)
 static bool mfbus_start_process(void *ctx, uint32_t msg_byte, uint16_t micfu, uint32_t ctx_byte)
 {
     NdbusNd5000 *nd = (NdbusNd5000 *)ctx;
-    (void)msg_byte;
 
     int slot = mfbus_slot_of(nd->station.number);
     if (slot < 0 || !s_cpus[slot].present)
@@ -952,8 +951,9 @@ static bool mfbus_start_process(void *ctx, uint32_t msg_byte, uint16_t micfu, ui
      * ND-500 side at all.
      *
      * This arm therefore only unparks for a CONTINUE, and lets the CPU carry on. */
+    const int msg_x5cpu = ndbus_servicer_read_message_x5cpu(&nd->servicer, msg_byte);
     if (ndbus_micfu_is_continue(micfu) && c->parked && c->loaded_x5cpu >= 0
-        && c->loaded_x5cpu == ndbus_cpu_context_x5cpu(nd->station.number))
+        && c->loaded_x5cpu == msg_x5cpu)
     {
         c->parked = false;
         c->stop_reported = false;
@@ -1109,7 +1109,27 @@ static bool mfbus_start_process(void *ctx, uint32_t msg_byte, uint16_t micfu, ui
      * same thing from the area base and X5CPU. Derive the area back out of the
      * block so the one formula in ndbus_context.c stays the only one, rather than
      * repeating it here where it could drift. */
-    int x5cpu = ndbus_cpu_context_x5cpu(nd->station.number);
+    /* X5CPU IS THE PROCESS, NOT THE STATION.
+     *
+     * ndbus_cpu_context_x5cpu() is derived from the STATION NUMBER - 070B gives 0 -
+     * so on a single ND-5000 it answers 0 for every process. X5CPU in a message is
+     * the process number: 0 the swapper, 1 the first domain, both live at once from
+     * PLACE-DOMAIN onward with a message block each.
+     *
+     * MEASURED on the octobus. With the station index used here, the domain's start
+     * recorded loaded_x5cpu = 0, so its page fault was written onto the SWAPPER's
+     * message 0x8D30 instead of the domain's 0x8E30. SINTRAN's TRAPDECODER
+     * (MP-P2-N500.NPL:135332) compares the faulting message against the swapper's
+     * own and, when they match, takes EPFINSWAP / XRSTARTALL - "page fault in
+     * swapper", fatal. The console printed "*** FATAL SYSTEM ERROR *** / The
+     * Swapper stopped" with a page-fault record that was otherwise completely
+     * correct, which is precisely what its own code does with what we told it.
+     *
+     * The context block came out right either way only because the two errors
+     * cancelled in the area arithmetic below: block_offset shrank by one stride and
+     * area_byte grew by one, so the same block was attached. The recorded process
+     * number did not cancel, and that is what the trap is reported on. */
+    int x5cpu = (msg_x5cpu >= 0) ? msg_x5cpu : ndbus_cpu_context_x5cpu(nd->station.number);
     uint32_t stride = NDBUS_CTX_STRIDE_BYTES;
     uint32_t block_offset = stride + ((uint32_t)x5cpu * stride);
     if (ctx_byte < block_offset)
