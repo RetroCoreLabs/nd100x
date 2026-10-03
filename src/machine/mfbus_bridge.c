@@ -1068,6 +1068,48 @@ static int mfbus_mon_call(void *ctx, uint32_t mon_number, uint32_t arg_count,
         }
     }
 
+    /* SNAPSHOT THE POOL AT A CHOSEN MONITOR CALL, so the state can be examined
+     * again without another boot.
+     *
+     * MFBUS_SNAPSHOT_PATH names the file and MFBUS_SNAPSHOT_AT_MON the monitor
+     * call to take it at, counted per CPU. Everything this lane argues about -
+     * the mailbox, the message blocks, the segment descriptors, the page tables -
+     * is in the pool, so one capture answers the questions that otherwise cost
+     * eight minutes each. Taken once, and it says so, because a snapshot that
+     * silently did not happen is the same trap as a silent diagnostic.
+     *
+     * Load it with ndbus_pool_snapshot_load(); a snapshot from a differently
+     * sized pool is refused rather than misread. */
+    {
+        static int snap_at = -1;
+        static const char *snap_path = NULL;
+        static int snap_done = 0;
+        if (snap_at == -1)
+        {
+            const char *e = getenv("MFBUS_SNAPSHOT_AT_MON");
+            snap_at = (e != NULL && e[0] != '\0') ? (int)strtol(e, NULL, 0) : 0;
+            snap_path = getenv("MFBUS_SNAPSHOT_PATH");
+        }
+        if (!snap_done && snap_at > 0 && snap_path != NULL && snap_path[0] != '\0'
+            && (long)c->mon_calls >= (long)snap_at)
+        {
+            snap_done = 1;
+            if (ndbus_pool_snapshot_save(&s_pool, snap_path))
+            {
+                LOG(LOG_CAT_MMS, LOG_INFO,
+                    "MFbus: %s pool snapshot written to %s at monitor call %lu "
+                    "(MON %oB)\n",
+                    c->name, snap_path, c->mon_calls, (unsigned)mon_number);
+            }
+            else
+            {
+                LOG(LOG_CAT_MMS, LOG_ERROR,
+                    "MFbus: %s pool snapshot to %s FAILED - nothing was written\n",
+                    c->name, snap_path);
+            }
+        }
+    }
+
     /* PARK, AND PARK IN A WAY THE RUNNER ACTUALLY SEES. Returning INDIRECT_HANDLED
      * tells the CPU the call is done and to carry on from the resume address, so
      * the park cannot be expressed by that return value alone; and the runner does
