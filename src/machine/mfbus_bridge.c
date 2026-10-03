@@ -75,6 +75,7 @@
  */
 #include "cpu/cpu_protos.h"
 #include "cpu/nd500_mmu.h"
+#include "cpu/nd500_tlb.h"           /* nd500_mmu_tlb_flush - the dctsb on a context load */
 #include "cpu/instruction_helpers.h"   /* ND500_FLAG_K - the monitor-call error flag */
 #include "machine/machine_protos.h"
 
@@ -136,6 +137,7 @@ typedef struct
     uint32_t      resume_trace_left; /* PCs still to log after a monitor-call resume */
     unsigned long mon_calls;       /* monitor calls handed to SINTRAN */
     unsigned long mon_resumes;     /* in-place resumes of the loaded process */
+    unsigned long steps_since_resume; /* instructions run since the last resume/start */
 
     /* Set when the process has reported a stop and is waiting for SINTRAN. The
      * RUNNER tests this, because machine.run_flag is not what it looks at and a
@@ -231,8 +233,38 @@ static bool mfbus_cpu_step(void *ctx)
     if (slot->resume_trace_left > 0u)
     {
         slot->resume_trace_left--;
-        LOG(LOG_CAT_MMS, LOG_INFO, "MFbus: %s rt P=0x%08X\n",
-            slot->name, (unsigned)slot->cpu.PC);
+        /* THE PHYSICAL ADDRESS AND THE FIRST BYTES, NOT JUST THE PC.
+         *
+         * A run of PCs alone cannot say WHICH program produced them. Measured on
+         * PLACE-DOMAIN CPU-STAT: the domain and the swapper produced the IDENTICAL
+         * sequence 0x04 -> 0x11 -> 0x14 -> 0x16 from completely different code, and
+         * CPU-STAT's own instruction boundaries (read from CPU-STAT.DOM: 0x04, 0x0A,
+         * 0x10, 0x12, 0x18) are none of those. So either the domain fetched the
+         * swapper's bytes, or the PC advance is wrong - and a PC-only trace cannot
+         * tell those apart. The capability table in force decides which, so print
+         * where the fetch actually landed.
+         *
+         * Through the NON-FAULTING peek, the same one the step log uses: a
+         * diagnostic that could raise a page fault would corrupt the run it is
+         * describing. */
+        uint32_t rt_pa = nd500_mmu_peek_space(&slot->cpu, slot->cpu.PC,
+                                              (uint8_t)slot->cpu.CED, 1);
+        unsigned b0 = 0u, b1 = 0u;
+        if (rt_pa != 0xFFFFFFFFu)
+        {
+            b0 = ndbus_pool_read8(&s_pool, rt_pa);
+            b1 = ndbus_pool_read8(&s_pool, rt_pa + 1u);
+        }
+        /* NAME THE PROCESS. A PC and a PS do not say whose stream this is: two
+         * processes share one slot->cpu, and a trace without the process number was
+         * read as the domain's when it was the swapper's - the swapper's entry
+         * 0x04 -> 0x11 -> 0x14 -> 0x16 is its own correct stream (a 13-byte init,
+         * then move, stz, comp2) and was mistaken for a broken 6-byte call. */
+        LOG(LOG_CAT_MMS, LOG_INFO,
+            "MFbus: %s rt x5=%d P=0x%08X pa=0x%08X %02X %02X CED=%u PS=0x%X DIT=0x%X\n",
+            slot->name, slot->loaded_x5cpu, (unsigned)slot->cpu.PC, (unsigned)rt_pa,
+            b0, b1, (unsigned)slot->cpu.CED, (unsigned)slot->cpu.PS,
+            (unsigned)slot->cpu.DITBASE);
     }
 
     if (slot->steps_logged < MFBUS_STEP_LOG_LIMIT)
@@ -288,6 +320,7 @@ static bool mfbus_cpu_step(void *ctx)
 
     if (nd500_cpu_step(&slot->cpu))
     {
+        slot->steps_since_resume++;
         return true;
     }
 
@@ -932,8 +965,33 @@ static int mfbus_mon_call(void *ctx, uint32_t mon_number, uint32_t arg_count,
     if (c->mon_calls <= MFBUS_MON_LOG_LIMIT)
     {
         LOG(LOG_CAT_MMS, LOG_INFO,
-            "MFbus: %s monitor call MON %oB argc=%u resume=0x%X - reported to SINTRAN\n",
-            c->name, (unsigned)mon_number, (unsigned)count, (unsigned)resume);
+            "MFbus: %s monitor call MON %oB argc=%u resume=0x%X after %lu instruction(s) - "
+            "reported to SINTRAN\n",
+            c->name, (unsigned)mon_number, (unsigned)count, (unsigned)resume,
+            c->steps_since_resume);
+    }
+
+    /* WHAT THE SWAPPER ACTUALLY ASKED FOR.
+     *
+     * SWPFU and its arguments are the swapper's request; argc alone says nothing
+     * about which page of which segment it wants. SINTRAN answers a bad request
+     * with one of its own MON error codes rather than a transfer - measured,
+     * PLACE-DOMAIN CPU-STAT ends with error 1030 ADDRESS OUTSIDE DATA SEGMENT for
+     * logical address 1 224030B on physical segment 15D - and the only way to tell
+     * a wrong request from a correct request about a wrong address is to read the
+     * arguments. Bounded by the same limit as the rest of the monitor-call log. */
+    if (c->mon_calls <= MFBUS_MON_LOG_LIMIT)
+    {
+        char line[200];
+        int n = snprintf(line, sizeof line, "MON %oB args:", (unsigned)mon_number);
+        for (uint32_t k = 0; k < count && n > 0 && (size_t)n < sizeof line; k++)
+        {
+            n += snprintf(line + n, sizeof line - (size_t)n, " [%u]@0x%08X=0x%08X",
+                          (unsigned)k,
+                          (unsigned)((arg_addresses != NULL) ? arg_addresses[k] : 0u),
+                          (unsigned)values[k]);
+        }
+        LOG(LOG_CAT_MMS, LOG_INFO, "MFbus: %s   %s\n", c->name, line);
     }
 
     /* PARK, AND PARK IN A WAY THE RUNNER ACTUALLY SEES. Returning INDIRECT_HANDLED
@@ -1238,6 +1296,7 @@ static bool mfbus_start_process(void *ctx, uint32_t msg_byte, uint16_t micfu, ui
         c->parked = false;
         c->stop_reported = false;
         c->mon_resumes++;
+        c->steps_since_resume = 0u;
 
         /* APPLY SINTRAN'S ANSWER BEFORE LETTING THE PROCESS RUN. Three slots of the
          * message carry the answer and two of them meant something else on the way
@@ -1507,6 +1566,7 @@ static bool mfbus_start_process(void *ctx, uint32_t msg_byte, uint16_t micfu, ui
      * that is when this CPU becomes a process belonging to that SINTRAN. */
     c->cpu.mon_call_host = mfbus_mon_call;
     c->cpu.mon_call_host_ctx = c;
+    c->steps_since_resume = 0u;
 
     /* Through the resume helper, because a CPU that stopped earlier has a thread to
      * reap before a new one can be created. */
@@ -1954,6 +2014,29 @@ bool mfbus_load_context(uint8_t station_number)
      * honour a context the hardware ignores, and a bring-up that works here and
      * not on the machine is worse than one that fails in both.
      */
+    /* CLEAR THE TRANSLATION CACHE - the microcode's own dctsb on a context load.
+     *
+     * nd500_tlb_tag() keys on (vpn, CED, is_instruction) and its comment claims a
+     * tag match is therefore exact. That holds only while one capability table is
+     * in force. Two ND-5000 processes both run with CED = 0 and are told apart by
+     * PS and the capability table it selects - 3 / 0x74000 for the swapper, 0xA /
+     * 0x8C000 for a domain - and neither is in the tag, so one process's cached
+     * translation answers the other's fetch.
+     *
+     * MEASURED on PLACE-DOMAIN CPU-STAT, in a single step of the DOMAIN: the
+     * non-faulting peek resolved logical 0x08000004 to pa=0x007FC804 holding the
+     * domain's own bytes C3 08, while the decoder's mmu_read8() of the same address
+     * returned 0xDC - the SWAPPER's byte. The domain therefore decoded the
+     * swapper's 13-byte init instead of its own 6-byte call, ran the swapper's
+     * instruction stream, and referenced a data address outside its own 6696-byte
+     * data segment, which SINTRAN correctly reported as ADDRESS OUTSIDE DATA
+     * SEGMENT.
+     *
+     * The real machine clears the TSB on a process switch - the X5CLR mask is
+     * documented "Clear data tsb+cache+dump+forget process" - so this is a port of
+     * that step, not a workaround for the tag. */
+    nd500_mmu_tlb_flush();
+
     c->cpu.PC = ndbus_context_read(&c->context, NDBUS_CTX_P);
     c->cpu.L = ndbus_context_read(&c->context, NDBUS_CTX_L);
     c->cpu.B = ndbus_context_read(&c->context, NDBUS_CTX_B);
