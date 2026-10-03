@@ -400,6 +400,44 @@ static bool mfbus_cpu_step(void *ctx)
                 (unsigned)slot->cpu.DITBASE, slot->cpu.dit_configured);
         }
 
+        /* THE FIRST 24 PST ENTRIES, RAW, AT PSTP.
+         *
+         * "entry N is zero" only means something if PSTP points at the table
+         * SINTRAN actually writes. The physical segment table lives in memory
+         * owned by the ND-100 and is written with ORDINARY ND-100 STORES through
+         * the shared MPM window - not by a mailbox copy - so a table that reads
+         * all zeros says the stores are not landing where we look, while a table
+         * with some entries set and others clear says the guest genuinely has not
+         * defined those segments. Those are opposite causes and a single entry
+         * cannot tell them apart.
+         *
+         * Ported from RetroCore CpuND500.MMU.cs, which keeps the same dump for the
+         * same reason and records measuring a zero entry at psn=11 here. Entries
+         * are 32-bit on the ND-5000 (MEASURED on SINTRAN III L over the octobus,
+         * the swapper's index page reading 0x000000E9 0x000000EA 0x000000EB); the
+         * halfword form is the older ND500 generation's and must not be used here.
+         */
+        if (slot->cpu.PSTP != 0u)
+        {
+            char line[120];
+            for (uint32_t row = 0; row < 3u; row++)
+            {
+                int n = snprintf(line, sizeof line, "PST[%2u..%2u]@0x%08X:",
+                                 (unsigned)(row * 8u), (unsigned)(row * 8u + 7u),
+                                 (unsigned)(slot->cpu.PSTP + row * 32u));
+                for (uint32_t k = 0; k < 8u && n > 0 && (size_t)n < sizeof line; k++)
+                {
+                    uint32_t pa = slot->cpu.PSTP + (row * 8u + k) * 4u;
+                    uint32_t v = ((uint32_t)ndbus_pool_read8(&s_pool, pa) << 24)
+                               | ((uint32_t)ndbus_pool_read8(&s_pool, pa + 1u) << 16)
+                               | ((uint32_t)ndbus_pool_read8(&s_pool, pa + 2u) << 8)
+                               |  (uint32_t)ndbus_pool_read8(&s_pool, pa + 3u);
+                    n += snprintf(line + n, sizeof line - (size_t)n, " %08X", (unsigned)v);
+                }
+                LOG(LOG_CAT_MMS, LOG_INFO, "MFbus: %s   %s\n", slot->name, line);
+            }
+        }
+
         /* THE PCs THAT LED HERE. A faulting address whose value is wrong needs the
          * loop that computed it, not just the instruction that used it. The CPU keeps
          * a recent-PC ring for exactly this; gated on ND500X_STOPDBG. */
