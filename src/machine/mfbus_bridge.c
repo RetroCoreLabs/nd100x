@@ -76,6 +76,7 @@
 #include "cpu/cpu_protos.h"
 #include "cpu/nd500_mmu.h"
 #include "cpu/nd500_tlb.h"           /* nd500_mmu_tlb_flush - the dctsb on a context load */
+#include "ndlib/nd_diag_budget.h"   /* ND_DIAG_BUDGET - a bounded diagnostic that says when it stops */
 #include "cpu/instruction_helpers.h"   /* ND500_FLAG_K - the monitor-call error flag */
 #include "machine/machine_protos.h"
 
@@ -701,17 +702,25 @@ static uint16_t mfbus_bank_read(void *ctx, uint32_t word_offset)
 static void mfbus_bank_write_watch(uint32_t word_offset, uint16_t value, WriteMode wm)
 {
     static long watch_word = -2;
-    static unsigned hits = 0;
+    ND_DIAG_BUDGET(bankw, 40);
     if (watch_word == -2)
     {
         const char *e = getenv("MFBUS_WWATCH_BYTE");
         watch_word = (e != NULL && e[0] != '\0') ? (long)(strtoul(e, NULL, 0) / 2u) : -1;
     }
-    if (watch_word < 0 || (long)word_offset != watch_word || hits >= 40u)
+    if (watch_word < 0 || (long)word_offset != watch_word)
     {
         return;
     }
-    hits++;
+    /* THE BUDGET IS SPENT ONLY BY MATCHING WRITES - the address filter runs
+     * first - and it announces itself when it runs out. A watch that goes quiet
+     * is indistinguishable from a cell nothing writes, and that silence has been
+     * read as a finding before. See docs/INVESTIGATION-TRAPS.md section 2 in the
+     * nd500x checkout. */
+    if (!ND_DIAG_TAKE(bankw))
+    {
+        return;
+    }
     LOG(LOG_CAT_MMS, LOG_INFO,
         "MFbus: ND-100 writes pool word 0x%06X (byte 0x%06X) = 0x%04X mode=%d\n",
         (unsigned)word_offset, (unsigned)(word_offset * 2u), (unsigned)value, (int)wm);
