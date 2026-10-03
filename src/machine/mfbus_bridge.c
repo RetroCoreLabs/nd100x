@@ -260,12 +260,48 @@ static bool mfbus_cpu_step(void *ctx)
             (unsigned)slot->cpu.L, (unsigned)slot->cpu.R, (unsigned)code_pa, bytes);
     }
 
+    /* THE STOP REASON MUST DESCRIBE THIS STEP AND NO EARLIER ONE.
+     *
+     * Nothing else clears it, so after any stop the field keeps its value for the
+     * rest of the run and every later false return reads it again - together with
+     * the stale stop_data, P1 and mmu_pgf_psn that went with it.
+     *
+     * MEASURED on PLACE-DOMAIN CPU-STAT. The domain faulted at P=0x08000016 on data
+     * 0x08012818, that fault was correctly reported on the domain's message, and
+     * the context switch then put the swapper back on the CPU at P=0x08008255. The
+     * very next step returned false, the park path re-read the domain's fault and
+     * posted it A SECOND TIME - this time with loaded_x5cpu = 0, so it landed on
+     * the SWAPPER's message 0x8D30. SINTRAN's TRAPDECODER
+     * (MP-P2-N500.NPL:135370) treats a page fault on the swapper's own message as
+     * EPFINSWAP and calls XRSTARTALL: "*** FATAL SYSTEM ERROR *** / The Swapper
+     * stopped", over a fault the swapper never took.
+     *
+     * Cleared BEFORE the step, so a false return carrying STOP_NONE says "this step
+     * stopped and recorded no reason" instead of silently inheriting one. */
+    slot->machine.stop_reason = STOP_NONE;
+
+    /* THE PC THE STEP STARTED AT. A trap latches P1 from cur_instr_pc, which is set
+     * at the top of every step, so "P1 names an instruction this step never began
+     * at" is the signature of a trap that was already pending when the step was
+     * entered - told apart from a real fault only by comparing the two. */
+    uint32_t pc_at_entry = slot->cpu.PC;
+
     if (nd500_cpu_step(&slot->cpu))
     {
         return true;
     }
 
     StopReason why = slot->machine.stop_reason;
+    if (slot->parked_faults < MFBUS_STEP_LOG_LIMIT)
+    {
+        LOG(LOG_CAT_MMS, LOG_INFO,
+            "MFbus: %s step stopped: entry P=0x%08X now P=0x%08X P1=0x%08X cur=0x%08X "
+            "reason=%s stop_addr=0x%08X stop_data=0x%08X psn=%u\n",
+            slot->name, (unsigned)pc_at_entry, (unsigned)slot->cpu.PC,
+            (unsigned)slot->cpu.P1, (unsigned)slot->cpu.cur_instr_pc,
+            nd500_stop_reason_str(why), (unsigned)slot->machine.stop_addr,
+            (unsigned)slot->machine.stop_data, (unsigned)slot->cpu.mmu_pgf_psn);
+    }
     if (why != STOP_TRAP_PAGE_FAULT && why != STOP_TRAP_PROTECTION_VIOLATION)
     {
         /* NOT RETRYABLE - AND SAY SO. A silent stop here is indistinguishable from
@@ -348,6 +384,30 @@ static bool mfbus_cpu_step(void *ctx)
          * stays parked and SINTRAN will time out, which is the honest outcome. */
         return false;
     }
+
+    /* THE TRAP HAS NOW BEEN DELIVERED, SO CONSUME IT.
+     *
+     * raise_trap() sets the trap state AND the machine's stop fields for a
+     * non-ignorable trap with no handler installed, and only the top-of-step check
+     * in nd500_cpu_step() clears the state. On an ND-5000 process there IS no
+     * in-CPU handler - SINTRAN is the handler, reached through the message just
+     * answered - so without this the same fault is delivered twice: once here from
+     * the stop fields, and again on the next step when that check converts the
+     * still-pending state into a second stop.
+     *
+     * MEASURED on PLACE-DOMAIN CPU-STAT. The domain's data fault at P=0x08000016
+     * was reported on the domain's message, the context switch put the swapper back
+     * at P=0x08008255, and its very first step stopped with entry P=0x08008255 and
+     * cur_instr_pc=0x08008255 but P1, stop_addr and stop_data all still naming
+     * 0x08000016 - the step had begun and raised nothing. That second report
+     * carried loaded_x5cpu = 0, so it landed on the SWAPPER's message 0x8D30, and
+     * SINTRAN's TRAPDECODER (MP-P2-N500.NPL:135370) read a page fault on the
+     * swapper's own message as EPFINSWAP and called XRSTARTALL: "*** FATAL SYSTEM
+     * ERROR *** / The Swapper stopped", over a fault the swapper never took.
+     *
+     * Only on the path where the report SUCCEEDED. A declined report has not been
+     * delivered to anything, and discarding the trap there would lose the fault. */
+    nd500_trap_clear();
 
     slot->parked_faults++;
     slot->parked = true;
