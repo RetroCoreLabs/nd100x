@@ -192,6 +192,10 @@ static MfbusCpuSlot s_cpus[MFBUS_MAX_ND5000];
  * mean "this instruction did not complete", so the process must resume ON it. PC
  * normally runs ahead of P1 by the time the trap is taken.
  */
+/* Defined below, next to the context switch it mirrors; both park sites above
+ * need it, so it is declared here rather than moved away from its pair. */
+static bool mfbus_save_context(MfbusCpuSlot *c);
+
 static bool mfbus_cpu_step(void *ctx)
 {
     MfbusCpuSlot *slot = (MfbusCpuSlot *)ctx;
@@ -321,11 +325,20 @@ static bool mfbus_cpu_step(void *ctx)
      * and never reads the context block back. P must therefore already hold the
      * restart address at the moment of the park.
      *
-     * WRITING THE BLOCK BACK TOO IS NOT DONE HERE, and that is a known gap rather
-     * than an oversight - the reference names it as its own outstanding item. It
-     * only matters once a DIFFERENT process is loaded in between, because that is
-     * the only case where the block is read again. */
+     * THE BLOCK IS WRITTEN BACK TOO, now that it matters. This was a stated gap -
+     * "it only matters once a DIFFERENT process is loaded in between, because that
+     * is the only case where the block is read again" - and PLACE-DOMAIN is that
+     * case: the domain parks here and SINTRAN then runs the SWAPPER, so the next
+     * read of this block is a context switch back to the domain. The restart P is
+     * already in PC above, so the saved block restarts the faulting instruction. */
     slot->cpu.PC = restart_p;
+    if (!mfbus_save_context(slot))
+    {
+        LOG(LOG_CAT_MMS, LOG_WARN,
+            "MFbus: %s trap park could not save the context block - a switch back to this "
+            "process would resume it from a stale P\n",
+            slot->name);
+    }
 
     if (!ndbus_servicer_answer_trap_stop(&nd->servicer, (uint16_t)slot->loaded_x5cpu, trap_number,
                                         restart_p, slot->machine.stop_data, mms,
@@ -869,6 +882,27 @@ static int mfbus_mon_call(void *ctx, uint32_t mon_number, uint32_t arg_count,
      * not test machine.run_flag. The flag below is what stops it. */
     c->cpu.PC = resume;
     c->parked = true;
+
+    /* SAVE THE BLOCK ON THE WAY OUT - CNTXTSAVE, which the microcode performs on
+     * the stop and not only on a later switch.
+     *
+     * MEASURED on PLACE-DOMAIN CPU-STAT. Without this the swapper parked here at
+     * P=0x08008255 and its context block kept its ENTRY POINT 0x08000004. When the
+     * domain later faulted and SINTRAN answered with a 3MONCO for the swapper, the
+     * context switch loaded that stale block and the swapper restarted at its entry
+     * point, re-ran its initialisation and lost the page-fault work order. The
+     * switch itself was correct; the block it read was a version of the swapper
+     * from before its first monitor call.
+     *
+     * c->context is attached to the loaded process's own block, by the start path
+     * or by the switch, so this writes the right one. */
+    if (!mfbus_save_context(c))
+    {
+        LOG(LOG_CAT_MMS, LOG_WARN,
+            "MFbus: %s monitor-call park could not save the context block - a later switch "
+            "back to this process would resume it from a stale P\n",
+            c->name);
+    }
     if (out_resolved != NULL)
     {
         *out_resolved = resume;
@@ -907,6 +941,177 @@ static bool mfbus_resume_runner(MfbusCpuSlot *c, uint8_t station_number)
     }
 
     return mfbus_start_nd5000(station_number);
+}
+
+/*
+ * CNTXTSAVE - write the live registers back into the attached context block.
+ *
+ * The exact mirror of mfbus_load_context(): the same fields, in the same order.
+ * Any field the load does NOT read must not be written either, because the
+ * block's domain registers (TOS, LL, HL, THA, CES, CAS and the trap enables)
+ * come from the Domain Information Table and the microcode never copies them -
+ * ndbus_context_field_is_loaded() is the single statement of that list.
+ *
+ * Until this existed the save side was a stated gap, and the trap park said so:
+ * "WRITING THE BLOCK BACK TOO IS NOT DONE HERE ... It only matters once a
+ * DIFFERENT process is loaded in between, because that is the only case where
+ * the block is read again." PLACE-DOMAIN is that case.
+ */
+static bool mfbus_save_context(MfbusCpuSlot *c)
+{
+    if (!c->context_set)
+    {
+        return false;
+    }
+
+    bool ok = true;
+    ok = ndbus_context_write(&c->context, NDBUS_CTX_P, c->cpu.PC) && ok;
+    ok = ndbus_context_write(&c->context, NDBUS_CTX_L, c->cpu.L) && ok;
+    ok = ndbus_context_write(&c->context, NDBUS_CTX_B, c->cpu.B) && ok;
+    ok = ndbus_context_write(&c->context, NDBUS_CTX_R, c->cpu.R) && ok;
+
+    for (int i = 0; i < 4; i++)
+    {
+        ok = ndbus_context_write(&c->context, NDBUS_CTX_I1 + (uint32_t)i * 4u,
+                                 c->cpu.I[i]) && ok;
+        ok = ndbus_context_write(&c->context, NDBUS_CTX_A1 + (uint32_t)i * 4u,
+                                 c->cpu.A[i]) && ok;
+        ok = ndbus_context_write(&c->context, NDBUS_CTX_E1 + (uint32_t)i * 4u,
+                                 c->cpu.E[i]) && ok;
+    }
+
+    ok = ndbus_context_write(&c->context, NDBUS_CTX_CED, c->cpu.CED) && ok;
+    ok = ndbus_context_write(&c->context, NDBUS_CTX_CAD, c->cpu.CAD) && ok;
+
+    /* PS lives in the LOW HALFWORD of block register 18, which this repo names
+     * SRF13; the load masks it with 0x1FFF. The rest of that word belongs to the
+     * block, so it is read back and only the low half replaced - writing PS alone
+     * would zero whatever else SRF13 carries. */
+    uint32_t srf13 = ndbus_context_read(&c->context, NDBUS_CTX_SRF13);
+    srf13 = (srf13 & 0xFFFF0000u) | (c->cpu.PS & 0x1FFFu);
+    ok = ndbus_context_write(&c->context, NDBUS_CTX_SRF13, srf13) && ok;
+
+    return ok;
+}
+
+/*
+ * THE CONTEXT SWITCH - microcode 011473B, on the prologue that 3START, 3TRACO,
+ * 3MONCO and 3WMONCO all enter (010207B/010210B):
+ *
+ *   011473  is AM#10 == AM#22 ?    loaded process vs wanted process
+ *   011474  if same -> POPRET      save AND load both skipped
+ *           else CALL 010330B      SAVE  to AM#10 << 8
+ *   011477  CALL 010337B           LOAD from AM#22 << 8
+ *   011500  AM#10 := AM#22
+ *
+ * So a monitor-call restart naming a DIFFERENT process switches context exactly
+ * as a start does.
+ *
+ * MEASURED on PLACE-DOMAIN CPU-STAT, and the reference records the same run: the
+ * domain page-faults at its entry and parks, SINTRAN answers with a 3MONCO for
+ * the SWAPPER, and without the switch that restart ran whichever registers
+ * happened to be loaded - the swapper's block was reloaded from its ENTRY POINT
+ * 0x08000004 instead of resuming at its monitor-call return 0x08008255, so it
+ * re-ran its initialisation, lost the page-fault work order and asked the
+ * identical MON 377B again.
+ *
+ * Returns false when the wanted process has no usable context block, so the
+ * caller can decline rather than resume something arbitrary.
+ */
+static bool mfbus_switch_to_process(NdbusNd5000 *nd, MfbusCpuSlot *c, int wanted_x5cpu)
+{
+    if (wanted_x5cpu < 0)
+    {
+        return false;
+    }
+    if (c->loaded_x5cpu == wanted_x5cpu)
+    {
+        return true;   /* 011474B true side: nothing to do */
+    }
+
+    int x5 = ndbus_cpu_context_x5cpu(nd->station.number);
+
+    if (c->loaded_x5cpu >= 0)
+    {
+        uint32_t loaded_byte =
+            ndbus_servicer_process_context_byte(&nd->servicer, (uint16_t)c->loaded_x5cpu);
+        if (loaded_byte == 0u
+            || !ndbus_context_attach(&c->context, &s_pool,
+                                     loaded_byte - NDBUS_CTX_STRIDE_BYTES
+                                         - ((uint32_t)x5 * NDBUS_CTX_STRIDE_BYTES),
+                                     x5))
+        {
+            LOG(LOG_CAT_MMS, LOG_ERROR,
+                "MFbus: %s context switch %d -> %d: the loaded process has no block to save "
+                "into\n",
+                c->name, c->loaded_x5cpu, wanted_x5cpu);
+            return false;
+        }
+        c->context_set = true;
+        if (!mfbus_save_context(c))
+        {
+            LOG(LOG_CAT_MMS, LOG_ERROR,
+                "MFbus: %s context switch %d -> %d: the save failed, so the switch is refused "
+                "rather than losing the process\n",
+                c->name, c->loaded_x5cpu, wanted_x5cpu);
+            return false;
+        }
+        LOG(LOG_CAT_MMS, LOG_INFO,
+            "MFbus: %s CONTEXT SAVE X5CPU=%d P=0x%X B=0x%X R=0x%X PS=0x%X\n", c->name,
+            c->loaded_x5cpu, (unsigned)c->cpu.PC, (unsigned)c->cpu.B, (unsigned)c->cpu.R,
+            (unsigned)c->cpu.PS);
+    }
+
+    uint32_t wanted_byte =
+        ndbus_servicer_process_context_byte(&nd->servicer, (uint16_t)wanted_x5cpu);
+    if (wanted_byte == 0u
+        || !ndbus_context_attach(&c->context, &s_pool,
+                                 wanted_byte - NDBUS_CTX_STRIDE_BYTES
+                                     - ((uint32_t)x5 * NDBUS_CTX_STRIDE_BYTES),
+                                 x5))
+    {
+        LOG(LOG_CAT_MMS, LOG_ERROR,
+            "MFbus: %s context switch %d -> %d: the wanted process has no block\n", c->name,
+            c->loaded_x5cpu, wanted_x5cpu);
+        return false;
+    }
+    c->context_set = true;
+
+    /* A BLOCK WHOSE P IS ZERO IS NOT A PROCESS - the same refusal the start path
+     * makes, for the same reason: resuming at address 0 would fault somewhere
+     * unrelated and read as a different bug. */
+    if (ndbus_context_read(&c->context, NDBUS_CTX_P) == 0u)
+    {
+        LOG(LOG_CAT_MMS, LOG_WARN,
+            "MFbus: %s context switch %d -> %d refused - the wanted block has P = 0\n",
+            c->name, c->loaded_x5cpu, wanted_x5cpu);
+        return false;
+    }
+
+    /* The load needs the runner at IDLE - a thread already reaped, so the pool it
+     * was reading outlives it. A switch only ever happens for a process that is
+     * PARKED, so its thread has already returned and sits at STOPPED; the caller's
+     * guard is what guarantees that. A process genuinely executing instructions
+     * cannot have its registers swapped from this thread at all, which is why the
+     * reference refuses that case outright rather than trying. */
+    if (ndbus_runner_state(&c->runner) != NDBUS_RUNNER_IDLE)
+    {
+        ndbus_runner_stop_and_join(&c->runner);
+    }
+
+    if (!mfbus_load_context(nd->station.number))
+    {
+        return false;
+    }
+    mfbus_declare_capability_table(c);
+
+    LOG(LOG_CAT_MMS, LOG_INFO,
+        "MFbus: %s CONTEXT SWITCH X5CPU=%d -> %d (P=0x%X PS=0x%X CED=0x%X B=0x%X R=0x%X)\n",
+        c->name, c->loaded_x5cpu, wanted_x5cpu, (unsigned)c->cpu.PC, (unsigned)c->cpu.PS,
+        (unsigned)c->cpu.CED, (unsigned)c->cpu.B, (unsigned)c->cpu.R);
+
+    c->loaded_x5cpu = wanted_x5cpu;
+    return true;
 }
 
 static bool mfbus_start_process(void *ctx, uint32_t msg_byte, uint16_t micfu, uint32_t ctx_byte)
@@ -952,8 +1157,23 @@ static bool mfbus_start_process(void *ctx, uint32_t msg_byte, uint16_t micfu, ui
      *
      * This arm therefore only unparks for a CONTINUE, and lets the CPU carry on. */
     const int msg_x5cpu = ndbus_servicer_read_message_x5cpu(&nd->servicer, msg_byte);
-    if (ndbus_micfu_is_continue(micfu) && c->parked && c->loaded_x5cpu >= 0
-        && c->loaded_x5cpu == msg_x5cpu)
+
+    /* A CONTINUE NAMING A DIFFERENT PROCESS SWITCHES CONTEXT AND THEN RESUMES.
+     *
+     * The three ways this arm is reachable are the reference's own, in its order:
+     * nothing is loaded, the message names the process that IS loaded, or a switch
+     * to the named process succeeds. Declining instead is as wrong as resuming the
+     * wrong process - the start path below would reload from whatever block the
+     * LAST start used, which is not this message's process.
+     *
+     * MEASURED on PLACE-DOMAIN CPU-STAT: the domain faults and parks, SINTRAN sends
+     * a 3MONCO naming the SWAPPER, and with no switch the comparison failed and the
+     * start path reloaded the swapper from its ENTRY POINT - so it re-ran its
+     * initialisation, lost the page-fault work order and asked the identical
+     * MON 377B again while the domain stayed parked forever. */
+    if (ndbus_micfu_is_continue(micfu) && c->parked
+        && (c->loaded_x5cpu < 0 || c->loaded_x5cpu == msg_x5cpu
+            || mfbus_switch_to_process(nd, c, msg_x5cpu)))
     {
         c->parked = false;
         c->stop_reported = false;
