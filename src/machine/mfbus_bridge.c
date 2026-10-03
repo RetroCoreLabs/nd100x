@@ -1349,12 +1349,14 @@ static bool mfbus_card_transmit(void *ctx, Device *card, uint16_t frame)
     {
         if (!octobus_rx_push(card, replies[i]))
         {
-            /* The 16-word FIFO is full and the rest of the reply is DROPPED,
-             * exactly as the card drops it. Said out loud because a truncated
-             * multibyte reply is a different message, and the guest will read it
-             * as one. */
-            LOG(LOG_CAT_MMS, LOG_WARN,
-                "MFbus: octobus card receive FIFO full - %d reply frame(s) dropped\n", n - i);
+            /* A full 16-word FIFO no longer loses anything - the card parks the
+             * frame and the guest's next read pulls it in, which is the sender's
+             * hardware retry after Ack=10. Getting here means even the park is
+             * full, so the rest of the reply really is DROPPED and the guest
+             * will read a different message than the one that was sent. Said out
+             * loud, because that is a defect and not a quiet condition. */
+            LOG(LOG_CAT_MMS, LOG_ERROR,
+                "MFbus: octobus busy-retry park full - %d reply frame(s) dropped\n", n - i);
             break;
         }
     }

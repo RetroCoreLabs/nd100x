@@ -258,9 +258,17 @@ int main(void)
     CHECK(octobus_in_status(card).bits.dataAvailable,
           "TPE 3: a full FIFO reports data available");
 
-    /* A word written to a full FIFO is DROPPED, as the hardware drops it. */
-    CHECK(!octobus_rx_push(card, 0xFFFF), "TPE 3: a word past 16 is refused");
-    CHECK(octobus_rx_count(card) == OCTOBUS_RX_FIFO_WORDS, "TPE 3: and does not grow the FIFO");
+    /* A word the GUEST ITSELF writes into its own full FIFO is dropped: there is
+     * no sender to retry it, and this is the path TPE's test 3 fills through.
+     * A frame arriving over the BUS is a different case and is parked for retry
+     * instead - checked at the end of this file. Keeping the two apart is the
+     * point: before the retry model, a bus arrival was dropped here too, and
+     * every multibyte reply over 16 frames came out truncated. */
+    card->Write(card, 0100401, 0xFFFF);
+    CHECK(octobus_rx_count(card) == OCTOBUS_RX_FIFO_WORDS,
+          "TPE 3: a guest write past 16 does not grow the FIFO");
+    CHECK(!octobus_in_status(card).bits.fifoNotFull,
+          "TPE 3: which still reports itself full");
 
     /* ---- TPE test 2: Check data transmission ---------------------------
      * Standalone, this is the loopback: what went in comes back out, in
@@ -574,6 +582,86 @@ int main(void)
     card->Write(card, 0100405, (uint16_t)(0x8000u | (56u << 8u)));
     CHECK(bus.sent == sent_before, "a detached card transmits nothing onto the bus");
     CHECK(octobus_rx_count(card) == 1, "and loops the frame back to its own input instead");
+
+    /* ---------------------------------------------------------------------
+     * A REPLY LONGER THAN THE 16-WORD FIFO ARRIVES WHOLE, AND IN ORDER.
+     *
+     * On the real bus a receiver whose FIFO is full answers Ack=10 (destination
+     * busy) and the SENDER retries, so nothing is lost. Before this was modelled
+     * the card dropped the excess: the ND-500 monitor's RECO (020B) asks for 16
+     * words, a 36-frame reply, read a mutilated message, answered with an
+     * emergency 244B TERMINATE ACCP and printed "ECO not available".
+     *
+     * Push 36 distinguishable frames the way the fabric does - all at once, with
+     * no read in between - then drain and check every one came back, once, in
+     * the order it was sent.
+     * ------------------------------------------------------------------- */
+    {
+        Device *rc = octobus_create_device(0);
+        CHECK(rc != NULL, "retry: a card to push a long reply at");
+
+        const int FRAMES = 36;
+        int accepted = 0;
+        for (int i = 0; i < FRAMES; i++)
+        {
+            /* The low byte carries the sequence number, so a reordered or
+             * duplicated frame is visible and not just a count. */
+            if (octobus_rx_push(rc, (uint16_t)(0x8000u | (7u << 8u) | (unsigned)i)))
+            {
+                accepted++;
+            }
+        }
+        CHECK(accepted == FRAMES, "retry: every frame of a 36-frame reply was accepted");
+
+        /* Only 16 are in the FIFO - the card's depth is still 16, and the status
+         * register must say the FIFO is full, not that it has room. */
+        CHECK(octobus_rx_count(rc) == 16, "retry: the FIFO itself still holds exactly 16");
+        CHECK(octobus_in_status(rc).bits.fifoNotFull == 0, "retry: and reports itself full");
+        CHECK(octobus_in_status(rc).bits.dataAvailable == 1, "retry: with data to read");
+
+        /* Drain. Each read frees a slot, which must pull in the next parked
+         * frame, so the guest sees all 36 without the sender doing anything. */
+        int read_count = 0;
+        int order_ok = 1;
+        while (octobus_in_status(rc).bits.dataAvailable)
+        {
+            uint16_t got = rc->Read(rc, 0100400);
+            if ((got & 0xFFu) != (unsigned)read_count)
+            {
+                order_ok = 0;
+            }
+            read_count++;
+            if (read_count > FRAMES + 8)
+            {
+                break; /* never spin if the pump is wrong */
+            }
+        }
+        CHECK(read_count == FRAMES, "retry: all 36 frames were read back, none dropped");
+        CHECK(order_ok == 1, "retry: and in the order they were sent");
+        CHECK(octobus_rx_count(rc) == 0, "retry: with nothing left parked or queued");
+
+        /* DEVICE CLEAR (20B to the input control register) abandons the
+         * transfer, so the parked frames go with it rather than surfacing in the
+         * middle of the next reply. */
+        for (int i = 0; i < FRAMES; i++)
+        {
+            (void)octobus_rx_push(rc, (uint16_t)(0x8000u | (7u << 8u) | (unsigned)i));
+        }
+        CHECK(octobus_rx_count(rc) == 16, "retry: refilled, 16 in the FIFO");
+        rc->Write(rc, 0100403, 020u);
+        CHECK(octobus_rx_count(rc) == 0, "retry: device clear empties the FIFO");
+        CHECK(octobus_in_status(rc).bits.fifoNotFull == 1,
+              "retry: and a cleared card reports space again");
+        /* The real check: a read after the clear must not resurrect a parked
+         * frame from the abandoned reply. */
+        CHECK(octobus_in_status(rc).bits.dataAvailable == 0,
+              "retry: with no parked frame surviving the clear");
+        (void)rc->Read(rc, 0100400);
+        CHECK(octobus_rx_count(rc) == 0, "retry: and a read after it pulls nothing in");
+
+        dev_destroy(rc);
+        free(rc);
+    }
 
     dev_destroy(card);
     free(card);

@@ -79,6 +79,25 @@
 #define OCTOBUS_RX_FIFO_WORDS 16
 
 /**
+ * Depth of the busy-retry park, in words.
+ *
+ * On the real bus a receiver whose 16-word FIFO is full answers Ack=10
+ * (destination busy) and the SENDER's hardware retries the frame until it is
+ * accepted - nothing is lost. The emulator hands a station's whole reply over
+ * in one call, so the retry is modelled on the receiving side: frames that do
+ * not fit wait here in arrival order and move into the FIFO as the guest drains
+ * it. Without this a multibyte reply longer than 16 frames is TRUNCATED, and
+ * the guest reads a different message than the one that was sent.
+ *
+ * The longest reply either side sends is the ACCP's and the Octobus Test
+ * Protocol's: 255 payload bytes plus the SOMB, source-OMD, count and EOMB
+ * frames, which is what nd500x sizes its own reply buffer to
+ * (NDBUS_MAX_REPLY_FRAMES in src/ndbus/ndbus_octobus.h). One full reply can
+ * therefore always be parked.
+ */
+#define OCTOBUS_BUSY_RETRY_WORDS (4 + 255)
+
+/**
  * The ND-100's own octobus station number. Fixed in the hardware (the T329
  * station table lists the ND-120 CPU at 1B), so it is not configurable - the
  * thumbwheel selects the INTERFACE, not the station.
@@ -263,6 +282,18 @@ typedef struct
     uint16_t rxFifo[OCTOBUS_RX_FIFO_WORDS];
     int rxHead;
     int rxCount;
+
+    // Frames that arrived while the receive FIFO was full, in arrival order.
+    // A ring, drained into rxFifo by octobus_pump_busy_retry() every time the
+    // guest pops a word. See OCTOBUS_BUSY_RETRY_WORDS for why these are parked
+    // instead of dropped.
+    uint16_t busyRetry[OCTOBUS_BUSY_RETRY_WORDS];
+    int busyRetryHead;
+    int busyRetryCount;
+    // How many frames were parked, and how many had to be dropped because even
+    // the park was full. A non-zero drop count means a reply WAS mutilated.
+    unsigned long busyRetryParked;
+    unsigned long busyRetryDropped;
 
     // Interrupt request flip-flops, latched by an EVENT and cleared by IDENT.
     // Separate from the enables in the status registers: the event is what

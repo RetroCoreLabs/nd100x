@@ -132,8 +132,10 @@ static uint16_t octobus_tick(Device *self)
     return self->interruptBits;
 }
 
-// Push one word into the receive FIFO. Returns false when full, which is the
-// card dropping the frame exactly as the hardware does.
+// Push one word into the receive FIFO. Returns false when full. What a caller
+// does with that is the caller's decision: a frame that arrived over the bus is
+// PARKED for retry (octobus_rx_push), while a frame the guest itself wrote into
+// the input data register is simply refused.
 static bool octobus_fifo_push(OctobusData *data, uint16_t word)
 {
     if (data->rxCount >= OCTOBUS_RX_FIFO_WORDS)
@@ -166,6 +168,29 @@ static void octobus_raise_input_event(Device *self, OctobusData *data)
 {
     data->inputIrqPending = true;
     octobus_update_interrupt(self, data);
+}
+
+/*
+ * Move frames parked by the busy-retry model into the receive FIFO while there
+ * is space. Each frame that lands updates the input data register and latches
+ * an input event, exactly as if the sender's hardware retry had just succeeded.
+ *
+ * Called from the one place that frees a slot: the guest popping the input data
+ * register. Ported from RetroCore NDBusOctobus.cs PumpBusyRetryQueue, which is
+ * called from the same place (its Read case Register.InputReadData).
+ */
+static void octobus_pump_busy_retry(Device *self, OctobusData *data)
+{
+    while (data->busyRetryCount > 0 && data->rxCount < OCTOBUS_RX_FIFO_WORDS)
+    {
+        uint16_t frame = data->busyRetry[data->busyRetryHead];
+        data->busyRetryHead = (data->busyRetryHead + 1) % OCTOBUS_BUSY_RETRY_WORDS;
+        data->busyRetryCount--;
+
+        (void)octobus_fifo_push(data, frame);
+        data->inputData = frame;
+        octobus_raise_input_event(self, data);
+    }
 }
 
 // EVENT: the output controller completed a transfer.
@@ -225,6 +250,9 @@ static uint16_t octobus_read(Device *self, uint32_t address)
         // Pops the FIFO. An empty FIFO reads 0; status bit 3 is how software
         // tells that from a real 0.
         value = octobus_fifo_pop(data);
+        // The freed slot lets a busy-retried frame land - the sender's hardware
+        // retry after Ack=10 finally succeeding.
+        octobus_pump_busy_retry(self, data);
         break;
 
     case OCTOBUS_READ_INPUT_STATUS:
@@ -290,6 +318,10 @@ static void octobus_write(Device *self, uint32_t address, uint16_t value)
             data->inputData = 0;
             data->rxHead = 0;
             data->rxCount = 0;
+            // Parked retry frames die with the clear: they belong to a transfer
+            // the guest has just abandoned.
+            data->busyRetryHead = 0;
+            data->busyRetryCount = 0;
             data->inputIrqPending = false;
             // The FIFO bits are recomputed rather than zeroed: a cleared card has
             // space, and software polling bit 2 would otherwise see a full FIFO
@@ -474,10 +506,35 @@ bool octobus_rx_push(Device *self, uint16_t word)
         return false;
     }
     OctobusData *data = (OctobusData *)self->deviceData;
-    if (!octobus_fifo_push(data, word))
+
+    /*
+     * FIFO FULL IS NOT A LOST FRAME. The real receiver answers Ack=10
+     * (destination busy) and the sender's hardware retries until the frame is
+     * taken, so a reply longer than the 16-word FIFO still arrives whole. Park
+     * the frame in arrival order - and park it behind any frames already
+     * waiting, or the reply would be reordered - and let the guest's next read
+     * pull it in. No event and no register update yet: the frame has not landed.
+     *
+     * Dropping these instead truncated every reply over 16 frames. The ND-500
+     * monitor's RECO (020B) asks for 16 words, a 36-frame reply, and read a
+     * mutilated message: it answered with an emergency 244B TERMINATE ACCP and
+     * printed "ECO not available".
+     */
+    if (data->busyRetryCount > 0 || data->rxCount >= OCTOBUS_RX_FIFO_WORDS)
     {
-        return false;
+        if (data->busyRetryCount >= OCTOBUS_BUSY_RETRY_WORDS)
+        {
+            data->busyRetryDropped++;
+            return false;
+        }
+        int tail = (data->busyRetryHead + data->busyRetryCount) % OCTOBUS_BUSY_RETRY_WORDS;
+        data->busyRetry[tail] = word;
+        data->busyRetryCount++;
+        data->busyRetryParked++;
+        return true;
     }
+
+    (void)octobus_fifo_push(data, word);
     octobus_raise_input_event(self, data);
     return true;
 }
