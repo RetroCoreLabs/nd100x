@@ -1329,13 +1329,35 @@ static bool mfbus_save_context(MfbusCpuSlot *c)
     ok = ndbus_context_write(&c->context, NDBUS_CTX_CED, c->cpu.CED) && ok;
     ok = ndbus_context_write(&c->context, NDBUS_CTX_CAD, c->cpu.CAD) && ok;
 
-    /* PS lives in the LOW HALFWORD of block register 18, which this repo names
-     * SRF13; the load masks it with 0x1FFF. The rest of that word belongs to the
-     * block, so it is read back and only the low half replaced - writing PS alone
-     * would zero whatever else SRF13 carries. */
-    uint32_t srf13 = ndbus_context_read(&c->context, NDBUS_CTX_SRF13);
-    srf13 = (srf13 & 0xFFFF0000u) | (c->cpu.PS & 0x1FFFu);
-    ok = ndbus_context_write(&c->context, NDBUS_CTX_SRF13, srf13) && ok;
+    /* ST1/ST2 - the status composite. CNTXTSAVE writes 0x40 and 0x44, so these
+     * belong in the block, and the matching load reads both. A load with no
+     * matching save restores a slot nobody wrote - that is, zero - on every
+     * switch. */
+    ok = ndbus_context_write(&c->context, NDBUS_CTX_STATUS, c->cpu.ST1) && ok;
+    ok = ndbus_context_write(&c->context, NDBUS_CTX_SRF10, c->cpu.ST2) && ok;
+
+    /* THE STACK LIMITS, the exact mirror of the load: slots 0x4C and 0x50, which
+     * the microcode touches in neither direction, and HL/THA deliberately left
+     * alone because it reads those. The load carries the full reasoning and the
+     * two measurements. */
+    ok = ndbus_context_write(&c->context, NDBUS_CTX_DIT_TOS, c->cpu.TOS) && ok;
+    ok = ndbus_context_write(&c->context, NDBUS_CTX_DIT_LL, c->cpu.LL) && ok;
+
+
+    /* PS AT 0x48 IS DELIBERATELY NOT WRITTEN ON THE ND-5000.
+     *
+     * It used to be, read-modify-write on the low halfword. The B30 save writes
+     * none of 0x48/0x54/0x58, and the direction is the point: those are slots the
+     * machine READS. CNTXTLOAD at 0o14777 loads 0x48, and MSG_UNIX5RE/
+     * MSG_UNIX5REL read the 0x54/0x58 pair while handling a mailbox message, so
+     * anything we put there is consumed by the microcode as if SINTRAN had
+     * written it. The reference gates the same three writes off for this
+     * generation (CpuND500.ProcessControl.cs, `if (Generation != ND5000)`), and
+     * our load still reads 0x48 for PS exactly as the microcode does.
+     *
+     * This is the opposite error to TOS/LL above and worth stating as such: there
+     * the load read a slot nothing wrote, here the save wrote a slot the machine
+     * sources itself. */
 
     return ok;
 }
@@ -2325,6 +2347,67 @@ bool mfbus_load_context(uint8_t station_number)
      * whose physical address equals its logical one is the signature of this
      * missing register. */
     c->cpu.PS = ndbus_context_read(&c->context, NDBUS_CTX_SRF13) & 0x1FFFu;
+
+    /* ST1/ST2 - THE STATUS COMPOSITE. These ARE block fields: CNTXTSAVE writes
+     * 0x40 and 0x44 and CNTXTLOAD reads them back, so the block is their source.
+     *
+     * ST1 carries PIA (bit 1, privileged-instruction-allowed) and the K flag, so
+     * without this a swapper resumed after a domain ran loses PIA and its next
+     * privileged instruction traps ILLEG, and a program that branches on K after
+     * a monitor call reads a K belonging to whoever ran last.
+     *
+     * Loaded as saved. The microcode's WRITEST1 redistribution into the per-unit
+     * ALU/MIC/IDU status pieces is not modelled on either emulator, so
+     * re-deriving the pieces here would be inventing them. */
+    c->cpu.ST1 = ndbus_context_read(&c->context, NDBUS_CTX_STATUS);
+    c->cpu.ST2 = ndbus_context_read(&c->context, NDBUS_CTX_SRF10);
+
+    /* THE STACK LIMITS: TOS AND LL, OUT OF BLOCK SLOTS 0x4C AND 0x50.
+     *
+     * Nothing restored these before, so TOS and LL carried over from whichever
+     * process ran last. MEASURED 04-OCT-2026: the swapper stack-overflowed at
+     * P=0x08008E09 immediately after a domain's page fault switched away from it,
+     * faulting on address 0x00000004 - a frame base of 4, not a missing page.
+     * RetroCore records the same failure from the other end in
+     * CpuND500.ProcessControl.cs: "cpu-stat sets TOS = 0x0001FFFC with its own
+     * tos:=, and the next switch to the swapper sets it to 0; the same switch
+     * destroys the swapper's own 0x08026198 from its INIT, which is where its
+     * stack-overflow status bits come from. One missing write, both processes."
+     *
+     * WHY THE BLOCK AND NOT THE DIT, since the comment above and
+     * ndbus_context_field_is_loaded() both say these slots are DIT-sourced.
+     *
+     * Both statements are true and neither gives us a DIT to read. cpu->DITBASE
+     * on this lane is set by nd500_mmu_declare_process_segment() to the
+     * CAPABILITY TABLE base - 256 bytes per domain, program capabilities at +0
+     * and data at +64, per ND-05.009.4 section 4.2.3.3 Table 6 - and NOT to a
+     * 16-byte-strided TOS/LL/HL/THA table. nd500_domain.h:47-73 states this
+     * explicitly and warns that wiring nd500_domain_load_state() up "would write
+     * 16-byte-strided fields on top of a guest's 256-byte-strided capability
+     * table and corrupt it silently". It was tried here first and that warning is
+     * why it is not used.
+     *
+     * So these two slots are an EMULATOR-PRIVATE stash, and that is safe for a
+     * measured reason rather than a hopeful one: the whole-image sweep behind
+     * RetroCore's CpuND500.ProcessControl.cs walks every AA=7 address word in all
+     * 16384 microwords and finds 0x4C and 0x50 touched by NOTHING through the
+     * context base, in either direction. The machine never looks at them, so
+     * writing them cannot mislead it, while leaving them unwritten when our own
+     * load reads them sets the limits to zero on every switch.
+     *
+     * HL and THA are deliberately NOT included. The B30 save writes 0x54 and
+     * 0x58, and MSG_UNIX5RE/MSG_UNIX5REL READ that pair while handling a mailbox
+     * message, so a value we invent there is consumed as if SINTRAN had written
+     * it. 0x4C/0x50 are the only two slots in this group the microcode ignores
+     * completely, which is exactly why they are the only two used here.
+     *
+     * Where the real machine keeps TOS across a switch is NOT settled: CNTXTSAVE
+     * does write 0x6C and 0x70, which neither emulator handles, and TOS may live
+     * there. This makes OUR save and OUR load agree using slots the microcode
+     * ignores - correct under either answer, and it moves wholesale if 0x6C/0x70
+     * are ever identified. */
+    c->cpu.TOS = ndbus_context_read(&c->context, NDBUS_CTX_DIT_TOS);
+    c->cpu.LL  = ndbus_context_read(&c->context, NDBUS_CTX_DIT_LL);
 
     /* SAY WHAT THE BLOCK ACTUALLY HELD. "PS is loaded" and "PS is loaded and it is
      * zero" produce the same untranslated fetch, and only the values tell them
