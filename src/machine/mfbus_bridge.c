@@ -922,22 +922,37 @@ static bool mfbus_start_process(void *ctx, uint32_t msg_byte, uint16_t micfu, ui
     MfbusCpuSlot *c = &s_cpus[slot];
 
     /* A CONTINUE NAMING THE PROCESS ALREADY LOADED RESUMES FROM THE LIVE REGISTERS.
+     * A 3START NEVER DOES, EVEN FOR THAT SAME PROCESS.
      *
      * The microcode's context switch at 011473B compares the loaded process against
      * the wanted one and, when they match, "if same -> POPRET - save AND load both
-     * skipped". So a 3TRACO or 3MONCO for the running process must NOT re-read the
-     * context block.
+     * skipped". That is why a 3TRACO or 3MONCO for the running process must NOT
+     * re-read the context block: it is a continue, and the live registers are the
+     * state it continues from.
      *
-     * MEASURED 30-SEP-2026, and the reference records the same standoff: the block
-     * still holds the process's ENTRY POINT, so reloading it sends the swapper back
-     * to its own initialisation, which zeroes SWPINFO, asks the identical MON 377B
-     * again and can never make progress. The reference reached that state from the
-     * other side - it skipped the context SAVE and lost the CALLG return address
-     * 0x08008255 - and the loop is the same either way. Our own run showed exactly
-     * that return address repeating.
+     * 3START is a different message and reaches the same microcode by a different
+     * route. A monitor-call stop leaves the ND-500 through CALL_MON -> SET_IDLE,
+     * which marks "no current process" by setting the sign bit over the process
+     * number in SRF11. The B30 IDLE loop at 0o24724-25 reads SRF11 and its MSGN test
+     * then SKIPS CNTXTSAVE, so NEWCNTXT/CNTXTLOAD at 0o14661 takes its load-only
+     * branch and reads the block SINTRAN has just filled - the swapper's entry point
+     * 0x08000004, not the parked MON return address.
      *
-     * This arm therefore only unparks and lets the CPU carry on. */
-    if (c->parked && c->loaded_x5cpu >= 0
+     * MEASURED on the octobus, macro lane: after an explicit START-SWAPPER the
+     * swapper makes a FRESH first call, FUNCV=0 and SWPINFO=0, because its
+     * initialisation ran. Resuming in place instead leaves SWPINFO holding the
+     * previous work order and the swapper carries on mid-loop with a stale one.
+     *
+     * Our own run showed the failure this produces. START-SWAPPER drives 14 MON 377B
+     * rounds to completion, prints "Allocating memory - 7342B pages", then sends a
+     * second 3START for X5CPU 0; this arm swallowed it and merely unparked the
+     * process at P=0x08008255, so the swapper never re-entered at its entry point,
+     * never answered, and the monitor printed "ADDRESS OUTSIDE PROGRAM SEGMENT /
+     * NOT KNOWN TRAP / At program address: 0 1B" with no trap ever reported by the
+     * ND-500 side at all.
+     *
+     * This arm therefore only unparks for a CONTINUE, and lets the CPU carry on. */
+    if (ndbus_micfu_is_continue(micfu) && c->parked && c->loaded_x5cpu >= 0
         && c->loaded_x5cpu == ndbus_cpu_context_x5cpu(nd->station.number))
     {
         c->parked = false;
@@ -1042,6 +1057,35 @@ static bool mfbus_start_process(void *ctx, uint32_t msg_byte, uint16_t micfu, ui
             return false;
         }
         return true;
+    }
+
+    /* A START FOR A PARKED PROCESS FIRST ENDS THAT PROCESS'S RESIDENCY ON THE CPU.
+     *
+     * The park is this seam's expression of the microcode's SET_IDLE. A monitor-call
+     * stop leaves the ND-500 through CALL_MON -> SET_IDLE, which marks "no current
+     * process"; here it sets c->parked, mfbus_cpu_step() then returns false, and the
+     * runner thread exits and sits at NDBUS_RUNNER_STOPPED. mfbus_load_context()
+     * requires NDBUS_RUNNER_IDLE - a thread already reaped, so the pool it was
+     * reading outlives it - and STOPPED is not IDLE.
+     *
+     * MEASURED: without this the second 3START of START-SWAPPER got as far as
+     * setting PSTP and then refused with "is running - stop it before loading a
+     * context", the servicer answered without starting anything, and SINTRAN's
+     * SWPDECODER reported "Fatal error from Swapper / ERROR CODE: 0B" directly after
+     * "Allocating memory - 7342B pages".
+     *
+     * Only for a process that is parked. One genuinely executing instructions is
+     * declined by the state test below instead, because stopping it here would throw
+     * away the work it is in the middle of. */
+    if (c->parked)
+    {
+        c->parked = false;
+        c->stop_reported = false;
+        if (ndbus_runner_state(&c->runner) != NDBUS_RUNNER_IDLE)
+        {
+            /* Asks and waits. Reuses the same reap the resume path performs. */
+            ndbus_runner_stop_and_join(&c->runner);
+        }
     }
 
     /* Already running: this is a restart-class message for a process that is live,
