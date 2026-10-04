@@ -1285,8 +1285,28 @@ static void mfbus_declare_capability_table(MfbusCpuSlot *c)
         return;
     }
 
-    LOG(LOG_CAT_MMS, LOG_INFO, "MFbus: %s capability table := 0x%X from PS=%u via PSTP\n",
-        c->name, (unsigned)base, (unsigned)ps);
+    /* AND THE DIT-SOURCED REGISTERS, HERE AND NOT IN THE CONTEXT LOAD. THA is one
+     * of them: it has a slot in the context block but NEWCNTXT does not read it
+     * from there, so it must come from the DIT - and the DIT is this process
+     * segment, which is only known on the line above.
+     *
+     * MEASURED, because the first version of this read sat in mfbus_load_context
+     * and was therefore one process out of date: a run printed PS=0xA with
+     * DIT=0x74000 and PS=3 with DIT=0x8C000, while this function resolved PS=3 to
+     * 0x74000 and PS=10 to 0x8C000 - exactly crossed. PST[3]=0x000000E8 and
+     * PST[10]=0x00000118 are both mode 0, so there is no ambiguity in the
+     * resolution itself; the read was simply happening before the base was set,
+     * and so took the PREVIOUS process's PCB. SINTRAN writes segment 10's trap
+     * handler address (0x08001628) into the PCB at 0x8C000, and the process that
+     * needs it carries PS=10.
+     *
+     * The other DIT-sourced registers (CES, CAS, the trap enables) are NOT done
+     * here: each needs its own evidence, and LL/HL come from TRAPSET. */
+    c->cpu.THA = nd500_dit_read_tha(&c->cpu, c->cpu.CED);
+
+    LOG(LOG_CAT_MMS, LOG_INFO,
+        "MFbus: %s capability table := 0x%X from PS=%u via PSTP, THA=0x%08X\n",
+        c->name, (unsigned)base, (unsigned)ps, (unsigned)c->cpu.THA);
 }
 
 /*
@@ -2764,27 +2784,15 @@ bool mfbus_load_context(uint8_t station_number)
             ndbus_context_read(&c->context, f->offset) & f->mask;
     }
 
-    /* AND THE DIT-SOURCED ONES THE BLOCK CANNOT GIVE. THA is skipped above for
-     * the right reason - NEWCNTXT does not read it from the block - but nothing
-     * was sourcing it from the DIT either, so it stayed zero for an entire run
-     * and the swapper installed its trap handlers at 0 + trapno*4, over its own
-     * frame, until the walk ran off segment 12. nd500_dit_read_tha has the
-     * measurement and the layout argument. The other DIT-sourced registers
-     * (CES, CAS, the trap enables) are NOT done here: each needs its own
-     * evidence, and LL/HL come from TRAPSET rather than from a context load. */
-    c->cpu.THA = nd500_dit_read_tha(&c->cpu, c->cpu.CED);
-
     /* SAY WHAT THE BLOCK ACTUALLY HELD. "PS is loaded" and "PS is loaded and it is
      * zero" produce the same untranslated fetch, and only the values tell them
      * apart - the first run after adding the load still stopped with
      * paddr == P, which could be either. */
     LOG(LOG_CAT_MMS, LOG_INFO,
-        "MFbus: %s context block: P=0x%X PS=0x%X CED=0x%X CAD=0x%X SRF13=0x%X STATUS=0x%X "
-        "THA=0x%08X (from DIT 0x%X)\n",
+        "MFbus: %s context block: P=0x%X PS=0x%X CED=0x%X CAD=0x%X SRF13=0x%X STATUS=0x%X\n",
         c->name, (unsigned)c->cpu.PC, (unsigned)c->cpu.PS, (unsigned)c->cpu.CED,
         (unsigned)c->cpu.CAD, (unsigned)ndbus_context_read(&c->context, NDBUS_CTX_SRF13),
-        (unsigned)ndbus_context_read(&c->context, NDBUS_CTX_STATUS),
-        (unsigned)c->cpu.THA, (unsigned)c->cpu.DITBASE);
+        (unsigned)ndbus_context_read(&c->context, NDBUS_CTX_STATUS));
 
     LOG(LOG_CAT_MMS, LOG_INFO, "MFbus: %s loaded from its context block, P=0x%X\n", c->name,
         (unsigned)c->cpu.PC);
