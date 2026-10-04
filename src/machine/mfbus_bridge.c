@@ -148,6 +148,7 @@ typedef struct
      * chance to answer. */
     bool          parked;
     bool          stop_reported;  /* the non-retryable stop has been named once */
+    uint32_t      continues_refused; /* continues with nothing to continue */
 
     /* WHAT THE TRAP LOOKED LIKE AT THE MOMENT IT WAS RAISED.
      *
@@ -1751,6 +1752,49 @@ static bool mfbus_start_process(void *ctx, uint32_t msg_byte, uint16_t micfu, ui
             return false;
         }
         return true;
+    }
+
+    /* A CONTINUE THAT GOT THIS FAR IS REFUSED - IT MUST NOT BECOME A START.
+     *
+     * Reaching here with a continue means one of two things: the process is not
+     * parked, or the switch to the process the message names failed. Either way
+     * there is nothing to continue, and falling through to the start path below
+     * would RELOAD THE CONTEXT BLOCK and restart the process from its block P -
+     * that is, from its entry point - in the middle of whatever it was doing.
+     *
+     * MEASURED 04-OCT-2026: that is the swapper's instruction loop. In one
+     * START-SWAPPER run 888,000 of the run's 1,011,254 ND-500 instructions sat in
+     * just two monitor-call resumes - 484,785 and 405,768, where every other
+     * resume is 41,000 to 62,000 - with repeating write-back OVERWRITES warnings
+     * beside them and the MON 377B argument simply counting up 0x0B, 0x0C, ...
+     * That is the shape of a process being sent back to its entry point and
+     * re-running its initialisation, not of a process working. It is also why
+     * START-SWAPPER takes 35 seconds; the cost is the wasted instructions, not
+     * the logging - an A/B run with the per-instruction trace fully off
+     * (0 lines against 128,517) took the same 35 seconds.
+     *
+     * The reference refuses for the same reason, in the same place, and says so:
+     * Nd500CpuProcessBridge.OnMonitorCallRestart returns false when the CPU is
+     * not WAIT-parked - "a crashed/halted CPU must not silently resume - decline
+     * so the servicer answers the placeholder way and SINTRAN sees a normal (if
+     * inert) answer" - and again when SwitchToProcessIfNeeded fails.
+     *
+     * Declining is a real answer, not silence: the servicer counts it in
+     * starts_declined, names it once in the log, and answers the message the way
+     * a station with no CPU answers, so SINTRAN gets a reply and decides what to
+     * do rather than waiting on us. */
+    if (ndbus_micfu_is_continue(micfu))
+    {
+        c->continues_refused++;
+        if (c->continues_refused <= MFBUS_MON_LOG_LIMIT)
+        {
+            LOG(LOG_CAT_MMS, LOG_WARN,
+                "MFbus: %s continue MICFU %oB REFUSED: parked=%d loaded_x5=%d msg_x5=%d - "
+                "nothing to continue, and restarting from the block would send the "
+                "process back to its entry point\n",
+                c->name, (unsigned)micfu, (int)c->parked, c->loaded_x5cpu, msg_x5cpu);
+        }
+        return false;
     }
 
     /* A START FOR A PARKED PROCESS FIRST ENDS THAT PROCESS'S RESIDENCY ON THE CPU.
