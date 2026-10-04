@@ -971,7 +971,8 @@ static void mfbus_bank_write_watch(uint32_t word_offset, uint16_t value, WriteMo
         return;
     }
     LOG(LOG_CAT_MMS, LOG_INFO,
-        "MFbus: ND-100 writes pool word 0x%06X (byte 0x%06X) = 0x%04X mode=%d '%c%c'\n",
+        "MFbus: ND-100 writes pool word 0x%06X (byte 0x%06X) = 0x%04X mode=%d '%c%c' "
+        "from P=%06oB level=%u\n",
         (unsigned)word_offset, (unsigned)(word_offset * 2u), (unsigned)value, (int)wm,
         /* THE CHARACTERS TOO. This watch is used on text fields as often as on
          * pointers, and "0x5329" does not read as the tail of "(SYSTEM)" until
@@ -979,7 +980,17 @@ static void mfbus_bank_write_watch(uint32_t word_offset, uint16_t value, WriteMo
         (((value >> 8) & 0xFFu) >= 0x20u && ((value >> 8) & 0xFFu) < 0x7Fu)
             ? (char)((value >> 8) & 0xFFu) : '.',
         ((value & 0xFFu) >= 0x20u && (value & 0xFFu) < 0x7Fu)
-            ? (char)(value & 0xFFu) : '.');
+            ? (char)(value & 0xFFu) : '.',
+        /* WHICH INSTRUCTION WROTE IT. Without the ND-100's P this watch can say
+         * that a cell was written and what with, but not by what - and "what
+         * with" was already visible in the pool. Naming the writer is the whole
+         * point of a write watch, and the PC plus the interrupt level is what
+         * turns a sequence of values into a routine that can be disassembled.
+         *
+         * The PC is the address AFTER the instruction was fetched, so a
+         * disassembly starts one instruction earlier; printed in ND octal because
+         * that is what the SINTRAN listings and the L07 symbol table use. */
+        (unsigned)gPC, (unsigned)gPIL);
 }
 
 static void mfbus_bank_write(void *ctx, uint32_t word_offset, uint16_t value, WriteMode wm)
@@ -1596,6 +1607,55 @@ static bool mfbus_switch_to_process(NdbusNd5000 *nd, MfbusCpuSlot *c, int wanted
         (unsigned)c->cpu.CED, (unsigned)c->cpu.B, (unsigned)c->cpu.R);
 
     c->loaded_x5cpu = wanted_x5cpu;
+    return true;
+}
+
+/**
+ * Read ND-500 DATA memory through the MMU, for the servicer's inline user buffer.
+ *
+ * Ported from RetroCore INd500ProcessHost.TryReadDataBytes
+ * (Emulated.HW/ND/CPU/ND500/Servicer/INd500ProcessHost.cs:75).
+ *
+ * TRANSLATED ONE BYTE AT A TIME, DELIBERATELY. A buffer can straddle a page
+ * boundary, and the two pages need not be adjacent in the pool, so translating the
+ * first byte and walking forward would read a neighbour's page for the tail. The
+ * ceiling is 0o4000 bytes, so the cost is bounded and small.
+ *
+ * ANY byte that does not translate fails the whole read. A partial buffer printed
+ * as text is a wrong answer that looks like an answer.
+ */
+static bool mfbus_read_nd500_data_bytes(void *ctx, uint32_t logical_address,
+                                        uint8_t *destination, uint32_t count)
+{
+    NdbusNd5000 *nd = (NdbusNd5000 *)ctx;
+    if (nd == NULL || destination == NULL)
+    {
+        return false;
+    }
+
+    int slot = mfbus_slot_of(nd->station.number);
+    if (slot < 0 || !s_cpus[slot].present)
+    {
+        return false;
+    }
+    MfbusCpuSlot *c = &s_cpus[slot];
+
+    for (uint32_t i = 0; i < count; i++)
+    {
+        uint32_t pa = nd500_mmu_peek_space(&c->cpu, logical_address + i,
+                                           (uint8_t)c->cpu.CED, 0);
+        if (pa == 0xFFFFFFFFu)
+        {
+            LOG(LOG_CAT_MMS, LOG_INFO,
+                "MFbus: %s inline buffer read STOPPED at byte %u of %u - logical 0x%08X "
+                "does not translate in domain %u\n",
+                c->name, (unsigned)i, (unsigned)count,
+                (unsigned)(logical_address + i), (unsigned)c->cpu.CED);
+            return false;
+        }
+        destination[i] = ndbus_pool_read8(&s_pool, pa);
+    }
+
     return true;
 }
 
@@ -2239,6 +2299,7 @@ bool mfbus_add_nd5000(uint8_t station_number)
      */
     (void)ndbus_nd5000_set_process_host(nd, mfbus_start_process);
     (void)ndbus_nd5000_set_dit_declarer(nd, mfbus_declare_dit_base);
+    (void)ndbus_nd5000_set_data_reader(nd, mfbus_read_nd500_data_bytes);
 
 s_nd5000_count++;
     LOG(LOG_CAT_MMS, LOG_INFO, "MFbus: ND-5000 on the octobus at station %o\n",
