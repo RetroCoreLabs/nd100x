@@ -177,6 +177,33 @@ typedef struct
  * is invisible to it. PCs only, which is what identifies a branch. */
 #define MFBUS_RESUME_TRACE_LIMIT 30000u
 
+/* THE LIMIT IS TUNABLE, because a budget that runs out mid-question answers it
+ * wrongly. Measured 2026-10-04: the swapper's store to PST[13] landed 33 lines
+ * before this budget expired, so the code that should have completed the entry
+ * ran untraced and its ABSENCE from the log read exactly like it never running.
+ * A silent instrument is not evidence. MFBUS_RESUME_TRACE sets the per-resume
+ * count; the default is unchanged. */
+static uint32_t mfbus_resume_trace_limit(void)
+{
+    static uint32_t limit;
+    static int      resolved;
+    if (!resolved)
+    {
+        resolved = 1;
+        limit = MFBUS_RESUME_TRACE_LIMIT;
+        const char *e = getenv("MFBUS_RESUME_TRACE");
+        if (e != NULL)
+        {
+            long v = strtol(e, NULL, 0);
+            if (v >= 0)
+            {
+                limit = (uint32_t)v;
+            }
+        }
+    }
+    return limit;
+}
+
 /** How many monitor calls get named before the log falls silent. */
 #define MFBUS_MON_LOG_LIMIT 40u
 
@@ -1902,7 +1929,7 @@ static bool mfbus_start_process(void *ctx, uint32_t msg_byte, uint16_t micfu, ui
          * initialisation. Armed once per resume, bounded. */
         if (c->mon_resumes <= MFBUS_MON_LOG_LIMIT)
         {
-            c->resume_trace_left = MFBUS_RESUME_TRACE_LIMIT;
+            c->resume_trace_left = mfbus_resume_trace_limit();
         }
         if (!mfbus_resume_runner(c, nd->station.number))
         {
