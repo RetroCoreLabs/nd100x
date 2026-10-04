@@ -528,7 +528,13 @@ static bool mfbus_cpu_step(void *ctx)
             slot->name, (unsigned)pc_at_entry, (unsigned)slot->cpu.PC,
             (unsigned)slot->cpu.P1, (unsigned)slot->cpu.cur_instr_pc,
             nd500_stop_reason_str(why), (unsigned)slot->machine.stop_addr,
-            (unsigned)slot->machine.stop_data, (unsigned)slot->cpu.mmu_pgf_psn);
+            (unsigned)slot->machine.stop_data,
+            /* THE PRESERVED psn, not the live one. raise_trap clears all three
+             * latch fields now, so the live field reads 0 by the time any stop is
+             * noticed - a diagnostic printing it would report "psn=0" for every
+             * fault and look like a defect in the walk. psn=0 HERE means the trap
+             * had no MMU access in it, which is a fact and not a gap. */
+            (unsigned)slot->cpu.trap_saved_psn);
     }
     /* WHICH STOPS CAN BE REPORTED. Until 04-OCT-2026 this tested for exactly two
      * StopReason values - page fault and protect violation - and every other trap
@@ -608,7 +614,7 @@ static bool mfbus_cpu_step(void *ctx)
      * carries 0x00000000 and SINTRAN answers "NOT KNOWN TRAP".
      * trap_saved_info also carries the PFZ2 default for a page fault whose walk
      * recorded nothing, which is the right value rather than a zero. */
-    uint32_t mms = (slot->cpu.mmu_pgf_is_write ? 0xA0000000u : 0x80000000u)
+    uint32_t mms = (slot->cpu.trap_saved_is_write ? 0xA0000000u : 0x80000000u)
                    | (slot->cpu.trap_saved_info & 0xFFu);
 
     uint32_t restart_p = (slot->cpu.P1 != 0u) ? slot->cpu.P1 : slot->machine.stop_addr;
@@ -636,7 +642,7 @@ static bool mfbus_cpu_step(void *ctx)
 
     if (!ndbus_servicer_answer_trap_stop(&nd->servicer, (uint16_t)slot->loaded_x5cpu, trap_number,
                                         restart_p, slot->machine.stop_data, mms,
-                                        (uint16_t)slot->cpu.mmu_pgf_psn))
+                                        (uint16_t)slot->cpu.trap_saved_psn))
     {
         /* The servicer says why it refused. Nothing more to do here - the process
          * stays parked and SINTRAN will time out, which is the honest outcome. */
@@ -679,7 +685,7 @@ static bool mfbus_cpu_step(void *ctx)
         "MFbus: %s parked on trap %oB at P=0x%X fault=0x%X psn=%u mms=0x%08X - reported to "
         "SINTRAN\n",
         slot->name, (unsigned)trap_number, (unsigned)restart_p,
-        (unsigned)slot->machine.stop_data, (unsigned)slot->cpu.mmu_pgf_psn,
+        (unsigned)slot->machine.stop_data, (unsigned)slot->cpu.trap_saved_psn,
         (unsigned)mms);
 
     /* WHICH REGISTER PRODUCED THE FAULTING ADDRESS. The trap says where the access
