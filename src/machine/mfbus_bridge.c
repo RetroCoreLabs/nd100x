@@ -1853,10 +1853,34 @@ static bool mfbus_start_process(void *ctx, uint32_t msg_byte, uint16_t micfu, ui
         bool have_wblock = (micfu == NDBUS_MICFU_WMONCO) &&
                            ndbus_servicer_read_wmonco_block(&nd->servicer, msg_byte, &wblock);
 
+        /* THE ANSWER SLOTS ARE A UNION - ASK WHICH ARM THIS MESSAGE CARRIES.
+         *
+         * KFLIP re-uses the STOPR slot, the write-back MASK re-uses NUMPA, and
+         * FUNCV spans MCNO/MSWMC. A TRAP stop writes its own record into exactly
+         * those halfwords, so decoding the monitor-call arm after a trap stop
+         * reads this emulator's own trap record back as an answer.
+         *
+         * MEASURED 2026-10-04 on PLACE-DOMAIN CPU-STAT: a 3MONCO restart of a
+         * process parked on trap 46B gave K=1 from the TRAPCODE value and
+         * FUNCV=0x467F0800 from the trapping P 0x0800467F with its halves
+         * swapped. That went into I1 and the process faulted on it immediately -
+         * trap 44B, "no data capability, segment 8" - which is the protection
+         * violation the console reported as the run's failure.
+         *
+         * A restart of a trap-parked process still RESUMES it; what it must not
+         * do is overwrite I1 and the K flag with a record it only wrote itself. */
         if (micfu == NDBUS_MICFU_MONCO || micfu == NDBUS_MICFU_WMONCO)
         {
             NdbusMonResult res;
-            if (ndbus_servicer_read_monitor_result(&nd->servicer, msg_byte, &res))
+            if (!ndbus_servicer_stop_was_monitor_call(&nd->servicer, (uint16_t)msg_x5cpu))
+            {
+                LOG(LOG_CAT_MMS, LOG_INFO,
+                    "MFbus: %s MICFU %oB restart of a process parked on a TRAP - the "
+                    "answer slots hold the trap record, not FUNCV/K/mask, so none is "
+                    "applied\n",
+                    c->name, (unsigned)micfu);
+            }
+            else if (ndbus_servicer_read_monitor_result(&nd->servicer, msg_byte, &res))
             {
                 /* THE OVERSIZE GUARD, applied to the answer the process is about
                  * to see. A 26NRB of 0x2000 or more is not a refusal: the copy is
