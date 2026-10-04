@@ -961,7 +961,10 @@ static void mfbus_bank_write_watch(uint32_t word_offset, uint16_t value, WriteMo
 {
     static long watch_word = -2;
     static long watch_words = 1;
-    ND_DIAG_BUDGET(bankw, 400);
+    /* MFBUS_WWATCH_BUDGET raises this. A watch over a range wide enough to
+     * compare several records spends 400 writes on the first of them and then
+     * says nothing about the rest, which reads as "nothing wrote the others". */
+    ND_DIAG_BUDGET_ENV(bankw, 400, "MFBUS_WWATCH_BUDGET");
     if (watch_word == -2)
     {
         const char *e = getenv("MFBUS_WWATCH_BYTE");
