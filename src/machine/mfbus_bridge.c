@@ -446,6 +446,84 @@ static bool mfbus_cpu_step(void *ctx)
      * mis-executed instruction produced. Only the run of PCs before it tells those
      * apart. Bounded, and through the logger rather than stdout, because stdout on
      * this lane is the HOST guest's console. */
+    /* THE TWO SIDES OF ONE COMPARISON, AT THE INSTRUCTION THAT MAKES IT.
+     *
+     * A trace says which way a branch went; it cannot say WHY, because the
+     * operands are in memory the trace never prints. And the operands cannot be
+     * read from a pool snapshot taken at some other moment either: the two data
+     * pages involved here are 0x14700 bytes apart, so the logical-to-physical
+     * delta measured at one of them does not hold at the other.
+     *
+     * MFBUS_PCDUMP names the program address to stop on; MFBUS_PCDUMP_ADDR an
+     * ND-500 DATA logical address to show 16 bytes of, and the frame's own
+     * B+0x14 is shown beside it. Both are translated through the NON-FAULTING
+     * peek, because a diagnostic that could raise a page fault would corrupt the
+     * run it is describing. Bounded, and it announces the bound.
+     */
+    {
+        ND_DIAG_BUDGET_ENV(pcdump, 8, "MFBUS_PCDUMP_BUDGET");
+        static uint32_t pcdump_pc;
+        static uint32_t pcdump_addr;
+        static int      pcdump_ready;
+        if (!pcdump_ready)
+        {
+            pcdump_ready = 1;
+            const char *e = getenv("MFBUS_PCDUMP");
+            pcdump_pc = (e != NULL) ? (uint32_t)strtoul(e, NULL, 0) : 0u;
+            e = getenv("MFBUS_PCDUMP_ADDR");
+            pcdump_addr = (e != NULL) ? (uint32_t)strtoul(e, NULL, 0) : 0u;
+        }
+
+        if (pcdump_pc != 0u && slot->cpu.PC == pcdump_pc && ND_DIAG_TAKE(pcdump))
+        {
+            char tbl[80];
+            int  n = 0;
+            if (pcdump_addr != 0u)
+            {
+                for (uint32_t k = 0; k < 16u && n >= 0 && (size_t)n < sizeof tbl; k++)
+                {
+                    uint32_t pa = nd500_mmu_peek_space(&slot->cpu, pcdump_addr + k,
+                                                       (uint8_t)slot->cpu.CED, 0);
+                    if (pa == 0xFFFFFFFFu)
+                    {
+                        n += snprintf(tbl + n, sizeof tbl - (size_t)n, " --");
+                        continue;
+                    }
+                    n += snprintf(tbl + n, sizeof tbl - (size_t)n, "%02X",
+                                  (unsigned)ndbus_pool_read8(&s_pool, pa));
+                }
+            }
+
+            uint32_t local = 0u;
+            int      local_ok = 0;
+            uint32_t lpa = nd500_mmu_peek_space(&slot->cpu, slot->cpu.B + 0x14u,
+                                                (uint8_t)slot->cpu.CED, 0);
+            if (lpa != 0xFFFFFFFFu)
+            {
+                local_ok = 1;
+                local = ((uint32_t)ndbus_pool_read8(&s_pool, lpa) << 24)
+                      | ((uint32_t)ndbus_pool_read8(&s_pool, lpa + 1u) << 16)
+                      | ((uint32_t)ndbus_pool_read8(&s_pool, lpa + 2u) << 8)
+                      |  (uint32_t)ndbus_pool_read8(&s_pool, lpa + 3u);
+            }
+
+            LOG(LOG_CAT_MMS, LOG_INFO,
+                "MFbus: %s PCDUMP at P=0x%08X: B=0x%08X B+0x14=0x%08X -> %s "
+                "R=0x%08X I1=0x%08X I2=0x%08X | [0x%08X]=%s\n",
+                slot->name, (unsigned)slot->cpu.PC, (unsigned)slot->cpu.B,
+                (unsigned)(slot->cpu.B + 0x14u),
+                local_ok ? "" : "(untranslatable)",
+                (unsigned)slot->cpu.R, (unsigned)slot->cpu.I[0], (unsigned)slot->cpu.I[1],
+                (unsigned)pcdump_addr, (n > 0) ? tbl : "(none)");
+            if (local_ok)
+            {
+                LOG(LOG_CAT_MMS, LOG_INFO,
+                    "MFbus: %s PCDUMP   B+0x14 = 0x%08X (%u)\n",
+                    slot->name, (unsigned)local, (unsigned)local);
+            }
+        }
+    }
+
     if (slot->resume_trace_left > 0u)
     {
         slot->resume_trace_left--;
