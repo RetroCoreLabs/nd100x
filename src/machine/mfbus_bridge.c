@@ -560,11 +560,11 @@ static bool mfbus_cpu_step(void *ctx)
          * instruction put 4 in B is only visible if B is printed per step. */
         LOG(LOG_CAT_MMS, LOG_INFO,
             "MFbus: %s rt x5=%d P=0x%08X pa=0x%08X %02X %02X B=0x%08X L=0x%08X R=0x%08X "
-            "CED=%u PS=0x%X DIT=0x%X\n",
+            "CED=%u PS=0x%X DIT=0x%X THA=0x%08X\n",
             slot->name, slot->loaded_x5cpu, (unsigned)slot->cpu.PC, (unsigned)rt_pa,
             b0, b1, (unsigned)slot->cpu.B, (unsigned)slot->cpu.L, (unsigned)slot->cpu.R,
             (unsigned)slot->cpu.CED, (unsigned)slot->cpu.PS,
-            (unsigned)slot->cpu.DITBASE);
+            (unsigned)slot->cpu.DITBASE, (unsigned)slot->cpu.THA);
     }
 
     if (slot->steps_logged < MFBUS_STEP_LOG_LIMIT)
@@ -2764,15 +2764,27 @@ bool mfbus_load_context(uint8_t station_number)
             ndbus_context_read(&c->context, f->offset) & f->mask;
     }
 
+    /* AND THE DIT-SOURCED ONES THE BLOCK CANNOT GIVE. THA is skipped above for
+     * the right reason - NEWCNTXT does not read it from the block - but nothing
+     * was sourcing it from the DIT either, so it stayed zero for an entire run
+     * and the swapper installed its trap handlers at 0 + trapno*4, over its own
+     * frame, until the walk ran off segment 12. nd500_dit_read_tha has the
+     * measurement and the layout argument. The other DIT-sourced registers
+     * (CES, CAS, the trap enables) are NOT done here: each needs its own
+     * evidence, and LL/HL come from TRAPSET rather than from a context load. */
+    c->cpu.THA = nd500_dit_read_tha(&c->cpu, c->cpu.CED);
+
     /* SAY WHAT THE BLOCK ACTUALLY HELD. "PS is loaded" and "PS is loaded and it is
      * zero" produce the same untranslated fetch, and only the values tell them
      * apart - the first run after adding the load still stopped with
      * paddr == P, which could be either. */
     LOG(LOG_CAT_MMS, LOG_INFO,
-        "MFbus: %s context block: P=0x%X PS=0x%X CED=0x%X CAD=0x%X SRF13=0x%X STATUS=0x%X\n",
+        "MFbus: %s context block: P=0x%X PS=0x%X CED=0x%X CAD=0x%X SRF13=0x%X STATUS=0x%X "
+        "THA=0x%08X (from DIT 0x%X)\n",
         c->name, (unsigned)c->cpu.PC, (unsigned)c->cpu.PS, (unsigned)c->cpu.CED,
         (unsigned)c->cpu.CAD, (unsigned)ndbus_context_read(&c->context, NDBUS_CTX_SRF13),
-        (unsigned)ndbus_context_read(&c->context, NDBUS_CTX_STATUS));
+        (unsigned)ndbus_context_read(&c->context, NDBUS_CTX_STATUS),
+        (unsigned)c->cpu.THA, (unsigned)c->cpu.DITBASE);
 
     LOG(LOG_CAT_MMS, LOG_INFO, "MFbus: %s loaded from its context block, P=0x%X\n", c->name,
         (unsigned)c->cpu.PC);
