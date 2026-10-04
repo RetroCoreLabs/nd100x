@@ -933,13 +933,31 @@ static uint16_t mfbus_bank_read(void *ctx, uint32_t word_offset)
 static void mfbus_bank_write_watch(uint32_t word_offset, uint16_t value, WriteMode wm)
 {
     static long watch_word = -2;
-    ND_DIAG_BUDGET(bankw, 40);
+    static long watch_words = 1;
+    ND_DIAG_BUDGET(bankw, 400);
     if (watch_word == -2)
     {
         const char *e = getenv("MFBUS_WWATCH_BYTE");
         watch_word = (e != NULL && e[0] != '\0') ? (long)(strtoul(e, NULL, 0) / 2u) : -1;
+        /* A RANGE, NOT ONE CELL. MFBUS_WWATCH_LEN is a length in BYTES from
+         * MFBUS_WWATCH_BYTE, default 2 - one word, the old behaviour.
+         *
+         * Added 04-OCT-2026 because a single-cell watch is the wrong shape for
+         * the question it keeps being asked. Hunting a corrupted process name,
+         * the cell was taken from a PREVIOUS run's pool snapshot; the record had
+         * moved by the time the watch ran, so it recorded a neighbouring record's
+         * writes and said nothing about the subject. A watch aimed at a structure
+         * must cover the structure, or its silence is a fact about the address. */
+        const char *l = getenv("MFBUS_WWATCH_LEN");
+        if (l != NULL && l[0] != '\0')
+        {
+            unsigned long bytes = strtoul(l, NULL, 0);
+            watch_words = (long)((bytes + 1u) / 2u);
+            if (watch_words < 1) { watch_words = 1; }
+        }
     }
-    if (watch_word < 0 || (long)word_offset != watch_word)
+    if (watch_word < 0 || (long)word_offset < watch_word ||
+        (long)word_offset >= watch_word + watch_words)
     {
         return;
     }
@@ -953,8 +971,15 @@ static void mfbus_bank_write_watch(uint32_t word_offset, uint16_t value, WriteMo
         return;
     }
     LOG(LOG_CAT_MMS, LOG_INFO,
-        "MFbus: ND-100 writes pool word 0x%06X (byte 0x%06X) = 0x%04X mode=%d\n",
-        (unsigned)word_offset, (unsigned)(word_offset * 2u), (unsigned)value, (int)wm);
+        "MFbus: ND-100 writes pool word 0x%06X (byte 0x%06X) = 0x%04X mode=%d '%c%c'\n",
+        (unsigned)word_offset, (unsigned)(word_offset * 2u), (unsigned)value, (int)wm,
+        /* THE CHARACTERS TOO. This watch is used on text fields as often as on
+         * pointers, and "0x5329" does not read as the tail of "(SYSTEM)" until
+         * someone decodes it by hand. Non-printing bytes show as '.'. */
+        (((value >> 8) & 0xFFu) >= 0x20u && ((value >> 8) & 0xFFu) < 0x7Fu)
+            ? (char)((value >> 8) & 0xFFu) : '.',
+        ((value & 0xFFu) >= 0x20u && (value & 0xFFu) < 0x7Fu)
+            ? (char)(value & 0xFFu) : '.');
 }
 
 static void mfbus_bank_write(void *ctx, uint32_t word_offset, uint16_t value, WriteMode wm)
@@ -1647,11 +1672,34 @@ static bool mfbus_start_process(void *ctx, uint32_t msg_byte, uint16_t micfu, ui
          * swapper's MON 377B was reported, answered and resumed, and the process then
          * spun forever on a cell whose new value had been written in the message and
          * never carried across. */
-        if (micfu == NDBUS_MICFU_MONCO)
+        /* 26B CARRIES THE SAME ANSWER AS 24B, so it reads the same result. The
+         * difference is the answer-data block handled below. Testing only for
+         * MONCO here left a 3WMONCO resumed with no FUNCV, no K and no
+         * write-backs - resumed, but blind. */
+        /* WHERE THE 26B ANSWER-DATA BLOCK IS, read before the restart record so
+         * the oversize guard can override FUNCV and K before they are applied.
+         * Nothing is buffered - the bytes are streamed below, after the
+         * write-backs and immediately before the resume, which is the order the
+         * microcode uses: NEWCNTXT, the shared 24B fetch, the copy, then EXECUTE. */
+        NdbusWmoncoBlock wblock;
+        bool have_wblock = (micfu == NDBUS_MICFU_WMONCO) &&
+                           ndbus_servicer_read_wmonco_block(&nd->servicer, msg_byte, &wblock);
+
+        if (micfu == NDBUS_MICFU_MONCO || micfu == NDBUS_MICFU_WMONCO)
         {
             NdbusMonResult res;
             if (ndbus_servicer_read_monitor_result(&nd->servicer, msg_byte, &res))
             {
+                /* THE OVERSIZE GUARD, applied to the answer the process is about
+                 * to see. A 26NRB of 0x2000 or more is not a refusal: the copy is
+                 * skipped and the process resumes with FUNCV 0o174 and K set, so
+                 * it takes its own error path. Refusing the message instead is
+                 * what leaves a process parked for ever. */
+                if (have_wblock && wblock.oversize)
+                {
+                    res.funcv = 0x7Cu;   /* 0o174 */
+                    res.kflip = 1u;
+                }
                 /* FUNCV -> I1, the call's result register. */
                 c->cpu.I[0] = res.funcv;
 
@@ -1736,6 +1784,52 @@ static bool mfbus_start_process(void *ctx, uint32_t msg_byte, uint16_t micfu, ui
                 }
             }
         }
+        /* THE 26B ANSWER-DATA BLOCK, copied in BEFORE the process runs.
+         *
+         * STREAMED, one byte at a time, straight from the ND-100's half of the
+         * pool into the process's memory. No intermediate buffer: an earlier
+         * version carried the bytes in NdbusMonResult and then through a static
+         * array here, which put 8 KB on the stack of every monitor-call restart,
+         * copied the data three times, and - because the runner is threaded and
+         * there are up to seven stations - shared one static buffer between CPUs.
+         *
+         * The byte extraction lives in ndbus_servicer_read_nd100_byte and not
+         * here, so there is only ever one copy of the rule that the even byte is
+         * the high half.
+         *
+         * Written through the MMU's NON-FAULTING peek rather than a store,
+         * because the destination can straddle a page and an unmapped page must
+         * be skipped and SAID, not faulted on: a fault raised while delivering an
+         * answer would be reported as the process's own and sent to SINTRAN as a
+         * page fault it never took. */
+        if (have_wblock && wblock.count > 0u)
+        {
+            uint32_t written = 0u, unmapped = 0u;
+            for (uint32_t i = 0; i < wblock.count; i++)
+            {
+                uint32_t pa = nd500_mmu_peek(&c->cpu, wblock.dest + i);
+                if (pa == 0xFFFFFFFFu)
+                {
+                    unmapped++;
+                    continue;
+                }
+                (void)ndbus_pool_write8(&s_pool, pa,
+                    ndbus_servicer_read_nd100_byte(&nd->servicer, wblock.src_byte + i));
+                written++;
+            }
+            LOG(LOG_CAT_MMS, LOG_INFO,
+                "MFbus: %s 3WMONCO answer data: %u byte(s) from pool 0x%06X -> logical "
+                "0x%08X, %u written, %u skipped as unmapped\n",
+                c->name, (unsigned)wblock.count, (unsigned)wblock.src_byte,
+                (unsigned)wblock.dest, (unsigned)written, (unsigned)unmapped);
+        }
+        else if (have_wblock && wblock.oversize)
+        {
+            LOG(LOG_CAT_MMS, LOG_WARN,
+                "MFbus: %s 3WMONCO answer data OVERSIZE (26NRB >= 0x2000) - copy "
+                "skipped, resuming with FUNCV 174B and K set\n", c->name);
+        }
+
         if (c->mon_resumes <= MFBUS_MON_LOG_LIMIT)
         {
             LOG(LOG_CAT_MMS, LOG_INFO,
