@@ -15,6 +15,7 @@
 #define MFBUS_BRIDGE_H
 
 #include <stdbool.h>
+#include <stddef.h>   /* size_t - mfbus_context_field_count */
 #include <stdint.h>
 
 
@@ -224,6 +225,79 @@ bool mfbus_place_context(uint8_t station_number, uint32_t area_byte, uint32_t en
  *         contexts.
  */
 bool mfbus_load_context(uint8_t station_number);
+
+/**
+ * @brief How many registers the context block carries across a switch.
+ *
+ * The bridge keeps ONE table of those registers and both CNTXTSAVE and NEWCNTXT
+ * iterate it, so a register cannot be restored by the load and dropped by the
+ * save. These two accessors exist so the unit test can assert that property over
+ * every row rather than over a list it repeats for itself - a test that restates
+ * the list cannot catch a register missing from both.
+ *
+ * @return The number of rows, always greater than zero.
+ */
+size_t mfbus_context_field_count(void);
+
+/**
+ * @brief Describe one row of the context block's register table.
+ *
+ * @param index      Row, 0 .. mfbus_context_field_count() - 1.
+ * @param out_offset Byte offset of the slot inside the 256-byte block; may be NULL.
+ * @param out_name   Static register name for a failure message; may be NULL.
+ * @param out_mask   The width the microcode moves (PS is 13 bits, CED and CAD are
+ *                   bytes), so a test can mask its marker the same way; may be NULL.
+ * @param out_saved  False for a row the load reads and the save must NOT write
+ *                   back, because the microcode sources that slot itself. A test
+ *                   must not expect such a row to survive a round trip; may be NULL.
+ * @return true if index named a row, false if it is out of range.
+ */
+bool mfbus_context_field_info(size_t index, uint32_t *out_offset, const char **out_name,
+                              uint32_t *out_mask, bool *out_saved);
+
+/**
+ * @brief Write one of the context table's registers in a station's CPU, by ROW INDEX.
+ *
+ * By index and not by name so a caller never restates the register list. A test
+ * that keeps its own copy of that list cannot catch a register missing from BOTH
+ * the save and the load, which is the defect that actually occurred: TOS and LL
+ * were read by the load, written by nobody, and no test mentioned either.
+ *
+ * The value is masked to the width the microcode moves, so a caller poking a
+ * full 32-bit marker into PS (13 bits) or CED/CAD (bytes) gets back what will
+ * really survive instead of reading the difference as a fault.
+ *
+ * @param station_number Octobus station, 070B..076B.
+ * @param index          Row, 0 .. mfbus_context_field_count() - 1.
+ * @param value          Value to store; masked per row.
+ * @return true on success, false for an unknown station or an out-of-range row.
+ */
+bool mfbus_context_register_set(uint8_t station_number, size_t index, uint32_t value);
+
+/**
+ * @brief Read one of the context table's registers from a station's CPU, by ROW INDEX.
+ *
+ * @param station_number Octobus station, 070B..076B.
+ * @param index          Row, 0 .. mfbus_context_field_count() - 1.
+ * @param out_value      Receives the register, masked per row.
+ * @return true on success, false for an unknown station, an out-of-range row or
+ *         a NULL out_value.
+ */
+bool mfbus_context_register_get(uint8_t station_number, size_t index, uint32_t *out_value);
+
+/**
+ * @brief CNTXTSAVE on demand - write the live registers into the context block.
+ *
+ * The public mirror of mfbus_load_context(), which has always been public. The
+ * pair is what makes the save/load round trip testable at all; with only the
+ * load exposed, a test can assert what the load does with a block somebody else
+ * wrote, but never that the save puts back what the load will read.
+ *
+ * @param station_number Octobus station, 070B..076B.
+ * @return true if the block was written, false for an unknown station or when no
+ *         context block has been placed for it.
+ */
+bool mfbus_store_context(uint8_t station_number);
 
 /**
  * @brief Start the host thread of the CPU at this station.

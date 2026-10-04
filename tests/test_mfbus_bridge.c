@@ -380,6 +380,147 @@ int main(void)
 
     mfbus_detach();
 
+    /* ---- THE ROUND-TRIP PROPERTY: save then load restores EVERY register ----
+     *
+     * This is the test that was missing, and its absence is why a real defect
+     * shipped. CNTXTSAVE and NEWCNTXT used to be two hand-written register lists
+     * in two functions a thousand lines apart, and TOS and LL ended up read by
+     * the load and written by neither. Every process therefore ran with the
+     * stack limits of whichever process ran before it. MEASURED 04-OCT-2026: the
+     * SINTRAN swapper stack-overflowed at P=0x08008E09 immediately after a
+     * domain's page fault switched away from it, faulting on address 0x00000004 -
+     * a frame base of 4, not a missing page.
+     *
+     * WHY IT IS WRITTEN THIS WAY. The test drives the table by INDEX and never
+     * names a register. A test that spelled out its own list of registers could
+     * not have caught this one, because the register was missing from the save,
+     * the load AND any such list - all three were written by the same hand on the
+     * same day. Driving mfbus_context_field_count() means a register added to the
+     * bridge is covered here the moment it is added, and one dropped from the
+     * table fails the count check below rather than vanishing silently.
+     *
+     * Each register gets a DISTINCT marker, so a save or load that crosses two
+     * slots shows up as the wrong value rather than as a value that happens to
+     * match. The markers are masked per row because the block only carries the
+     * width the microcode moves - PS is 13 bits, CED and CAD are bytes - and the
+     * accessors apply that mask on the way in, so what is read back is what the
+     * hardware would really have kept. */
+    CHECK(mfbus_attach(TEST_POOL_BYTES, TEST_BASE_PAGE), "reattach for the round trip");
+    CHECK(mfbus_add_nd5000(56), "a station for the round trip");
+    CHECK(mfbus_attach_cpu(56), "with a CPU");
+    CHECK(mfbus_place_context(56, ctx_area, 0x00001234u, 0x00005678u),
+          "and a context block to round-trip through");
+
+    size_t rows = mfbus_context_field_count();
+    CHECK(rows >= 23u, "the context table carries at least P/L/B/R, I/A/E, ST1/ST2, "
+                       "TOS/LL, CED/CAD and PS");
+
+    /* A marker that is distinct per row AND has bits set in every byte, so a
+     * truncation to a halfword or a byte cannot look like a pass. */
+    bool all_set = true;
+    for (size_t k = 0; k < rows; k++)
+    {
+        all_set = mfbus_context_register_set(56, k, 0xA5000000u | (uint32_t)((k + 1u) * 0x010101u))
+                  && all_set;
+    }
+    CHECK(all_set, "every register in the table can be seeded with its own marker");
+
+    /* What each register holds AFTER masking - that is what must survive. */
+    uint32_t seeded[64];
+    bool read_back = (rows <= 64u);
+    for (size_t k = 0; k < rows && read_back; k++)
+    {
+        read_back = mfbus_context_register_get(56, k, &seeded[k]) && read_back;
+    }
+    CHECK(read_back, "and read back before the save");
+
+    /* THE WHITELIST IS ITSELF ASSERTED, and this check is the reason the test has
+     * any force at all.
+     *
+     * The per-row verdict below skips equality for a row marked saved=false,
+     * because such a row is loaded-only by design. That escape hatch would
+     * otherwise let anyone silence this test for any register by flipping one
+     * flag - and "a check that is easy to skip will be skipped" is how the
+     * original defect survived. MEASURED while writing this test: marking TOS
+     * saved=false reintroduced the exact stack-overflow bug and the test still
+     * passed, until this check existed.
+     *
+     * So the hatch is nailed shut: EXACTLY ONE row may be loaded-only, and it
+     * must be PS at 0x48. PS earns it directionally - CNTXTLOAD at 0o14777 reads
+     * that slot, so a value we invent there is consumed by the microcode as if
+     * SINTRAN had written it. Any future loaded-only row has to come here and
+     * argue for itself. */
+    size_t loaded_only = 0;
+    uint32_t loaded_only_offset = 0xFFFFFFFFu;
+    const char *loaded_only_name = "none";
+    for (size_t k = 0; k < rows; k++)
+    {
+        uint32_t off = 0, msk = 0;
+        const char *nm = "?";
+        bool sv = false;
+        if (mfbus_context_field_info(k, &off, &nm, &msk, &sv) && !sv)
+        {
+            loaded_only++;
+            loaded_only_offset = off;
+            loaded_only_name = nm;
+        }
+    }
+    CHECK(loaded_only == 1u,
+          "exactly ONE context register may be loaded-only - any other is a "
+          "register silently dropped from the save");
+    CHECK(loaded_only_offset == NDBUS_CTX_SRF13,
+          "and it is the slot at 0x48, which CNTXTLOAD reads for itself");
+    CHECK(loaded_only_name != NULL && loaded_only_name[0] == 'P' &&
+          loaded_only_name[1] == 'S' && loaded_only_name[2] == '\0',
+          "and that register is PS - named, so a swap for another one fails here");
+
+    CHECK(mfbus_store_context(56), "CNTXTSAVE writes the block");
+
+    /* Wipe every register, so a value that reappears can only have come out of
+     * the block. Without this a register the load never touches would still
+     * hold its marker and the test would pass on a defect. */
+    for (size_t k = 0; k < rows; k++)
+    {
+        (void)mfbus_context_register_set(56, k, 0u);
+    }
+    uint32_t after_wipe = 0xFFFFFFFFu;
+    CHECK(mfbus_context_register_get(56, 0, &after_wipe) && after_wipe == 0u,
+          "the registers really are wiped, so the load has to do the work");
+
+    CHECK(mfbus_load_context(56), "NEWCNTXT loads the block back");
+
+    /* THE VERDICT, PER REGISTER, BY NAME. One CHECK per row so a failure says
+     * which register was lost instead of reporting a count that is one short. */
+    for (size_t k = 0; k < rows; k++)
+    {
+        uint32_t offset = 0, mask = 0;
+        const char *name = "?";
+        bool saved = false;
+        if (!mfbus_context_field_info(k, &offset, &name, &mask, &saved))
+        {
+            CHECK(false, "the table describes every row it counts");
+            continue;
+        }
+
+        uint32_t got = 0xDEADBEEFu;
+        bool ok = mfbus_context_register_get(56, k, &got);
+
+        if (!saved)
+        {
+            /* A row the save deliberately does not write back, because the
+             * microcode sources that slot itself - PS is the only one today. The
+             * block still holds whatever was placed there, so the property is
+             * that the load READ it, not that it round-tripped. Asserting
+             * equality here would demand a write the hardware forbids. */
+            CHECK(ok, name);
+            continue;
+        }
+
+        CHECK(ok && got == seeded[k], name);
+    }
+
+    mfbus_detach();
+
     /* ---- the card on the REAL fabric, reaching a REAL ND-5000 -------------
      * TPE test 4's mechanism, but with the actual bus behind it: an Ident to a
      * station that exists is answered into the card's receive FIFO, and one to

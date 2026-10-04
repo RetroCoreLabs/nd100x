@@ -213,6 +213,118 @@ static MfbusCpuSlot s_cpus[MFBUS_MAX_ND5000];
  */
 /* Defined below, next to the context switch it mirrors; both park sites above
  * need it, so it is declared here rather than moved away from its pair. */
+/*
+ * THE CONTEXT BLOCK'S REGISTER LIST - ONE TABLE, BOTH DIRECTIONS.
+ *
+ * CNTXTSAVE and NEWCNTXT used to be two hand-written lists of the same
+ * registers in two functions a thousand lines apart. That is how TOS and LL
+ * came to be read by the load and written by neither: a register dropped from
+ * one list and not the other is invisible, and no test could catch it because
+ * there was nothing to compare the lists against.
+ *
+ * With one table the failure is not merely tested for, it is unrepresentable -
+ * save and load iterate the SAME rows, so a row either crosses a context switch
+ * in both directions or in neither. Adding a register is one line here.
+ *
+ * `mask` is the width the microcode moves, not a convenience: PS is a 13-bit
+ * halfword register (015043 NEW_PS_1, "TYP,HW ... D,MM,PS", ND-05.020.01
+ * section 6.6) so a dirty high halfword must not invent a segment, and CED/CAD
+ * are byte transfers.
+ *
+ * `in_block_low_half` marks a slot the BLOCK also uses for something else:
+ * SRF13 carries PS in its low halfword and belongs to the block above that, so
+ * the save must read-modify-write it rather than overwrite the whole word.
+ *
+ * `saved` is false for a row the load reads and the save must NOT write back.
+ * There is exactly one today - PS - and the reason is directional: CNTXTLOAD at
+ * 0o14777 READS ctx+0x48, so a value we invent there is consumed by the
+ * microcode as if SINTRAN had written it. The reference gates the same write off
+ * for this generation. A row with saved=false is the one shape this table cannot
+ * make safe by construction, so it is spelled out rather than implied.
+ */
+typedef struct
+{
+    uint32_t    offset;            /* NDBUS_CTX_* byte offset in the block */
+    const char *name;              /* names the register in a failure message */
+    size_t      cpu_field;         /* offsetof() into Nd500Cpu - every one is uint32_t */
+    uint32_t    mask;              /* the width the microcode moves */
+    bool        saved;             /* false: loaded only, never written back */
+    bool        in_block_low_half; /* the slot's high halfword belongs to the block */
+} MfbusCtxField;
+
+#define MFBUS_CTX_ROW(off, nm, field, msk, sv, lowhalf) \
+    { (off), (nm), offsetof(Nd500Cpu, field), (msk), (sv), (lowhalf) }
+
+static const MfbusCtxField s_ctx_fields[] = {
+    MFBUS_CTX_ROW(NDBUS_CTX_P,      "P",   PC,    0xFFFFFFFFu, true,  false),
+    MFBUS_CTX_ROW(NDBUS_CTX_L,      "L",   L,     0xFFFFFFFFu, true,  false),
+    MFBUS_CTX_ROW(NDBUS_CTX_B,      "B",   B,     0xFFFFFFFFu, true,  false),
+    MFBUS_CTX_ROW(NDBUS_CTX_R,      "R",   R,     0xFFFFFFFFu, true,  false),
+
+    MFBUS_CTX_ROW(NDBUS_CTX_I1,     "I1",  I[0],  0xFFFFFFFFu, true,  false),
+    MFBUS_CTX_ROW(NDBUS_CTX_I2,     "I2",  I[1],  0xFFFFFFFFu, true,  false),
+    MFBUS_CTX_ROW(NDBUS_CTX_I3,     "I3",  I[2],  0xFFFFFFFFu, true,  false),
+    MFBUS_CTX_ROW(NDBUS_CTX_I4,     "I4",  I[3],  0xFFFFFFFFu, true,  false),
+
+    MFBUS_CTX_ROW(NDBUS_CTX_A1,     "A1",  A[0],  0xFFFFFFFFu, true,  false),
+    MFBUS_CTX_ROW(NDBUS_CTX_A2,     "A2",  A[1],  0xFFFFFFFFu, true,  false),
+    MFBUS_CTX_ROW(NDBUS_CTX_A3,     "A3",  A[2],  0xFFFFFFFFu, true,  false),
+    MFBUS_CTX_ROW(NDBUS_CTX_A4,     "A4",  A[3],  0xFFFFFFFFu, true,  false),
+
+    MFBUS_CTX_ROW(NDBUS_CTX_E1,     "E1",  E[0],  0xFFFFFFFFu, true,  false),
+    MFBUS_CTX_ROW(NDBUS_CTX_E2,     "E2",  E[1],  0xFFFFFFFFu, true,  false),
+    MFBUS_CTX_ROW(NDBUS_CTX_E3,     "E3",  E[2],  0xFFFFFFFFu, true,  false),
+    MFBUS_CTX_ROW(NDBUS_CTX_E4,     "E4",  E[3],  0xFFFFFFFFu, true,  false),
+
+    /* The status composite. CNTXTSAVE writes 0x40 and 0x44; CNTXTLOAD reads them
+     * back. ST1 carries PIA and the K flag. */
+    MFBUS_CTX_ROW(NDBUS_CTX_STATUS, "ST1", ST1,   0xFFFFFFFFu, true,  false),
+    MFBUS_CTX_ROW(NDBUS_CTX_SRF10,  "ST2", ST2,   0xFFFFFFFFu, true,  false),
+
+    /* The stack limits, in the two slots the microcode ignores in BOTH
+     * directions - see the load's comment for why these and not HL/THA. */
+    MFBUS_CTX_ROW(NDBUS_CTX_DIT_TOS, "TOS", TOS,  0xFFFFFFFFu, true,  false),
+    MFBUS_CTX_ROW(NDBUS_CTX_DIT_LL,  "LL",  LL,   0xFFFFFFFFu, true,  false),
+
+    MFBUS_CTX_ROW(NDBUS_CTX_CED,    "CED", CED,   0x000000FFu, true,  false),
+    MFBUS_CTX_ROW(NDBUS_CTX_CAD,    "CAD", CAD,   0x000000FFu, true,  false),
+
+    /* LOADED ONLY. The microcode sources this slot itself; see the table note. */
+    MFBUS_CTX_ROW(NDBUS_CTX_SRF13,  "PS",  PS,    0x00001FFFu, false, true),
+};
+
+#define MFBUS_CTX_FIELD_COUNT (sizeof(s_ctx_fields) / sizeof(s_ctx_fields[0]))
+
+/* The register the row names, inside a given CPU. One cast, in one place, so the
+ * offsetof arithmetic is not repeated at every use. */
+static uint32_t *mfbus_ctx_reg(Nd500Cpu *cpu, const MfbusCtxField *f)
+{
+    return (uint32_t *)((char *)cpu + f->cpu_field);
+}
+
+/* Published for the unit test, which asserts the round-trip property over every
+ * row rather than over a list it repeats for itself - a test that restates the
+ * list cannot catch a register missing from both. */
+size_t mfbus_context_field_count(void)
+{
+    return MFBUS_CTX_FIELD_COUNT;
+}
+
+bool mfbus_context_field_info(size_t index, uint32_t *out_offset, const char **out_name,
+                              uint32_t *out_mask, bool *out_saved)
+{
+    if (index >= MFBUS_CTX_FIELD_COUNT)
+    {
+        return false;
+    }
+    const MfbusCtxField *f = &s_ctx_fields[index];
+    if (out_offset != NULL) { *out_offset = f->offset; }
+    if (out_name   != NULL) { *out_name   = f->name; }
+    if (out_mask   != NULL) { *out_mask   = f->mask; }
+    if (out_saved  != NULL) { *out_saved  = f->saved; }
+    return true;
+}
+
 static bool mfbus_save_context(MfbusCpuSlot *c);
 
 /* THE TRAP-STOP SEAM, the nd100x end of it.
@@ -1310,54 +1422,27 @@ static bool mfbus_save_context(MfbusCpuSlot *c)
         return false;
     }
 
+    /* CNTXTSAVE, over s_ctx_fields. A row with saved=false is skipped - see the
+     * table's note on direction; everything else goes back exactly as the load
+     * will read it, because it is the same list. */
     bool ok = true;
-    ok = ndbus_context_write(&c->context, NDBUS_CTX_P, c->cpu.PC) && ok;
-    ok = ndbus_context_write(&c->context, NDBUS_CTX_L, c->cpu.L) && ok;
-    ok = ndbus_context_write(&c->context, NDBUS_CTX_B, c->cpu.B) && ok;
-    ok = ndbus_context_write(&c->context, NDBUS_CTX_R, c->cpu.R) && ok;
-
-    for (int i = 0; i < 4; i++)
+    for (size_t k = 0; k < MFBUS_CTX_FIELD_COUNT; k++)
     {
-        ok = ndbus_context_write(&c->context, NDBUS_CTX_I1 + (uint32_t)i * 4u,
-                                 c->cpu.I[i]) && ok;
-        ok = ndbus_context_write(&c->context, NDBUS_CTX_A1 + (uint32_t)i * 4u,
-                                 c->cpu.A[i]) && ok;
-        ok = ndbus_context_write(&c->context, NDBUS_CTX_E1 + (uint32_t)i * 4u,
-                                 c->cpu.E[i]) && ok;
+        const MfbusCtxField *f = &s_ctx_fields[k];
+        if (!f->saved)
+        {
+            continue;
+        }
+        uint32_t value = *mfbus_ctx_reg(&c->cpu, f) & f->mask;
+        if (f->in_block_low_half)
+        {
+            /* Only the low halfword is ours; the rest of the word belongs to the
+             * block and overwriting it would zero whatever else it carries. */
+            uint32_t slot = ndbus_context_read(&c->context, f->offset);
+            value = (slot & 0xFFFF0000u) | value;
+        }
+        ok = ndbus_context_write(&c->context, f->offset, value) && ok;
     }
-
-    ok = ndbus_context_write(&c->context, NDBUS_CTX_CED, c->cpu.CED) && ok;
-    ok = ndbus_context_write(&c->context, NDBUS_CTX_CAD, c->cpu.CAD) && ok;
-
-    /* ST1/ST2 - the status composite. CNTXTSAVE writes 0x40 and 0x44, so these
-     * belong in the block, and the matching load reads both. A load with no
-     * matching save restores a slot nobody wrote - that is, zero - on every
-     * switch. */
-    ok = ndbus_context_write(&c->context, NDBUS_CTX_STATUS, c->cpu.ST1) && ok;
-    ok = ndbus_context_write(&c->context, NDBUS_CTX_SRF10, c->cpu.ST2) && ok;
-
-    /* THE STACK LIMITS, the exact mirror of the load: slots 0x4C and 0x50, which
-     * the microcode touches in neither direction, and HL/THA deliberately left
-     * alone because it reads those. The load carries the full reasoning and the
-     * two measurements. */
-    ok = ndbus_context_write(&c->context, NDBUS_CTX_DIT_TOS, c->cpu.TOS) && ok;
-    ok = ndbus_context_write(&c->context, NDBUS_CTX_DIT_LL, c->cpu.LL) && ok;
-
-
-    /* PS AT 0x48 IS DELIBERATELY NOT WRITTEN ON THE ND-5000.
-     *
-     * It used to be, read-modify-write on the low halfword. The B30 save writes
-     * none of 0x48/0x54/0x58, and the direction is the point: those are slots the
-     * machine READS. CNTXTLOAD at 0o14777 loads 0x48, and MSG_UNIX5RE/
-     * MSG_UNIX5REL read the 0x54/0x58 pair while handling a mailbox message, so
-     * anything we put there is consumed by the microcode as if SINTRAN had
-     * written it. The reference gates the same three writes off for this
-     * generation (CpuND500.ProcessControl.cs, `if (Generation != ND5000)`), and
-     * our load still reads 0x48 for PS exactly as the microcode does.
-     *
-     * This is the opposite error to TOS/LL above and worth stating as such: there
-     * the load read a slot nothing wrote, here the save wrote a slot the machine
-     * sources itself. */
 
     return ok;
 }
@@ -2318,96 +2403,29 @@ bool mfbus_load_context(uint8_t station_number)
      * that step, not a workaround for the tag. */
     nd500_mmu_tlb_flush();
 
-    c->cpu.PC = ndbus_context_read(&c->context, NDBUS_CTX_P);
-    c->cpu.L = ndbus_context_read(&c->context, NDBUS_CTX_L);
-    c->cpu.B = ndbus_context_read(&c->context, NDBUS_CTX_B);
-    c->cpu.R = ndbus_context_read(&c->context, NDBUS_CTX_R);
-
-    for (int i = 0; i < 4; i++)
+    /* NEWCNTXT, over s_ctx_fields - the SAME rows the save writes, which is the
+     * whole point of the table: a register cannot be restored here and dropped
+     * there, because there is only one list.
+     *
+     * Masked per row. PS in particular is a 13-bit halfword register, so a dirty
+     * high halfword must not invent a segment; CED and CAD are byte transfers.
+     * PS is also the one row the save does not write back, because CNTXTLOAD
+     * reads that slot itself - the table's note has the direction argument.
+     *
+     * WHICH FIELDS ARE DELIBERATELY ABSENT, and this is the part worth keeping in
+     * view: HL, THA, CES, CAS and the trap enables live in the block but the
+     * microcode sources them from the Domain Information Table, so copying them
+     * would make this emulator honour a context the hardware ignores -
+     * ndbus_context_field_is_loaded() is the single statement of that list. TOS
+     * and LL are the exception and the table says why: the microcode touches
+     * their two slots in NEITHER direction, so they are the only ones that can
+     * serve as a private stash without the machine reading what we invented. */
+    for (size_t k = 0; k < MFBUS_CTX_FIELD_COUNT; k++)
     {
-        c->cpu.I[i] = ndbus_context_read(&c->context, NDBUS_CTX_I1 + (uint32_t)i * 4u);
-        c->cpu.A[i] = ndbus_context_read(&c->context, NDBUS_CTX_A1 + (uint32_t)i * 4u);
-        c->cpu.E[i] = ndbus_context_read(&c->context, NDBUS_CTX_E1 + (uint32_t)i * 4u);
+        const MfbusCtxField *f = &s_ctx_fields[k];
+        *mfbus_ctx_reg(&c->cpu, f) =
+            ndbus_context_read(&c->context, f->offset) & f->mask;
     }
-
-    c->cpu.CED = ndbus_context_read(&c->context, NDBUS_CTX_CED);
-    c->cpu.CAD = ndbus_context_read(&c->context, NDBUS_CTX_CAD);
-
-    /* PS, THE PROCESS SEGMENT, AND WITHOUT IT NOTHING TRANSLATES.
-     *
-     * Block register 18 - offset 18 * 4 = 0x48, which this repo names SRF13 and
-     * whose own comment records that its low halfword goes to MM,PS. The reference
-     * masks it: RetroCore CpuND500.ProcessControl.cs case 18,
-     * `regs.PS = value & 0x1FFF`, "process segment (privileged)".
-     *
-     * MEASURED 30-SEP-2026 what leaving it out costs: the context block's P is the
-     * LOGICAL address 0x08000004, and with no process segment the CPU fetched at
-     * 0x08000004 PHYSICALLY - the stop line read "Invalid instruction 0x00
-     * (uninitialized memory) ... paddr=0x08000004", the same value as P. A fetch
-     * whose physical address equals its logical one is the signature of this
-     * missing register. */
-    c->cpu.PS = ndbus_context_read(&c->context, NDBUS_CTX_SRF13) & 0x1FFFu;
-
-    /* ST1/ST2 - THE STATUS COMPOSITE. These ARE block fields: CNTXTSAVE writes
-     * 0x40 and 0x44 and CNTXTLOAD reads them back, so the block is their source.
-     *
-     * ST1 carries PIA (bit 1, privileged-instruction-allowed) and the K flag, so
-     * without this a swapper resumed after a domain ran loses PIA and its next
-     * privileged instruction traps ILLEG, and a program that branches on K after
-     * a monitor call reads a K belonging to whoever ran last.
-     *
-     * Loaded as saved. The microcode's WRITEST1 redistribution into the per-unit
-     * ALU/MIC/IDU status pieces is not modelled on either emulator, so
-     * re-deriving the pieces here would be inventing them. */
-    c->cpu.ST1 = ndbus_context_read(&c->context, NDBUS_CTX_STATUS);
-    c->cpu.ST2 = ndbus_context_read(&c->context, NDBUS_CTX_SRF10);
-
-    /* THE STACK LIMITS: TOS AND LL, OUT OF BLOCK SLOTS 0x4C AND 0x50.
-     *
-     * Nothing restored these before, so TOS and LL carried over from whichever
-     * process ran last. MEASURED 04-OCT-2026: the swapper stack-overflowed at
-     * P=0x08008E09 immediately after a domain's page fault switched away from it,
-     * faulting on address 0x00000004 - a frame base of 4, not a missing page.
-     * RetroCore records the same failure from the other end in
-     * CpuND500.ProcessControl.cs: "cpu-stat sets TOS = 0x0001FFFC with its own
-     * tos:=, and the next switch to the swapper sets it to 0; the same switch
-     * destroys the swapper's own 0x08026198 from its INIT, which is where its
-     * stack-overflow status bits come from. One missing write, both processes."
-     *
-     * WHY THE BLOCK AND NOT THE DIT, since the comment above and
-     * ndbus_context_field_is_loaded() both say these slots are DIT-sourced.
-     *
-     * Both statements are true and neither gives us a DIT to read. cpu->DITBASE
-     * on this lane is set by nd500_mmu_declare_process_segment() to the
-     * CAPABILITY TABLE base - 256 bytes per domain, program capabilities at +0
-     * and data at +64, per ND-05.009.4 section 4.2.3.3 Table 6 - and NOT to a
-     * 16-byte-strided TOS/LL/HL/THA table. nd500_domain.h:47-73 states this
-     * explicitly and warns that wiring nd500_domain_load_state() up "would write
-     * 16-byte-strided fields on top of a guest's 256-byte-strided capability
-     * table and corrupt it silently". It was tried here first and that warning is
-     * why it is not used.
-     *
-     * So these two slots are an EMULATOR-PRIVATE stash, and that is safe for a
-     * measured reason rather than a hopeful one: the whole-image sweep behind
-     * RetroCore's CpuND500.ProcessControl.cs walks every AA=7 address word in all
-     * 16384 microwords and finds 0x4C and 0x50 touched by NOTHING through the
-     * context base, in either direction. The machine never looks at them, so
-     * writing them cannot mislead it, while leaving them unwritten when our own
-     * load reads them sets the limits to zero on every switch.
-     *
-     * HL and THA are deliberately NOT included. The B30 save writes 0x54 and
-     * 0x58, and MSG_UNIX5RE/MSG_UNIX5REL READ that pair while handling a mailbox
-     * message, so a value we invent there is consumed as if SINTRAN had written
-     * it. 0x4C/0x50 are the only two slots in this group the microcode ignores
-     * completely, which is exactly why they are the only two used here.
-     *
-     * Where the real machine keeps TOS across a switch is NOT settled: CNTXTSAVE
-     * does write 0x6C and 0x70, which neither emulator handles, and TOS may live
-     * there. This makes OUR save and OUR load agree using slots the microcode
-     * ignores - correct under either answer, and it moves wholesale if 0x6C/0x70
-     * are ever identified. */
-    c->cpu.TOS = ndbus_context_read(&c->context, NDBUS_CTX_DIT_TOS);
-    c->cpu.LL  = ndbus_context_read(&c->context, NDBUS_CTX_DIT_LL);
 
     /* SAY WHAT THE BLOCK ACTUALLY HELD. "PS is loaded" and "PS is loaded and it is
      * zero" produce the same untranslated fetch, and only the values tell them
@@ -2527,3 +2545,55 @@ bool mfbus_is_attached(void)
 }
 
 #endif /* ND100X_WITH_ND500 */
+
+/* Read or write one of the table's registers in a station's CPU, BY ROW INDEX.
+ *
+ * By index and not by name, so a caller - the round-trip test above all - never
+ * restates the register list. A test that keeps its own copy of the list cannot
+ * catch a register that is missing from BOTH the save and the load, which is the
+ * defect that actually happened: TOS and LL were read by the load, written by
+ * nobody, and no test mentioned them.
+ *
+ * The mask is applied on the way in as well as the way out, because the block
+ * only carries the width the microcode moves - PS is 13 bits, CED and CAD are
+ * bytes - and a caller poking a full 32-bit marker into one of those must be
+ * told what will actually survive rather than reading a mismatch as a bug.
+ */
+bool mfbus_context_register_set(uint8_t station_number, size_t index, uint32_t value)
+{
+    int slot = mfbus_slot_of(station_number);
+    if (slot < 0 || !s_cpus[slot].present || index >= MFBUS_CTX_FIELD_COUNT)
+    {
+        return false;
+    }
+    const MfbusCtxField *f = &s_ctx_fields[index];
+    *mfbus_ctx_reg(&s_cpus[slot].cpu, f) = value & f->mask;
+    return true;
+}
+
+bool mfbus_context_register_get(uint8_t station_number, size_t index, uint32_t *out_value)
+{
+    int slot = mfbus_slot_of(station_number);
+    if (slot < 0 || !s_cpus[slot].present || index >= MFBUS_CTX_FIELD_COUNT ||
+        out_value == NULL)
+    {
+        return false;
+    }
+    const MfbusCtxField *f = &s_ctx_fields[index];
+    *out_value = *mfbus_ctx_reg(&s_cpus[slot].cpu, f) & f->mask;
+    return true;
+}
+
+/* CNTXTSAVE on demand - the public mirror of mfbus_load_context(), which has
+ * always been public. The pair is what makes the round-trip property testable at
+ * all; without a way to drive the save, a test can only assert what the load
+ * does with a block somebody else wrote. */
+bool mfbus_store_context(uint8_t station_number)
+{
+    int slot = mfbus_slot_of(station_number);
+    if (slot < 0 || !s_cpus[slot].present)
+    {
+        return false;
+    }
+    return mfbus_save_context(&s_cpus[slot]);
+}
