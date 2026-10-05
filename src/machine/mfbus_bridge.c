@@ -1534,8 +1534,24 @@ static int mfbus_mon_call(void *ctx, uint32_t mon_number, uint32_t arg_count,
          * its file opens, its exit - left no trace at all, and "did it reach
          * MON 0B" could not be answered from the log. Cheap: one line per
          * monitor call, and a monitor call is a full round trip to SINTRAN. */
-        LOG(LOG_CAT_MMS, LOG_INFO, "MFbus: %s MON %oB X5CPU=%d argc=%u resume=0x%X\n",
-            c->name, (unsigned)mon_number, c->loaded_x5cpu, (unsigned)count, (unsigned)resume);
+        /* With the first six argument values: which file, which segment and
+         * which access type a call names cannot be read from argc. */
+        char args_text[96];
+        size_t used = 0;
+        args_text[0] = '\0';
+        for (uint32_t k = 0; k < count && k < 6u && used + 12u < sizeof args_text; k++)
+        {
+            int n = snprintf(args_text + used, sizeof args_text - used, " 0x%X",
+                             (unsigned)values[k]);
+            if (n < 0)
+            {
+                break;
+            }
+            used += (size_t)n;
+        }
+        LOG(LOG_CAT_MMS, LOG_INFO, "MFbus: %s MON %oB X5CPU=%d argc=%u resume=0x%X args:%s\n",
+            c->name, (unsigned)mon_number, c->loaded_x5cpu, (unsigned)count, (unsigned)resume,
+            args_text);
     }
 
     /* WHAT THE SWAPPER ACTUALLY ASKED FOR.
