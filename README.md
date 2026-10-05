@@ -9,7 +9,7 @@ ND-100/CX minicomputer emulator written in C. Full CPU emulation with MMS1/MMS2 
 
 For more information about the ND-100 series of minicomputers: <https://www.ndwiki.org/wiki/ND-100>
 
-[Try it online](#try-it-in-your-browser) · [Quick start](#quick-start) · [Status](#status) · [ND-500 / ND-5000](#nd-500-and-nd-5000-support) · [Building](#building-the-project) · [Releases](#releases-github-actions) · [About the ND-100](#about-the-nd-100)
+[Try it online](#try-it-in-your-browser) · [Quick start](#quick-start) · [Status](#status) · [ND-500(0)](#nd-5000-support) · [Building](#building-the-project) · [Releases](#releases-github-actions) · [About the ND-100](#about-the-nd-100)
 
 ## Try it in your browser
 
@@ -70,7 +70,7 @@ The emulator is under active development.
 * Full ND-100/CX instruction set implemented (including BCD opcodes).
 * All test programs validate the CPU, Memory Management and Devices.
 * Boots SINTRAN L from SMD in 6-7 seconds on a modern machine.
-* Optional ND-5000 on the octobus: runs ND-500 `:DOM` and `:PSEG`/`:DSEG` programs under SINTRAN (see [ND-500 and ND-5000 support](#nd-500-and-nd-5000-support)).
+* Optional ND-5000 on the octobus: runs ND-500 `:DOM` and `:PSEG`/`:DSEG` programs under SINTRAN (see [ND-500(0) support](#nd-5000-support)).
 
 ## Improvements
 
@@ -362,7 +362,9 @@ Read more about [how to boot sintran](SINTRAN.md)
 
 ![Boot Animation](images/boot.gif)
 
-## ND-500 and ND-5000 support
+## ND-500(0) support
+
+In this README "ND-500(0)" means the ND-500 family: the ND-500 and the ND-5000.
 
 nd100x can be an ND-100 with an ND-5000 CPU beside it. SINTRAN on the ND-100 then
 runs ND-500 domain programs - `:DOM` files and old-format `:PSEG`/`:DSEG` programs,
