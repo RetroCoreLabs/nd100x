@@ -9,7 +9,7 @@ ND-100/CX minicomputer emulator written in C. Full CPU emulation with MMS1/MMS2 
 
 For more information about the ND-100 series of minicomputers: <https://www.ndwiki.org/wiki/ND-100>
 
-[Try it online](#try-it-in-your-browser) · [Quick start](#quick-start) · [Status](#status) · [Building](#building-the-project) · [Releases](#releases-github-actions) · [About the ND-100](#about-the-nd-100)
+[Try it online](#try-it-in-your-browser) · [Quick start](#quick-start) · [Status](#status) · [ND-500 / ND-5000](#nd-500-and-nd-5000-support) · [Building](#building-the-project) · [Releases](#releases-github-actions) · [About the ND-100](#about-the-nd-100)
 
 ## Try it in your browser
 
@@ -70,6 +70,7 @@ The emulator is under active development.
 * Full ND-100/CX instruction set implemented (including BCD opcodes).
 * All test programs validate the CPU, Memory Management and Devices.
 * Boots SINTRAN L from SMD in 6-7 seconds on a modern machine.
+* Optional ND-5000 on the octobus: runs ND-500 `:DOM` and `:PSEG`/`:DSEG` programs under SINTRAN (see [ND-500 and ND-5000 support](#nd-500-and-nd-5000-support)).
 
 ## Improvements
 
@@ -360,6 +361,147 @@ build/bin/nd100x --boot=smd
 Read more about [how to boot sintran](SINTRAN.md)
 
 ![Boot Animation](images/boot.gif)
+
+## ND-500 and ND-5000 support
+
+nd100x can be an ND-100 with an ND-5000 CPU beside it. SINTRAN on the ND-100 then
+runs ND-500 domain programs - `:DOM` files and old-format `:PSEG`/`:DSEG` programs,
+such as the NC compiler, the ND linker and CPU-STAT - the way the real machine does:
+the ND-100 owns the terminal, the files and the monitor calls, and the ND-5000
+executes the program out of memory shared with the ND-100.
+
+### What it is built from
+
+The ND-500 side comes from the sibling project **nd500x**. CMake builds it into
+nd100x when it finds a checkout: `../nd500x` if that exists, otherwise the
+`external/nd500x` submodule (`git submodule update --init external/nd500x`).
+`-DND100X_ND500X_DIR=<path>` picks a checkout explicitly and
+`-DND100X_ENABLE_ND500=OFF` leaves the ND-500 out. It is off by default for the
+RISC-V (Milk-V Duo) build only, which is too small to carry both CPUs. The CMake
+configure step prints which checkout it used.
+
+The same code is in the WebAssembly build. There is no threading in the browser,
+so the ND-5000 is run from the emulator main loop there; the native Linux and
+Windows builds run each ND-5000 CPU on its own host thread. In both cases an
+ND-5000 that has not been started costs the ND-100 nothing measurable: the octobus
+card's per-instruction tick does no work until the ND-500 monitor has started a
+station (measured on a Release build, 100 million instructions: 7.8 s with no
+ND-5000 hardware, 8.1 s with the card and a configured, idle ND-5000). The browser
+build compiles and links with this support; booting an ND-5000 inside the browser
+has not been tested yet.
+
+### Configuring an ND-5000 machine
+
+An ND-5000 is added to the machine through three sections of the machine
+configuration INI. Naming a section is what enables it; deleting or commenting
+it out switches the hardware off again. `ND5000.ini` in the repository root is a
+complete example:
+
+```ini
+[machine]
+cpu = 100
+
+[controller.smd.0]
+enabled = yes
+disk0 = ND5000.IMG        ; the SINTRAN pack the machine boots
+
+[boot]
+device = smd.0.0
+
+[mfbus]                   ; shared memory (MPM-5) between the ND-100 and the ND-5000
+size      = 8             ; pool size in megabytes
+base_page = 04100B        ; ND-100 page where ND-500 address 0 appears
+
+[mfbus.part.0]            ; one memory part, as DEFINE-MEMORY-CONFIGURATION asks
+pages   = 4096            ; 4096 pages of 2 KB = the 8 MB pool
+nd100   = yes
+nd500_p = yes
+nd500_d = yes
+
+[controller.octobus.0]    ; the octobus card, IOX 100400-100437, level 13
+enabled = yes
+
+[nd5000.1]                ; the ND-5000 CPU in slot 1
+enabled = yes
+station = 070B
+```
+
+Start it with:
+
+```bash
+build/bin/nd100x --config ND5000.ini
+```
+
+Things to know:
+
+* **Shared memory.** `base_page` is the same number the ND-500 monitor's
+  `DEFINE-MEMORY-CONFIGURATION` asks for: give the monitor `04100B` when the INI says
+  `04100B`. The pool must not overlap installed ND-100 memory; the emulator refuses to
+  start the bus if it does.
+* **Slots and stations.** `<n>` in `[nd5000.<n>]` is the CPU slot. The octobus has
+  seven stations, 070B to 076B, so up to seven ND-5000s; a duplicate slot is an error.
+  The ND-100 is always station 1B. Identification codes come from the hardware, never
+  from the INI.
+* **The disk.** The SMD image must be a SINTRAN pack with ND-500 support. Disk images
+  are not part of the repository (`*.IMG` is ignored); supply your own, named by
+  `disk0`.
+* **Without the ND-5000.** A configuration with none of these three sections is the
+  plain ND-100 it always was.
+
+### Using it from SINTRAN
+
+1. Boot SINTRAN and log in as **SYSTEM**. `START-SWAPPER` is restricted to the user
+   SYSTEM, so the ND-500 swapper has to be started from that login before ND-500
+   programs can run:
+
+   ```
+   @START-SWAPPER
+   ```
+
+2. Run a program from the `@` prompt with `ND` and its name. This works for `:DOM`
+   programs and for `:PSEG`/`:DSEG` programs alike:
+
+   ```
+   @ND <name of program>
+   ```
+
+   For example `@ND HELLO` runs `HELLO:DOM`. Anything after the name is passed to the
+   program as its command line.
+
+3. Or type `ND` alone to enter the ND-500 monitor and work from there:
+
+   ```
+   @ND
+   ```
+
+   `ND` is short for `ND-500-MONITOR`, the full name it expands to. Inside the
+   monitor, `LIST-DOMAIN` lists the domain programs you can start, and `HELP` lists
+   the monitor's other commands. `LIST-DOMAIN <name>` lists only the matching
+   domains, and a user name in parentheses lists another user's. The
+   [SINTRAN command reference](docs/SINTRAN-Commands.md) documents `START-SWAPPER`,
+   `LIST-DOMAIN` and the rest of the ND-500 monitor commands.
+
+The first time the monitor is entered after a cold start, SINTRAN loads the
+ND-5000's control store and prints `Loading Control Store`; the monitor can print an
+`ND-5000 timeout` line just before that. Both are expected on a fresh start.
+
+### Manuals
+
+The manuals are not part of this repository; look them up by document number (the
+[NDWiki](https://www.ndwiki.org) is a good place to start). The ones this support is
+built against:
+
+| Document | Number | Used for |
+|---|---|---|
+| ND-500 Reference Manual | ND-05.009 (4th edition) | The ND-500 instruction set, registers and status register, memory management (DIT, PST, capabilities) and traps |
+| ND-500 Loader Monitor | ND-60.136 (04A) | The ND-500 monitor, `ND-500-MONITOR`, and its monitor calls |
+| ND-5000 Hardware Description | ND-05.020.01 | The ND-5000 CPU, the octobus stations and the shared memory (MPM-5) |
+| ND-5000 Hardware Maintenance | ND-05.017.01 | Trap and fault handling on the ND-5000 |
+| SINTRAN III Users Guide | ND-60.050 | General use of SINTRAN III from the `@` prompt |
+
+The monitor commands that matter here, including `START-SWAPPER` and `LIST-DOMAIN`, are
+also reproduced in the [SINTRAN command reference](docs/SINTRAN-Commands.md) in this
+repository.
 
 ## Booting TPE-MON from floppy and running test programs
 
