@@ -2424,6 +2424,17 @@ bool mfbus_add_nd5000(uint8_t station_number)
         return false;
     }
 
+    /* WHERE THE WINDOW SITS IN ND-100 MEMORY. The servicer needs it for one
+     * field only: ABUFA, which SINTRAN fills with an ND-100 PHYSICAL address
+     * (MP-P2-N500.NPL:140675) while every other mailbox address is
+     * window-relative. s_base_word is the ND-100 WORD address of pool byte 0,
+     * set by mfbus_attach(), which the configuration always runs first.
+     *
+     * MEASURED 05-OCT-2026 without this: ABUFA = ND-100 byte 0x42D000 was used as
+     * pool offset 0x42D000 instead of 0x00D000, so CPU-STAT's output text never
+     * reached SINTRAN's buffer and its MON 143B answer read back as zeros. */
+    ndbus_servicer_set_nd100_window_base(&nd->servicer, s_base_word * 2u);
+
     if (!ndbus_fabric_register(&s_fabric, &nd->station))
     {
         LOG(LOG_CAT_MMS, LOG_ERROR, "MFbus: octobus station %o is already occupied\n",
