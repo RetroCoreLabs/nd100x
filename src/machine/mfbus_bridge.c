@@ -200,6 +200,11 @@ typedef struct
      * Written by one thread and read by the other, so atomic. */
     unsigned      runner_leaving;
 
+    /* SET WHEN THE PROCESS IS MADE ACTIVE, consumed by the first step after it.
+     * See the check at the top of mfbus_cpu_step_inner(). Written by the ND-100
+     * thread before it starts the host thread that reads it; atomic all the same. */
+    unsigned      activation_trap_check;
+
     /* PER-PROCESS STATE THE CONTEXT BLOCK DOES NOT CARRY. Ported from RetroCore
      * Nd500CpuProcessBridge (_trapEnablesByProcess and the four _pendingCall*
      * arrays, slot = X5CPU + 1). One CPU runs several ND-500 processes in turn -
@@ -498,6 +503,44 @@ static bool mfbus_cpu_step_inner(MfbusCpuSlot *slot)
     if (slot->parked)
     {
         return false;
+    }
+
+    /* A TRAP THAT IS PENDING AND ENABLED WHEN THE PROCESS BECOMES ACTIVE IS TAKEN
+     * BEFORE ITS NEXT INSTRUCTION RUNS.
+     *
+     * ND-500 Reference Manual ND-05.009.4, status register, PRT: "If the PRT trap
+     * is enabled, the trapped process will immediately be interrupted and its trap
+     * handler invoked. If the process is not in the active state, as soon as it
+     * becomes active the trap will occur."
+     *
+     * That is how SINTRAN tells a process its page fault could not be served.
+     * ND-500 Loader Monitor ND-60.136.04A, MON 505B GERRCOD: "When the swapper
+     * process detects a fatal error (e.g., outside segment), it will cause a
+     * Programmed Trap (PRT) in the user process. GERRCOD may be used within the
+     * trap handler to obtain the error code from the swapper."
+     *
+     * MEASURED on LINKER-B01, which reads a never-written page of its output
+     * file (0xB00242E5, address 0x08602800): SINTRAN restarted it with status bit
+     * 29 set and the linker has bit 29 enabled in OTE1. Without this check the
+     * faulting instruction ran again first, faulted again, the swapper counted
+     * ten faults at one address and the monitor printed NO SUCH PAGE - the
+     * program's own handler never ran.
+     *
+     * The trapping P is the instruction about to run, so the handler's RETT
+     * comes back to it. check_pending_traps() does nothing unless an ignorable
+     * trap is both pending in the status and enabled. */
+    if (__atomic_exchange_n(&slot->activation_trap_check, 0u, __ATOMIC_ACQ_REL) != 0u)
+    {
+        uint32_t p_before = slot->cpu.PC;
+        uint32_t st1_before = slot->cpu.ST1;
+        check_pending_traps(&slot->cpu, slot->cpu.PC);
+        if (slot->cpu.PC != p_before)
+        {
+            LOG(LOG_CAT_MMS, LOG_INFO,
+                "MFbus: %s pending trap taken at activation: ST1 was 0x%08X, P 0x%08X -> "
+                "handler 0x%08X\n",
+                slot->name, (unsigned)st1_before, (unsigned)p_before, (unsigned)slot->cpu.PC);
+        }
     }
 
     /* WHERE A SPINNING PROCESS IS SPINNING. A CPU that never stops reports nothing
@@ -1882,6 +1925,10 @@ static bool mfbus_resume_runner(MfbusCpuSlot *c, uint8_t station_number)
     {
         return true;   /* already going */
     }
+
+    /* The process becomes active here: its first step looks for a trap that is
+     * already pending. */
+    __atomic_store_n(&c->activation_trap_check, 1u, __ATOMIC_RELEASE);
 
     if (state == NDBUS_RUNNER_STOPPED)
     {
