@@ -158,6 +158,57 @@ static unsigned long s_inbound_delivered = 0;
 static unsigned long s_inbound_dropped = 0;
 
 /*
+ * WHAT THE ND-100 CLOCK TICK HAS TO DO FOR THE ND-5000s, kept as bit masks so the
+ * tick can tell in a few loads that the answer is "nothing". Bit n is the station
+ * in slot n of s_nd5000[]. All are read from the tick without a lock and written
+ * with atomic stores.
+ *
+ *  scan flag      A frame has gone onto the bus (or a station or CPU was added or
+ *                 started) since the stations were last looked at, so a station's
+ *                 state may have changed. Set by those events, cleared by the scan.
+ *  s_armed_mask   Stations whose monitor has started (start_mess is set, so the
+ *                 mailbox is located). Only these have a doorbell to poll: before
+ *                 the ENKICK frame there is no mailbox, and nothing to look at.
+ *  s_pump_mask    Stations whose CPU was started and must be executed by the main
+ *                 loop because there are no host threads (WebAssembly). Never set
+ *                 in a build with host threads - there the runner thread does it.
+ *
+ * With every mask 0, a machine with ND-5000s configured and none started costs the
+ * tick four loads and a branch: no lock, no function call, no instruction run.
+ */
+static unsigned s_armed_mask = 0;
+static unsigned s_pump_mask = 0;
+
+/* ONE WORD THAT SAYS WHETHER THE TICK HAS ANYTHING TO DO, so the octobus card's
+ * tick tests a single value inline and skips the call when it is zero. A bit is
+ * set by whatever creates the work and cleared by the code that finishes it:
+ *   INBOUND  s_inbound_count != 0 (set and cleared under the bus lock)
+ *   SCAN     a frame went onto the bus since the stations were last scanned
+ *   ARMED    s_armed_mask != 0 (ND-100 thread)
+ *   PUMP     s_pump_mask != 0 (the main loop, WebAssembly only)
+ * Each bit has one writer at a time and is changed with an atomic or/and, so
+ * the bits never disturb each other. */
+unsigned mfbus_tick_work = 0;
+#define MFBUS_WORK_INBOUND 1u
+#define MFBUS_WORK_SCAN    2u
+#define MFBUS_WORK_ARMED   4u
+#define MFBUS_WORK_PUMP    8u
+
+static void mfbus_work_set(unsigned bit)
+{
+    (void)__atomic_fetch_or(&mfbus_tick_work, bit, __ATOMIC_ACQ_REL);
+}
+
+static void mfbus_work_clear(unsigned bit)
+{
+    (void)__atomic_fetch_and(&mfbus_tick_work, ~bit, __ATOMIC_ACQ_REL);
+}
+
+/* Instructions an ND-5000 runs per ND-100 instruction when the main loop has to
+ * execute it (no host threads). A scheduling choice, not a measured ratio. */
+#define MFBUS_PUMP_STEPS_PER_TICK 8u
+
+/*
  * The ND-500 CPU behind each station, and the host thread that runs it.
  *
  * Parallel arrays indexed the same as s_nd5000[]: a station and its CPU are
@@ -1904,6 +1955,19 @@ static void mfbus_quiesce_runner(MfbusCpuSlot *c)
     while (__atomic_load_n(&c->runner_leaving, __ATOMIC_ACQUIRE) != 0u)
     {
         NdbusRunnerState state = ndbus_runner_state(&c->runner);
+#ifdef __EMSCRIPTEN__
+        /* No second thread to wait for: a runner that is still RUNNING is only
+         * advanced by this same thread, so waiting would never end. A stop that
+         * was requested but not yet pumped is complete as far as anyone can see. */
+        if (state == NDBUS_RUNNER_RUNNING)
+        {
+            return;
+        }
+        if (state == NDBUS_RUNNER_STOPPING)
+        {
+            state = NDBUS_RUNNER_STOPPED;
+        }
+#endif
         if (state == NDBUS_RUNNER_STOPPED || state == NDBUS_RUNNER_IDLE)
         {
             ndbus_runner_join(&c->runner);
@@ -3068,6 +3132,9 @@ static bool mfbus_card_transmit(void *ctx, Device *card, uint16_t frame)
     uint16_t replies[NDBUS_MAX_REPLY_FRAMES];
     int      n = ndbus_fabric_send(&s_fabric, (uint8_t)NDBUS_STATION_ND120_CPU, frame, replies);
 
+    /* The frame may have started a station's monitor (ENKICK) or reset it. */
+    mfbus_work_set(MFBUS_WORK_SCAN);
+
     // THE TWO NEGATIVE-ISH RESULTS ARE DIFFERENT THINGS, and collapsing them into
     // one "n <= 0" was hiding the answer discovery asks for. ndbus_fabric_send
     // returns -1 when NO STATION is registered at the destination (Ack=00, the
@@ -3126,7 +3193,8 @@ static int mfbus_nd100_station_handle(NdbusStation *station, uint16_t frame, uin
     {
         unsigned tail = (s_inbound_head + s_inbound_count) % MFBUS_ND100_INBOUND_WORDS;
         s_inbound[tail] = frame;
-        s_inbound_count++;
+        __atomic_store_n(&s_inbound_count, s_inbound_count + 1u, __ATOMIC_RELEASE);
+        mfbus_work_set(MFBUS_WORK_INBOUND);
         s_inbound_queued++;
     }
     ndbus_unlock();
@@ -3158,7 +3226,11 @@ static void mfbus_nd100_deliver_inbound(void)
     {
         frame = s_inbound[s_inbound_head];
         s_inbound_head = (s_inbound_head + 1u) % MFBUS_ND100_INBOUND_WORDS;
-        s_inbound_count--;
+        __atomic_store_n(&s_inbound_count, s_inbound_count - 1u, __ATOMIC_RELEASE);
+        if (s_inbound_count == 0u)
+        {
+            mfbus_work_clear(MFBUS_WORK_INBOUND);
+        }
         have = true;
     }
     ndbus_unlock();
@@ -3518,7 +3590,17 @@ bool mfbus_start_nd5000(uint8_t station_number)
     {
         return false;
     }
-    return ndbus_runner_start(&s_cpus[slot].runner);
+    bool started = ndbus_runner_start(&s_cpus[slot].runner);
+#ifdef __EMSCRIPTEN__
+    if (started)
+    {
+        /* No host thread: this is what makes the main loop run the CPU. Natively
+         * the runner thread runs it and the tick has nothing to do for it. */
+        __atomic_fetch_or(&s_pump_mask, 1u << slot, __ATOMIC_ACQ_REL);
+        mfbus_work_set(MFBUS_WORK_PUMP);
+    }
+#endif
+    return started;
 }
 
 void mfbus_stop_nd5000(uint8_t station_number)
@@ -3531,26 +3613,112 @@ void mfbus_stop_nd5000(uint8_t station_number)
     /* Asks AND waits: the thread may be mid-instruction when the request
      * arrives, and the pool it is reading must outlive it. */
     ndbus_runner_stop_and_join(&s_cpus[slot].runner);
+#ifdef __EMSCRIPTEN__
+    if (__atomic_and_fetch(&s_pump_mask, ~(1u << slot), __ATOMIC_ACQ_REL) == 0u)
+    {
+        mfbus_work_clear(MFBUS_WORK_PUMP);
+    }
+#endif
 }
 
 int mfbus_service_nd5000_mailboxes(void)
 {
+    /* THE COMMON CASE, AND IT MUST COST NOTHING. This runs once per ND-100
+     * instruction. With no frame waiting for the card, no station to look at, no
+     * monitor started and no CPU to run, there is no work: return after four
+     * loads. No lock, no call, no instruction executed. */
+    if (__atomic_load_n(&mfbus_tick_work, __ATOMIC_ACQUIRE) == 0u)
+    {
+        return 0;
+    }
+
     int answered = 0;
 
     /* FIRST, hand the ND-100 one frame that a station sent it. This is the
      * card's tick on the ND-100 thread, which is the only place the card may be
-     * touched from. */
-    mfbus_nd100_deliver_inbound();
-
-    for (int i = 0; i < s_nd5000_count; i++)
+     * touched from. The lock is taken only when a frame is waiting. */
+    if (__atomic_load_n(&s_inbound_count, __ATOMIC_ACQUIRE) != 0u)
     {
-        if (ndbus_nd5000_service_mailbox(&s_nd5000[i]))
+        mfbus_nd100_deliver_inbound();
+    }
+
+    /* A frame went onto the bus since the last look: find out which stations
+     * now have a mailbox. Cleared BEFORE the scan so a frame sent meanwhile
+     * asks for another one. */
+    if ((__atomic_fetch_and(&mfbus_tick_work, ~MFBUS_WORK_SCAN, __ATOMIC_ACQ_REL) & MFBUS_WORK_SCAN)
+        != 0u)
+    {
+        unsigned armed = 0;
+        for (int i = 0; i < s_nd5000_count; i++)
+        {
+            if (s_nd5000[i].start_mess != 0u)
+            {
+                armed |= 1u << i;
+            }
+        }
+        __atomic_store_n(&s_armed_mask, armed, __ATOMIC_RELEASE);
+        if (armed != 0u)
+        {
+            mfbus_work_set(MFBUS_WORK_ARMED);
+        }
+        else
+        {
+            mfbus_work_clear(MFBUS_WORK_ARMED);
+        }
+    }
+
+    /* Only a station whose monitor has started has a doorbell. */
+    unsigned armed = __atomic_load_n(&s_armed_mask, __ATOMIC_ACQUIRE);
+    for (int i = 0; armed != 0u && i < s_nd5000_count; i++)
+    {
+        if ((armed & (1u << i)) != 0u && ndbus_nd5000_service_mailbox(&s_nd5000[i]))
         {
             answered++;
         }
     }
 
+    /* No host threads: run the started CPUs from here. Natively the runner
+     * thread does this and s_pump_mask is never set. */
+#ifdef __EMSCRIPTEN__
+    unsigned pump = __atomic_load_n(&s_pump_mask, __ATOMIC_ACQUIRE);
+    for (int i = 0; pump != 0u && i < s_nd5000_count; i++)
+    {
+        if ((pump & (1u << i)) == 0u)
+        {
+            continue;
+        }
+        (void)ndbus_runner_pump(&s_cpus[i].runner, MFBUS_PUMP_STEPS_PER_TICK);
+        if (ndbus_runner_state(&s_cpus[i].runner) != NDBUS_RUNNER_RUNNING)
+        {
+            /* It stopped, was parked, or was told to stop: nothing to run until
+             * the next start. */
+            if (__atomic_and_fetch(&s_pump_mask, ~(1u << i), __ATOMIC_ACQ_REL) == 0u)
+            {
+                mfbus_work_clear(MFBUS_WORK_PUMP);
+            }
+        }
+    }
+#endif
+
     return answered;
+}
+
+unsigned mfbus_nd5000_armed_mask(void)
+{
+    return __atomic_load_n(&s_armed_mask, __ATOMIC_ACQUIRE);
+}
+
+unsigned mfbus_nd5000_running_mask(void)
+{
+    unsigned mask = 0;
+    for (int i = 0; i < s_nd5000_count; i++)
+    {
+        if (s_cpus[i].present && ndbus_runner_state(&s_cpus[i].runner) == NDBUS_RUNNER_RUNNING)
+        {
+            mask |= 1u << i;
+        }
+    }
+    return mask;
 }
 
 unsigned long long mfbus_nd5000_instructions(uint8_t station_number)
@@ -3587,6 +3755,9 @@ void mfbus_clear_nd5000(void)
     }
     s_nd5000_count = 0;
     memset(s_nd5000, 0, sizeof(s_nd5000));
+    __atomic_store_n(&s_pump_mask, 0u, __ATOMIC_RELEASE);
+    __atomic_store_n(&s_armed_mask, 0u, __ATOMIC_RELEASE);
+    mfbus_work_clear(MFBUS_WORK_SCAN | MFBUS_WORK_ARMED | MFBUS_WORK_PUMP);
 }
 
 void mfbus_detach(void)
@@ -3609,7 +3780,8 @@ void mfbus_detach(void)
     }
     ndbus_lock();
     s_inbound_head = 0;
-    s_inbound_count = 0;
+    __atomic_store_n(&s_inbound_count, 0u, __ATOMIC_RELEASE);
+    mfbus_work_clear(MFBUS_WORK_INBOUND);
     s_inbound_queued = 0;
     s_inbound_delivered = 0;
     s_inbound_dropped = 0;

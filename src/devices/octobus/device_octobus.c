@@ -56,7 +56,8 @@ static void octobus_update_interrupt(Device *self, OctobusData *data)
                         && data->outputStatusRegister.bits.interruptEnabled
                         && !data->outputStatusRegister.bits.busy;
 
-    dev_set_interrupt_status(self, inputActive || outputActive, self->interruptLevel);
+    data->lineHigh = inputActive || outputActive;
+    dev_set_interrupt_status(self, data->lineHigh, self->interruptLevel);
 }
 
 // Recompute the FIFO status bits from the ring, so the two bits can never
@@ -148,7 +149,12 @@ static uint16_t octobus_tick(Device *self)
     {
         return 0;
     }
-    dev_tick_io_delay(self);
+    // Only a card with a delayed operation in flight has anything to count down;
+    // this runs once per ND-100 instruction, so the idle case skips the call.
+    if (self->ioDelayCount > 0)
+    {
+        dev_tick_io_delay(self);
+    }
 
     // LEVEL-SENSITIVE RE-ASSERT. devmgr_ident() force-clears this device's level
     // bit after any successful IDENT, which is right for a device with one
@@ -162,10 +168,23 @@ static uint16_t octobus_tick(Device *self)
     //
     // Recomputing from the request flip-flops every tick is what makes the line
     // level-sensitive rather than edge-triggered, which is what the hardware is.
+    //
+    // A card with nothing pending and a line already low has nothing to
+    // recompute: this runs once per ND-100 instruction, and the common state is
+    // exactly that. The condition is the one octobus_update_interrupt() computes,
+    // so a request that clears without calling it (the two clear paths) still
+    // drops the line here on the tick that finds lineHigh set.
     OctobusData *data = (OctobusData *)self->deviceData;
     if (data)
     {
-        octobus_update_interrupt(self, data);
+        bool inputActive = data->inputIrqPending && data->statusRegister.bits.interruptEnabled;
+        bool outputActive = data->outputIrqPending
+                            && data->outputStatusRegister.bits.interruptEnabled
+                            && !data->outputStatusRegister.bits.busy;
+        if (inputActive || outputActive || data->lineHigh)
+        {
+            octobus_update_interrupt(self, data);
+        }
     }
 
     // THE MAILBOX POLL. Past ENKICK the octobus carries no more commands: the
@@ -178,7 +197,11 @@ static uint16_t octobus_tick(Device *self)
     // ND-5000 station live behind ND100X_WITH_ND500, so a build without the ND-500
     // side has no mailbox to poll.
 #ifdef ND100X_WITH_ND500
-    (void)mfbus_service_nd5000_mailboxes();
+    // Tested here so the idle tick makes no call: see mfbus_tick_work.
+    if (__atomic_load_n(&mfbus_tick_work, __ATOMIC_ACQUIRE) != 0u)
+    {
+        (void)mfbus_service_nd5000_mailboxes();
+    }
 #endif
 
     return self->interruptBits;

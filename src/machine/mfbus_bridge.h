@@ -367,6 +367,35 @@ unsigned long long mfbus_nd5000_instructions(uint8_t station_number);
  */
 int mfbus_service_nd5000_mailboxes(void);
 
+/**
+ * @brief Nonzero when mfbus_service_nd5000_mailboxes() has work to do.
+ * @details Read it with __atomic_load_n and call the service function only when
+ *          it is nonzero: the tick runs once per ND-100 instruction and the idle
+ *          answer is "nothing". Zero means no frame waits for the ND-100, no
+ *          station was changed by a frame since the last scan, no station has a
+ *          started monitor and no CPU needs the main loop to run it.
+ */
+extern unsigned mfbus_tick_work;
+
+/**
+ * @brief Which ND-5000 stations have a started monitor (a mailbox to poll).
+ * @details Bit n is the station added n-th. Updated after a frame has gone onto
+ *          the bus, so it can lag by one ND-100 instruction. 0 until the first
+ *          station's monitor is started with ENKICK - until then the tick does
+ *          no mailbox work at all.
+ * @return The bit mask, 0 when no station has a mailbox.
+ */
+unsigned mfbus_nd5000_armed_mask(void);
+
+/**
+ * @brief Which ND-5000 CPUs are running right now.
+ * @details Bit n is the station added n-th. Read from each runner's own state, so
+ *          it is correct for both a host thread (native) and a CPU run from the
+ *          main loop (WebAssembly). Not for the hot path.
+ * @return The bit mask, 0 when every CPU is stopped or none exists.
+ */
+unsigned mfbus_nd5000_running_mask(void);
+
 
 #endif /* ND100X_WITH_ND500 */
 

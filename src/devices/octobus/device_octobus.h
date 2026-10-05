@@ -323,6 +323,7 @@ typedef struct
     // Separate from the enables in the status registers: the event is what
     // happened, the enable is whether anyone asked to hear about it.
     bool inputIrqPending;
+    bool lineHigh; /* the level this card last drove onto its interrupt line */
     bool outputIrqPending;
 
     // The bus seam. NULL = standalone, and a write to the command register then
