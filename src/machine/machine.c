@@ -1281,7 +1281,7 @@ MountedDriveInfo_t *machine_list_mount(DRIVE_TYPE drive_type)
  * unit 0 must not alias SMD unit 0 in the SyncAccessHandle pool. Matches the
  * gateway_block_*_js signature. */
 EM_JS(int, opfs_block_read_js, (int driveType, int unit, uint8_t *buffer, int bytes, int offset), {
-    if (typeof opfsBlockRead == = 'function')
+    if (typeof opfsBlockRead === 'function')
     {
         return opfsBlockRead(driveType, unit, buffer, bytes, offset);
     }
@@ -1290,7 +1290,7 @@ EM_JS(int, opfs_block_read_js, (int driveType, int unit, uint8_t *buffer, int by
 
 EM_JS(int, opfs_block_write_js,
       (int driveType, int unit, const uint8_t *buffer, int bytes, int offset), {
-          if (typeof opfsBlockWrite == = 'function')
+          if (typeof opfsBlockWrite === 'function')
           {
               return opfsBlockWrite(driveType, unit, buffer, bytes, offset);
           }
@@ -1298,7 +1298,7 @@ EM_JS(int, opfs_block_write_js,
       });
 
 EM_JS(int, opfs_is_available_js, (int driveType, int unit), {
-    if (typeof opfsIsAvailable == = 'function')
+    if (typeof opfsIsAvailable === 'function')
     {
         return opfsIsAvailable(driveType, unit);
     }
@@ -1313,7 +1313,7 @@ EM_JS(int, opfs_is_available_js, (int driveType, int unit), {
  */
 EM_JS(int, gateway_block_read_js, (int driveType, int unit, uint8_t *buffer, int bytes, int offset),
       {
-          if (typeof gatewayBlockRead == = 'function')
+          if (typeof gatewayBlockRead === 'function')
           {
               return gatewayBlockRead(driveType, unit, buffer, bytes, offset);
           }
@@ -1322,7 +1322,7 @@ EM_JS(int, gateway_block_read_js, (int driveType, int unit, uint8_t *buffer, int
 
 EM_JS(int, gateway_block_write_js,
       (int driveType, int unit, const uint8_t *buffer, int bytes, int offset), {
-          if (typeof gatewayBlockWrite == = 'function')
+          if (typeof gatewayBlockWrite === 'function')
           {
               return gatewayBlockWrite(driveType, unit, buffer, bytes, offset);
           }
@@ -1330,7 +1330,7 @@ EM_JS(int, gateway_block_write_js,
       });
 
 EM_JS(int, gateway_is_available_js, (int driveType, int unit), {
-    if (typeof gatewayIsAvailable == = 'function')
+    if (typeof gatewayIsAvailable === 'function')
     {
         return gatewayIsAvailable(driveType, unit);
     }

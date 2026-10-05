@@ -122,7 +122,7 @@ EMSCRIPTEN_EXPORT void TerminalOutputToJS(int identCode, char c)
     // We need a special emscripten wrapper to call from JavaScript to C
     EM_ASM(
         {
-            if (typeof window.handleTerminalOutputFromC == = 'function')
+            if (typeof window.handleTerminalOutputFromC === 'function')
             {
                 window.handleTerminalOutputFromC($0, $1);
             }
