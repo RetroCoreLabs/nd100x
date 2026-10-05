@@ -829,12 +829,24 @@ static bool mfbus_cpu_step_inner(MfbusCpuSlot *slot)
      * parked == false and was refused, or found the thread still running, took it
      * for "already going", and the thread then exited with nobody to start it
      * again. */
+    /* THE ENGINE LOCK IS TAKEN BEFORE THE PARK IS MARKED, and held across the
+     * answer. The ND-100 thread holds the same lock while it works through a
+     * mailbox chain (nd500x ndbus_servicer_process_chain, the port of the
+     * reference's _engineLock). Taking it first means this thread waits out a
+     * chain walk in progress - one that may still be recording the message this
+     * very process was started on - with the "leaving" mark still clear, so a
+     * start inside that walk does not wait on a thread that is itself waiting
+     * for the lock. */
+    ndbus_engine_lock();
     slot->parked = true;
     __atomic_store_n(&slot->runner_leaving, 1u, __ATOMIC_RELEASE);
 
-    if (!ndbus_servicer_answer_trap_stop(&nd->servicer, (uint16_t)slot->loaded_x5cpu, trap_number,
+    bool trap_answered =
+        ndbus_servicer_answer_trap_stop(&nd->servicer, (uint16_t)slot->loaded_x5cpu, trap_number,
                                         restart_p, slot->machine.stop_data, mms,
-                                        (uint16_t)slot->cpu.trap_saved_psn))
+                                        (uint16_t)slot->cpu.trap_saved_psn);
+    ndbus_engine_unlock();
+    if (!trap_answered)
     {
         /* The servicer says why it refused. Nothing was told to SINTRAN, so this
          * is not a park it can restart; the thread still ends here and SINTRAN
@@ -1485,6 +1497,10 @@ static int mfbus_mon_call(void *ctx, uint32_t mon_number, uint32_t arg_count,
             "back to this process would resume it from a stale P\n",
             c->name);
     }
+    /* Engine lock first, then the park mark - see the trap path for why. The
+     * refusal is undone inside the lock, so the ND-100 thread never sees a
+     * "leaving" mark on a thread that is going to keep running. */
+    ndbus_engine_lock();
     c->parked = true;
     __atomic_store_n(&c->runner_leaving, 1u, __ATOMIC_RELEASE);
 
@@ -1496,9 +1512,11 @@ static int mfbus_mon_call(void *ctx, uint32_t mon_number, uint32_t arg_count,
          * told to SINTRAN, so the process is not parked and the thread goes on. */
         c->parked = false;
         __atomic_store_n(&c->runner_leaving, 0u, __ATOMIC_RELEASE);
+        ndbus_engine_unlock();
         c->cpu.PC = pc_before;
         return 0;
     }
+    ndbus_engine_unlock();
 
     c->mon_calls++;
     if (c->mon_calls <= MFBUS_MON_LOG_LIMIT)
