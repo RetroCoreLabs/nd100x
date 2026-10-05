@@ -411,6 +411,24 @@ bool mms_memory_bank_register_backed(uint32_t start_word, uint32_t length_word, 
 // Remove the bank whose start_word matches exactly. Returns false if none does.
 bool mms_memory_bank_unregister(uint32_t start_word);
 
+/* THE MEMORY LOCK OF A TEST-AND-SET. TSET and TSETP read a word and write -1
+ * to it "with the memory system locked, so that the two memory accesses cannot
+ * be split by other accesses on other memory channels" (the instruction's own
+ * definition). On a machine whose memory is shared with another CPU running on
+ * its own host thread, that lock has to be a real one, and it has to be the
+ * same one the other side takes.
+ *
+ * The owner of the shared memory installs the pair; NULL, NULL removes it and
+ * is the state of a machine with no shared memory, where the instruction is
+ * atomic already because nothing else runs.
+ *
+ * mms_tset_lock_end() is safe to call when the lock is not held, and the trap
+ * path calls it before it longjmp()s out of a faulting instruction, so a TSET
+ * that page-faults does not leave the lock taken. */
+void mms_set_tset_lock(void (*lock)(void), void (*unlock)(void));
+void mms_tset_lock_begin(void);
+void mms_tset_lock_end(void);
+
 // The bank containing this word address, or NULL.
 const NdMemoryBank *mms_memory_bank_lookup(uint32_t physical_word_address);
 

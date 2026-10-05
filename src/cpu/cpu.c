@@ -509,6 +509,9 @@ void cpu_interrupt(uint16_t lvl, uint16_t sub)
         {
             log_write(LOG_CAT_TRAP, LOG_TRACE, "TRAP at P:[%6o], sub=%d", gPC, sub);
         }
+        /* A TSET whose access faulted is leaving through here with the memory
+         * lock taken. Give it back first - nothing after the jump would. */
+        mms_tset_lock_end();
         longjmp(s_cpu_jmp_buf, 1); // Jump back to cpurun() in cpu_thread
     }
 }

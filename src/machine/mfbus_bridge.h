@@ -80,6 +80,29 @@ void mfbus_detach(void);
 struct NdbusPool *mfbus_pool(void);
 
 /**
+ * @brief The octobus fabric, so a test can put a frame on the bus as any station.
+ * @return The fabric, or NULL when nothing is attached.
+ */
+struct NdbusFabric *mfbus_fabric(void);
+
+/**
+ * @brief Frames other stations have sent to the ND-100 (station 1B) on their own
+ *        initiative - not replies to a frame the ND-100 sent.
+ *
+ * A frame is QUEUED when the bus delivers it and DELIVERED when the octobus
+ * card's tick moves it into the card's receive FIFO. DROPPED is a lost frame:
+ * the queue or the card was full. With an ND-5000 running, `queued` grows by
+ * one for every answer it writes; a `delivered` that stays behind means the
+ * card is not being ticked.
+ *
+ * @param queued    Out: frames accepted from the bus. May be NULL.
+ * @param delivered Out: frames moved into the card. May be NULL.
+ * @param dropped   Out: frames lost. May be NULL.
+ */
+void mfbus_nd100_inbound_counts(unsigned long *queued, unsigned long *delivered,
+                                unsigned long *dropped);
+
+/**
  * @brief Whether a shared MFbus pool is currently attached.
  * @return true when a pool exists and is registered as an MPM-5 bank.
  */

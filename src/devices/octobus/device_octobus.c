@@ -25,6 +25,11 @@
  *
  * Ported from RetroCore NDBusOctobus.cs
  * Register map, ident codes and probe sequences: see device_octobus.h
+ *
+ * Every "NDBusOctobus.cs Name:line" in this file refers to
+ * $RETROCORE/Emulated.HW/ND/CPU/NDBUS/NDBusOctobus.cs.
+ *
+ * Every function here runs on the ND-100 thread. There are no locks.
  */
 
 #include "device_octobus.h"
@@ -37,23 +42,58 @@
 #include "../devices_protos.h"
 #include "../../machine/mfbus_bridge.h"
 
-// Recompute the FIFO status bits from the ring, so the two bits can never
-// disagree with the count.
-static void octobus_update_fifo_status(OctobusData *data)
-{
-    data->statusRegister.bits.fifoNotFull = (data->rxCount < OCTOBUS_RX_FIFO_WORDS) ? 1 : 0;
-    data->statusRegister.bits.dataAvailable = (data->rxCount > 0) ? 1 : 0;
-}
-
 // Recompute the interrupt line from the two request flip-flops and their
 // enables. Called after every event and every IDENT.
+//
+// The OUTPUT controller also needs BUSY clear: a transfer held back by a full
+// receive FIFO has not completed, so it must not interrupt yet.
+// Ported from NDBusOctobus.cs UpdateInterruptState:2543-2557 (the Busy term is
+// line 2552).
 static void octobus_update_interrupt(Device *self, OctobusData *data)
 {
     bool inputActive = data->inputIrqPending && data->statusRegister.bits.interruptEnabled;
-    bool outputActive =
-        data->outputIrqPending && data->outputStatusRegister.bits.interruptEnabled;
+    bool outputActive = data->outputIrqPending
+                        && data->outputStatusRegister.bits.interruptEnabled
+                        && !data->outputStatusRegister.bits.busy;
 
     dev_set_interrupt_status(self, inputActive || outputActive, self->interruptLevel);
+}
+
+// Recompute the FIFO status bits from the ring, so the two bits can never
+// disagree with the count.
+//
+// This is also where output back-pressure is RELEASED. A loopback echo that
+// found the FIFO full left the output controller BUSY with READY clear (see
+// octobus_process_transmit_queue). The first update that finds space again, with
+// the card in loopback mode, clears BUSY, sets READY and latches the output
+// request: the blocked transfer has now completed, and that is an event.
+// Ported from NDBusOctobus.cs UpdateReceiveFifoStatus:2606-2644 (release at
+// 2622-2629).
+//
+// Reset and the two clears do NOT come through here: the C# assigns the status
+// word directly there (2844, 2915, 3357), so a clear of the input side does not
+// by itself release a BUSY output.
+static void octobus_update_fifo_status(Device *self, OctobusData *data)
+{
+    if (data->rxCount >= OCTOBUS_RX_FIFO_WORDS)
+    {
+        data->statusRegister.bits.fifoNotFull = 0;
+    }
+    else
+    {
+        data->statusRegister.bits.fifoNotFull = 1;
+
+        if (data->loopbackMode && data->outputStatusRegister.bits.busy)
+        {
+            data->outputStatusRegister.bits.busy = 0;
+            data->outputStatusRegister.bits.readyForTransfer = 1;
+            data->outputIrqPending = true;
+        }
+    }
+
+    data->statusRegister.bits.dataAvailable = (data->rxCount > 0) ? 1 : 0;
+
+    octobus_update_interrupt(self, data);
 }
 
 static void octobus_reset(Device *self)
@@ -64,28 +104,40 @@ static void octobus_reset(Device *self)
         return;
     }
 
+    // Ported from NDBusOctobus.cs Reset:3354-3394, statement by statement.
+
+    // Input status is FIFO-NOT-FULL and nothing else (3357): an empty FIFO has
+    // maximum space. The station field is left 0 here, as in the C#; a read of
+    // +2 puts the card's own station into it (octobus_read).
     data->statusRegister.raw = 0;
+    data->statusRegister.bits.fifoNotFull = 1;
     data->controlWord.raw = 0;
-    data->outputStatusRegister.raw = 0;
-    data->outputControlWord.raw = 0;
     data->inputData = 0;
+
+    // The output controller is ready from reset (3363): CH5CPUPRESENT spins on
+    // this bit before sending a command, so a card that never sets it hangs the
+    // probe rather than reporting a missing CPU.
+    data->outputStatusRegister.raw = 0;
+    data->outputStatusRegister.bits.readyForTransfer = 1;
+    data->outputControlWord.raw = 0;
     data->outputData = 0;
+
+    // Loopback is ON after reset exactly when no CPU station is attached (3370).
+    // The attached flag itself survives the reset, as _nd500Cpu does in the C#.
+    data->loopbackMode = !data->cpuAttached;
+
     data->rxHead = 0;
     data->rxCount = 0;
+    // Frames parked behind a full FIFO belong to the state being reset, so they
+    // go too (3376). Without this a read after the reset pulls an old frame in.
+    data->busyRetryHead = 0;
+    data->busyRetryCount = 0;
+
     data->inputIrqPending = false;
     data->outputIrqPending = false;
 
-    // An empty FIFO has maximum space, so fifoNotFull is SET.
-    octobus_update_fifo_status(data);
-
-    // Our own station: the ND-100 is always 1B (T329).
+    // Our own station: the ND-100 is always 1B (T329) (3386).
     data->stationAddress = OCTOBUS_ND100_STATION;
-    data->statusRegister.bits.station = (uint16_t)(OCTOBUS_ND100_STATION & 0x3F);
-
-    // The output controller is ready from reset: CH5CPUPRESENT spins on this bit
-    // before sending a command, so a card that never sets it hangs the probe
-    // rather than reporting a missing CPU.
-    data->outputStatusRegister.bits.readyForTransfer = 1;
 
     dev_set_interrupt_status(self, false, self->interruptLevel);
 }
@@ -134,9 +186,10 @@ static uint16_t octobus_tick(Device *self)
 
 // Push one word into the receive FIFO. Returns false when full. What a caller
 // does with that is the caller's decision: a frame that arrived over the bus is
-// PARKED for retry (octobus_rx_push), while a frame the guest itself wrote into
-// the input data register is simply refused.
-static bool octobus_fifo_push(OctobusData *data, uint16_t word)
+// PARKED for retry (octobus_rx_push), while a loopback echo of the guest's own
+// frame is refused and the output controller goes BUSY
+// (octobus_process_transmit_queue).
+static bool octobus_fifo_push(Device *self, OctobusData *data, uint16_t word)
 {
     if (data->rxCount >= OCTOBUS_RX_FIFO_WORDS)
     {
@@ -145,11 +198,13 @@ static bool octobus_fifo_push(OctobusData *data, uint16_t word)
     int tail = (data->rxHead + data->rxCount) % OCTOBUS_RX_FIFO_WORDS;
     data->rxFifo[tail] = word;
     data->rxCount++;
-    octobus_update_fifo_status(data);
+    octobus_update_fifo_status(self, data);
     return true;
 }
 
-static uint16_t octobus_fifo_pop(OctobusData *data)
+// Pop one word. The caller checks rxCount first; an empty FIFO is not popped
+// (see OCTOBUS_READ_INPUT_DATA in octobus_read).
+static uint16_t octobus_fifo_pop(Device *self, OctobusData *data)
 {
     if (data->rxCount == 0)
     {
@@ -158,7 +213,7 @@ static uint16_t octobus_fifo_pop(OctobusData *data)
     uint16_t word = data->rxFifo[data->rxHead];
     data->rxHead = (data->rxHead + 1) % OCTOBUS_RX_FIFO_WORDS;
     data->rxCount--;
-    octobus_update_fifo_status(data);
+    octobus_update_fifo_status(self, data);
     return word;
 }
 
@@ -187,8 +242,11 @@ static void octobus_pump_busy_retry(Device *self, OctobusData *data)
         data->busyRetryHead = (data->busyRetryHead + 1) % OCTOBUS_BUSY_RETRY_WORDS;
         data->busyRetryCount--;
 
-        (void)octobus_fifo_push(data, frame);
+        (void)octobus_fifo_push(self, data, frame);
         data->inputData = frame;
+        // A receive-format frame carries its source station in bits 13-8, and
+        // that goes into the stored input status (PumpBusyRetryQueue:3485-3487).
+        data->statusRegister.bits.station = (uint16_t)((frame >> 8) & 0x3F);
         octobus_raise_input_event(self, data);
     }
 }
@@ -200,36 +258,158 @@ static void octobus_raise_output_event(Device *self, OctobusData *data)
     octobus_update_interrupt(self, data);
 }
 
-// Echo a transmitted frame into our own input side, as the hardware's local
-// loopback does.
+// Complete one transfer that stays on the card: a frame to station 0 or to the
+// card's own station, or any frame on a card with no bus attached.
+// Ported from NDBusOctobus.cs ProcessTransmitQueue:3233-3307.
 //
-// The received frame carries the SOURCE station in bits 13:8 - the hardware
+// `echo` says whether the frame is echoed into our own input side, as the
+// hardware's local loopback does. The caller decides it (see the write to +5).
+//
+// The echoed frame carries the SOURCE station in bits 13:8 - the hardware
 // stamps the sender's own station onto every received frame (manual ch. 3.2;
 // carve Q2 step 10 decodes +0 bits 13:8 as the source and compares it against
 // the +2 own-station field). For a self-loopback the source is THIS card, so
 // C and B (bits 15,14) and the information byte (7:0) are kept and the station
 // field is replaced. TPE's self-send cross-check requires the +0 source to equal
 // the +2 own-station field, so both must carry stationAddress.
-//
-// Returns false when the FIFO is full, leaving the caller to apply back-pressure.
-static bool octobus_loopback_echo(Device *self, OctobusData *data, uint16_t value)
+static void octobus_process_transmit_queue(Device *self, OctobusData *data, bool echo)
 {
-    // The own-station field in the input status, which TPE compares against.
-    data->statusRegister.bits.station = (uint16_t)(data->stationAddress & 0x3F);
-
-    uint16_t frame =
-        (uint16_t)((value & 0xC0FF) | ((uint16_t)(data->stationAddress & 0x3F) << 8));
-
-    if (!octobus_fifo_push(data, frame))
+    if (echo)
     {
-        data->outputStatusRegister.bits.readyForTransfer = 0;
-        octobus_update_interrupt(self, data);
-        return false;
+        // The source of a looped-back frame is this card (3244-3245).
+        data->statusRegister.bits.station = (uint16_t)(data->stationAddress & 0x3F);
+
+        // The frame echoed is the output data register, which the write to +5
+        // has just loaded (3256-3257).
+        uint16_t frame = (uint16_t)((data->outputData & 0xC0FF)
+                                    | ((uint16_t)(data->stationAddress & 0x3F) << 8));
+
+        if (!octobus_fifo_push(self, data, frame))
+        {
+            // FIFO full: back-pressure. The output goes BUSY with
+            // ready-for-transfer CLEAR and the transfer does NOT complete, so the
+            // test sees the FIFO is full. The frame itself is not kept anywhere:
+            // the C# does not retry it either. BUSY is released by the next FIFO
+            // status update that finds space (3263-3276).
+            data->outputStatusRegister.bits.busy = 1;
+            data->outputStatusRegister.bits.readyForTransfer = 0;
+            octobus_update_fifo_status(self, data);
+            return;
+        }
+
+        data->inputData = frame; // 3261
+        octobus_raise_input_event(self, data);
     }
 
-    data->inputData = frame;
-    octobus_raise_input_event(self, data);
-    return true;
+    // With a CPU station attached and loopback off there is no echo: the C#
+    // branch for that case (3288-3296) only empties its transmit queue. Either
+    // way the transfer is complete: BUSY clear, READY set, output event
+    // (3301-3306).
+    data->outputStatusRegister.bits.busy = 0;
+    data->outputStatusRegister.bits.readyForTransfer = 1;
+    octobus_raise_output_event(self, data);
+}
+
+// Clear ONE controller. The C# does this in two places with the same
+// statements: for control bit 6 Reset (ProcessControlChange:2842-2858) and for
+// control bit 4, the 20 octal clear (2913-2931).
+//
+// Both REPLACE THE WHOLE STATUS WORD. TPE OCTOBUS B00 test 4 ("Check Octobus
+// configuration") reads +6 straight after the clear and demands exactly 000010B
+// - READY and nothing else. Setting only READY leaves the ERROR (bit 4) and NOT
+// PRESENT (bit 6) of the preceding probe standing, and the test reports "Wrong
+// transmit status after Clear Device ... Found 000130B". Ready is SET rather
+// than cleared because OCSTART sends a command straight after the clear.
+static void octobus_clear_controller(OctobusData *data, bool isInput)
+{
+    if (isInput)
+    {
+        // FIFO-NOT-FULL and nothing else (2844, 2915): a cleared card has space,
+        // and software polling bit 2 would otherwise see a full FIFO forever.
+        data->statusRegister.raw = 0;
+        data->statusRegister.bits.fifoNotFull = 1;
+        data->inputData = 0;
+        data->rxHead = 0;
+        data->rxCount = 0;
+        // Parked retry frames die with the clear (2848, 2919): they belong to a
+        // transfer the guest has just abandoned.
+        data->busyRetryHead = 0;
+        data->busyRetryCount = 0;
+        data->inputIrqPending = false;
+    }
+    else
+    {
+        data->outputStatusRegister.raw = 0;
+        data->outputStatusRegister.bits.readyForTransfer = 1; // 2854, 2928
+        data->outputData = 0;
+        data->outputIrqPending = false;
+    }
+}
+
+// Act on a control word written to +3 (input) or +7 (output).
+// Ported from NDBusOctobus.cs ProcessControlChange:2837-2952. THE ORDER OF THE
+// STEPS IS THE C# ORDER and it decides what a word with several bits set does:
+//
+//   1. bit 6 Reset        clears this controller                  (2840-2865)
+//   2. bit 7 TestMode     turns loopback mode ON                  (2868-2874)
+//   3. bit 0              copied to the status interrupt enable   (2879-2904)
+//   4. bit 4 (20 octal)   clears this controller                  (2911-2937)
+//   5. bit 5 ContinueACCP calls the installed function            (2943-2951)
+//
+// Step 4 comes AFTER step 3 and replaces the whole status word, so 21 octal
+// (enable + clear) ends with the interrupt enable CLEAR, on both controllers.
+// 101 octal (enable + Reset) ends with it SET, because step 1 comes before
+// step 3.
+//
+// Both control words have the same layout - the C# decodes both with the one
+// ControlWordBits enum (1063) - so OctobusInputControl is used to decode either.
+static void octobus_process_control_change(Device *self, OctobusData *data, uint16_t control,
+                                           bool isInput)
+{
+    OctobusInputControl cw;
+    cw.raw = control;
+
+    if (cw.bits.reset)
+    {
+        octobus_clear_controller(data, isInput);
+        octobus_update_interrupt(self, data);
+    }
+
+    if (cw.bits.testMode)
+    {
+        data->loopbackMode = true;
+    }
+
+    if (isInput)
+    {
+        data->statusRegister.bits.interruptEnabled = cw.bits.interruptEnabled ? 1 : 0;
+    }
+    else
+    {
+        data->outputStatusRegister.bits.interruptEnabled = cw.bits.interruptEnabled ? 1 : 0;
+    }
+    octobus_update_interrupt(self, data);
+
+    // 20 octal clears the interface: PH-P2-OPPSTART.NPL:4054 writes it to +3 and
+    // :4055 reaches +7 as "T+4".
+    if (cw.bits.deviceClear)
+    {
+        data->clears++;
+        octobus_clear_controller(data, isInput);
+        octobus_update_interrupt(self, data);
+    }
+
+    // The card cannot reach the ND-5000 station, so the embedding installs the
+    // call (octobus_set_continue_accp). No function installed is the C#
+    // "_nd5000Station == null" case: the flag is still set, nothing is called.
+    if (cw.bits.continueAccp)
+    {
+        data->mudomDetected = true;
+        if (data->continueAccp)
+        {
+            data->continueAccp(data->continueAccpCtx);
+        }
+    }
 }
 
 static uint16_t octobus_read(Device *self, uint32_t address)
@@ -247,22 +427,58 @@ static uint16_t octobus_read(Device *self, uint32_t address)
     switch (reg)
     {
     case OCTOBUS_READ_INPUT_DATA:
-        // Pops the FIFO. An empty FIFO reads 0; status bit 3 is how software
-        // tells that from a real 0.
-        value = octobus_fifo_pop(data);
-        // The freed slot lets a busy-retried frame land - the sender's hardware
-        // retry after Ack=10 finally succeeding.
-        octobus_pump_busy_retry(self, data);
+        // Ported from NDBusOctobus.cs Read:2673-2708.
+        if (data->rxCount > 0)
+        {
+            // Pops the FIFO, and the word read stays in the input data register
+            // (2678-2679).
+            value = octobus_fifo_pop(self, data);
+            data->inputData = value;
+
+            // The freed slot lets a busy-retried frame land - the sender's
+            // hardware retry after Ack=10 finally succeeding (2686).
+            octobus_pump_busy_retry(self, data);
+
+            // While the FIFO still holds unread data the input controller keeps
+            // requesting the interrupt. IDENT clears the request flip-flop once,
+            // so a reply whose frames all arrived before the first interrupt was
+            // served would otherwise give ONE interrupt: a driver that reads one
+            // frame per interrupt (TPE's receive routine) reads the first frame
+            // and loses the rest - "No answer from Octobus station 10". Latching
+            // the request again here gives one interrupt per frame (2700-2701).
+            if (data->rxCount > 0)
+            {
+                octobus_raise_input_event(self, data);
+            }
+        }
+        else
+        {
+            // FIFO empty: the input data register is read as it stands - the
+            // last word popped, or whatever was loaded into it since
+            // (2703-2707). Status bit 3 is how software tells this from data.
+            value = data->inputData;
+        }
         break;
 
     case OCTOBUS_READ_INPUT_STATUS:
+    {
         // OCSTART reads this only to find out whether the card exists
         // (PH-P2-OPPSTART.NPL:4049). Reaching this code AT ALL means it does; an
         // absent card is an IOX error, which is the device manager's business.
-        value = data->statusRegister.raw;
+        //
+        // Bits 13:8 READ as the card's OWN station, whatever source station is
+        // stored there: TPE reads its station number here and compares it with
+        // the source of a self-loopback frame, which is in +0. The stored field
+        // is not changed by the read (NDBusOctobus.cs Read:2714-2729).
+        OctobusInputStatus st = data->statusRegister;
+        st.bits.station = (uint16_t)(data->stationAddress & 0x3F);
+        value = st.raw;
         break;
+    }
 
     case OCTOBUS_READ_OUTPUT_DATA:
+        // The last word written to +5 (NDBusOctobus.cs Read:2735-2738; loaded
+        // at ProcessCommand:2976).
         value = data->outputData;
         break;
 
@@ -294,42 +510,17 @@ static void octobus_write(Device *self, uint32_t address, uint16_t value)
     switch (reg)
     {
     case OCTOBUS_WRITE_INPUT_DATA:
-        // Writing the input data register pushes into the receive FIFO. This is
-        // the stand-alone loopback TPE's test 3 fills the FIFO through.
+        // Stores the word in the input data register and does nothing else: no
+        // FIFO entry, no event (NDBusOctobus.cs Write:2790-2793). The receive
+        // FIFO is filled through +5 in loopback, which is how TPE's test 3 does
+        // it.
         data->inputData = value;
-        if (octobus_fifo_push(data, value))
-        {
-            octobus_raise_input_event(self, data);
-        }
         break;
 
     case OCTOBUS_WRITE_INPUT_CONTROL:
+        // NDBusOctobus.cs Write:2795-2802.
         data->controlWord.raw = value;
-
-        // Bit 0: InterruptEnable from control -> status
-        data->statusRegister.bits.interruptEnabled =
-            data->controlWord.bits.interruptEnabled ? 1 : 0;
-
-        // Bit 4: DeviceClear - 20 octal clears the interface
-        // (PH-P2-OPPSTART.NPL:4054)
-        if (data->controlWord.bits.deviceClear)
-        {
-            data->clears++;
-            data->inputData = 0;
-            data->rxHead = 0;
-            data->rxCount = 0;
-            // Parked retry frames die with the clear: they belong to a transfer
-            // the guest has just abandoned.
-            data->busyRetryHead = 0;
-            data->busyRetryCount = 0;
-            data->inputIrqPending = false;
-            // The FIFO bits are recomputed rather than zeroed: a cleared card has
-            // space, and software polling bit 2 would otherwise see a full FIFO
-            // forever.
-            octobus_update_fifo_status(data);
-        }
-
-        octobus_update_interrupt(self, data);
+        octobus_process_control_change(self, data, value, true);
         break;
 
     case OCTOBUS_WRITE_OUTPUT_COMMAND:
@@ -337,33 +528,43 @@ static void octobus_write(Device *self, uint32_t address, uint16_t value)
         // CMMACLE (master clear SAMSON), CMACONT (continue ACCP) and every
         // outgoing frame arrive here. Recorded either way, so a test can see what
         // the guest sent even with no bus attached.
-        // NOT copied into outputData: nothing evidences that the output data
-        // register reads a sent command back, and inventing a readback would let
-        // a guest "confirm" a transmission that never happened.
         data->lastCommand = value;
         data->commands++;
 
+        // The word is stored in the output data register FIRST, and a read of
+        // +4 returns it. The loopback echo below takes the frame from this
+        // register (NDBusOctobus.cs ProcessCommand:2976).
+        data->outputData = value;
+
+        // ---- ProcessTransmitFrame:3064-3192 ----
+
         // ERROR and NOT PRESENT describe the LAST transfer only, so they are
         // cleared here, before delivery is attempted, and set again below only if
-        // nothing answers. A discovery scan reads them once per frame.
+        // nothing answers. A discovery scan reads them once per frame (3101).
         data->outputStatusRegister.bits.error = 0;
         data->outputStatusRegister.bits.notPresent = 0;
 
-        // A frame to destination 0, or to our own station, is a LOCAL hardware
-        // loopback and is decided BEFORE any bus routing - see device_octobus.h
-        // for why the order matters. With no bus attached at all, everything
-        // loops back, which is what lets the stand-alone tests run.
         uint16_t dest = (uint16_t)((value >> 8) & 0x3F);
-        if (OCTOBUS_IS_SELF_LOOP(dest, data->stationAddress) || !data->transmit)
+        if (OCTOBUS_IS_SELF_LOOP(dest, data->stationAddress))
         {
-            if (!octobus_loopback_echo(self, data, value))
-            {
-                // FIFO full: back-pressure. The output stays BUSY with
-                // ready-for-transfer CLEAR and the transfer does NOT complete, so
-                // the test sees the FIFO is full rather than losing a frame
-                // silently.
-                break;
-            }
+            // A frame to destination 0, or to our own station, stays on the card
+            // and is decided BEFORE any bus routing - see device_octobus.h for
+            // why the order matters (3113-3125).
+            //
+            // It is echoed into our own receive FIFO while the card is in
+            // loopback mode or no CPU station is attached. With a CPU station
+            // attached and loopback off, the transfer completes with NO echo
+            // (ProcessTransmitQueue:3239, 3288-3306).
+            octobus_process_transmit_queue(self, data,
+                                           data->loopbackMode || !data->cpuAttached);
+        }
+        else if (!data->transmit)
+        {
+            // NO C# COUNTERPART: the C# card always has a bus object, and a frame
+            // to a station nobody registered gets ERROR + NOT PRESENT and no echo
+            // (3179-3191). A card here with no transmit function is stand-alone
+            // and echoes every frame, as it did before this port.
+            octobus_process_transmit_queue(self, data, true);
         }
         else
         {
@@ -375,52 +576,51 @@ static void octobus_write(Device *self, uint32_t address, uint16_t value)
                 // Nothing at that station: Ack=00 after the hardware retries. The
                 // transfer attempt itself still completes - ready-for-transfer is
                 // set and the output event is raised below, exactly as for a
-                // delivered frame - but the status now says why nothing arrived.
+                // delivered frame - but the status now says why nothing arrived
+                // (3189).
                 data->outputStatusRegister.bits.error = 1;
                 data->outputStatusRegister.bits.notPresent = 1;
             }
         }
 
-        // Transmission complete: clear busy, set ready, and raise the output
-        // event.
-        data->outputStatusRegister.bits.readyForTransfer = 1;
-        octobus_raise_output_event(self, data);
+        // ---- back in ProcessCommand:2993-3021 ----
+
+        // Bring the FIFO bits in line with the ring (2993).
+        octobus_update_fifo_status(self, data);
+
+        // A stored source station of 0 means no frame has set one yet, and it is
+        // then set to our own station (2997-3001). Not visible to the guest: a
+        // read of +2 always shows the own station.
+        if (data->statusRegister.bits.station == 0)
+        {
+            data->statusRegister.bits.station = (uint16_t)(data->stationAddress & 0x3F);
+        }
+
+        // The written word goes into the input data register ONLY while that
+        // register still holds 0 - that is, when no echo or reply has loaded it
+        // (3004-3007). A read of +0 with the FIFO empty returns it.
+        if (data->inputData == 0)
+        {
+            data->inputData = value;
+        }
+
+        // Transmission complete: set ready and raise the output event - unless
+        // the loopback echo found the FIFO full. Then the output is BUSY, the
+        // transfer has NOT completed, and the event comes later, when the FIFO
+        // has space again (3017-3021).
+        if (!data->outputStatusRegister.bits.busy)
+        {
+            data->outputStatusRegister.bits.readyForTransfer = 1;
+            octobus_raise_output_event(self, data);
+        }
         break;
     }
 
     case OCTOBUS_WRITE_OUTPUT_CONTROL:
-        data->outputControlWord.raw = value;
-
         // OCSTART reaches +7 as "T+4" from +3 (PH-P2-OPPSTART.NPL:4055).
-        //
-        // CLEAR DEVICE REPLACES THE WHOLE STATUS WORD, it does not merely set
-        // READY. TPE OCTOBUS B00 test 4 ("Check Octobus configuration") reads +6
-        // straight after the clear and demands exactly 000010B - READY and
-        // nothing else. Setting only READY leaves the ERROR (bit 4) and NOT
-        // PRESENT (bit 6) of the preceding probe standing, and the test reports
-        // "Wrong transmit status after Clear Device ... Found 000130B".
-        //
-        // Ported from RetroCore NDBusOctobus.cs:2854 (device clear), which is the
-        // same assignment its master clear (2928) and its reset (3363) make:
-        //     _outputStatus = TransmitStatusBits.ReadyForTransfer;
-        // Ready is set here rather than cleared because OCSTART sends a command
-        // straight after the clear.
-        if (data->outputControlWord.bits.deviceClear)
-        {
-            data->clears++;
-            data->outputData = 0;
-            data->outputIrqPending = false;
-            data->outputStatusRegister.raw = 0;
-            data->outputStatusRegister.bits.readyForTransfer = 1;
-        }
-
-        // AFTER the clear, matching RetroCore's order: it applies the clear at
-        // 2854 and the interrupt enable at 2887, so a word carrying both ends
-        // with the enable set rather than cleared by the clear.
-        data->outputStatusRegister.bits.interruptEnabled =
-            data->outputControlWord.bits.interruptEnabled ? 1 : 0;
-
-        octobus_update_interrupt(self, data);
+        // NDBusOctobus.cs Write:2811-2822.
+        data->outputControlWord.raw = value;
+        octobus_process_control_change(self, data, value, false);
         break;
 
     default:
@@ -534,7 +734,18 @@ bool octobus_rx_push(Device *self, uint16_t word)
         return true;
     }
 
-    (void)octobus_fifo_push(data, word);
+    // The frame has landed: it is in the FIFO, it is in the input data register,
+    // and its source station is in the stored input status
+    // (NDBusOctobus.cs DeliverInboundFrame:3608-3622).
+    //
+    // The C# is handed the source station as a second argument. Here it is taken
+    // from bits 13-8 of the frame, which is where a receive-format frame carries
+    // it (DeliverInboundFrame:3590; OctobusFabric.cs SendFrame:185 builds the
+    // delivered frame from that same number) and where the C# itself takes it
+    // from for a parked frame (PumpBusyRetryQueue:3485-3487).
+    (void)octobus_fifo_push(self, data, word);
+    data->inputData = word;
+    data->statusRegister.bits.station = (uint16_t)((word >> 8) & 0x3F);
     octobus_raise_input_event(self, data);
     return true;
 }
@@ -546,6 +757,38 @@ int octobus_rx_count(Device *self)
         return 0;
     }
     return ((OctobusData *)self->deviceData)->rxCount;
+}
+
+void octobus_set_cpu_attached(Device *self, bool attached)
+{
+    if (!self || !self->deviceData)
+    {
+        return;
+    }
+    OctobusData *data = (OctobusData *)self->deviceData;
+
+    data->cpuAttached = attached;
+    if (attached)
+    {
+        // What attaching a CPU station does to the card itself
+        // (NDBusOctobus.cs AttachCpu:2219-2224, AttachMicrocodeStation:2268-2273):
+        // frames to station 0 and to the own station are no longer echoed.
+        data->mudomDetected = true;
+        data->loopbackMode = false;
+    }
+    // attached == false: the C# has no detach, so only the flag is cleared.
+    // Loopback mode is recomputed from the flag at the next reset (Reset:3370).
+}
+
+void octobus_set_continue_accp(Device *self, void (*fn)(void *ctx), void *ctx)
+{
+    if (!self || !self->deviceData)
+    {
+        return;
+    }
+    OctobusData *data = (OctobusData *)self->deviceData;
+    data->continueAccp = fn;
+    data->continueAccpCtx = ctx;
 }
 
 Device *octobus_create_device(uint8_t thumbwheel)

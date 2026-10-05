@@ -41,6 +41,7 @@
 
 #ifdef ND100X_WITH_ND500
 
+#include <sched.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -52,6 +53,7 @@
 #include "ndbus_nd5000.h"
 #include "ndbus_runner.h"
 #include "ndbus_octobus.h"
+#include "ndbus_lock.h"
 #include "ndbus_pool.h"
 #include "ndbus_window.h"
 #include "ndbus_servicer.h"
@@ -112,6 +114,50 @@ static int         s_nd5000_count = 0;
 static bool        s_fabric_ready = false;
 
 /*
+ * THE ND-100 AS A STATION ON THE BUS, station 1B.
+ *
+ * Ported from RetroCore NDBusOctobus.cs: the card registers an
+ * ND100StationAdapter on the fabric, whose HandleFrame calls OnFrameFromOctobus,
+ * which QUEUES the frame; the card's Clock() then moves one queued frame into
+ * the receive FIFO and raises the input event.
+ *
+ * Without it nothing was registered at station 1, so every frame a station sent
+ * to the ND-100 on its own initiative - above all the GIVEINT frame 0x8101 the
+ * ND-5000 sends after each answer - ended in ndbus_fabric_send's "no station"
+ * arm. The caller discards that result and the fabric has no logger, so nothing
+ * said so. MEASURED 05-OCT-2026: SINTRAN then found every answer only when its
+ * watchdog came round - 450 MICFU 1B watchdog messages against about 405 real
+ * messages in one run - and RUN of CPU-STAT took 805 seconds.
+ *
+ * QUEUED, NOT PUSHED, for the same reason as in the reference and one more: the
+ * sender can be the ND-5000's host thread (a trap or monitor-call stop is
+ * reported from mfbus_cpu_step), and the card belongs to the ND-100's thread.
+ * The handler only appends under the bus lock; mfbus_service_nd5000_mailboxes(),
+ * which the card's tick calls on the ND-100 thread, does the push.
+ */
+/* One slot per X5CPU plus one, indexed X5CPU + 1 as in the reference. */
+#define MFBUS_PROCESS_SLOTS 65
+typedef struct
+{
+    bool     have_trap_enables;   /* false = never saved: the live values stay */
+    uint32_t trap_enables[8];     /* OTE1 OTE2 CTE1 CTE2 MTE1 MTE2 TEMM1 TEMM2 */
+    uint32_t call_return;         /* pending CALL: return address, 0 = none */
+    uint32_t call_arg_count;
+    uint32_t call_args[TRAP_SEQ_MAXARG];
+} MfbusProcessState;
+
+#define MFBUS_ND100_INBOUND_WORDS 256u
+static NdbusStation  s_nd100_station;
+static bool          s_nd100_registered = false;
+static Device       *s_card = NULL;
+static uint16_t      s_inbound[MFBUS_ND100_INBOUND_WORDS];
+static unsigned      s_inbound_head = 0;
+static unsigned      s_inbound_count = 0;
+static unsigned long s_inbound_queued = 0;
+static unsigned long s_inbound_delivered = 0;
+static unsigned long s_inbound_dropped = 0;
+
+/*
  * The ND-500 CPU behind each station, and the host thread that runs it.
  *
  * Parallel arrays indexed the same as s_nd5000[]: a station and its CPU are
@@ -147,6 +193,21 @@ typedef struct
      * fifteen million times in one run, with SINTRAN never having been given a
      * chance to answer. */
     bool          parked;
+    /* THE HOST THREAD IS ON ITS WAY OUT. Set by the ND-5000 thread BEFORE it tells
+     * SINTRAN about a stop, because from that moment the ND-100 thread may act on
+     * the answer: it must first wait for this thread to finish (join) and only
+     * then touch the CPU registers or start a new thread. See mfbus_quiesce_runner().
+     * Written by one thread and read by the other, so atomic. */
+    unsigned      runner_leaving;
+
+    /* PER-PROCESS STATE THE CONTEXT BLOCK DOES NOT CARRY. Ported from RetroCore
+     * Nd500CpuProcessBridge (_trapEnablesByProcess and the four _pendingCall*
+     * arrays, slot = X5CPU + 1). One CPU runs several ND-500 processes in turn -
+     * the swapper and each domain - and these registers leaked from one into the
+     * next: a process that parked inside its trap handler left OTE = 0 for
+     * whoever ran next, and a process that page-faulted on its callee's entry left
+     * its CALL in flight for the other one. One user never sees it; two do. */
+    MfbusProcessState proc[MFBUS_PROCESS_SLOTS];
     bool          stop_reported;  /* the non-retryable stop has been named once */
     uint32_t      continues_refused; /* continues with nothing to continue */
 
@@ -414,10 +475,25 @@ static int mfbus_trap_sink(void *ctx, uint16_t trap_number, uint32_t trapping_pc
     return 0;  /* the stop path below reports it - see the comment above */
 }
 
+static bool mfbus_cpu_step_inner(MfbusCpuSlot *slot);
+
+/* The runner's step. A false return ends the host thread, so it is marked as
+ * leaving on EVERY such return - the two stop paths that answer SINTRAN set the
+ * mark earlier, before the answer goes out, and this covers the rest. */
 static bool mfbus_cpu_step(void *ctx)
 {
     MfbusCpuSlot *slot = (MfbusCpuSlot *)ctx;
 
+    if (mfbus_cpu_step_inner(slot))
+    {
+        return true;
+    }
+    __atomic_store_n(&slot->runner_leaving, 1u, __ATOMIC_RELEASE);
+    return false;
+}
+
+static bool mfbus_cpu_step_inner(MfbusCpuSlot *slot)
+{
     /* Parked processes do not step. The restart clears this. */
     if (slot->parked)
     {
@@ -745,12 +821,25 @@ static bool mfbus_cpu_step(void *ctx)
             slot->name);
     }
 
+    /* PARK BEFORE THE ANSWER GOES OUT. Ported from RetroCore CpuND500.Trap.cs
+     * RaiseTrap ("PARK BEFORE THE SINK ANSWERS ... the answer + interrupt precede
+     * the park otherwise, and a fast 3TRACO could race the WAIT bit"). The answer
+     * raises an interrupt on the ND-100, which runs on another host thread and can
+     * post the restart at once. With the park set afterwards that restart found
+     * parked == false and was refused, or found the thread still running, took it
+     * for "already going", and the thread then exited with nobody to start it
+     * again. */
+    slot->parked = true;
+    __atomic_store_n(&slot->runner_leaving, 1u, __ATOMIC_RELEASE);
+
     if (!ndbus_servicer_answer_trap_stop(&nd->servicer, (uint16_t)slot->loaded_x5cpu, trap_number,
                                         restart_p, slot->machine.stop_data, mms,
                                         (uint16_t)slot->cpu.trap_saved_psn))
     {
-        /* The servicer says why it refused. Nothing more to do here - the process
-         * stays parked and SINTRAN will time out, which is the honest outcome. */
+        /* The servicer says why it refused. Nothing was told to SINTRAN, so this
+         * is not a park it can restart; the thread still ends here and SINTRAN
+         * will time out, which is the honest outcome. */
+        slot->parked = false;
         return false;
     }
 
@@ -785,7 +874,6 @@ static bool mfbus_cpu_step(void *ctx)
     slot->trap_captured = false;
 
     slot->parked_faults++;
-    slot->parked = true;
     LOG(LOG_CAT_MMS, LOG_INFO,
         "MFbus: %s parked on trap %oB at P=0x%X fault=0x%X psn=%u mms=0x%08X - reported to "
         "SINTRAN\n",
@@ -1169,6 +1257,13 @@ bool mfbus_attach(uint32_t size_bytes, uint32_t base_page)
      */
     s_base_word = base_page * 1024u;
 
+    /* ONE LOCK FOR A TEST-AND-SET ON THIS MEMORY. The ND-5000 side takes and
+     * releases the mailbox semaphore under ndbus_lock(); the ND-100's TSET and
+     * TSETP now do their read-and-write pair under the same mutex, so neither
+     * side can land between the two halves of the other. Installed before the
+     * window becomes reachable, removed in mfbus_detach(). */
+    mms_set_tset_lock(ndbus_lock, ndbus_unlock);
+
     if (!mms_memory_bank_register_backed(s_base_word, length_word, ND_MEM_MPM5, mfbus_bank_read,
                                          mfbus_bank_write, NULL))
     {
@@ -1182,6 +1277,7 @@ bool mfbus_attach(uint32_t size_bytes, uint32_t base_page)
             "already registered. Check [mfbus] base_page against the installed ND-100 memory "
             "size.\n",
             (unsigned)base_page, (unsigned)s_base_word, (unsigned)length_word);
+        mms_set_tset_lock(NULL, NULL);
         ndbus_pool_destroy(&s_pool);
         memset(&s_window, 0, sizeof(s_window));
         return false;
@@ -1363,11 +1459,44 @@ static int mfbus_mon_call(void *ctx, uint32_t mon_number, uint32_t arg_count,
 
     uint32_t resume = c->cpu.pending_call_return_address;
 
+    /* PARK AND SAVE BEFORE THE ANSWER GOES OUT - the order RetroCore uses
+     * (CpuND500.IndirectSegments.cs "PARK BEFORE THE SINK ANSWERS", and
+     * Nd500CpuProcessBridge.OnMonitorCall saves the block before it answers).
+     * The answer interrupts the ND-100, which runs on another host thread and can
+     * post the restart at once; everything that restart reads - the parked flag,
+     * P, the context block - has to be in place first.
+     *
+     * Returning INDIRECT_HANDLED tells the CPU the call is done and to carry on
+     * from the resume address, so the park cannot be expressed by that return
+     * value alone; and the runner does not test machine.run_flag. The parked flag
+     * is what stops it, at the top of the next step.
+     *
+     * SAVE THE BLOCK ON THE WAY OUT - CNTXTSAVE, which the microcode performs on
+     * the stop and not only on a later switch. MEASURED on PLACE-DOMAIN CPU-STAT:
+     * without it the swapper parked at P=0x08008255 while its block kept its ENTRY
+     * POINT 0x08000004, and a later switch back restarted it from there. c->context
+     * is attached to the loaded process's own block, so this writes the right one. */
+    uint32_t pc_before = c->cpu.PC;
+    c->cpu.PC = resume;
+    if (!mfbus_save_context(c))
+    {
+        LOG(LOG_CAT_MMS, LOG_WARN,
+            "MFbus: %s monitor-call park could not save the context block - a later switch "
+            "back to this process would resume it from a stale P\n",
+            c->name);
+    }
+    c->parked = true;
+    __atomic_store_n(&c->runner_leaving, 1u, __ATOMIC_RELEASE);
+
     if (!ndbus_servicer_answer_monitor_call(&nd->servicer, (uint16_t)c->loaded_x5cpu, resume,
                                            (uint16_t)mon_number, count, arg_addresses, values))
     {
         /* The servicer said why. Do NOT claim a call that was not posted - letting
-         * the local seam report it is more honest than a silent hang. */
+         * the local seam report it is more honest than a silent hang. Nothing was
+         * told to SINTRAN, so the process is not parked and the thread goes on. */
+        c->parked = false;
+        __atomic_store_n(&c->runner_leaving, 0u, __ATOMIC_RELEASE);
+        c->cpu.PC = pc_before;
         return 0;
     }
 
@@ -1379,6 +1508,16 @@ static int mfbus_mon_call(void *ctx, uint32_t mon_number, uint32_t arg_count,
             "reported to SINTRAN\n",
             c->name, (unsigned)mon_number, (unsigned)count, (unsigned)resume,
             c->steps_since_resume);
+    }
+    else
+    {
+        /* PAST THE DETAILED LIMIT, STILL ONE SHORT LINE PER CALL. The limit above
+         * was spent on the swapper's first 36 calls, so a domain's own calls -
+         * its file opens, its exit - left no trace at all, and "did it reach
+         * MON 0B" could not be answered from the log. Cheap: one line per
+         * monitor call, and a monitor call is a full round trip to SINTRAN. */
+        LOG(LOG_CAT_MMS, LOG_INFO, "MFbus: %s MON %oB X5CPU=%d argc=%u resume=0x%X\n",
+            c->name, (unsigned)mon_number, c->loaded_x5cpu, (unsigned)count, (unsigned)resume);
     }
 
     /* WHAT THE SWAPPER ACTUALLY ASKED FOR.
@@ -1505,33 +1644,6 @@ static int mfbus_mon_call(void *ctx, uint32_t mon_number, uint32_t arg_count,
         }
     }
 
-    /* PARK, AND PARK IN A WAY THE RUNNER ACTUALLY SEES. Returning INDIRECT_HANDLED
-     * tells the CPU the call is done and to carry on from the resume address, so
-     * the park cannot be expressed by that return value alone; and the runner does
-     * not test machine.run_flag. The flag below is what stops it. */
-    c->cpu.PC = resume;
-    c->parked = true;
-
-    /* SAVE THE BLOCK ON THE WAY OUT - CNTXTSAVE, which the microcode performs on
-     * the stop and not only on a later switch.
-     *
-     * MEASURED on PLACE-DOMAIN CPU-STAT. Without this the swapper parked here at
-     * P=0x08008255 and its context block kept its ENTRY POINT 0x08000004. When the
-     * domain later faulted and SINTRAN answered with a 3MONCO for the swapper, the
-     * context switch loaded that stale block and the swapper restarted at its entry
-     * point, re-ran its initialisation and lost the page-fault work order. The
-     * switch itself was correct; the block it read was a version of the swapper
-     * from before its first monitor call.
-     *
-     * c->context is attached to the loaded process's own block, by the start path
-     * or by the switch, so this writes the right one. */
-    if (!mfbus_save_context(c))
-    {
-        LOG(LOG_CAT_MMS, LOG_WARN,
-            "MFbus: %s monitor-call park could not save the context block - a later switch "
-            "back to this process would resume it from a stale P\n",
-            c->name);
-    }
     if (out_resolved != NULL)
     {
         *out_resolved = resume;
@@ -1553,8 +1665,183 @@ static int mfbus_mon_call(void *ctx, uint32_t mon_number, uint32_t arg_count,
  * would have named a spin printed nothing either, because there was no spin. SINTRAN
  * polled 3RMICV for the rest of the run.
  */
+/* SAVE ONE PROCESS'S REGISTERS-OUTSIDE-THE-BLOCK AND RESTORE ANOTHER'S.
+ *
+ * Ported from RetroCore Nd500CpuProcessBridge.SwapPendingCallState. The trap
+ * enables OTE/CTE/MTE/TEMM are not in the context block and the load does not
+ * refill them from the PCB on a switch (that reset a running program's own
+ * `ote1:=` to SINTRAN's static zeros), so they travel here. A process seen for
+ * the first time has no snapshot and keeps the live values. The pending CALL
+ * (return address, argument count, argument addresses) travels the same way.
+ * The reference also carries a "call anchor"; this CPU has no such field. */
+static void mfbus_swap_process_state(MfbusCpuSlot *c, int from_x5cpu, int to_x5cpu)
+{
+    if (from_x5cpu == to_x5cpu)
+    {
+        return;
+    }
+
+    if (from_x5cpu >= 0 && (from_x5cpu + 1) < MFBUS_PROCESS_SLOTS)
+    {
+        MfbusProcessState *f = &c->proc[from_x5cpu + 1];
+        f->trap_enables[0] = c->cpu.OTE1;
+        f->trap_enables[1] = c->cpu.OTE2;
+        f->trap_enables[2] = c->cpu.CTE1;
+        f->trap_enables[3] = c->cpu.CTE2;
+        f->trap_enables[4] = c->cpu.MTE1;
+        f->trap_enables[5] = c->cpu.MTE2;
+        f->trap_enables[6] = c->cpu.TEMM1;
+        f->trap_enables[7] = c->cpu.TEMM2;
+        f->have_trap_enables = true;
+
+        uint32_t argc = c->cpu.pending_call_arg_count;
+        if (argc > (uint32_t)TRAP_SEQ_MAXARG)
+        {
+            argc = (uint32_t)TRAP_SEQ_MAXARG;
+        }
+        f->call_arg_count = c->cpu.pending_call_arg_count;
+        f->call_return = c->cpu.pending_call_return_address;
+        for (uint32_t i = 0; i < argc; i++)
+        {
+            f->call_args[i] = c->cpu.pending_call_arg_addresses[i];
+        }
+    }
+
+    if (to_x5cpu >= 0 && (to_x5cpu + 1) < MFBUS_PROCESS_SLOTS)
+    {
+        const MfbusProcessState *t = &c->proc[to_x5cpu + 1];
+        if (t->have_trap_enables)
+        {
+            c->cpu.OTE1 = t->trap_enables[0];
+            c->cpu.OTE2 = t->trap_enables[1];
+            c->cpu.CTE1 = t->trap_enables[2];
+            c->cpu.CTE2 = t->trap_enables[3];
+            c->cpu.MTE1 = t->trap_enables[4];
+            c->cpu.MTE2 = t->trap_enables[5];
+            c->cpu.TEMM1 = t->trap_enables[6];
+            c->cpu.TEMM2 = t->trap_enables[7];
+        }
+
+        uint32_t argc = t->call_arg_count;
+        if (argc > (uint32_t)TRAP_SEQ_MAXARG)
+        {
+            argc = (uint32_t)TRAP_SEQ_MAXARG;
+        }
+        for (uint32_t i = 0; i < argc; i++)
+        {
+            c->cpu.pending_call_arg_addresses[i] = t->call_args[i];
+        }
+        c->cpu.pending_call_return_address = t->call_return;
+        c->cpu.pending_call_arg_count = t->call_arg_count;
+    }
+}
+
+/* A START in a slot is a new program. Ported from RetroCore
+ * Nd500CpuProcessBridge.NoteLoadedProcess: the previous program's trap-enable
+ * snapshot must not come back, the outgoing process's state is saved, and the
+ * started process begins with no CALL in flight. */
+static void mfbus_note_started_process(MfbusCpuSlot *c, int x5cpu)
+{
+    if (x5cpu >= 0 && (x5cpu + 1) < MFBUS_PROCESS_SLOTS)
+    {
+        c->proc[x5cpu + 1].have_trap_enables = false;
+    }
+    mfbus_swap_process_state(c, c->loaded_x5cpu, x5cpu);
+    c->cpu.pending_call_return_address = 0u;
+    c->cpu.pending_call_arg_count = 0u;
+}
+
+/* THE LIMITS, THE TRAP HANDLER AND THE TRAP ENABLES THIS PROCESS WAS GIVEN.
+ *
+ * Ported from RetroCore CpuND500.LoadDomainStateFromProcessSegment, which
+ * Nd500CpuProcessBridge.OnStartProcessND5000 calls right after the context
+ * block load on a 3START: the block sets PS and CED, and the domain
+ * information table on that process segment holds TOS, LL, HL, THA and the
+ * four trap-enable pairs. The offsets are the reference's LOADCT_* reads,
+ * DPA = table + domain*256 + 0x80: TOS +0x3C, LL +0x40, HL +0x44, THA +0x36,
+ * OTE +0x16/+0x1A, CTE +0x1E/+0x22, MTE +0x26/+0x2A, TEMM +0x2E/+0x32.
+ *
+ * START ONLY. On a switch back to a parked process the reference loads THA
+ * alone, because reloading the enables there reset a running program's own
+ * `ote1:=` to SINTRAN's static zeros.
+ *
+ * The block's own TOS and LL are logged beside the table's, because which of
+ * the two is right for a domain's first start was an open question here. */
+static void mfbus_load_domain_state_at_start(MfbusCpuSlot *c)
+{
+    uint32_t table = c->cpu.DITBASE;
+    if (table == 0u)
+    {
+        LOG(LOG_CAT_MMS, LOG_WARN,
+            "MFbus: %s DOMAIN STATE NOT LOADED - no process table base for PS=0x%X; TOS, LL, "
+            "HL, THA and the trap enables keep their previous values\n",
+            c->name, (unsigned)c->cpu.PS);
+        return;
+    }
+
+    uint32_t dpa = table + ((uint32_t)c->cpu.CED * 256u) + 0x80u;
+    uint32_t block_tos = c->cpu.TOS;
+    uint32_t block_ll = c->cpu.LL;
+
+    c->cpu.TOS = ndbus_pool_read32(&s_pool, dpa + 0x3Cu);
+    c->cpu.LL  = ndbus_pool_read32(&s_pool, dpa + 0x40u);
+    c->cpu.HL  = ndbus_pool_read32(&s_pool, dpa + 0x44u);
+    c->cpu.THA = ndbus_pool_read32(&s_pool, dpa + 0x36u);
+
+    c->cpu.OTE1  = ndbus_pool_read32(&s_pool, dpa + 0x16u);
+    c->cpu.OTE2  = ndbus_pool_read32(&s_pool, dpa + 0x1Au);
+    c->cpu.CTE1  = ndbus_pool_read32(&s_pool, dpa + 0x1Eu);
+    c->cpu.CTE2  = ndbus_pool_read32(&s_pool, dpa + 0x22u);
+    c->cpu.MTE1  = ndbus_pool_read32(&s_pool, dpa + 0x26u);
+    c->cpu.MTE2  = ndbus_pool_read32(&s_pool, dpa + 0x2Au);
+    c->cpu.TEMM1 = ndbus_pool_read32(&s_pool, dpa + 0x2Eu);
+    c->cpu.TEMM2 = ndbus_pool_read32(&s_pool, dpa + 0x32u);
+
+    LOG(LOG_CAT_MMS, LOG_INFO,
+        "MFbus: %s start: domain state from table 0x%X CED=%u: TOS=0x%08X (block had 0x%08X) "
+        "LL=0x%08X (block had 0x%08X) HL=0x%08X THA=0x%08X OTE=0x%08X%08X MTE=0x%08X%08X\n",
+        c->name, (unsigned)table, (unsigned)c->cpu.CED, (unsigned)c->cpu.TOS,
+        (unsigned)block_tos, (unsigned)c->cpu.LL, (unsigned)block_ll, (unsigned)c->cpu.HL,
+        (unsigned)c->cpu.THA, (unsigned)c->cpu.OTE2, (unsigned)c->cpu.OTE1,
+        (unsigned)c->cpu.MTE2, (unsigned)c->cpu.MTE1);
+}
+
+/* WAIT FOR A HOST THREAD THAT IS ON ITS WAY OUT. ND-100 thread only.
+ *
+ * The ND-5000 thread marks itself as leaving before it tells SINTRAN about a
+ * stop. SINTRAN can answer before that thread has returned from its step - it
+ * may still be writing its log lines, which read the CPU registers. Everything
+ * on the ND-100 thread that changes those registers, or starts a new thread,
+ * calls this first. The join is short: the thread has nothing left to do but
+ * return.
+ *
+ * RetroCore has no such wait because its ND-5000 thread never ends - it parks on
+ * a wake event and the restart sets that event. Here a park ends the thread, so
+ * the restart has to see it out. */
+static void mfbus_quiesce_runner(MfbusCpuSlot *c)
+{
+    /* Wait for the thread to reach STOPPED, not blindly join: the monitor-call
+     * path sets the mark before it knows whether the servicer will accept the
+     * answer, and takes it back if not - in that case the thread keeps running
+     * and a plain join would wait for ever. */
+    while (__atomic_load_n(&c->runner_leaving, __ATOMIC_ACQUIRE) != 0u)
+    {
+        NdbusRunnerState state = ndbus_runner_state(&c->runner);
+        if (state == NDBUS_RUNNER_STOPPED || state == NDBUS_RUNNER_IDLE)
+        {
+            ndbus_runner_join(&c->runner);
+            __atomic_store_n(&c->runner_leaving, 0u, __ATOMIC_RELEASE);
+            return;
+        }
+        (void)sched_yield();
+    }
+}
+
 static bool mfbus_resume_runner(MfbusCpuSlot *c, uint8_t station_number)
 {
+    /* A thread that has reported a stop is finishing, not running. */
+    mfbus_quiesce_runner(c);
+
     NdbusRunnerState state = ndbus_runner_state(&c->runner);
 
     if (state == NDBUS_RUNNER_RUNNING || state == NDBUS_RUNNER_STOPPING)
@@ -1734,6 +2021,7 @@ static bool mfbus_switch_to_process(NdbusNd5000 *nd, MfbusCpuSlot *c, int wanted
         c->name, c->loaded_x5cpu, wanted_x5cpu, (unsigned)c->cpu.PC, (unsigned)c->cpu.PS,
         (unsigned)c->cpu.CED, (unsigned)c->cpu.B, (unsigned)c->cpu.R);
 
+    mfbus_swap_process_state(c, c->loaded_x5cpu, wanted_x5cpu);
     c->loaded_x5cpu = wanted_x5cpu;
     return true;
 }
@@ -1787,6 +2075,98 @@ static bool mfbus_read_nd500_data_bytes(void *ctx, uint32_t logical_address,
     return true;
 }
 
+/**
+ * Write ND-500 DATA memory through the MMU, for MICFU 11B DMEMWR.
+ *
+ * Ported from RetroCore Nd500CpuProcessBridge.TryWriteDataBytes
+ * ($RETROCORE/Emulated.HW/ND/CPU/ND500/Servicer/Nd500CpuProcessBridge.cs), the
+ * mirror of the read above: translated one byte at a time with a translate that
+ * never traps, because the range is an arbitrary byte range that may straddle a
+ * page. The reference reads the 32-bit word, replaces one byte and writes the
+ * word back; the pool here is addressed by byte, so storing the byte is the same
+ * operation.
+ *
+ * A byte that does not translate fails the write. As in the reference, bytes
+ * already placed before it stay written; the servicer answers the failure to
+ * SINTRAN, so it is seen and not a silent short write.
+ */
+static bool mfbus_write_nd500_data_bytes(void *ctx, uint32_t logical_address,
+                                         const uint8_t *source, uint32_t count)
+{
+    NdbusNd5000 *nd = (NdbusNd5000 *)ctx;
+    if (nd == NULL || source == NULL)
+    {
+        return false;
+    }
+
+    int slot = mfbus_slot_of(nd->station.number);
+    if (slot < 0 || !s_cpus[slot].present)
+    {
+        return false;
+    }
+    MfbusCpuSlot *c = &s_cpus[slot];
+
+    for (uint32_t i = 0; i < count; i++)
+    {
+        uint32_t pa = nd500_mmu_peek_space(&c->cpu, logical_address + i,
+                                           (uint8_t)c->cpu.CED, 0);
+        if (pa == 0xFFFFFFFFu)
+        {
+            LOG(LOG_CAT_MMS, LOG_INFO,
+                "MFbus: %s data write STOPPED at byte %u of %u - logical 0x%08X does not "
+                "translate in domain %u\n",
+                c->name, (unsigned)i, (unsigned)count,
+                (unsigned)(logical_address + i), (unsigned)c->cpu.CED);
+            return false;
+        }
+        (void)ndbus_pool_write8(&s_pool, pa, source[i]);
+    }
+
+    return true;
+}
+
+/**
+ * Make the process a copy message names the loaded one, for MICFU 10B and 11B.
+ *
+ * Ported from RetroCore Nd500CpuProcessBridge.TryLoadNamedProcess: nothing to do
+ * when no process is loaded yet or the named one already is; refuse, and say so,
+ * when the CPU is executing another process, because its registers cannot be
+ * swapped from this thread and the copy would go through the wrong mapping;
+ * otherwise the ordinary context switch.
+ */
+static bool mfbus_load_named_process(void *ctx, uint16_t x5cpu)
+{
+    NdbusNd5000 *nd = (NdbusNd5000 *)ctx;
+    if (nd == NULL)
+    {
+        return false;
+    }
+
+    int slot = mfbus_slot_of(nd->station.number);
+    if (slot < 0 || !s_cpus[slot].present)
+    {
+        return false;
+    }
+    MfbusCpuSlot *c = &s_cpus[slot];
+
+    /* A thread that has just reported a stop may still be on its way out. */
+    mfbus_quiesce_runner(c);
+
+    if (c->loaded_x5cpu < 0 || c->loaded_x5cpu == (int)x5cpu)
+    {
+        return true;
+    }
+    if (!c->parked)
+    {
+        LOG(LOG_CAT_MMS, LOG_WARN,
+            "MFbus: %s NAMED-PROCESS COPY: message names X5CPU=%u while X5CPU=%d is RUNNING - "
+            "cannot switch, the copy is refused\n",
+            c->name, (unsigned)x5cpu, c->loaded_x5cpu);
+        return false;
+    }
+    return mfbus_switch_to_process(nd, c, (int)x5cpu);
+}
+
 static bool mfbus_start_process(void *ctx, uint32_t msg_byte, uint16_t micfu, uint32_t ctx_byte)
 {
     NdbusNd5000 *nd = (NdbusNd5000 *)ctx;
@@ -1797,6 +2177,10 @@ static bool mfbus_start_process(void *ctx, uint32_t msg_byte, uint16_t micfu, ui
         return false;
     }
     MfbusCpuSlot *c = &s_cpus[slot];
+
+    /* The thread that reported the stop this message answers may still be on its
+     * way out. Let it finish before any register is read or changed. */
+    mfbus_quiesce_runner(c);
 
     /* A CONTINUE NAMING THE PROCESS ALREADY LOADED RESUMES FROM THE LIVE REGISTERS.
      * A 3START NEVER DOES, EVEN FOR THAT SAME PROCESS.
@@ -1933,6 +2317,15 @@ static bool mfbus_start_process(void *ctx, uint32_t msg_byte, uint16_t micfu, ui
                  * rather than dropped into whatever the flat address happens to hit. */
                 for (uint32_t k = 0; k < res.count; k++)
                 {
+                    /* AN ARGUMENT WITH NO ADDRESS HAS NOTHING TO WRITE BACK TO.
+                     * Ported from RetroCore Nd500CpuProcessBridge.ApplyRestartWriteBack
+                     * ("if (writeBackAddresses[k] == 0) continue;"). Without the skip
+                     * the answer for such an argument was translated and stored at
+                     * logical address 0 of the process. */
+                    if (res.addresses[k] == 0u)
+                    {
+                        continue;
+                    }
                     uint32_t pa = nd500_mmu_peek_space(&c->cpu, res.addresses[k],
                                                        (uint8_t)c->cpu.CED, 0);
                     if (pa == 0xFFFFFFFFu)
@@ -1986,6 +2379,14 @@ static bool mfbus_start_process(void *ctx, uint32_t msg_byte, uint16_t micfu, ui
                     }
                 }
 
+                if (c->mon_resumes > MFBUS_MON_LOG_LIMIT)
+                {
+                    /* One short line per answer past the detailed limit, so a
+                     * failed call (K set) and its error code are always visible. */
+                    LOG(LOG_CAT_MMS, LOG_INFO, "MFbus: %s MON answer FUNCV=0x%X (%oB) K=%u\n",
+                        c->name, (unsigned)res.funcv, (unsigned)res.funcv,
+                        (unsigned)(res.kflip != 0u));
+                }
                 if (c->mon_resumes <= MFBUS_MON_LOG_LIMIT)
                 {
                     LOG(LOG_CAT_MMS, LOG_INFO,
@@ -2269,8 +2670,21 @@ static bool mfbus_start_process(void *ctx, uint32_t msg_byte, uint16_t micfu, ui
      * the load and before the CPU is allowed to fetch anything. */
     mfbus_declare_capability_table(c);
 
+    /* A 3START, so the whole domain state comes from the process's own table -
+     * not just THA, which the line above loads on every context load. */
+    mfbus_load_domain_state_at_start(c);
+
     /* REMEMBER WHOSE PROCESS IS RUNNING. A trap is reported on that process's own
-     * activation message, so the step loop needs to know which X5CPU to name. */
+     * activation message, so the step loop needs to know which X5CPU to name.
+     * The outgoing process's trap enables and pending CALL are put away first,
+     * and the started one begins with no CALL in flight.
+     *
+     * ORDER AS IN THE REFERENCE, and worth knowing: OnStartProcessND5000 loads the
+     * domain state (its line 970) BEFORE NoteLoadedProcess (its line 1022) saves
+     * the outgoing process's trap enables, so what is saved for the outgoing
+     * process is the STARTED process's freshly loaded values. That is copied
+     * here unchanged; whether it is intended there is for Ronny to judge. */
+    mfbus_note_started_process(c, (int)x5cpu);
     c->loaded_x5cpu = x5cpu;
 
     /* SINTRAN ON THIS ND-100 OWNS THE MONITOR CALLS. Installed per start, because
@@ -2393,6 +2807,59 @@ static const NdbusHostOps s_ndbus_host_ops = {
     .ctx   = NULL,
 };
 
+/* MASTER CLEAR, CPURES AND MICROPROGRAM START RESET THE CPU AND LEAVE IT PARKED.
+ *
+ * Ported from RetroCore OctobusND5000Station.ResetCpuToIdle and
+ * CpuND500.ApplyND5000InitState ($RETROCORE/Emulated.HW/ND/CPU/ND500/
+ * CpuND500.ProcessControl.cs): both clear the register file and park the CPU in
+ * the microcode IDLE state; memory and the MMU tables are left alone. Here the
+ * park is "no host thread, nothing loaded": the next thing that runs this CPU is
+ * a 3START, exactly as after attach.
+ *
+ * Called by the station on the thread that delivered the frame, which is the
+ * ND-100 thread. Without it a master clear or a second control-store load left
+ * the old process's thread running and the old process recorded as loaded. */
+static void mfbus_reset_cpu_to_idle(void *ctx)
+{
+    NdbusNd5000 *nd = (NdbusNd5000 *)ctx;
+    if (nd == NULL)
+    {
+        return;
+    }
+    int slot = mfbus_slot_of(nd->station.number);
+    if (slot < 0 || !s_cpus[slot].present)
+    {
+        return;
+    }
+    MfbusCpuSlot *c = &s_cpus[slot];
+
+    ndbus_runner_stop_and_join(&c->runner);
+    __atomic_store_n(&c->runner_leaving, 0u, __ATOMIC_RELEASE);
+
+    nd500_cpu_reset(&c->cpu);
+    nd500_trap_clear();
+    c->parked = false;
+    c->loaded_x5cpu = -1;
+    c->trap_captured = false;
+    memset(c->proc, 0, sizeof(c->proc));
+
+    LOG(LOG_CAT_MMS, LOG_INFO,
+        "MFbus: %s CPU reset - register file cleared, no process loaded, waiting for a start\n",
+        c->name);
+}
+
+/* Input or output control bit 5 on the octobus card: CONTINUE ACCP. RetroCore
+ * NDBusOctobus.ProcessControlChange calls the station's ContinueAccp(), which
+ * ends the idle state an emergency 244B put it in. */
+static void mfbus_continue_accp(void *ctx)
+{
+    (void)ctx;
+    for (int i = 0; i < s_nd5000_count; i++)
+    {
+        s_nd5000[i].accp_idle = false;
+    }
+}
+
 bool mfbus_add_nd5000(uint8_t station_number)
 {
     if (!s_attached)
@@ -2463,6 +2930,20 @@ bool mfbus_add_nd5000(uint8_t station_number)
     (void)ndbus_nd5000_set_process_host(nd, mfbus_start_process);
     (void)ndbus_nd5000_set_dit_declarer(nd, mfbus_declare_dit_base);
     (void)ndbus_nd5000_set_data_reader(nd, mfbus_read_nd500_data_bytes);
+    /* The write half and the named-process switch, for MICFU 10B and 11B. Set
+     * directly: the reader's setter above has already pointed host.ctx at `nd`. */
+    nd->servicer.host.write_nd500_data_bytes = mfbus_write_nd500_data_bytes;
+    nd->servicer.host.load_named_process     = mfbus_load_named_process;
+
+    /* Master clear, CPURES and microprogram start reach the CPU through these. */
+    (void)ndbus_nd5000_set_cpu_hooks(nd, mfbus_reset_cpu_to_idle, mfbus_reset_cpu_to_idle, nd);
+
+    /* The card stops echoing a frame the ND-100 sends to itself once a CPU
+     * station is on the bus (RetroCore NDBusOctobus.AttachCpu). */
+    if (s_card != NULL)
+    {
+        octobus_set_cpu_attached(s_card, true);
+    }
 
 s_nd5000_count++;
     LOG(LOG_CAT_MMS, LOG_INFO, "MFbus: ND-5000 on the octobus at station %o\n",
@@ -2491,6 +2972,17 @@ int mfbus_nd5000_count(void)
 static bool mfbus_card_transmit(void *ctx, Device *card, uint16_t frame)
 {
     (void)ctx;
+
+    /* NO STATION AT THE NUMBER IN BITS 13-8 IS A TIMEOUT, BROADCAST OR NOT.
+     * RetroCore NDBusOctobus.ProcessTransmitFrame looks the destination up before
+     * it looks at the broadcast bit; ndbus_fabric_send only checks it on its
+     * unicast branch, so a broadcast naming an empty station was delivered to
+     * everyone with no error. */
+    uint8_t destination = (uint8_t)((frame >> 8u) & 0x3Fu);
+    if (!ndbus_fabric_has_station(&s_fabric, destination))
+    {
+        return false;
+    }
 
     uint16_t replies[NDBUS_MAX_REPLY_FRAMES];
     int      n = ndbus_fabric_send(&s_fabric, (uint8_t)NDBUS_STATION_ND120_CPU, frame, replies);
@@ -2531,6 +3023,107 @@ static bool mfbus_card_transmit(void *ctx, Device *card, uint16_t frame)
     return true;
 }
 
+/* A frame the bus delivers to station 1B. `frame` is already in receive format,
+ * bits 13-8 naming the sender. Appends only - see the comment on s_nd100_station
+ * for why the card is not touched here. Never answers: the ND-100 replies
+ * through SINTRAN, later, not with a bus-level reply frame. */
+static int mfbus_nd100_station_handle(NdbusStation *station, uint16_t frame, uint8_t source_station,
+                                      uint16_t *replies)
+{
+    (void)station;
+    (void)source_station;
+    (void)replies;
+
+    bool dropped = false;
+    ndbus_lock();
+    if (s_inbound_count >= MFBUS_ND100_INBOUND_WORDS)
+    {
+        s_inbound_dropped++;
+        dropped = true;
+    }
+    else
+    {
+        unsigned tail = (s_inbound_head + s_inbound_count) % MFBUS_ND100_INBOUND_WORDS;
+        s_inbound[tail] = frame;
+        s_inbound_count++;
+        s_inbound_queued++;
+    }
+    ndbus_unlock();
+
+    if (dropped)
+    {
+        LOG(LOG_CAT_MMS, LOG_ERROR,
+            "MFbus: frame 0x%04X for the ND-100 DROPPED - %u frames already wait for the "
+            "octobus card\n",
+            (unsigned)frame, (unsigned)MFBUS_ND100_INBOUND_WORDS);
+    }
+    return 0;
+}
+
+/* Move ONE waiting frame into the card's receive FIFO. One per call, as the
+ * reference releases one per Clock(), so each frame raises its own input event.
+ * ND-100 thread only. */
+static void mfbus_nd100_deliver_inbound(void)
+{
+    if (s_card == NULL)
+    {
+        return;
+    }
+
+    uint16_t frame = 0;
+    bool     have = false;
+    ndbus_lock();
+    if (s_inbound_count > 0u)
+    {
+        frame = s_inbound[s_inbound_head];
+        s_inbound_head = (s_inbound_head + 1u) % MFBUS_ND100_INBOUND_WORDS;
+        s_inbound_count--;
+        have = true;
+    }
+    ndbus_unlock();
+
+    if (!have)
+    {
+        return;
+    }
+    if (octobus_rx_push(s_card, frame))
+    {
+        s_inbound_delivered++;
+    }
+    else
+    {
+        s_inbound_dropped++;
+        LOG(LOG_CAT_MMS, LOG_ERROR,
+            "MFbus: frame 0x%04X for the ND-100 DROPPED - the octobus card's FIFO and its "
+            "busy-retry park are both full\n",
+            (unsigned)frame);
+    }
+}
+
+void mfbus_nd100_inbound_counts(unsigned long *queued, unsigned long *delivered,
+                                unsigned long *dropped)
+{
+    ndbus_lock();
+    if (queued != NULL)
+    {
+        *queued = s_inbound_queued;
+    }
+    if (delivered != NULL)
+    {
+        *delivered = s_inbound_delivered;
+    }
+    if (dropped != NULL)
+    {
+        *dropped = s_inbound_dropped;
+    }
+    ndbus_unlock();
+}
+
+NdbusFabric *mfbus_fabric(void)
+{
+    return s_attached ? &s_fabric : NULL;
+}
+
 bool mfbus_attach_card(Device *card)
 {
     if (card == NULL)
@@ -2543,7 +3136,34 @@ bool mfbus_attach_card(Device *card)
             "MFbus: cannot connect the octobus card - no shared pool is attached\n");
         return false;
     }
+
+    /* The ND-100 takes its place on the bus, so a station can reach it without
+     * having been asked first. Once per attach; a second card on the same bus
+     * would be a second INTERFACE to the same station, which nothing configures. */
+    if (!s_nd100_registered)
+    {
+        memset(&s_nd100_station, 0, sizeof(s_nd100_station));
+        s_nd100_station.number = (uint8_t)NDBUS_STATION_ND120_CPU;
+        s_nd100_station.type   = "ND-100 CPU";
+        s_nd100_station.handle = mfbus_nd100_station_handle;
+        s_nd100_station.ctx    = NULL;
+        if (!ndbus_fabric_register(&s_fabric, &s_nd100_station))
+        {
+            LOG(LOG_CAT_MMS, LOG_ERROR,
+                "MFbus: octobus station 1B is already occupied - the ND-100 cannot be reached "
+                "by the other stations\n");
+            return false;
+        }
+        s_nd100_registered = true;
+    }
+    s_card = card;
+
     octobus_set_transmit(card, mfbus_card_transmit, NULL);
+    octobus_set_continue_accp(card, mfbus_continue_accp, NULL);
+    if (s_nd5000_count > 0)
+    {
+        octobus_set_cpu_attached(card, true);
+    }
     LOG(LOG_CAT_MMS, LOG_INFO, "MFbus: octobus card connected to the bus as station 1B\n");
     return true;
 }
@@ -2836,6 +3456,11 @@ int mfbus_service_nd5000_mailboxes(void)
 {
     int answered = 0;
 
+    /* FIRST, hand the ND-100 one frame that a station sent it. This is the
+     * card's tick on the ND-100 thread, which is the only place the card may be
+     * touched from. */
+    mfbus_nd100_deliver_inbound();
+
     for (int i = 0; i < s_nd5000_count; i++)
     {
         if (ndbus_nd5000_service_mailbox(&s_nd5000[i]))
@@ -2893,9 +3518,27 @@ void mfbus_detach(void)
     /* Stations first: each one holds a pointer to the pool, and the fabric
      * holds a pointer to each station. */
     mfbus_clear_nd5000();
+
+    /* The ND-100's own place on the bus, and anything still waiting for a card
+     * that is about to go away. */
+    if (s_nd100_registered)
+    {
+        (void)ndbus_fabric_unregister(&s_fabric, s_nd100_station.number);
+        s_nd100_registered = false;
+    }
+    ndbus_lock();
+    s_inbound_head = 0;
+    s_inbound_count = 0;
+    s_inbound_queued = 0;
+    s_inbound_delivered = 0;
+    s_inbound_dropped = 0;
+    ndbus_unlock();
+    s_card = NULL;
+
     /* Unregister BEFORE freeing: a bank left in the table would hand the next
      * physical access a callback over a freed pool. */
     (void)mms_memory_bank_unregister(s_base_word);
+    mms_set_tset_lock(NULL, NULL);
     ndbus_pool_destroy(&s_pool);
     memset(&s_window, 0, sizeof(s_window));
     s_attached = false;

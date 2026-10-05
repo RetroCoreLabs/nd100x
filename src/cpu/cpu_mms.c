@@ -999,6 +999,46 @@ bool mms_memory_bank_register_backed(uint32_t start_word, uint32_t length_word, 
     return true;
 }
 
+/* The memory lock of a test-and-set - see cpu_types.h. ND-100 CPU thread only:
+ * the held flag is that thread's own bookkeeping, not shared state. */
+static void (*s_tset_lock_fn)(void) = NULL;
+static void (*s_tset_unlock_fn)(void) = NULL;
+static bool s_tset_lock_held = false;
+
+void mms_set_tset_lock(void (*lock)(void), void (*unlock)(void))
+{
+    /* Both or neither: half a pair could take a lock it cannot give back. */
+    if (lock == NULL || unlock == NULL)
+    {
+        s_tset_lock_fn = NULL;
+        s_tset_unlock_fn = NULL;
+        return;
+    }
+    s_tset_lock_fn = lock;
+    s_tset_unlock_fn = unlock;
+}
+
+void mms_tset_lock_begin(void)
+{
+    if (s_tset_lock_fn != NULL && !s_tset_lock_held)
+    {
+        s_tset_lock_fn();
+        s_tset_lock_held = true;
+    }
+}
+
+void mms_tset_lock_end(void)
+{
+    if (s_tset_lock_held)
+    {
+        s_tset_lock_held = false;
+        if (s_tset_unlock_fn != NULL)
+        {
+            s_tset_unlock_fn();
+        }
+    }
+}
+
 bool mms_memory_bank_unregister(uint32_t start_word)
 {
     for (int i = 0; i < s_memory_bank_count; i++)

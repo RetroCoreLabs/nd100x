@@ -1915,8 +1915,17 @@ static void do_tset(uint16_t instr)
     (void)instr;
     // cpu.WriteVirtualMemory(regs.currentRegisters.T, 0xFFFF, PageTable.AlternativePageTable); // Write -1
 
+    /* ONE LOCKED PAIR, as the definition above says. With an ND-5000 on its own
+     * host thread sharing this memory, an unlocked pair let the other side
+     * release a semaphore between the read and the write: A came back non-zero
+     * ("not mine") and the -1 was then written over the release, leaving the
+     * cell set with no owner. SINTRAN's SLOCK does exactly this TSET on X5SEMA
+     * (CC-P2-N500.NPL:023733) and reported "ND-5000 lock timeout" from then on.
+     * If either access faults, the trap path ends the lock before it jumps. */
+    mms_tset_lock_begin();
     gA = cpu_memory_read(gT, true);
     cpu_memory_write(0xFFFF, gT, true, 2);
+    mms_tset_lock_end();
 }
 
 /// <summary>
@@ -6367,8 +6376,11 @@ static void opcode_tsetp_test_and_set_physical_word(uint16_t operand)
     bank = (uint32_t)(gT & 0xFF);
     offset = (uint32_t)(gX & 0xFFFF);
     phys_addr = (bank << 16) | offset;
+    /* One locked pair - see do_tset. SLOCK uses this form on a "Rask" CPU. */
+    mms_tset_lock_begin();
     gA = (uint16_t)mms_read_physical_memory((int)phys_addr, true);
     mms_write_physical_memory((int)phys_addr, 0xFFFF, true);
+    mms_tset_lock_end();
 }
 
 /**

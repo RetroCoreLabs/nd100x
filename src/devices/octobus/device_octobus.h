@@ -118,6 +118,11 @@
  * the bus would deliver it during the output-interrupt service instead of
  * consistently. Both tests poll with roughly a hundred-iteration window, so
  * immediate delivery is the simplest valid model.
+ *
+ * WHETHER THE SELF-SEND IS ECHOED depends on the card's mode: it is echoed while
+ * the card is in loopback mode or no CPU station is attached, and it completes
+ * WITHOUT an echo otherwise ($RETROCORE/Emulated.HW/ND/CPU/NDBUS/NDBusOctobus.cs
+ * ProcessTransmitQueue:3239, 3288-3306). See octobus_set_cpu_attached().
  */
 #define OCTOBUS_IS_SELF_LOOP(dest, own) ((dest) == 0 || (dest) == (own))
 
@@ -154,7 +159,9 @@ typedef union {
         uint16_t speedBit2 : 1;           // Bit 5: Speed field
         uint16_t notUsed6 : 1;            // Bit 6: Not used
         uint16_t notUsed7 : 1;            // Bit 7: Not used
-        uint16_t station : 6;             // Bits 8-13: Sender station number
+        uint16_t station : 6;             // Bits 8-13: STORED = source of the last frame;
+                                          //            a READ of +2 always shows the
+                                          //            card's own station instead
         uint16_t notUsed14 : 1;           // Bit 14: Not used
         uint16_t notUsed15 : 1;           // Bit 15: Not used
     } bits;
@@ -162,6 +169,9 @@ typedef union {
 // clang-format on
 
 // Input control word bits (IOX +3, Write). DCONT = 3.
+// Bit names and positions: NDBusOctobus.cs ControlWordBits:1063-1110, which is
+// ONE enum for both control words. What each bit does, and in which order when
+// several are set in one word: ProcessControlChange:2837-2952.
 // clang-format off
 typedef union {
     uint16_t raw;
@@ -171,9 +181,9 @@ typedef union {
         uint16_t notUsed2 : 1;            // Bit 2: Not used
         uint16_t notUsed3 : 1;            // Bit 3: Not used
         uint16_t deviceClear : 1;         // Bit 4: 20 octal clears the interface
-        uint16_t notUsed5 : 1;            // Bit 5: Not used
-        uint16_t notUsed6 : 1;            // Bit 6: Not used
-        uint16_t notUsed7 : 1;            // Bit 7: Not used
+        uint16_t continueAccp : 1;        // Bit 5: Continue ACCP (calls the installed hook)
+        uint16_t reset : 1;               // Bit 6: Reset this controller
+        uint16_t testMode : 1;            // Bit 7: Test mode - turns loopback ON
         uint16_t notUsed8 : 1;            // Bit 8: Not used
         uint16_t notUsed9 : 1;            // Bit 9: Not used
         uint16_t notUsed10 : 1;           // Bit 10: Not used
@@ -214,6 +224,13 @@ typedef union {
 // (bit 15) are named because the hardware defines them, and are NEVER SET by this
 // card: no guest behaviour observed so far reads them, and inventing a rule for
 // when they assert would be a guess dressed as an emulation.
+//
+// BUSY (bit 7) is set in exactly one case: a loopback echo that finds the receive
+// FIFO full (NDBusOctobus.cs ProcessTransmitQueue:3263-3276). READY is cleared
+// with it and the transfer does not complete. The first FIFO status update that
+// finds space again, in loopback mode, clears BUSY, sets READY and latches the
+// output request (UpdateReceiveFifoStatus:2622-2629). While BUSY is set the output
+// controller cannot assert the interrupt line (UpdateInterruptState:2550-2552).
 // clang-format off
 typedef union {
     uint16_t raw;
@@ -248,9 +265,9 @@ typedef union {
         uint16_t notUsed2 : 1;            // Bit 2: Not used
         uint16_t notUsed3 : 1;            // Bit 3: Not used
         uint16_t deviceClear : 1;         // Bit 4: 20 octal clears the interface
-        uint16_t notUsed5 : 1;            // Bit 5: Not used
-        uint16_t notUsed6 : 1;            // Bit 6: Not used
-        uint16_t notUsed7 : 1;            // Bit 7: Not used
+        uint16_t continueAccp : 1;        // Bit 5: Continue ACCP (calls the installed hook)
+        uint16_t reset : 1;               // Bit 6: Reset this controller
+        uint16_t testMode : 1;            // Bit 7: Test mode - turns loopback ON
         uint16_t notUsed8 : 1;            // Bit 8: Not used
         uint16_t notUsed9 : 1;            // Bit 9: Not used
         uint16_t notUsed10 : 1;           // Bit 10: Not used
@@ -271,7 +288,14 @@ typedef struct
     OctobusOutputStatus outputStatusRegister;  // Output status  (IOX +6)
     OctobusOutputControl outputControlWord;    // Output control (IOX +7)
 
+    // The input data register. A read of +0 with the FIFO EMPTY returns this
+    // (NDBusOctobus.cs Read:2703-2707). Loaded by: a pop of the FIFO (2679), a
+    // write to +1 (2792), a loopback echo (3261), a frame from the bus (3612), a
+    // parked frame landing (3483), and a write to +5 when it still holds 0
+    // (3004-3007). Zeroed by reset and by the input clear.
     uint16_t inputData;
+    // The output data register: the last word written to +5 (ProcessCommand:2976),
+    // read back at +4 (Read:2735-2738). Zeroed by reset and by the output clear.
     uint16_t outputData;
 
     // This card's own octobus station number.
@@ -305,6 +329,27 @@ typedef struct
     // transmits nothing, which is what lets TPE's tests 1 to 3 run with no bus.
     OctobusTransmitFn transmit;
     void *transmitCtx;
+
+    // Loopback mode (NDBusOctobus.cs _loopbackMode:1572). TRUE from creation and
+    // after every reset while no CPU station is attached (Reset:3370), turned ON
+    // by control bit 7 TestMode (ProcessControlChange:2868-2874), turned OFF when
+    // a CPU station is attached (AttachCpu:2224, AttachMicrocodeStation:2273).
+    bool loopbackMode;
+    // TRUE once the embedding has said a CPU station is attached - the C# test
+    // "_nd500Cpu != null || _microcodeCpuAttached" (3239, 3370). The card cannot
+    // find this out by itself; see octobus_set_cpu_attached().
+    bool cpuAttached;
+    // NDBusOctobus.cs _mudomDetected:1568, read there only through HasND5000Cpu
+    // (1606). Set when a CPU station is attached (2220, 2269) and by control bit 5
+    // ContinueACCP (2945). Nothing in this card reads it.
+    bool mudomDetected;
+
+    // Called when a control word with bit 5 (ContinueACCP) is written to +3 or +7.
+    // The C# calls _nd5000Station.ContinueAccp() directly (2946-2950); this card
+    // does not link the station, so the embedding installs the call. NULL = no
+    // station, which is the C# "_nd5000Station == null" case: nothing is called.
+    void (*continueAccp)(void *ctx);
+    void *continueAccpCtx;
 
     // Diagnostics: what the probes did, so a failure names the step.
     unsigned long clears;
@@ -342,8 +387,8 @@ void octobus_set_transmit(Device *self, OctobusTransmitFn fn, void *ctx);
  *
  * @param self Device returned by octobus_create_device().
  * @param word The 16-bit frame to deliver.
- * @return true when queued; false when the FIFO is full, which is the card
- *         dropping the frame exactly as the hardware does.
+ * @return true when the frame is in the FIFO or parked for retry behind a full
+ *         FIFO; false only when the park itself is full and the frame is lost.
  */
 bool octobus_rx_push(Device *self, uint16_t word);
 
@@ -353,5 +398,39 @@ bool octobus_rx_push(Device *self, uint16_t word);
  * @return The count, 0 to OCTOBUS_RX_FIFO_WORDS.
  */
 int octobus_rx_count(Device *self);
+
+/**
+ * @brief Tell the card whether a CPU station is attached to its bus.
+ *
+ * Decides what a frame the card sends to station 0 or to its own station does.
+ * With no CPU station (the default) the frame is echoed into the card's own
+ * receive FIFO, which is what TPE's stand-alone tests need. With a CPU station
+ * attached and loopback mode off, the transfer completes and NOTHING is echoed
+ * (NDBusOctobus.cs ProcessTransmitQueue:3239, 3288-3306).
+ *
+ * attached = true does what the C# AttachCpu:2219-2224 and
+ * AttachMicrocodeStation:2268-2273 do to the card: loopback mode goes OFF at
+ * once. attached = false only clears the flag - the C# has no detach, so there
+ * is nothing to port for it; loopback mode comes back ON at the next reset
+ * (Reset:3370). Call this before the card is reset, or reset the card after.
+ *
+ * @param self     Device returned by octobus_create_device().
+ * @param attached true when a CPU station is attached, false when none is.
+ */
+void octobus_set_cpu_attached(Device *self, bool attached);
+
+/**
+ * @brief Install the function the card calls for control bit 5, ContinueACCP.
+ *
+ * Writing a control word with bit 5 set to +3 or +7 calls fn(ctx) once per
+ * write. The embedding installs the ND-5000 station's "continue ACCP" here
+ * (NDBusOctobus.cs ProcessControlChange:2943-2951 calls
+ * _nd5000Station.ContinueAccp()).
+ *
+ * @param self Device returned by octobus_create_device().
+ * @param fn   The function, or NULL when no ND-5000 station is attached.
+ * @param ctx  Passed back to fn unchanged.
+ */
+void octobus_set_continue_accp(Device *self, void (*fn)(void *ctx), void *ctx);
 
 #endif /* DEVICE_OCTOBUS_H */

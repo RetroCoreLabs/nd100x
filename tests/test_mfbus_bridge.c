@@ -29,6 +29,7 @@
 #include "ndbus_context.h"
 #include "mfbus_config.h"
 #include "ndbus_pool.h"
+#include "ndbus_octobus.h"
 
 /* Data-available through the bitfield union, the way the device works with it. */
 static bool octobus_in_status_ck(Device *card)
@@ -548,11 +549,16 @@ int main(void)
         card->Write(card, 0100405, (uint16_t)(0x8000u | (40u << 8u)));
         CHECK(octobus_rx_count(card) == before, "an absent station pushes NOTHING");
 
-        /* Destination 0 is NOT a timeout - it is the card testing ITSELF, and it
-         * loops back into the receive FIFO. That is why 0 is not a legal station:
-         * the number is free to mean something else. */
+        /* Destination 0 is the card testing ITSELF - and with a CPU station on
+         * the bus the reference does NOT echo it
+         * ($RETROCORE/Emulated.HW/ND/CPU/NDBUS/NDBusOctobus.cs ProcessTransmitQueue:
+         * the loopback branch is taken only while no CPU is attached). An ND-5000
+         * was added above, so nothing comes back. This check expected the echo
+         * until the card was ported to the reference on 05-OCT-2026; the echo
+         * without a CPU attached is covered in test_octobus.c. */
         card->Write(card, 0100405, (uint16_t)(0x8000u | (0u << 8u)));
-        CHECK(octobus_rx_count(card) == before + 1, "destination 0 loops back instead");
+        CHECK(octobus_rx_count(card) == before,
+              "destination 0 is not echoed once a CPU station is attached");
 
         /* A full multibyte ACCP exchange through the card: SOMB, the command
          * byte, EOMB - the path SINTRAN's bring-up actually uses. The station
@@ -579,19 +585,76 @@ int main(void)
         CHECK(octobus_in_status_ck(card),
               "and the card reports data available");
 
-        /* ECHO returns the pattern, so the echoed byte is in the reply stream. */
+        /* The reply is a bare Messack: the reference's station has no arm for
+         * ECHO and takes the default acknowledge, so the test byte does NOT come
+         * back (ported 05-OCT-2026; this check used to expect the echo). The
+         * Messack's status byte 0x00 is in the stream. */
+        bool saw_ack = false;
         bool saw_pattern = false;
         int  guard = 0;
         while (octobus_rx_count(card) > 0 && guard < 32)
         {
             uint16_t w = card->Read(card, 0100400);
+            if ((w & 0x8000u) == 0u && (w & 0xFFu) == 0x00u)
+            {
+                saw_ack = true;
+            }
             if ((w & 0xFFu) == 0xA5u)
             {
                 saw_pattern = true;
             }
             guard++;
         }
-        CHECK(saw_pattern, "and the reply carries the byte that was echoed");
+        CHECK(saw_ack, "and the reply carries the Messack status byte");
+        CHECK(!saw_pattern, "and no echoed byte, as the reference answers ECHO");
+
+        /* ---- THE ND-100 IS A STATION TOO: a frame SENT TO it must arrive -----
+         * The ND-5000 tells SINTRAN an answer is ready with the GIVEINT frame
+         * 0x8101 - C, destination station 1, code 1 - sent on its own initiative,
+         * not as a reply. MEASURED 05-OCT-2026 before station 1 was registered:
+         * the bus had nobody at 1, every one of those frames was dropped without
+         * a word, and SINTRAN found each answer only by its watchdog. */
+        while (octobus_rx_count(card) > 0)
+        {
+            (void)card->Read(card, 0100400);
+        }
+        {
+            unsigned long q0 = 0, d0 = 0, x0 = 0;
+            mfbus_nd100_inbound_counts(&q0, &d0, &x0);
+
+            uint16_t replies[NDBUS_MAX_REPLY_FRAMES];
+            int n = ndbus_fabric_send(mfbus_fabric(), 56u, 0x8101u, replies);
+            CHECK(n == 0, "a frame from 070B to station 1 is ACCEPTED - not the -1 of an "
+                          "empty station");
+
+            unsigned long q1 = 0, d1 = 0, x1 = 0;
+            mfbus_nd100_inbound_counts(&q1, &d1, &x1);
+            CHECK(q1 == q0 + 1u && d1 == d0, "it is queued, and not yet in the card");
+            CHECK(octobus_rx_count(card) == 0,
+                  "the card is untouched until its own tick - the sender may be another thread");
+
+            /* The card's tick is what calls this on the ND-100 thread. */
+            (void)mfbus_service_nd5000_mailboxes();
+            mfbus_nd100_inbound_counts(&q1, &d1, &x1);
+            CHECK(d1 == d0 + 1u && x1 == x0, "the tick delivers it, and nothing is dropped");
+            CHECK(octobus_rx_count(card) == 1, "one frame is now in the receive FIFO");
+            CHECK(octobus_in_status_ck(card), "and the card reports data available");
+
+            uint16_t got = card->Read(card, 0100400);
+            CHECK(got == (uint16_t)(0x8001u | (56u << 8u)),
+                  "it reads back in RECEIVE format: bits 13-8 name the sender, 070B");
+
+            /* ONE PER TICK, in order - each frame raises its own input event. */
+            (void)ndbus_fabric_send(mfbus_fabric(), 56u, 0x8101u, replies);
+            (void)ndbus_fabric_send(mfbus_fabric(), 56u, 0x8102u, replies);
+            (void)mfbus_service_nd5000_mailboxes();
+            CHECK(octobus_rx_count(card) == 1, "two queued, one tick: one frame delivered");
+            uint16_t first = card->Read(card, 0100400);
+            (void)mfbus_service_nd5000_mailboxes();
+            uint16_t second = card->Read(card, 0100400);
+            CHECK((first & 0xFFu) == 0x01u && (second & 0xFFu) == 0x02u,
+                  "and they arrive in the order they were sent");
+        }
 
         dev_destroy(card);
         free(card);
