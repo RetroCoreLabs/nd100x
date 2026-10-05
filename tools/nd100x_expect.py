@@ -76,29 +76,28 @@ def _compile_pattern(p):
 # urllib works on every platform (including Windows w64devkit, where the C build has
 # no libcurl), so the Python driver can search the catalog, download an image, and
 # mount it via the ordinary hot-swap control channel - fully self-contained.
-CATALOG_JSON_URL = "https://ndlib.hackercorp.no/floppies.json"
-CATALOG_IMAGES_BASE = "https://ndlib.hackercorp.no/images/"
-# The ndlib server rejects the default Python-urllib User-Agent (403); it serves
-# nd100x/1.0 (the same UA the C libcurl download uses). Set it on every request.
+# The catalog and the images live in the RetroCoreLabs/norskdata-software-archive
+# GitHub repository. Every image is a gzip file, images/<md5>/<name>.img.gz; the
+# path of each one is in the catalog record (storage.git.imagePath).
+CATALOG_ARCHIVE_BASE = "https://raw.githubusercontent.com/RetroCoreLabs/norskdata-software-archive/main/"
+CATALOG_JSON_URL = CATALOG_ARCHIVE_BASE + "catalog/floppies.json"
+# Same User-Agent the C libcurl download uses. Set it on every request.
 CATALOG_USER_AGENT = "nd100x/1.0"
 
 
 def _catalog_cache_path():
     home = os.environ.get("HOME") or os.environ.get("USERPROFILE") or _HERE
-    return os.path.join(home, ".cache", "nd100x", "floppies.json")
+    return os.path.join(home, ".cache", "nd100x", "floppies-archive.json")
 
 
 class FloppyCatalog:
     """Search the online floppy/disk catalog by md5 (unique) or SINTRAN directory name.
 
-    Mirrors the C floppydb: only Status == 0 records are kept; the "Directory name"
-    and "Filesystem image size" (octal pages) are pulled out of DirectoryContent;
-    > 1000 pages => an SMD image. A directory name MAY match several images - use the
-    md5 to pin a specific one.
+    Mirrors the C floppydb: only records that name an image in the archive
+    (storage.git.imagePath) are kept; the directory name is the record's volumeName;
+    the size is imageSizeBytes / 2048 pages and > 1000 pages => an SMD image. A
+    directory name MAY match several images - use the md5 to pin a specific one.
     """
-
-    _DIR_RE = re.compile(r"Directory name\s*:\s*([^\r\n]*)")
-    _SIZE_RE = re.compile(r"Filesystem image size\s*:\s*([0-7]+)")
 
     def __init__(self, entries):
         self.entries = entries
@@ -142,19 +141,24 @@ class FloppyCatalog:
         for item in raw:
             if not isinstance(item, dict):
                 continue
-            if item.get("Status", 0) != 0:                 # keep only Status 0
+            md5 = (item.get("md5") or "").strip()
+            image_path = ((item.get("storage") or {}).get("git") or {}).get("imagePath")
+            if not md5 or not image_path:                  # no image in the archive
                 continue
-            content = item.get("DirectoryContent") or ""
-            dm = cls._DIR_RE.search(content)
-            sm = cls._SIZE_RE.search(content)
-            pages = int(sm.group(1), 8) if sm else -1      # octal, like the catalog
+            volume = item.get("volumeName") or ""
+            set_name = (item.get("backupSet") or {}).get("name") or ""
+            stem = os.path.basename(image_path)
+            if stem.endswith(".img.gz"):
+                stem = stem[:-len(".img.gz")]
+            pages = int((item.get("imageSizeBytes") or 0) // 2048)
             entries.append({
-                "id": item.get("Id", 0),
-                "name": item.get("Name", "") or "",
-                "md5": (item.get("Md5", "") or "").strip(),
-                "directory_name": (dm.group(1).strip() if dm else ""),
-                "pages": pages,
+                "id": len(entries) + 1,
+                "name": volume or set_name or stem,
+                "md5": md5,
+                "directory_name": volume,
+                "pages": pages if pages > 0 else -1,
                 "is_smd": pages > 1000,
+                "image_path": image_path,
             })
         return cls(entries)
 
@@ -170,7 +174,8 @@ class FloppyCatalog:
         return [e for e in self.entries if e["directory_name"].lower() == want]
 
     def image_url(self, entry):
-        return CATALOG_IMAGES_BASE + entry["md5"] + ".img"
+        import urllib.parse
+        return CATALOG_ARCHIVE_BASE + urllib.parse.quote(entry["image_path"])
 
 
 class Nd100x:
@@ -289,7 +294,7 @@ class Nd100x:
 
     def mount_catalog(self, unit, md5=None, directory=None, dest_dir=None,
                       confirm=True, timeout=120):
-        """Download a catalog image and hot-swap it onto floppy `unit`.
+        """Download a catalog image (.img.gz, unpacked here) and hot-swap it onto floppy `unit`.
 
         Identify the disk by md5= (unique) or directory= (SINTRAN "Directory name").
         If a directory name matches several images, the matches are logged and the
@@ -318,8 +323,13 @@ class Nd100x:
         if not os.path.isfile(dest):                       # simple content-addressed cache
             sys.stderr.write("[catalog] downloading %s -> %s\n" % (url, dest))
             _req = urllib.request.Request(url, headers={"User-Agent": CATALOG_USER_AGENT})
-            with urllib.request.urlopen(_req, timeout=180) as _r, open(dest, "wb") as _f:
-                _f.write(_r.read())
+            with urllib.request.urlopen(_req, timeout=180) as _r:
+                _data = _r.read()
+            if url.endswith(".gz"):                        # the archive stores .img.gz
+                import gzip
+                _data = gzip.decompress(_data)
+            with open(dest, "wb") as _f:
+                _f.write(_data)
         self.mount(unit, os.path.abspath(dest), confirm=confirm, timeout=timeout)
         return dest
 

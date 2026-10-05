@@ -43,10 +43,14 @@
 #include "../../machine/machine_types.h"
 #include "../../machine/machine_protos.h"
 #include "download.h"
+#include "floppydb.h"
 
 // URL constants
-#define FLOPPIES_JSON_URL "https://ndlib.hackercorp.no/floppies.json"
-#define IMAGES_BASE_URL   "https://ndlib.hackercorp.no/images/"
+// Raw-file address of the RetroCoreLabs/norskdata-software-archive repository.
+// Images are <base><storage.git.imagePath of the catalog record> (.img.gz).
+#define ARCHIVE_BASE_URL \
+    "https://raw.githubusercontent.com/RetroCoreLabs/norskdata-software-archive/main/"
+#define FLOPPIES_JSON_URL ARCHIVE_BASE_URL "catalog/floppies.json"
 
 // Cache constants
 #define CACHE_DIR_SUFFIX "/.cache/nd100x"
@@ -54,7 +58,9 @@
 // Longest line the menu windows format into a stack buffer. Wider than any
 // real terminal; text beyond it is cut rather than overflowing the buffer.
 #define MENU_TEXT_MAX   1024
-#define CACHE_FILE_NAME "floppies.json"
+// Not "floppies.json": the old ndlib.hackercorp.no catalog was cached under that
+// name in another layout and must never be read as the new one.
+#define CACHE_FILE_NAME "floppies-archive.json"
 // Time conversion constants
 #define SECONDS_PER_DAY  86400
 #define SECONDS_PER_HOUR 3600
@@ -78,28 +84,27 @@
 #define TOOLBAR_TEXT_RIGHT_MARGIN 2
 // clang-format on
 
-// URL builder function for downloading image files
-static char *build_image_url(const char *md5_hash)
+// Download URL of the compressed image at image_path in the archive (same
+// builder as the --pipe mount, so the F12 menu and automation fetch the same file).
+static char *build_image_url(const char *image_path)
 {
-    if (!md5_hash)
+    if (!image_path)
     {
         return NULL;
     }
 
-    // Calculate required buffer size: base URL + md5 + ".img" + null terminator
-    size_t base_len = strlen(IMAGES_BASE_URL);
-    size_t md5_len = strlen(md5_hash);
-    size_t total_len = base_len + md5_len + 4 + 1; // +4 for ".img", +1 for null terminator
+    FloppyDbEntry entry;
+    memset(&entry, 0, sizeof(entry));
+    snprintf(entry.image_path, sizeof(entry.image_path), "%s", image_path);
 
-    char *url = malloc(total_len);
+    // Every character of the path can grow to three (%XX)
+    size_t len = strlen(ARCHIVE_BASE_URL) + 3 * strlen(entry.image_path) + 1;
+    char *url = malloc(len);
     if (!url)
     {
         return NULL;
     }
-
-    // Build the complete URL: base + md5 + .img
-    snprintf(url, total_len, "%s%s.img", IMAGES_BASE_URL, md5_hash);
-
+    floppydb_image_url(&entry, url, len);
     return url;
 }
 
@@ -121,6 +126,7 @@ typedef struct {
     char description[1024];
     char reference[256];
     char md5[33];
+    char image_path[512];     // images/<md5>/<file>.img.gz in the archive repository
     char *directory_content;  // Dynamically allocated based on content length
     char product[256];
     DRIVE_TYPE drive_type;  // FLOPPY or SMD based on filesystem image size
@@ -175,64 +181,6 @@ typedef struct {
 // clang-format on
 
 static FloppyMenuState menu_state;
-
-// Helper function to detect drive type based on filesystem image size
-static DRIVE_TYPE detect_drive_type(const char *directory_content)
-{
-    if (!directory_content)
-    {
-        return DRIVE_FLOPPY; // Default to floppy
-    }
-
-    char *content_copy = strdup(directory_content);
-    if (!content_copy)
-    {
-        return DRIVE_FLOPPY;
-    }
-
-    char *line = strtok(content_copy, "\r\n");
-    while (line)
-    {
-        // Look for "Filesystem image size" line
-        if (strstr(line, "Filesystem image size"))
-        {
-            // Extract the octal number
-            char *colon = strchr(line, ':');
-            if (colon)
-            {
-                colon++; // Skip the colon
-                // Skip whitespace
-                while (*colon == ' ' || *colon == '\t')
-                {
-                    colon++;
-                }
-
-                // Find "pages"
-                char *pages = strstr(colon, "pages");
-                if (pages)
-                {
-                    // Extract the number
-                    char number_str[32];
-                    int len = pages - colon;
-                    if (len > 0 && (size_t)len < sizeof(number_str))
-                    {
-                        snprintf(number_str, sizeof(number_str), "%.*s", len, colon);
-
-                        // Convert octal string to integer
-                        int pages_count = strtol(number_str, NULL, 8);
-
-                        free(content_copy);
-                        return (pages_count > 1000) ? DRIVE_SMD : DRIVE_FLOPPY;
-                    }
-                }
-            }
-        }
-        line = strtok(NULL, "\r\n");
-    }
-
-    free(content_copy);
-    return DRIVE_FLOPPY; // Default to floppy if not found
-}
 
 // Helper function to count total lines in directory content
 static int count_directory_lines(const char *content)
@@ -344,7 +292,7 @@ static void build_directory_pages(FloppyDisk *floppy)
 }
 
 
-// Build the cache file path: $HOME/.cache/nd100x/floppies.json
+// Build the cache file path: $HOME/.cache/nd100x/floppies-archive.json
 // Returns a malloc'd string or NULL on failure.
 static char *build_cache_path(void)
 {
@@ -523,12 +471,6 @@ static char *get_cached_or_download_json(bool force_download, bool *from_cache)
 }
 
 // Parse JSON and populate floppy list
-// valuestring of a JSON item, or "" if the item or its string is missing.
-static const char *json_str_or_empty(const cJSON *item)
-{
-    return (item && item->valuestring) ? item->valuestring : "";
-}
-
 // Free the directory_content of the first count parsed floppies.
 static void free_floppy_contents(int count)
 {
@@ -543,63 +485,24 @@ static void free_floppy_contents(int count)
 }
 
 // Fill floppy from one catalog record. Returns 1 if the record was taken,
-// 0 if it is skipped (Status != 0), -1 if memory ran out.
+// 0 if it is skipped (no image in the archive), -1 if memory ran out.
 static int parse_one_floppy(cJSON *item, FloppyDisk *floppy)
 {
-    // Parse JSON fields
-    cJSON *id = cJSON_GetObjectItem(item, "Id");
-    cJSON *name = cJSON_GetObjectItem(item, "Name");
-    cJSON *desc = cJSON_GetObjectItem(item, "Description");
-    cJSON *ref = cJSON_GetObjectItem(item, "Reference");
-    cJSON *md5 = cJSON_GetObjectItem(item, "Md5");
-    cJSON *dir_content = cJSON_GetObjectItem(item, "DirectoryContent");
-    cJSON *product = cJSON_GetObjectItem(item, "Product");
-    cJSON *status = cJSON_GetObjectItem(item, "Status");
-
-    // Only include records with Status = 0
-    if (status && status->valueint != 0)
+    FloppyDbEntry entry;
+    if (!floppydb_parse_record(item, &entry))
     {
-        return 0; // Skip this record
+        return 0;
     }
 
-    floppy->id = id ? id->valueint : 0;
-
-    // Safe string copying with NULL checks
-    const char *name_str = json_str_or_empty(name);
-    const char *desc_str = json_str_or_empty(desc);
-    const char *ref_str = json_str_or_empty(ref);
-    const char *md5_str = json_str_or_empty(md5);
-    const char *dir_content_str = json_str_or_empty(dir_content);
-    const char *product_str = json_str_or_empty(product);
-
-    snprintf(floppy->name, sizeof(floppy->name), "%s", name_str);
-
-    snprintf(floppy->description, sizeof(floppy->description), "%s", desc_str);
-
-    snprintf(floppy->reference, sizeof(floppy->reference), "%s", ref_str);
-
-    snprintf(floppy->md5, sizeof(floppy->md5), "%s", md5_str);
-
-    // Dynamically allocate directory content based on actual length
-    if (dir_content_str && strlen(dir_content_str) > 0)
-    {
-        floppy->directory_content = strdup(dir_content_str);
-    }
-    else
-    {
-        floppy->directory_content = strdup("");
-    }
-
-    // Check if strdup failed
-    if (!floppy->directory_content)
-    {
-        return -1;
-    }
-
-    snprintf(floppy->product, sizeof(floppy->product), "%s", product_str);
-
-    // Detect drive type based on filesystem image size
-    floppy->drive_type = detect_drive_type(floppy->directory_content);
+    floppy->id = 0;
+    snprintf(floppy->name, sizeof(floppy->name), "%s", entry.name);
+    snprintf(floppy->description, sizeof(floppy->description), "%s", entry.description);
+    snprintf(floppy->reference, sizeof(floppy->reference), "%s", entry.reference);
+    snprintf(floppy->md5, sizeof(floppy->md5), "%s", entry.md5);
+    snprintf(floppy->image_path, sizeof(floppy->image_path), "%s", entry.image_path);
+    snprintf(floppy->product, sizeof(floppy->product), "%s", entry.reference);
+    floppy->directory_content = entry.directory_content; // ownership moves to the menu
+    floppy->drive_type = entry.is_smd ? DRIVE_SMD : DRIVE_FLOPPY;
     return 1;
 }
 
@@ -1372,7 +1275,7 @@ static void handle_mount_popup_input(int ch)
             }
 
             // Build image URL for downloading
-            char *image_path = build_image_url(menu_state.mount_popup.floppy->md5);
+            char *image_path = build_image_url(menu_state.mount_popup.floppy->image_path);
             if (!image_path)
             {
                 // Could show error message here
@@ -1729,7 +1632,7 @@ static void menu_loop(void)
 
                 printf("\033[2J\033[H");
                 printf("=== Floppy Database Browser ===\n\n");
-                printf("  Refreshing catalog from ndlib.hackercorp.no ...\n");
+                printf("  Refreshing catalog from the software archive ...\n");
                 fflush(stdout);
 
                 bool from_cache_refresh = false;
@@ -1784,7 +1687,7 @@ static int load_catalog(void)
     }
     else
     {
-        printf("  Downloading floppy catalog from ndlib.hackercorp.no ...\n");
+        printf("  Downloading floppy catalog from the software archive ...\n");
     }
     fflush(stdout);
 

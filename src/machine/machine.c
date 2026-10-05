@@ -44,6 +44,7 @@
 
 #include "../ndlib/ndlib_types.h"
 #include "../ndlib/ndlib_protos.h"
+#include "../ndlib/gunzip.h"   /* nd_gunzip: .img.gz images from the software archive */
 #include "../ndlib/floppydb.h" /* online floppy/disk catalog (machine_floppy_mount_catalog) */
 
 #ifndef _WIN32
@@ -474,7 +475,8 @@ int machine_floppy_swap(int unit, const char *path)
 }
 
 /*
- * Mount a disk FROM THE ONLINE CATALOG (https://ndlib.hackercorp.no/floppies.json)
+ * Mount a disk FROM THE ONLINE CATALOG (catalog/floppies.json of the
+ * RetroCoreLabs/norskdata-software-archive GitHub repository)
  * onto `unit`, hot-swapping exactly like machine_floppy_swap() - the same eject +
  * mount_drive() path the F12 browser uses, so an installer's "insert next disk"
  * step can be driven straight from the catalog.
@@ -488,9 +490,9 @@ int machine_floppy_swap(int unit, const char *path)
  *    "<token>"     - bare: tried as an md5 first, then as a directory name.
  *
  * The catalog is loaded on first use (fresh cache, else download, else stale
- * cache). The image itself is the remote images/<md5>.img, fetched by mount_drive
- * via download_file() - real only on libcurl builds; on a build without libcurl
- * the download is a stub and this returns -4 (resolve the md5 here, fetch the
+ * cache). The image itself is the remote images/<md5>/<file>.img.gz, fetched by
+ * mount_drive via download_file() and decompressed there - real only on libcurl
+ * builds; on a build without libcurl the download is a stub and this returns -4 (resolve the md5 here, fetch the
  * image out of band, then machine_floppy_swap() the local file instead).
  *
  * The drive TYPE (floppy vs SMD) comes from the catalog entry, so `unit` is
@@ -1142,12 +1144,26 @@ void machine_mount_drive(DRIVE_TYPE drive_type, int unit, const char *md5, const
         if (strncasecmp(image_path, "http", 4) == 0)
         {
             char *image_data = dl_download_file(image_path);
+            size_t image_size = dl_get_downloaded_size(); // Use actual size instead of strlen()
+            if (image_data && image_size > 3 && strcmp(image_path + strlen(image_path) - 3, ".gz") == 0)
+            {
+                // The software archive stores every image as <name>.img.gz
+                size_t raw_size = 0;
+                unsigned char *raw = nd_gunzip((const unsigned char *)image_data, image_size, &raw_size);
+                free(image_data);
+                image_data = (char *)raw;
+                image_size = raw_size;
+                if (!image_data)
+                {
+                    LOG(LOG_CAT_MACHINE, LOG_ERROR, "Error: %s is not a valid gzip file\n",
+                        image_path);
+                }
+            }
             if (image_data)
             {
                 drives[unit].is_remote = true;
                 drives[unit].data.remote_data = image_data;
-                drives[unit].data_size =
-                    dl_get_downloaded_size(); // Use actual size instead of strlen()
+                drives[unit].data_size = image_size;
             }
             else
             {

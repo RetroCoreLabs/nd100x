@@ -13,6 +13,94 @@ let filteredFloppies = [];
 let selectedProductId = null;
 let currentProductFilter = '';
 
+// ---- Norsk Data software archive (GitHub) ----------------------------------
+// The catalog and the images come from the RetroCoreLabs/norskdata-software-archive
+// repository. raw.githubusercontent.com answers with Access-Control-Allow-Origin: *.
+// Every image is a gzip file, images/<md5>/<name>.img.gz.
+const ARCHIVE_BASE_URL = 'https://raw.githubusercontent.com/RetroCoreLabs/norskdata-software-archive/main/';
+const ARCHIVE_FLOPPIES_URL = ARCHIVE_BASE_URL + 'catalog/floppies.json';
+const ARCHIVE_PRODUCTS_URL = ARCHIVE_BASE_URL + 'catalog/products.json';
+
+// URL of an image path from the catalog, percent-encoded (some names hold spaces).
+function archiveImageUrl(imagePath) {
+  return ARCHIVE_BASE_URL + imagePath.split('/').map(encodeURIComponent).join('/');
+}
+
+// Text listing of one archive record (ndfs / dosFiles / backupFiles), one line per file.
+function archiveListing(r) {
+  const lines = [];
+  const pad = (s, n) => String(s == null ? '?' : s).padEnd(n);
+  if (r.volumeName) lines.push('Directory name            : ' + r.volumeName);
+  if (r.totalPages > 0) lines.push('Filesystem image size     : ' + r.totalPages.toString(8).padStart(6, '0') + ' pages');
+  lines.push('Filesystem                : ' + (r.filesystem || 'unknown'));
+  if (r.bootFormat && r.bootFormat !== 'none') lines.push('Boot                      : ' + r.bootFormat + ' ' + (r.bootProgram || ''));
+  const ndfs = r.ndfs || {};
+  (ndfs.users || []).forEach(function(u) {
+    lines.push('---- User ' + u.name + ' (' + (u.pagesUsed || 0) + ' pages)');
+    (ndfs.files || []).forEach(function(f) {
+      if (f.userName && f.userName !== u.name) return;
+      lines.push('  ' + pad(f.name, 24) + ' ' + String(f.pages || 0).padStart(5) + ' pages ' +
+                 String(f.bytes || 0).padStart(9) + ' bytes  ' + (f.dateCreatedStr || ''));
+    });
+  });
+  (r.dosFiles || []).forEach(function(f) {
+    lines.push('  ' + pad(f.path, 32) + ' ' + String(f.bytes || 0).padStart(9) + ' bytes  ' + (f.modified || ''));
+  });
+  if (r.backupSet) lines.push('---- ' + (r.backupSet.kind || 'backup') + ' set ' + (r.backupSet.name || '?') + '  label ' + (r.backupSet.label || '?'));
+  (r.backupFiles || []).forEach(function(f) {
+    lines.push('  ' + pad(f.name, 32) + ' ' + String(f.bytes || 0).padStart(9) + ' bytes  ' + (f.created || ''));
+  });
+  return lines.join('\r\n');
+}
+
+// Archive records -> the entry shape the browser code works with
+// (Name, Description, Reference, Md5, DirectoryContent, ...). Records without
+// an image in the archive are left out.
+function archiveToFloppies(records) {
+  const out = [];
+  records.forEach(function(r) {
+    const imagePath = r && r.storage && r.storage.git && r.storage.git.imagePath;
+    if (!r || !r.md5 || !imagePath) return;
+    const stem = imagePath.split('/').pop().replace(/\.img\.gz$/, '');
+    const disk = r.diskNumber > 0 ? ' disk ' + r.diskNumber + ' of ' + (r.diskTotal || '?') : '';
+    const who = r.provenance && r.provenance.contributor;
+    out.push({
+      Id: out.length + 1,
+      Status: 0,
+      Name: r.volumeName || (r.backupSet && r.backupSet.name) || stem,
+      Description: (r.productId || '') + (r.version ? ' ' + r.version : '') + disk + ' - ' + stem + (who ? ' - from ' + who : ''),
+      Reference: r.productId || '',
+      ProductId: r.productId || '',
+      Md5: r.md5,
+      ImageUrl: archiveImageUrl(imagePath),
+      DirectoryContent: archiveListing(r)
+    });
+  });
+  return out;
+}
+
+// JSON of a floppy for a single-quoted HTML attribute (names may hold ' or &).
+function floppyAttr(floppy) {
+  return JSON.stringify(floppy).replace(/&/g, '&amp;').replace(/'/g, '&#39;');
+}
+
+// Unpack gzip bytes with the browser's own DecompressionStream.
+async function gunzipBytes(bytes) {
+  if (typeof DecompressionStream === 'undefined') {
+    throw new Error('This browser cannot unpack .gz files (no DecompressionStream)');
+  }
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
+// Bytes of a catalog image: uses the .img.gz of the archive and unpacks it.
+async function fetchArchiveImage(url) {
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error('Download failed: ' + resp.status + ' ' + resp.statusText);
+  const bytes = new Uint8Array(await resp.arrayBuffer());
+  return /\.gz$/.test(url) ? gunzipBytes(bytes) : bytes;
+}
+
 // Close modal handlers
 document.getElementById('floppy-modal-close').addEventListener('click', function() {
   closeFloppyBrowser();
@@ -267,15 +355,15 @@ async function loadFloppyDatabase() {
 
   try {
     console.log('Loading floppy database...');
-    const floppyResponse = await fetch('floppies/floppies.json');
+    const floppyResponse = await fetch(ARCHIVE_FLOPPIES_URL);
     if (!floppyResponse.ok) {
       throw new Error(`Failed to load floppy database: ${floppyResponse.status}`);
     }
-    floppyDatabase = await floppyResponse.json();
+    floppyDatabase = archiveToFloppies(await floppyResponse.json());
     console.log(`Loaded ${floppyDatabase.length} floppies`);
 
     console.log('Loading products database...');
-    const productsResponse = await fetch('floppies/products.json');
+    const productsResponse = await fetch(ARCHIVE_PRODUCTS_URL);
     if (!productsResponse.ok) {
       throw new Error(`Failed to load products database: ${productsResponse.status}`);
     }
@@ -446,8 +534,8 @@ function displayFloppyDetails(floppy) {
             <option value="0">Unit 0</option>
             <option value="1">Unit 1</option>
           </select>
-          <button class="floppy-mount-button" data-floppy='${JSON.stringify(floppy)}'>Mount</button>
-          <button class="floppy-ndfs-button" data-floppy='${JSON.stringify(floppy)}' title="Browse the ND filesystem">NDFS</button>
+          <button class="floppy-mount-button" data-floppy='${floppyAttr(floppy)}'>Mount</button>
+          <button class="floppy-ndfs-button" data-floppy='${floppyAttr(floppy)}' title="Browse the ND filesystem">NDFS</button>
         </div>
       </div>
       <h5>Directory Content:</h5>
@@ -509,11 +597,8 @@ async function browseFloppyNdfs() {
     // Otherwise download the catalog image (browse only, do not mount).
     if (!bytes) {
       ndfsBtn.textContent = 'Loading...';
-      var md5 = floppyData.Md5;
-      if (!md5) throw new Error('No MD5 hash for this floppy');
-      var resp = await fetch('https://hackercorp.blob.core.windows.net/upload/ndlib/images/' + md5 + '.img');
-      if (!resp.ok) throw new Error('Download failed: ' + resp.status + ' ' + resp.statusText);
-      bytes = new Uint8Array(await resp.arrayBuffer());
+      if (!floppyData.ImageUrl) throw new Error('No image URL for this floppy');
+      bytes = await fetchArchiveImage(floppyData.ImageUrl);
     }
 
     openNdfsViewer(bytes, floppyData.Name || 'Floppy');
@@ -583,12 +668,10 @@ async function mountFloppy() {
     mountButton.textContent = 'Downloading...';
     mountButton.disabled = true;
 
-    var md5Hash = floppyData.Md5;
-    if (!md5Hash) {
-      throw new Error('No MD5 hash available for this floppy');
+    var imageUrl = floppyData.ImageUrl;
+    if (!imageUrl) {
+      throw new Error('No image URL available for this floppy');
     }
-
-    var imageUrl = 'https://hackercorp.blob.core.windows.net/upload/ndlib/images/' + md5Hash + '.img';
     console.log('Downloading floppy from: ' + imageUrl);
 
     var response = await fetch(imageUrl);
@@ -620,6 +703,10 @@ async function mountFloppy() {
     for (var i = 0; i < chunks.length; i++) {
       floppyImageData.set(chunks[i], position);
       position += chunks[i].length;
+    }
+    if (/\.gz$/.test(imageUrl)) {
+      progressText.textContent = 'Unpacking...';
+      floppyImageData = await gunzipBytes(floppyImageData);
     }
 
     if (typeof emu !== 'undefined' && emu.fsAvailable()) {
@@ -722,6 +809,8 @@ function closeProductsModal() {
 }
 
 function floppyMatchesProduct(floppy, product) {
+  if (floppy.ProductId && floppy.ProductId.toUpperCase() === product.Id.toUpperCase()) return true;
+
   const floppyName = (floppy.Name || '').toUpperCase();
   const productId = product.Id.toUpperCase();
 

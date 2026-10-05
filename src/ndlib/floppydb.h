@@ -8,7 +8,8 @@
  * Copyright (c) 2025 Ronny Hansen
  *
  * floppydb - UI-independent access to the online floppy/disk catalog
- * (https://ndlib.hackercorp.no/floppies.json). Refactored out of the F12
+ * (catalog/floppies.json of the RetroCoreLabs/norskdata-software-archive
+ * GitHub repository). Refactored out of the F12
  * "Floppy Database Browser" (menu.c) so the catalog can be searched and mounted
  * from automation (the --pipe control channel) as well as the ncurses UI.
  *
@@ -30,7 +31,7 @@
  *
  * One catalog entry. Two identifiers, mirroring the F12 browser and the ndlib
  * catalog:
- *   - md5            : globally UNIQUE (the image is fetched as images/<md5>.img).
+ *   - md5            : globally UNIQUE (the image lives in images/<md5>/ of the archive).
  *   - directory_name : the SINTRAN volume name pulled from DirectoryContent's
  *                      "Directory name : X" line - human-friendly but MAY REPEAT
  *                      (several image versions of the same directory), so a
@@ -39,18 +40,38 @@
 typedef struct
 {
     int id;
-    char name[256];           /* JSON "Name" (catalog display name)              */
-    char md5[33];             /* JSON "Md5" - UNIQUE key / image filename        */
-    char directory_name[128]; /* "Directory name" from DirectoryContent          */
-    long filesystem_pages;    /* "Filesystem image size : N pages" (octal)       */
+    char name[256];           /* display name: volumeName, else the image file   */
+    char description[1024];   /* product, version, disk n of m, boot, source     */
+    char reference[256];      /* JSON "productId" (may be "")                    */
+    char md5[33];             /* JSON "md5" - UNIQUE key                         */
+    char image_path[512];     /* JSON "storage.git.imagePath": images/<md5>/X.img.gz */
+    char directory_name[128]; /* JSON "volumeName" (SINTRAN directory name)      */
+    long filesystem_pages;    /* image size in 2048-byte pages, 0 if unknown     */
     bool is_smd;              /* true => SMD image (> 1000 pages), else a floppy  */
-    char *directory_content;  /* full listing, owned by floppydb (may be "")     */
+    char *directory_content;  /* generated listing, owned by the caller of
+                                 floppydb_parse_record() (may be "")             */
 } FloppyDbEntry;
+
+struct cJSON;
+
+/**
+ * @brief Convert one record of catalog/floppies.json into a FloppyDbEntry.
+ * @details Shared by the F12 menu and by floppydb_load_json(). The listing in
+ *          out->directory_content is generated from the record's ndfs, dosFiles
+ *          or backupFiles data and is allocated with malloc().
+ * @param item JSON object, one element of the catalog array.
+ * @param out  Receives the entry. On success the caller owns
+ *             out->directory_content and must free() it.
+ * @return true if the record was converted, false if item is not an object,
+ *         has no md5 or no storage.git.imagePath (no image to mount), or
+ *         memory ran out.
+ */
+bool floppydb_parse_record(const struct cJSON *item, FloppyDbEntry *out);
 
 /**
  * @brief Load the catalog: use the cached floppies.json when fresh, otherwise
  *        download and cache it ($HOME/.cache/nd100x/floppies.json), then parse.
- * @details Only records with Status == 0 are included. Idempotent - any
+ * @details Only records that name an image in the archive are included. Idempotent - any
  *          previous load is freed first.
  * @param force_refresh true bypasses the cache and downloads a fresh copy.
  * @return Entry count on success, or -1 on failure (no data, for example
@@ -105,7 +126,11 @@ const FloppyDbEntry *floppydb_find_md5(const char *md5);
 int floppydb_find_directory(const char *directory_name, const FloppyDbEntry **out, int max);
 
 /**
- * @brief Build the image download URL (<base>/<md5>.img) for an entry.
+ * @brief Build the download URL of the compressed image (.img.gz) for an entry.
+ * @details The URL is the raw-file address in the archive repository followed
+ *          by the entry's image_path, with characters outside A-Z a-z 0-9
+ *          - _ . / ~ percent-encoded (several file names hold spaces).
+ *          machine_mount_drive() decompresses a URL ending in .gz.
  * @param e      Catalog entry.
  * @param buf    Destination buffer; the URL is truncated to fit.
  * @param buflen Size of buf in bytes.

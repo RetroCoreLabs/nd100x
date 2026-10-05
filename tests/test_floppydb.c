@@ -20,7 +20,7 @@
  *                       appears twice with different md5 + sizes), so a
  *                       directory-name lookup must return >1 and the caller
  *                       disambiguates by md5.
- * A Status != 0 record must be skipped, and an oversized (> 1000-page) image must
+ * A record with no archive image must be skipped, and an oversized (> 1000-page) image must
  * classify as SMD rather than FLOPPY.
  */
 #include <stdio.h>
@@ -52,32 +52,34 @@ static int g_failures = 0;
 } while (0)
 // clang-format on
 
-/* Two PACK-ONE entries (different md5 + size), one SMD image, one Status=1 that
- * must be excluded. Filesystem image size is octal, as in the real catalog. */
+/* Two PACK-ONE entries (different md5 + size), one SMD-sized image, one record with
+ * no storage.git.imagePath that must be excluded. Layout follows the real
+ * catalog/floppies.json of the norskdata-software-archive repository (camelCase,
+ * image size in bytes, 2048-byte pages). */
 static const char *fixture =
     "[\n"
     "  {\n"
-    "    \"Id\": 1, \"Name\": \"Pack One rev A\", \"Status\": 0,\n"
-    "    \"Md5\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\n"
-    "    \"DirectoryContent\": \"Directory name            : PACK-ONE\\r\\nFilesystem image size   "
-    "  : 000232 pages\\r\\n\"\n"
+    "    \"md5\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", \"volumeName\": \"PACK-ONE\",\n"
+    "    \"productId\": \"ND-1\", \"version\": \"A\", \"filesystem\": \"ndfs\",\n"
+    "    \"imageSizeBytes\": 315392, \"totalPages\": 154,\n"
+    "    \"storage\": {\"git\": {\"imagePath\": \"images/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/ONE.img.gz\"}},\n"
+    "    \"ndfs\": {\"users\": [{\"name\": \"FLOPPY-USER\", \"pagesUsed\": 5}],\n"
+    "             \"files\": [{\"name\": \"HELLO:SYMB\", \"pages\": 5, \"bytes\": 9000,\n"
+    "                        \"userName\": \"FLOPPY-USER\"}]}\n"
     "  },\n"
     "  {\n"
-    "    \"Id\": 2, \"Name\": \"Pack One rev B\", \"Status\": 0,\n"
-    "    \"Md5\": \"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\n"
-    "    \"DirectoryContent\": \"Directory name            : PACK-ONE\\r\\nFilesystem image size   "
-    "  : 000464 pages\\r\\n\"\n"
+    "    \"md5\": \"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\", \"volumeName\": \"PACK-ONE\",\n"
+    "    \"filesystem\": \"ndfs\", \"imageSizeBytes\": 630784,\n"
+    "    \"storage\": {\"git\": {\"imagePath\": \"images/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/Pack One & B.img.gz\"}}\n"
     "  },\n"
     "  {\n"
-    "    \"Id\": 3, \"Name\": \"Big SMD\", \"Status\": 0,\n"
-    "    \"Md5\": \"cccccccccccccccccccccccccccccccc\",\n"
-    "    \"DirectoryContent\": \"Directory name            : BIGVOL\\r\\nFilesystem image size     "
-    ": 010000 pages\\r\\n\"\n"
+    "    \"md5\": \"cccccccccccccccccccccccccccccccc\", \"volumeName\": \"BIGVOL\",\n"
+    "    \"imageSizeBytes\": 8388608,\n"
+    "    \"storage\": {\"git\": {\"imagePath\": \"images/cccccccccccccccccccccccccccccccc/BIG.img.gz\"}}\n"
     "  },\n"
     "  {\n"
-    "    \"Id\": 4, \"Name\": \"Deleted entry\", \"Status\": 1,\n"
-    "    \"Md5\": \"dddddddddddddddddddddddddddddddd\",\n"
-    "    \"DirectoryContent\": \"Directory name            : GONE\\r\\n\"\n"
+    "    \"md5\": \"dddddddddddddddddddddddddddddddd\", \"volumeName\": \"GONE\",\n"
+    "    \"storage\": {\"git\": {\"imagePath\": null}}\n"
     "  }\n"
     "]\n";
 
@@ -87,7 +89,7 @@ int main(int argc, char **argv)
 
     int n = floppydb_load_json(fixture);
     printf("floppydb_load_json -> %d entries\n", n);
-    CHECK(n == 3, "Status!=0 record excluded (3 of 4 loaded)");
+    CHECK(n == 3, "record without an archive image excluded (3 of 4 loaded)");
     CHECK(floppydb_count() == 3, "floppydb_count() == 3");
 
     /* md5 is unique: each hash resolves to exactly its entry. */
@@ -95,10 +97,10 @@ int main(int argc, char **argv)
     const FloppyDbEntry *b = floppydb_find_md5("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
     const FloppyDbEntry *c = floppydb_find_md5("cccccccccccccccccccccccccccccccc");
     const FloppyDbEntry *gone = floppydb_find_md5("dddddddddddddddddddddddddddddddd");
-    CHECK(a && strcmp(a->name, "Pack One rev A") == 0, "find_md5(aaaa) -> rev A");
-    CHECK(b && strcmp(b->name, "Pack One rev B") == 0, "find_md5(bbbb) -> rev B");
+    CHECK(a && strcmp(a->name, "PACK-ONE") == 0 && a->md5[0] == 'a', "find_md5(aaaa) -> rev A");
+    CHECK(b && strcmp(b->name, "PACK-ONE") == 0 && b->md5[0] == 'b', "find_md5(bbbb) -> rev B");
     CHECK(c != NULL, "find_md5(cccc) -> found");
-    CHECK(gone == NULL, "find_md5 of excluded (Status=1) record -> NULL");
+    CHECK(gone == NULL, "find_md5 of excluded (no imagePath) record -> NULL");
     CHECK(floppydb_find_md5("ffffffffffffffffffffffffffffffff") == NULL,
           "find_md5 of unknown -> NULL");
 
@@ -128,18 +130,28 @@ int main(int argc, char **argv)
     CHECK(bign == 1, "find_directory(BIGVOL) -> 1 match");
     CHECK(floppydb_find_directory("NOPE", matches, 8) == 0, "find_directory of unknown -> 0");
 
-    /* Filesystem image size parsed as OCTAL; > 1000 pages => SMD, else FLOPPY. */
-    CHECK(a && a->filesystem_pages == 0232 /*octal*/, "rev A size parsed as octal 000232");
+    /* Size is imageSizeBytes / 2048; > 1000 pages => SMD, else FLOPPY. */
+    CHECK(a && a->filesystem_pages == 154, "rev A size is 154 pages");
     CHECK(a && !a->is_smd, "small image classified as FLOPPY (is_smd=false)");
-    CHECK(c && c->filesystem_pages == 010000 /*octal*/, "SMD size parsed as octal 010000");
+    CHECK(c && c->filesystem_pages == 4096, "SMD size is 4096 pages");
     CHECK(c && c->is_smd, "large image classified as SMD (is_smd=true)");
 
-    /* Image URL is images/<md5>.img. */
+    /* The generated listing carries the directory name and the files. */
+    CHECK(a && a->directory_content && strstr(a->directory_content, "Directory name") &&
+              strstr(a->directory_content, "HELLO:SYMB"),
+          "listing holds the directory name and the file list");
+
+    /* Image URL is the raw-file address of imagePath, percent-encoded. */
     char url[256];
     const char *u = a ? floppydb_image_url(a, url, sizeof(url)) : NULL;
     printf("image_url(rev A) -> %s\n", u ? u : "(null)");
-    CHECK(u && strstr(u, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.img") != NULL,
-          "image_url contains <md5>.img");
+    CHECK(u && strstr(u, "raw.githubusercontent.com/RetroCoreLabs/norskdata-software-archive/") &&
+              strstr(u, "/images/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/ONE.img.gz") != NULL,
+          "image_url is the archive raw URL of the .img.gz");
+    u = b ? floppydb_image_url(b, url, sizeof(url)) : NULL;
+    printf("image_url(rev B) -> %s\n", u ? u : "(null)");
+    CHECK(u && strstr(u, "/Pack%20One%20%26%20B.img.gz") != NULL,
+          "image_url percent-encodes spaces and ampersands");
 
     /* Optional smoke test against a real floppies.json if a path is provided. */
     const char *real = (argc > 1) ? argv[1] : getenv("FLOPPYDB_TEST_JSON");
