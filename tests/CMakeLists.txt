@@ -510,6 +510,31 @@ add_dependencies(test_memory_banks cpu devices)
 
 add_test(NAME memory_bank_tests COMMAND test_memory_banks)
 
+# MOVB / MOVBF on fields that start on different byte halves, run through the
+# real dispatch table. Linked against the whole emulator for the same reason as
+# test_memory_banks: the instruction file reaches the machine and the devices.
+add_executable(test_movb
+    test_movb.c
+)
+
+target_include_directories(test_movb PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/cpu
+    ${CMAKE_SOURCE_DIR}/src/machine
+    ${CMAKE_SOURCE_DIR}/src/devices
+    ${CMAKE_SOURCE_DIR}/src/ndlib
+)
+
+target_link_libraries(test_movb PRIVATE
+    ${ND_LINK_GROUP_BEGIN} cpu machine devices debugger ndlib ${ND_LINK_GROUP_END} m)
+
+# cpu_types.h #includes the generated cpu_protos.h; force the cpu target (which
+# runs mkptypes to emit it) to build first.
+add_dependencies(test_movb cpu devices)
+
+add_test(NAME movb_tests COMMAND test_movb)
+
 # ND-100 octobus interface card unit tests
 #
 # device_octobus.c is linked in DIRECTLY with device.c for dev_init, so no

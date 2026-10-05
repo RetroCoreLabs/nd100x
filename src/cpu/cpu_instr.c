@@ -3599,18 +3599,23 @@ static void opcode_movb_move_byte(uint16_t instr)
     s_apt = ((gD >> 14) & 1);
     d_apt = ((gT >> 14) & 1);
     len = (((int)lens - lend) < 0) ? lens : lend; /* get smallest length as number to copy */
-    /* Check overlap if any and direction to copy */
-    if (((int)source - dest) < 0)
-    {
-        dir = 1;
-    }
-    else if (((int)source - dest) == 0)
-    { /* :TODO: check bytes to determine direction, or if no need to copy exist */
-    }
-    else
-    {
-        dir = 0;
-    }
+    /* Check overlap if any and direction to copy.
+     *
+     * The direction is decided on BYTE positions (2 * word address + half), not on
+     * word addresses. Comparing words only left dir = 0 (ascending) whenever source
+     * and destination are the same word on different halves - the in-place "shift a
+     * packed string one byte to the right to make room for a leading character".
+     * An ascending copy of a field that moves forward overwrites each source byte
+     * before it is read.
+     *
+     * MEASURED: SINTRAN's ND-500 monitor builds "(user)TERMINAL-1" at 100236B-100244B
+     * with exactly this call - source == dest, s_lr = 0, d_lr = 1, len = 16 - and the
+     * word-only test made "(SYSTEM)" print as "(YSTSMS S S S S S)".
+     * Reference: $RETROCORE/Emulated.HW/ND/CPU/ND100/Instructions.ByteInstruction.cs,
+     * MOVB, "FIX B (2026-08-21)". */
+    int src_byte_pos = ((int)source << 1) + s_lr;
+    int dst_byte_pos = ((int)dest << 1) + d_lr;
+    dir = (src_byte_pos < dst_byte_pos) ? 1 : 0;
 
     /* COPY */
     if (dir)
@@ -3619,8 +3624,12 @@ static void opcode_movb_move_byte(uint16_t instr)
         {
             addr_s = source + ((i + s_lr) >> 1); /* Word adress of byte to read */
             thebyte = cpu_memory_read(addr_s, s_apt);
+            /* The source half is selected with s_lr, the same selector that picked
+             * the source word on the line above; d_lr here read the wrong half of
+             * the right word whenever the two fields start on different halves.
+             * Reference: MOVB in Instructions.ByteInstruction.cs, "FIX A". */
             thebyte =
-                ((i + d_lr) & 1) ? thebyte : (thebyte >> 8) & 0xff; /* right, LSB : left, MSB */
+                ((i + s_lr) & 1) ? thebyte : (thebyte >> 8) & 0xff; /* right, LSB : left, MSB */
             addr_d = dest + ((i + d_lr) >> 1); /* Word adress of byte to write */
             cpu_memory_write(thebyte, addr_d, d_apt, ((i + d_lr) & 1));
         }
@@ -3636,8 +3645,12 @@ static void opcode_movb_move_byte(uint16_t instr)
         {
             addr_s = source + ((i + s_lr) >> 1); /* Word adress of byte to read */
             thebyte = cpu_memory_read(addr_s, s_apt);
+            /* The source half is selected with s_lr, the same selector that picked
+             * the source word on the line above; d_lr here read the wrong half of
+             * the right word whenever the two fields start on different halves.
+             * Reference: MOVB in Instructions.ByteInstruction.cs, "FIX A". */
             thebyte =
-                ((i + d_lr) & 1) ? thebyte : (thebyte >> 8) & 0xff; /* right, LSB : left, MSB */
+                ((i + s_lr) & 1) ? thebyte : (thebyte >> 8) & 0xff; /* right, LSB : left, MSB */
             addr_d = dest + ((i + d_lr) >> 1); /* Word adress of byte to write */
             cpu_memory_write(thebyte, addr_d, d_apt, ((i + d_lr) & 1));
         }
@@ -3738,7 +3751,9 @@ static void opcode_movbf_move_bytes_forward(uint16_t instr)
     {
         addr_s = source + ((i + s_lr) >> 1); /* Word adress of byte to read */
         thebyte = cpu_memory_read(addr_s, s_apt);
-        thebyte = ((i + d_lr) & 1) ? thebyte : (thebyte >> 8) & 0xff; /* right, LSB : left, MSB */
+        /* Source half selected with s_lr, as in MOVB above (reference: MOVBF in
+         * Instructions.ByteInstruction.cs, "FIX A"). */
+        thebyte = ((i + s_lr) & 1) ? thebyte : (thebyte >> 8) & 0xff; /* right, LSB : left, MSB */
         addr_d = dest + ((i + d_lr) >> 1); /* Word adress of byte to write */
         cpu_memory_write(thebyte, addr_d, d_apt, ((i + d_lr) & 1));
         lens--;
