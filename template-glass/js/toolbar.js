@@ -567,6 +567,60 @@ updateSmdManagerMenuState();
 })();
 
 // =========================================================
+// Config: Enable 5000 CPU toggle
+// Off by default: the ND-5000 sections are only added to the INI at power-on
+// when this is on, so an off machine builds no MFbus pool and no ND-5000 CPU.
+// =========================================================
+var ENABLE_5000_KEY = 'nd100x-enable-5000';
+
+function nd5000IniSections() {
+  return '\n[mfbus]\n' +
+    'size      = 8\n' +
+    'base_page = 04100B\n\n' +
+    '[mfbus.part.0]\n' +
+    'pages   = 4096\n' +
+    'nd100   = yes\n' +
+    'nd500_p = yes\n' +
+    'nd500_d = yes\n\n' +
+    '[controller.octobus.0]\n' +
+    'enabled = yes\n\n' +
+    '[nd5000.1]\n' +
+    'enabled = yes\n' +
+    'station = 070B\n';
+}
+
+// The INI text handed to emu.init() at power-on.
+function iniForPowerOn() {
+  var ini = window.machineProfiles ? machineProfiles.ini() : null;
+  var enabled = false;
+  try { enabled = localStorage.getItem(ENABLE_5000_KEY) === 'true'; } catch (e) {}
+  // A profile that already names an [nd5000.N] section is left as the user wrote it.
+  if (enabled && ini && ini.indexOf('[nd5000.') < 0) {
+    ini = ini + nd5000IniSections();
+    // The ND-5000 monitor chatter is LOG(LOG_CAT_MMS, LOG_INFO). Raise the mms
+    // category to WARN so INFO stops reaching the console. Skipped when the
+    // profile already has a [runtime] section, which must not appear twice.
+    if (ini.indexOf('[runtime]') < 0) {
+      ini = ini + '\n[runtime]\nlog = mms:warn\n';
+    }
+  }
+  return ini;
+}
+
+(function() {
+  var toggle5000 = document.getElementById('config-enable-5000');
+  if (!toggle5000) return;
+
+  toggle5000.checked = (function() {
+    try { return localStorage.getItem(ENABLE_5000_KEY) === 'true'; } catch (e) { return false; }
+  })();
+
+  toggle5000.addEventListener('change', function() {
+    try { localStorage.setItem(ENABLE_5000_KEY, toggle5000.checked ? 'true' : 'false'); } catch (e) {}
+  });
+})();
+
+// =========================================================
 // Config: Persistent disk storage toggle
 // =========================================================
 (function() {
@@ -961,10 +1015,10 @@ document.getElementById('toolbar-power').addEventListener('click', function() {
       emu.onInitialized = function(msg) {
         completePowerOn(btn);
       };
-      emu.init(window.machineProfiles ? machineProfiles.ini() : null);
+      emu.init(iniForPowerOn());
     } else {
       // Direct mode: synchronous
-      emu.init(window.machineProfiles ? machineProfiles.ini() : null);
+      emu.init(iniForPowerOn());
       completePowerOn(btn);
     }
   } else {
@@ -1039,7 +1093,7 @@ function logBootDriveInfo() {
 // boot_type values: 0=FLOPPY, 1=SMD, 2=BPUN
 function performBoot(bootType) {
   var bootBtn = document.getElementById('toolbar-boot');
-  var bootNames = ['FLOPPY', 'SMD', 'BPUN', 'SCSI'];
+  var bootNames = ['FLOPPY', 'SMD', 'BPUN', 'SCSI', 'WINCHESTER'];
 
   console.log("Booting type " + (bootNames[bootType] || bootType));
 
@@ -1136,9 +1190,9 @@ function scheduleAutoUrlImageBoot() {
       completePowerOn(btn);
       performBoot(1);
     };
-    emu.init(window.machineProfiles ? machineProfiles.ini() : null);
+    emu.init(iniForPowerOn());
   } else {
-    emu.init(window.machineProfiles ? machineProfiles.ini() : null);
+    emu.init(iniForPowerOn());
     completePowerOn(btn);
     performBoot(1);
   }
@@ -1153,8 +1207,21 @@ document.getElementById('toolbar-boot').addEventListener('click', function() {
     return;
   }
 
-  // 0=FLOPPY, 1=SMD, 2=BPUN, 3=SCSI (must match nd100wasm.c Boot())
-  var bootType = (bootDevice === 'smd') ? 1 : (bootDevice === 'scsi') ? 3 : 0;
+  // 0=FLOPPY, 1=SMD, 2=BPUN, 3=SCSI, 4=WINCHESTER (must match nd100wasm.c Boot())
+  var bootType = (bootDevice === 'smd') ? 1 : (bootDevice === 'scsi') ? 3 :
+    (bootDevice === 'winchester') ? 4 : 0;
+
+  // Check Winchester image was mounted on unit 0
+  if (bootType === 4) {
+    var hasWd = (typeof driveRegistry !== 'undefined' && driveRegistry.isOccupied('winchester', 0));
+    if (!hasWd) {
+      document.getElementById('status').textContent = 'Boot failed - no Winchester image on unit 0';
+      terminals[activeTerminalId].term.writeln(
+        '\r\n\x1b[31mCannot boot: No Winchester image mounted on unit 0.\x1b[0m\r\n' +
+        '\x1b[33mMount a WD0.IMG image first.\x1b[0m');
+      return;
+    }
+  }
 
   // Check SMD image was loaded (XHR demo, OPFS, or gateway)
   if (bootType === 1) {

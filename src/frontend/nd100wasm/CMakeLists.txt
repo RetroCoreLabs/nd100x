@@ -103,7 +103,8 @@ if(PLATFORM_WASM)
          -s ENVIRONMENT='web,worker,node' \
          -s MODULARIZE=0 \
          -s ALLOW_TABLE_GROWTH=1 \
-         -s ALLOW_MEMORY_GROWTH=1"
+         -s ALLOW_MEMORY_GROWTH=1 \
+         -s STACK_SIZE=1048576"
     )
     
     if(CMAKE_BUILD_TYPE STREQUAL "Debug")

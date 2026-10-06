@@ -443,7 +443,7 @@ EMSCRIPTEN_EXPORT void Init(void)
 }
 
 // Boot the system (load boot sector and set PC)
-// boot_type: 0=FLOPPY, 1=SMD, 2=BPUN
+// boot_type: 0=FLOPPY, 1=SMD, 2=BPUN, 3=SCSI, 4=WINCHESTER
 // Returns: start address (PC) on success, -1 on failure
 EMSCRIPTEN_EXPORT int Boot(int boot_type)
 {
@@ -500,6 +500,9 @@ EMSCRIPTEN_EXPORT int Boot(int boot_type)
         break;
     case 3: // SCSI (ID 0)
         rc = machine_program_load(BOOT_SCSI, 0, "SCSI0.IMG", 1, 0, false);
+        break;
+    case 4: // Winchester (unit 0)
+        rc = machine_program_load(BOOT_WINCHESTER, 0, "WD0.IMG", 1, 0, false);
         break;
     default: // FLOPPY (0)
         rc = machine_program_load(BOOT_FLOPPY, 0, "FLOPPY0.IMG", 1, 0, false);
