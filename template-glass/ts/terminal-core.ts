@@ -160,13 +160,35 @@
 
   // ---- Backend detection ----
 
-  var isRetroTermBackend = (typeof TERMINAL_BACKEND !== 'undefined' && TERMINAL_BACKEND === 'retroterm');
+  // The active machine's terminal settings (Machine Setup > Terminal): which
+  // renderer draws the terminals, which terminal it emulates, which national
+  // keyboard. machine-profiles.js keeps them per machine; where it is not
+  // loaded (the pop-out page) the keys it mirrors for the active machine
+  // answer instead. Asked every time, never cached: the machine selector
+  // changes them without a reload.
+  function currentTerminalSettings(): { backend: string; emulator: string; language: string } {
+    var mp: any = (window as any).machineProfiles;
+    if (mp && typeof mp.terminal === 'function') return mp.terminal();
+    var backend = 'retroterm', emulator = 'tdv2200', language = 'no';
+    try {
+      backend  = localStorage.getItem('nd100x-terminal-backend') || backend;
+      emulator = localStorage.getItem('nd100x-emulator-type') || emulator;
+      language = localStorage.getItem('nd100x-keyboard-language') || language;
+    } catch (e) {}
+    return { backend: backend, emulator: emulator, language: language };
+  }
+
+  // RetroTerm draws the active machine's terminals (and is loaded).
+  function isRetroTermBackend(): boolean {
+    return currentTerminalSettings().backend === 'retroterm' && typeof RetroTerm !== 'undefined';
+  }
 
   // ---- Terminal factory ----
 
   /**
    * Create a Terminal with FitAddon and auto font-scaling.
-   * Backend-aware: uses xterm.js or RetroTerm depending on TERMINAL_BACKEND.
+   * Backend-aware: xterm.js or RetroTerm, as the active machine's terminal
+   * settings say (currentTerminalSettings, Machine Setup > Terminal).
    *
    * @param container   DOM element to host the terminal
    * @param opts        options
@@ -185,10 +207,9 @@
     // RetroTerm ships one emulator (the TDV2200) and the ND-500's NDIX console
     // speaks ANSI/VT100, so that window asks for xterm outright rather than
     // following the ND-100's backend setting.
-    if (isRetroTermBackend && !opts.forceXterm && typeof RetroTerm !== 'undefined') {
+    if (isRetroTermBackend() && !opts.forceXterm) {
       // RetroTerm path
-      var emulatorType = 'tdv2200';
-      try { emulatorType = localStorage.getItem('nd100x-emulator-type') || 'tdv2200'; } catch(e) {}
+      var emulatorType = currentTerminalSettings().emulator;
 
       term = new RetroTerm.Terminal({
         cursorBlink: true,
@@ -504,9 +525,8 @@
   // ---- Emulator type label ----
 
   function getEmulatorTypeLabel(): string {
-    if (!isRetroTermBackend) return '';
-    var saved = 'tdv2200';
-    try { saved = localStorage.getItem('nd100x-emulator-type') || 'tdv2200'; } catch(e) {}
+    if (!isRetroTermBackend()) return 'VT100';
+    var saved = currentTerminalSettings().emulator;
     if (saved === 'tdv2200') return 'TDV 2200';
     if (saved === 'tdv2215') return 'TDV 2215';
     if (saved === 'vt100') return 'VT100';
@@ -516,6 +536,8 @@
   // ---- Exports ----
 
   window.getEmulatorTypeLabel = getEmulatorTypeLabel;
+  window.currentTerminalSettings = currentTerminalSettings;
+  window.isRetroTermBackend = isRetroTermBackend;
   window.terminalColorThemes = colorThemes;
   window.createScaledTerminal = createScaledTerminal;
   window.fitTerminalScaled = fitTerminalScaled;

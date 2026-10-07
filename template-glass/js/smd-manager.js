@@ -19,8 +19,10 @@
 // Show / Hide
 // =========================================================
 
+// Opens in every mode. The local library needs persistent storage and the
+// window says so (hdd-persist-notice, toolbar.js); the running machine's
+// drives and the server catalog are there regardless.
 function smdManagerShow() {
-  if (!isSmdPersistenceEnabled()) return;
   var win = document.getElementById('smd-manager-window');
   if (!win) return;
   win.style.display = 'flex';
@@ -39,12 +41,55 @@ function smdManagerHide() {
 // Refresh all sections
 // =========================================================
 
-function smdRefreshAll() {
-  // Close window if persistence was disabled while it was open
-  if (!isSmdPersistenceEnabled()) {
-    smdManagerHide();
-    return;
+// Names in the local library are unique: a second "SINTRAN K" next to the
+// first is exactly the confusion a name is there to prevent. Case-insensitive,
+// trimmed; <exceptUuid> is the image being renamed.
+function smdNameInUse(name, exceptUuid) {
+  var want = String(name || '').trim().toLowerCase();
+  if (!want || typeof smdStorage === 'undefined') return false;
+  var imgs = smdStorage.listImages();
+  for (var i = 0; i < imgs.length; i++) {
+    if (imgs[i].uuid === exceptUuid) continue;
+    if (String(imgs[i].name || '').trim().toLowerCase() === want) return true;
   }
+  return false;
+}
+
+// A unique name for an import, which brings no name of its own: the file
+// name, then "name (2)", "name (3)", ...
+function smdUniqueImportName(name) {
+  var base = String(name || 'image').trim() || 'image';
+  if (!smdNameInUse(base)) return base;
+  for (var n = 2; n < 1000; n++) {
+    if (!smdNameInUse(base + ' (' + n + ')')) return base + ' (' + n + ')';
+  }
+  return base + ' (' + Date.now() + ')';
+}
+
+// The image counts on the HDD manager's tabs: "Winchester (2)".
+function hddUpdateTabCounts() {
+  if (typeof smdStorage === 'undefined') return;
+  var counts = {};
+  smdStorage.listImages().forEach(function(i) { var t = i.diskType || 'smd'; counts[t] = (counts[t] || 0) + 1; });
+  var labels = { smd: 'SMD', scsi: 'SCSI', winchester: 'Winchester', ndix: 'NDIX' };
+  var btns = document.querySelectorAll('#hdd-tabs .hdd-tab');
+  for (var b = 0; b < btns.length; b++) {
+    var tab = btns[b].getAttribute('data-hdd-tab');
+    var type = HDD_TAB_DISK_TYPE[tab] || tab;
+    btns[b].textContent = (labels[tab] || tab) + ' (' + (counts[type] || 0) + ')';
+  }
+}
+
+// Where a freshly copied image can be found, by its type.
+function copiedWhere(diskType) {
+  if (diskType === 'scsi') return ' - SCSI tab';
+  if (diskType === 'winchester') return ' - Winchester tab';
+  if (diskType === 'floppy') return ' - mount it from the Floppy Library';
+  if (diskType === 'nd500') return ' - NDIX tab; choose it in Machine Setup as the root disc';
+  return '';
+}
+
+function smdRefreshAll() {
   // Ensure smdStorage is initialized before reading data.
   // init() loads metadata from localStorage; returns immediately if already initialized.
   smdStorage.init().then(function() {
@@ -52,6 +97,10 @@ function smdRefreshAll() {
     smdRefreshInstalledList();
     smdRefreshCatalogList();
     smdUpdateStorageInfo();
+    // The other type tabs' libraries too: a copy made from this tab may
+    // belong on one of them.
+    if (typeof hddTypeRefresh === 'function') { hddTypeRefresh('scsi'); hddTypeRefresh('winchester'); hddTypeRefresh('nd500'); }
+    hddUpdateTabCounts();
   });
 }
 
@@ -104,7 +153,7 @@ function smdRefreshInstalledList() {
   var images = smdStorage.listImages().filter(function(i) { return (i.diskType || 'smd') === 'smd'; });
 
   if (images.length === 0) {
-    container.innerHTML = '<div class="smd-empty-msg">No SMD disk images stored. Use the Server Catalog or Import to add images.</div>';
+    container.innerHTML = '<div class="smd-empty-msg">No SMD disk images stored. Copy one in from the Server Catalog below, or import one.</div>';
     return;
   }
 
@@ -134,18 +183,9 @@ function smdRefreshInstalledList() {
       html += '<span class="smd-image-meta">' + escapeHtml(img.description) + '</span>';
     }
     html += '</div>';
+    // No Assign here: a drive gets its image in Machine Setup (the machine
+    // is the master of its drives). This window keeps the library itself.
     html += '<div class="smd-image-actions">';
-    html += '<select class="smd-assign-select" data-uuid="' + escapeHtml(uuid) + '" title="Assign to unit">';
-    if (assignedUnit >= 0) {
-      html += '<option value="">Unit ' + assignedUnit + ' (move...)</option>';
-    } else {
-      html += '<option value="">Assign to...</option>';
-    }
-    for (var u2 = 0; u2 < 4; u2++) {
-      if (u2 === assignedUnit) continue;
-      html += '<option value="' + u2 + '">Unit ' + u2 + '</option>';
-    }
-    html += '</select>';
     html += '<button class="smd-rename-btn" data-uuid="' + escapeHtml(uuid) + '" title="Rename">Rename</button>';
     html += '<button class="smd-export-btn" data-uuid="' + escapeHtml(uuid) + '" title="Export to local file">Export</button>';
     html += '<button class="smd-ndfs-btn" data-uuid="' + escapeHtml(uuid) + '" title="Browse the ND filesystem">NDFS</button>';
@@ -155,16 +195,6 @@ function smdRefreshInstalledList() {
   });
 
   container.innerHTML = html;
-
-  // Wire up assign dropdowns
-  container.querySelectorAll('.smd-assign-select').forEach(function(sel) {
-    sel.addEventListener('change', function() {
-      if (this.value !== '') {
-        smdAssignToUnit(this.getAttribute('data-uuid'), parseInt(this.value));
-        this.value = '';
-      }
-    });
-  });
 
   // Wire up rename buttons
   container.querySelectorAll('.smd-rename-btn').forEach(function(btn) {
@@ -245,6 +275,11 @@ function smdShowRenameInline(uuid) {
   function doSave() {
     var newName = nameInput.value.trim() || meta.name;
     var newDesc = descInput.value.trim();
+    if (smdNameInUse(newName, uuid)) {
+      alert('There is already an image called "' + newName + '" in the library - names are unique.');
+      nameInput.focus();
+      return;
+    }
     smdStorage.updateMetadata(uuid, newName, newDesc);
     smdRefreshAll();
   }
@@ -287,14 +322,14 @@ function smdAssignToUnit(uuid, unit) {
   // (OPFS SyncAccessHandle is exclusive -- only one handle per file)
   for (var u = 0; u < 4; u++) {
     if (u !== unit && currentUnits[u] === uuid) {
-      console.log('[SMD Manager] Ejecting ' + uuid + ' from unit ' + u + ' (moving to unit ' + unit + ')');
+      console.log('[HDD Manager] Ejecting ' + uuid + ' from unit ' + u + ' (moving to unit ' + unit + ')');
       smdEjectUnit(u);
     }
   }
 
   // Eject the CURRENT occupant of the target unit (close its SyncAccessHandle)
   if (currentUnits[unit] && currentUnits[unit] !== uuid) {
-    console.log('[SMD Manager] Ejecting current image from unit ' + unit + ' to make room');
+    console.log('[HDD Manager] Ejecting current image from unit ' + unit + ' to make room');
     smdEjectUnit(unit);
   }
 
@@ -312,22 +347,22 @@ function smdAssignToUnit(uuid, unit) {
   // Mount live if persistence is on.
   // No isReady() gate — opfsMountSMD works as soon as the worker is running.
   if (emu && isSmdPersistenceEnabled()) {
-    console.log('[SMD Manager] Mounting ' + displayName + ' on unit ' + unit +
+    console.log('[HDD Manager] Mounting ' + displayName + ' on unit ' + unit +
       ' (isReady=' + (emu.isReady ? emu.isReady() : 'N/A') + ')');
     if (emu.isWorkerMode()) {
       emu.opfsMountSMD(unit, uuid).then(function(r) {
         // Guard: if the assignment changed while the async mount was in flight, skip
         if (smdStorage.getUnitAssignment(unit) !== uuid) {
-          console.log('[SMD Manager] Unit ' + unit + ' assignment changed during mount, skipping registry update');
+          console.log('[HDD Manager] Unit ' + unit + ' assignment changed during mount, skipping registry update');
           return;
         }
         if (r.ok) {
-          console.log('[SMD Manager] Unit ' + unit + ' mounted: ' + displayName + ' (' + smdStorage.formatSize(r.size || 0) + ')');
+          console.log('[HDD Manager] Unit ' + unit + ' mounted: ' + displayName + ' (' + smdStorage.formatSize(r.size || 0) + ')');
           if (typeof driveRegistry !== 'undefined') {
             driveRegistry.mount('smd', unit, 'opfs', displayName, uuid, r.size || 0);
           }
         } else {
-          console.error('[SMD Manager] Unit ' + unit + ' mount FAILED: ' + displayName);
+          console.error('[HDD Manager] Unit ' + unit + ' mount FAILED: ' + displayName);
           alert('Failed to mount "' + displayName + '" on unit ' + unit + '.\n\nThe image file may be corrupted or inaccessible.');
           smdStorage.clearUnitAssignment(unit);
           if (typeof driveRegistry !== 'undefined') driveRegistry.eject('smd', unit);
@@ -338,25 +373,25 @@ function smdAssignToUnit(uuid, unit) {
       smdStorage.retrieveImage(uuid).then(function(data) {
         // Guard: if the assignment changed while retrieving, skip
         if (smdStorage.getUnitAssignment(unit) !== uuid) {
-          console.log('[SMD Manager] Unit ' + unit + ' assignment changed during retrieve, skipping');
+          console.log('[HDD Manager] Unit ' + unit + ' assignment changed during retrieve, skipping');
           return;
         }
         if (data) {
           var rc = emu.mountSMDFromBuffer(unit, data);
           if (rc === 0) {
-            console.log('[SMD Manager] Unit ' + unit + ' mounted from buffer: ' + displayName + ' (' + smdStorage.formatSize(data.byteLength) + ')');
+            console.log('[HDD Manager] Unit ' + unit + ' mounted from buffer: ' + displayName + ' (' + smdStorage.formatSize(data.byteLength) + ')');
             if (typeof driveRegistry !== 'undefined') {
               driveRegistry.mount('smd', unit, 'opfs', displayName, uuid, data.byteLength);
             }
           } else {
-            console.error('[SMD Manager] Unit ' + unit + ' mount from buffer FAILED (rc=' + rc + ')');
+            console.error('[HDD Manager] Unit ' + unit + ' mount from buffer FAILED (rc=' + rc + ')');
             alert('Failed to mount "' + displayName + '" on unit ' + unit + '.');
             smdStorage.clearUnitAssignment(unit);
             if (typeof driveRegistry !== 'undefined') driveRegistry.eject('smd', unit);
             smdRefreshAll();
           }
         } else {
-          console.error('[SMD Manager] Unit ' + unit + ' - image not found in OPFS: ' + uuid);
+          console.error('[HDD Manager] Unit ' + unit + ' - image not found in OPFS: ' + uuid);
           alert('Image "' + displayName + '" not found in storage. It may have been deleted.');
           smdStorage.clearUnitAssignment(unit);
           if (typeof driveRegistry !== 'undefined') driveRegistry.eject('smd', unit);
@@ -381,7 +416,7 @@ function smdEjectUnit(unit) {
 
   // No isReady() gate — unmount works as soon as the worker is running.
   if (emu) {
-    console.log('[SMD Manager] Ejecting unit ' + unit +
+    console.log('[HDD Manager] Ejecting unit ' + unit +
       ' (isReady=' + (emu.isReady ? emu.isReady() : 'N/A') + ')');
     if (emu.isWorkerMode()) {
       emu.opfsUnmountSMD(unit);
@@ -420,9 +455,9 @@ function smdSaveUnit(unit) {
     sourceName: meta ? meta.sourceName : ''
   }).then(function() {
     smdStorage.clearDirty(unit);
-    console.log('[SMD Manager] Unit ' + unit + ' saved to OPFS');
+    console.log('[HDD Manager] Unit ' + unit + ' saved to OPFS');
   }).catch(function(err) {
-    console.error('[SMD Manager] Save failed for unit ' + unit + ':', err);
+    console.error('[HDD Manager] Save failed for unit ' + unit + ':', err);
   });
 }
 
@@ -463,7 +498,7 @@ function smdExportImage(uuid) {
 
   smdStorage.retrieveImage(uuid).then(function(data) {
     if (!data) {
-      console.error('[SMD Manager] Export failed: no data for ' + uuid);
+      console.error('[HDD Manager] Export failed: no data for ' + uuid);
       return;
     }
     var blob = new Blob([data], { type: 'application/octet-stream' });
@@ -478,7 +513,9 @@ function smdExportImage(uuid) {
   });
 }
 
-function smdImportFromFile() {
+// <defaultType>: the tab the Import button was pressed on, preselected in the
+// tag dialog (the file itself says nothing about its type).
+function smdImportFromFile(defaultType) {
   var input = document.createElement('input');
   input.type = 'file';
   input.accept = '.img,.IMG';
@@ -494,7 +531,7 @@ function smdImportFromFile() {
       var validation = smdStorage.validateDiskImage(data);
       if (!validation.valid) {
         alert('Import failed: ' + validation.error);
-        console.error('[SMD Manager] Import rejected: ' + validation.error);
+        console.error('[HDD Manager] Import rejected: ' + validation.error);
         return;
       }
 
@@ -503,7 +540,7 @@ function smdImportFromFile() {
       smdEnsureCatalog().then(function() {
         smdAskImportType(file.name, function(diskType) {
           var uuid = smdStorage.generateUUID();
-          var displayName = file.name;
+          var displayName = smdUniqueImportName(file.name);
 
           smdStorage.storeImage(uuid, data, {
             name: displayName,
@@ -512,13 +549,13 @@ function smdImportFromFile() {
             diskType: diskType
           }).then(function() {
             smdRefreshAll();
-            console.log('[SMD Manager] Imported ' + displayName + ' as ' + diskType +
+            console.log('[HDD Manager] Imported ' + displayName + ' as ' + diskType +
               ' (' + smdStorage.formatSize(data.byteLength) + ')');
           }).catch(function(err) {
             alert('Import failed: ' + err.message);
-            console.error('[SMD Manager] Import store failed:', err);
+            console.error('[HDD Manager] Import store failed:', err);
           });
-        });
+        }, defaultType);
       });
     };
     reader.readAsArrayBuffer(file);
@@ -529,7 +566,7 @@ function smdImportFromFile() {
 // Show the "Tag Imported Disk" dialog and call onConfirm(diskType) once the
 // user picks one and confirms. Does nothing further on Cancel - the file has
 // not been stored yet at this point, so there is no partial state to undo.
-function smdAskImportType(fileName, onConfirm) {
+function smdAskImportType(fileName, onConfirm, defaultType) {
   var dlg = document.getElementById('smd-import-dialog');
   var sel = document.getElementById('smd-import-type');
   var nameEl = document.getElementById('smd-import-filename');
@@ -541,7 +578,7 @@ function smdAskImportType(fileName, onConfirm) {
   }
 
   if (nameEl) nameEl.textContent = fileName;
-  sel.innerHTML = smdDiskTypeOptionsHTML('smd');
+  sel.innerHTML = smdDiskTypeOptionsHTML(defaultType || 'smd');
   dlg.style.display = '';
 
   var confirmBtn = document.getElementById('smd-import-confirm');
@@ -573,14 +610,14 @@ var _catalogData = null;
 // Disk type tagging
 // ---------------------------------------------------------------------------
 // The choices offered when tagging an image (local import) come from the same
-// hdd-catalog.json the Server Catalog list below reads - not a second
+// disk-catalog.json the Server Catalog list below reads - not a second
 // hardcoded list here - so a type the catalog already uses (including nd500,
 // the NDIX root disk tag, which is not an ND-100 controller type and so is
 // not in disk-types.js) shows up in the picker without a JS change.
 
 function smdEnsureCatalog() {
   if (_catalogData) return Promise.resolve(_catalogData);
-  return fetch('hdd-catalog.json').then(function(r) { return r.json(); }).then(function(catalog) {
+  return fetch('disk-catalog.json').then(function(r) { return r.json(); }).then(function(catalog) {
     _catalogData = catalog || [];
     return _catalogData;
   }).catch(function() {
@@ -589,8 +626,8 @@ function smdEnsureCatalog() {
 }
 
 // nd500 is a tag on the NDIX root disk, read only by the standalone ND-500
-// console (nd500-window.js) - it is never assigned to an ND-100 controller,
-// so disk-types.js (the real DRIVE_TYPE enum) does not carry it.
+// machine (ndix-machine.js, Machine Setup) - it is never assigned to an ND-100
+// controller, so disk-types.js (the real DRIVE_TYPE enum) does not carry it.
 var EXTRA_DISK_TYPE_LABELS = { nd500: 'ND-500 / NDIX root' };
 
 function smdDiskTypeLabel(t) {
@@ -637,7 +674,7 @@ function smdRefreshCatalogList() {
     return;
   }
 
-  fetch('hdd-catalog.json').then(function(r) { return r.json(); }).then(function(catalog) {
+  fetch('disk-catalog.json').then(function(r) { return r.json(); }).then(function(catalog) {
     _catalogData = catalog || [];
     smdRenderCatalog(container, _catalogData);
   }).catch(function(err) {
@@ -645,10 +682,27 @@ function smdRefreshCatalogList() {
   });
 }
 
+// The HDD manager's active tab decides which disk type the Server Catalog
+// and Remote Images sections (shared under every tab) show.
+var _hddActiveTab = 'smd';
+var HDD_TAB_DISK_TYPE = { smd: 'smd', scsi: 'scsi', winchester: 'winchester', ndix: 'nd500' };
+function smdListFilter(selectId) {
+  return HDD_TAB_DISK_TYPE[_hddActiveTab] || 'smd';
+}
+
 function smdRenderCatalog(container, catalog) {
   if (!catalog || catalog.length === 0) {
     container.innerHTML = '<div class="smd-empty-msg">No images available in server catalog.</div>';
     return;
+  }
+  var want = smdListFilter('smd-catalog-filter');
+  if (want !== 'all') {
+    var all = catalog;
+    catalog = all.filter(function(e) { return (e.diskType || 'smd') === want; });
+    if (catalog.length === 0) {
+      container.innerHTML = '<div class="smd-empty-msg">No ' + escapeHtml(smdDiskTypeLabel(want)) + ' images in the server catalog.</div>';
+      return;
+    }
   }
 
   var html = '';
@@ -702,7 +756,7 @@ function smdShowCopyDialog(entry) {
     fetch(entry.url, { method: 'HEAD' }).then(function(resp) {
       if (statusEl) statusEl.textContent = '';
       if (!resp.ok) {
-        console.error('[SMD Manager] Catalog image not found: ' + entry.url + ' (HTTP ' + resp.status + ')');
+        console.error('[HDD Manager] Catalog image not found: ' + entry.url + ' (HTTP ' + resp.status + ')');
         alert('Image "' + entry.name + '" is not available on the server (HTTP ' + resp.status + ').\n\n' +
           'The catalog entry may be outdated or the file has not been uploaded yet.');
         return;
@@ -710,7 +764,7 @@ function smdShowCopyDialog(entry) {
       smdShowCopyDialogInner(entry, dlg);
     }).catch(function(err) {
       if (statusEl) statusEl.textContent = '';
-      console.error('[SMD Manager] Catalog image check failed: ' + entry.url, err);
+      console.error('[HDD Manager] Catalog image check failed: ' + entry.url, err);
       alert('Cannot reach "' + entry.name + '" on the server.\n\n' +
         'Network error: ' + err.message);
     });
@@ -726,6 +780,12 @@ function smdShowCopyDialogInner(entry, dlg) {
   document.getElementById('smd-copy-confirm').onclick = function() {
     var name = document.getElementById('smd-copy-name').value.trim() || entry.name;
     var desc = document.getElementById('smd-copy-desc').value.trim();
+    if (smdNameInUse(name)) {
+      var st = document.getElementById('smd-download-status');
+      if (st) st.textContent = 'There is already an image called "' + name + '" in the library - give this one another name.';
+      document.getElementById('smd-copy-name').focus();
+      return;
+    }
     dlg.style.display = 'none';
     smdDoCopy(smdStorage.generateUUID(), name, desc, entry);
   };
@@ -741,19 +801,19 @@ function smdDoCopy(uuid, name, description, entry) {
   var statusEl = document.getElementById('smd-download-status');
   if (statusEl) statusEl.textContent = (entry.generate ? 'Creating ' : 'Copying ') + name + '...';
 
-  console.log('[SMD Copy] Starting copy: "' + name + '" uuid=' + uuid +
+  console.log('[HDD Copy] Starting copy: "' + name + '" uuid=' + uuid +
     (entry.generate ? ' (GENERATING BLANK DISK ' + smdStorage.formatSize(entry.size) + ' - NOT downloading!)' :
       ' url=' + entry.url + ' expectedSize=' + smdStorage.formatSize(entry.size || 0)));
 
   var dataPromise;
   if (entry.generate) {
-    console.log('[SMD Copy] Creating blank disk image (all zeros) - this is a data disk, not bootable');
+    console.log('[HDD Copy] Creating blank disk image (all zeros) - this is a data disk, not bootable');
     dataPromise = Promise.resolve(new Uint8Array(entry.size));
   } else {
     if (!entry.url) {
-      console.error('[SMD Copy] CATALOG ERROR: entry has no URL and generate is not set');
+      console.error('[HDD Copy] CATALOG ERROR: entry has no URL and generate is not set');
       if (statusEl) statusEl.textContent = 'Failed: catalog entry has no download URL';
-      alert('Catalog error: "' + name + '" has no download URL configured.\n\nThe hdd-catalog.json entry needs a "url" field pointing to the image file.');
+      alert('Catalog error: "' + name + '" has no download URL configured.\n\nThe disk-catalog.json entry needs a "url" field pointing to the image file.');
       return;
     }
     dataPromise = downloadImageBuffer(entry.url).then(function(buf) {
@@ -766,7 +826,7 @@ function smdDoCopy(uuid, name, description, entry) {
   dataPromise.then(function(data) {
     downloadedData = data;
 
-    console.log('[SMD Copy] Downloaded: ' + smdStorage.formatSize(data.byteLength) +
+    console.log('[HDD Copy] Downloaded: ' + smdStorage.formatSize(data.byteLength) +
       ', first 16 bytes: ' + Array.from(data.slice(0, 16))
         .map(function(b) { return ('0' + b.toString(16)).slice(-2); }).join(' '));
 
@@ -791,9 +851,9 @@ function smdDoCopy(uuid, name, description, entry) {
         if (data[i] !== 0) { bootAllZero = false; break; }
       }
       if (bootAllZero) {
-        console.warn('[SMD Copy] WARNING: First ' + checkLen + ' bytes are all zeros (empty boot sector)');
+        console.warn('[HDD Copy] WARNING: First ' + checkLen + ' bytes are all zeros (empty boot sector)');
       } else {
-        console.log('[SMD Copy] Boot sector has data (non-zero within first ' + checkLen + ' bytes)');
+        console.log('[HDD Copy] Boot sector has data (non-zero within first ' + checkLen + ' bytes)');
       }
 
       // Check entire image for all zeros (completely blank file)
@@ -807,7 +867,7 @@ function smdDoCopy(uuid, name, description, entry) {
       }
     }
 
-    console.log('[SMD Copy] Validation passed, storing to OPFS...');
+    console.log('[HDD Copy] Validation passed, storing to OPFS...');
     return smdStorage.storeImage(uuid, data, {
       name: name,
       description: description,
@@ -820,7 +880,7 @@ function smdDoCopy(uuid, name, description, entry) {
     });
   }).then(function() {
     // Verify: read back from OPFS and compare
-    console.log('[SMD Copy] Store complete, verifying readback...');
+    console.log('[HDD Copy] Store complete, verifying readback...');
     return smdStorage.retrieveImage(uuid);
   }).then(function(readback) {
     if (!readback) {
@@ -838,30 +898,35 @@ function smdDoCopy(uuid, name, description, entry) {
       if (readback[i] !== downloadedData[i]) { mismatch = i; break; }
     }
     if (mismatch >= 0) {
-      console.error('[SMD Copy] READBACK MISMATCH at byte ' + mismatch +
+      console.error('[HDD Copy] READBACK MISMATCH at byte ' + mismatch +
         ': wrote 0x' + downloadedData[mismatch].toString(16) +
         ' but read 0x' + readback[mismatch].toString(16));
       throw new Error('Data corruption: OPFS readback differs from downloaded data at byte ' + mismatch);
     }
 
-    console.log('[SMD Copy] Readback OK: ' + smdStorage.formatSize(readback.byteLength) +
+    console.log('[HDD Copy] Readback OK: ' + smdStorage.formatSize(readback.byteLength) +
       ', first 16 bytes match: ' + Array.from(readback.slice(0, 16))
         .map(function(b) { return ('0' + b.toString(16)).slice(-2); }).join(' '));
 
     downloadedData = null; // free memory
 
     if (statusEl) {
-      statusEl.textContent = name + ' added to local library';
+      // Say WHERE it is: the library lists are per type, so an image copied
+      // from the SMD tab lands on another tab when it is not an SMD image.
+      statusEl.textContent = name + ' added to the local library' + copiedWhere(entry.diskType || 'smd');
       setTimeout(function() {
         if (statusEl && statusEl.textContent.indexOf(name) >= 0) statusEl.textContent = '';
       }, 3000);
     }
     smdRefreshAll();
+    // Show the tab the image is on, so it is visible right away.
+    var tabOf = { smd: 'smd', scsi: 'scsi', winchester: 'winchester', nd500: 'ndix' };
+    if (tabOf[entry.diskType || 'smd'] && typeof hddSelectTab === 'function') hddSelectTab(tabOf[entry.diskType || 'smd']);
   }).catch(function(err) {
     downloadedData = null;
     var errMsg = err.message || String(err);
     if (statusEl) statusEl.textContent = 'Failed: ' + errMsg;
-    console.error('[SMD Copy] FAILED: ' + errMsg, err);
+    console.error('[HDD Copy] FAILED: ' + errMsg, err);
     alert('Failed to copy "' + name + '" to library.\n\n' + errMsg);
   });
 }
@@ -937,7 +1002,7 @@ function smdStartAutoSave() {
 
     var dirtyUnits = smdStorage.getDirtyUnits();
     dirtyUnits.forEach(function(unit) {
-      console.log('[SMD Manager] Auto-saving unit ' + unit);
+      console.log('[HDD Manager] Auto-saving unit ' + unit);
       smdSaveUnit(unit);
     });
   }, AUTO_SAVE_PERIOD_MS);
@@ -1013,6 +1078,18 @@ function smdRefreshRemoteList() {
 
   var smdImages = _gatewayDiskList.smd || [];
   var floppyImages = _gatewayDiskList.floppy || [];
+
+  // The type filter above the list. The gateway lists SMD and floppy images;
+  // any other type simply has nothing to show.
+  var wantRemote = smdListFilter('smd-remote-filter');
+  if (wantRemote !== 'all') {
+    if (wantRemote !== 'smd') smdImages = [];
+    if (wantRemote !== 'floppy') floppyImages = [];
+    if (smdImages.length === 0 && floppyImages.length === 0) {
+      container.innerHTML = '<div class="smd-empty-msg">No ' + escapeHtml(smdDiskTypeLabel(wantRemote)) + ' images on the gateway.</div>';
+      return;
+    }
+  }
 
   if (smdImages.length === 0 && floppyImages.length === 0) {
     container.innerHTML = '<div class="smd-empty-msg">No disk images configured on gateway server.<br>' +
@@ -1158,7 +1235,7 @@ function smdRefreshRemoteList() {
 
 function smdMountRemote(driveType, remoteUnit, localUnit, imageSize, imageName) {
   if (!emu || !emu.isWorkerMode || !emu.isWorkerMode()) {
-    console.warn('[SMD Manager] Gateway disk mounting requires Worker mode');
+    console.warn('[HDD Manager] Gateway disk mounting requires Worker mode');
     return;
   }
 
@@ -1169,9 +1246,9 @@ function smdMountRemote(driveType, remoteUnit, localUnit, imageSize, imageName) 
       if (typeof driveRegistry !== 'undefined') {
         driveRegistry.mount(driveType, localUnit, 'gateway', imageName || ('Gateway ' + driveType), null, imageSize);
       }
-      console.log('[SMD Manager] Gateway ' + driveType + ' unit ' + remoteUnit + ' mounted to local unit ' + localUnit);
+      console.log('[HDD Manager] Gateway ' + driveType + ' unit ' + remoteUnit + ' mounted to local unit ' + localUnit);
     } else {
-      console.error('[SMD Manager] Gateway mount failed for ' + driveType + ' unit ' + remoteUnit);
+      console.error('[HDD Manager] Gateway mount failed for ' + driveType + ' unit ' + remoteUnit);
     }
     smdRefreshRemoteList();
     smdRefreshUnitDisplay();
@@ -1195,11 +1272,11 @@ function smdEjectRemote(driveType, unit) {
 
 function smdCopyGatewayToLibrary(driveType, remoteUnit, size, name, btnEl) {
   if (!emu || !emu.isWorkerMode || !emu.isWorkerMode()) {
-    console.warn('[SMD Manager] Gateway copy requires Worker mode');
+    console.warn('[HDD Manager] Gateway copy requires Worker mode');
     return;
   }
   if (!isSmdPersistenceEnabled()) {
-    console.warn('[SMD Manager] Persistent storage must be enabled');
+    console.warn('[HDD Manager] Persistent storage must be enabled');
     return;
   }
 
@@ -1213,6 +1290,12 @@ function smdCopyGatewayToLibrary(driveType, remoteUnit, size, name, btnEl) {
   document.getElementById('smd-copy-confirm').onclick = function() {
     var copyName = document.getElementById('smd-copy-name').value.trim() || name;
     var copyDesc = document.getElementById('smd-copy-desc').value.trim();
+    if (smdNameInUse(copyName)) {
+      var st = document.getElementById('smd-download-status');
+      if (st) st.textContent = 'There is already an image called "' + copyName + '" in the library - give this one another name.';
+      document.getElementById('smd-copy-name').focus();
+      return;
+    }
     dlg.style.display = 'none';
     smdDoGatewayCopy(driveType, remoteUnit, size, copyName, copyDesc, btnEl);
   };
@@ -1252,7 +1335,7 @@ function smdDoGatewayCopy(driveType, remoteUnit, size, name, description, btnEl)
     window.onGatewayCopyProgress = null;
 
     if (msg.error) {
-      console.error('[SMD Manager] Gateway copy failed:', msg.error);
+      console.error('[HDD Manager] Gateway copy failed:', msg.error);
       smdRefreshRemoteList();
       return;
     }
@@ -1262,7 +1345,7 @@ function smdDoGatewayCopy(driveType, remoteUnit, size, name, description, btnEl)
 
     // Validate received data
     if (size && data.byteLength !== size) {
-      console.error('[SMD Manager] Gateway copy size mismatch: got ' + smdStorage.formatSize(data.byteLength) +
+      console.error('[HDD Manager] Gateway copy size mismatch: got ' + smdStorage.formatSize(data.byteLength) +
         ' but expected ' + smdStorage.formatSize(size));
       if (actionsEl) actionsEl.innerHTML = '<span class="smd-image-meta" style="color:#f44">Copy failed: incomplete transfer</span>';
       smdRefreshRemoteList();
@@ -1271,7 +1354,7 @@ function smdDoGatewayCopy(driveType, remoteUnit, size, name, description, btnEl)
 
     var validation = smdStorage.validateDiskImage(data);
     if (!validation.valid) {
-      console.error('[SMD Manager] Gateway copy validation failed:', validation.error);
+      console.error('[HDD Manager] Gateway copy validation failed:', validation.error);
       if (actionsEl) actionsEl.innerHTML = '<span class="smd-image-meta" style="color:#f44">Copy failed: ' + escapeHtml(validation.error) + '</span>';
       smdRefreshRemoteList();
       return;
@@ -1286,17 +1369,17 @@ function smdDoGatewayCopy(driveType, remoteUnit, size, name, description, btnEl)
       // passed through - every gateway copy was stored as diskType 'smd'.
       diskType: driveType || 'smd'
     }).then(function() {
-      console.log('[SMD Manager] Gateway image copied to library: ' + name + ' (' + smdStorage.formatSize(data.byteLength) + ')');
+      console.log('[HDD Manager] Gateway image copied to library: ' + name + ' (' + smdStorage.formatSize(data.byteLength) + ')');
       smdRefreshRemoteList();
       smdRefreshInstalledList();
       smdUpdateStorageInfo();
     }).catch(function(err) {
-      console.error('[SMD Manager] Failed to store image:', err);
+      console.error('[HDD Manager] Failed to store image:', err);
       smdRefreshRemoteList();
     });
   }).catch(function(err) {
     window.onGatewayCopyProgress = null;
-    console.error('[SMD Manager] Gateway read failed:', err);
+    console.error('[HDD Manager] Gateway read failed:', err);
     smdRefreshRemoteList();
   });
 }
@@ -1308,39 +1391,53 @@ function smdDoGatewayCopy(driveType, remoteUnit, size, name, description, btnEl)
 // mount commands (pre-Fix: isReady() gate blocked them). After Init, re-apply
 // all unit assignments so the C side matches the JS registry.
 
+// Worker mode only: Init() rebuilt the drive tables, so every assigned SMD
+// unit is mounted again from OPFS. Signals 'smd-mounts-ready' when ALL of
+// them are done - the boot waits for that signal (toolbar.js), because
+// reading sector 0 while a SyncAccessHandle is being re-opened fails
+// ("Block read failed: got -1 blocks").
 function smdSyncMountsToWorker() {
-  if (!emu || !isSmdPersistenceEnabled()) return;
-  if (!emu.isWorkerMode || !emu.isWorkerMode()) return;
+  if (!emu || !isSmdPersistenceEnabled()) return Promise.resolve();
+  if (!emu.isWorkerMode || !emu.isWorkerMode()) return Promise.resolve();
 
   var units = smdStorage.getUnitAssignments();
+  var pending = [];
   for (var u = 0; u < 4; u++) {
     if (!units[u]) continue;
     var meta = smdStorage.getMetadata(units[u]);
     var displayName = meta ? meta.name : units[u];
-    console.log('[SMD Manager] Post-init sync: mounting ' + displayName + ' on unit ' + u);
-    (function(unit, uuid, name) {
-      emu.opfsMountSMD(unit, uuid).then(function(r) {
+    console.log('[HDD Manager] Post-init sync: mounting ' + displayName + ' on unit ' + u);
+    pending.push((function(unit, uuid, name) {
+      return emu.opfsMountSMD(unit, uuid).then(function(r) {
         // Guard: if the assignment changed while mount was in flight, skip
         if (smdStorage.getUnitAssignment(unit) !== uuid) {
-          console.log('[SMD Manager] Post-init sync: unit ' + unit + ' assignment changed, skipping');
-          return;
+          console.log('[HDD Manager] Post-init sync: unit ' + unit + ' assignment changed, skipping');
+          return false;
         }
         if (r.ok) {
-          console.log('[SMD Manager] Post-init sync OK: unit ' + unit + ' = ' + name + ' (' + smdStorage.formatSize(r.size || 0) + ')');
+          console.log('[HDD Manager] Post-init sync OK: unit ' + unit + ' = ' + name + ' (' + smdStorage.formatSize(r.size || 0) + ')');
           if (typeof driveRegistry !== 'undefined') {
             driveRegistry.mount('smd', unit, 'opfs', name, uuid, r.size || 0);
           }
-        } else {
-          console.error('[SMD Manager] Post-init sync FAILED: unit ' + unit + ' = ' + name);
+          return true;
         }
+        console.error('[HDD Manager] Post-init sync FAILED: unit ' + unit + ' = ' + name);
+        return false;
+      }).catch(function(e) {
+        console.error('[HDD Manager] Post-init sync error: unit ' + unit + ' = ' + name, e);
+        return false;
       });
-    })(u, units[u], displayName);
+    })(u, units[u], displayName));
   }
+  return Promise.all(pending).then(function(results) {
+    var mounted = results.filter(Boolean).length;
+    window.dispatchEvent(new CustomEvent('smd-mounts-ready', { detail: { mounted: mounted, afterInit: true } }));
+  });
 }
 
 // Listen for the 'emu-initialized' event dispatched by emu-proxy-worker.js
 window.addEventListener('emu-initialized', function() {
-  console.log('[SMD Manager] emu-initialized event received, syncing mounts');
+  console.log('[HDD Manager] emu-initialized event received, syncing mounts');
   smdSyncMountsToWorker();
 });
 
@@ -1367,7 +1464,8 @@ function hddSelectTab(tab) {
   var bodies = {
     smd:        'smd-manager-body',
     scsi:       'hdd-scsi-body',
-    winchester: 'hdd-winchester-body'
+    winchester: 'hdd-winchester-body',
+    ndix:       'hdd-ndix-body'
   };
   for (var name in bodies) {
     if (!Object.prototype.hasOwnProperty.call(bodies, name)) continue;
@@ -1379,8 +1477,16 @@ function hddSelectTab(tab) {
     var active = btns[i].getAttribute('data-hdd-tab') === tab;
     btns[i].classList.toggle('hdd-tab-active', active);
   }
+  _hddActiveTab = tab;
+  hddUpdateTabCounts();
   if (tab === 'scsi') hddTypeRefresh('scsi');
   if (tab === 'winchester') hddTypeRefresh('winchester');
+  if (tab === 'ndix') hddTypeRefresh('nd500');
+  // The shared catalog / remote sections follow the tab's type.
+  var typeLabel = document.getElementById('hdd-shared-type');
+  if (typeLabel) typeLabel.textContent = '- ' + smdDiskTypeLabel(HDD_TAB_DISK_TYPE[tab] || 'smd') + ' images';
+  smdRefreshCatalogList();
+  smdRefreshRemoteList();
 }
 
 // ---------------------------------------------------------------------------
@@ -1408,6 +1514,18 @@ var HDD_TYPES = {
     unmount: 'unmountSCSI',
     opfsMount: 'opfsMountSCSI',
     opfsUnmount: 'opfsUnmountSCSI'
+  },
+  // NDIX root discs: no units - an ND-500 NDIX machine names its root disc in
+  // Machine Setup. The tab is the library view for the nd500 tag.
+  nd500: {
+    idPrefix: 'nd500',
+    bodyId: 'hdd-ndix-body',
+    listId: 'hdd-ndix-installed-list',
+    unitWord: 'Unit',
+    mountBuffer: null,
+    unmount: null,
+    opfsMount: null,
+    opfsUnmount: null
   },
   winchester: {
     idPrefix: 'wd',
@@ -1464,9 +1582,8 @@ function hddTypeRefreshLibrary(type) {
     return (i.diskType || 'smd') === type;
   });
   if (images.length === 0) {
-    container.innerHTML = '<div class="smd-empty-msg">No ' + label +
-      ' disk images stored. Import an image and tag it as ' + label +
-      ' to assign it to a ' + label + ' ' + cfg.unitWord.toLowerCase() + '.</div>';
+    container.innerHTML = '<div class="smd-empty-msg">No ' + label + ' disk images stored. ' +
+      'Copy one in from the Server Catalog below, or import one and tag it ' + label + '.</div>';
     return;
   }
 
@@ -1490,25 +1607,59 @@ function hddTypeRefreshLibrary(type) {
     if (img.description) html += '<span class="smd-image-meta">' + escapeHtml(img.description) + '</span>';
     html += '</div>';
     html += '<div class="smd-image-actions">';
-    html += '<select class="hdd-assign-select" data-type="' + type + '" data-uuid="' + escapeHtml(uuid) +
-            '" title="Assign to ' + label + ' ' + cfg.unitWord.toLowerCase() + '">';
-    html += '<option value="">' + (assigned >= 0 ? cfg.unitWord + ' ' + assigned + ' (move...)' : 'Assign to...') + '</option>';
-    for (var i = 0; i < n; i++) {
-      if (i === assigned) continue;
-      html += '<option value="' + i + '">' + cfg.unitWord + ' ' + i + '</option>';
+    // The same actions as the SMD tab, in the same order - and no Assign on
+    // any tab: a drive gets its image in Machine Setup. Only NDIX has no
+    // NDFS: its root disc is a Unix filesystem, not an ND one.
+    html += '<button class="smd-rename-btn hdd-rename-btn" data-uuid="' + escapeHtml(uuid) + '" title="Rename">Rename</button>';
+    html += '<button class="smd-export-btn hdd-export-btn" data-uuid="' + escapeHtml(uuid) + '" title="Export to local file">Export</button>';
+    if (type !== 'nd500') {
+      html += '<button class="smd-ndfs-btn hdd-ndfs-btn" data-uuid="' + escapeHtml(uuid) + '" title="Browse the ND filesystem">NDFS</button>';
     }
-    html += '</select>';
+    html += '<button class="smd-delete-btn hdd-delete-btn" data-type="' + type + '" data-uuid="' + escapeHtml(uuid) + '" title="Delete from the library">Del</button>';
     html += '</div></div>';
   });
   container.innerHTML = html;
 
-  container.querySelectorAll('.hdd-assign-select').forEach(function (sel) {
-    sel.addEventListener('change', function () {
-      if (this.value !== '') {
-        hddTypeAssign(this.getAttribute('data-type'), this.getAttribute('data-uuid'), parseInt(this.value));
-        this.value = '';
-      }
+  container.querySelectorAll('.hdd-rename-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () { smdShowRenameInline(this.getAttribute('data-uuid')); });
+  });
+  container.querySelectorAll('.hdd-export-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () { smdExportImage(this.getAttribute('data-uuid')); });
+  });
+  container.querySelectorAll('.hdd-ndfs-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var uuid = this.getAttribute('data-uuid'), meta = smdStorage.getMetadata(uuid);
+      if (typeof openNdfsViewer !== 'function') { alert('NDFS viewer not loaded'); return; }
+      smdStorage.retrieveImage(uuid).then(function (bytes) {
+        if (!bytes) { alert('Image not found in the library'); return; }
+        openNdfsViewer(bytes, (meta && meta.name) || 'Disk');
+      });
     });
+  });
+  container.querySelectorAll('.hdd-delete-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () { hddTypeDeleteImage(this.getAttribute('data-type'), this.getAttribute('data-uuid')); });
+  });
+}
+
+// Delete a library image of <type>: ejected first from any unit of that
+// type it is on, then removed from the library. Same shape as
+// smdDeleteImage for the SMD tab.
+function hddTypeDeleteImage(type, uuid) {
+  var meta = smdStorage.getMetadata(uuid);
+  var displayName = (meta && meta.name) || uuid;
+  if (!confirm('Delete "' + displayName + '" from the local library?')) return;
+  var n = hddUnitCount(type);
+  for (var u = 0; u < n; u++) {
+    var e = (typeof driveRegistry !== 'undefined') ? driveRegistry.get(type, u) : null;
+    if (e && e.mounted && e.fileName === uuid) {
+      if (!confirm('"' + displayName + '" is on unit ' + u + '. Eject it and delete?')) return;
+      hddTypeEjectUnit(type, u);
+    }
+  }
+  smdStorage.deleteImage(uuid).then(function () {
+    smdRefreshAll();
+  }).catch(function (err) {
+    alert('Delete failed: ' + err.message);
   });
 }
 
@@ -1596,3 +1747,14 @@ function hddScsiEjectUnit(unit)          { hddTypeEjectUnit('scsi', unit); }
 
 function hddWinchesterRefresh()          { hddTypeRefresh('winchester'); }
 function hddWinchesterEjectUnit(unit)    { hddTypeEjectUnit('winchester', unit); }
+
+// The Import buttons on the SCSI / Winchester / NDIX tabs (the SMD tab's is
+// wired in toolbar.js): the tab's type is preselected in the tag dialog.
+(function() {
+  function init() {
+    document.querySelectorAll('.hdd-import-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() { smdImportFromFile(this.getAttribute('data-type')); });
+    });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();

@@ -45,7 +45,11 @@
   // Understanding keys is the C code's job (rule 1); all this needs to know is
   // where one section stops and the next begins.
 
-  var OWNED = /^\[(machine|controller\.|terminals|peripheral\.|boot)/i;
+  // [mfbus], [mfbus.part.N], [controller.octobus.N] and [nd5000.N] are owned
+  // too: the ND-5000 checkbox writes them. Before that, [controller.octobus.0]
+  // already matched "controller." and so was neither carried over nor
+  // written - a machine with an ND-5000 lost it on the first Save.
+  var OWNED = /^\[(machine|controller\.|terminals|peripheral\.|boot|mfbus|nd5000\.)/i;
 
   function foreignSections(ini) {
     var lines = (ini || '').split('\n');
@@ -66,6 +70,98 @@
   // ---- rendering ----------------------------------------------------------
 
   var current = null;   // the last JSON description, for regenerating
+
+  // Catalog floppies chosen for the floppy drives, by slot: {file, name,
+  // imageUrl, md5}. Seeded from the profile by load(), changed by the
+  // Library... buttons, and read back by machine-setup.js on Save.
+  var picks = {};
+
+  // A MEMFS-safe file name for a catalog floppy, from its name: upper case,
+  // letters/digits/-/_ only, .IMG. Written into the INI's disk<n> = line.
+  function pickFileName(floppy) {
+    var base = String(floppy.Name || 'FLOPPY').toUpperCase().replace(/[^A-Z0-9_-]+/g, '-')
+                 .replace(/^-+|-+$/g, '').slice(0, 40) || 'FLOPPY';
+    return base + '.IMG';
+  }
+
+  // Library images chosen for the drives, by "type.wheel.slot":
+  // {uuid, file, name}. Seeded by load(), changed by the slot selects, read
+  // back by machine-setup.js on Save; toolbar.js mounts them at power-on.
+  var libPicks = {};
+
+  // Persistent storage on and a library to pick from.
+  function libraryMode() {
+    return typeof isSmdPersistenceEnabled === 'function' && isSmdPersistenceEnabled() &&
+           typeof smdStorage !== 'undefined' && smdStorage.isAvailable();
+  }
+
+  // The INI controller type's diskType tag in the library.
+  var LIBRARY_TYPE_OF = { smd: 'smd', scsi: 'scsi', wd: 'winchester', floppy: 'floppy' };
+
+  function libraryImagesFor(ctrlType) {
+    var want = LIBRARY_TYPE_OF[ctrlType];
+    if (!want || typeof smdStorage === 'undefined') return [];
+    var out = [];
+    smdStorage.listImages().forEach(function (img) {
+      if ((img.diskType || 'smd') !== want) return;
+      out.push({ uuid: img.uuid, name: img.name || img.uuid, sizeText: smdStorage.formatSize(img.size || 0) });
+    });
+    return out;
+  }
+
+  // A MEMFS-safe file name for a library image, from its name (the INI's
+  // disk<n> = line), the same way archive floppies are named.
+  function libraryFileName(name) {
+    var base = String(name || 'DISK').toUpperCase().replace(/[^A-Z0-9_-]+/g, '-')
+                 .replace(/^-+|-+$/g, '').slice(0, 40) || 'DISK';
+    return base + '.IMG';
+  }
+
+  // A slot's library select changed: the hidden file field and the pick
+  // follow, the boot drive list is rebuilt.
+  function libraryChanged(ctrlIndex, slot, type, wheel) {
+    var sel = el('mf-c' + ctrlIndex + '-l' + slot);
+    var input = el('mf-c' + ctrlIndex + '-d' + slot);
+    if (!sel || !input) return;
+    var key = type + '.' + wheel + '.' + slot;
+    var v = sel.value;
+    if (v.indexOf('lib:') === 0) {
+      var uuid = v.slice(4), meta = smdStorage.getMetadata(uuid);
+      var name = (meta && meta.name) || uuid;
+      var file = libraryFileName(name);
+      libPicks[key] = { uuid: uuid, file: file, name: name };
+      input.value = file;
+      if (type === 'floppy') delete picks[slot];
+    } else if (v === '') {
+      delete libPicks[key];
+      if (type === 'floppy') delete picks[slot];
+      input.value = '';
+    }
+    // 'archive' / 'file' keep what the slot has.
+    refreshBootSelect();
+  }
+
+  function pickForSlot(ctrlIndex, slot) {
+    if (typeof openFloppyBrowser !== 'function') return;
+    openFloppyBrowser({ pick: function (floppy) {
+      var file = pickFileName(floppy);
+      picks[slot] = { file: file, name: floppy.Name || file, imageUrl: floppy.ImageUrl || '', md5: floppy.Md5 || '' };
+      delete libPicks['floppy.0.' + slot];
+      var input = el('mf-c' + ctrlIndex + '-d' + slot);
+      if (input) { input.value = file; input.dispatchEvent(new Event('input')); }
+      // In library mode the slot's select shows the archive choice.
+      var sel = el('mf-c' + ctrlIndex + '-l' + slot);
+      if (sel) {
+        var o = sel.querySelector('option[value="archive"]');
+        if (!o) { o = document.createElement('option'); o.value = 'archive'; sel.appendChild(o); }
+        o.textContent = 'archive: ' + (floppy.Name || file);
+        sel.value = 'archive';
+      }
+      var note = el('mf-c' + ctrlIndex + '-pn' + slot);
+      if (note) note.textContent = sel ? '' : 'archive: ' + (floppy.Name || file);
+      refreshBootSelect();
+    } });
+  }
 
   function opt(value, label, selected) {
     return '<option value="' + value + '"' + (selected ? ' selected' : '') + '>' +
@@ -105,7 +201,22 @@
          opt('wall', 'wall clock 20 ms', d.machine.rtc === 'wall') +
          '</select></label>';
     h += '</div>';
+
+    // The ND-5000 on the octobus. One checkbox for the three sections it
+    // takes ([mfbus] + [mfbus.part.0], [controller.octobus.0], [nd5000.1]),
+    // because they are one thing: no CPU without the bus and the shared
+    // memory, and no point in either without the CPU. The CPU is created at
+    // power-on and sits idle until SINTRAN's ND-500 monitor starts it.
+    h += '<div class="smd-section-title">ND-5000</div><div style="margin-bottom:10px;">';
+    h += checkbox('mf-nd5000', 'ND-5000 CPU on the octobus (8 MB MFbus shared memory, station 070B)', hasNd5000(d));
+    h += '</div>';
     return h;
+  }
+
+  function hasNd5000(d) {
+    if (!d.octobus || !d.octobus.enabled || !d.nd5000 || !d.nd5000.length) return false;
+    for (var i = 0; i < d.nd5000.length; i++) if (d.nd5000[i].enabled) return true;
+    return false;
   }
 
   function renderControllers(d) {
@@ -138,11 +249,46 @@
           h += '<br>Kept for a native run: ' + esc(c.hdlcMode || 'server') + ' port ' + c.hdlcPort + '.';
         h += '</div>';
       } else if (c.diskSlots > 0) {
+        var lib = libraryMode();
+        var libImages = lib ? libraryImagesFor(c.type) : [];
         for (var j = 0; j < c.diskSlots && j < c.disks.length; j++) {
           var k = c.disks[j];
+          var key = c.type + '.' + c.wheel + '.' + j;
+          var lp = libPicks[key];
+          var pk = (c.type === 'floppy' && c.wheel === 0) ? picks[j] : null;
+          var file = k.present ? k.image : '';
+          var fromLib = !!(lp && file && file === lp.file);
+          var fromArchive = !!(pk && file && file === pk.file);
           h += '<div style="display:flex;gap:6px;align-items:center;margin-top:3px;">';
           h += '<span style="opacity:.7;width:52px;">disk' + j + '</span>';
-          h += textInput(id + '-d' + j, k.present ? k.image : '', '190px');
+          if (lib) {
+            // Persistent storage on: the slot is a library image of this
+            // controller's type (the machine is the master of its drives).
+            // The INI's file name rides along in a hidden field.
+            h += '<input type="hidden" id="' + id + '-d' + j + '" value="' + esc(file) + '">';
+            h += '<select id="' + id + '-l' + j + '" style="font-size:12px;padding:2px;min-width:220px;">';
+            h += opt('', '(empty)', !file);
+            for (var li = 0; li < libImages.length; li++) {
+              h += opt('lib:' + libImages[li].uuid, libImages[li].name + ' (' + libImages[li].sizeText + ')',
+                       fromLib && lp.uuid === libImages[li].uuid);
+            }
+            if (fromArchive) h += opt('archive', 'archive: ' + pk.name, true);
+            else if (file && !fromLib) h += opt('file', 'file: ' + file + ' (not in the library)', true);
+            h += '</select>';
+          } else {
+            // Demo mode: the drives hold the server's demo images, by name,
+            // and that is not a choice - there is no library to choose from.
+            h += '<input type="text" id="' + id + '-d' + j + '" value="' + esc(file) + '" readonly ' +
+                 'title="Demo mode: the server\'s image. Turn on persistent disk storage to choose a library image." ' +
+                 'style="width:190px;font-size:12px;padding:2px;opacity:.7;">';
+          }
+          if (c.type === 'floppy' && c.wheel === 0) {
+            // A catalog floppy for this drive: the Floppy Library opens in
+            // pick mode and the choice is fetched at power-on (toolbar.js).
+            h += '<button class="smd-action-btn" id="' + id + '-p' + j + '" title="Choose a floppy from the Norsk Data software archive">Archive...</button>';
+            h += '<span class="smd-image-meta" id="' + id + '-pn' + j + '" style="opacity:.7;">' +
+                 ((fromArchive && !lib) ? 'archive: ' + esc(pk.name) : '') + '</span>';
+          }
           if (c.type === 'scsi') {
             h += '<select id="' + id + '-m' + j + '" style="font-size:12px;padding:2px;">' +
                  opt('hdd', 'hdd', k.media === 'hdd') +
@@ -152,7 +298,9 @@
           }
           h += '</div>';
         }
-        h += '<div class="smd-image-meta" style="opacity:.6;margin-top:3px;">Leave a slot empty for no disk.</div>';
+        h += '<div class="smd-image-meta" style="opacity:.6;margin-top:3px;">' +
+             (lib ? 'Images come from the local disk library (HDD Disk Manager), by type. Leave a slot empty for no disk.'
+                  : 'Demo mode: the server\'s images. Turn on persistent disk storage (Config) to choose library images.') + '</div>';
       }
       h += '</div>';
     }
@@ -268,30 +416,62 @@
     h += checkbox('mf-lpt', 'Line printer', d.peripherals.linePrinter);
     h += '</div>';
 
-    h += '<div class="smd-section-title">Boot from</div><div style="margin-bottom:6px;">';
-    h += '<select id="mf-boot" style="font-size:12px;padding:2px;min-width:180px;">';
-    // Only bootable disc controllers that are actually in this machine: a boot
-    // device naming a controller the config does not have is rejected by the
-    // validator, so there is no point offering it.
-    var found = false;
+    h += '<div class="smd-section-title">Boot drive</div><div style="margin-bottom:6px;">';
+    h += '<select id="mf-boot" style="font-size:12px;padding:2px;min-width:220px;">';
+    h += bootOptionsHTML(d, bootValueOf(d.boot));
+    h += '</select>';
+    h += '<div class="smd-image-meta" style="opacity:.6;margin-top:3px;">Only drives on enabled controllers. ' +
+         'With no boot drive the machine powers on with nothing loaded.</div>';
+    h += '</div>';
+    return h;
+  }
+
+  // The [boot] device as the select's value: "type.wheel.unit", or "none".
+  function bootValueOf(boot) {
+    if (!boot || boot.none || !boot.isDisc) return 'none';
+    return boot.type + '.' + boot.wheel + '.' + boot.unit;
+  }
+
+  // The boot drives on offer: every unit of every ENABLED bootable disc
+  // controller, plus "no boot drive". Enabled is read off the form's own
+  // checkbox when it is on screen, so unticking a controller takes its
+  // drives out of this list at once - a boot device on a disabled controller
+  // is what the validator refuses at Save.
+  // <fromForm>: read enabled/image off the form's own controls (a refresh
+  // after a tick or a keystroke). During render() the controls on screen
+  // still belong to the PREVIOUS machine, so the first list is built from
+  // the description alone.
+  function bootOptionsHTML(d, selected, fromForm) {
+    var h = opt('none', '(no boot drive)', selected === 'none');
+    var found = (selected === 'none');
     for (var i = 0; i < d.controllers.length; i++) {
       var c = d.controllers[i];
       if (!c.bootable || !c.isDisc) continue;
+      var en = fromForm ? el('mf-c' + i + '-en') : null;
+      if (en ? !en.checked : !c.enabled) continue;
       for (var j = 0; j < c.diskSlots && j < c.disks.length; j++) {
         var v = c.type + '.' + c.wheel + '.' + j;
-        var sel = d.boot.isDisc && d.boot.type === c.type &&
-                  d.boot.wheel === c.wheel && d.boot.unit === j;
+        var img = fromForm ? el('mf-c' + i + '-d' + j) : null;
+        var image = img ? img.value : (c.disks[j].present ? c.disks[j].image : '');
+        var sel = (v === selected);
         if (sel) found = true;
-        h += opt(v, v + (c.disks[j].present ? '  (' + c.disks[j].image + ')' : '  (empty)'), sel);
+        h += opt(v, pretty(c.type) + ' ' + c.wheel + ' unit ' + j + (image ? '  (' + image + ')' : '  (empty)'), sel);
       }
     }
-    if (!found && d.boot.isDisc) {
-      var v0 = d.boot.type + '.' + d.boot.wheel + '.' + d.boot.unit;
-      h = h.replace('<select id="mf-boot"', '<select id="mf-boot"');
-      h += opt(v0, v0 + '  (not in this machine)', true);
-    }
-    h += '</select></div>';
+    // The saved device is on a controller that is now off, or not in this
+    // machine at all: say so rather than silently choosing another drive.
+    if (!found) h += opt(selected, selected + '  (controller disabled - choose another)', true);
     return h;
+  }
+
+  // Rebuild the boot drive list after a controller is ticked on or off, or a
+  // disk image typed in, keeping the current choice when it still exists.
+  function refreshBootSelect() {
+    if (!current) return;
+    var sel = el('mf-boot');
+    if (!sel) return;
+    var selected = sel.value || 'none';
+    sel.innerHTML = bootOptionsHTML(current, selected, true);
   }
 
   function render(d) {
@@ -310,6 +490,20 @@
     // once at startup - there is no button to attach to until now.
     var add = el('mf-add-btn');
     if (add) add.addEventListener('click', addController);
+    // A controller ticked off takes its drives out of the boot list; an
+    // image typed into a slot shows up in it.
+    for (var i = 0; i < d.controllers.length; i++) {
+      var en = el('mf-c' + i + '-en');
+      if (en) en.addEventListener('change', refreshBootSelect);
+      for (var j = 0; j < 8; j++) {
+        var img = el('mf-c' + i + '-d' + j);
+        if (img) img.addEventListener('input', refreshBootSelect);
+        var pb = el('mf-c' + i + '-p' + j);
+        if (pb) pb.addEventListener('click', (function (ci, sj) { return function () { pickForSlot(ci, sj); }; })(i, j));
+        var ls = el('mf-c' + i + '-l' + j);
+        if (ls) ls.addEventListener('change', (function (ci, sj, t, w) { return function () { libraryChanged(ci, sj, t, w); }; })(i, j, d.controllers[i].type, d.controllers[i].wheel));
+      }
+    }
   }
 
   // ---- form -> INI --------------------------------------------------------
@@ -369,8 +563,30 @@
     out.push('');
 
     out.push('[boot]');
-    out.push('device = ' + val('mf-boot', ''));
+    out.push('device = ' + (val('mf-boot', 'none') || 'none'));
     out.push('');
+
+    if (chk('mf-nd5000')) {
+      // Same sections ND5000.ini ships with. Naming a section is what
+      // enables it, so an unticked box writes none of them.
+      out.push('[mfbus]');
+      out.push('size      = 8');
+      out.push('base_page = 04100B');
+      out.push('');
+      out.push('[mfbus.part.0]');
+      out.push('pages   = 4096');
+      out.push('nd100   = yes');
+      out.push('nd500_p = yes');
+      out.push('nd500_d = yes');
+      out.push('');
+      out.push('[controller.octobus.0]');
+      out.push('enabled = yes');
+      out.push('');
+      out.push('[nd5000.1]');
+      out.push('enabled = yes');
+      out.push('station = 070B');
+      out.push('');
+    }
 
     // Rule 2: everything the form does not own comes across untouched.
     var carried = foreignSections(previousIni);
@@ -390,7 +606,15 @@
     /* Show <ini> as a form. Asks the C parser what it means; on a parse error
      * says so and leaves the user with the INI view, which is where a broken
      * config has to be fixed anyway. */
-    load: function (ini) {
+    load: function (ini, floppies, library) {
+      picks = {};
+      if (floppies && typeof floppies === 'object') {
+        for (var k in floppies) if (Object.prototype.hasOwnProperty.call(floppies, k)) picks[k] = floppies[k];
+      }
+      libPicks = {};
+      if (library && typeof library === 'object') {
+        for (var lk in library) if (Object.prototype.hasOwnProperty.call(library, lk)) libPicks[lk] = library[lk];
+      }
       if (typeof emu === 'undefined' || !emu.describeMachineINI) {
         var host = el('machine-setup-form');
         if (host) host.innerHTML = '<div class="smd-image-meta" style="opacity:.7;">' +
@@ -413,6 +637,46 @@
 
     /* Is there a rendered form to read? */
     ready: function () { return !!current; },
+
+    /* The library choices still in force: a slot whose disk<n> file no longer
+     * names the chosen image is a plain file again. For
+     * machineProfiles.writeLibrary(). */
+    libraryPicks: function () {
+      var out = {};
+      if (!current) return libPicks;
+      for (var i = 0; i < current.controllers.length; i++) {
+        var c = current.controllers[i];
+        if (!c.isDisc) continue;
+        for (var j = 0; j < c.diskSlots && j < c.disks.length; j++) {
+          var key = c.type + '.' + c.wheel + '.' + j, lp = libPicks[key];
+          if (!lp) continue;
+          var input = el('mf-c' + i + '-d' + j);
+          var file = input ? input.value : (c.disks[j].present ? c.disks[j].image : '');
+          if (file === lp.file) out[key] = lp;
+        }
+      }
+      return out;
+    },
+
+    /* The catalog-floppy choices still in force: a slot whose disk<n> text
+     * no longer names the chosen file has been edited by hand and is a local
+     * file again. For machineProfiles.writeFloppies(). */
+    floppyPicks: function () {
+      var out = {};
+      if (!current) return picks;
+      for (var i = 0; i < current.controllers.length; i++) {
+        var c = current.controllers[i];
+        if (c.type !== 'floppy' || c.wheel !== 0) continue;
+        for (var j = 0; j < 3; j++) {
+          var pk = picks[j];
+          if (!pk) continue;
+          var input = el('mf-c' + i + '-d' + j);
+          var file = input ? input.value : (c.disks[j] && c.disks[j].present ? c.disks[j].image : '');
+          if (file === pk.file) out[j] = pk;
+        }
+      }
+      return out;
+    },
 
     /* Exposed for tests/test_machine_form.js. This is the one piece of INI
      * handling that lives in JavaScript, and getting it wrong deletes

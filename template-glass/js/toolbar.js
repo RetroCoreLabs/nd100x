@@ -315,7 +315,7 @@ document.getElementById('menu-floppy-library').addEventListener('click', functio
 });
 
 document.getElementById('menu-smd-manager').addEventListener('click', function() {
-  if (!isSmdPersistenceEnabled()) return;
+  updateSmdManagerMenuState();   // the persistence notice follows the current setting
   var smdWin = document.getElementById('smd-manager-window');
   if (smdWin.style.display === 'none' || smdWin.style.display === '') {
     if (typeof smdManagerShow === 'function') smdManagerShow();
@@ -484,14 +484,18 @@ document.getElementById('smd-manager-close').addEventListener('click', function(
 });
 
 // SMD Manager menu item visibility (depends on persistence state)
+// The HDD Disk Manager is always openable: it shows the running machine's
+// drives and the server catalog in every mode. Only the local library needs
+// persistent storage, and the window says so itself (hdd-persist-notice).
 function updateSmdManagerMenuState() {
   var menuItem = document.getElementById('menu-smd-manager');
   if (menuItem) {
-    var enabled = isSmdPersistenceEnabled();
-    menuItem.classList.toggle('disabled', !enabled);
-    menuItem.style.opacity = enabled ? '' : '0.4';
-    menuItem.style.pointerEvents = enabled ? '' : 'none';
+    menuItem.classList.remove('disabled');
+    menuItem.style.opacity = '';
+    menuItem.style.pointerEvents = '';
   }
+  var notice = document.getElementById('hdd-persist-notice');
+  if (notice) notice.style.display = isSmdPersistenceEnabled() ? 'none' : '';
 }
 updateSmdManagerMenuState();
 
@@ -563,60 +567,6 @@ updateSmdManagerMenuState();
       // Revert checkbox - don't change setting without reload
       toggle.checked = !toggle.checked;
     }
-  });
-})();
-
-// =========================================================
-// Config: Enable 5000 CPU toggle
-// Off by default: the ND-5000 sections are only added to the INI at power-on
-// when this is on, so an off machine builds no MFbus pool and no ND-5000 CPU.
-// =========================================================
-var ENABLE_5000_KEY = 'nd100x-enable-5000';
-
-function nd5000IniSections() {
-  return '\n[mfbus]\n' +
-    'size      = 8\n' +
-    'base_page = 04100B\n\n' +
-    '[mfbus.part.0]\n' +
-    'pages   = 4096\n' +
-    'nd100   = yes\n' +
-    'nd500_p = yes\n' +
-    'nd500_d = yes\n\n' +
-    '[controller.octobus.0]\n' +
-    'enabled = yes\n\n' +
-    '[nd5000.1]\n' +
-    'enabled = yes\n' +
-    'station = 070B\n';
-}
-
-// The INI text handed to emu.init() at power-on.
-function iniForPowerOn() {
-  var ini = window.machineProfiles ? machineProfiles.ini() : null;
-  var enabled = false;
-  try { enabled = localStorage.getItem(ENABLE_5000_KEY) === 'true'; } catch (e) {}
-  // A profile that already names an [nd5000.N] section is left as the user wrote it.
-  if (enabled && ini && ini.indexOf('[nd5000.') < 0) {
-    ini = ini + nd5000IniSections();
-    // The ND-5000 monitor chatter is LOG(LOG_CAT_MMS, LOG_INFO). Raise the mms
-    // category to WARN so INFO stops reaching the console. Skipped when the
-    // profile already has a [runtime] section, which must not appear twice.
-    if (ini.indexOf('[runtime]') < 0) {
-      ini = ini + '\n[runtime]\nlog = mms:warn\n';
-    }
-  }
-  return ini;
-}
-
-(function() {
-  var toggle5000 = document.getElementById('config-enable-5000');
-  if (!toggle5000) return;
-
-  toggle5000.checked = (function() {
-    try { return localStorage.getItem(ENABLE_5000_KEY) === 'true'; } catch (e) { return false; }
-  })();
-
-  toggle5000.addEventListener('change', function() {
-    try { localStorage.setItem(ENABLE_5000_KEY, toggle5000.checked ? 'true' : 'false'); } catch (e) {}
   });
 })();
 
@@ -730,11 +680,23 @@ function iniForPowerOn() {
     }
   };
 
-  // Hide entire Network section if not in Worker mode
+  // The bridge needs Worker mode (the Worker owns the WebSocket). Without
+  // it the section stays ON SCREEN, disabled, saying what it needs - the same
+  // way the persistent-storage row above does. Hiding it left people
+  // looking for a setting that had vanished.
   var isWorker = (typeof USE_WORKER !== 'undefined' && USE_WORKER);
   if (!isWorker) {
-    if (networkTitle) networkTitle.style.display = 'none';
-    if (bridgeRow) bridgeRow.style.display = 'none';
+    toggle.checked = false;
+    toggle.disabled = true;
+    if (bridgeRow) {
+      bridgeRow.style.opacity = '0.4';
+      bridgeRow.title = 'Needs Background execution (Web Worker) - turn it on above and reload';
+      var why = document.createElement('span');
+      why.className = 'config-toggle-label';
+      why.style.cssText = 'opacity:0.7; font-size:10px; margin-left:4px';
+      why.textContent = 'needs Background execution';
+      bridgeRow.appendChild(why);
+    }
     if (urlRow) urlRow.style.display = 'none';
     if (statusRow) statusRow.style.display = 'none';
     return;
@@ -971,16 +933,6 @@ function completePowerOn(btn) {
     console.error("Failed to register terminal callbacks");
   }
 
-  // Enable boot device selector and boot button
-  // In persistence mode, boot button stays disabled until mounts complete
-  document.getElementById('boot-select').disabled = false;
-  if (typeof isSmdPersistenceEnabled === 'function' && isSmdPersistenceEnabled() && !window._smdMountsReady) {
-    document.getElementById('toolbar-boot').disabled = true;
-    document.getElementById('toolbar-boot').title = 'Waiting for disk mounts...';
-  } else {
-    document.getElementById('toolbar-boot').disabled = false;
-  }
-
   // Update machine info status
   var machStatus = document.getElementById('machine-status');
   if (machStatus) machStatus.textContent = 'Initialized';
@@ -996,6 +948,7 @@ function completePowerOn(btn) {
   btn.classList.add('initialized');
   btn.title = 'Power off';
   isInitializedBtn = true;
+  refreshMachineSelect();   // locks the machine selector
 
   // Start SINTRAN detection polling
   if (typeof sintranStartDetection === 'function') sintranStartDetection();
@@ -1004,23 +957,118 @@ function completePowerOn(btn) {
   if (typeof applyPersistedPrinterDriver === 'function') applyPersistedPrinterDriver();
 }
 
+// The active machine changed (Machine Setup, or the toolbar's own selector):
+// everything on screen that names it follows.
+function applyMachineKindToToolbar() {
+  // The machine's terminal settings (Machine Setup > Terminal) decide the
+  // renderer and emulator: while nothing is powered on, rebuild the console
+  // so it shows the selected machine's terminal at once. A powered-on
+  // machine keeps its terminals - they are rebuilt at the next power-on.
+  var power = document.getElementById('toolbar-power');
+  var poweredOn = !!(power && power.classList.contains('initialized'));
+  if (!poweredOn && typeof terminals !== 'undefined' && terminals[1] && typeof initializeTerminals === 'function') {
+    initializeTerminals();
+  }
+  if (typeof applyKeyboardLanguage === 'function' && typeof getCurrentKeyboardLanguage === 'function') {
+    applyKeyboardLanguage(getCurrentKeyboardLanguage());
+  }
+  // The console window's title names the machine it serves.
+  if (typeof updateConsoleTitle === 'function') updateConsoleTitle();
+  refreshMachineSelect();
+}
+window.applyMachineKindToToolbar = applyMachineKindToToolbar;
+
+// The toolbar's machine selector: the Machine Setup profiles by name, the
+// active one selected. Rebuilt from the store whenever Machine Setup changes
+// it (applyMachineKindToToolbar is called from there), and locked once the
+// machine is powered on - what is running is no longer a choice.
+function refreshMachineSelect() {
+  var sel = document.getElementById('toolbar-machine-select');
+  if (!sel || typeof machineProfiles === 'undefined') return;
+  var names = machineProfiles.list();
+  var active = machineProfiles.activeName();
+  sel.innerHTML = '';
+  for (var i = 0; i < names.length; i++) {
+    var o = document.createElement('option');
+    o.value = names[i];
+    var kind = machineProfiles.kind(names[i]);
+    o.textContent = names[i] + (kind === 'nd500-ndix' ? '  (ND-500 NDIX)' : '  (ND-100)') + (machineProfiles.isShipped(names[i]) ? ' built-in' : '');
+    if (names[i] === active) o.selected = true;
+    sel.appendChild(o);
+  }
+  // Read the lock off the button, not isInitializedBtn: that is a `let`
+  // further down this file, and this can run before it is initialised.
+  var power = document.getElementById('toolbar-power');
+  sel.disabled = !!(power && power.classList.contains('initialized'));
+}
+window.refreshMachineSelect = refreshMachineSelect;
+
+(function() {
+  var sel = document.getElementById('toolbar-machine-select');
+  if (!sel) return;
+  sel.addEventListener('change', function() {
+    if (typeof machineProfiles === 'undefined') return;
+    machineProfiles.setActive(sel.value);
+    applyMachineKindToToolbar();
+    // Keep an open Machine Setup window looking at the same machine.
+    var win = document.getElementById('machine-setup-window');
+    if (win && win.style.display !== 'none' && typeof machineSetupShow === 'function') machineSetupShow();
+  });
+})();
+
+// machine-profiles.js and ndix-machine.js load after this file.
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', applyMachineKindToToolbar);
+} else {
+  applyMachineKindToToolbar();
+}
+
 document.getElementById('toolbar-power').addEventListener('click', function() {
   var btn = this;
   if (!isInitializedBtn) {
-    // --- POWER ON (hardware init only, no boot) ---
-    console.log("Calling Init");
-
-    if (emu.isWorkerMode()) {
-      // Worker mode: init is async, terminal info arrives via callback
-      emu.onInitialized = function(msg) {
-        completePowerOn(btn);
-      };
-      emu.init(iniForPowerOn());
-    } else {
-      // Direct mode: synchronous
-      emu.init(iniForPowerOn());
-      completePowerOn(btn);
+    // --- POWER ON: an ND-500 standalone (NDIX) machine boots right here,
+    // there is no separate Boot step for it (ndix-machine.js). ---
+    if (window.ndixMachine && ndixMachine.isSelected()) {
+      console.log("Powering on the ND-500 (NDIX)");
+      applyMachineKindToToolbar();
+      ndixMachine.powerOn().then(function(ok) {
+        if (!ok) return;
+        btn.classList.add('initialized');
+        btn.title = 'Power off';
+        isInitializedBtn = true;
+        refreshMachineSelect();   // locks the machine selector
+        var machStatus = document.getElementById('machine-status');
+        if (machStatus) machStatus.textContent = 'NDIX running (ND-500 standalone)';
+        var execMode = document.getElementById('machine-exec-mode');
+        if (execMode) execMode.textContent = (typeof USE_WORKER !== 'undefined' && USE_WORKER) ? 'Web Worker' : 'Direct';
+      });
+      return;
     }
+
+    // --- POWER ON: build the machine from its INI, then boot its [boot]
+    // device. One step: the machine says what it boots from. ---
+    console.log("Calling Init");
+    var ini = machineProfiles.ini();
+
+    preloadBootImage(ini).then(function() {
+      if (emu.isWorkerMode()) {
+        // Worker mode: init is async, terminal info arrives via callback.
+        // With persistent storage the manager re-mounts the SMD units after
+        // Init and signals smd-mounts-ready; the boot waits for THAT signal,
+        // not the page-load one.
+        if (typeof isSmdPersistenceEnabled === 'function' && isSmdPersistenceEnabled()) window._smdMountsReady = false;
+        emu.onInitialized = function(msg) {
+          completePowerOn(btn);
+          bootConfiguredMachine();
+        };
+        emu.init(ini);
+      } else {
+        // Direct mode: synchronous
+        emu.init(ini);
+        completePowerOn(btn);
+        bootConfiguredMachine();
+      }
+    });
   } else {
     // --- POWER OFF (triggers page reload to reset all state) ---
     console.log("Powering off");
@@ -1089,13 +1137,292 @@ function logBootDriveInfo() {
   console.log('--------------------------');
 }
 
-// --- BOOT button handler ---
-// boot_type values: 0=FLOPPY, 1=SMD, 2=BPUN
-function performBoot(bootType) {
-  var bootBtn = document.getElementById('toolbar-boot');
-  var bootNames = ['FLOPPY', 'SMD', 'BPUN', 'SCSI', 'WINCHESTER'];
+// =========================================================
+// Booting the machine's [boot] device
+// =========================================================
+// The Boot type numbers nd100wasm.c's BootFrom() takes, by the INI's
+// controller type name. No bpun/aout here: a file boot names a path on
+// the native host, which a browser cannot open - a BPUN comes in through
+// View > Boot BPUN file... instead.
+var BOOT_TYPE_OF_CTRL = { floppy: 0, smd: 1, scsi: 3, wd: 4 };
+var BOOT_LABEL_OF_CTRL = { floppy: 'FLOPPY', smd: 'SMD', scsi: 'SCSI', wd: 'WINCHESTER' };
 
-  console.log("Booting type " + (bootNames[bootType] || bootType));
+// What the active machine's INI says it boots from, as DescribeMachineINI
+// (the C parser) reads it - never a second parser here. Resolves to
+// {boot, image} where image is the boot unit's own disk image, or null.
+function describeBootDevice(ini) {
+  if (typeof emu === 'undefined' || !emu.describeMachineINI) return Promise.resolve(null);
+  return Promise.resolve(emu.describeMachineINI(ini)).then(function(json) {
+    var d;
+    try { d = JSON.parse(json); } catch (e) { return null; }
+    if (!d || d.error || !d.boot) return null;
+    var b = d.boot, image = null;
+    if (b.isDisc) {
+      for (var i = 0; i < d.controllers.length; i++) {
+        var c = d.controllers[i];
+        if (c.type !== b.type || c.wheel !== b.wheel) continue;
+        var k = c.disks && c.disks[b.unit];
+        if (k && k.present) image = k.image;
+      }
+    }
+    return { boot: b, image: image };
+  });
+}
+
+// Demo mode fetches the boot unit's image into MEMFS before Init(), so the
+// controller mounts it the way it mounts SMD0.IMG - BSD's WD0.IMG, a SCSI
+// pack, a second SMD unit. With persistent storage on, SMD and SCSI units
+// come out of the library instead (module-init.js) and are not fetched.
+var _preloadedImages = {};
+
+// Put <bytes> into MEMFS as /<file> in either mode, so the controller mounts
+// it at Init the way it mounts the demo SMD pack.
+function stageImageBytes(file, bytes) {
+  if (emu.isWorkerMode()) {
+    var buf = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+    emu.workerLoadDisk('/' + file, buf);
+  } else {
+    emu.fsWriteFile('/' + file, bytes);
+    try { emu.fsChmod('/' + file, 0o666); } catch (e) { /* ignore */ }
+  }
+  _preloadedImages[file] = true;
+}
+
+// The catalog floppies the machine's floppy drives were given in Machine
+// Setup (machineProfiles.floppies): fetched from the Norsk Data software
+// archive and staged under the INI's disk<n> file name, so [controller.
+// floppy.0] mounts them at Init. A slot whose INI file no longer matches its
+// choice is a local file and is left alone.
+function preloadArchiveFloppies(ini) {
+  if (typeof machineProfiles === 'undefined' || typeof fetchArchiveImage !== 'function') return Promise.resolve();
+  var picks = machineProfiles.floppies();
+  var slots = Object.keys(picks);
+  if (!slots.length) return Promise.resolve();
+  return Promise.resolve(emu.describeMachineINI(ini)).then(function(json) {
+    var d; try { d = JSON.parse(json); } catch (e) { return; }
+    if (!d || d.error) return;
+    var fl = null;
+    for (var i = 0; i < d.controllers.length; i++) {
+      if (d.controllers[i].type === 'floppy' && d.controllers[i].wheel === 0 && d.controllers[i].enabled) fl = d.controllers[i];
+    }
+    if (!fl) return;
+    var statusEl = document.getElementById('status');
+    var chain = Promise.resolve();
+    slots.forEach(function(k) {
+      var slot = parseInt(k, 10), pk = picks[k], disk = fl.disks && fl.disks[slot];
+      if (!disk || !disk.present || disk.image !== pk.file || _preloadedImages[pk.file]) return;
+      chain = chain.then(function() {
+        if (statusEl) statusEl.textContent = 'Fetching floppy ' + pk.name + ' from the archive...';
+        return fetchArchiveImage(pk.imageUrl).then(function(bytes) {
+          stageImageBytes(pk.file, bytes);
+          if (typeof driveRegistry !== 'undefined') driveRegistry.mount('floppy', slot, 'archive', pk.name, pk.file, bytes.length);
+          console.log('[Boot] floppy unit ' + slot + ': ' + pk.name + ' -> /' + pk.file + ' (' + bytes.length + ' bytes) from the archive');
+        }).catch(function(e) {
+          console.warn('[Boot] floppy unit ' + slot + ': could not fetch ' + pk.name + ' - ' + (e && e.message ? e.message : e));
+        });
+      });
+    });
+    return chain;
+  });
+}
+
+// The library images the machine's drives were given in Machine Setup
+// (machineProfiles.library, "type.wheel.slot" -> {uuid, file, name}): mounted
+// before Init so the machine comes up with exactly what its configuration
+// says is in its drives - the machine is the master of its drives, the HDD
+// Disk Manager is a tool for a running one. Per type:
+//   smd, scsi  - the library's own mount paths (OPFS SyncAccessHandle in
+//                Worker mode, a buffer in Direct mode), so writes persist
+//                the way the HDD manager's own assignments do.
+//   wd, floppy - the image is staged into MEMFS under the INI's file name
+//                and the controller mounts it at Init; writes stay in memory.
+// A slot whose INI file no longer names its choice is left alone.
+function preloadLibraryDisks(ini) {
+  if (typeof machineProfiles === 'undefined' || typeof smdStorage === 'undefined') return Promise.resolve();
+  if (typeof isSmdPersistenceEnabled !== 'function' || !isSmdPersistenceEnabled()) return Promise.resolve();
+  var picks = machineProfiles.library();
+  var keys = Object.keys(picks);
+  if (!keys.length) return Promise.resolve();
+  return smdStorage.init().then(function() {
+    return Promise.resolve(emu.describeMachineINI(ini));
+  }).then(function(json) {
+    var d; try { d = JSON.parse(json); } catch (e) { return; }
+    if (!d || d.error) return;
+    var statusEl = document.getElementById('status');
+    var chain = Promise.resolve();
+    keys.forEach(function(key) {
+      var m = /^(\w+)\.(\d+)\.(\d+)$/.exec(key);
+      if (!m) return;
+      var type = m[1], wheel = parseInt(m[2], 10), slot = parseInt(m[3], 10), pk = picks[key];
+      var ctrl = null;
+      for (var i = 0; i < d.controllers.length; i++) {
+        if (d.controllers[i].type === type && d.controllers[i].wheel === wheel && d.controllers[i].enabled) ctrl = d.controllers[i];
+      }
+      var disk = ctrl && ctrl.disks && ctrl.disks[slot];
+      if (!disk || !disk.present || disk.image !== pk.file) return;
+      chain = chain.then(function() {
+        if (statusEl) statusEl.textContent = 'Mounting ' + pk.name + ' from the library...';
+        return mountLibraryImage(type, slot, pk).catch(function(e) {
+          console.warn('[Boot] ' + type + ' unit ' + slot + ': could not mount ' + pk.name + ' from the library - ' + (e && e.message ? e.message : e));
+        });
+      });
+    });
+    return chain;
+  });
+}
+
+// One library image onto one unit, before Init. Resolves when mounted.
+function mountLibraryImage(type, unit, pk) {
+  var regType = (type === 'wd') ? 'winchester' : type;
+  var worker = emu.isWorkerMode();
+  function registered(size, source) {
+    if (typeof driveRegistry !== 'undefined') driveRegistry.mount(regType, unit, source, pk.name, pk.uuid, size || 0);
+    console.log('[Boot] ' + regType + ' unit ' + unit + ': ' + pk.name + ' from the library (' + source + ')');
+  }
+  if (type === 'smd') {
+    // The same bookkeeping the HDD manager does for an assignment, so the
+    // two never disagree about unit 0..3 - including the Direct-mode
+    // save-back of a dirty buffer at eject. The MOUNT itself happens after
+    // Init: in Worker mode the manager's post-init sync mounts every assigned
+    // unit from OPFS (and the boot waits for its 'smd-mounts-ready'); in
+    // Direct mode mountLibraryDisksAfterInit() loads the buffer. Mounting
+    // here, before Init, had the sync re-open the OPFS handle under a boot
+    // that was reading sector 0.
+    if (typeof smdEjectUnit === 'function' && typeof driveRegistry !== 'undefined') {
+      var cur = driveRegistry.get('smd', unit);
+      if (cur && cur.mounted && cur.fileName !== pk.uuid) smdEjectUnit(unit);
+    }
+    smdStorage.setUnitAssignment(unit, pk.uuid);
+    if (typeof driveRegistry !== 'undefined') driveRegistry.mount('smd', unit, 'opfs', pk.name, pk.uuid, 0);
+    return Promise.resolve();
+  }
+  if (type === 'scsi') {
+    // Mounted after Init (mountLibraryDisksAfterInit), like SMD.
+    return Promise.resolve();
+  }
+  // wd, floppy: staged as the INI's file; the controller mounts it at Init.
+  return smdStorage.retrieveImage(pk.uuid).then(function(data) {
+    if (!data) throw new Error('not in the library');
+    stageImageBytes(pk.file, data);
+    registered(data.byteLength, 'library');
+  });
+}
+
+// After Init, before boot: the SMD (Direct mode) and SCSI library images.
+// Worker-mode SMD is the manager's post-init sync; see mountLibraryImage.
+var _libraryMountedAfterInit = false;
+function mountLibraryDisksAfterInit() {
+  if (_libraryMountedAfterInit) return Promise.resolve();
+  _libraryMountedAfterInit = true;
+  if (typeof machineProfiles === 'undefined' || typeof smdStorage === 'undefined') return Promise.resolve();
+  if (typeof isSmdPersistenceEnabled !== 'function' || !isSmdPersistenceEnabled()) return Promise.resolve();
+  var picks = machineProfiles.library();
+  var worker = emu.isWorkerMode();
+  var chain = Promise.resolve();
+  Object.keys(picks).forEach(function(key) {
+    var m = /^(smd|scsi)\.(\d+)\.(\d+)$/.exec(key);
+    if (!m) return;
+    var type = m[1], unit = parseInt(m[3], 10), pk = picks[key];
+    if (type === 'smd' && worker) return;   // the post-init sync does it
+    if (typeof driveRegistry !== 'undefined') {
+      var cur = driveRegistry.get(type, unit);
+      if (cur && cur.mounted && cur.fileName === pk.uuid && cur.imageSize > 0 && type === 'scsi') return;
+    }
+    chain = chain.then(function() {
+      var done = function(size) {
+        if (unit === 0 && type === 'smd' && typeof diskImageStatus !== 'undefined') diskImageStatus.smd = true;
+        if (typeof driveRegistry !== 'undefined') driveRegistry.mount(type, unit, 'opfs', pk.name, pk.uuid, size || 0);
+        console.log('[Boot] ' + type + ' unit ' + unit + ': ' + pk.name + ' from the library (opfs)');
+      };
+      if (type === 'scsi' && worker) {
+        return emu.opfsMountSCSI(unit, pk.uuid).then(function(r) { if (r && r.ok) done(r.size); else throw new Error('OPFS mount failed'); });
+      }
+      return smdStorage.retrieveImage(pk.uuid).then(function(data) {
+        if (!data) throw new Error('not in the library');
+        var rc = (type === 'smd') ? emu.mountSMDFromBuffer(unit, data) : emu.mountSCSIFromBuffer(unit, data);
+        if (rc !== 0) throw new Error('mount failed');
+        done(data.byteLength);
+      });
+    }).catch(function(e) {
+      console.warn('[Boot] ' + type + ' unit ' + unit + ': could not mount ' + pk.name + ' from the library - ' + (e && e.message ? e.message : e));
+    });
+  });
+  return chain;
+}
+
+function preloadBootImage(ini) {
+  return preloadLibraryDisks(ini).then(function() { return preloadArchiveFloppies(ini); })
+    .then(function() { return describeBootDevice(ini); }).then(function(r) {
+    if (!r || !r.boot.isDisc || !r.image) return;
+    var type = r.boot.type, image = r.image;
+    // With persistent storage on, a unit the library already holds (a
+    // library pick of this machine, or an HDD-manager assignment) is not
+    // fetched over. A unit nothing holds - a built-in machine's demo image,
+    // say - is fetched exactly as in demo mode, or there is nothing to boot.
+    var regType = (type === 'wd') ? 'winchester' : type;
+    if (typeof driveRegistry !== 'undefined' && driveRegistry.isOccupied(regType, r.boot.unit)) return;
+    if (_preloadedImages[image]) return;
+    if (image === 'SMD0.IMG' && typeof diskImageStatus !== 'undefined' && diskImageStatus.smd) return;
+    if (typeof loadDiskImage !== 'function') return;
+    return loadDiskImage(image, '/' + image).then(function(ok) {
+      if (ok) _preloadedImages[image] = true;
+      else console.warn('[Boot] ' + image + ' is not on the server - the ' + type +
+                        ' unit ' + r.boot.unit + ' will be empty');
+    });
+  });
+}
+
+// Boot the powered-on ND-100 from the active machine's [boot] device.
+var _bootPendingMounts = false;
+function bootConfiguredMachine() {
+  if (!isInitializedBtn) return;
+  if (window.ndixMachine && ndixMachine.isSelected()) return;   // ndix-machine.js boots its own
+  var statusEl = document.getElementById('status');
+  // Persistent storage: in Worker mode the HDD manager re-mounts every
+  // assigned SMD unit after Init and signals 'smd-mounts-ready' when done;
+  // booting before that reads sector 0 through a handle being re-opened.
+  if (typeof isSmdPersistenceEnabled === 'function' && isSmdPersistenceEnabled() && !window._smdMountsReady) {
+    _bootPendingMounts = true;
+    if (statusEl) statusEl.textContent = 'Waiting for disk mounts...';
+    return;
+  }
+  mountLibraryDisksAfterInit().then(function() {
+    return describeBootDevice(machineProfiles.ini());
+  }).then(function(r) {
+    if (!r) {
+      if (statusEl) statusEl.textContent = 'Powered on - the machine configuration could not be read';
+      return;
+    }
+    var b = r.boot;
+    if (b.none) {
+      if (statusEl) statusEl.textContent = 'Powered on - no boot drive (set one in Machine Setup)';
+      terminals[activeTerminalId].term.writeln('\r\n\x1b[33mPowered on. This machine has no boot drive; nothing was loaded.\x1b[0m');
+      return;
+    }
+    if (!b.isDisc) {
+      if (statusEl) statusEl.textContent = 'Powered on - a file boot (' + (b.file || '') + ') is not possible in the browser';
+      terminals[activeTerminalId].term.writeln('\r\n\x1b[33mPowered on. The machine boots a file (' + (b.file || '') +
+        ') which the browser cannot open - use View > Boot BPUN file... instead.\x1b[0m');
+      return;
+    }
+    var bootType = BOOT_TYPE_OF_CTRL[b.type];
+    if (bootType === undefined) {
+      if (statusEl) statusEl.textContent = 'Powered on - cannot boot from a ' + b.type + ' controller here';
+      return;
+    }
+    performBoot(bootType, b.unit, r.image, BOOT_LABEL_OF_CTRL[b.type] + ' unit ' + b.unit);
+  });
+}
+
+// boot_type values: 0=FLOPPY, 1=SMD, 2=BPUN, 3=SCSI, 4=WINCHESTER (nd100wasm.c
+// BootFrom); unit is the controller unit; image the MEMFS file for a unit
+// that was not mounted at Init (null for the conventional name).
+function performBoot(bootType, unit, image, label) {
+  var bootNames = ['FLOPPY', 'SMD', 'BPUN', 'SCSI', 'WINCHESTER'];
+  unit = unit | 0;
+  label = label || bootNames[bootType] || String(bootType);
+
+  console.log("Booting " + label + (image ? ' (' + image + ')' : ''));
 
   // Show which disk we're booting from
   if (bootType === 1 && typeof driveRegistry !== 'undefined') {
@@ -1127,20 +1454,17 @@ function performBoot(bootType) {
       var pc = emu.getPC();
       console.log("Boot OK - P set to " + pc.toString(8).padStart(6, '0'));
 
-      document.getElementById('boot-select').disabled = true;
-      bootBtn.disabled = true;
-
       // Sync drive registry from C backend (picks up demo-mode mounts)
       if (typeof driveRegistry !== 'undefined') driveRegistry.syncFromBackend();
 
-      startEmulation(bootNames[bootType] || 'unknown');
+      startEmulation(label);
     };
-    emu.boot(bootType);
+    emu.boot(bootType, unit, image);
     return;
   }
 
   // Direct mode: synchronous
-  var result = emu.boot(bootType);
+  var result = emu.boot(bootType, unit, image);
 
   // Boot() returns PC on success, -1 on failure
   if (result < 0) {
@@ -1156,14 +1480,10 @@ function performBoot(bootType) {
   var pc = emu.getPC();
   console.log("Boot OK - P set to " + pc.toString(8).padStart(6, '0'));
 
-  // Disable boot controls (no re-boot without power cycle)
-  document.getElementById('boot-select').disabled = true;
-  bootBtn.disabled = true;
-
   // Sync drive registry from C backend (picks up demo-mode mounts)
   if (typeof driveRegistry !== 'undefined') driveRegistry.syncFromBackend();
 
-  startEmulation(bootNames[bootType] || 'unknown');
+  startEmulation(label);
 }
 
 // ?image= — after disk load + terminals, auto Power On and SMD boot (see module-init.js)
@@ -1172,9 +1492,8 @@ var _autoUrlImageBootRan = false;
 function scheduleAutoUrlImageBoot() {
   if (_autoUrlImageBootRan) return;
   if (!window.__nd100xUrlImage || typeof diskImageStatus === 'undefined' || !diskImageStatus.smd) return;
-
-  var bootSel = document.getElementById('boot-select');
-  if (bootSel) bootSel.value = 'smd';
+  // ?image= names an SMD pack for the ND-100. An NDIX machine has no SMD.
+  if (window.ndixMachine && ndixMachine.isSelected()) return;
 
   var btn = document.getElementById('toolbar-power');
   if (!btn || typeof emu === 'undefined' || !emu) return;
@@ -1183,95 +1502,34 @@ function scheduleAutoUrlImageBoot() {
 
   _autoUrlImageBootRan = true;
 
-  console.log('Auto power-on + SMD boot (?image=' + window.__nd100xUrlImage + ')');
-
-  if (emu.isWorkerMode()) {
-    emu.onInitialized = function() {
-      completePowerOn(btn);
-      performBoot(1);
-    };
-    emu.init(iniForPowerOn());
-  } else {
-    emu.init(iniForPowerOn());
-    completePowerOn(btn);
-    performBoot(1);
-  }
+  console.log('Auto power-on (?image=' + window.__nd100xUrlImage + ') - the machine boots its own [boot] device');
+  // Power does init + boot now; the pack is already in MEMFS as /SMD0.IMG.
+  btn.click();
 }
 
-document.getElementById('toolbar-boot').addEventListener('click', function() {
-  var bootDevice = document.getElementById('boot-select').value;
 
-  if (bootDevice === 'bpun') {
-    // Trigger file upload dialog for BPUN
-    document.getElementById('bpun-file-input').click();
-    return;
-  }
-
-  // 0=FLOPPY, 1=SMD, 2=BPUN, 3=SCSI, 4=WINCHESTER (must match nd100wasm.c Boot())
-  var bootType = (bootDevice === 'smd') ? 1 : (bootDevice === 'scsi') ? 3 :
-    (bootDevice === 'winchester') ? 4 : 0;
-
-  // Check Winchester image was mounted on unit 0
-  if (bootType === 4) {
-    var hasWd = (typeof driveRegistry !== 'undefined' && driveRegistry.isOccupied('winchester', 0));
-    if (!hasWd) {
-      document.getElementById('status').textContent = 'Boot failed - no Winchester image on unit 0';
-      terminals[activeTerminalId].term.writeln(
-        '\r\n\x1b[31mCannot boot: No Winchester image mounted on unit 0.\x1b[0m\r\n' +
-        '\x1b[33mMount a WD0.IMG image first.\x1b[0m');
-      return;
-    }
-  }
-
-  // Check SMD image was loaded (XHR demo, OPFS, or gateway)
-  if (bootType === 1) {
-    var hasSmd = (typeof diskImageStatus !== 'undefined' && diskImageStatus.smd) ||
-      (typeof driveRegistry !== 'undefined' && driveRegistry.isOccupied('smd', 0));
-    if (!hasSmd) {
-      document.getElementById('status').textContent = 'Boot failed - no SMD image on unit 0';
-      terminals[activeTerminalId].term.writeln(
-        '\r\n\x1b[31mCannot boot: No SMD image mounted on unit 0.\x1b[0m\r\n' +
-        '\x1b[33mMount an image via the HDD Disk Manager or ensure SMD0.IMG is served.\x1b[0m');
-      return;
-    }
-  }
-
-  // Check SCSI image was loaded on ID 0
-  if (bootType === 3) {
-    var hasScsi = (typeof driveRegistry !== 'undefined' && driveRegistry.isOccupied('scsi', 0));
-    if (!hasScsi) {
-      document.getElementById('status').textContent = 'Boot failed - no SCSI image on ID 0';
-      terminals[activeTerminalId].term.writeln(
-        '\r\n\x1b[31mCannot boot: No SCSI image mounted on ID 0.\x1b[0m\r\n' +
-        '\x1b[33mMount a SCSI (hdd) image via the HDD Disk Manager first.\x1b[0m');
-      return;
-    }
-  }
-
-  // Check floppy is mounted (via Floppy Library)
-  if (bootType === 0) {
-    var driveEl = document.getElementById('drive-name-floppy-0');
-    if (!driveEl || driveEl.textContent === 'Empty') {
-      document.getElementById('status').textContent = 'No floppy mounted';
-      terminals[activeTerminalId].term.writeln(
-        '\r\n\x1b[31mCannot boot: No floppy image mounted in Unit 0.\x1b[0m\r\n' +
-        '\x1b[33mUse View \x1b[1m\x1b[37m>\x1b[0m\x1b[33m Floppy Library to mount a floppy image first.\x1b[0m');
-      return;
-    }
-  }
-
-  performBoot(bootType);
-});
-
-// Listen for persistent mount completion — enable boot button
+// Persistent mount completion: a power-on that was waiting for the
+// library's units to mount boots now.
 window.addEventListener('smd-mounts-ready', function(e) {
   window._smdMountsReady = true;
-  var bootBtn = document.getElementById('toolbar-boot');
-  if (bootBtn && isInitializedBtn) {
-    bootBtn.disabled = false;
-    bootBtn.title = '';
+  if (_bootPendingMounts && isInitializedBtn) {
+    _bootPendingMounts = false;
+    bootConfiguredMachine();
   }
 });
+
+// View > Boot BPUN file...: load a program into the powered-on ND-100.
+(function() {
+  var item = document.getElementById('menu-boot-bpun');
+  if (!item) return;
+  item.addEventListener('click', function() {
+    if (!isInitializedBtn || (window.ndixMachine && ndixMachine.isSelected())) {
+      document.getElementById('status').textContent = 'Power on an ND-100 machine first, then boot a BPUN';
+      return;
+    }
+    document.getElementById('bpun-file-input').click();
+  });
+})();
 
 // Handle BPUN file upload
 document.getElementById('bpun-file-input').addEventListener('change', function(e) {
@@ -1291,9 +1549,9 @@ document.getElementById('bpun-file-input').addEventListener('change', function(e
 
     // Small delay in Worker mode to let the file transfer complete
     if (emu.isWorkerMode()) {
-      setTimeout(function() { performBoot(2); }, 100);
+      setTimeout(function() { performBoot(2, 0, '/BPUN_UPLOAD.IMG', 'BPUN ' + file.name); }, 100);
     } else {
-      performBoot(2);
+      performBoot(2, 0, '/BPUN_UPLOAD.IMG', 'BPUN ' + file.name);
     }
   };
   reader.readAsArrayBuffer(file);
@@ -1707,7 +1965,7 @@ makeResizable(
 makeResizable(
   document.getElementById('smd-manager-window'),
   document.getElementById('smd-manager-resize'),
-  'smd-manager-size', 350, 300
+  'smd-manager-size-2', 560, 420
 );
 
 // =========================================================
@@ -1732,6 +1990,7 @@ windowManager.register('io-devices-window', 'I/O Devices');
 windowManager.register('page-table-window', 'Page Tables');
 windowManager.register('config-window', 'Config');
 windowManager.register('smd-manager-window', 'HDD Manager');
+windowManager.register('machine-setup-window', 'Machine Setup');
 windowManager.register('gateway-stats-window', 'Gateway');
 windowManager.register('pdf-handbok-window', 'Håndbok');
 windowManager.register('pdf-supervisor-window', 'System Supervisor');

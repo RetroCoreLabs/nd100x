@@ -73,7 +73,12 @@ var Module = {
   },
   onRuntimeInitialized: function() {
     Module._EnableTerminalRingBuffer(1);
-    postMessage({ type: 'ready' });
+    // Whether the module has an ND-500 is known the moment it runs, and an
+    // NDIX machine (ndix-machine.js) asks before any ND-100 Init() - which it
+    // never does - so it is answered here, not only at 'initialized'.
+    postMessage({ type: 'ready',
+                  nd500Available: (typeof Module._Nd500_Available === 'function')
+                                  ? !!Module._Nd500_Available() : false });
   }
 };
 
@@ -666,7 +671,7 @@ var FRAME_INTERVAL_MS = 16;    // ~60fps target for posting to main thread
 // Stepped from the same run loop as the ND-100 rather than a timer of its
 // own: the two share ONE wasm module because they share MPM5 memory, so two
 // independent loops would re-enter it.
-var ND500_SLICE_DEFAULT = 300000;   // instructions per frame, as nd500-window used
+var ND500_SLICE_DEFAULT = 300000;   // instructions per frame, as ndix-machine.js uses
 var _nd500Booted = false;
 var _nd500Slice = ND500_SLICE_DEFAULT;
 
@@ -964,7 +969,10 @@ onmessage = function(e) {
     }
 
     case 'boot': {
-      var bootResult = Module._Boot(msg.bootType);
+      var bootResult = (typeof Module._BootFrom === 'function')
+        ? Module.ccall('BootFrom', 'number', ['number', 'number', 'string'],
+                       [msg.bootType, msg.bootUnit | 0, msg.image || null])
+        : Module._Boot(msg.bootType);
       var termOutput = flushRingBuffer();
       postMessage({
         type: 'booted',

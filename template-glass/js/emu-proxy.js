@@ -50,7 +50,14 @@
       Module._Init();
       return '';
     },
-    boot:          function(t) { return Module._Boot(t); },
+    // boot(type, unit, image): the [boot] device's type (0=FLOPPY 1=SMD
+    // 2=BPUN 3=SCSI 4=WINCHESTER), its unit, and the MEMFS image for a unit
+    // that was not mounted at Init (null for the conventional name).
+    boot: function(t, unit, image) {
+      if (typeof Module._BootFrom !== 'function') return Module._Boot(t);
+      return Module.ccall('BootFrom', 'number', ['number', 'number', 'string'],
+                          [t, unit | 0, image || null]);
+    },
     // Validate a machine INI string via the native validator. Returns "" if OK,
     // or a "file:line message" string. Promise-wrapped for a uniform API with
     // Worker mode.
@@ -59,14 +66,32 @@
     // could only come from the gateway. Both now match SMD and SCSI.
     mountWinchesterFromOPFS:    function(u, sz) { return Module._MountWinchesterFromOPFS(u, sz); },
     mountWinchesterFromGateway: function(u, sz) { return Module._MountWinchesterFromGateway(u, sz); },
-    mountWinchesterFromBuffer:  function(u, p, sz) { return Module._MountWinchesterFromBuffer(u, p, sz); },
+    // (unit, bytes), like mountSMDFromBuffer/mountSCSIFromBuffer: the bytes go
+    // through a heap copy that the C side copies again, so it is freed here.
+    // It used to take a raw heap pointer, which no caller had - the HDD
+    // manager handed it a Uint8Array and the mount silently did nothing.
+    mountWinchesterFromBuffer:  function(unit, data) {
+      var bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
+      var ptr = Module._malloc(bytes.byteLength);
+      Module.HEAPU8.set(bytes, ptr);
+      var rc = Module._MountWinchesterFromBuffer(unit, ptr, bytes.byteLength);
+      Module._free(ptr);
+      return rc;
+    },
     getWinchesterBuffer:        function(u) { return Module._GetWinchesterBuffer(u); },
     getWinchesterBufferSize:    function(u) { return Module._GetWinchesterBufferSize(u); },
     remountWinchester:          function(u) { return Module._RemountWinchester(u); },
     unmountWinchester:          function(u) { return Module._UnmountWinchester(u); },
 
     mountFloppyFromOPFS:        function(u, sz) { return Module._MountFloppyFromOPFS(u, sz); },
-    mountFloppyFromBuffer:      function(u, p, sz) { return Module._MountFloppyFromBuffer(u, p, sz); },
+    mountFloppyFromBuffer:      function(unit, data) {
+      var bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
+      var ptr = Module._malloc(bytes.byteLength);
+      Module.HEAPU8.set(bytes, ptr);
+      var rc = Module._MountFloppyFromBuffer(unit, ptr, bytes.byteLength);
+      Module._free(ptr);
+      return rc;
+    },
     getFloppyBuffer:            function(u) { return Module._GetFloppyBuffer(u); },
     getFloppyBufferSize:        function(u) { return Module._GetFloppyBufferSize(u); },
 

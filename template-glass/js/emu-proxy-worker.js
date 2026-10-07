@@ -33,7 +33,7 @@
   // These exist because the direct-mode ND-500 API is synchronous and a
   // message port is not. Every getter below reads one of these; every setter
   // is a message whose real answer arrives later as nd500Result.
-  var _nd500Available = false;   // answered by the module at 'initialized'
+  var _nd500Available = false;   // answered by the module at 'ready' (and again at 'initialized')
   var _nd500Created = false;
   var _nd500Booted = false;
   var _nd500StopReason = '';
@@ -75,6 +75,9 @@
 
       case 'ready':
         _ready = true;
+        // An NDIX machine never calls init(), so this is the only answer it
+        // gets about the ND-500; 'initialized' below repeats it for the ND-100.
+        if (msg.nd500Available !== undefined) _nd500Available = !!msg.nd500Available;
         // Trigger module-init.js startup path
         if (typeof window.onWorkerReady === 'function') {
           window.onWorkerReady();
@@ -422,8 +425,8 @@
       postCmd('init', { ini: ini || '' });
       return 0;  // Return immediately; result arrives via callback
     },
-    boot: function(t) {
-      postCmd('boot', { bootType: t, id: nextId() });
+    boot: function(t, unit, image) {
+      postCmd('boot', { bootType: t, bootUnit: unit | 0, image: image || null, id: nextId() });
       return 0;  // Async - result via onBooted callback
     },
     step: function(n) {
@@ -434,15 +437,12 @@
     },
     isInitialized: function() { return _initialized ? 1 : 0; },
 
-    // Machine Setup runs against the module directly, and in Worker mode the
-    // module lives in the Worker. Neither of these is wired through yet, so
-    // they answer honestly instead of leaving the window blank with no reason:
-    // machine-setup.js shows the message and keeps the INI view usable.
-    validateMachineINI: function(ini) {
-      return Promise.resolve('');   // cannot check here; the C validator still runs at boot
-    },
+    // Machine Setup's parser calls go to the module in the Worker over the
+    // generic ccall request, the same way validateMachineINI below does.
+    // Power-on reads the [boot] device through this too (toolbar.js
+    // describeBootDevice), so it has to be real in Worker mode.
     describeMachineINI: function(ini) {
-      return Promise.resolve('{"error":"the form needs direct mode (the emulator is in a Worker)"}');
+      return postRequest('ccall', { name: 'DescribeMachineINI', retType: 'string', argTypes: ['string'], argValues: [ini] });
     },
 
     // --- Terminal I/O ---
@@ -733,7 +733,7 @@
     // refuses wsConnect, so the two used to be mutually exclusive and the
     // browser could not use the segment at all.
     //
-    // The API below keeps the SHAPE of the direct-mode one so nd500-window.js
+    // The API below keeps the SHAPE of the direct-mode one so ndix-machine.js
     // works either way, but the meaning underneath differs and it matters:
     //
     //   COMMANDS are fire-and-forget. create/loadKernel/mountDisk/boot cross
@@ -788,9 +788,11 @@
       diskSize:  function() { return 0; },
       diskBytes: function() { return null; },
 
+      // A promise of the nd500Result message, not 0: the Worker echoes the
+      // request id with the real return code, and ndix-machine.js has to
+      // know whether the boot took before it starts draining the console.
       boot: function() {
-        postCmd('nd500Boot');
-        return 0;
+        return postRequest('nd500Boot');
       },
       // Only the slice. See the note above: the Worker does the stepping.
       step: function(count) {

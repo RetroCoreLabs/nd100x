@@ -21,6 +21,23 @@
 //   getTerminalSettings, saveTerminalSettings, applySettingsToTerminal,
 //   switchTerminalMode, updateTerminalSubmenu
 
+// Is the active machine profile an ND-500 standalone (NDIX) machine
+// (ndix-machine.js)? Decides the terminal emulator, the extra tty terminals
+// and where keys go. ndix-machine.js loads after this file, so the lookup is
+// made when asked, never at load.
+function isNdixMachineSelected(): boolean {
+  return typeof ndixMachine !== 'undefined' && !!ndixMachine && ndixMachine.isSelected();
+}
+
+// The ND-500's ttys 1-3 as terminals 2-4; tty 0 is terminal 1, the console.
+function createNdixTtyTerminals(): void {
+  if (!isNdixMachineSelected()) return;
+  var ttys = ndixMachine.ttyTerminals();
+  for (var t = 0; t < ttys.length; t++) {
+    createTerminal(ttys[t].identCode, ttys[t].name);
+  }
+}
+
 // Store all terminals and their containers
 var terminalContainers: { [identCode: number]: HTMLElement } = {};
 var activeTerminalId = 1;
@@ -171,7 +188,7 @@ function createFloatingTerminalWindow(identCode: number, name: string): HTMLElem
   });
 
   // Hide font dropdown in RetroTerm mode (bitmap fonts only)
-  if (isRetroTermBackend) {
+  if (retroTermNow()) {
     fontSel.style.display = 'none';
   }
 
@@ -276,12 +293,19 @@ function createTerminal(identCode: number, name: string): void {
   wrapper.className = 'terminal-canvas-wrapper';
   container.appendChild(wrapper);
 
+  // An ND-500 standalone (NDIX) machine drives this terminal with a VT100 -
+  // RetroTerm only ships the TDV2200, SINTRAN's terminal - so when that is
+  // the selected machine the console is xterm whatever the renderer setting
+  // says. Same container, same factory; only the emulator differs.
+  var forNdix = isNdixMachineSelected();
+
   // Create terminal using shared factory from terminal-core
   var inst = window.createScaledTerminal(wrapper, {
     fontFamily: settings.fontFamily,
     colorTheme: settings.colorTheme,
     sizeDisplay: fontSizeDisplay,
-    observeResize: parentWin
+    observeResize: parentWin,
+    forceXterm: forNdix
   });
   var term = inst.term;
   var fitAddon = inst.fitAddon;
@@ -352,7 +376,23 @@ function initializeTerminals(): void {
   if (!emu || !emu.isReady()) {
     (document.querySelector('.terminal-tabs') as HTMLElement).innerHTML = '';
     document.querySelectorAll('#terminal-window-body > .terminal-container').forEach(function(el) { el.remove(); });
+    // Dispose what was there, as the branch below does. Removing a container
+    // out from under a live xterm leaves its canvas renderer drawing into
+    // nothing ("Cannot read properties of undefined (reading
+    // 'getRasterizedGlyph')" on every frame) - seen when an NDIX machine
+    // re-made terminal 1 in Worker mode, where isReady() is still false.
+    Object.keys(terminals).forEach(function(identCode) {
+      try { terminals[parseInt(identCode)].term.dispose(); } catch (e) { /* already gone */ }
+    });
+    terminals = {};
+    terminalContainers = {};
+    terminalDisplayNames = {};
+    floatingTerminalCount = 0;
     createTerminal(1, '1');
+    // In Worker mode isReady() stays false until the ND-100 is initialised,
+    // which an NDIX machine never is - so its tty terminals are made here
+    // as well as below, or Worker mode would have the console alone.
+    createNdixTtyTerminals();
 
     // Hide tab bar in float mode (no tabs to show)
     var earlyTabs = document.querySelector('.terminal-tabs') as HTMLElement;
@@ -385,7 +425,11 @@ function initializeTerminals(): void {
 
   createTerminal(1, '1');
 
-  if (isInitialized) {
+  if (isNdixMachineSelected()) {
+    // isInitialized is the ND-100's flag and stays false for this machine -
+    // there is no ND-100 to ask for terminal addresses.
+    createNdixTtyTerminals();
+  } else if (isInitialized) {
     for (var i = 0; i < 16; i++) {
       var address = emu.getTerminalAddress(i);
       if (address !== -1) {
@@ -626,6 +670,12 @@ function sendKey(keyCode: number): boolean {
       return false;
     }
 
+    // A powered-on NDIX machine owns the terminals: keys go to its tty, not
+    // to an ND-100 that was never initialised.
+    if (isNdixMachineSelected() && ndixMachine.isActive()) {
+      return ndixMachine.sendKey(activeTerminalId, keyCode);
+    }
+
     var result = emu.sendKey(activeTerminalId, keyCode);
     if (result !== 1) {
       console.error("Failed to send key to terminal with identCode", activeTerminalId);
@@ -640,7 +690,11 @@ function sendKey(keyCode: number): boolean {
 
 // ---- Backend detection ----
 
-var isRetroTermBackend = (typeof TERMINAL_BACKEND !== 'undefined' && TERMINAL_BACKEND === 'retroterm');
+// Does RetroTerm draw the active machine's terminals? Asked every time -
+// the machine selector changes it without a reload (terminal-core.ts).
+function retroTermNow(): boolean {
+  return !!(window.isRetroTermBackend && window.isRetroTermBackend());
+}
 
 // ---- Apply settings ----
 
@@ -659,7 +713,7 @@ function applySettingsToTerminal(identCode: number): void {
   var colorThemes = window.terminalColorThemes;
 
   // Skip font-related assignments for RetroTerm (bitmap fonts only)
-  if (!isRetroTermBackend) {
+  if (!retroTermNow()) {
     t.term.options.fontFamily = settings.fontFamily;
   }
 
@@ -789,8 +843,11 @@ function vkUnhighlightFromDom(vk: any, ev: KeyboardEvent): void {
 
 /** Create VK container and instance for a single terminal */
 function createTerminalVK(identCode: number, container: HTMLElement, term: any): void {
-  if (!isRetroTermBackend || typeof RetroTerm === 'undefined') return;
+  if (!retroTermNow() || typeof RetroTerm === 'undefined') return;
   if (typeof RetroTerm.VirtualKeyboard === 'undefined') return;
+  // The TDV virtual keyboard attaches to a RetroTerm terminal; an NDIX
+  // machine's terminals are xterm (see createTerminal) whatever the backend.
+  if (isNdixMachineSelected()) return;
 
   var vkContainer = document.createElement('div');
   vkContainer.className = 'terminal-vk-container';
@@ -852,12 +909,9 @@ function kbLangToVkCode(lang: string): string {
 // Effective language: national variants only exist on the TDV emulators, so
 // VT100 / xterm always resolve to 'off' regardless of the saved value.
 function getCurrentKeyboardLanguage(): string {
-  var lang = 'no';
-  try { lang = localStorage.getItem('nd100x-keyboard-language') || 'no'; } catch(e) {}
-  var emuType = 'tdv2200';
-  try { emuType = localStorage.getItem('nd100x-emulator-type') || 'tdv2200'; } catch(e) {}
-  if (!isRetroTermBackend || emuType === 'vt100') return 'off';
-  return lang;
+  var t = window.currentTerminalSettings ? window.currentTerminalSettings() : { emulator: 'tdv2200', language: 'no' };
+  if (!retroTermNow() || t.emulator === 'vt100') return 'off';
+  return t.language;
 }
 
 // Push the language to one terminal: display variant (font) + VK labels.
@@ -1000,6 +1054,12 @@ function updateConsoleTitle(): void {
   var titleEl = document.getElementById('terminal-window-title');
   if (!titleEl) return;
 
+  if (isNdixMachineSelected()) {
+    // Not SINTRAN's console, and not waiting for an ESC.
+    titleEl.textContent = ndixMachine.consoleTitle();
+    return;
+  }
+
   var emuLabel = window.getEmulatorTypeLabel();
   if (emuLabel) {
     titleEl.textContent = 'Console (' + emuLabel + ') - Push ESC to wake up SINTRAN';
@@ -1020,23 +1080,6 @@ function toggleVirtualKeyboard(): void {
   toggleTerminalVK(activeTerminalId);
 }
 
-// ---- Backend switching ----
-
-function switchTerminalBackend(backend: string): void {
-  // Switching backend requires a full page reload which destroys all emulator state.
-  // If the emulator is running, warn the user.
-  if (typeof hasEverStartedEmulation !== 'undefined' && hasEverStartedEmulation) {
-    if (!confirm('Switching terminal backend requires a page reload.\nThe emulator will stop and you will need to reboot.')) {
-      // Revert the dropdown to current value
-      var sel = document.getElementById('config-terminal-backend') as HTMLSelectElement | null;
-      if (sel) sel.value = isRetroTermBackend ? 'retroterm' : 'xterm';
-      return;
-    }
-  }
-  localStorage.setItem('nd100x-terminal-backend', backend);
-  location.reload();
-}
-
 // ---- Initialize dropdowns ----
 
 function initializeDropdowns(): void {
@@ -1045,7 +1088,7 @@ function initializeDropdowns(): void {
   var colorSelect = document.getElementById('color-theme-select') as HTMLSelectElement | null;
 
   if (fontSelect) {
-    if (isRetroTermBackend) {
+    if (retroTermNow()) {
       // Hide font dropdown when RetroTerm is active (bitmap fonts only)
       fontSelect.style.display = 'none';
     } else {
@@ -1059,52 +1102,8 @@ function initializeDropdowns(): void {
     floatToggle.checked = isFloatMode();
   }
 
-  // Backend config dropdown
-  var backendSelect = document.getElementById('config-terminal-backend') as HTMLSelectElement | null;
-  if (backendSelect) {
-    backendSelect.value = isRetroTermBackend ? 'retroterm' : 'xterm';
-    backendSelect.addEventListener('change', function() {
-      switchTerminalBackend(backendSelect!.value);
-    });
-  }
-
-  // Emulator type dropdown (RetroTerm only)
-  var emuTypeRow = document.getElementById('config-emulator-type-row') as HTMLElement | null;
-  var emuTypeSelect = document.getElementById('config-emulator-type') as HTMLSelectElement | null;
-  if (emuTypeRow && emuTypeSelect) {
-    if (isRetroTermBackend) {
-      emuTypeRow.style.display = '';
-      var savedType = 'tdv2200';
-      try { savedType = localStorage.getItem('nd100x-emulator-type') || 'tdv2200'; } catch(e) {}
-      emuTypeSelect.value = savedType;
-      emuTypeSelect.addEventListener('change', function() {
-        localStorage.setItem('nd100x-emulator-type', emuTypeSelect!.value);
-        location.reload();
-      });
-    }
-  }
-
-  // Keyboard language dropdown (RetroTerm TDV only) - applies live, no reload.
-  var kbLangRow = document.getElementById('config-keyboard-language-row') as HTMLElement | null;
-  var kbLangSelect = document.getElementById('config-keyboard-language') as HTMLSelectElement | null;
-  if (kbLangRow && kbLangSelect) {
-    var kbEmuType = 'tdv2200';
-    try { kbEmuType = localStorage.getItem('nd100x-emulator-type') || 'tdv2200'; } catch(e) {}
-    if (isRetroTermBackend && kbEmuType !== 'vt100') {
-      kbLangRow.style.display = '';
-      var savedLang = 'no';
-      try { savedLang = localStorage.getItem('nd100x-keyboard-language') || 'no'; } catch(e) {}
-      kbLangSelect.value = savedLang;
-      applyKeyboardLanguage(savedLang);
-      kbLangSelect.addEventListener('change', function() {
-        try { localStorage.setItem('nd100x-keyboard-language', kbLangSelect!.value); } catch(e) {}
-        applyKeyboardLanguage(kbLangSelect!.value);
-      });
-    } else {
-      // VT100 or xterm: no national variant available
-      applyKeyboardLanguage('off');
-    }
-  }
+  // The keyboard language of the active machine (Machine Setup > Terminal).
+  applyKeyboardLanguage(getCurrentKeyboardLanguage());
 
   // VK toggle button (console window)
   var vkBtn = document.getElementById('term-vk-toggle');
@@ -1126,4 +1125,3 @@ window.activeTerminalId = activeTerminalId;
 window.terminalDisplayNames = terminalDisplayNames;
 window.applySettingsToTerminal = applySettingsToTerminal;
 window.toggleVirtualKeyboard = toggleVirtualKeyboard;
-window.switchTerminalBackend = switchTerminalBackend;

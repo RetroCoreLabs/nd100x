@@ -243,6 +243,11 @@ bool mc_to_json(const MachineConfig *cfg, char *out, size_t outlen)
 
     /* ---- boot ---- */
     put(&s, "\"boot\":{");
+    /* none: "[boot] device = none" - power on with nothing loaded. Said
+     * outright rather than left for the reader to infer from an empty file
+     * name on a non-disc boot. */
+    put(&s, "\"none\":%s,",
+        (!cfg->boot.is_disc && cfg->boot.file_boot_type == BOOT_NONE) ? "true" : "false");
     put(&s, "\"isDisc\":%s,", cfg->boot.is_disc ? "true" : "false");
     kv_str(&s, "type", mc_ctrl_type_name(cfg->boot.type), 1);
     put(&s, "\"wheel\":%d,", cfg->boot.wheel);

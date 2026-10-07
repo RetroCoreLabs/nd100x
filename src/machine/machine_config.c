@@ -1021,8 +1021,17 @@ bool mc_load_file(MachineConfig *cfg, const char *path, char *err, size_t errlen
         case SEC_BOOT:
             if (str_ieq(keyl, "device"))
             {
-                /* forms: <type>.<wheel>.<unit> | bpun:FILE | aout:FILE */
-                if (strncmp(val, "bpun:", 5) == 0)
+                /* forms: <type>.<wheel>.<unit> | bpun:FILE | aout:FILE | none */
+                if (str_ieq(val, "none"))
+                {
+                    /* No boot drive: the machine powers on with nothing loaded
+                     * and the CPU at 0. For a program loaded some other way
+                     * (a BPUN handed over later, the DAP debugger). */
+                    cfg->boot.is_disc = false;
+                    cfg->boot.file_boot_type = BOOT_NONE;
+                    cfg->boot.file[0] = '\0';
+                }
+                else if (strncmp(val, "bpun:", 5) == 0)
                 {
                     cfg->boot.is_disc = false;
                     cfg->boot.file_boot_type = BOOT_BPUN;

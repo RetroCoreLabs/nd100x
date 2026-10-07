@@ -15,10 +15,10 @@
         "diskType": "smd"
     },
     {
-        "name": "Winchester system disk",
-        "description": "ST506/8 inch Winchester image (cards 3041/3038). Answers IOX 500-507 - the same block as the CDC cartridge disc, so a machine has one or the other.",
-        "size": 78643200,
-        "url": "WD0.IMG",
+        "name": "BSD 2.11 Winchester",
+        "description": "2.11BSD for the ND-100 (the bsd211_481 port), on an ST506/8 inch Winchester image (cards 3041/3038, IOX 500-507). What the BSD 2.11 machine boots.",
+        "size": 75497472,
+        "url": "BSD211-WD0.IMG",
         "diskType": "winchester"
     },
     {
@@ -45,9 +45,9 @@
     },
     {
         "name": "NDIX root disk",
-        "description": "NDIX-C root filesystem for the ND-500. Needs the ND-500 core in the module (plan milestone M2c) - it can be staged now, but nothing can mount it yet.",
+        "description": "NDIX-C root filesystem for a standalone ND-500 machine (Machine Setup > New > ND-500 standalone). Boots straight off this disc; the kernel is its own /vmunix.",
         "size": 71147520,
-        "url": "rootfs_full.img",
+        "url": "NDIX.IMG",
         "diskType": "nd500"
     }
 ]

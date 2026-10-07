@@ -1371,9 +1371,11 @@ button:disabled {
   padding: 15px;
   font-family: monospace;
   font-size: 12px;
-  white-space: pre-wrap;
+  /* A directory listing is columns: never wrap it. Scroll both ways, and
+   * only when needed. */
+  white-space: pre;
   color: rgba(180, 200, 230, 0.8);
-  overflow-y: auto;
+  overflow: auto;
   max-height: 50vh;
 }
 .floppy-mount-button {
@@ -3139,7 +3141,7 @@ button:disabled {
 }
 
 .smd-installed-list {
-  max-height: 160px;
+  max-height: 340px;
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: rgba(100, 120, 180, 0.3) transparent;
@@ -3156,16 +3158,27 @@ button:disabled {
   text-align: center;
 }
 
+/* One image = one boxed row, so copies of the same disc read as separate
+ * things: a border and a little air between them, alternate shading, the
+ * name and its tag on the first line, size/date/description under it, and
+ * the actions aligned in a column on the right. */
 .smd-image-card {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
-  padding: 5px 8px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-  gap: 8px;
+  column-gap: 12px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.025);
+}
+.smd-image-card:nth-child(even) {
+  background: rgba(100, 140, 220, 0.05);
 }
 .smd-image-card:hover {
-  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(100, 160, 255, 0.35);
+  background: rgba(100, 140, 220, 0.09);
 }
 
 .smd-image-info {
@@ -3449,6 +3462,10 @@ button:disabled {
   font-weight: 600;
   letter-spacing: 0.02em;
   vertical-align: middle;
+  /* .smd-image-info lays its children out as a column: without this the
+   * tag is stretched to the card's full width, a bar instead of a tag. */
+  align-self: flex-start;
+  width: max-content;
 }
 .smd-type-badge.smd-type-smd {
   background: rgba(13, 71, 161, 0.3);

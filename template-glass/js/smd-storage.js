@@ -58,10 +58,10 @@ var smdStorage = (function() {
         _opfsRoot = await navigator.storage.getDirectory();
         _imagesDir = await _opfsRoot.getDirectoryHandle('smd-images', { create: true });
         _available = true;
-        console.log('[SMD Storage] OPFS available');
+        console.log('[HDD Library] OPFS available');
       }
     } catch (e) {
-      console.warn('[SMD Storage] OPFS not available:', e.message);
+      console.warn('[HDD Library] OPFS not available:', e.message);
       _available = false;
     }
 
@@ -100,7 +100,7 @@ var smdStorage = (function() {
     var needsMigration = Object.keys(_metadata).some(function(k) { return !UUID_RE.test(k); });
     if (!needsMigration) return;
 
-    console.log('[SMD Storage] Migrating old filename-keyed entries to UUID format...');
+    console.log('[HDD Library] Migrating old filename-keyed entries to UUID format...');
 
     var oldKeys = Object.keys(_metadata).filter(function(k) { return !UUID_RE.test(k); });
     var units = getUnitAssignments();
@@ -125,7 +125,7 @@ var smdStorage = (function() {
         // Remove old file
         await _imagesDir.removeEntry(oldKey);
       } catch (e) {
-        console.warn('[SMD Storage] Migration: could not rename OPFS file ' + oldKey + ':', e.message);
+        console.warn('[HDD Library] Migration: could not rename OPFS file ' + oldKey + ':', e.message);
         // If the OPFS file doesn't exist, still migrate the metadata
       }
 
@@ -147,7 +147,7 @@ var smdStorage = (function() {
         }
       }
 
-      console.log('[SMD Storage] Migrated ' + oldKey + ' -> ' + uuid);
+      console.log('[HDD Library] Migrated ' + oldKey + ' -> ' + uuid);
     }
 
     // Save updated unit assignments and metadata
@@ -155,7 +155,7 @@ var smdStorage = (function() {
       localStorage.setItem(UNITS_KEY, JSON.stringify(units));
     } catch (e) {}
     _saveMetadata();
-    console.log('[SMD Storage] Migration complete');
+    console.log('[HDD Library] Migration complete');
   }
 
   // =========================================================
@@ -184,7 +184,7 @@ var smdStorage = (function() {
       if (e.message.indexOf('Insufficient storage') === 0) throw e;
     }
 
-    console.log('[SMD Storage] Writing ' + uuid + ': ' + formatSize(data.byteLength) +
+    console.log('[HDD Library] Writing ' + uuid + ': ' + formatSize(data.byteLength) +
       ', first 8 bytes: ' + Array.from(data.slice(0, Math.min(8, data.byteLength)))
         .map(function(b) { return ('0' + b.toString(16)).slice(-2); }).join(' '));
 
@@ -200,7 +200,7 @@ var smdStorage = (function() {
       throw new Error('OPFS write verification failed: wrote ' + formatSize(data.byteLength) +
         ' but file is ' + formatSize(verifySize));
     }
-    console.log('[SMD Storage] OPFS file size verified: ' + formatSize(verifySize));
+    console.log('[HDD Library] OPFS file size verified: ' + formatSize(verifySize));
 
     _metadata[uuid] = {
       uuid: uuid,
@@ -215,7 +215,7 @@ var smdStorage = (function() {
     };
     _saveMetadata();
 
-    console.log('[SMD Storage] Stored ' + uuid + ' (' + formatSize(data.byteLength) + ') OK');
+    console.log('[HDD Library] Stored ' + uuid + ' (' + formatSize(data.byteLength) + ') OK');
     return true;
   }
 
@@ -229,7 +229,7 @@ var smdStorage = (function() {
       var buffer = await file.arrayBuffer();
       return new Uint8Array(buffer);
     } catch (e) {
-      console.warn('[SMD Storage] Could not retrieve ' + uuid + ':', e.message);
+      console.warn('[HDD Library] Could not retrieve ' + uuid + ':', e.message);
       return null;
     }
   }
@@ -251,13 +251,13 @@ var smdStorage = (function() {
       await _imagesDir.removeEntry(uuid);
     } catch (e) {
       // File may not exist or may be locked
-      console.warn('[SMD Storage] Could not remove OPFS file ' + uuid + ':', e.message);
+      console.warn('[HDD Library] Could not remove OPFS file ' + uuid + ':', e.message);
     }
 
     delete _metadata[uuid];
     _saveMetadata();
 
-    console.log('[SMD Storage] Deleted ' + uuid);
+    console.log('[HDD Library] Deleted ' + uuid);
     return true;
   }
 
@@ -350,7 +350,7 @@ var smdStorage = (function() {
     if (uuid) {
       for (var u = 0; u < 4; u++) {
         if (u !== unit && units[u] === uuid) {
-          console.warn('[SMD Storage] ' + uuid + ' already assigned to unit ' + u + ', clearing it first');
+          console.warn('[HDD Library] ' + uuid + ' already assigned to unit ' + u + ', clearing it first');
           units[u] = null;
         }
       }
@@ -429,7 +429,7 @@ var smdStorage = (function() {
     try {
       if (navigator.storage && navigator.storage.persist) {
         var granted = await navigator.storage.persist();
-        console.log('[SMD Storage] Persistence ' + (granted ? 'granted' : 'denied'));
+        console.log('[HDD Library] Persistence ' + (granted ? 'granted' : 'denied'));
         return granted;
       }
     } catch (e) {}

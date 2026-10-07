@@ -137,15 +137,14 @@ function resetCpuLoad() {
 }
 
 // Loading overlay functions
-function showLoadingOverlay() {
+function showLoadingOverlay(bootDevice) {
   const overlay = document.getElementById('loading-overlay');
   if (overlay) {
-    const bootSelect = document.getElementById('boot-select');
+    // Named by the caller: the machine's [boot] device decides what boots,
+    // there is no selector on the toolbar to read it off any more.
     const bootDeviceText = document.getElementById('loading-boot-device');
-    if (bootSelect && bootDeviceText) {
-      const selectedDevice = bootSelect.value;
-      const deviceName = selectedDevice === 'smd' ? 'SMD' : 'FLOPPY';
-      bootDeviceText.textContent = `Booting from ${deviceName}`;
+    if (bootDeviceText) {
+      bootDeviceText.textContent = `Booting from ${bootDevice || 'the configured drive'}`;
     }
 
     overlay.style.display = 'flex';
@@ -304,7 +303,7 @@ function startEmulation(bootDevice) {
   }
 
   if (!hasEverStartedEmulation) {
-    showLoadingOverlay();
+    showLoadingOverlay(bootDevice);
   } else {
     hasReceivedTerminalOutput = false;
   }

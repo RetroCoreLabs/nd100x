@@ -572,17 +572,28 @@ void initialize(void)
         }
     }
 
-    int load_rc =
-        machine_program_load(config.bootType, config.bootUnit, config.imageFile, config.verbose,
-                             (uint16_t)config.textStart, config.overlayDeposit);
-    // Same exit codes the library used to produce itself (1 = load, 10 = boot).
-    if (load_rc == PROGRAM_LOAD_ERR_LOAD)
+    if (config.bootType == BOOT_NONE)
     {
-        exit(1);
+        /* "[boot] device = none": power on with nothing loaded, CPU at 0.
+         * Only reachable with a config file - without one the CLI already
+         * refused for want of a boot type. */
+        LOG(LOG_CAT_MACHINE, LOG_INFO, "No boot drive configured - nothing loaded, starting at 0\n");
+        g_start_addr = 0;
     }
-    if (load_rc == PROGRAM_LOAD_ERR_BOOT)
+    else
     {
-        exit(10);
+        int load_rc = machine_program_load(config.bootType, config.bootUnit, config.imageFile,
+                                           config.verbose, (uint16_t)config.textStart,
+                                           config.overlayDeposit);
+        // Same exit codes the library used to produce itself (1 = load, 10 = boot).
+        if (load_rc == PROGRAM_LOAD_ERR_LOAD)
+        {
+            exit(1);
+        }
+        if (load_rc == PROGRAM_LOAD_ERR_BOOT)
+        {
+            exit(10);
+        }
     }
     gPC = g_start_addr;
 

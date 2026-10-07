@@ -225,14 +225,27 @@ wasm-glass: check-deps mkptypes retroterm-build ndfs-build ts-compile
 	@cp -r template-glass/js $(BUILD_DIR_WASM_GLASS)/bin/ 2>/dev/null || true
 	@cp -r template-glass/data $(BUILD_DIR_WASM_GLASS)/bin/ 2>/dev/null || true
 	@cp -r template-glass/lib $(BUILD_DIR_WASM_GLASS)/bin/ 2>/dev/null || true
-	@cp template-glass/hdd-catalog.json $(BUILD_DIR_WASM_GLASS)/bin/ 2>/dev/null || true
+	@cp template-glass/disk-catalog.json $(BUILD_DIR_WASM_GLASS)/bin/ 2>/dev/null || true
 	@cp template-glass/staticwebapp.config.json $(BUILD_DIR_WASM_GLASS)/bin/ 2>/dev/null || true
 	@cp template/Logo_ND.png template/favicon.ico template/favicon.png $(BUILD_DIR_WASM_GLASS)/bin/ 2>/dev/null || true
 	@cp -r template/floppies $(BUILD_DIR_WASM_GLASS)/bin/ 2>/dev/null || true
 	@cp docs/SINTRAN-Commands.html $(BUILD_DIR_WASM_GLASS)/bin/ 2>/dev/null || true
 	@cp -r template-glass/PDF $(BUILD_DIR_WASM_GLASS)/bin/ 2>/dev/null || true
+	@# The disc images disk-catalog.json points at, served next to the page so
+	@# "Copy to Library" works and the shipped machines boot. Scratch packs at
+	@# the repo root (gitignored /*.IMG) are copied first and win; then every
+	@# images/*.IMG.bz2 is unpacked when the served file is missing or older
+	@# than the archive - so a clean checkout boots ND-100 (SMD0.IMG), BSD 2.11
+	@# (BSD211-WD0.IMG) and 500 NDIX-C (NDIX.IMG) with nothing fetched by hand.
 	@cp SMD0.IMG $(BUILD_DIR_WASM_GLASS)/bin/ 2>/dev/null || true
 	@cp SCSI0.IMG $(BUILD_DIR_WASM_GLASS)/bin/ 2>/dev/null || true
+	@for bz in images/*.IMG.bz2; do \
+	  [ -f "$$bz" ] || continue; \
+	  img=$(BUILD_DIR_WASM_GLASS)/bin/$$(basename "$$bz" .bz2); \
+	  if [ ! -f "$$img" ] || [ "$$bz" -nt "$$img" ]; then \
+	    echo "Unpacking $$bz -> $$img"; bunzip2 -k -c "$$bz" > "$$img" || { rm -f "$$img"; echo "  failed"; }; \
+	  fi; \
+	done
 	@# Generate version.js so the Glass UI tracks the CMake project version.
 	@NDVER=$$(grep -oE 'project\(nd100x VERSION [0-9.]+' CMakeLists.txt | grep -oE '[0-9]+\.[0-9]+\.[0-9]+'); \
 	NDBUILD=$$(date '+%Y-%m-%d %H:%M'); \

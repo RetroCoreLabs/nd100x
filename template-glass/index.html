@@ -19,28 +19,19 @@
   <!-- Module config must load before nd100wasm.js -->
   <script src="js/module-init.js"></script>
 
-  <!-- Terminal backend detection -->
-  <script>
-  var TERMINAL_BACKEND = localStorage.getItem('nd100x-terminal-backend') || 'retroterm';
-  </script>
-
-  <!-- Terminal backend loading.
-       xterm.js is loaded ALWAYS, not only when it is the chosen ND-100
-       backend: the ND-500 console is a VT100 and there is no second VT100 in
-       this page. RetroTerm ships one emulator, the TDV2200
-       (lib/retroterm/emulators/ holds "tdv" and nothing else), which is the
-       right terminal for SINTRAN and the wrong one for NDIX - NDIX drives its
-       console with ANSI/VT100 escapes. So xterm serves the ND-500 whatever the
-       ND-100 terminals are set to, and RetroTerm loads beside it when chosen. -->
+  <!-- Terminal renderers. BOTH are always loaded: which one draws a machine's
+       terminals is a setting of that machine (Machine Setup > Terminal) and
+       follows the machine selector without a reload. xterm.js is the VT100
+       (NDIX drives its console with ANSI/VT100 escapes); RetroTerm ships the
+       TDV2200 (lib/retroterm/emulators/ holds "tdv" and nothing else), which
+       is SINTRAN's terminal. -->
   <script>
   document.write('<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.1.0/css/xterm.min.css">');
   document.write('<script src="https://cdn.jsdelivr.net/npm/xterm@5.1.0/lib/xterm.min.js"><\/script>');
   document.write('<script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.7.0/lib/xterm-addon-fit.min.js"><\/script>');
   document.write('<script src="https://cdn.jsdelivr.net/npm/xterm-addon-canvas@0.3.0/lib/xterm-addon-canvas.min.js"><\/script>');
-  if (TERMINAL_BACKEND !== 'xterm') {
-    document.write('<link rel="stylesheet" href="lib/retroterm/retroterm.css">');
-    document.write('<script src="lib/retroterm/retroterm.js"><\/script>');
-  }
+  document.write('<link rel="stylesheet" href="lib/retroterm/retroterm.css">');
+  document.write('<script src="lib/retroterm/retroterm.js"><\/script>');
   </script>
 
   <!-- Retro fonts -->
@@ -167,7 +158,7 @@
           <button class="toolbar-menu-item" id="menu-floppy-library">Floppy Library</button>
           <button class="toolbar-menu-item" id="menu-smd-manager">HDD Disk Manager</button>
           <button class="toolbar-menu-item" id="menu-machine-setup">Machine Setup</button>
-          <button class="toolbar-menu-item" id="menu-nd500">ND-500 Console</button>
+          <button class="toolbar-menu-item" id="menu-boot-bpun" title="Load a BPUN program into the powered-on ND-100 and run it">Boot BPUN file...</button>
           <button class="toolbar-menu-item" id="menu-printer">Printer</button>
           <button class="toolbar-menu-item" id="menu-paper-tape">Paper Tape</button>
           <div class="toolbar-menu-separator"></div>
@@ -222,6 +213,10 @@
     <div class="toolbar-right">
       <span id="status" class="toolbar-status">Initializing...</span>
       <div class="toolbar-separator"></div>
+      <!-- Which machine Power starts: the Machine Setup profiles, by name.
+           Locked once powered on, like the Boot device. -->
+      <label class="toolbar-boot-label" for="toolbar-machine-select">Machine:</label>
+      <select id="toolbar-machine-select" class="toolbar-boot-select" title="The machine configuration Power starts (Machine Setup)"></select>
       <!-- Power -->
       <button id="toolbar-power" class="toolbar-btn toolbar-power-btn" disabled title="Power on">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
@@ -229,23 +224,10 @@
           <path d="M18.36 6.64A9 9 0 1 1 5.64 6.64" fill="none"/>
         </svg>
       </button>
-      <!-- Boot device selector -->
-      <label class="toolbar-boot-label" for="boot-select">Boot:</label>
-      <select id="boot-select" class="toolbar-boot-select" disabled>
-        <option value="smd" selected>SMD</option>
-        <option value="scsi">SCSI</option>
-        <option value="winchester">Winchester</option>
-        <option value="floppy">FLOPPY</option>
-        <option value="bpun">BPUN</option>
-      </select>
-      <!-- Hidden file input for BPUN upload -->
+      <!-- No Boot device here: the machine's own [boot] device (Machine Setup)
+           decides, and Power boots it. A BPUN is loaded from View > Boot BPUN
+           file... through this hidden picker. -->
       <input type="file" id="bpun-file-input" accept=".bpun,.BPUN,.out,.img,.IMG" style="display:none">
-      <!-- Boot -->
-      <button id="toolbar-boot" class="toolbar-btn toolbar-boot-btn" disabled title="Boot">
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-          <polygon points="5,3 13,8 5,13"/>
-        </svg>
-      </button>
       <div class="toolbar-separator"></div>
     </div>
   </div>
@@ -369,27 +351,147 @@
       <div class="smd-copy-actions" style="margin-bottom:8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
         <select id="machine-setup-profile" style="flex:1 1 160px;min-width:140px;font-size:12px;padding:3px;"></select>
         <button class="smd-action-btn" id="machine-setup-new">New</button>
+        <button class="smd-action-btn" id="machine-setup-clone" title="A copy of this machine, to change">Clone</button>
         <button class="smd-action-btn" id="machine-setup-rename">Rename</button>
         <button class="smd-action-btn" id="machine-setup-delete">Delete</button>
       </div>
-      <div class="smd-image-meta" style="margin-bottom:6px;opacity:0.75;">
-        Edit controllers, CPU type, terminals and boot device. Validate uses the same parser as the native binary. Download a .ini to run the same machine with nd100x. The selected machine is the one the emulator starts.
+      <div class="smd-image-meta" style="margin-bottom:6px;" id="machine-setup-kind-label"></div>
+      <!-- A built-in machine is read-only; this says so. -->
+      <div id="machine-setup-lock-note" style="display:none;margin-bottom:8px;padding:6px 8px;border:1px solid rgba(255,180,80,0.35);border-radius:4px;color:#ffc880;" class="smd-image-meta">
+        Built-in demo machine: read-only. Clone it to make a machine you can change.
       </div>
-      <div id="machine-setup-form"></div>
-      <div style="margin-top:8px;">
-        <button class="smd-action-btn" id="machine-setup-advanced-toggle">Advanced (INI)</button>
+
+      <!-- New machine dialog - the type is picked once, at creation. A
+           machine does not change kind later; make another one instead. -->
+      <div id="machine-setup-new-dialog" class="smd-copy-dialog" style="display:none">
+        <div class="smd-copy-dialog-title">New Machine</div>
+        <label class="smd-copy-label">Name
+          <input type="text" id="machine-setup-new-name" class="smd-copy-input" maxlength="60">
+        </label>
+        <label class="smd-copy-label">Type
+          <select id="machine-setup-new-kind" class="smd-copy-input">
+            <option value="nd100" selected>ND-100</option>
+            <option value="nd500-ndix">ND-500 standalone (NDIX)</option>
+          </select>
+        </label>
+        <div class="smd-copy-actions">
+          <button class="smd-action-btn" id="machine-setup-new-cancel">Cancel</button>
+          <button class="smd-action-btn smd-copy-confirm-btn" id="machine-setup-new-confirm">Create</button>
+        </div>
       </div>
-      <div id="machine-setup-advanced" style="display:none;margin-top:6px;">
-        <textarea id="machine-setup-ini" spellcheck="false"
-          style="width:100%;height:220px;font-family:monospace;font-size:12px;box-sizing:border-box;white-space:pre;overflow:auto;"></textarea>
+
+      <!-- ND-100 panel -->
+      <div id="machine-setup-nd100-panel">
+        <div class="smd-image-meta" style="margin-bottom:6px;opacity:0.75;">
+          Edit controllers, CPU type, terminals and boot device. Validate uses the same parser as the native binary. Download a .ini to run the same machine with nd100x. The selected machine is the one the emulator starts.
+        </div>
+        <div id="machine-setup-form"></div>
+        <!-- The Terminal section lives here, above the buttons, with the rest of
+             the machine; machine-setup.js moves it to the NDIX panel's slot when
+             that kind of machine is up. -->
+        <div id="machine-setup-nd100-terminal-slot">
+      <div id="machine-setup-terminal-section">
+      <!-- Terminal settings - both kinds of machine. Applied as changed and
+           saved with the machine; a SINTRAN machine wants the TDV2200, NDIX a
+           VT100. The emulator and language rows only mean something on
+           RetroTerm, so they show only then (machine-setup.js). -->
+      <div class="smd-section-title" style="margin-top:8px;">Terminal</div>
+      <div style="margin-bottom:10px;">
+        <!-- One setting per row, labels aligned, each row only when it means
+             something for the renderer above it. -->
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+          <span style="opacity:.7;width:80px;">Renderer</span>
+          <select id="machine-setup-term-backend" style="font-size:12px;padding:2px;min-width:200px;">
+            <option value="retroterm">RetroTerm (authentic)</option>
+            <option value="xterm">xterm.js (VT100)</option>
+          </select>
+        </div>
+        <div id="machine-setup-term-emulator-row" style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+          <span style="opacity:.7;width:80px;">Emulator</span>
+          <select id="machine-setup-term-emulator" style="font-size:12px;padding:2px;min-width:200px;">
+            <option value="tdv2200">TDV 2200</option>
+            <option value="tdv2215">TDV 2215</option>
+            <option value="vt100">VT100</option>
+          </select>
+        </div>
+        <div id="machine-setup-term-language-row" style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+          <span style="opacity:.7;width:80px;">Keyboard</span>
+          <select id="machine-setup-term-language" style="font-size:12px;padding:2px;min-width:200px;" title="National keyboard / ISO 646 character set, keyboard and display">
+            <option value="off">International</option>
+            <option value="no">Norwegian</option>
+            <option value="se">Swedish</option>
+            <option value="de">German</option>
+          </select>
+        </div>
+        <div class="smd-image-meta" style="opacity:.6;margin-top:3px;" id="machine-setup-term-note"></div>
       </div>
+      </div>
+        </div>
+        <div style="margin-top:8px;">
+          <button class="smd-action-btn" id="machine-setup-advanced-toggle">Advanced (INI)</button>
+        </div>
+        <div id="machine-setup-advanced" style="display:none;margin-top:6px;">
+          <textarea id="machine-setup-ini" spellcheck="false"
+            style="width:100%;height:220px;font-family:monospace;font-size:12px;box-sizing:border-box;white-space:pre;overflow:auto;"></textarea>
+        </div>
+        <div class="smd-copy-actions" style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">
+          <button class="smd-action-btn" id="machine-setup-validate">Validate</button>
+          <button class="smd-action-btn" id="machine-setup-save">Save</button>
+          <button class="smd-action-btn" id="machine-setup-reset">Reset to default</button>
+          <button class="smd-action-btn smd-copy-confirm-btn" id="machine-setup-download">Download .ini</button>
+        </div>
+      </div>
+
+      <!-- ND-500 standalone (NDIX) panel - no ND-100, no MFbus, one disc
+           type. Boots by reading /vmunix off the root disc itself, the same
+           as "nd500x --ndix" natively - no kernel/.pseg/.dseg to pick. -->
+      <div id="machine-setup-ndix-panel" style="display:none;">
+        <div class="smd-image-meta" style="margin-bottom:6px;opacity:0.75;">
+          Standalone ND-500, running NDIX. Boots straight off the root disc -
+          no kernel to choose. The root disc is either the server's own NDIX
+          image (downloaded at power-on, like the ND-100's demo SMD pack) or
+          one tagged ND-500 / NDIX root in the local disk library.
+        </div>
+        <!-- Same layout as the ND-100 form (machine-form.js): a section title,
+             then left-aligned label + control rows. -->
+        <div class="smd-section-title">Root disc</div>
+        <div style="margin-bottom:10px;">
+          <!-- Demo mode: the served demo image, nothing to choose. Persistent
+               storage on: any local-library image tagged ND-500 / NDIX root.
+               machine-setup.js shows one or the other. -->
+          <div id="machine-setup-ndix-disk-demo" style="display:none;"></div>
+          <label id="machine-setup-ndix-disk-row" style="margin-right:12px;">Image
+            <select id="machine-setup-ndix-disk" style="font-size:12px;padding:2px;min-width:220px;"></select>
+          </label>
+          <div id="machine-setup-ndix-disk-note" class="smd-image-meta" style="opacity:.6;margin-top:3px;display:none;"></div>
+          <div style="margin-top:6px;">
+            <label style="display:inline-flex;align-items:center;gap:4px;">
+              <input type="checkbox" id="machine-setup-ndix-writable"> Writable
+            </label>
+          </div>
+          <div class="smd-image-meta" style="opacity:.6;margin-top:3px;">
+            NDIX writes to its root disc as it runs. The disc is loaded into memory for
+            the session and nothing is written back to the server or the library, so
+            leave this on; untick it only to run the disc read-only.
+          </div>
+        </div>
+        <div class="smd-section-title">Memory</div>
+        <div style="margin-bottom:10px;">
+          <label>Size
+            <select id="machine-setup-ndix-memory" style="font-size:12px;padding:2px;">
+              <option value="8">8 MB</option>
+              <option value="16" selected>16 MB</option>
+              <option value="32">32 MB</option>
+            </select>
+          </label>
+        </div>
+        <div id="machine-setup-ndix-terminal-slot"></div>
+        <div class="smd-copy-actions" style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">
+          <button class="smd-action-btn smd-copy-confirm-btn" id="machine-setup-ndix-save">Save</button>
+        </div>
+      </div>
+
       <div id="machine-setup-result" class="smd-image-meta" style="margin-top:6px;min-height:16px;"></div>
-      <div class="smd-copy-actions" style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">
-        <button class="smd-action-btn" id="machine-setup-validate">Validate</button>
-        <button class="smd-action-btn" id="machine-setup-save">Save</button>
-        <button class="smd-action-btn" id="machine-setup-reset">Reset to default</button>
-        <button class="smd-action-btn smd-copy-confirm-btn" id="machine-setup-download">Download .ini</button>
-      </div>
     </div>
     <div class="glass-resize-handle" id="machine-setup-resize">
       <svg class="glass-resize-grip" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="11" y1="1" x2="1" y2="11"/><line x1="11" y1="5" x2="5" y2="11"/><line x1="11" y1="9" x2="9" y2="11"/></svg>
@@ -558,14 +660,6 @@
         </label>
         <span class="config-toggle-label">Persistent disk storage</span>
       </div>
-      <div class="config-option" id="config-enable-5000-row">
-        <label class="config-toggle">
-          <input type="checkbox" id="config-enable-5000">
-          <span class="config-toggle-slider"></span>
-        </label>
-        <span class="config-toggle-label">Enable 5000 CPU</span>
-        <span class="config-toggle-label" style="opacity:0.5; font-size:10px; margin-left:4px">applies at next power-on</span>
-      </div>
       <div class="config-section-title" style="margin-top:16px">Terminal</div>
       <div class="config-option">
         <label class="config-toggle">
@@ -581,32 +675,8 @@
         </label>
         <span class="config-toggle-label">Auto pop-out terminal windows</span>
       </div>
-      <div class="config-option" id="config-terminal-backend-row">
-        <span class="config-toggle-label" style="min-width:60px">Renderer</span>
-        <select id="config-terminal-backend" class="term-header-select" title="Terminal renderer backend">
-          <option value="xterm">xterm.js (generic)</option>
-          <option value="retroterm">RetroTerm (authentic)</option>
-        </select>
-        <span class="config-toggle-label" style="opacity:0.5; font-size:10px; margin-left:4px">reload required</span>
-      </div>
-      <div class="config-option" id="config-emulator-type-row" style="display:none; margin-left:20px">
-        <span class="config-toggle-label" style="min-width:60px">Emulator</span>
-        <select id="config-emulator-type" class="term-header-select" title="Terminal emulator type">
-          <option value="vt100">VT100</option>
-          <option value="tdv2200">TDV 2200</option>
-          <option value="tdv2215">TDV 2215</option>
-        </select>
-        <span class="config-toggle-label" style="opacity:0.5; font-size:10px; margin-left:4px">reload required</span>
-      </div>
-      <div class="config-option" id="config-keyboard-language-row" style="display:none; margin-left:20px">
-        <span class="config-toggle-label" style="min-width:60px">Language</span>
-        <select id="config-keyboard-language" class="term-header-select" title="National keyboard / ISO 646 character set">
-          <option value="off">International</option>
-          <option value="no">Norwegian</option>
-          <option value="se">Swedish</option>
-          <option value="de">German</option>
-        </select>
-        <span class="config-toggle-label" style="opacity:0.5; font-size:10px; margin-left:4px">keyboard &amp; display</span>
+      <div class="config-option">
+        <span class="smd-image-meta" style="opacity:.6;">The renderer, emulated terminal and keyboard language belong to the machine: Machine Setup &gt; Terminal.</span>
       </div>
       <div class="config-section-title" style="margin-top:16px" id="config-network-title">Network</div>
       <div class="config-option" id="config-ws-bridge-row">
@@ -744,7 +814,12 @@
     </div>
     <div class="terminal-window-body" id="terminal-window-body">
       <div class="terminal-tabs"></div>
-      <!-- Terminal containers created dynamically by JS -->
+      <!-- Terminal containers created dynamically by JS. For an ND-500
+           standalone (NDIX) machine, terminal 1 itself (terminal-container-1)
+           is built and driven here too - same container, same
+           createScaledTerminal() factory as the ND-100 console. Not a second
+           console: there is only ever one terminal 1, whichever machine is
+           running. -->
     </div>
     <div class="glass-resize-handle" id="terminal-window-resize">
       <svg class="glass-resize-grip" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
@@ -848,63 +923,6 @@
   <!-- =========================================
        PRINTER WINDOW (hidden by default)
        ========================================= -->
-  <!-- The ND-500, running NDIX. It is NOT connected to the ND-100 in this
-       page: no shared memory, no 3022 bus interface - the ND-500 answers its
-       own front-end calls the way nd500x does natively. Saying so on screen
-       matters, because a window sitting next to the ND-100 terminal invites
-       exactly the wrong assumption. -->
-  <div id="nd500-window" class="glass-window" style="display:none;width:720px;height:520px;flex-direction:column;top:60px;left:120px;">
-    <div class="glass-window-header" id="nd500-header">
-      <span class="glass-window-title">ND-500 Console (NDIX)</span>
-      <button class="glass-window-close" id="nd500-close">
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="2" y1="2" x2="10" y2="10"/><line x1="10" y1="2" x2="2" y2="10"/></svg>
-      </button>
-    </div>
-    <div class="glass-resize-handle" id="nd500-resize">
-      <svg class="glass-resize-grip" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
-        <line x1="11" y1="1" x2="1" y2="11"/><line x1="11" y1="5" x2="5" y2="11"/><line x1="11" y1="9" x2="9" y2="11"/>
-      </svg>
-    </div>
-
-    <div style="padding:8px;border-bottom:1px solid rgba(255,255,255,0.12);font-size:12px;">
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px;">
-        <label title="Optional. Leave empty to boot directly from disc.">Kernel (opt) <input type="file" id="nd500-kernel-file" style="font-size:11px;width:180px;"></label>
-        <label title="Optional. Both or neither - with an incomplete pair the sizes are derived from the a.out header.">.pseg <input type="file" id="nd500-pseg-file" style="font-size:11px;width:130px;"></label>
-        <label>.dseg <input type="file" id="nd500-dseg-file" style="font-size:11px;width:130px;"></label>
-      </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px;">
-        <label>Root disc <select id="nd500-disk-select" style="font-size:12px;padding:2px;min-width:200px;"></select></label>
-        <label>or file <input type="file" id="nd500-disk-file" style="font-size:11px;width:150px;"></label>
-        <!-- Read-only by default, and it is not a formality: NDIX writes to its
-             root the moment it boots, and these images are not reproducible. -->
-        <label style="display:inline-flex;align-items:center;gap:4px;" title="NDIX writes to its root as soon as it boots. Leave this off unless you mean it.">
-          <input type="checkbox" id="nd500-writable"> writable
-        </label>
-      </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-        <label>Memory <select id="nd500-memory" style="font-size:12px;padding:2px;">
-          <option value="8">8 MB</option>
-          <option value="16" selected>16 MB</option>
-          <option value="32">32 MB</option>
-        </select></label>
-        <label title="Instructions executed per 40 ms tick. Higher is faster and less responsive.">Slice
-          <input type="text" id="nd500-slice" value="300000" style="width:70px;font-size:12px;padding:2px;">
-        </label>
-        <button class="smd-action-btn" id="nd500-boot">Boot</button>
-        <button class="smd-action-btn" id="nd500-stop" disabled>Pause</button>
-        <span id="nd500-status" class="smd-image-meta" style="margin-left:auto;"></span>
-      </div>
-    </div>
-
-    <!-- Lines prefixed "| " are the emulator's own boot log, not NDIX talking. -->
-    <div id="nd500-console" style="flex:1 1 auto;overflow:hidden;margin:0;padding:4px;min-height:0;"></div>
-
-    <div class="smd-image-meta" style="padding:4px 8px;border-top:1px solid rgba(255,255,255,0.12);opacity:.7;">
-      This ND-500 runs on its own - it is not wired to the ND-100 in this page.
-      Click the console to type at the guest.
-    </div>
-  </div>
-
   <div id="printer-window" class="glass-window" style="display: none; width: 650px; height: 450px;">
     <div class="glass-window-header" id="printer-header">
       <span class="glass-window-title">Printer</span>
@@ -994,7 +1012,7 @@
   <!-- =========================================
        SMD DISK MANAGER WINDOW (hidden by default)
        ========================================= -->
-  <div id="smd-manager-window" class="glass-window" style="display: none;">
+  <div id="smd-manager-window" class="glass-window" style="display: none; width: 760px; height: min(720px, calc(100vh - 70px));">
     <div class="glass-window-header" id="smd-manager-header">
       <span class="glass-window-title">HDD Disk Manager</span>
       <button class="glass-window-close" id="smd-manager-close">
@@ -1007,43 +1025,75 @@
       </svg>
     </div>
     <div class="glass-window-body" style="padding:12px;overflow-y:auto;">
+      <!-- Shown while persistent disk storage is off: the library needs it. -->
+      <div id="hdd-persist-notice" class="smd-image-meta" style="display:none;margin-bottom:8px;padding:6px 8px;border:1px solid rgba(255,180,80,0.35);border-radius:4px;color:#ffc880;">
+        Persistent disk storage is off (Config &gt; Emulation; it needs Background execution).
+        Without it there is no local disk library and images cannot be copied in here; the
+        server catalog is still shown. Drives are given their images in Machine Setup.
+      </div>
       <!-- Disk-type tabs: SMD (4 units), SCSI (IDs 0-6), Winchester (2 units). -->
       <div class="hdd-tabs" id="hdd-tabs" style="display:flex;gap:6px;margin-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.15);padding-bottom:6px;">
         <button class="hdd-tab hdd-tab-active" data-hdd-tab="smd" onclick="hddSelectTab('smd')">SMD</button>
         <button class="hdd-tab" data-hdd-tab="scsi" onclick="hddSelectTab('scsi')">SCSI</button>
         <button class="hdd-tab" data-hdd-tab="winchester" onclick="hddSelectTab('winchester')"
                 title="ST506/8 inch Winchester (cards 3041/3038), IOX 500-507">Winchester</button>
+        <button class="hdd-tab" data-hdd-tab="ndix" onclick="hddSelectTab('ndix')"
+                title="Root discs for a standalone ND-500 running NDIX">NDIX</button>
       </div>
       <div id="smd-manager-body">
-        <div class="smd-section-title">Drive Configuration</div>
-        <div class="smd-unit-list">
-          <div class="smd-unit-row">
-            <span class="smd-unit-label">Unit 0 (boot)</span>
-            <span class="smd-unit-name" id="smd-unit-0-name">Not assigned</span>
-            <button class="smd-eject-btn" id="smd-unit-0-eject" style="display:none" onclick="smdEjectUnit(0)">Eject</button>
-          </div>
-          <div class="smd-unit-row">
-            <span class="smd-unit-label">Unit 1</span>
-            <span class="smd-unit-name" id="smd-unit-1-name">Not assigned</span>
-            <button class="smd-eject-btn" id="smd-unit-1-eject" style="display:none" onclick="smdEjectUnit(1)">Eject</button>
-          </div>
-          <div class="smd-unit-row">
-            <span class="smd-unit-label">Unit 2</span>
-            <span class="smd-unit-name" id="smd-unit-2-name">Not assigned</span>
-            <button class="smd-eject-btn" id="smd-unit-2-eject" style="display:none" onclick="smdEjectUnit(2)">Eject</button>
-          </div>
-          <div class="smd-unit-row">
-            <span class="smd-unit-label">Unit 3</span>
-            <span class="smd-unit-name" id="smd-unit-3-name">Not assigned</span>
-            <button class="smd-eject-btn" id="smd-unit-3-eject" style="display:none" onclick="smdEjectUnit(3)">Eject</button>
-          </div>
-        </div>
         <div class="smd-section-title" style="margin-top:12px">
           Local Disk Library
           <div class="smd-lib-actions">
             <button class="smd-action-btn" id="smd-import-btn" title="Import .IMG from local file">Import</button>
           </div>
         </div>
+        <div id="smd-installed-list" class="smd-installed-list">
+          <div class="smd-empty-msg">Loading...</div>
+        </div>
+        <div id="smd-storage-info" class="smd-storage-info"></div>
+      </div>
+      <!-- SCSI panel (ND-3201/3204 controller, targets ID 0-6; ID 7 is the controller) -->
+      <div id="hdd-scsi-body" style="display:none">
+        <div class="smd-section-title" style="margin-top:12px">Local Disk Library (SCSI)
+          <div class="smd-lib-actions">
+            <button class="smd-action-btn hdd-import-btn" data-type="scsi" title="Import .IMG from local file">Import</button>
+          </div>
+        </div>
+        <div id="hdd-scsi-installed-list" class="smd-installed-list">
+          <div class="smd-empty-msg">Only images tagged as SCSI (hdd) can be assigned to SCSI IDs.</div>
+        </div>
+      </div>
+      <div id="hdd-winchester-body" style="display:none">
+        <!-- Two units, per the wd descriptor (src/machine/machine_config.c):
+             disk system 1 carries the unit in one bit of the control word.
+             The card answers IOX 500-507, the same block as the CDC cartridge
+             system disc, so a machine has one or the other. -->
+        <div class="smd-section-title" style="margin-top:12px">Local Disk Library (Winchester)
+          <div class="smd-lib-actions">
+            <button class="smd-action-btn hdd-import-btn" data-type="winchester" title="Import .IMG from local file">Import</button>
+          </div>
+        </div>
+        <div id="hdd-winchester-installed-list" class="smd-installed-list">
+          <div class="smd-empty-msg">Only images tagged as Winchester can be assigned to a Winchester unit.</div>
+        </div>
+      </div>
+      <div id="hdd-ndix-body" style="display:none">
+        <!-- No units: an NDIX root disc is not on an ND-100 controller. It is
+             chosen as the root disc of an ND-500 NDIX machine in Machine Setup. -->
+        <div class="smd-section-title">NDIX Root Discs</div>
+        <div class="smd-image-meta" style="opacity:.7;margin-bottom:6px;">Root discs for a standalone ND-500 running NDIX. Choose one in Machine Setup &gt; (an ND-500 NDIX machine) &gt; Root disc.</div>
+        <div class="smd-section-title" style="margin-top:12px">Local Disk Library (NDIX)
+          <div class="smd-lib-actions">
+            <button class="smd-action-btn hdd-import-btn" data-type="nd500" title="Import .IMG from local file">Import</button>
+          </div>
+        </div>
+        <div id="hdd-ndix-installed-list" class="smd-installed-list">
+          <div class="smd-empty-msg">No NDIX root discs in the library.</div>
+        </div>
+      </div>
+      <!-- Server Catalog and Remote Images: one set of sections under every
+           tab, showing only the active tab's disk type (smd-manager.js). -->
+      <div id="hdd-shared-sections">
         <div id="smd-import-dialog" class="smd-copy-dialog" style="display:none">
           <div class="smd-copy-dialog-title">Tag Imported Disk</div>
           <div class="smd-image-meta" style="margin-bottom:8px;" id="smd-import-filename"></div>
@@ -1055,12 +1105,8 @@
             <button class="smd-action-btn smd-copy-confirm-btn" id="smd-import-confirm">Import</button>
           </div>
         </div>
-        <div id="smd-installed-list" class="smd-installed-list">
-          <div class="smd-empty-msg">Loading...</div>
-        </div>
-        <div id="smd-storage-info" class="smd-storage-info"></div>
         <div class="smd-section-title" style="margin-top:12px">
-          Server Catalog
+          Server Catalog <span id="hdd-shared-type" class="smd-image-meta" style="font-weight:normal;opacity:.7;"></span>
         </div>
         <div id="smd-catalog-list" class="smd-installed-list">
           <div class="smd-empty-msg">Loading catalog...</div>
@@ -1086,74 +1132,6 @@
         </div>
         <div id="smd-remote-list" class="smd-installed-list">
           <div class="smd-empty-msg">No gateway connection.</div>
-        </div>
-      </div>
-      <!-- SCSI panel (ND-3201/3204 controller, targets ID 0-6; ID 7 is the controller) -->
-      <div id="hdd-scsi-body" style="display:none">
-        <div class="smd-section-title">SCSI Targets (ID 0-6)</div>
-        <div class="smd-unit-list" id="hdd-scsi-unit-list">
-          <div class="smd-unit-row">
-            <span class="smd-unit-label">ID 0 (boot)</span>
-            <span class="smd-unit-name" id="scsi-unit-0-name">Not assigned</span>
-            <button class="smd-eject-btn" id="scsi-unit-0-eject" style="display:none" onclick="hddScsiEjectUnit(0)">Eject</button>
-          </div>
-          <div class="smd-unit-row">
-            <span class="smd-unit-label">ID 1</span>
-            <span class="smd-unit-name" id="scsi-unit-1-name">Not assigned</span>
-            <button class="smd-eject-btn" id="scsi-unit-1-eject" style="display:none" onclick="hddScsiEjectUnit(1)">Eject</button>
-          </div>
-          <div class="smd-unit-row">
-            <span class="smd-unit-label">ID 2</span>
-            <span class="smd-unit-name" id="scsi-unit-2-name">Not assigned</span>
-            <button class="smd-eject-btn" id="scsi-unit-2-eject" style="display:none" onclick="hddScsiEjectUnit(2)">Eject</button>
-          </div>
-          <div class="smd-unit-row">
-            <span class="smd-unit-label">ID 3</span>
-            <span class="smd-unit-name" id="scsi-unit-3-name">Not assigned</span>
-            <button class="smd-eject-btn" id="scsi-unit-3-eject" style="display:none" onclick="hddScsiEjectUnit(3)">Eject</button>
-          </div>
-          <div class="smd-unit-row">
-            <span class="smd-unit-label">ID 4</span>
-            <span class="smd-unit-name" id="scsi-unit-4-name">Not assigned</span>
-            <button class="smd-eject-btn" id="scsi-unit-4-eject" style="display:none" onclick="hddScsiEjectUnit(4)">Eject</button>
-          </div>
-          <div class="smd-unit-row">
-            <span class="smd-unit-label">ID 5</span>
-            <span class="smd-unit-name" id="scsi-unit-5-name">Not assigned</span>
-            <button class="smd-eject-btn" id="scsi-unit-5-eject" style="display:none" onclick="hddScsiEjectUnit(5)">Eject</button>
-          </div>
-          <div class="smd-unit-row">
-            <span class="smd-unit-label">ID 6</span>
-            <span class="smd-unit-name" id="scsi-unit-6-name">Not assigned</span>
-            <button class="smd-eject-btn" id="scsi-unit-6-eject" style="display:none" onclick="hddScsiEjectUnit(6)">Eject</button>
-          </div>
-        </div>
-        <div class="smd-section-title" style="margin-top:12px">Local Disk Library (SCSI)</div>
-        <div id="hdd-scsi-installed-list" class="smd-installed-list">
-          <div class="smd-empty-msg">Only images tagged as SCSI (hdd) can be assigned to SCSI IDs.</div>
-        </div>
-      </div>
-      <div id="hdd-winchester-body" style="display:none">
-        <!-- Two units, per the wd descriptor (src/machine/machine_config.c):
-             disk system 1 carries the unit in one bit of the control word.
-             The card answers IOX 500-507, the same block as the CDC cartridge
-             system disc, so a machine has one or the other. -->
-        <div class="smd-section-title">Winchester Units (0-1)</div>
-        <div class="smd-unit-list" id="hdd-winchester-unit-list">
-          <div class="smd-unit-row">
-            <span class="smd-unit-label">Unit 0 (boot)</span>
-            <span class="smd-unit-name" id="wd-unit-0-name">Not assigned</span>
-            <button class="smd-eject-btn" id="wd-unit-0-eject" style="display:none" onclick="hddWinchesterEjectUnit(0)">Eject</button>
-          </div>
-          <div class="smd-unit-row">
-            <span class="smd-unit-label">Unit 1</span>
-            <span class="smd-unit-name" id="wd-unit-1-name">Not assigned</span>
-            <button class="smd-eject-btn" id="wd-unit-1-eject" style="display:none" onclick="hddWinchesterEjectUnit(1)">Eject</button>
-          </div>
-        </div>
-        <div class="smd-section-title" style="margin-top:12px">Local Disk Library (Winchester)</div>
-        <div id="hdd-winchester-installed-list" class="smd-installed-list">
-          <div class="smd-empty-msg">Only images tagged as Winchester can be assigned to a Winchester unit.</div>
         </div>
       </div>
     </div>
@@ -1661,6 +1639,9 @@
   </script>
 
   <!-- SMD persistent storage (must load before module-init uses it during boot) -->
+  <!-- disk-types.js: the drive/disk type tables (unit counts, labels) the HDD
+       manager and Machine Setup read. The workers importScripts it too. -->
+  <script src="js/disk-types.js"></script>
   <script src="js/smd-storage.js"></script>
   <!-- Unified drive mount registry (must load before floppy-browser and smd-manager) -->
   <script src="js/drive-registry.js"></script>
@@ -1698,7 +1679,7 @@
   <script src="js/machine-profiles.js"></script>
   <script src="js/machine-form.js"></script>
   <script src="js/machine-setup.js"></script>
-  <script src="js/nd500-window.js"></script>
+  <script src="js/ndix-machine.js"></script>
   <script src="js/printer.js"></script>
   <script src="js/paper-tape.js"></script>
   <!-- Window taskbar -->

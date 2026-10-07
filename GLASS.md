@@ -150,15 +150,16 @@ sequenceDiagram
     B->>TC: Load color themes, font options, factory functions
     B->>TM: Apply saved theme from localStorage
     B->>TB: Wire toolbar buttons and menus
-    Note over U: User clicks Power button
+    Note over U: User picks a machine (toolbar-machine-select)<br/>and clicks Power
     U->>TB: toolbar-power click
-    TB->>WM: Module._Init()
-    Note over TB: Enable boot selector and boot button<br/>Start SINTRAN detection polling
+    Note over TB: ND-500 NDIX machine: ndix-machine.js<br/>creates, mounts the root disc, boots - no ND-100
+    TB->>TB: preloadBootImage() - demo mode fetches the [boot] unit's image into MEMFS
+    TB->>WM: Module._InitWithConfig(ini of the active machine)
+    Note over TB: Start SINTRAN detection polling
     TB->>TM: initializeTerminals()
-    Note over U: User clicks Boot button
-    U->>TB: toolbar-boot click
-    TB->>WM: Module._Boot(type)
-    Note over TB: type: 0=floppy, 1=smd, 2=bpun
+    TB->>TB: bootConfiguredMachine() - DescribeMachineINI says what [boot] device is
+    TB->>WM: Module._BootFrom(type, unit, image)
+    Note over TB: type: 0=floppy, 1=smd, 3=scsi, 4=winchester;<br/>device = none: powered on, nothing loaded
     TB->>E: startEmulation()
     E->>E: requestAnimationFrame(executeInstructionBatch)
     loop Every animation frame
@@ -377,7 +378,10 @@ The taskbar also contains the CPU load mini-graph canvas (80x24px) and a setting
 | Terminal Manager | `terminal-manager.js` (from `ts/terminal-manager.ts`) | Terminal creation, tabs, floating windows, settings UI, active terminal tracking | `initializeTerminals()`, `createTerminal()`, `sendKey()`, `switchTerminal()`, `switchTerminalMode()`, `updateTerminalSubmenu()` |
 | Terminal Bridge | `terminal-bridge.js` (from `ts/terminal-bridge.ts`) | Pop-out terminal BroadcastChannel bridge, output buffering | `window.popOutTerminal()`, `window.popInTerminal()`, `window.isPoppedOut()`, `window.bufferPopoutOutput()`, `window.broadcastThemeChange()` |
 | Emulation | `emulation.js` | Main execution loop, CPU load sampling, level bars | `startEmulation()`, `stopEmulation()`, `createLevelBars()` |
-| Toolbar | `toolbar.js` | Window management, drag/resize, menus, power/boot buttons | `makeDraggable()`, `makeResizable()`, `windowManager` |
+| Toolbar | `toolbar.js` | Window management, drag/resize, menus, machine selector, Power (= init + boot of the machine's `[boot]` device) | `makeDraggable()`, `makeResizable()`, `windowManager`, `bootConfiguredMachine()`, `refreshMachineSelect()` |
+| NDIX machine | `ndix-machine.js` | A standalone ND-500 running NDIX as a machine kind: boots the root disc onto terminal 1, ttys onto terminals 2+ | `ndixMachine.powerOn()`, `ndixMachine.isSelected()` |
+| Machine profiles | `machine-profiles.js` | Named machines in localStorage: `nd100` (INI) or `nd500-ndix` kinds. The four built-in machines (ND-100, ND-5000, BSD 2.11, 500 NDIX-C) are read-only and always first - Clone one to change it. Per machine: terminal settings (`terminal()`), catalog floppies for the floppy drives (`floppies()`, fetched from the archive at power-on) and library images for the drives (`library()`, mounted at power-on - the machine is the master of its drives). Store v3 drops the pre-built-in leftovers on upgrade | `machineProfiles.ini()`, `.kind()`, `.ndix()`, `.terminal()`, `.floppies()`, `.library()`, `.isShipped()`, `.clone()`, `.create()`, `.createNdix()` |
+| Machine form | `machine-form.js` | The Machine Setup form: CPU, ND-5000 box, controllers and disks, terminals, boot drive (enabled controllers only, or none). Disk slots: with persistent storage on, a dropdown of library images of the controller's type; in demo mode locked to the server's demo image names. Floppy slots also have an Archive... picker into the Norsk Data software archive | `machineForm.load()`, `.toINI()`, `.floppyPicks()`, `.libraryPicks()` |
 | Floppy Browser | `floppy-browser.js` | Floppy image library, search, product filter, mount | `openFloppyBrowser()`, `closeFloppyBrowser()` |
 | Help | `help-window.js` | SINTRAN command help, search, section navigation | `openHelpWindow()`, `closeHelpWindow()` |
 | Debugger | `debugger.js` | Register display, memory view, flags, step controls | `window.dbgShowWindow()`, `window.dbgHideWindow()`, `window.dbgActivateBreakpoint()` |
@@ -442,9 +446,9 @@ The toolbar is a sticky bar at the top of the viewport containing:
 | Element | ID | Purpose |
 |---------|----|---------|
 | Status text | `status` | Shows "Ready", "Running", "Breakpoint hit", etc. |
-| Power button | `toolbar-power` | Toggle power on/off (off reloads the page) |
-| Boot type selector | `boot-select` | Dropdown: SMD, Floppy, BPUN |
-| Boot button | `toolbar-boot` | Trigger boot with selected type |
+| Machine selector | `toolbar-machine-select` | Which Machine Setup profile Power starts; locked while powered on |
+| Power button | `toolbar-power` | Power on = build the machine and boot its `[boot]` device (off reloads the page). No separate Boot step: the boot drive is part of the machine (Machine Setup), `device = none` powers on with nothing loaded |
+| Boot BPUN file | `menu-boot-bpun` (View menu) | Load a BPUN into a powered-on ND-100 through the hidden `bpun-file-input` |
 | Reset button | `toolbar-reset` | Reset the emulator |
 
 ---
@@ -518,14 +522,21 @@ Pop-out windows use `getOpaqueTheme()` which replaces transparent backgrounds wi
 
 Settings are persisted in localStorage key `terminal-settings` via `getTerminalSettings()` and `saveTerminalSettings()` from `terminal-core.ts`.
 
-### The ND-500 console is a VT100, and NDIX must be told which one
+### Terminal renderer, emulator and keyboard belong to the machine
 
-The ND-500 window (`nd500-window.js`) does **not** follow the `TERMINAL_BACKEND`
-setting the ND-100 terminals use. It asks `createScaledTerminal()` for xterm
-outright, with `forceXterm: true`. RetroTerm ships one emulator, the TDV2200
-(`lib/retroterm/emulators/` holds `tdv` and nothing else), which is SINTRAN's
-terminal; NDIX drives its console with ANSI/VT100 escapes. So xterm.js is
-loaded on every page load, not only when it is the chosen ND-100 backend.
+Which renderer draws a machine's terminals (RetroTerm or xterm.js), which
+terminal it emulates (TDV 2200, TDV 2215, VT100) and which national keyboard
+it has are settings of the machine (Machine Setup › Terminal, stored by
+`machineProfiles.terminal()`), not of the browser. `terminal-core.ts` asks
+`currentTerminalSettings()` every time a terminal is created, and the console
+is rebuilt when the machine selector changes, so there is no reload. Both
+renderers are always loaded. An ND-100 machine defaults to RetroTerm's TDV
+2200 (SINTRAN's terminal); an ND-500 NDIX machine is always the xterm.js
+VT100 (`forceXterm`), because NDIX drives its console with ANSI/VT100 escapes
+and RetroTerm ships only the TDV (`lib/retroterm/emulators/` holds `tdv` and
+nothing else). The pop-out terminal page has no machine store and reads the
+`nd100x-terminal-backend` / `nd100x-emulator-type` / `nd100x-keyboard-language`
+keys, which `machine-profiles.js` keeps mirrored to the active machine.
 
 **In the guest, set `TERM=vt131`.**
 

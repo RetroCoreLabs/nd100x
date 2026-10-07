@@ -116,6 +116,19 @@ declare var hasReceivedTerminalOutput: boolean;
 declare var hasEverStartedEmulation: boolean;
 declare function handleTerminalOutput(identCode: number, charCode: number): number;
 
+// ---- Globals from ndix-machine.js (loads after the terminal modules) ----
+
+declare var ndixMachine: {
+  isSelected(): boolean;
+  isActive(): boolean;
+  isBooted(): boolean;
+  ttyTerminals(): { identCode: number; name: string }[];
+  sendKey(identCode: number, keyCode: number): boolean;
+  consoleTitle(): string;
+  powerOn(): Promise<boolean>;
+  stop(): void;
+} | undefined;
+
 // ---- Globals from toolbar.js ----
 
 declare function makeDraggable(win: HTMLElement, header: HTMLElement, storageKey: string): void;
@@ -152,6 +165,8 @@ interface Window {
   buildColorSelectHTML: (identCode: number) => string;
   getOpaqueTheme: (themeName: string) => ColorTheme;
   getEmulatorTypeLabel: () => string;
+  currentTerminalSettings: () => { backend: string; emulator: string; language: string };
+  isRetroTermBackend: () => boolean;
 
   // terminal-manager.ts globals
   activeTerminalId: number;
@@ -162,7 +177,6 @@ interface Window {
   // terminal-manager.ts RetroTerm globals
   virtualKeyboard: any;
   toggleVirtualKeyboard: () => void;
-  switchTerminalBackend: (backend: string) => void;
   fitTerminalRetroTerm: (term: Terminal, fitAddon: any, sizeDisplay?: HTMLElement | null) => void;
 
   // terminal-bridge.ts globals

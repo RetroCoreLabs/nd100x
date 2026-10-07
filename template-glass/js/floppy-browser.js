@@ -56,22 +56,35 @@ function archiveListing(r) {
 // Archive records -> the entry shape the browser code works with
 // (Name, Description, Reference, Md5, DirectoryContent, ...). Records without
 // an image in the archive are left out.
+// The archive holds more than ND floppies. Its `filesystem` field says what
+// an image is: ndfs (a SINTRAN floppy), backup (an ND BACKUP-SYSTEM set),
+// none (a boot-only or unrecognised ND floppy) - and dos (a PC floppy), tar,
+// winch (a Winchester pack, not a floppy at all). Only ND floppies are
+// listed; a DOS image mounted here is useless and its NDFS view is an error
+// ("Invalid NDFS master block" - a FAT boot sector is not a master block).
+const ARCHIVE_SKIP_FILESYSTEMS = { dos: true, tar: true, winch: true };
+
 function archiveToFloppies(records) {
   const out = [];
   records.forEach(function(r) {
     const imagePath = r && r.storage && r.storage.git && r.storage.git.imagePath;
     if (!r || !r.md5 || !imagePath) return;
+    if (ARCHIVE_SKIP_FILESYSTEMS[r.filesystem]) return;
     const stem = imagePath.split('/').pop().replace(/\.img\.gz$/, '');
-    const disk = r.diskNumber > 0 ? ' disk ' + r.diskNumber + ' of ' + (r.diskTotal || '?') : '';
-    const who = r.provenance && r.provenance.contributor;
+    const disk = r.diskNumber > 0 ? 'disk ' + r.diskNumber + ' of ' + (r.diskTotal || '?') : '';
+    // Product, version and disk number when known, then the file stem - and
+    // nothing else (no contributor).
+    const product = [r.productId || '', r.version || '', disk].filter(Boolean).join(' ');
     out.push({
       Id: out.length + 1,
       Status: 0,
       Name: r.volumeName || (r.backupSet && r.backupSet.name) || stem,
-      Description: (r.productId || '') + (r.version ? ' ' + r.version : '') + disk + ' - ' + stem + (who ? ' - from ' + who : ''),
+      Description: [product, stem].filter(Boolean).join(' - '),
       Reference: r.productId || '',
       ProductId: r.productId || '',
       Md5: r.md5,
+      // ndfs | backup | none - decides whether the NDFS view makes sense.
+      Filesystem: r.filesystem || 'none',
       ImageUrl: archiveImageUrl(imagePath),
       DirectoryContent: archiveListing(r)
     });
@@ -154,16 +167,29 @@ var uploadedFloppies = [];   // { id, name, fileName, size, hash, bytes, directo
 var uploadIdSeq = 1;
 var uploadUiInited = false;
 
-function openFloppyBrowser(defaultUnit) {
-  if (typeof defaultUnit === 'number') floppyBrowserDefaultUnit = defaultUnit;
+// Pick mode: Machine Setup opens the library to CHOOSE a catalog floppy for a
+// drive slot rather than mount one now. The details pane then shows Select
+// instead of the unit/Mount controls, and the chosen record goes to this
+// callback; the machine downloads and mounts it at power-on (toolbar.js).
+var floppyPickCallback = null;
+
+// openFloppyBrowser(defaultUnit) mounts as before; openFloppyBrowser({pick: fn})
+// is pick mode.
+function openFloppyBrowser(arg) {
+  floppyPickCallback = (arg && typeof arg === 'object' && typeof arg.pick === 'function') ? arg.pick : null;
+  if (typeof arg === 'number') floppyBrowserDefaultUnit = arg;
   var sel = document.getElementById('floppy-drive-select');
   if (sel) sel.value = String(floppyBrowserDefaultUnit);
+  var title = document.querySelector('#floppy-modal .glass-window-title');
+  if (title) title.textContent = floppyPickCallback ? 'Floppy Library - choose a floppy for the drive' : 'Floppy Library';
   document.getElementById('floppy-modal').style.display = 'flex';
+  if (typeof windowManager !== 'undefined') windowManager.focus('floppy-modal');
   initFloppyUploadUI();
   loadFloppyDatabase();
 }
 
 function closeFloppyBrowser() {
+  floppyPickCallback = null;
   document.getElementById('floppy-modal').style.display = 'none';
 }
 
@@ -528,14 +554,19 @@ function displayFloppyDetails(floppy) {
           </div>
         </div>
         <div class="floppy-details-actions">
-          <span class="floppy-drive-select-label" id="floppy-device-name">Device name: FLOPPY-DISC-1</span>
+          ${floppyPickCallback ? (floppy.__uploadId != null
+            ? `<span class="floppy-drive-select-label">An uploaded file cannot be chosen for a machine - only catalog floppies can be fetched again at power-on.</span>`
+            : `<button class="floppy-mount-button floppy-pick-button" data-floppy='${floppyAttr(floppy)}'>Select for the drive</button>`)
+          : `<span class="floppy-drive-select-label" id="floppy-device-name">Device name: FLOPPY-DISC-1</span>
           <label class="floppy-drive-select-label">Device unit:</label>
           <select id="floppy-drive-select" class="floppy-drive-select">
             <option value="0">Unit 0</option>
             <option value="1">Unit 1</option>
           </select>
-          <button class="floppy-mount-button" data-floppy='${floppyAttr(floppy)}'>Mount</button>
-          <button class="floppy-ndfs-button" data-floppy='${floppyAttr(floppy)}' title="Browse the ND filesystem">NDFS</button>
+          <button class="floppy-mount-button" data-floppy='${floppyAttr(floppy)}'>Mount</button>`}
+          ${(floppy.__uploadId != null || floppy.Filesystem === 'ndfs')
+            ? `<button class="floppy-ndfs-button" data-floppy='${floppyAttr(floppy)}' title="Browse the ND filesystem">NDFS</button>`
+            : `<span class="floppy-drive-select-label" title="This floppy has no NDFS filesystem to browse">${floppy.Filesystem === 'backup' ? 'BACKUP-SYSTEM set' : 'boot-only floppy'}</span>`}
         </div>
       </div>
       <h5>Directory Content:</h5>
@@ -547,10 +578,18 @@ function displayFloppyDetails(floppy) {
   var driveSel = document.getElementById('floppy-drive-select');
   if (driveSel) driveSel.value = String(floppyBrowserDefaultUnit);
 
-  // Wire up mount button
-  detailsContainer.querySelector('.floppy-mount-button').addEventListener('click', function() {
-    mountFloppy();
-  });
+  // Wire up the Select (pick mode) or Mount button
+  var pickBtn = detailsContainer.querySelector('.floppy-pick-button');
+  if (pickBtn) {
+    pickBtn.addEventListener('click', function() {
+      var cb = floppyPickCallback;
+      closeFloppyBrowser();
+      if (cb) cb(floppy);
+    });
+  } else {
+    var mountBtn = detailsContainer.querySelector('.floppy-mount-button');
+    if (mountBtn) mountBtn.addEventListener('click', function() { mountFloppy(); });
+  }
 
   // Wire up NDFS browse button
   var ndfsBtn = detailsContainer.querySelector('.floppy-ndfs-button');

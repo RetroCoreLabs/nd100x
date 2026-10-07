@@ -444,14 +444,31 @@ EMSCRIPTEN_EXPORT void Init(void)
 
 // Boot the system (load boot sector and set PC)
 // boot_type: 0=FLOPPY, 1=SMD, 2=BPUN, 3=SCSI, 4=WINCHESTER
+// unit:      the controller unit to boot from (the [boot] device's unit);
+//            unit 0 for a file boot.
+// image:     the MEMFS image for that unit, used only when the unit was not
+//            already mounted at Init (a BPUN upload's path; NULL for the
+//            conventional name, e.g. SMD1.IMG).
 // Returns: start address (PC) on success, -1 on failure
+EMSCRIPTEN_EXPORT int BootFrom(int boot_type, int unit, const char *image);
+
 EMSCRIPTEN_EXPORT int Boot(int boot_type)
+{
+    return BootFrom(boot_type, 0, NULL);
+}
+
+EMSCRIPTEN_EXPORT int BootFrom(int boot_type, int unit, const char *image)
 {
     if (!initialized)
     {
         printf("Error: System not initialized. Call Init() first.\n");
         return -1;
     }
+    if (unit < 0 || unit > 7)
+    {
+        unit = 0;
+    }
+    char name[32];
 
     // Pre-mount drives so they are available for I/O regardless of boot choice.
     // autoMountDrives() inside program_load() will skip already-mounted drives.
@@ -493,19 +510,23 @@ EMSCRIPTEN_EXPORT int Boot(int boot_type)
     switch (boot_type)
     {
     case 1: // SMD
-        rc = machine_program_load(BOOT_SMD, 0, "SMD0.IMG", 1, 0, false);
+        snprintf(name, sizeof(name), "SMD%d.IMG", unit);
+        rc = machine_program_load(BOOT_SMD, unit, image ? image : name, 1, 0, false);
         break;
     case 2: // BPUN
-        rc = machine_program_load(BOOT_BPUN, 0, "BPUN_UPLOAD.IMG", 1, 0, false);
+        rc = machine_program_load(BOOT_BPUN, 0, image ? image : "BPUN_UPLOAD.IMG", 1, 0, false);
         break;
-    case 3: // SCSI (ID 0)
-        rc = machine_program_load(BOOT_SCSI, 0, "SCSI0.IMG", 1, 0, false);
+    case 3: // SCSI
+        snprintf(name, sizeof(name), "SCSI%d.IMG", unit);
+        rc = machine_program_load(BOOT_SCSI, unit, image ? image : name, 1, 0, false);
         break;
-    case 4: // Winchester (unit 0)
-        rc = machine_program_load(BOOT_WINCHESTER, 0, "WD0.IMG", 1, 0, false);
+    case 4: // Winchester
+        snprintf(name, sizeof(name), "WD%d.IMG", unit);
+        rc = machine_program_load(BOOT_WINCHESTER, unit, image ? image : name, 1, 0, false);
         break;
     default: // FLOPPY (0)
-        rc = machine_program_load(BOOT_FLOPPY, 0, "FLOPPY0.IMG", 1, 0, false);
+        snprintf(name, sizeof(name), "FLOPPY%d.IMG", unit);
+        rc = machine_program_load(BOOT_FLOPPY, unit, image ? image : name, 1, 0, false);
         break;
     }
 

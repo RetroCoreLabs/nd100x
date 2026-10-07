@@ -156,7 +156,7 @@ function benign(text){
     const hasAssign = await page.evaluate(() => typeof window.hddScsiAssign === 'function');
     check(hasAssign, 'hddScsiAssign (diskType-constrained SCSI assign) is defined');
 
-    // Server catalog loads from hdd-catalog.json (not the old name)
+    // Server catalog loads from disk-catalog.json (not the old name)
     await page.evaluate(() => { window.hddSelectTab && window.hddSelectTab('smd'); if (window.smdRefreshCatalogList) window.smdRefreshCatalogList(); });
     await sleep(1500);
     const catOk = await page.evaluate(() => {
@@ -164,7 +164,7 @@ function benign(text){
       var txt = el ? el.textContent : '';
       return { err: /Could not load catalog/i.test(txt), has: /SINTRAN K/i.test(txt), txt: txt.slice(0,50) };
     });
-    check(!catOk.err && catOk.has, 'server catalog loads from hdd-catalog.json (' + catOk.txt + ')');
+    check(!catOk.err && catOk.has, 'server catalog loads from disk-catalog.json (' + catOk.txt + ')');
 
     // Machine Setup window opens with an INI textarea
     const msOpen = await page.evaluate(() => {
