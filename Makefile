@@ -232,6 +232,7 @@ wasm-glass: check-deps mkptypes retroterm-build ndfs-build ts-compile
 	@cp docs/SINTRAN-Commands.html $(BUILD_DIR_WASM_GLASS)/bin/ 2>/dev/null || true
 	@cp -r template-glass/PDF $(BUILD_DIR_WASM_GLASS)/bin/ 2>/dev/null || true
 	@cp SMD0.IMG $(BUILD_DIR_WASM_GLASS)/bin/ 2>/dev/null || true
+	@cp SCSI0.IMG $(BUILD_DIR_WASM_GLASS)/bin/ 2>/dev/null || true
 	@# Generate version.js so the Glass UI tracks the CMake project version.
 	@NDVER=$$(grep -oE 'project\(nd100x VERSION [0-9.]+' CMakeLists.txt | grep -oE '[0-9]+\.[0-9]+\.[0-9]+'); \
 	NDBUILD=$$(date '+%Y-%m-%d %H:%M'); \

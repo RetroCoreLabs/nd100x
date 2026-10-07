@@ -498,19 +498,27 @@ function smdImportFromFile() {
         return;
       }
 
-      var uuid = smdStorage.generateUUID();
-      var displayName = file.name;
+      // A local file carries no type of its own - ask, rather than guess.
+      // Defaults to 'smd' only as the dialog's starting selection.
+      smdEnsureCatalog().then(function() {
+        smdAskImportType(file.name, function(diskType) {
+          var uuid = smdStorage.generateUUID();
+          var displayName = file.name;
 
-      smdStorage.storeImage(uuid, data, {
-        name: displayName,
-        description: 'Imported from local file',
-        sourceName: file.name
-      }).then(function() {
-        smdRefreshAll();
-        console.log('[SMD Manager] Imported ' + displayName + ' (' + smdStorage.formatSize(data.byteLength) + ')');
-      }).catch(function(err) {
-        alert('Import failed: ' + err.message);
-        console.error('[SMD Manager] Import store failed:', err);
+          smdStorage.storeImage(uuid, data, {
+            name: displayName,
+            description: 'Imported from local file',
+            sourceName: file.name,
+            diskType: diskType
+          }).then(function() {
+            smdRefreshAll();
+            console.log('[SMD Manager] Imported ' + displayName + ' as ' + diskType +
+              ' (' + smdStorage.formatSize(data.byteLength) + ')');
+          }).catch(function(err) {
+            alert('Import failed: ' + err.message);
+            console.error('[SMD Manager] Import store failed:', err);
+          });
+        });
       });
     };
     reader.readAsArrayBuffer(file);
@@ -518,11 +526,93 @@ function smdImportFromFile() {
   input.click();
 }
 
+// Show the "Tag Imported Disk" dialog and call onConfirm(diskType) once the
+// user picks one and confirms. Does nothing further on Cancel - the file has
+// not been stored yet at this point, so there is no partial state to undo.
+function smdAskImportType(fileName, onConfirm) {
+  var dlg = document.getElementById('smd-import-dialog');
+  var sel = document.getElementById('smd-import-type');
+  var nameEl = document.getElementById('smd-import-filename');
+  if (!dlg || !sel) {
+    // Dialog not in this page (shouldn't happen) - fall back to the old
+    // silent default rather than lose the import entirely.
+    onConfirm('smd');
+    return;
+  }
+
+  if (nameEl) nameEl.textContent = fileName;
+  sel.innerHTML = smdDiskTypeOptionsHTML('smd');
+  dlg.style.display = '';
+
+  var confirmBtn = document.getElementById('smd-import-confirm');
+  var cancelBtn = document.getElementById('smd-import-cancel');
+
+  function cleanup() {
+    dlg.style.display = 'none';
+    confirmBtn.onclick = null;
+    cancelBtn.onclick = null;
+  }
+
+  confirmBtn.onclick = function() {
+    var diskType = sel.value || 'smd';
+    cleanup();
+    onConfirm(diskType);
+  };
+  cancelBtn.onclick = function() {
+    cleanup();
+  };
+}
+
 // =========================================================
 // Server Catalog browsing
 // =========================================================
 
 var _catalogData = null;
+
+// ---------------------------------------------------------------------------
+// Disk type tagging
+// ---------------------------------------------------------------------------
+// The choices offered when tagging an image (local import) come from the same
+// hdd-catalog.json the Server Catalog list below reads - not a second
+// hardcoded list here - so a type the catalog already uses (including nd500,
+// the NDIX root disk tag, which is not an ND-100 controller type and so is
+// not in disk-types.js) shows up in the picker without a JS change.
+
+function smdEnsureCatalog() {
+  if (_catalogData) return Promise.resolve(_catalogData);
+  return fetch('hdd-catalog.json').then(function(r) { return r.json(); }).then(function(catalog) {
+    _catalogData = catalog || [];
+    return _catalogData;
+  }).catch(function() {
+    return [];
+  });
+}
+
+// nd500 is a tag on the NDIX root disk, read only by the standalone ND-500
+// console (nd500-window.js) - it is never assigned to an ND-100 controller,
+// so disk-types.js (the real DRIVE_TYPE enum) does not carry it.
+var EXTRA_DISK_TYPE_LABELS = { nd500: 'ND-500 / NDIX root' };
+
+function smdDiskTypeLabel(t) {
+  if (typeof diskTypes !== 'undefined' && diskTypes.DRIVE_TYPE_LABEL[t]) return diskTypes.DRIVE_TYPE_LABEL[t];
+  return EXTRA_DISK_TYPE_LABELS[t] || t;
+}
+
+// Every type disk-types.js knows as a real controller, plus whatever other
+// diskType values the catalog itself uses (nd500 today).
+function smdDiskTypeOptionsHTML(selected) {
+  var types = (typeof diskTypes !== 'undefined') ? diskTypes.DRIVE_TYPE_NAMES.slice() : ['smd'];
+  (_catalogData || []).forEach(function(e) {
+    var t = e.diskType || 'smd';
+    if (types.indexOf(t) < 0) types.push(t);
+  });
+  var html = '';
+  types.forEach(function(t) {
+    html += '<option value="' + t + '"' + (t === selected ? ' selected' : '') + '>' +
+            escapeHtml(smdDiskTypeLabel(t)) + '</option>';
+  });
+  return html;
+}
 
 function smdRefreshCatalogList() {
   var container = document.getElementById('smd-catalog-list');
@@ -707,7 +797,12 @@ function smdDoCopy(uuid, name, description, entry) {
     return smdStorage.storeImage(uuid, data, {
       name: name,
       description: description,
-      sourceName: entry.name
+      sourceName: entry.name,
+      // BUG FIXED 07-OCT-2026: this was missing, so every catalog entry was
+      // stored as diskType 'smd' regardless of what the catalog said -
+      // the Winchester and NDIX entries went into the library untagged, and
+      // their tabs never showed them.
+      diskType: entry.diskType || 'smd'
     });
   }).then(function() {
     // Verify: read back from OPFS and compare
@@ -1171,7 +1266,11 @@ function smdDoGatewayCopy(driveType, remoteUnit, size, name, description, btnEl)
     smdStorage.storeImage(uuid, data, {
       name: name,
       description: description,
-      sourceName: name
+      sourceName: name,
+      // BUG FIXED 07-OCT-2026: driveType names the remote unit's own type
+      // (smd/scsi/winchester) and was already in scope here, just never
+      // passed through - every gateway copy was stored as diskType 'smd'.
+      diskType: driveType || 'smd'
     }).then(function() {
       console.log('[SMD Manager] Gateway image copied to library: ' + name + ' (' + smdStorage.formatSize(data.byteLength) + ')');
       smdRefreshRemoteList();

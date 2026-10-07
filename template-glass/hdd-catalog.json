@@ -30,6 +30,13 @@
         "diskType": "winchester"
     },
     {
+        "name": "SCSI test disk",
+        "description": "ND-3201/3204 SCSI test image (hdd), for the SCSI tab.",
+        "size": 132415488,
+        "url": "SCSI0.IMG",
+        "diskType": "scsi"
+    },
+    {
         "name": "SINTRAN floppy",
         "description": "8 inch floppy image as shipped with the emulator",
         "size": 1261568,

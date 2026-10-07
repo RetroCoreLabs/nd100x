@@ -1044,6 +1044,17 @@
             <button class="smd-action-btn" id="smd-import-btn" title="Import .IMG from local file">Import</button>
           </div>
         </div>
+        <div id="smd-import-dialog" class="smd-copy-dialog" style="display:none">
+          <div class="smd-copy-dialog-title">Tag Imported Disk</div>
+          <div class="smd-image-meta" style="margin-bottom:8px;" id="smd-import-filename"></div>
+          <label class="smd-copy-label">Disk type
+            <select id="smd-import-type" class="smd-copy-input"></select>
+          </label>
+          <div class="smd-copy-actions">
+            <button class="smd-action-btn" id="smd-import-cancel">Cancel</button>
+            <button class="smd-action-btn smd-copy-confirm-btn" id="smd-import-confirm">Import</button>
+          </div>
+        </div>
         <div id="smd-installed-list" class="smd-installed-list">
           <div class="smd-empty-msg">Loading...</div>
         </div>
