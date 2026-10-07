@@ -1059,7 +1059,7 @@ document.getElementById('toolbar-power').addEventListener('click', function() {
         if (typeof isSmdPersistenceEnabled === 'function' && isSmdPersistenceEnabled()) window._smdMountsReady = false;
         emu.onInitialized = function(msg) {
           completePowerOn(btn);
-          bootConfiguredMachine();
+          remoteTerminalsBeforeBoot().then(bootConfiguredMachine);
         };
         emu.init(ini);
       } else {
@@ -1348,6 +1348,27 @@ function mountLibraryDisksAfterInit() {
     });
   });
   return chain;
+}
+
+// The gateway's remote terminals (TERMINAL 12-19) have to exist BEFORE the
+// boot, not be added once the bridge connects. Measured 07-OCT-2026 on
+// SINTRAN K in Worker mode: with the terminals created about a second after
+// the boot started (the bridge's auto-connect), ESC typed on TERMINAL 12
+// through the gateway got no reply at all; created between Init and the
+// boot, the same ESC got SINTRAN's answer. So when the bridge is switched
+// on, the terminals are created here, before bootConfiguredMachine().
+// Connecting the bridge afterwards finds them already there (the worker
+// rebuilds its list and re-registers; EnableRemoteTerminals itself is a
+// no-op the second time).
+function remoteTerminalsBeforeBoot() {
+  var on = false;
+  try { on = localStorage.getItem('nd100x-ws-bridge') === 'true'; } catch (e) {}
+  if (!on || !emu.isWorkerMode()) return Promise.resolve();
+  return Promise.resolve(emu.enableRemoteTerminals()).then(function (r) {
+    console.log('[Gateway] remote terminals created before boot: ' + ((r && r.count) || 0));
+  }, function (e) {
+    console.error('[Gateway] remote terminals before boot failed: ' + (e && e.message ? e.message : e));
+  });
 }
 
 function preloadBootImage(ini) {

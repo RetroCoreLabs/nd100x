@@ -21,7 +21,21 @@
   // =========================================================
   // Worker lifecycle
   // =========================================================
-  var _worker = new Worker('js/emu-worker.js');
+  // The page's script tags carry the build's ?v= token (the Makefile's
+  // cache-bust). The Worker, its importScripts of nd100wasm.js, the .wasm
+  // and the disk worker are loaded by URL from inside scripts, so they must
+  // carry the same token - or a cache (the browser's, or the Cloudflare
+  // edge in front of the live site) hands out an older build next to the
+  // new page. Seen 07-OCT-2026 right after a deploy: new index.html with
+  // the edge's old js/emu-worker.js + nd100wasm.js -> "Cannot call unknown
+  // function DescribeMachineINI". The token is read off this script's own
+  // tag and passed on as the Worker URL's query string.
+  var _bust = (function () {
+    var s = document.querySelector('script[src*="emu-proxy-worker.js"]');
+    var m = s && s.src.match(/\?v=(\d+)/);
+    return m ? '?v=' + m[1] : '';
+  })();
+  var _worker = new Worker('js/emu-worker.js' + _bust);
   var _ready = false;
   var _initialized = false;
   var _pendingId = 0;

@@ -60,10 +60,16 @@ function ensureLoop() { if (!_loopArmed) scheduleNext(); }
 // =========================================================
 // The build is NOT modularized - nd100wasm.js creates a global Module.
 // We pre-define Module config here; importScripts merges into it.
+// The build's cache-bust token (?v=...) arrives as this Worker's own query
+// string (emu-proxy-worker.js puts it there) and goes on to every file this
+// Worker loads by URL: nd100wasm.js, the .wasm and disk-io-worker.js. Without
+// it a browser or edge cache can pair an old module with a new page.
+var _bust = (self.location && self.location.search) || '';
+
 var Module = {
   locateFile: function(path) {
     // .wasm file is in parent dir relative to js/ where this worker lives
-    return '../' + path;
+    return '../' + path + _bust;
   },
   print: function(text) {
     postMessage({ type: 'log', level: 'info', text: text });
@@ -83,7 +89,7 @@ var Module = {
 };
 
 // Load the Emscripten-generated JS (merges into our pre-defined Module)
-importScripts('../nd100wasm.js');
+importScripts('../nd100wasm.js' + _bust);
 
 // =========================================================
 // OPFS SyncAccessHandle pool for persistent disc block I/O
@@ -205,7 +211,7 @@ function initDiskWorker(gatewayUrl) {
       text: '[DiskIO] SharedArrayBuffer not available - disk listing only (no block I/O). Serve page via gateway for full support.' });
   }
 
-  _diskWorker = new Worker('disk-io-worker.js');
+  _diskWorker = new Worker('disk-io-worker.js' + _bust);
   _diskWorker.postMessage(initMsg);
 
   _diskWorker.onmessage = function(e) {
