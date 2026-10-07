@@ -121,7 +121,7 @@ function smdRefreshInstalledList() {
     var assignedUnit = (uuidToUnit[uuid] !== undefined) ? uuidToUnit[uuid] : -1;
     html += '<div class="smd-image-card" data-uuid="' + escapeHtml(uuid) + '">';
     html += '<div class="smd-image-info">';
-    html += '<span class="smd-image-name">' + escapeHtml(img.name) + '</span>';
+    html += '<span class="smd-image-name">' + escapeHtml(img.name) + '</span>' + smdTypeBadgeHTML(img.diskType);
     html += '<span class="smd-image-meta">' + smdStorage.formatSize(img.size) + ' &middot; ' + (img.date || '');
     if (assignedUnit >= 0) {
       html += ' &middot; Unit ' + assignedUnit;
@@ -598,6 +598,20 @@ function smdDiskTypeLabel(t) {
   return EXTRA_DISK_TYPE_LABELS[t] || t;
 }
 
+// Short form for the badge itself - DRIVE_TYPE_LABEL is a full word ("SMD
+// disc", "Winchester (ST506)"), too long for an inline tag.
+var DISK_TYPE_ABBR = { smd: 'SMD', scsi: 'SCSI', winchester: 'WD', floppy: 'FD', nd500: 'ND5' };
+
+// A small colored tag naming <type>, for the catalog, local library and
+// remote (gateway) image lists - one shared look everywhere a disk's type
+// needs to be visible without reading the tab or section it is in.
+function smdTypeBadgeHTML(t) {
+  t = t || 'smd';
+  var abbr = DISK_TYPE_ABBR[t] || t.toUpperCase();
+  return '<span class="smd-type-badge smd-type-' + escapeHtml(t) + '" title="' +
+    escapeHtml(smdDiskTypeLabel(t)) + '">' + escapeHtml(abbr) + '</span>';
+}
+
 // Every type disk-types.js knows as a real controller, plus whatever other
 // diskType values the catalog itself uses (nd500 today).
 function smdDiskTypeOptionsHTML(selected) {
@@ -644,7 +658,7 @@ function smdRenderCatalog(container, catalog) {
 
     html += '<div class="smd-image-card smd-catalog-card' + (!isAvailable ? ' unavailable' : '') + '">';
     html += '<div class="smd-image-info">';
-    html += '<span class="smd-image-name">' + escapeHtml(entry.name) + '</span>';
+    html += '<span class="smd-image-name">' + escapeHtml(entry.name) + '</span>' + smdTypeBadgeHTML(entry.diskType);
     html += '<span class="smd-image-meta">' + smdStorage.formatSize(entry.size);
     html += ' &middot; ' + escapeHtml(entry.description);
     html += '</span>';
@@ -1026,7 +1040,7 @@ function smdRefreshRemoteList() {
       }
       html += '<div class="smd-image-card">';
       html += '<div class="smd-image-info">';
-      html += '<span class="smd-image-name">' + escapeHtml(img.name) + '</span>';
+      html += '<span class="smd-image-name">' + escapeHtml(img.name) + '</span>' + smdTypeBadgeHTML('smd');
       html += '<span class="smd-image-meta">' + smdStorage.formatSize(img.size) + ' &middot; Gateway unit ' + img.unit;
       if (mounted && mountedToLocal >= 0) html += ' &rarr; Local unit ' + mountedToLocal;
       html += '</span>';
@@ -1073,7 +1087,7 @@ function smdRefreshRemoteList() {
       }
       html += '<div class="smd-image-card">';
       html += '<div class="smd-image-info">';
-      html += '<span class="smd-image-name">' + escapeHtml(img.name) + '</span>';
+      html += '<span class="smd-image-name">' + escapeHtml(img.name) + '</span>' + smdTypeBadgeHTML('floppy');
       html += '<span class="smd-image-meta">' + smdStorage.formatSize(img.size) + ' &middot; Gateway unit ' + img.unit + '</span>';
       html += '</div>';
       html += '<div class="smd-image-actions">';
@@ -1469,7 +1483,7 @@ function hddTypeRefreshLibrary(type) {
     var assigned = (unitOf[uuid] !== undefined) ? unitOf[uuid] : -1;
     html += '<div class="smd-image-card" data-uuid="' + escapeHtml(uuid) + '">';
     html += '<div class="smd-image-info">';
-    html += '<span class="smd-image-name">' + escapeHtml(img.name) + '</span>';
+    html += '<span class="smd-image-name">' + escapeHtml(img.name) + '</span>' + smdTypeBadgeHTML(img.diskType);
     html += '<span class="smd-image-meta">' + smdStorage.formatSize(img.size) + ' &middot; ' + (img.date || '');
     if (assigned >= 0) html += ' &middot; ' + cfg.unitWord + ' ' + assigned;
     html += '</span>';

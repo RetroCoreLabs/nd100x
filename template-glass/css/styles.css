@@ -3436,6 +3436,46 @@ button:disabled {
   font-style: italic;
 }
 
+/* Disk type tag - shown next to the name in the server catalog, the local
+ * disk library and the remote (gateway) image lists, so the type is visible
+ * without reading a tab or a section heading. Same visual family as
+ * .proc-status-badge: translucent fill, light text, a thin matching border. */
+.smd-type-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  margin-left: 6px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  vertical-align: middle;
+}
+.smd-type-badge.smd-type-smd {
+  background: rgba(13, 71, 161, 0.3);
+  color: #90c0ff;
+  border: 1px solid rgba(100, 160, 255, 0.25);
+}
+.smd-type-badge.smd-type-scsi {
+  background: rgba(230, 129, 0, 0.28);
+  color: #ffc880;
+  border: 1px solid rgba(255, 180, 80, 0.25);
+}
+.smd-type-badge.smd-type-winchester {
+  background: rgba(123, 31, 162, 0.3);
+  color: #d8a0f0;
+  border: 1px solid rgba(190, 120, 230, 0.25);
+}
+.smd-type-badge.smd-type-floppy {
+  background: rgba(46, 125, 50, 0.3);
+  color: #a0f0a8;
+  border: 1px solid rgba(100, 200, 120, 0.25);
+}
+.smd-type-badge.smd-type-nd500 {
+  background: rgba(198, 40, 40, 0.28);
+  color: #ff9090;
+  border: 1px solid rgba(255, 140, 140, 0.25);
+}
+
 /* Inline rename fields */
 .smd-rename-fields {
   display: flex;
