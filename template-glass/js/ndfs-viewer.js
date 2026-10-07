@@ -1,6 +1,6 @@
 //
 // SPDX-License-Identifier: MIT
-// Copyright (c) 1985-2026 Ronny Hansen - HackerCorp Labs
+// Copyright (c) 1985-2026 Ronny Hansen - RetroCore Labs
 //
 // ndfs-viewer.js - Read-only NDFS (ND filesystem) browser window.
 //

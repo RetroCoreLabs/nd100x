@@ -1,0 +1,263 @@
+name: Deploy web (Glass UI) to Azure Storage
+
+# Builds the Glass UI (make wasm-glass) and publishes build_wasm_glass/bin to
+# the static-website container ($web) of the Azure storage account that
+# serves https://nd100x.hackercorp.no/ (Cloudflare in front of the storage
+# account's static-website endpoint).
+#
+# MANUAL ONLY. Nothing deploys on push; run it from the Actions tab
+# ("Run workflow"). A dry run (default ON in the form) builds and prints
+# exactly what WOULD be uploaded without touching the storage account.
+#
+# WHAT IS COPIED, AND HOW
+#   Web files - everything in build_wasm_glass/bin except *.IMG / *.img:
+#     index.html, terminal-popout.html, nd100wasm.js, nd100wasm.wasm,
+#     version.js, disk-catalog.json, staticwebapp.config.json,
+#     SINTRAN-Commands.html, Logo_ND.png, favicon.*, css/, js/, lib/, data/,
+#     floppies/, PDF/.
+#     ALWAYS uploaded, existing blobs OVERWRITTEN.
+#   Disk images - *.IMG in build_wasm_glass/bin (on this runner: SMD0.IMG,
+#     NDIX.IMG, BSD211-WD0.IMG, unpacked from images/*.IMG.bz2 by the
+#     Makefile; the gitignored root SMD0.IMG/SCSI0.IMG of a developer tree
+#     do not exist here):
+#     uploaded ONLY WHEN THE BLOB IS MISSING. An image already in $web is
+#     never overwritten - it may have been changed by hand or be the one
+#     users already have.
+#   Blobs in $web that are not in the build are NEVER deleted; they are
+#   listed in the job summary so Ronny can decide.
+#
+# AUTHENTICATION: repository secret AZURE_STORAGE_CONNECTION_STRING (the
+# account's connection string; az CLI reads the env var of that name).
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run: build and list what would be uploaded, upload nothing'
+        type: boolean
+        default: true
+
+concurrency:
+  group: deploy-web
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  AZURE_STORAGE_ACCOUNT: nd100x
+  AZURE_STORAGE_CONTAINER: '$web'
+  # Local versions on 2026-10-07: Emscripten 4.0.8, Node 22. Pinned so a CI
+  # build is the same build as the developer's.
+  EMSDK_VERSION: 4.0.8
+  NODE_VERSION: 22
+
+jobs:
+  build:
+    name: Build Glass UI (wasm-glass)
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout (without submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+          fetch-depth: 0
+
+      - name: Install build dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake pkg-config bzip2 rsync
+
+      - name: Initialise submodules
+        run: |
+          set -euo pipefail
+          # cJSON/libdap/libsymbols: the emulator. nd500x: the ND-500 (built
+          # with ND500X_WITH_NDMON=OFF, so its private ndmonlib is not needed
+          # and NOT recursed into). RetroTermWeb and norskdata-ndfs: the two
+          # browser bundles make wasm-glass builds into template-glass/lib/.
+          git submodule update --init \
+            external/cJSON \
+            external/libdap \
+            external/libsymbols \
+            external/nd500x \
+            template-glass/external/RetroTermWeb \
+            template-glass/external/norskdata-ndfs
+
+      - name: Set up Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Set up Emscripten ${{ env.EMSDK_VERSION }}
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: ${{ env.EMSDK_VERSION }}
+          actions-cache-folder: emsdk-cache
+
+      - name: Install JS build tools
+        run: |
+          set -euo pipefail
+          # The repo root has NO tracked package.json (it is gitignored), so
+          # the two tools the Makefile reaches through npx are installed
+          # globally: typescript for `npx tsc` (ts-compile target, local
+          # version 6.0.2) and esbuild for `npx esbuild` (ndfs-build target;
+          # not in the submodule's own package.json, so npx would otherwise
+          # stop to ask). RetroTermWeb installs its own tools in its build.
+          npm install -g --no-audit --no-fund typescript@6 esbuild
+
+      - name: Show toolchain versions
+        run: |
+          emcc --version | head -1
+          cmake --version | head -1
+          node --version
+          npx tsc --version
+
+      - name: Build (make wasm-glass)
+        run: make wasm-glass
+
+      - name: Assert the ND-500 came from the submodule
+        run: |
+          set -euo pipefail
+          # Same guard as build-release.yml: a missing nd500x checkout does
+          # not fail the build, it silently ships a Glass UI whose 500 NDIX-C
+          # and ND-5000 machines cannot work.
+          CACHE=build_wasm_glass/CMakeCache.txt
+          grep -q '^ND100X_ND500X_DIR:PATH=.*/external/nd500x$' "$CACHE" || {
+            echo "::error::ND100X_ND500X_DIR does not point at external/nd500x:"
+            grep '^ND100X_ND500X_DIR:PATH=' "$CACHE" || echo "  (not in the cache at all)"
+            exit 1
+          }
+          grep -q '^ND100X_WITH_ND500' "$CACHE" && grep '^ND100X_WITH_ND500' "$CACHE" || true
+          echo "ND-500 built from external/nd500x."
+
+      - name: Stage the two upload sets
+        run: |
+          set -euo pipefail
+          # deploy/web    - always uploaded, overwrites
+          # deploy/images - uploaded only when missing in $web
+          rm -rf deploy
+          mkdir -p deploy/web deploy/images
+          rsync -a --exclude '*.IMG' --exclude '*.img' build_wasm_glass/bin/ deploy/web/
+          find build_wasm_glass/bin -maxdepth 1 -type f \( -name '*.IMG' -o -name '*.img' \) \
+            -exec cp -p {} deploy/images/ \;
+          # The upload plan, also kept as an artifact of the run.
+          {
+            echo "## Upload plan"
+            echo
+            echo "### Web files (always uploaded, overwrite) - $(find deploy/web -type f | wc -l) files, $(du -sh deploy/web | cut -f1)"
+            echo
+            echo '```'
+            (cd deploy/web && find . -type f | sed 's|^\./||' | sort)
+            echo '```'
+            echo
+            echo "### Disk images (uploaded only when missing in \$web)"
+            echo
+            echo '```'
+            (cd deploy/images && ls -l --time-style=long-iso | tail -n +2 | awk '{print $8, $5, "bytes"}')
+            echo '```'
+          } > upload-plan.md
+          cat upload-plan.md
+          cat upload-plan.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload build output as a run artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: glass-web-${{ github.sha }}
+          path: |
+            deploy/web
+            upload-plan.md
+          retention-days: 7
+
+      # ---- publish -------------------------------------------------------
+
+      - name: Verify the storage secret is set
+        if: ${{ !inputs.dry_run }}
+        env:
+          AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}
+        run: |
+          set -euo pipefail
+          test -n "$AZURE_STORAGE_CONNECTION_STRING" || {
+            echo "::error::Repository secret AZURE_STORAGE_CONNECTION_STRING is not set."
+            exit 1
+          }
+          az storage container show --name "$AZURE_STORAGE_CONTAINER" -o none
+          echo "Container $AZURE_STORAGE_CONTAINER of account $AZURE_STORAGE_ACCOUNT reachable."
+
+      - name: Upload web files (overwrite)
+        if: ${{ !inputs.dry_run }}
+        env:
+          AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}
+        run: |
+          set -euo pipefail
+          az storage blob upload-batch \
+            --source deploy/web \
+            --destination "$AZURE_STORAGE_CONTAINER" \
+            --overwrite true \
+            --no-progress \
+            --output table
+          # upload-batch picks the content type from the extension; .wasm is
+          # re-stamped explicitly so the browser's streaming compile works.
+          az storage blob upload \
+            --file deploy/web/nd100wasm.wasm \
+            --name nd100wasm.wasm \
+            --container-name "$AZURE_STORAGE_CONTAINER" \
+            --content-type application/wasm \
+            --overwrite true \
+            --no-progress \
+            -o none
+          echo "Web files uploaded."
+
+      - name: Upload disk images that are missing in the container
+        if: ${{ !inputs.dry_run }}
+        env:
+          AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}
+        run: |
+          set -euo pipefail
+          {
+            echo "## Disk images"
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+          for f in deploy/images/*; do
+            [ -f "$f" ] || continue
+            n=$(basename "$f")
+            exists=$(az storage blob exists --container-name "$AZURE_STORAGE_CONTAINER" --name "$n" --query exists -o tsv)
+            if [ "$exists" = "true" ]; then
+              echo "KEEP    $n (already in \$web, not overwritten)"
+              echo "- KEEP \`$n\` - already in \$web, not overwritten" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "UPLOAD  $n ($(stat -c %s "$f") bytes)"
+              az storage blob upload \
+                --file "$f" \
+                --name "$n" \
+                --container-name "$AZURE_STORAGE_CONTAINER" \
+                --content-type application/octet-stream \
+                --no-progress \
+                -o none
+              echo "- UPLOADED \`$n\` ($(stat -c %s "$f") bytes)" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
+
+      - name: Report blobs in the container that are not in this build
+        if: ${{ !inputs.dry_run }}
+        env:
+          AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}
+        run: |
+          set -euo pipefail
+          az storage blob list --container-name "$AZURE_STORAGE_CONTAINER" \
+            --query '[].name' -o tsv | sort > remote.txt
+          { (cd deploy/web && find . -type f | sed 's|^\./||'); (cd deploy/images && ls); } | sort > local.txt
+          comm -23 remote.txt local.txt > stale.txt || true
+          {
+            echo "## Blobs in \$web not in this build (NOT deleted)"
+            echo
+            if [ -s stale.txt ]; then
+              echo '```'; cat stale.txt; echo '```'
+            else
+              echo "none"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "Blobs in the container not in this build ($(wc -l < stale.txt)):"
+          cat stale.txt
