@@ -23,6 +23,8 @@ name: Deploy web (Glass UI) to Azure Storage
 #     uploaded ONLY WHEN THE BLOB IS MISSING. An image already in $web is
 #     never overwritten - it may have been changed by hand or be the one
 #     users already have.
+#   After the upload the Cloudflare cache is purged (secrets CLOUDFLARE_API_TOKEN
+#   + CLOUDFLARE_ZONE_ID; a warning and no purge when they are missing).
 #   Blobs in $web that are not in the build are NEVER deleted; they are
 #   listed in the job summary so Ronny can decide.
 #
@@ -239,6 +241,36 @@ jobs:
               echo "- UPLOADED \`$n\` ($(stat -c %s "$f") bytes)" >> "$GITHUB_STEP_SUMMARY"
             fi
           done
+
+      - name: Purge the Cloudflare cache
+        if: ${{ !inputs.dry_run }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+        run: |
+          set -euo pipefail
+          # nd100x.hackercorp.no is Cloudflare in front of the storage
+          # account, and the edge kept serving the previous build's files
+          # (cf-cache-status HIT, max-age 14400) after a deploy - files
+          # fetched by plain path (disk-catalog.json, data/*.json, floppies/,
+          # anything without a ?v= token) are stale for up to 4 hours
+          # otherwise. Needs an API token with Zone > Cache Purge > Purge on
+          # the hackercorp.no zone, and that zone's id.
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ZONE_ID" ]; then
+            echo "::warning::CLOUDFLARE_API_TOKEN / CLOUDFLARE_ZONE_ID not set - Cloudflare cache NOT purged; the edge may serve old files for up to 4 hours."
+            echo "- Cloudflare cache: NOT purged (secrets missing)" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          resp=$(curl -sS -X POST "https://api.cloudflare.com/client/v4/zones/$CLOUDFLARE_ZONE_ID/purge_cache" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data '{"purge_everything":true}')
+          echo "$resp"
+          echo "$resp" | jq -e '.success == true' > /dev/null || {
+            echo "::error::Cloudflare purge failed"
+            exit 1
+          }
+          echo "- Cloudflare cache: purged (purge_everything)" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Report blobs in the container that are not in this build
         if: ${{ !inputs.dry_run }}

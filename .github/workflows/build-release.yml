@@ -61,7 +61,12 @@ jobs:
       - name: Initialise submodules
         run: |
           set -euo pipefail
-          git submodule update --init --recursive \
+          # No --recursive: nd500x has its own submodules (libdap and the
+          # private ndmonlib) which nd100x does not use - the top CMakeLists.txt
+          # configures nd500x with ND500X_WITH_NDMON=OFF. Recursing into them
+          # fails whenever nd500x pins an ndmonlib commit that was never pushed
+          # (07-OCT-2026, run 37661846015: "not our ref f77cdbd...").
+          git submodule update --init \
             external/cJSON \
             external/libdap \
             external/libsymbols \
@@ -198,7 +203,8 @@ jobs:
       - name: Initialise submodules
         run: |
           set -euo pipefail
-          git submodule update --init --recursive \
+          # No --recursive: see the note in build-linux.
+          git submodule update --init \
             external/cJSON \
             external/libdap \
             external/libsymbols \
@@ -309,7 +315,8 @@ jobs:
         run: |
           set -e
           # cJSON / RetroTermWeb pins are intact — initialise normally.
-          git submodule update --init --recursive \
+          # No --recursive: see the note in build-linux.
+          git submodule update --init \
             external/cJSON \
             external/nd500x \
             template-glass/external/RetroTermWeb
@@ -461,7 +468,8 @@ jobs:
           set -euo pipefail
           # Same set as the Linux job, minus RetroTermWeb (no web UI in the
           # RISC-V build).
-          git submodule update --init --recursive \
+          # No --recursive: see the note in build-linux.
+          git submodule update --init \
             external/cJSON \
             external/libdap \
             external/libsymbols \
@@ -549,7 +557,8 @@ jobs:
       - name: Initialise submodules
         run: |
           set -euo pipefail
-          git submodule update --init --recursive \
+          # No --recursive: see the note in build-linux.
+          git submodule update --init \
             external/cJSON \
             external/libdap \
             external/libsymbols \
