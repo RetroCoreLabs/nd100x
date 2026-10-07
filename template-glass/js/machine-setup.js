@@ -152,7 +152,7 @@
       var s = machineProfiles.ndix();
       refreshNdixDiskOptions().then(function () {
         var disk = el('machine-setup-ndix-disk');
-        if (disk && ndixLibraryMode()) disk.value = s.diskUuid ? ('lib:' + s.diskUuid) : '';
+        if (disk && ndixLibraryMode()) disk.value = s.diskUuid ? ('lib:' + s.diskUuid) : (s.diskUrl ? 'demo' : '');
       });
       var mem = el('machine-setup-ndix-memory');
       if (mem) mem.value = String(s.memoryMb);
@@ -213,6 +213,15 @@
     if (row) row.style.display = '';
     var current = sel.value;
     sel.innerHTML = '<option value="">(none)</option>';
+    // A profile naming a served image (the built-in 500 NDIX-C) boots that
+    // one with the library on too; the list says so instead of "(none)".
+    var cur = machineProfiles.ndix();
+    if (cur.diskUrl) {
+      var dm = document.createElement('option');
+      dm.value = 'demo';
+      dm.textContent = 'demo: ' + cur.diskUrl + ' (the server\'s image, loaded into memory at power-on)';
+      sel.appendChild(dm);
+    }
     var imgs = smdStorage.listImages(), n = 0;
     for (var j = 0; j < imgs.length; j++) {
       if ((imgs[j].diskType || '') !== 'nd500') continue;
@@ -234,8 +243,8 @@
   function ndixDiskFromSelect(disk) {
     var v = disk ? disk.value : '';
     var name = (disk && disk.selectedIndex > 0) ? disk.options[disk.selectedIndex].textContent : '';
-    if (v.indexOf('lib:') === 0) return { diskUuid: v.slice(4), diskName: name };
-    return { diskUuid: '', diskName: '' };
+    if (v.indexOf('lib:') === 0) return { diskUuid: v.slice(4), diskName: name, demo: false };
+    return { diskUuid: '', diskName: '', demo: v === 'demo' };
   }
 
   function saveNdix() {
@@ -243,14 +252,15 @@
     var mem = el('machine-setup-ndix-memory');
     var wr = el('machine-setup-ndix-writable');
     // In demo mode the root disc is the served image, kept as diskUrl; with
-    // the library on, the chosen library image (diskUuid) and no URL.
+    // the library on, the chosen library image (diskUuid) and no URL -
+    // unless the served image stays chosen ("demo:"), then diskUrl stays.
     var prev = machineProfiles.ndix(name);
     var d = ndixLibraryMode()
       ? ndixDiskFromSelect(el('machine-setup-ndix-disk'))
-      : { diskUuid: '', diskName: prev.diskName };
+      : { diskUuid: '', diskName: prev.diskName, demo: true };
     var err = machineProfiles.writeNdix({
       diskUuid: d.diskUuid,
-      diskUrl: ndixLibraryMode() ? '' : (prev.diskUrl || ''),
+      diskUrl: d.demo ? (prev.diskUrl || '') : '',
       diskName: d.diskName,
       memoryMb: parseInt(mem && mem.value, 10) || 16,
       writable: !!(wr && wr.checked)

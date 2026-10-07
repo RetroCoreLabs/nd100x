@@ -185,10 +185,12 @@
   // names an image there, otherwise fetched from the server - the catalog's
   // own file, which is all demo mode has (the library is a Worker-mode
   // thing). Same two sources the ND-100's SMD unit 0 has.
-  // Persistent storage on: the library image the profile names - that is
-  // the only choice there is in that mode. Off (demo mode): the served
-  // demo image, the catalog's NDIX root disc; the profile's diskUrl, or the
-  // catalog's first nd500 entry when the profile has none.
+  // A profile naming a library image (diskUuid, persistent storage on)
+  // boots that. A profile naming a served image (diskUrl - the built-in
+  // 500 NDIX-C does) boots that in BOTH modes, the way the ND-100's
+  // built-ins fetch SMD0.IMG whether or not the library is on. Neither:
+  // with the library on it is an error (pick one in Machine Setup), in
+  // demo mode the catalog's first nd500 entry is used.
   function libraryMode() {
     return typeof isSmdPersistenceEnabled === 'function' && isSmdPersistenceEnabled() &&
            typeof smdStorage !== 'undefined' && smdStorage.isAvailable();
@@ -206,7 +208,7 @@
   }
 
   function loadRootDisc(s) {
-    if (libraryMode()) {
+    if (libraryMode() && !s.diskUrl) {
       if (!s.diskUuid) {
         return Promise.reject(new Error('no root disc chosen - pick a library image tagged NDIX in Machine Setup'));
       }
