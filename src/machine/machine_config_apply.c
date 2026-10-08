@@ -21,7 +21,7 @@
 
 void mc_apply_cpu(const MachineConfig *mc, const MachineConfigApplyOpts *opts)
 {
-    MachineConfigApplyOpts none = {0, 0};
+    MachineConfigApplyOpts none = {0};
     int ct;
 
     if (!mc)

@@ -383,9 +383,12 @@ jobs:
           for pe in "$STAGE"/*.exe "$STAGE"/*.dll; do
             [ -f "$pe" ] || continue
             for dll in $(objdump -p "$pe" | awk '/DLL Name:/ {print $3}'); do
-              # Windows file names are case-insensitive.
-              if ls "$STAGE" | grep -qixF "$dll"; then continue; fi
-              if ls "$SYS"   | grep -qixF "$dll"; then continue; fi
+              # Windows file names are case-insensitive. No "grep -q" at the end of a
+              # pipe: it exits at the first match, ls then dies of SIGPIPE, and under
+              # "set -o pipefail" the pipeline reads as "not found" for a DLL that is
+              # there (System32 lists thousands of files). Read the whole listing.
+              if ls "$STAGE" | grep -ixF "$dll" > /dev/null; then continue; fi
+              if ls "$SYS"   | grep -ixF "$dll" > /dev/null; then continue; fi
               # api-ms-win-* are API set names resolved by the loader, not files.
               case "$dll" in api-ms-win-*|API-MS-WIN-*) continue ;; esac
               echo "::error::$(basename "$pe") needs $dll, which is neither staged nor in System32"
