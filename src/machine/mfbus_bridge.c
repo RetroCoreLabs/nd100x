@@ -3808,8 +3808,6 @@ bool mfbus_is_attached(void)
     return s_attached;
 }
 
-#endif /* ND100X_WITH_ND500 */
-
 /* Read or write one of the table's registers in a station's CPU, BY ROW INDEX.
  *
  * By index and not by name, so a caller - the round-trip test above all - never
@@ -3861,3 +3859,10 @@ bool mfbus_store_context(uint8_t station_number)
     }
     return mfbus_save_context(&s_cpus[slot]);
 }
+
+/* The guard closes HERE, after the last definition, not after mfbus_is_attached():
+ * the three context functions above use s_cpus, s_ctx_fields and mfbus_slot_of,
+ * all of which exist only with the ND-500, and were once appended past the
+ * #endif - the RISC-V job (ND100X_ENABLE_ND500 defaults OFF there) failed on
+ * them with "unknown type name 'bool'", run 37678330016, 07-OCT-2026. */
+#endif /* ND100X_WITH_ND500 */
