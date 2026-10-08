@@ -10,18 +10,16 @@
   var TERMINAL_BACKEND = localStorage.getItem('nd100x-terminal-backend') || 'retroterm';
   </script>
 
-  <!-- Conditional terminal backend loading -->
-  <script>
-  if (TERMINAL_BACKEND === 'xterm') {
-    document.write('<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.1.0/css/xterm.min.css">');
-    document.write('<script src="https://cdn.jsdelivr.net/npm/xterm@5.1.0/lib/xterm.min.js"><\/script>');
-    document.write('<script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.7.0/lib/xterm-addon-fit.min.js"><\/script>');
-    document.write('<script src="https://cdn.jsdelivr.net/npm/xterm-addon-canvas@0.3.0/lib/xterm-addon-canvas.min.js"><\/script>');
-  } else {
-    document.write('<link rel="stylesheet" href="lib/retroterm/retroterm.css">');
-    document.write('<script src="lib/retroterm/retroterm.js"><\/script>');
-  }
-  </script>
+  <!-- Both renderers, plain tags, local files (xterm vendored in lib/xterm/,
+       see its README); TERMINAL_BACKEND above still says which one this
+       pop-out draws with. No document.write: Chrome warned about the
+       cross-site scripts it wrote, Edge logged Tracking Prevention for them. -->
+  <link rel="stylesheet" href="lib/xterm/xterm.min.css">
+  <script src="lib/xterm/xterm.min.js"></script>
+  <script src="lib/xterm/xterm-addon-fit.min.js"></script>
+  <script src="lib/xterm/xterm-addon-canvas.min.js"></script>
+  <link rel="stylesheet" href="lib/retroterm/retroterm.css">
+  <script src="lib/retroterm/retroterm.js"></script>
 
   <!-- Retro fonts -->
   <link href="https://fonts.googleapis.com/css2?family=VT323&family=Fira+Mono:wght@400;700&family=IBM+Plex+Mono:wght@400;700&family=Source+Code+Pro:wght@400;700&family=Courier+Prime:wght@400;700&family=Share+Tech+Mono&family=Anonymous+Pro:wght@400;700&display=swap" rel="stylesheet">

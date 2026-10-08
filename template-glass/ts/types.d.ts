@@ -6,11 +6,11 @@
 //
 
 // Ambient type declarations for the Glass UI terminal modules.
-// These describe globals provided by xterm.js CDN, the emu proxy layer,
-// and other Glass JS modules so TypeScript can check cross-file references
-// without import/export (module: "none" build).
+// These describe globals provided by xterm.js (lib/xterm/), the emu proxy
+// layer, and other Glass JS modules so TypeScript can check cross-file
+// references without import/export (module: "none" build).
 
-// ---- xterm.js (loaded from CDN) ----
+// ---- xterm.js (vendored in lib/xterm/, loaded by plain script tags) ----
 
 declare class Terminal {
   constructor(opts?: any);

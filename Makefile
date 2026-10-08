@@ -263,11 +263,15 @@ wasm-glass: check-deps mkptypes retroterm-build ndfs-build ts-compile
 	  -e "s|href=\"lib/retroterm/retroterm.css\"|href=\"lib/retroterm/retroterm.css?v=$$BUILD_TS\"|g" \
 	  -e "s|src=\"lib/retroterm/retroterm.js\"|src=\"lib/retroterm/retroterm.js?v=$$BUILD_TS\"|g" \
 	  -e "s|src=\"lib/ndfs/ndfs-browser-bundle.js\"|src=\"lib/ndfs/ndfs-browser-bundle.js?v=$$BUILD_TS\"|g" \
+	  -e "s|href=\"lib/xterm/xterm.min.css\"|href=\"lib/xterm/xterm.min.css?v=$$BUILD_TS\"|g" \
+	  -e "s|src=\"lib/xterm/\([^\"]*\)\"|src=\"lib/xterm/\1?v=$$BUILD_TS\"|g" \
 	  $(BUILD_DIR_WASM_GLASS)/bin/index.html; \
 	$(SED_INPLACE) \
 	  -e "s|href=\"css/styles.css\"|href=\"css/styles.css?v=$$BUILD_TS\"|g" \
 	  -e "s|href=\"css/themes.css\"|href=\"css/themes.css?v=$$BUILD_TS\"|g" \
 	  -e "s|src=\"js/\([^\"]*\)\"|src=\"js/\1?v=$$BUILD_TS\"|g" \
+	  -e "s|href=\"lib/xterm/xterm.min.css\"|href=\"lib/xterm/xterm.min.css?v=$$BUILD_TS\"|g" \
+	  -e "s|src=\"lib/xterm/\([^\"]*\)\"|src=\"lib/xterm/\1?v=$$BUILD_TS\"|g" \
 	  $(BUILD_DIR_WASM_GLASS)/bin/terminal-popout.html; \
 	echo "Cache-bust: v=$$BUILD_TS"
 	@echo ""

@@ -176,8 +176,8 @@ Scripts load in this exact order (from `index.html`):
 | Order | File | Purpose |
 |-------|------|---------|
 | 1 | `js/module-init.js` | Global `Module` object, disk loading, terminal output handler |
-| 2 | xterm.js (CDN) | Terminal rendering library |
-| 3 | xterm-addon-fit (CDN) | Terminal auto-fit addon |
+| 2 | `lib/xterm/xterm.min.js` (vendored 5.1.0, see `lib/xterm/README.md`) | Terminal rendering library |
+| 3 | `lib/xterm/xterm-addon-fit.min.js`, `lib/xterm/xterm-addon-canvas.min.js` | Terminal auto-fit and canvas addons |
 | 4 | `nd100wasm.js` | Emscripten-generated WASM loader |
 | 4a | `js/emu-proxy-worker.js` OR `js/emu-proxy.js` | Emulation proxy (Worker or Direct mode, selected at runtime) |
 | 5 | `js/smd-storage.js` | OPFS-based persistent SMD storage with UUID-keyed images |
@@ -466,7 +466,7 @@ Terminal code is written in TypeScript (`template-glass/ts/`) and compiled to Ja
 
 ### xterm.js Setup
 
-The terminal uses xterm.js v5.1.0 loaded from CDN, with the FitAddon for responsive sizing and CanvasAddon for precise rendering at all font sizes.
+The terminal uses xterm.js v5.1.0 served from `template-glass/lib/xterm/` (the exact files cdn.jsdelivr.net used to serve; vendored 08-OCT-2026 because the `document.write` cross-site loads drew a Chrome warning and Edge "Tracking Prevention" lines on every page load), with the FitAddon for responsive sizing and CanvasAddon for precise rendering at all font sizes. Both pages load them with plain `<link>`/`<script>` tags that the Makefile cache-busts.
 
 **Terminal creation** (`terminal-manager.ts` - `createTerminal()`):
 - Creates a DOM container `terminal-container-{identCode}`
