@@ -203,6 +203,15 @@
           Help <svg class="chevron" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,3 5,6 8,3"/></svg>
         </button>
         <div class="toolbar-menu" id="help-menu">
+          <button class="toolbar-menu-item" id="menu-welcome">Welcome</button>
+          <div class="toolbar-menu-item has-submenu" id="menu-machines-submenu">
+            Machines
+            <svg class="submenu-arrow" width="10" height="10" viewBox="0 0 10 10" fill="none"><polyline points="3,2 7,5 3,8"/></svg>
+            <div class="toolbar-submenu" id="machines-submenu">
+              <div class="toolbar-menu-item disabled">Loading...</div>
+            </div>
+          </div>
+          <div class="toolbar-menu-separator"></div>
           <button class="toolbar-menu-item" id="menu-sintran-help">SINTRAN Help</button>
           <div class="toolbar-menu-separator"></div>
           <button class="toolbar-menu-item" id="menu-about">About</button>
@@ -522,6 +531,90 @@
       </p>
       <a href="https://github.com/RetroCoreLabs/nd100x" target="_blank" rel="noopener noreferrer" class="about-link">View on GitHub</a>
     </div>
+  </div>
+
+  <!-- =========================================
+       WELCOME (first-visit modal, Help > Welcome) and MACHINE PAGES
+       (Help > Machines). Both are filled by js/welcome.js from
+       data/machines.json; nothing here is machine-specific.
+       ========================================= -->
+  <div id="welcome-overlay" class="welcome-overlay" style="display: none;">
+    <div class="welcome-panel" role="dialog" aria-labelledby="welcome-title">
+      <div class="welcome-header">
+        <img src="Logo_ND.png" alt="ND Logo" class="welcome-logo">
+        <div>
+          <div class="welcome-title" id="welcome-title">Welcome to nd100x</div>
+          <div class="welcome-subtitle">Norsk Data ND-100 and ND-500 computers, emulated in the browser</div>
+        </div>
+        <button class="glass-window-close welcome-close" id="welcome-close" title="Close">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="2" y1="2" x2="10" y2="10"/><line x1="10" y1="2" x2="2" y2="10"/></svg>
+        </button>
+      </div>
+      <div class="welcome-body">
+        <section class="welcome-section welcome-start">
+          <h3>1. Start a machine</h3>
+          <ol class="welcome-steps">
+            <li>Pick a machine in the <b>Machine</b> dropdown, left of the <b>Power</b> button in the toolbar.</li>
+            <li>Press <b>Power</b>. The machine boots from its own disk - nothing else to choose.</li>
+            <li>Type in the <b>Console</b> window. The cards below say what each machine shows and how to log in.</li>
+            <li>Disks are in memory only, so changes vanish until you configure persistent storage (Config &gt; Persistent disk storage).</li>
+          </ol>
+          <div class="welcome-cards" id="welcome-cards"></div>
+        </section>
+        <div class="welcome-columns">
+          <section class="welcome-section">
+            <h3>2. The View menu</h3>
+            <ul class="welcome-list">
+              <li><b>Machine Setup</b> - the machine's controllers, disks, boot drive and terminal type; built-in machines are read-only, clone one to change it.</li>
+              <li><b>HDD Disk Manager</b> / <b>Floppy Library</b> - disk images: the server's catalog, a local library in the browser (Config &gt; Persistent disk storage), floppies from the Norsk Data software archive.</li>
+              <li><b>Config</b> - background execution, persistent storage, the WebSocket gateway, printer.</li>
+              <li><b>Terminals</b> - a window per terminal; pop any of them out into its own browser window.</li>
+              <li><b>Machine Info</b>, <b>CPU Load</b>, <b>Printer</b>, <b>Paper Tape</b> - what the hardware is doing.</li>
+              <li><b>Debugger</b>, <b>Disassembly</b>, <b>Breakpoints</b> - the CPU debugger: registers, memory, breakpoints, instruction trace.</li>
+            </ul>
+          </section>
+          <div class="welcome-stack">
+            <section class="welcome-section">
+              <h3>3. The Help menu</h3>
+              <ul class="welcome-list">
+                <li><b>Welcome</b> - this window, any time.</li>
+                <li><b>Machines</b> - a page per machine: what it is, how to use it, its history.</li>
+                <li><b>SINTRAN Help</b> - the searchable SINTRAN III command reference.</li>
+                <li><b>H&aring;ndbok</b> and <b>System Supervisor</b> - the original Norsk Data manuals (PDF).</li>
+                <li><b>About</b> - version and source code.</li>
+              </ul>
+            </section>
+            <section class="welcome-section">
+              <h3>4. The SINTRAN menu</h3>
+              <p class="welcome-note">Appears in the toolbar only once SINTRAN III is detected running on the ND-100. It reads the live operating system out of memory:</p>
+              <ul class="welcome-list">
+                <li><b>System Information</b> - the SINTRAN version, generation and configuration.</li>
+                <li><b>RT Descriptions</b>, <b>Queue Viewer</b>, <b>Reentrant Programs</b> - the running programs, their queues and shared segments.</li>
+                <li><b>Segment Table</b>, <b>Page Tables</b> - memory as SINTRAN manages it.</li>
+                <li><b>I/O Devices</b> - the device datafields, terminal by terminal.</li>
+                <li><b>Initial Commands</b> - the commands SINTRAN runs at start-up.</li>
+                <li><b>Browse Disk (NDFS)</b> - the SINTRAN file system on the booted disk, with a file viewer.</li>
+                <li><b>Dump Memory</b> - a raw memory dump.</li>
+              </ul>
+            </section>
+          </div>
+        </div>
+      </div>
+      <div class="welcome-footer">
+        <label class="welcome-check"><input type="checkbox" id="welcome-show-always" checked> Show this every time</label>
+        <button class="smd-action-btn welcome-close-btn" id="welcome-close-btn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="machine-page-window" class="glass-window" style="display: none;">
+    <div class="glass-window-header" id="machine-page-header">
+      <span class="glass-window-title" id="machine-page-title">Machine</span>
+      <button class="glass-window-close" id="machine-page-close">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="2" y1="2" x2="10" y2="10"/><line x1="10" y1="2" x2="2" y2="10"/></svg>
+      </button>
+    </div>
+    <div class="glass-window-body machine-page-body" id="machine-page-body"></div>
   </div>
 
   <!-- =========================================
@@ -1033,7 +1126,8 @@
         Without it there is no local disk library and images cannot be copied in here; the
         server catalog is still shown. Drives are given their images in Machine Setup.
       </div>
-      <!-- Disk-type tabs: SMD (4 units), SCSI (IDs 0-6), Winchester (2 units). -->
+      <!-- Disk-type tabs: SMD (4 units), SCSI (IDs 0-6), Winchester (2 units),
+           NDIX (root discs, no units), CDC (TSS cartridge discs, no units). -->
       <div class="hdd-tabs" id="hdd-tabs" style="display:flex;gap:6px;margin-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.15);padding-bottom:6px;">
         <button class="hdd-tab hdd-tab-active" data-hdd-tab="smd" onclick="hddSelectTab('smd')">SMD</button>
         <button class="hdd-tab" data-hdd-tab="scsi" onclick="hddSelectTab('scsi')">SCSI</button>
@@ -1041,6 +1135,8 @@
                 title="ST506/8 inch Winchester (cards 3041/3038), IOX 500-507">Winchester</button>
         <button class="hdd-tab" data-hdd-tab="ndix" onclick="hddSelectTab('ndix')"
                 title="Root discs for a standalone ND-500 running NDIX">NDIX</button>
+        <button class="hdd-tab" data-hdd-tab="cdc" onclick="hddSelectTab('cdc')"
+                title="CDC 9427 cartridge discs for NORD TSS (4 MB images)">CDC</button>
       </div>
       <div id="smd-manager-body">
         <div class="smd-section-title" style="margin-top:12px">
@@ -1091,6 +1187,22 @@
         </div>
         <div id="hdd-ndix-installed-list" class="smd-installed-list">
           <div class="smd-empty-msg">No NDIX root discs in the library.</div>
+        </div>
+      </div>
+      <div id="hdd-cdc-body" style="display:none">
+        <!-- No units: the CDC 9427 cartridge disc is the emulator's
+             [runtime] cdc = FILE device, not a controller unit. It answers
+             IOX 500-507, the same block as the Winchester card, so a
+             machine has one or the other. -->
+        <div class="smd-section-title">CDC Cartridge Discs</div>
+        <div class="smd-image-meta" style="opacity:.7;margin-bottom:6px;">CDC 9427 cartridge discs for NORD TSS (4 MB images). The disc carries the TSS file system, so there is no NDFS view.</div>
+        <div class="smd-section-title" style="margin-top:12px">Local Disk Library (CDC)
+          <div class="smd-lib-actions">
+            <button class="smd-action-btn hdd-import-btn" data-type="cdc" title="Import .IMG from local file">Import</button>
+          </div>
+        </div>
+        <div id="hdd-cdc-installed-list" class="smd-installed-list">
+          <div class="smd-empty-msg">No CDC cartridge discs in the library.</div>
         </div>
       </div>
       <!-- Server Catalog and Remote Images: one set of sections under every
@@ -1660,6 +1772,7 @@
   <script src="js/floppy-browser.js"></script>
   <script src="js/ndfs-viewer.js"></script>
   <script src="js/help-window.js"></script>
+  <script src="js/welcome.js"></script>
   <script src="js/debugger.js"></script>
   <script src="js/disassembly.js"></script>
   <script src="js/breakpoints.js"></script>

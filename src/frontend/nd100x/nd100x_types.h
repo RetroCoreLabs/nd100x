@@ -127,6 +127,9 @@ typedef struct {
     // (CLI wins, mirroring --memory).
     int  fppBits;
     bool fppSet;
+    // --mms=1|2 / --mms1 / --mms2 / .ini [machine] mms=: mmsSet records whether a
+    // CLI flag was given, so the .ini value only applies when it was not.
+    bool mmsSet;
     // --rtc=ticks|wall / .ini [machine] rtc=: RTC time base. false = one clock
     // pulse per 10550 executed instructions (default, deterministic); true = one
     // pulse per 20 ms of host wall-clock time. Applied via RTC_SetWallClockMode

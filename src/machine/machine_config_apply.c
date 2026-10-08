@@ -59,6 +59,15 @@ void mc_apply_cpu(const MachineConfig *mc, const MachineConfigApplyOpts *opts)
     {
         rtc_set_wall_clock_mode(mc->rtc_wall);
     }
+
+    // MMU paging system from the .ini [machine] mms= key, read by
+    // machine_init -> cpu_init -> CreatePagingTables() to size the shadow RAM
+    // (MMS1: 4 page tables, MMS2: 16) - so it has to land here, before
+    // machine_init, like the CPU model. A --mms CLI flag wins.
+    if (!opts->mms_already_set)
+    {
+        g_mms_type = (mc->mms == 1) ? MMS1 : MMS2;
+    }
 }
 
 void mc_apply_devices(const MachineConfig *mc)

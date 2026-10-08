@@ -149,7 +149,16 @@ bool mc_to_json(const MachineConfig *cfg, char *out, size_t outlen)
     kv_str(&s, "cpuDisplay", cpumodel_display_name((CpuType)cfg->cpu_model), 1);
     put(&s, "\"cpuNumber\":%d,", cfg->cpu_type);
     put(&s, "\"fpp\":%d,", cfg->fpp_bits);
-    kv_str(&s, "rtc", cfg->rtc_wall ? "wall" : "ticks", 0);
+    kv_str(&s, "rtc", cfg->rtc_wall ? "wall" : "ticks", 1);
+    put(&s, "\"mms\":%d", cfg->mms);
+    put(&s, "},");
+
+    /* ---- [runtime] devices the page must stage before Init: the NORD TSS
+     * cartridge disc and swapping drum are backing FILES opened when the
+     * device is created, not controller units mounted afterwards ---- */
+    put(&s, "\"runtime\":{");
+    kv_str(&s, "cdc", cfg->runtime.cdc, 1);
+    kv_str(&s, "drum", cfg->runtime.drum, 0);
     put(&s, "},");
 
     /* ---- the models a picker may offer, straight from the CPU's own table so
@@ -248,6 +257,9 @@ bool mc_to_json(const MachineConfig *cfg, char *out, size_t outlen)
      * name on a non-disc boot. */
     put(&s, "\"none\":%s,",
         (!cfg->boot.is_disc && cfg->boot.file_boot_type == BOOT_NONE) ? "true" : "false");
+    /* cdc: "[boot] device = cdc" - the TSS cartridge disc's LOAD button. */
+    put(&s, "\"cdc\":%s,",
+        (!cfg->boot.is_disc && cfg->boot.file_boot_type == BOOT_CDC) ? "true" : "false");
     put(&s, "\"isDisc\":%s,", cfg->boot.is_disc ? "true" : "false");
     kv_str(&s, "type", mc_ctrl_type_name(cfg->boot.type), 1);
     put(&s, "\"wheel\":%d,", cfg->boot.wheel);

@@ -60,7 +60,7 @@ function assertEqual(actual, expected, description) {
 function reset() { localStorage.clear(); }
 
 // The built-in machines every store holds, in order.
-const SHIPPED = ['ND-100', 'ND-5000', 'BSD 2.11', '500 NDIX-C'];
+const SHIPPED = ['ND-100', 'ND-5000', 'BSD 2.11', '500 NDIX-C', 'TSS'];
 
 // The INI the page shipped as "Default" before the built-in machines existed.
 const LEGACY_DEFAULT_INI =
@@ -86,7 +86,7 @@ const LEGACY_DEFAULT_INI =
 
 section('First run: the built-in machines');
 reset();
-assertEqual(mp.list().join(','), SHIPPED.join(','), 'starts with the four built-in machines');
+assertEqual(mp.list().join(','), SHIPPED.join(','), 'starts with the five built-in machines');
 assertEqual(mp.activeName(), 'ND-100', 'and the plain ND-100 is the active one');
 assert(mp.ini().indexOf('device = smd.0.0') >= 0, 'booting SINTRAN from SMD unit 0');
 assert(mp.ini().indexOf('[controller.scsi') < 0, 'with no SCSI controller - floppy and SMD only');
@@ -277,10 +277,11 @@ mp.clone('ND-100', 'Mine');
 assertEqual(Object.keys(mp.library()).length, 0, 'none to begin with');
 assert(mp.writeLibrary({ 'smd.0.0': { uuid: 'u1', file: 'SINTRAN-K.IMG', name: 'SINTRAN K' },
                          'wd.0.1':  { uuid: 'u2', file: 'BSD.IMG' },
-                         'cdc.0.0': { uuid: 'u3', file: 'X.IMG' },          // not a library type: dropped
+                         'cdc.0.0': { uuid: 'u3', file: 'X.IMG' },          // the TSS cartridge disc ([runtime] cdc =): kept
+                         'hdlc.0.0': { uuid: 'u5', file: 'Y.IMG' },         // not a library type: dropped
                          'smd.0.9': { uuid: 'u4' }                           // no file: dropped
                        }), 'writing choices succeeds');
-assertEqual(Object.keys(mp.library()).sort().join(','), 'smd.0.0,wd.0.1', 'smd/scsi/wd/floppy slots with uuid and file are kept');
+assertEqual(Object.keys(mp.library()).sort().join(','), 'cdc.0.0,smd.0.0,wd.0.1', 'smd/scsi/wd/floppy/cdc slots with uuid and file are kept');
 assertEqual(mp.library()['wd.0.1'].name, 'BSD.IMG', 'a missing name falls back to the file');
 mp.create('Other', '[machine]\ncpu = 100\n');
 assertEqual(Object.keys(mp.library()).length, 0, 'another machine has its own (empty) choices');

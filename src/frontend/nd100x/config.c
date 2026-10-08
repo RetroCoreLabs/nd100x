@@ -862,13 +862,16 @@ bool config_parse_command_line(Config *config, int argc, char *argv[])
                 exit(1);
             }
             config->mmsType = (int)m;
+            config->mmsSet = true;
             break;
         }
         case 0x107:
             config->mmsType = 1;
+            config->mmsSet = true;
             break; /* --mms1 : NORD-10 / Paging-System-I (NORD TSS) */
         case 0x108:
             config->mmsType = 2;
+            config->mmsSet = true;
             break; /* --mms2 : 16-page-table MMS (default) */
 
         case 0x104:
@@ -1300,6 +1303,10 @@ void config_print_help(const char *prog_name)
         "                          (deterministic, follows emulation speed). wall = one pulse\n");
     printf("                          per 20 ms of host time (real-time 50 Hz clock).\n");
     printf("                          Also settable via the .ini '[machine] rtc = MODE' key.\n");
+    printf("           --mms=1|2      MMU paging system: 1 = Paging System I (4 page tables,\n");
+    printf("                          NORD-10 / NORD TSS), 2 = MMS2 (16 page tables; default).\n");
+    printf("                          --mms1 / --mms2 are the same. Also settable via the .ini\n");
+    printf("                          '[machine] mms = 1|2' key; the CLI flag wins.\n");
     printf(
         "           --log=SPEC     Log levels per category, e.g. smd:debug,hdlc:trace,*:warn.\n");
     printf("                          Levels: error warn info debug trace (default: info).\n");

@@ -18,6 +18,9 @@
 //    directories, the drum and CDC images and the memory size. A form that
 //    regenerated the file from scratch would delete all of it the first time
 //    somebody clicked Save, and nothing would say so.
+//    One exception, one key: "cdc =" in [runtime] (the NORD TSS cartridge
+//    disc's file) is the form's - the CDC row sets it. The section is still
+//    carried over as text; only that line's value is replaced (setRuntimeCdc).
 //
 // The generated text still goes through the C validator before it is saved, so
 // a form that produces nonsense is caught by the same check a hand-typed file
@@ -67,6 +70,42 @@
     return out;
   }
 
+  // The one [runtime] key the form owns: cdc =, the NORD TSS cartridge
+  // disc's backing file (the CDC row sets it). <sections> is what
+  // foreignSections() carried over; the [runtime] section among them gets
+  // its "cdc =" line's VALUE replaced by <file>, the key's spelling and any
+  // trailing ; or # comment kept, every other line untouched. A [runtime]
+  // without the line gets one after its last non-blank line; no [runtime] at
+  // all gets a new section. Owning the whole section instead would mean
+  // fields for the telnet port, throttle, charset, memory size and the rest,
+  // and a mistake in any of them deletes a setting; replacing one value in
+  // the text cannot.
+  function setRuntimeCdc(sections, file) {
+    if (!file) return sections;
+    var done = false;
+    var out = [];
+    for (var s = 0; s < sections.length; s++) {
+      var sec = sections[s];
+      if (!/^\s*\[runtime\]/i.test(sec)) { out.push(sec); continue; }
+      var lines = sec.split('\n'), hit = false;
+      for (var i = 0; i < lines.length; i++) {
+        var m = /^(\s*cdc\s*=\s*)([^;#]*?)(\s*[;#].*)?$/i.exec(lines[i]);
+        if (!m) continue;
+        lines[i] = m[1] + file + (m[3] || '');
+        hit = true;
+      }
+      if (!hit) {
+        var last = lines.length;
+        while (last > 0 && !lines[last - 1].trim()) last--;
+        lines.splice(last, 0, 'cdc = ' + file);
+      }
+      done = true;
+      out.push(lines.join('\n'));
+    }
+    if (!done) out.push('[runtime]\ncdc = ' + file);
+    return out;
+  }
+
   // ---- rendering ----------------------------------------------------------
 
   var current = null;   // the last JSON description, for regenerating
@@ -95,8 +134,10 @@
            typeof smdStorage !== 'undefined' && smdStorage.isAvailable();
   }
 
-  // The INI controller type's diskType tag in the library.
-  var LIBRARY_TYPE_OF = { smd: 'smd', scsi: 'scsi', wd: 'winchester', floppy: 'floppy' };
+  // The INI controller type's diskType tag in the library. 'cdc' is not a
+  // controller: it is the NORD TSS cartridge disc of [runtime] cdc =, with
+  // its own row (renderCdc) and the pick key 'cdc.0.0'.
+  var LIBRARY_TYPE_OF = { smd: 'smd', scsi: 'scsi', wd: 'winchester', floppy: 'floppy', cdc: 'cdc' };
 
   function libraryImagesFor(ctrlType) {
     var want = LIBRARY_TYPE_OF[ctrlType];
@@ -138,6 +179,25 @@
       input.value = '';
     }
     // 'archive' / 'file' keep what the slot has.
+    refreshBootSelect();
+  }
+
+  // The CDC row's library select changed: the hidden file field (what
+  // [runtime] cdc = will say) and the 'cdc.0.0' pick follow. 'file' puts the
+  // INI's own file name back, which the select remembers in data-file.
+  function cdcChanged() {
+    var sel = el('mf-cdc-l'), input = el('mf-cdc-d');
+    if (!sel || !input) return;
+    var v = sel.value;
+    if (v.indexOf('lib:') === 0) {
+      var uuid = v.slice(4), meta = smdStorage.getMetadata(uuid);
+      var name = (meta && meta.name) || uuid;
+      libPicks['cdc.0.0'] = { uuid: uuid, file: libraryFileName(name), name: name };
+      input.value = libPicks['cdc.0.0'].file;
+    } else if (v === 'file') {
+      delete libPicks['cdc.0.0'];
+      input.value = sel.getAttribute('data-file') || input.value;
+    }
     refreshBootSelect();
   }
 
@@ -338,6 +398,51 @@
     return h;
   }
 
+  // The NORD TSS cartridge disc. Not a controller unit: the INI names its
+  // backing file in [runtime] cdc =, and the device reads that file when it
+  // is created at Init (nd100wasm.c, cdc_set_backing_file). The row has the
+  // controller slots' two modes - with persistent storage on, a select of
+  // the library's images tagged 'cdc' plus the INI's own file; in demo mode
+  // the server's file, read-only. The file rides in mf-cdc-d (as the slots'
+  // hidden -d fields do), the select is mf-cdc-l, the pick key 'cdc.0.0'.
+  // Only a machine that has the disc gets the row.
+  function renderCdc(d) {
+    if (!d.runtime || !d.runtime.cdc) return '';
+    var file = d.runtime.cdc;
+    var lib = libraryMode();
+    var h = '<div class="smd-section-title">CDC cartridge disc</div>';
+    h += '<div style="border:1px solid rgba(255,255,255,.12);border-radius:4px;padding:6px;margin-bottom:6px;">';
+    h += '<div style="display:flex;gap:6px;align-items:center;">';
+    h += '<span style="opacity:.7;width:52px;">disc</span>';
+    if (lib) {
+      var libImages = libraryImagesFor('cdc');
+      var lp = libPicks['cdc.0.0'];
+      var fromLib = false;
+      for (var li = 0; li < libImages.length; li++)
+        if (lp && file === lp.file && lp.uuid === libImages[li].uuid) fromLib = true;
+      h += '<input type="hidden" id="mf-cdc-d" value="' + esc(file) + '">';
+      h += '<select id="mf-cdc-l" data-file="' + esc(file) + '" style="font-size:12px;padding:2px;min-width:220px;">';
+      for (li = 0; li < libImages.length; li++) {
+        h += opt('lib:' + libImages[li].uuid, libImages[li].name + ' (' + libImages[li].sizeText + ')',
+                 fromLib && lp.uuid === libImages[li].uuid);
+      }
+      if (!fromLib) h += opt('file', 'file: ' + file + ' (not in the library)', true);
+      h += '</select>';
+    } else {
+      h += '<input type="text" id="mf-cdc-d" value="' + esc(file) + '" readonly ' +
+           'title="Demo mode: the server\'s image. Turn on persistent disk storage to choose a library image." ' +
+           'style="width:190px;font-size:12px;padding:2px;opacity:.7;">';
+    }
+    h += '</div>';
+    h += '<div class="smd-image-meta" style="opacity:.6;margin-top:3px;">' +
+         'The system disc at IOX 500, booted with its LOAD button ([runtime] cdc =). ' +
+         (lib ? 'Images tagged CDC in the local disk library (HDD Disk Manager).'
+              : 'Demo mode: the server\'s image. Turn on persistent disk storage (Config) to choose a library image.') +
+         '</div>';
+    h += '</div>';
+    return h;
+  }
+
   // Add the selected controller to the machine being edited, then re-render so
   // it gets its image fields. It goes in ENABLED with empty slots: adding a
   // controller you then have to tick on as well is a step with no meaning, and
@@ -428,6 +533,7 @@
 
   // The [boot] device as the select's value: "type.wheel.unit", or "none".
   function bootValueOf(boot) {
+    if (boot && boot.cdc) return 'cdc';
     if (!boot || boot.none || !boot.isDisc) return 'none';
     return boot.type + '.' + boot.wheel + '.' + boot.unit;
   }
@@ -444,6 +550,14 @@
   function bootOptionsHTML(d, selected, fromForm) {
     var h = opt('none', '(no boot drive)', selected === 'none');
     var found = (selected === 'none');
+    // The NORD TSS cartridge disc ([runtime] cdc =): booted with its LOAD
+    // button, "device = cdc" - offered whenever the machine has the disc.
+    if (d.runtime && d.runtime.cdc) {
+      var cdcInput = fromForm ? el('mf-cdc-d') : null;
+      var cdcFile = (cdcInput && cdcInput.value) || d.runtime.cdc;
+      h += opt('cdc', 'CDC cartridge disc  (' + cdcFile + ', TSS LOAD)', selected === 'cdc');
+      if (selected === 'cdc') found = true;
+    }
     for (var i = 0; i < d.controllers.length; i++) {
       var c = d.controllers[i];
       if (!c.bootable || !c.isDisc) continue;
@@ -485,7 +599,9 @@
       return;
     }
     current = d;
-    host.innerHTML = renderMachine(d) + renderControllers(d) + renderRest(d);
+    host.innerHTML = renderMachine(d) + renderControllers(d) + renderCdc(d) + renderRest(d);
+    var cdcSel = el('mf-cdc-l');
+    if (cdcSel) cdcSel.addEventListener('change', cdcChanged);
     // innerHTML replaces the nodes, so the handler is attached here rather than
     // once at startup - there is no button to attach to until now.
     var add = el('mf-add-btn');
@@ -588,8 +704,10 @@
       out.push('');
     }
 
-    // Rule 2: everything the form does not own comes across untouched.
+    // Rule 2: everything the form does not own comes across untouched - but
+    // for [runtime] cdc =, which the CDC row owns (see the file header).
     var carried = foreignSections(previousIni);
+    if (d.runtime && d.runtime.cdc) carried = setRuntimeCdc(carried, val('mf-cdc-d', '') || d.runtime.cdc);
     if (carried.length) {
       out.push('# Sections below are not edited by the form and are kept as they were.');
       out.push('');
@@ -655,6 +773,12 @@
           if (file === lp.file) out[key] = lp;
         }
       }
+      // The CDC row: in force while [runtime] cdc = still names its file.
+      var cp = libPicks['cdc.0.0'];
+      if (cp && current.runtime && current.runtime.cdc) {
+        var cin = el('mf-cdc-d');
+        if ((cin ? cin.value : current.runtime.cdc) === cp.file) out['cdc.0.0'] = cp;
+      }
       return out;
     },
 
@@ -683,6 +807,7 @@
      * [runtime] - the telnet port, throttle, charset, drum and CDC images and
      * the memory size - the first time somebody presses Save. It is worth a
      * test of its own. */
-    _foreignSections: foreignSections
+    _foreignSections: foreignSections,
+    _setRuntimeCdc: setRuntimeCdc
   };
 })();

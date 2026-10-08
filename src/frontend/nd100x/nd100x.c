@@ -466,6 +466,7 @@ void initialize(void)
         MachineConfigApplyOpts mc_opts;
         mc_opts.fpp_already_set = config.fppSet ? 1 : 0;
         mc_opts.rtc_already_set = config.rtcSet ? 1 : 0;
+        mc_opts.mms_already_set = config.mmsSet ? 1 : 0;
         mc_apply_cpu(&machine_config, &mc_opts);
     }
 

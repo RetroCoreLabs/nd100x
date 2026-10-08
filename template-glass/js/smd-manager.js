@@ -71,7 +71,7 @@ function hddUpdateTabCounts() {
   if (typeof smdStorage === 'undefined') return;
   var counts = {};
   smdStorage.listImages().forEach(function(i) { var t = i.diskType || 'smd'; counts[t] = (counts[t] || 0) + 1; });
-  var labels = { smd: 'SMD', scsi: 'SCSI', winchester: 'Winchester', ndix: 'NDIX' };
+  var labels = { smd: 'SMD', scsi: 'SCSI', winchester: 'Winchester', ndix: 'NDIX', cdc: 'CDC' };
   var btns = document.querySelectorAll('#hdd-tabs .hdd-tab');
   for (var b = 0; b < btns.length; b++) {
     var tab = btns[b].getAttribute('data-hdd-tab');
@@ -86,6 +86,7 @@ function copiedWhere(diskType) {
   if (diskType === 'winchester') return ' - Winchester tab';
   if (diskType === 'floppy') return ' - mount it from the Floppy Library';
   if (diskType === 'nd500') return ' - NDIX tab; choose it in Machine Setup as the root disc';
+  if (diskType === 'cdc') return ' - CDC tab';
   return '';
 }
 
@@ -99,7 +100,7 @@ function smdRefreshAll() {
     smdUpdateStorageInfo();
     // The other type tabs' libraries too: a copy made from this tab may
     // belong on one of them.
-    if (typeof hddTypeRefresh === 'function') { hddTypeRefresh('scsi'); hddTypeRefresh('winchester'); hddTypeRefresh('nd500'); }
+    if (typeof hddTypeRefresh === 'function') { hddTypeRefresh('scsi'); hddTypeRefresh('winchester'); hddTypeRefresh('nd500'); hddTypeRefresh('cdc'); }
     hddUpdateTabCounts();
   });
 }
@@ -628,7 +629,10 @@ function smdEnsureCatalog() {
 // nd500 is a tag on the NDIX root disk, read only by the standalone ND-500
 // machine (ndix-machine.js, Machine Setup) - it is never assigned to an ND-100
 // controller, so disk-types.js (the real DRIVE_TYPE enum) does not carry it.
-var EXTRA_DISK_TYPE_LABELS = { nd500: 'ND-500 / NDIX root' };
+// cdc is the NORD TSS CDC 9427 cartridge disc (4 MB images such as
+// TSS-CDC.IMG): a [runtime] cdc = FILE device in the emulator, not a
+// controller unit, so it is a library tag only, like nd500.
+var EXTRA_DISK_TYPE_LABELS = { nd500: 'ND-500 / NDIX root', cdc: 'CDC (TSS cartridge disc)' };
 
 function smdDiskTypeLabel(t) {
   if (typeof diskTypes !== 'undefined' && diskTypes.DRIVE_TYPE_LABEL[t]) return diskTypes.DRIVE_TYPE_LABEL[t];
@@ -637,7 +641,7 @@ function smdDiskTypeLabel(t) {
 
 // Short form for the badge itself - DRIVE_TYPE_LABEL is a full word ("SMD
 // disc", "Winchester (ST506)"), too long for an inline tag.
-var DISK_TYPE_ABBR = { smd: 'SMD', scsi: 'SCSI', winchester: 'WD', floppy: 'FD', nd500: 'ND5' };
+var DISK_TYPE_ABBR = { smd: 'SMD', scsi: 'SCSI', winchester: 'WD', floppy: 'FD', nd500: 'ND5', cdc: 'CDC' };
 
 // A small colored tag naming <type>, for the catalog, local library and
 // remote (gateway) image lists - one shared look everywhere a disk's type
@@ -685,7 +689,7 @@ function smdRefreshCatalogList() {
 // The HDD manager's active tab decides which disk type the Server Catalog
 // and Remote Images sections (shared under every tab) show.
 var _hddActiveTab = 'smd';
-var HDD_TAB_DISK_TYPE = { smd: 'smd', scsi: 'scsi', winchester: 'winchester', ndix: 'nd500' };
+var HDD_TAB_DISK_TYPE = { smd: 'smd', scsi: 'scsi', winchester: 'winchester', ndix: 'nd500', cdc: 'cdc' };
 function smdListFilter(selectId) {
   return HDD_TAB_DISK_TYPE[_hddActiveTab] || 'smd';
 }
@@ -920,7 +924,7 @@ function smdDoCopy(uuid, name, description, entry) {
     }
     smdRefreshAll();
     // Show the tab the image is on, so it is visible right away.
-    var tabOf = { smd: 'smd', scsi: 'scsi', winchester: 'winchester', nd500: 'ndix' };
+    var tabOf = { smd: 'smd', scsi: 'scsi', winchester: 'winchester', nd500: 'ndix', cdc: 'cdc' };
     if (tabOf[entry.diskType || 'smd'] && typeof hddSelectTab === 'function') hddSelectTab(tabOf[entry.diskType || 'smd']);
   }).catch(function(err) {
     downloadedData = null;
@@ -1454,8 +1458,9 @@ window.smdManagerHide = smdManagerHide;
 })();
 
 // =========================================================
-// HDD manager tabs (SMD / SCSI / Winchester) - added for the SCSI controller.
-// SMD keeps its existing UI (#smd-manager-body); SCSI uses #hdd-scsi-body.
+// HDD manager tabs (SMD / SCSI / Winchester / NDIX / CDC) - added for the SCSI
+// controller. SMD keeps its existing UI (#smd-manager-body); SCSI uses
+// #hdd-scsi-body, and so on per type.
 // =========================================================
 function hddSelectTab(tab) {
   // One body per tab, shown by name. Listed rather than derived so a body with
@@ -1465,7 +1470,8 @@ function hddSelectTab(tab) {
     smd:        'smd-manager-body',
     scsi:       'hdd-scsi-body',
     winchester: 'hdd-winchester-body',
-    ndix:       'hdd-ndix-body'
+    ndix:       'hdd-ndix-body',
+    cdc:        'hdd-cdc-body'
   };
   for (var name in bodies) {
     if (!Object.prototype.hasOwnProperty.call(bodies, name)) continue;
@@ -1482,6 +1488,7 @@ function hddSelectTab(tab) {
   if (tab === 'scsi') hddTypeRefresh('scsi');
   if (tab === 'winchester') hddTypeRefresh('winchester');
   if (tab === 'ndix') hddTypeRefresh('nd500');
+  if (tab === 'cdc') hddTypeRefresh('cdc');
   // The shared catalog / remote sections follow the tab's type.
   var typeLabel = document.getElementById('hdd-shared-type');
   if (typeLabel) typeLabel.textContent = '- ' + smdDiskTypeLabel(HDD_TAB_DISK_TYPE[tab] || 'smd') + ' images';
@@ -1521,6 +1528,20 @@ var HDD_TYPES = {
     idPrefix: 'nd500',
     bodyId: 'hdd-ndix-body',
     listId: 'hdd-ndix-installed-list',
+    unitWord: 'Unit',
+    mountBuffer: null,
+    unmount: null,
+    opfsMount: null,
+    opfsUnmount: null
+  },
+  // CDC cartridge discs (NORD TSS, CDC 9427): no units - the disc is the
+  // emulator's [runtime] cdc = FILE device, not a controller unit, and
+  // disk-types.js has no unit count for it (hddUnitCount gives 0). The tab is
+  // the library view for the cdc tag.
+  cdc: {
+    idPrefix: 'cdc',
+    bodyId: 'hdd-cdc-body',
+    listId: 'hdd-cdc-installed-list',
     unitWord: 'Unit',
     mountBuffer: null,
     unmount: null,
@@ -1608,11 +1629,12 @@ function hddTypeRefreshLibrary(type) {
     html += '</div>';
     html += '<div class="smd-image-actions">';
     // The same actions as the SMD tab, in the same order - and no Assign on
-    // any tab: a drive gets its image in Machine Setup. Only NDIX has no
-    // NDFS: its root disc is a Unix filesystem, not an ND one.
+    // any tab: a drive gets its image in Machine Setup. NDIX and CDC have no
+    // NDFS: an NDIX root disc is a Unix filesystem and a CDC cartridge disc
+    // carries the TSS file system, neither is a SINTRAN one.
     html += '<button class="smd-rename-btn hdd-rename-btn" data-uuid="' + escapeHtml(uuid) + '" title="Rename">Rename</button>';
     html += '<button class="smd-export-btn hdd-export-btn" data-uuid="' + escapeHtml(uuid) + '" title="Export to local file">Export</button>';
-    if (type !== 'nd500') {
+    if (type !== 'nd500' && type !== 'cdc') {
       html += '<button class="smd-ndfs-btn hdd-ndfs-btn" data-uuid="' + escapeHtml(uuid) + '" title="Browse the ND filesystem">NDFS</button>';
     }
     html += '<button class="smd-delete-btn hdd-delete-btn" data-type="' + type + '" data-uuid="' + escapeHtml(uuid) + '" title="Delete from the library">Del</button>';
@@ -1748,8 +1770,8 @@ function hddScsiEjectUnit(unit)          { hddTypeEjectUnit('scsi', unit); }
 function hddWinchesterRefresh()          { hddTypeRefresh('winchester'); }
 function hddWinchesterEjectUnit(unit)    { hddTypeEjectUnit('winchester', unit); }
 
-// The Import buttons on the SCSI / Winchester / NDIX tabs (the SMD tab's is
-// wired in toolbar.js): the tab's type is preselected in the tag dialog.
+// The Import buttons on the SCSI / Winchester / NDIX / CDC tabs (the SMD tab's
+// is wired in toolbar.js): the tab's type is preselected in the tag dialog.
 (function() {
   function init() {
     document.querySelectorAll('.hdd-import-btn').forEach(function(btn) {

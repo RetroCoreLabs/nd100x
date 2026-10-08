@@ -12,7 +12,7 @@ name: Deploy web (Glass UI) to GitHub Pages
 # WHAT IS PUBLISHED: the whole build folder - the web files (index.html,
 # terminal-popout.html, nd100wasm.js/.wasm, version.js, disk-catalog.json,
 # css/, js/, lib/, data/, floppies/, PDF/) AND the demo disk images
-# unpacked from images/*.IMG.bz2 (SMD0.IMG, NDIX.IMG, BSD211-WD0.IMG,
+# unpacked from images/*.IMG.bz2 (SMD0.IMG, NDIX.IMG, BSD211-WD0.IMG, ND5000-SMD0.IMG, TSS-CDC.IMG,
 # about 225 MB). A Pages deploy always replaces the whole site, so there
 # is no "only if missing" here and nothing hand-uploaded can live there.
 #

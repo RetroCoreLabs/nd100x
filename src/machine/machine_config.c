@@ -188,6 +188,7 @@ void mc_init_baseline(MachineConfig *cfg)
     cfg->cpu_model = ND100;
     cfg->fpp_bits = 48;    /* standard 48-bit FPP; 32 selects the optional unit */
     cfg->rtc_wall = false; /* RTC counts instruction ticks; rtc = wall selects real-time 20 ms */
+    cfg->mms = 2;          /* MMS2, 16 page tables; mms = 1 is Paging System I for NORD TSS */
 
     /* terminals 5-11 (console/0 is always present, not listed here) */
     int terms[] = {5, 6, 7, 8, 9, 10, 11};
@@ -863,6 +864,21 @@ bool mc_load_file(MachineConfig *cfg, const char *path, char *err, size_t errlen
                                   "[machine] rtc = %s: must be ticks or wall.", val);
                 }
             }
+            else if (str_ieq(keyl, "mms"))
+            {
+                /* The MMU paging system, the INI side of --mms: 1 = Paging
+                 * System I (4 page tables; NORD-10, what NORD TSS needs - with
+                 * MMS2 it hangs in its overlay loader), 2 = MMS2 (default). */
+                char *ep;
+                long m = strtol(val, &ep, 10);
+                if (*ep != '\0' || (m != 1 && m != 2))
+                {
+                    fclose(f);
+                    return mc_err(err, errlen, path, lineno,
+                                  "[machine] mms = %s: must be 1 or 2.", val);
+                }
+                cfg->mms = (int)m;
+            }
             else
             {
                 fclose(f);
@@ -1042,6 +1058,15 @@ bool mc_load_file(MachineConfig *cfg, const char *path, char *err, size_t errlen
                     cfg->boot.is_disc = false;
                     cfg->boot.file_boot_type = BOOT_AOUT;
                     str_copy(cfg->boot.file, MC_PATH_LEN, val + 5);
+                }
+                else if (str_ieq(val, "cdc"))
+                {
+                    /* The NORD TSS cartridge disc's LOAD button: sector 0 of
+                     * the [runtime] cdc = FILE disc into core 0, start at 0.
+                     * Not a controller slot, so no wheel/unit and no file. */
+                    cfg->boot.is_disc = false;
+                    cfg->boot.file_boot_type = BOOT_CDC;
+                    cfg->boot.file[0] = '\0';
                 }
                 else
                 {
@@ -1571,6 +1596,11 @@ static bool ranges_overlap(uint16_t a, int aspan, uint16_t b, int bspan)
 static bool validate_boot_device(const MachineConfig *cfg, char *err, size_t errlen,
                                  const char *path)
 {
+    if (!cfg->boot.is_disc && cfg->boot.file_boot_type == BOOT_CDC && !cfg->runtime.cdc[0])
+    {
+        return mc_err(err, errlen, path, 0,
+                      "[boot] device = cdc: needs the cartridge disc, [runtime] cdc = FILE.");
+    }
     if (cfg->boot.is_disc)
     {
         const ControllerDescriptor *d = mc_descriptor_for_type(cfg->boot.type);
@@ -1859,6 +1889,7 @@ void mc_print(const MachineConfig *cfg, FILE *out)
     fprintf(out, "  CPU: %s\n", cpumodel_display_name((CpuType)cfg->cpu_model));
     fprintf(out, "  FPP: %d-bit\n", cfg->fpp_bits);
     fprintf(out, "  RTC: %s\n", cfg->rtc_wall ? "wall-clock 20 ms" : "instruction ticks");
+    fprintf(out, "  MMS: %s\n", cfg->mms == 1 ? "1 (Paging System I, 4 page tables)" : "2 (16 page tables)");
 
     fprintf(out, "  Controllers:\n");
     for (int i = 0; i < cfg->controllerCount; i++)
@@ -1918,6 +1949,14 @@ void mc_print(const MachineConfig *cfg, FILE *out)
     {
         fprintf(out, "  Boot: %s.%d.%d\n", mc_ctrl_type_name(cfg->boot.type), cfg->boot.wheel,
                 cfg->boot.unit);
+    }
+    else if (cfg->boot.file_boot_type == BOOT_CDC)
+    {
+        fprintf(out, "  Boot: cdc (cartridge disc LOAD)\n");
+    }
+    else if (cfg->boot.file_boot_type == BOOT_NONE)
+    {
+        fprintf(out, "  Boot: none\n");
     }
     else
     {
@@ -2045,6 +2084,14 @@ bool mc_write_file(const MachineConfig *cfg, const char *path, char *err, size_t
     {
         fprintf(f, "device = %s.%d.%d\n\n", mc_ctrl_type_name(cfg->boot.type), cfg->boot.wheel,
                 cfg->boot.unit);
+    }
+    else if (cfg->boot.file_boot_type == BOOT_CDC)
+    {
+        fprintf(f, "device = cdc\n\n");
+    }
+    else if (cfg->boot.file_boot_type == BOOT_NONE)
+    {
+        fprintf(f, "device = none\n\n");
     }
     else
     {

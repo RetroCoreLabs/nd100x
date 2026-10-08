@@ -17,7 +17,7 @@ name: Deploy web (Glass UI) to Azure Storage
 #     floppies/, PDF/.
 #     ALWAYS uploaded, existing blobs OVERWRITTEN.
 #   Disk images - *.IMG in build_wasm_glass/bin (on this runner: SMD0.IMG,
-#     NDIX.IMG, BSD211-WD0.IMG, unpacked from images/*.IMG.bz2 by the
+#     NDIX.IMG, BSD211-WD0.IMG, ND5000-SMD0.IMG, TSS-CDC.IMG, unpacked from images/*.IMG.bz2 by the
 #     Makefile; the gitignored root SMD0.IMG/SCSI0.IMG of a developer tree
 #     do not exist here):
 #     uploaded ONLY WHEN THE BLOB IS MISSING. An image already in $web is

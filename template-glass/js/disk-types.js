@@ -14,6 +14,13 @@
  * now (MountWinchesterFromOPFS and friends), so it is a real type with 2 units,
  * matching the wd descriptor's disk_slots in src/machine/machine_config.c and
  * the hardware (disk system 1 carries the unit in one bit of the control word).
+ *
+ * This file is about CONTROLLER drive types only. The HDD Disk Manager's
+ * library also tags images with types that are not controller units and so
+ * are NOT listed here: 'nd500' (an NDIX root disc, chosen in Machine Setup)
+ * and 'cdc' (the NORD TSS CDC 9427 cartridge disc, the emulator's
+ * [runtime] cdc = FILE device). Those library-only tags, with their labels,
+ * live in EXTRA_DISK_TYPE_LABELS in js/smd-manager.js.
  */
 (function (global) {
     'use strict';

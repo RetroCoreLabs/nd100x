@@ -1,0 +1,257 @@
+{
+  "_about": "Texts for the Welcome window cards and the Help > Machines pages. One entry per built-in machine; 'name' must match the machine's name in machine-profiles.js. Every historical sentence carries its source in 'sources' (s1, s2, ...); a sentence tagged [unverified] is Claude's draft that Ronny has not confirmed yet - confirm or delete before relying on it. Emulator facts come from the repository (files named in 'evidence').",
+  "machines": [
+    {
+      "id": "nd100",
+      "name": "ND-100",
+      "tag": "SINTRAN III",
+      "card": "The 16-bit ND-100 minicomputer running SINTRAN III, Norsk Data's own operating system, from the SMD disk SMD0.IMG.",
+      "afterPower": "SINTRAN boots and prints its banner. Press ESC, enter the user name SYSTEM, press Enter at PASSWORD: - the @ prompt is SINTRAN's command line.",
+      "sections": [
+        {
+          "title": "What it is",
+          "paragraphs": [
+            "The ND-100 was a 16-bit minicomputer series from Norsk Data, Norway's computer manufacturer. It was introduced in 1979, its development having started in 1975 as a lower-cost version of the NORD-10, and it shipped with the SINTRAN III operating system; its architecture was backward compatible with the NORD-10 line. [s1]",
+            "At its height Norsk Data was the second largest company in Norway; CERN bought ND machines by the dozen. The company broke up in the early 1990s. [s2]",
+            "This machine is the emulator's plain ND-100: a floppy controller, an SMD disk controller and terminals 1 and 5-11, booting SINTRAN III from SMD0.IMG. The console is default a Tandberg TDV2200, the terminal SINTRAN expects, with a Norwegian keyboard. [e1]"
+          ]
+        },
+        {
+          "title": "Using it",
+          "paragraphs": [
+            "Press Power. SINTRAN prints its banner (the shipped disk identifies itself as SINTRAN III - VSX/500 L, generated 16 December 1988) and reports SINTRAN III RUNNING. [m1]",
+            "Press ESC on the console: SINTRAN answers ENTER. Type SYSTEM, then Enter at PASSWORD: (no password). OK and the @ prompt follow. [m1]",
+            "Things to try at the @ prompt: @WHO-IS-ON, @LIST-FILES ,, (the two commas skip the two parameters), @LIST-USERS, @LIST-RT-DESCRIPTION. Help > SINTRAN Help is the searchable command reference. Once SINTRAN is detected the SINTRAN menu in the toolbar shows RT descriptions, queues, segments, page tables and I/O devices live from memory. [e2]",
+            "Only the console lets a user log in on this disk: SINTRAN's SET-UNAVAILABLE state makes every other terminal answer SYSTEM UNAVAILABLE. Command @SET-AVAILABLE enables normal user login. That is SINTRAN, not the emulator. [e3]"
+          ]
+        }
+      ],
+      "sources": [
+        {
+          "id": "s1",
+          "title": "Wikipedia: Nord-100",
+          "url": "https://en.wikipedia.org/wiki/Nord-100"
+        },
+        {
+          "id": "s2",
+          "title": "nd100x README, section 'ND-100'",
+          "url": "https://github.com/RetroCoreLabs/nd100x#readme"
+        }
+      ],
+      "evidence": [
+        {
+          "id": "e1",
+          "ref": "template-glass/js/machine-profiles.js DEFAULT_INI and normalizeTerminal"
+        },
+        {
+          "id": "e2",
+          "ref": "GLASS.md, SINTRAN inspectors; docs/SINTRAN-Commands.md"
+        },
+        {
+          "id": "e3",
+          "ref": "docs/SINTRAN-Commands.md, SET-UNAVAILABLE"
+        },
+        {
+          "id": "m1",
+          "ref": "measured 07/08-OCT-2026 on the shipped SMD0.IMG in the browser"
+        }
+      ]
+    },
+    {
+      "id": "nd5000",
+      "name": "ND-5000",
+      "tag": "SINTRAN III + ND-5000 CPU",
+      "card": "The same SINTRAN machine with a 32-bit ND-5000 CPU attached over the octobus and MF-bus shared memory. SINTRAN runs ND-500 programs on it.",
+      "afterPower": "Boots like the ND-100. Log in as SYSTEM, then use @ND-500-MONITOR to configure the ND-5000 CPU and run domain programs.",
+      "sections": [
+        {
+          "title": "What it is",
+          "paragraphs": [
+            "The ND-500 was Norsk Data's 32-bit superminicomputer, delivered from 1981. It relied on an ND-100 to do the housekeeping and to run the operating system, SINTRAN III; the ND-100 owned the terminals, the files and the monitor calls, the ND-500 ran the programs. The architecture went through four implementations sold under many model numbers (ND-500, 520, 540, 560, 570 ...). [s1]",
+            "The ND-5000 ('Samson') was the fourth generation of that line, introduced in 1987 (models 5400, 5700, 5800). [s2] [unverified: year and model list taken from the Wikipedia summary, not checked against an ND document]",
+            "In the emulator this machine boots its own SINTRAN L pack, ND5000-SMD0.IMG, and is the ND-100 above plus an ND-5000 CPU on octobus station 070B with MF-bus shared memory; SINTRAN sees it as a real ND-500 and runs :DOM and :PSEG/:DSEG programs on it. Up to seven ND-5000s fit on stations 070B-076B. [e1]"
+          ]
+        },
+        {
+          "title": "Using it",
+          "paragraphs": [
+            "Boot and log in as SYSTEM exactly as on the ND-100. Then use @ND-500-MONITOR to configure the ND-5000 CPU and run domain programs. [m1]",
+            "@START-SWAPPER starts the ND-500 swapper. @ND HELLO runs HELLO:DOM on the ND-5000. @ND on its own enters the ND-500 monitor, where LIST-DOMAIN and HELP work. The first time the monitor is entered after a cold start it prints Loading Control Store, possibly after an ND-5000 timeout line - both expected. [e2]",
+            "The SMD image must be a SINTRAN pack with ND-500 support; the shipped SMD0.IMG is. [e2]"
+          ]
+        }
+      ],
+      "sources": [
+        {
+          "id": "s1",
+          "title": "Wikipedia: ND-500",
+          "url": "https://en.wikipedia.org/wiki/ND-500"
+        },
+        {
+          "id": "s2",
+          "title": "Wikipedia: Norsk Data",
+          "url": "https://en.wikipedia.org/wiki/Norsk_Data"
+        }
+      ],
+      "evidence": [
+        {
+          "id": "e1",
+          "ref": "template-glass/js/machine-profiles.js ND5000_INI; README.md 'ND-500(0) support'"
+        },
+        {
+          "id": "e2",
+          "ref": "README.md 'ND-500(0) support' (START-SWAPPER, @ND HELLO, @ND, Loading Control Store)"
+        },
+        {
+          "id": "m1",
+          "ref": "Ronny, 08-OCT-2026"
+        }
+      ]
+    },
+    {
+      "id": "bsd211",
+      "name": "BSD 2.11",
+      "tag": "2.11BSD UNIX",
+      "card": "2.11BSD UNIX, patch level 481, ported to the ND-100 and booting from an ST506 Winchester disk image. A VT100 console.",
+      "afterPower": "The kernel boots to a single-user # shell on the console. Press Ctrl-D to go multi-user; log in as root (no password) on the console or on terminals 5-11.",
+      "sections": [
+        {
+          "title": "What it is",
+          "paragraphs": [
+            "2.11BSD is the Berkeley UNIX for the 16-bit PDP-11, announced in March 1991 and still maintained: patch level 481 dates from April 2023, patch 499 from January 2026. [s1]",
+            "This is a port of 2.11BSD patch level 481 to the Norsk Data ND-100 (the bsd211_481 project). The cross toolchain and boot chain were built 2024 to February 2026; the kernel booted to its banner on 8 March 2026, first login mid-March 2026, multi-user boot to a root shell on 30 September 2026. [e1]",
+            "In the emulator the machine is an ND-100 with a floppy controller and an ST506/8-inch Winchester controller (cards 3041/3038 at IOX 500-507), booting from the Winchester image BSD211-WD0.IMG, with terminals 1 and 5-11. [e2]"
+          ]
+        },
+        {
+          "title": "Using it",
+          "paragraphs": [
+            "After Power the kernel lists its devices (tty1-7 at their IOX addresses, the Winchester) and stops at a single-user # prompt on the console. Press Ctrl-D: init goes multi-user and getty puts a login: prompt on the console and on tty1-tty7, which are TERMINAL 5-11 in the Terminals menu. [m1]",
+            "Log in as root (no password): Welcome to ND-BSD. Try ls /, who am i, tty, cat /etc/ttys. Not every program of a full 2.11BSD is on the disk - uname, for one, is not. [m1]",
+            "Through the WebSocket gateway a telnet user can take any of TERMINAL 5-11; the browser window of that terminal mirrors the session. [e3]"
+          ]
+        }
+      ],
+      "sources": [
+        {
+          "id": "s1",
+          "title": "The Unix Heritage Society / 2.11BSD patch archive",
+          "url": "https://www.tuhs.org/pipermail/tuhs/2015-December/007844.html"
+        }
+      ],
+      "evidence": [
+        {
+          "id": "e1",
+          "ref": "bsd211_481 README.md and docs/bsd-nd100-timeline.md"
+        },
+        {
+          "id": "e2",
+          "ref": "template-glass/js/machine-profiles.js BSD_INI; template-glass/disk-catalog.json"
+        },
+        {
+          "id": "e3",
+          "ref": "GLASS.md 'Remote Terminal Devices'"
+        },
+        {
+          "id": "m1",
+          "ref": "measured 08-OCT-2026 on the shipped BSD211-WD0.IMG in the browser"
+        }
+      ]
+    },
+    {
+      "id": "ndix",
+      "name": "500 NDIX-C",
+      "tag": "NDIX (UNIX) on a standalone ND-500",
+      "card": "A standalone 32-bit ND-500 with no ND-100 in front of it, booting NDIX - Norsk Data's BSD-derived UNIX - from its own root disk. VT100 console.",
+      "afterPower": "NDIX boots to login:. Log in as root (no password).",
+      "sections": [
+        {
+          "title": "What it is",
+          "paragraphs": [
+            "NDIX was Norsk Data's UNIX for the ND-500 and ND-5000, based on Berkeley BSD UNIX - an effort to reach the growing UNIX server market late in the company's life; with declining sales the project was abandoned. [s1] In 1982-83 Logica in London had ported 4.2BSD to the ND-500 on ND's behalf. [s2]",
+            "The shipped system calls itself NDIX Release 3 and dates itself to 1988 ('Welcome back to 1988'). The nd500x project describes it as 4.3BSD from 1988; the ND wiki says NDIX was based on 4.2BSD. [s1] [unverified: 4.2 or 4.3]",
+            "In the emulator this is the ND-500 CPU alone - no ND-100, no MF-bus - with 16 MB of memory, booting the kernel /vmunix straight off the root disk NDIX.IMG, which is loaded into memory and is writable for the session. [e1]"
+          ]
+        },
+        {
+          "title": "Using it",
+          "paragraphs": [
+            "Press Power. The boot log appears in the console prefixed with '| ', then NDIX startup: /etc/rc running and login:. Type root and press Enter: NDIX Release 3 on nd500x, Welcome back to 1988, and the # prompt. [m1]",
+            "Try ls /, cat /etc/motd, /bin/hostname, /usr/ucb/whoami, ps. The ttys tty1-tty3 open as further terminal windows when NDIX writes to them, and through the WebSocket gateway a telnet user can log in on them. [m1]",
+            "With Config > Persistent disk storage on, the HDD Disk Manager's NDIX tab holds root disks of your own; a cloned machine can boot one of those instead of the served demo disk, and then keeps its changes. [e2]"
+          ]
+        }
+      ],
+      "sources": [
+        {
+          "id": "s1",
+          "title": "ndwiki.org: NDIX",
+          "url": "https://www.ndwiki.org/wiki/NDIX"
+        },
+        {
+          "id": "s2",
+          "title": "Wikipedia: ND-500",
+          "url": "https://en.wikipedia.org/wiki/ND-500"
+        }
+      ],
+      "evidence": [
+        {
+          "id": "e1",
+          "ref": "template-glass/js/machine-profiles.js shippedProfiles (500 NDIX-C); template-glass/disk-catalog.json; js/ndix-machine.js"
+        },
+        {
+          "id": "e2",
+          "ref": "template-glass/js/machine-setup.js refreshNdixDiskOptions"
+        },
+        {
+          "id": "m1",
+          "ref": "measured 08-OCT-2026 on the shipped NDIX.IMG in the browser (console and tty1 via the gateway)"
+        }
+      ]
+    },
+    {
+      "id": "tss",
+      "name": "TSS",
+      "tag": "NORD TSS 3.0 (1973)",
+      "card": "NORD Time Sharing System 3.0, a 1973 timesharing OS for the NORD-10, revived from its 1978 listing. Boots from a CDC cartridge disc with a swapping drum; console plus terminals 5-10 (press ESC on one to wake it).",
+      "afterPower": "TSS prints NORD TSS VERSION 3.0A IS UP and @ENTER. Type SYSTEM, then 1 at PROJECT NUMBER P-, then the date as asked (DD,MM,YYYY,HH,MM,SS). @ is the TSS command line.",
+      "sections": [
+        {
+          "title": "What it is",
+          "paragraphs": [
+            "NORD TSS is a complete, standalone timesharing operating system for the Norsk Data NORD-1 and NORD-10, written by Bo Lewendal in 1973; the NORD-10 device drivers, the swapping drum among them, were written by Nils Jakob Langeland in spring 1973. It owns the machine - it is not a program running under SINTRAN. [s1]",
+            "Every terminal is a process with its own 8-page virtual memory, swapped between core and mass storage - a CDC disc or a drum. Users get a command processor, a file system, mail and accounting; programs get 81 monitor calls. About 14,000 lines of MAC assembler in five parts, for up to 24 teletypes. [s1]",
+            "The system was rebuilt from a 1978 assembly listing and symbol dump in the TSS repository; it booted to an interactive login on nd100x in July 2026, in all likelihood the first TSS session since the 1970s. [s1]",
+            "In the emulator this machine is an ND-100 with Paging System I (the NORD-10 MMU, [machine] mms = 1 - with the later MMS2 TSS hangs in its overlay loader), the CDC cartridge system disc at IOX 500 and the swapping drum at IOX 540. It boots the way the real machine did: the disc's LOAD button reads sector 0 into core and starts at 0. The disc is the TSS repo's jump-start image; the drum is 1 MB of zeros the page makes at power-on - it is swap space and holds nothing worth keeping. [e1]"
+          ]
+        },
+        {
+          "title": "Using it",
+          "paragraphs": [
+            "Press Power. After NORD TSS VERSION 3.0A IS UP comes the prompt @ENTER: type SYSTEM (no password). At PROJECT NUMBER P- type 1. A harmless AMBIGUOUS FILENAME may follow on a fresh disc, then the date prompt: type the date as DD,MM,YYYY,HH,MM,SS. The @ prompt is the command line. [m1]",
+            "Try WHO-IS-ON, LIST-USERS, DATE, DISK-SPACE, HELP. Any unique prefix of a command works; a lone ? means an unknown command. Creating files first needs TRANSFER to give SYSTEM disc quota. [m1]",
+            "More users: open a terminal window from View > Terminals (TERMINAL 5-10 are TSS's TTY5-TTY10) and press ESC - that is the key TSS's teletype scanner waits for; the terminal answers @ENTER and a second user can log in. WHO-IS-ON on either terminal then lists both lines. (Through the WebSocket gateway a telnet user takes TERMINAL 5-10 the same way.) [m1]",
+            "Known limits: There is no data or programs loaded to the disc. The disc is in memory only - a reload starts from the jump-start disc again. [s1]"
+          ]
+        }
+      ],
+      "sources": [
+        {
+          "id": "s1",
+          "title": "TSS repository: NORD Time Sharing System 3.0 (README, PROJECT-DESCRIPTION, QUICKSTART)",
+          "url": "https://github.com/RetroCoreLabs/TSS"
+        }
+      ],
+      "evidence": [
+        {
+          "id": "e1",
+          "ref": "template-glass/js/machine-profiles.js TSS_INI; src/frontend/nd100wasm/nd100wasm.c CDC/drum install"
+        },
+        {
+          "id": "m1",
+          "ref": "measured 08-OCT-2026 on the jump-start disc, native nd100x 1.0.13 and in the browser"
+        }
+      ]
+    }
+  ]
+}

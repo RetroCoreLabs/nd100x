@@ -1165,7 +1165,9 @@ function describeBootDevice(ini) {
         if (k && k.present) image = k.image;
       }
     }
-    return { boot: b, image: image };
+    // runtime: the [runtime] cdc = / drum = backing files (NORD TSS), which
+    // preloadBootImage must stage before Init.
+    return { boot: b, image: image, runtime: d.runtime || {} };
   });
 }
 
@@ -1236,6 +1238,11 @@ function preloadArchiveFloppies(ini) {
 //                the way the HDD manager's own assignments do.
 //   wd, floppy - the image is staged into MEMFS under the INI's file name
 //                and the controller mounts it at Init; writes stay in memory.
+//   cdc        - the NORD TSS cartridge disc ('cdc.0.0'), not a controller
+//                unit: its file is [runtime] cdc =, read when the device is
+//                created at Init. Staged like wd under that name, which is
+//                what tells preloadBootImage not to fetch the server's copy
+//                over it (_preloadedImages). The drum stays the zero file.
 // A slot whose INI file no longer names its choice is left alone.
 function preloadLibraryDisks(ini) {
   if (typeof machineProfiles === 'undefined' || typeof smdStorage === 'undefined') return Promise.resolve();
@@ -1254,12 +1261,16 @@ function preloadLibraryDisks(ini) {
       var m = /^(\w+)\.(\d+)\.(\d+)$/.exec(key);
       if (!m) return;
       var type = m[1], wheel = parseInt(m[2], 10), slot = parseInt(m[3], 10), pk = picks[key];
-      var ctrl = null;
-      for (var i = 0; i < d.controllers.length; i++) {
-        if (d.controllers[i].type === type && d.controllers[i].wheel === wheel && d.controllers[i].enabled) ctrl = d.controllers[i];
+      if (type === 'cdc') {
+        if (!d.runtime || d.runtime.cdc !== pk.file) return;
+      } else {
+        var ctrl = null;
+        for (var i = 0; i < d.controllers.length; i++) {
+          if (d.controllers[i].type === type && d.controllers[i].wheel === wheel && d.controllers[i].enabled) ctrl = d.controllers[i];
+        }
+        var disk = ctrl && ctrl.disks && ctrl.disks[slot];
+        if (!disk || !disk.present || disk.image !== pk.file) return;
       }
-      var disk = ctrl && ctrl.disks && ctrl.disks[slot];
-      if (!disk || !disk.present || disk.image !== pk.file) return;
       chain = chain.then(function() {
         if (statusEl) statusEl.textContent = 'Mounting ' + pk.name + ' from the library...';
         return mountLibraryImage(type, slot, pk).catch(function(e) {
@@ -1276,8 +1287,10 @@ function mountLibraryImage(type, unit, pk) {
   var regType = (type === 'wd') ? 'winchester' : type;
   var worker = emu.isWorkerMode();
   function registered(size, source) {
-    if (typeof driveRegistry !== 'undefined') driveRegistry.mount(regType, unit, source, pk.name, pk.uuid, size || 0);
-    console.log('[Boot] ' + regType + ' unit ' + unit + ': ' + pk.name + ' from the library (' + source + ')');
+    // The drive registry knows controller units; the CDC disc is not one.
+    if (type !== 'cdc' && typeof driveRegistry !== 'undefined') driveRegistry.mount(regType, unit, source, pk.name, pk.uuid, size || 0);
+    console.log('[Boot] ' + (type === 'cdc' ? 'CDC cartridge disc' : regType + ' unit ' + unit) + ': ' + pk.name +
+                ' from the library (' + source + ') -> /' + pk.file);
   }
   if (type === 'smd') {
     // The same bookkeeping the HDD manager does for an assignment, so the
@@ -1300,7 +1313,7 @@ function mountLibraryImage(type, unit, pk) {
     // Mounted after Init (mountLibraryDisksAfterInit), like SMD.
     return Promise.resolve();
   }
-  // wd, floppy: staged as the INI's file; the controller mounts it at Init.
+  // wd, floppy, cdc: staged as the INI's file; the device reads it at Init.
   return smdStorage.retrieveImage(pk.uuid).then(function(data) {
     if (!data) throw new Error('not in the library');
     stageImageBytes(pk.file, data);
@@ -1374,7 +1387,23 @@ function remoteTerminalsBeforeBoot() {
 function preloadBootImage(ini) {
   return preloadLibraryDisks(ini).then(function() { return preloadArchiveFloppies(ini); })
     .then(function() { return describeBootDevice(ini); }).then(function(r) {
-    if (!r || !r.boot.isDisc || !r.image) return;
+    if (!r) return;
+    // [runtime] cdc = / drum = (NORD TSS): backing FILES the device reads
+    // when it is created at Init, so they must be in MEMFS before Init -
+    // the cartridge disc fetched from the server under its INI name, the
+    // drum (swap space, nothing to keep) 1 MB of zeros written here.
+    var rt = r.runtime || {};
+    var pre = Promise.resolve();
+    if (rt.cdc && !_preloadedImages[rt.cdc] && typeof loadDiskImage === 'function') {
+      pre = loadDiskImage(rt.cdc, '/' + rt.cdc).then(function(ok) {
+        if (ok) _preloadedImages[rt.cdc] = true;
+        else console.warn('[Boot] ' + rt.cdc + ' is not on the server - the CDC disc will be empty');
+      });
+    }
+    if (rt.drum && !_preloadedImages[rt.drum]) {
+      pre = pre.then(function() { stageImageBytes(rt.drum, new Uint8Array(1024 * 1024)); });
+    }
+    if (!r.boot.isDisc || !r.image) return pre;
     var type = r.boot.type, image = r.image;
     // With persistent storage on, a unit the library already holds (a
     // library pick of this machine, or an HDD-manager assignment) is not
@@ -1384,8 +1413,8 @@ function preloadBootImage(ini) {
     if (typeof driveRegistry !== 'undefined' && driveRegistry.isOccupied(regType, r.boot.unit)) return;
     if (_preloadedImages[image]) return;
     if (image === 'SMD0.IMG' && typeof diskImageStatus !== 'undefined' && diskImageStatus.smd) return;
-    if (typeof loadDiskImage !== 'function') return;
-    return loadDiskImage(image, '/' + image).then(function(ok) {
+    if (typeof loadDiskImage !== 'function') return pre;
+    return pre.then(function() { return loadDiskImage(image, '/' + image); }).then(function(ok) {
       if (ok) _preloadedImages[image] = true;
       else console.warn('[Boot] ' + image + ' is not on the server - the ' + type +
                         ' unit ' + r.boot.unit + ' will be empty');
@@ -1420,6 +1449,12 @@ function bootConfiguredMachine() {
       terminals[activeTerminalId].term.writeln('\r\n\x1b[33mPowered on. This machine has no boot drive; nothing was loaded.\x1b[0m');
       return;
     }
+    if (b.cdc) {
+      // The NORD TSS cartridge disc's LOAD button: the disc ([runtime] cdc)
+      // was attached at Init from the image preloadBootImage staged.
+      performBoot(5, 0, null, 'CDC cartridge disc');
+      return;
+    }
     if (!b.isDisc) {
       if (statusEl) statusEl.textContent = 'Powered on - a file boot (' + (b.file || '') + ') is not possible in the browser';
       terminals[activeTerminalId].term.writeln('\r\n\x1b[33mPowered on. The machine boots a file (' + (b.file || '') +
@@ -1435,7 +1470,7 @@ function bootConfiguredMachine() {
   });
 }
 
-// boot_type values: 0=FLOPPY, 1=SMD, 2=BPUN, 3=SCSI, 4=WINCHESTER (nd100wasm.c
+// boot_type values: 0=FLOPPY, 1=SMD, 2=BPUN, 3=SCSI, 4=WINCHESTER, 5=CDC (nd100wasm.c
 // BootFrom); unit is the controller unit; image the MEMFS file for a unit
 // that was not mounted at Init (null for the conventional name).
 function performBoot(bootType, unit, image, label) {

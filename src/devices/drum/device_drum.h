@@ -55,14 +55,27 @@ typedef enum {
  * [VERIFIED] DRUM-DEVICE-SPEC.md section 2.2:
  *   bits 0-2  = 7  -> activate transfer AND enable completion interrupt
  *   bits 5-6  = core address bits 16-17 (extended memory address)
- *   bits 13-14 = function: 0 read, 1 write, 2 read-test, 3 compare
- * On a transfer error the driver instead writes control = 4 (bit 2 alone). */
+ *   bits 11-12 = function: 0 read, 1 write, 2 read-test, 3 compare
+ * On a transfer error the driver instead writes control = 4 (bit 2 alone).
+ *
+ * The function field is bits 11-12, NOT 13-14 as this header said until
+ * 08-OCT-2026. [VERIFIED] TSS's XDRUM builds the word as
+ *     SAA 3; AND DTREG; SHA ZIN 13   (octal 13 = shift left 11)
+ *     LDA (1400; AND DTREG; SHA ZIN SHR 3; RORA ST DA; AAA 7
+ * (Build/drum/TSS1.SYMB:3858-3866 in the TSS repo), and a DAP stop at the
+ * instruction after XDRUM's IOX 545 showed A = 004007 for a swap-out WRITE
+ * - bit 11 set, bits 13-14 clear. Decoding 13-14 made every WRITE a READ,
+ * so the first process swap-out (a TEL10 TSS starting a second terminal)
+ * DMA-wrote 2048 words of blank drum over the context block at 016604 and
+ * TSS fell into zeros. TEL4 never swapped and never showed it. The CDC
+ * device had the same bit-13 mistake corrected earlier (TSS repo,
+ * docs/TSS-ARCHITECTURE.md "Correction history"). */
 // clang-format off
 #define DRUM_CTRL_GO_MASK    07     /* (control & 7)==7 -> start + interrupt   */
 #define DRUM_CTRL_GO_VALUE   07
 #define DRUM_CTRL_CLEAR      04     /* control==4 on error -> stop/clear       */
 #define DRUM_CTRL_ADDR_HI(c) (((c) >> 5) & 03)   /* core addr bits 16-17      */
-#define DRUM_CTRL_FUNC(c)    (((c) >> 13) & 03)   /* device operation, 2 bits */
+#define DRUM_CTRL_FUNC(c)    (((c) >> 11) & 03)   /* device operation, bits 11-12 */
 // clang-format on
 
 // clang-format off

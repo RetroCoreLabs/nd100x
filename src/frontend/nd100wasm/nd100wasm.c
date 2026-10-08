@@ -386,6 +386,25 @@ EMSCRIPTEN_EXPORT const char *InitWithConfig(const char *iniText)
         // The devices half: terminals, controllers with their images, and
         // HDLC. The CPU half already ran, before machine_init above.
         mc_apply_devices(&mc);
+
+        // The NORD TSS cartridge disc (IOX 500-507) and swapping drum (IOX
+        // 540-547), from [runtime] cdc = / drum = - the same install the
+        // native frontend does (nd100x.c), which mc_apply_devices() leaves
+        // out because they are backing FILES, not controller units: the file
+        // (in MEMFS, staged by the page before Init) is read into the device's
+        // in-memory surface when the device is created, so the setter must
+        // run first. Only when named, so the 500 block stays free for a
+        // Winchester otherwise.
+        if (mc.runtime.cdc[0])
+        {
+            cdc_set_backing_file(mc.runtime.cdc);
+            devmgr_add_device(DEVICE_TYPE_CDC, 0);
+        }
+        if (mc.runtime.drum[0])
+        {
+            drum_set_backing_file(mc.runtime.drum);
+            devmgr_add_device(DEVICE_TYPE_DRUM, 0);
+        }
     }
     else
     {
@@ -443,7 +462,7 @@ EMSCRIPTEN_EXPORT void Init(void)
 }
 
 // Boot the system (load boot sector and set PC)
-// boot_type: 0=FLOPPY, 1=SMD, 2=BPUN, 3=SCSI, 4=WINCHESTER
+// boot_type: 0=FLOPPY, 1=SMD, 2=BPUN, 3=SCSI, 4=WINCHESTER, 5=CDC (TSS cartridge disc LOAD)
 // unit:      the controller unit to boot from (the [boot] device's unit);
 //            unit 0 for a file boot.
 // image:     the MEMFS image for that unit, used only when the unit was not
@@ -523,6 +542,10 @@ EMSCRIPTEN_EXPORT int BootFrom(int boot_type, int unit, const char *image)
     case 4: // Winchester
         snprintf(name, sizeof(name), "WD%d.IMG", unit);
         rc = machine_program_load(BOOT_WINCHESTER, unit, image ? image : name, 1, 0, false);
+        break;
+    case 5: // CDC - the NORD TSS cartridge disc's LOAD button; the disc was
+            // attached at Init ([runtime] cdc =), so no image name here
+        rc = machine_program_load(BOOT_CDC, 0, NULL, 1, 0, false);
         break;
     default: // FLOPPY (0)
         snprintf(name, sizeof(name), "FLOPPY%d.IMG", unit);

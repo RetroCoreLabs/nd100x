@@ -58,7 +58,7 @@
   // The machines that ship with the page. Each boots as made, in demo mode,
   // off an image served next to the page:
   //   ND-100    - SINTRAN from SMD0.IMG.
-  //   ND-5000   - the same, with an ND-5000 CPU on the octobus (MFbus shared
+  //   ND-5000   - SINTRAN L from ND5000-SMD0.IMG, with an ND-5000 CPU on the octobus (MFbus shared
   //               memory, station 070B), as ND5000.ini does natively. The
   //               mms log category is held at warn: the ND-5000 mailbox/MON
   //               traffic at info floods the console once the CPU starts.
@@ -66,7 +66,10 @@
   //               (the bsd211_481 build).
   //   500 NDIX-C - a standalone ND-500 booting NDIX from the catalog's root
   //               disc NDIX.IMG (an 'nd500-ndix' profile, see kind below).
-  var ND5000_INI = DEFAULT_INI +
+  // The ND-100 machine's INI with its SMD pack swapped for the ND-5000 one
+  // (ND5000-SMD0.IMG: SINTRAN III VSX/500 L prepared for the ND-5000) and
+  // the ND-5000 sections appended.
+  var ND5000_INI = DEFAULT_INI.replace('disk0 = SMD0.IMG', 'disk0 = ND5000-SMD0.IMG') +
     '\n[mfbus]\n' +
     'size      = 8\n' +
     'base_page = 04100B\n\n' +
@@ -99,18 +102,47 @@
     '[boot]\n' +
     'device = wd.0.0           ; <type>.<wheel>.<unit>\n';
 
+  // NORD TSS 3.0 (1973) on a NORD-10-class ND-100: Paging System I (mms = 1 -
+  // with MMS2 TSS hangs in its overlay loader), the CDC cartridge system disc
+  // at IOX 500 and the swapping drum at IOX 540 from [runtime], no SMD, no
+  // Winchester (it shares the 500 block with the CDC). Boots with the disc's
+  // LOAD button ("device = cdc"). TSS-CDC.IMG is the TSS repo's TEL10
+  // jump-start disc (10 teletypes, NTY=12) padded to 4 MB; TSS-DRUM.IMG is
+  // 1 MB of zeros the page writes into MEMFS at power-on (swap space).
+  // Terminals 5-10 are TSS's TTY5-TTY10: the same IOX addresses (0340-0370,
+  // 01300, 01310) and ident codes (044-051) TSS's N10 device table names.
+  // TSS's TTY2-4 want idents 5-7, which the ND-100 cards at 0310-0330 never
+  // answer, so terminals 2-4 are left out. A dead teletype wakes on ESC.
+  var TSS_INI =
+    '# nd100x machine configuration - NORD TSS 3.0\n\n' +
+    '[machine]\n' +
+    'cpu = 100\n' +
+    'mms = 1                   ; Paging System I - NORD TSS needs it\n\n' +
+    '[controller.floppy.0]\n' +
+    'enabled = no\n\n' +
+    '[terminals]\n' +
+    'enabled = 5, 6, 7, 8, 9, 10   ; TSS TTY5-TTY10 (press ESC on one to wake it)\n\n' +
+    '[runtime]\n' +
+    'cdc = TSS-CDC.IMG         ; CDC cartridge system disc @ IOX 500\n' +
+    'drum = TSS-DRUM.IMG       ; swapping drum @ IOX 540\n\n' +
+    '[boot]\n' +
+    'device = cdc              ; the cartridge disc LOAD button\n';
+
   function shippedProfiles() {
     return [
       { name: 'ND-100',   kind: 'nd100', ini: DEFAULT_INI },
       { name: 'ND-5000',  kind: 'nd100', ini: ND5000_INI },
       { name: 'BSD 2.11', kind: 'nd100', ini: BSD_INI },
       { name: '500 NDIX-C', kind: 'nd500-ndix',
-        ndix: { diskUrl: 'NDIX.IMG', diskName: 'NDIX root disk (server)', memoryMb: 16, writable: true } }
+        ndix: { diskUrl: 'NDIX.IMG', diskName: 'NDIX root disk (server)', memoryMb: 16, writable: true } },
+      // A 1973 teletype system: the VT100 (xterm) is the plain terminal here.
+      { name: 'TSS',      kind: 'nd100', ini: TSS_INI,
+        terminal: { backend: 'xterm', emulator: 'vt100', language: 'no' } }
     ];
   }
   // The shipped machines are BUILT IN: read-only, always present, and kept
   // at the current definition by the store upgrade. Clone one to change it.
-  var SHIPPED_NAMES = ['ND-100', 'ND-5000', 'BSD 2.11', '500 NDIX-C'];
+  var SHIPPED_NAMES = ['ND-100', 'ND-5000', 'BSD 2.11', '500 NDIX-C', 'TSS'];
   var OLD_SHIPPED_NAMES = ['NDIX C', 'ND100'];   // shipped under these names once, then renamed
   function isShippedName(name) { return SHIPPED_NAMES.indexOf(name) >= 0; }
 
@@ -123,7 +155,7 @@
     return !n.diskUuid && (!n.diskUrl || n.diskUrl === 'rootfs_full.img' || n.diskUrl === 'NDIX.IMG');
   }
 
-  var STORE_VERSION = 4;   // 2: shipped machines added; 3: built in and first, leftovers dropped; 4: ND-100 name, "Default" gone
+  var STORE_VERSION = 5;   // 2: shipped machines added; 3: built in and first, leftovers dropped; 4: ND-100 name, "Default" gone; 5: TSS shipped
 
   // A profile's "kind" decides what boots it and what it is made of:
   //   'nd100'      - the ND-100 INI machine this file has always stored.
@@ -194,8 +226,9 @@
   // (smd.0.0, scsi.0.3, wd.0.0, floppy.0.1): { uuid, name }. The INI names
   // only the FILE (disk<n> = FILE); this says which local-library image
   // that file is, and power-on mounts it from the library. The machine is
-  // the master of what is in its drives.
-  var LIBRARY_KEY_RE = /^(smd|scsi|wd|floppy)\.\d+\.\d+$/;
+  // the master of what is in its drives. 'cdc.0.0' is the NORD TSS
+  // cartridge disc, whose file is [runtime] cdc = (not a controller unit).
+  var LIBRARY_KEY_RE = /^(smd|scsi|wd|floppy|cdc)\.\d+\.\d+$/;
   function normalizeLibrary(map) {
     var out = {};
     if (!map || typeof map !== 'object') return out;

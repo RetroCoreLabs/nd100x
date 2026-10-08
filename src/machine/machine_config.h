@@ -75,14 +75,17 @@ typedef struct
 } McController;
 
 /* Boot device. For a disc boot, (type,wheel,unit) name the controller slot.
- * For a file boot (bpun/aout), file_boot_type + file are used instead. */
+ * For a file boot (bpun/aout), file_boot_type + file are used instead.
+ * "device = cdc" is the NORD TSS cartridge disc's LOAD button: not a
+ * controller slot (the CDC is a [runtime] cdc = FILE device at IOX 500), so
+ * it travels as !is_disc with file_boot_type = BOOT_CDC and no file. */
 typedef struct
 {
     bool is_disc;
     CtrlType type;
     int wheel;
     int unit;
-    BOOT_TYPE file_boot_type; /* BOOT_BPUN / BOOT_AOUT when !is_disc */
+    BOOT_TYPE file_boot_type; /* BOOT_BPUN / BOOT_AOUT / BOOT_CDC / BOOT_NONE when !is_disc */
     char file[MC_PATH_LEN];
 } McBootSpec;
 
@@ -223,6 +226,9 @@ typedef struct
     int fpp_bits;  /* 32 | 48 - floating point unit width (default 48) */
     bool rtc_wall; /* false = RTC counts instruction ticks (default);
                                        true = RTC pulses every 20 ms of host wall-clock time */
+    int mms;       /* 1 | 2 - MMU paging system: 1 = Paging System I (4 page tables,
+                    * NORD-10 / NORD TSS), 2 = MMS2 (16 page tables, SINTRAN VSX;
+                    * default). The INI side of --mms. */
 
     McController controllers[MC_MAX_CONTROLLERS];
     int controllerCount;

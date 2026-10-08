@@ -380,7 +380,8 @@ The taskbar also contains the CPU load mini-graph canvas (80x24px) and a setting
 | Emulation | `emulation.js` | Main execution loop, CPU load sampling, level bars | `startEmulation()`, `stopEmulation()`, `createLevelBars()` |
 | Toolbar | `toolbar.js` | Window management, drag/resize, menus, machine selector, Power (= init + boot of the machine's `[boot]` device) | `makeDraggable()`, `makeResizable()`, `windowManager`, `bootConfiguredMachine()`, `refreshMachineSelect()` |
 | NDIX machine | `ndix-machine.js` | A standalone ND-500 running NDIX as a machine kind: boots the root disc onto terminal 1, ttys onto terminals 2+ | `ndixMachine.powerOn()`, `ndixMachine.isSelected()` |
-| Machine profiles | `machine-profiles.js` | Named machines in localStorage: `nd100` (INI) or `nd500-ndix` kinds. The four built-in machines (ND-100, ND-5000, BSD 2.11, 500 NDIX-C) are read-only and always first - Clone one to change it. Per machine: terminal settings (`terminal()`), catalog floppies for the floppy drives (`floppies()`, fetched from the archive at power-on) and library images for the drives (`library()`, mounted at power-on - the machine is the master of its drives). Store v3 drops the pre-built-in leftovers on upgrade | `machineProfiles.ini()`, `.kind()`, `.ndix()`, `.terminal()`, `.floppies()`, `.library()`, `.isShipped()`, `.clone()`, `.create()`, `.createNdix()` |
+| Welcome + machine pages | `welcome.js` | The first-visit Welcome window (Help > Welcome; `nd100x-welcome-show`, default on) and the Help > Machines pages, both rendered from `data/machines.json` (one entry per built-in machine: card text, full page sections, sources; `[sN]`/`[eN]`/`[mN]` tags in the JSON are bookkeeping and never shown, `[unverified: ...]` marks are shown until confirmed) | `welcomeWindow.open()`, `welcomeWindow.openMachinePage(name)` |
+| Machine profiles | `machine-profiles.js` | Named machines in localStorage: `nd100` (INI) or `nd500-ndix` kinds. The five built-in machines (ND-100, ND-5000, BSD 2.11, 500 NDIX-C, TSS - NORD TSS 3.0 on an MMS1 ND-100 with the CDC cartridge disc and swapping drum from `[runtime]`, booted with `[boot] device = cdc`; store v5) are read-only and always first - Clone one to change it. Per machine: terminal settings (`terminal()`), catalog floppies for the floppy drives (`floppies()`, fetched from the archive at power-on) and library images for the drives (`library()`, mounted at power-on - the machine is the master of its drives). Store v3 drops the pre-built-in leftovers on upgrade | `machineProfiles.ini()`, `.kind()`, `.ndix()`, `.terminal()`, `.floppies()`, `.library()`, `.isShipped()`, `.clone()`, `.create()`, `.createNdix()` |
 | Machine form | `machine-form.js` | The Machine Setup form: CPU, ND-5000 box, controllers and disks, terminals, boot drive (enabled controllers only, or none). Disk slots: with persistent storage on, a dropdown of library images of the controller's type; in demo mode locked to the server's demo image names. Floppy slots also have an Archive... picker into the Norsk Data software archive | `machineForm.load()`, `.toINI()`, `.floppyPicks()`, `.libraryPicks()` |
 | Floppy Browser | `floppy-browser.js` | Floppy image library, search, product filter, mount | `openFloppyBrowser()`, `closeFloppyBrowser()` |
 | Help | `help-window.js` | SINTRAN command help, search, section navigation | `openHelpWindow()`, `closeHelpWindow()` |
@@ -1177,12 +1178,13 @@ The SMD Disk Manager window shows a "Remote Images (Gateway)" section when the d
 - **Direct mode**: Loads entire image into memory buffer, auto-saves to OPFS on stop/unload.
 - **Persistence toggle**: Config window toggle writes `nd100x-smd-persist` to `localStorage`, requires reload.
 
-**SMD Manager window** (`smd-manager.js`) provides the UI for:
+**HDD Disk Manager window** (`smd-manager.js`, markup `smd-manager-window` in `index.html`) provides the UI for:
 
-- **Drive Configuration**: 4 unit slots with assign/eject controls
-- **Local Disk Library**: List, import, rename, export, delete disk images
-- **Server Catalog**: Browse and copy gateway images to local library (via `/smd-catalog.json`)
-- **Remote Images**: Mount/eject gateway disk images (visible when gateway connected)
+- **Disk-type tabs**: SMD, SCSI, Winchester, NDIX, CDC - one tab per library disk type (`HDD_TAB_DISK_TYPE`, `hddSelectTab`). Each tab shows "(n)", the number of library images of its type (`hddUpdateTabCounts`). Library records carry a `diskType` tag: `smd`, `scsi`, `winchester` (controller types, from `disk-types.js`), `nd500` (an NDIX root disc, chosen in Machine Setup) and `cdc` (the NORD TSS CDC 9427 cartridge disc, 4 MB images such as `TSS-CDC.IMG`, the emulator's `[runtime] cdc = FILE` device). `nd500` and `cdc` are library-only tags, not controller units; their labels live in `EXTRA_DISK_TYPE_LABELS` in `smd-manager.js`
+- **Local Disk Library** (per tab): list, import (the tab's type is preselected in the "Tag Imported Disk" dialog), rename, export, delete. NDFS (the SINTRAN file-system viewer) is offered on the SMD, SCSI and Winchester tabs only - an NDIX root disc is a Unix file system and a CDC cartridge disc carries the TSS file system. No Assign: a drive gets its image in Machine Setup
+- **Type badge**: every list row carries a coloured `.smd-type-badge` for its type (`smdTypeBadgeHTML`): SMD blue, SCSI orange, Winchester purple, floppy green, ND5 red, CDC teal
+- **Server Catalog**: Browse and copy `disk-catalog.json` entries into the local library, filtered to the active tab's type; a copy lands on the tab of its type
+- **Remote Images**: Mount/eject gateway disk images (visible when gateway connected), filtered to the active tab's type
 
 ### Testing
 

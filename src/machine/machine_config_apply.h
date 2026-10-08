@@ -30,6 +30,7 @@ typedef struct MachineConfigApplyOpts
 {
     int fpp_already_set; /* non-zero: leave CurrentFPPType alone */
     int rtc_already_set; /* non-zero: leave the RTC time base alone */
+    int mms_already_set; /* non-zero: leave g_mms_type alone (a --mms flag was given) */
 } MachineConfigApplyOpts;
 
 /* TWO halves, and the order is not a style choice - they straddle machine_init().

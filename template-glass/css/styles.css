@@ -3492,6 +3492,13 @@ button:disabled {
   color: #ff9090;
   border: 1px solid rgba(255, 140, 140, 0.25);
 }
+/* cdc - the NORD TSS CDC 9427 cartridge disc. Teal: the one hue the other
+ * five badges (blue, orange, purple, green, red) do not use. */
+.smd-type-badge.smd-type-cdc {
+  background: rgba(0, 131, 143, 0.3);
+  color: #80e8f0;
+  border: 1px solid rgba(80, 210, 225, 0.25);
+}
 
 /* Inline rename fields */
 .smd-rename-fields {
@@ -3600,3 +3607,164 @@ button:disabled {
   font-weight: 600;
 }
 .hdd-tab:disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* =========================================================
+   Welcome window (first visit, Help > Welcome) and the
+   Help > Machines pages - filled by js/welcome.js
+   ========================================================= */
+.welcome-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background-color: rgba(5, 8, 20, 0.7);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000;
+}
+.welcome-panel {
+  width: min(880px, calc(100vw - 32px));
+  max-height: calc(100vh - 40px);
+  display: flex;
+  flex-direction: column;
+  background: rgba(12, 16, 35, 0.94);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6), 0 0 60px rgba(0, 130, 143, 0.08);
+  font-family: 'Fira Mono', 'SF Mono', 'Monaco', 'Consolas', monospace;
+  font-size: 12px;
+  color: #d8e0f0;
+  overflow: hidden;
+}
+.welcome-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px 12px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.welcome-logo { height: 40px; width: auto; }
+.welcome-title { font-size: 18px; font-weight: 600; color: #ffffff; }
+.welcome-subtitle { font-size: 11px; opacity: 0.75; margin-top: 2px; }
+.welcome-close { margin-left: auto; }
+.welcome-body {
+  overflow-y: auto;
+  padding: 14px 18px;
+  line-height: 1.5;
+}
+.welcome-section h3 {
+  margin: 0 0 6px 0;
+  font-size: 13px;
+  color: #a0b8e8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.welcome-steps { margin: 0 0 10px 0; padding-left: 20px; }
+.welcome-steps li { margin: 2px 0; }
+.welcome-list { margin: 0; padding-left: 18px; }
+.welcome-list li { margin: 3px 0; }
+.welcome-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  margin-top: 14px;
+}
+@media (max-width: 720px) { .welcome-columns { grid-template-columns: 1fr; } }
+.welcome-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+@media (max-width: 720px) { .welcome-cards { grid-template-columns: 1fr; } }
+.welcome-card {
+  background: rgba(20, 24, 44, 0.9);
+  border: 1px solid rgba(100, 140, 220, 0.3);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.welcome-card-name { font-weight: 600; color: #ffffff; font-size: 13px; }
+.welcome-card-tag {
+  margin-left: 8px;
+  font-size: 10px;
+  font-weight: 400;
+  color: #a0b8e8;
+  border: 1px solid rgba(160, 184, 232, 0.4);
+  border-radius: 4px;
+  padding: 0 5px;
+}
+.welcome-card-text { opacity: 0.9; }
+.welcome-card-after { font-size: 11px; opacity: 0.8; }
+.welcome-card-actions { display: flex; gap: 6px; margin-top: 2px; }
+.welcome-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.welcome-check { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+
+#machine-page-window {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(680px, calc(100vw - 32px));
+  max-height: calc(100vh - 60px);
+}
+.machine-page-body {
+  overflow-y: auto;
+  padding: 14px 18px 18px 18px;
+  line-height: 1.55;
+  user-select: text;
+}
+.machine-page-body h3 {
+  margin: 14px 0 6px 0;
+  font-size: 13px;
+  color: #a0b8e8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.machine-page-body p { margin: 0 0 8px 0; }
+.machine-page-tag { font-size: 11px; color: #a0b8e8; margin-bottom: 4px; }
+.machine-page-lead { font-size: 13px; color: #ffffff; }
+.machine-page-src { font-size: 10px; text-decoration: none; color: #8fc8ff; padding: 0 2px; }
+.machine-page-src:hover { text-decoration: underline; }
+.machine-page-ev { font-size: 10px; opacity: 0.6; cursor: help; }
+.machine-page-unverified { font-size: 10px; color: #ffb86c; cursor: help; }
+.machine-page-sources { padding-left: 18px; margin: 0; }
+.machine-page-sources a { color: #8fc8ff; }
+.machine-page-actions { margin-top: 14px; }
+/* Welcome card buttons: "Select and start" green, "Read more" blueish */
+.welcome-btn-start {
+  background: rgba(46, 160, 90, 0.22);
+  border-color: rgba(80, 200, 120, 0.45);
+  color: #9be7b4;
+}
+.welcome-btn-start:hover:not(:disabled) {
+  background: rgba(46, 160, 90, 0.4);
+  border-color: rgba(80, 200, 120, 0.7);
+  color: #ffffff;
+}
+.welcome-btn-start:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.welcome-btn-more {
+  background: rgba(60, 110, 220, 0.2);
+  border-color: rgba(100, 150, 240, 0.45);
+  color: #a8c4ff;
+}
+.welcome-btn-more:hover {
+  background: rgba(60, 110, 220, 0.38);
+  border-color: rgba(100, 150, 240, 0.7);
+  color: #ffffff;
+}
+.welcome-stack { display: flex; flex-direction: column; gap: 14px; }
+.welcome-note { margin: 0 0 6px 0; opacity: 0.85; }
