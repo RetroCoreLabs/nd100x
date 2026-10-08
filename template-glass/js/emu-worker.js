@@ -398,9 +398,25 @@ var _hungUp = {};            // identCode -> true: window terminal whose gateway
 // client is bound to it. Until 08-OCT-2026 only 12-19 were offered, so a
 // guest that knows no terminal beyond 11 - BSD 2.11's kernel has tty1-7 on
 // TERMINAL 5-11 (bsd211_481 cons_mt.c) - could not be reached at all.
+// Standalone ND-500 running NDIX (no ND-100 Init): the gateway gets the NDIX
+// ttys instead. tty unit u is terminal identCode u+1 - the same mapping
+// ndix-machine.js uses (identCodeOfUnit), so the page's window for a tty and
+// the gateway's binding name the same terminal. NDIX_TTY_COUNT mirrors
+// TTY_COUNT there (units 1..3 are ttys; unit 0 is the console, excluded).
+var NDIX_TTY_COUNT = 4;
+function ndixStandalone() { return _nd500Booted && !initialized; }
+function ndixIdentOfUnit(u) { return u + 1; }
+function ndixUnitOfIdent(id) { return id - 1; }
+
 function buildGatewayTerminalList() {
   _remoteTerminals = [];
   _remoteIdentCodes = {};
+  if (ndixStandalone()) {
+    for (var u = 1; u < NDIX_TTY_COUNT; u++) {
+      _remoteTerminals.push({ identCode: ndixIdentOfUnit(u), name: 'tty' + u + ' (NDIX)', logicalDevice: -1 });
+    }
+    return _remoteTerminals;
+  }
   for (var i = 1; i < 16; i++) {
     var id = Module._GetTerminalIdentCode(i);
     if (id === -1) continue;
@@ -449,7 +465,9 @@ function wsConnect(url) {
       postMessage({ type: 'ws-stats', stats: _wsStats });
     }, 1000);
     postMessage({ type: 'ws-status', connected: true, error: null });
-    // Send register message with remote terminal list
+    // Send register message with the terminal list, built now: the machine
+    // may have been powered on (or an NDIX booted) after enableRemoteTerminals.
+    if (initialized || _nd500Booted) buildGatewayTerminalList();
     if (_remoteTerminals.length > 0) {
       _ws.send(JSON.stringify({ type: 'register', terminals: _remoteTerminals }));
     }
@@ -465,8 +483,19 @@ function wsConnect(url) {
         _wsStats.termIn.frames++;
         _wsStats.termIn.bytes += buf.length;
         var identCode = buf[1];
-        for (var i = 2; i < buf.length; i++) {
-          Module._SendKeyToTerminal(identCode, buf[i]);
+        if (ndixStandalone()) {
+          // NDIX tty: the bytes go to the ND-500's tty unit, as the page's
+          // sendKey does, in one call.
+          if (typeof Module._Nd500_SendInput === 'function' && buf.length > 2) {
+            var inPtr = Module._malloc(buf.length - 2);
+            Module.HEAPU8.set(buf.subarray(2), inPtr);
+            Module._Nd500_SendInput(ndixUnitOfIdent(identCode), inPtr, buf.length - 2);
+            Module._free(inPtr);
+          }
+        } else {
+          for (var i = 2; i < buf.length; i++) {
+            Module._SendKeyToTerminal(identCode, buf[i]);
+          }
         }
       }
       else if (buf[0] === 0x10 && buf.length >= 4) {
@@ -526,8 +555,9 @@ function wsConnect(url) {
         _wsStats.clientConnects++;
         _gatewayBound[msg.identCode] = true;
         delete _hungUp[msg.identCode];
-        // Restore carrier on this terminal
-        Module._SetTerminalCarrier(0, msg.identCode);
+        // Restore carrier on this terminal (ND-100 terminals have a carrier
+        // line; an NDIX tty has none)
+        if (!ndixStandalone()) Module._SetTerminalCarrier(0, msg.identCode);
         postMessage({
           type: 'ws-client',
           action: 'connected',
@@ -543,7 +573,7 @@ function wsConnect(url) {
         // for a dropped telnet line on the native build. A window terminal
         // gets its carrier back on the next key typed in its window.
         if (_windowIdentCodes[msg.identCode]) _hungUp[msg.identCode] = true;
-        Module._SetTerminalCarrier(1, msg.identCode);
+        if (!ndixStandalone()) Module._SetTerminalCarrier(1, msg.identCode);
         postMessage({
           type: 'ws-client',
           action: 'disconnected',
@@ -824,6 +854,20 @@ function runLoop() {
   if (_nd500Booted && typeof Module._Nd500_Step === 'function') {
     Module._Nd500_Step(_nd500Slice);
     nd500Console = drainNd500Console();
+    // A tty with a gateway client bound to it: its chunks go to the gateway
+    // as well (0x02 frames); the page's window keeps mirroring them.
+    if (_ws && _ws.readyState === 1 && ndixStandalone()) {
+      for (var nc = 0; nc < nd500Console.length; nc++) {
+        var ch = nd500Console[nc], chId = ndixIdentOfUnit(ch.unit);
+        if (ch.unit === 255 || !_gatewayBound[chId]) continue;
+        var chFrame = new Uint8Array(2 + ch.text.length);
+        chFrame[0] = 0x02; chFrame[1] = chId & 0xFF;
+        for (var cb = 0; cb < ch.text.length; cb++) chFrame[2 + cb] = ch.text.charCodeAt(cb) & 0xFF;
+        _ws.send(chFrame.buffer);
+        _wsStats.termOut.frames++;
+        _wsStats.termOut.bytes += chFrame.length;
+      }
+    }
     // The run FLAG, not the stop reason. NDIX takes page faults constantly -
     // that is what demand paging is - and each one leaves a stop reason behind
     // while the machine carries on perfectly happily.
@@ -1116,7 +1160,15 @@ onmessage = function(e) {
     case 'nd500Boot': {
       var btRc = -1;
       if (typeof Module._Nd500_Boot === 'function') btRc = Module._Nd500_Boot();
-      if (btRc === 0) { _nd500Booted = true; ensureLoop(); }
+      if (btRc === 0) {
+        _nd500Booted = true;
+        ensureLoop();
+        // A gateway already connected gets the NDIX ttys now
+        if (_ws && _ws.readyState === 1) {
+          buildGatewayTerminalList();
+          if (_remoteTerminals.length > 0) _ws.send(JSON.stringify({ type: 'register', terminals: _remoteTerminals }));
+        }
+      }
       postMessage({ type: 'nd500Result', id: msg.id, op: 'boot', rc: btRc,
                     console: drainNd500Console() });
       break;

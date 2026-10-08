@@ -128,6 +128,17 @@
   // Keys arrive one code at a time from terminal-manager's key handler, the
   // same path the ND-100 uses - escape sequences come as their bytes in
   // order, so arrows and control keys reach the guest intact.
+  function connectBridgeIfOn() {
+    var on = false, url = '';
+    try {
+      on = localStorage.getItem('nd100x-ws-bridge') === 'true';
+      url = localStorage.getItem('nd100x-ws-url') || 'ws://localhost:8765';
+    } catch (e) {}
+    if (!on || !workerMode() || typeof emu.wsConnect !== 'function') return;
+    emu.wsConnect(url);
+    writeLog('gateway bridge: connecting to ' + url);
+  }
+
   function sendKey(identCode, keyCode) {
     if (!booted || !window.emu || !emu.nd500) return false;
     emu.nd500.sendInput(unitOfIdentCode(identCode), String.fromCharCode(keyCode));
@@ -272,6 +283,11 @@
         if (workerMode()) emu.nd500.step(SLICE);   // the slice, once; the Worker steps
         start();
         setStatus('NDIX running');
+        // The WebSocket bridge, when it is switched on: the Config window's
+        // auto-connect waits for an ND-100 Init that never comes here, so
+        // this machine connects itself. The Worker registers the ttys
+        // (tty1..) with the gateway, which binds telnet users to them.
+        connectBridgeIfOn();
         if (typeof terminals !== 'undefined' && terminals[1]) terminals[1].term.focus();
         return true;
       });
