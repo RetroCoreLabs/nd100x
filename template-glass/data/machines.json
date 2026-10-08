@@ -112,14 +112,14 @@
       "id": "bsd211",
       "name": "BSD 2.11",
       "tag": "2.11BSD UNIX",
-      "card": "2.11BSD UNIX, patch level 481, ported to the ND-100 and booting from an ST506 Winchester disk image. A VT100 console.",
+      "card": "2.11BSD UNIX, patch level 481, ported to the ND-100 in 2026 and booting from an ST506 Winchester disk image. Console should be VT100.",
       "afterPower": "The kernel boots to a single-user # shell on the console. Press Ctrl-D to go multi-user; log in as root (no password) on the console or on terminals 5-11.",
       "sections": [
         {
           "title": "What it is",
           "paragraphs": [
             "2.11BSD is the Berkeley UNIX for the 16-bit PDP-11, announced in March 1991 and still maintained: patch level 481 dates from April 2023, patch 499 from January 2026. [s1]",
-            "This is a port of 2.11BSD patch level 481 to the Norsk Data ND-100 (the bsd211_481 project). The cross toolchain and boot chain were built 2024 to February 2026; the kernel booted to its banner on 8 March 2026, first login mid-March 2026, multi-user boot to a root shell on 30 September 2026. [e1]",
+            "This is a port of 2.11BSD patch level 481 to the Norsk Data ND-100 (the bsd211_481 project). The cross toolchain and boot chain were built 2024 to February 2026; the kernel booted to its banner early March 2026, first login mid-March 2026, multi-user boot to a root shell in September 2026. [e1]",
             "In the emulator the machine is an ND-100 with a floppy controller and an ST506/8-inch Winchester controller (cards 3041/3038 at IOX 500-507), booting from the Winchester image BSD211-WD0.IMG, with terminals 1 and 5-11. [e2]"
           ]
         },
@@ -154,7 +154,7 @@
         },
         {
           "id": "m1",
-          "ref": "measured 08-OCT-2026 on the shipped BSD211-WD0.IMG in the browser"
+          "ref": "measured in October 2026 on the shipped BSD211-WD0.IMG in the browser"
         }
       ]
     },
