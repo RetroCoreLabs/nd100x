@@ -66,11 +66,26 @@
   //               (the bsd211_481 build).
   //   500 NDIX-C - a standalone ND-500 booting NDIX from the catalog's root
   //               disc NDIX.IMG (an 'nd500-ndix' profile, see kind below).
-  // The ND-100 machine's INI with its SMD pack swapped for the ND-5000 one
-  // (ND5000-SMD0.IMG: SINTRAN III VSX/500 L prepared for the ND-5000) and
-  // the ND-5000 sections appended.
-  var ND5000_INI = DEFAULT_INI.replace('disk0 = SMD0.IMG', 'disk0 = ND5000-SMD0.IMG') +
-    '\n[mfbus]\n' +
+  // Every built-in machine's INI is its own complete text. None is derived
+  // from another: a change to one machine must never reach another one
+  // through a shared string (Ronny, 08-OCT-2026).
+  var ND5000_INI =
+    '# nd100x machine configuration - ND-100 with an ND-5000 CPU\n' +
+    '# SINTRAN III VSX/500 L prepared for the ND-5000 (ND5000-SMD0.IMG); the\n' +
+    '# ND-5000 sits on octobus station 070B with MFbus shared memory.\n\n' +
+    '[machine]\n' +
+    'cpu = 100                 ; 100 | 110 | 120, or a model: ND110CX, ND120CX\n\n' +
+    '[controller.floppy.0]\n' +
+    'enabled = yes\n' +
+    'disk0 = FLOPPY.IMG\n\n' +
+    '[controller.smd.0]\n' +
+    'enabled = yes\n' +
+    'disk0 = ND5000-SMD0.IMG\n\n' +
+    '[terminals]\n' +
+    'enabled = 5, 6, 7, 8, 9, 10, 11\n\n' +
+    '[boot]\n' +
+    'device = smd.0.0          ; <type>.<wheel>.<unit>\n\n' +
+    '[mfbus]\n' +
     'size      = 8\n' +
     'base_page = 04100B\n\n' +
     '[mfbus.part.0]\n' +
