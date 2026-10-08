@@ -447,7 +447,7 @@ void initialize(void)
     g_current_fpp_type = (config.fppBits == 32) ? FPP32 : FPP48;
 
     // RTC time base. The CLI flag wins over the .ini [machine] rtc= key (applied
-    // in apply_machine_config below only when --rtc was not given). Default: ticks.
+    // in apply_machine_config below only when --rtc was not given). Default: wall.
     rtc_set_wall_clock_mode(config.rtcWall);
 
     // Boot banner: LEAD the output with a clean, standalone CPU + memory line (NOT

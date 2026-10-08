@@ -257,8 +257,8 @@
          opt('48', '48-bit', d.machine.fpp === 48) + opt('32', '32-bit', d.machine.fpp === 32) +
          '</select></label>';
     h += '<label>RTC <select id="mf-rtc" style="font-size:12px;padding:2px;">' +
+         opt('wall', 'wall clock 20 ms', d.machine.rtc !== 'ticks') +
          opt('ticks', 'instruction ticks', d.machine.rtc === 'ticks') +
-         opt('wall', 'wall clock 20 ms', d.machine.rtc === 'wall') +
          '</select></label>';
     h += '</div>';
 
@@ -637,7 +637,7 @@
     out.push('[machine]');
     out.push('cpu = ' + val('mf-cpu', 'ND100'));
     out.push('fpp = ' + val('mf-fpp', '48'));
-    out.push('rtc = ' + val('mf-rtc', 'ticks'));
+    out.push('rtc = ' + val('mf-rtc', 'wall'));
     out.push('');
 
     for (var i = 0; i < d.controllers.length; i++) {

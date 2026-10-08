@@ -198,8 +198,9 @@ Understanding the cost model tells you which tool to reach for on a long hunt.
 - **Each DAP request briefly pauses the CPU** (the pause/release handshake
   quiesces the machine while the command runs). This is invisible for normal
   debugging, but it skews measurements of guest-visible clocks: if you sample a
-  counter over the socket, keep the reads sparse. For a guest clock that keeps
-  real time regardless of emulation speed, run with `--rtc=wall`.
+  counter over the socket, keep the reads sparse. The default `--rtc=wall` keeps
+  the guest clock in real time regardless of emulation speed; `--rtc=ticks`
+  makes it follow the instruction count instead.
 - **Historical note (fixed 27-JUL-2026):** `machine_run()` used to sleep 100 ms
   after every 5000-instruction batch whenever `--debugger` was enabled, capping
   any debugger session at ~50k instructions/s (a TSS guest read its 50 Hz clock

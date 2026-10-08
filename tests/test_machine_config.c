@@ -156,9 +156,9 @@ int main(void)
     mc_check_bool("LoadFile(fpp=99) rejected", !mc_load_file(&cfg, path, err, sizeof(err)));
     mc_check_bool("fpp=99 error mentions 'fpp'", strstr(err, "fpp") != NULL);
 
-    /* Default RTC time base is instruction ticks. */
+    /* Default RTC time base is wall-clock (since 2026-10-08). */
     mc_set_defaults(&cfg);
-    mc_check("default rtc_wall", 0, cfg.rtc_wall);
+    mc_check("default rtc_wall", 1, cfg.rtc_wall);
 
     /* Write a config with rtc = wall and read it back. */
     cfg.rtc_wall = true;
@@ -169,7 +169,7 @@ int main(void)
     mc_check_bool("LoadFile(rtc=wall)", mc_load_file(&cfg, path, err, sizeof(err)));
     mc_check("round-tripped rtc_wall", 1, cfg.rtc_wall);
 
-    /* rtc = ticks parses back to the default. */
+    /* rtc = ticks is the non-default value and must be parsed. */
     snprintf(path, sizeof(path), "%s/rtcticks.ini", dir);
     {
         FILE *f = fopen(path, "w");
@@ -185,11 +185,11 @@ int main(void)
     mc_check_bool("LoadFile(rtc=ticks)", mc_load_file(&cfg, path, err, sizeof(err)));
     mc_check("rtc=ticks clears rtc_wall", 0, cfg.rtc_wall);
 
-    /* A config without an rtc key keeps the ticks default. */
+    /* A config without an rtc key keeps the wall default. */
     mc_init_baseline(&cfg);
     snprintf(path, sizeof(path), "%s/nofpp.ini", dir); /* reuse: has no rtc key */
     mc_check_bool("LoadFile(no rtc key)", mc_load_file(&cfg, path, err, sizeof(err)));
-    mc_check("rtc_wall stays default", 0, cfg.rtc_wall);
+    mc_check("rtc_wall stays default", 1, cfg.rtc_wall);
 
     /* rtc = sometimes must be rejected with a clear error. */
     snprintf(path, sizeof(path), "%s/badrtc.ini", dir);

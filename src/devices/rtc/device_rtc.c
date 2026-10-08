@@ -43,13 +43,16 @@
 
 #define TICKS_20MS 10550 // Ticks for 20ms timer (real-time at 0.5275 MIPS, the --throttle default)
 
-// RTC time base. Default (false) counts instruction ticks: one clock pulse per
-// TICKS_20MS calls to rtc_tick, so the clock runs in emulated instruction time
-// and its wall rate follows the effective instruction rate. When enabled via
-// [machine] rtc = wall, the pulse fires every 20 ms of host monotonic time
-// instead, giving a real-time 50 Hz clock regardless of emulation speed.
+// RTC time base. Default (true, since 2026-10-08) is wall-clock: the pulse
+// fires every 20 ms of host monotonic time, a real-time 50 Hz clock regardless
+// of emulation speed. The alternative, [machine] rtc = ticks or --rtc=ticks,
+// counts instruction ticks: one clock pulse per TICKS_20MS calls to rtc_tick,
+// so the clock runs in emulated instruction time and its wall rate follows the
+// effective instruction rate (deterministic; the unit tests select it
+// explicitly). Default changed because an unthrottled host ran guest clocks
+// about seven times too fast.
 #define RTC_WALL_PERIOD_NS 20000000ULL /* 20 ms */
-static bool rtc_wall_clock_mode = false;
+static bool rtc_wall_clock_mode = true;
 
 void rtc_set_wall_clock_mode(bool enable)
 {

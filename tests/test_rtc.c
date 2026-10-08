@@ -188,9 +188,12 @@ int main(void)
         return 1;
     }
     RTCData *data = (RTCData *)rtc->deviceData;
+    /* The device default is wall-clock mode (since 2026-10-08). Unit tests
+     * select ticks mode explicitly so the pulse count is deterministic. */
+    rtc_set_wall_clock_mode(false);
     rtc->Reset(rtc);
 
-    /* ---- ticks mode (default): one pulse per 10550 calls, deterministic ----
+    /* ---- ticks mode (selected above): one pulse per 10550 calls, deterministic ----
      * After Reset the counter is 0, so the first call pulses immediately and
      * reloads the counter; from then on it is exactly one pulse per 10550. */
     rtc_check("ticks: immediate pulse on first call", 1, pulses_over_ticks(rtc, data, 1));

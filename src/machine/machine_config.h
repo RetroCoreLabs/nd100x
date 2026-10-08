@@ -224,8 +224,8 @@ typedef struct
      * A bare number still works and maps as it always did. See cpu_model.h. */
     int cpu_model; /* a CpuType */
     int fpp_bits;  /* 32 | 48 - floating point unit width (default 48) */
-    bool rtc_wall; /* false = RTC counts instruction ticks (default);
-                                       true = RTC pulses every 20 ms of host wall-clock time */
+    bool rtc_wall; /* true = RTC pulses every 20 ms of host wall-clock time (default);
+                                       false = RTC counts instruction ticks (deterministic, used by unit tests) */
     int mms;       /* 1 | 2 - MMU paging system: 1 = Paging System I (4 page tables,
                     * NORD-10 / NORD TSS), 2 = MMS2 (16 page tables, SINTRAN VSX;
                     * default). The INI side of --mms. */

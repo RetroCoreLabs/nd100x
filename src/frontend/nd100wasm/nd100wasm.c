@@ -766,9 +766,9 @@ EMSCRIPTEN_EXPORT void Setup(const char *config)
     // For now, just print the config
 }
 
-// Select the RTC time base: 0 = instruction ticks (default, one clock pulse per
-// 10550 executed instructions), 1 = wall-clock (one pulse per 20 ms of host
-// time, a real-time 50 Hz clock regardless of emulation speed). Call any time;
+// Select the RTC time base: 1 = wall-clock (default; one pulse per 20 ms of
+// host time, a real-time 50 Hz clock regardless of emulation speed), 0 =
+// instruction ticks (one clock pulse per 10550 executed instructions). Call any time;
 // intended between Init() and Boot() like the other machine settings.
 EMSCRIPTEN_EXPORT void SetRTCMode(int wall)
 {

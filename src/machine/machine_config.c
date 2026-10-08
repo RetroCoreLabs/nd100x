@@ -187,7 +187,7 @@ void mc_init_baseline(MachineConfig *cfg)
     cfg->cpu_type = 100;
     cfg->cpu_model = ND100;
     cfg->fpp_bits = 48;    /* standard 48-bit FPP; 32 selects the optional unit */
-    cfg->rtc_wall = false; /* RTC counts instruction ticks; rtc = wall selects real-time 20 ms */
+    cfg->rtc_wall = true;  /* real-time 20 ms RTC (default); rtc = ticks counts instructions instead */
     cfg->mms = 2;          /* MMS2, 16 page tables; mms = 1 is Paging System I for NORD TSS */
 
     /* terminals 5-11 (console/0 is always present, not listed here) */

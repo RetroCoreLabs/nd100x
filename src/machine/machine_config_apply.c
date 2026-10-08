@@ -52,8 +52,8 @@ void mc_apply_cpu(const MachineConfig *mc, const MachineConfigApplyOpts *opts)
         g_current_fpp_type = (mc->fpp_bits == 32) ? FPP32 : FPP48;
     }
 
-    // RTC time base from the .ini [machine] rtc= key: ticks (default, one pulse
-    // per 10550 instructions) or wall (one pulse per 20 ms of host time).
+    // RTC time base from the .ini [machine] rtc= key: wall (default, one pulse
+    // per 20 ms of host time) or ticks (one pulse per 10550 instructions).
     // A --rtc CLI flag wins (same precedence rule as --fpp).
     if (!opts->rtc_already_set)
     {

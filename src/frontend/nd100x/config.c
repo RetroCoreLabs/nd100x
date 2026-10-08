@@ -98,7 +98,7 @@ static struct option long_options[] = {
     {"cputype",    required_argument, 0, 0x150}, // --cputype=TYPE : select the emulated CPU model (see Config_PrintHelp)
     {"memory",     required_argument, 0, 0x151}, // --memory=MB : installed main memory in megabytes (1..16, default 4)
     {"fpp",        required_argument, 0, 0x152}, // --fpp=32|48 : installed floating point unit width (default 48)
-    {"rtc",        required_argument, 0, 0x153}, // --rtc=ticks|wall : RTC time base (default ticks)
+    {"rtc",        required_argument, 0, 0x153}, // --rtc=ticks|wall : RTC time base (default wall)
     {"monitor",    no_argument,       0, 0x160}, // --monitor : enable interactive shell mode
     {"shell",      no_argument,       0, 0x160}, // --shell : alias for --monitor
     {"nd100-root", required_argument, 0, 0x161}, // --nd100-root=PATH : directory for BPUN/PROG files (default: current dir)
@@ -174,7 +174,7 @@ void config_init(Config *config)
         48; // --fpp: installed FPP width; 48 = standard unit, 32 = optional single precision
     config->fppSet = false; // whether --fpp was given on the CLI (CLI wins over the .ini fpp= key)
     config->rtcWall =
-        false; // --rtc: RTC time base; false = instruction ticks (default), true = wall-clock 20 ms
+        true; // --rtc: RTC time base; true = wall-clock 20 ms (default), false = instruction ticks
     config->rtcSet = false; // whether --rtc was given on the CLI (CLI wins over the .ini rtc= key)
     config->oprSet =
         false; // --opr: operator's-panel switch register preset (TRA OPR); unset -> power-on 0
@@ -951,10 +951,10 @@ bool config_parse_command_line(Config *config, int argc, char *argv[])
         }
 
         case 0x153:
-        { /* --rtc=ticks|wall : RTC time base. ticks = one clock pulse per
-                             * 10550 executed instructions (default, deterministic); wall = one
-                             * pulse per 20 ms of host wall-clock time (real-time 50 Hz clock
-                             * regardless of emulation speed). No silent default on bad input -
+        { /* --rtc=ticks|wall : RTC time base. wall = one pulse per 20 ms of
+                             * host wall-clock time (default; real-time 50 Hz clock regardless of
+                             * emulation speed); ticks = one clock pulse per 10550 executed
+                             * instructions (deterministic). No silent default on bad input -
                              * reject and fail, same as --fpp. */
             if (strcasecmp(optarg, "ticks") == 0)
             {
@@ -1297,7 +1297,7 @@ void config_print_help(const char *prog_name)
     printf("                          single-precision FPP (FAD/FSB/FMU/FDV on the A,D pair;\n");
     printf("                          NLZ/DNZ leave T untouched).\n");
     printf("                          Also settable via the .ini '[machine] fpp = BITS' key.\n");
-    printf("           --rtc=MODE     RTC time base: ticks or wall (default: ticks).\n");
+    printf("           --rtc=MODE     RTC time base: ticks or wall (default: wall).\n");
     printf("                          ticks = one clock pulse per 10550 executed instructions\n");
     printf(
         "                          (deterministic, follows emulation speed). wall = one pulse\n");

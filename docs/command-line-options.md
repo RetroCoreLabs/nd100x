@@ -87,7 +87,7 @@ Options:
                           2-word A,D layout matches the FAD..FDV memory operand.
                           Also settable via the .ini
                           '[machine] fpp = BITS' key; the CLI flag wins.
-           --rtc=MODE     RTC time base: ticks or wall (default: ticks).
+           --rtc=MODE     RTC time base: ticks or wall (default: wall).
                           ticks = one clock pulse per 10550 executed instructions
                           (deterministic; the emulated clock follows emulation
                           speed). wall = one pulse per 20 ms of host time, giving
