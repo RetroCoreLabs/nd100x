@@ -1,0 +1,148 @@
+name: Deploy web (Glass UI) to GitHub Pages
+
+# Builds the Glass UI (make wasm-glass) and publishes build_wasm_glass/bin
+# as the GitHub Pages site of this repository:
+#   https://retrocorelabs.github.io/nd100x/
+# A second home for the emulator next to the Azure storage account
+# (deploy-web.yml), so the Azure hosting can be left behind over time.
+#
+# MANUAL ONLY, like the Azure deploy: nothing deploys on push; run it from
+# the Actions tab ("Run workflow").
+#
+# WHAT IS PUBLISHED: the whole build folder - the web files (index.html,
+# terminal-popout.html, nd100wasm.js/.wasm, version.js, disk-catalog.json,
+# css/, js/, lib/, data/, floppies/, PDF/) AND the demo disk images
+# unpacked from images/*.IMG.bz2 (SMD0.IMG, NDIX.IMG, BSD211-WD0.IMG,
+# about 225 MB). A Pages deploy always replaces the whole site, so there
+# is no "only if missing" here and nothing hand-uploaded can live there.
+#
+# LIMITS GitHub documents for Pages: 1 GB site, a soft 100 GB/month of
+# bandwidth (a demo boot downloads SMD0.IMG, 78 MB), 10 builds per hour.
+# Pages cannot send COOP/COEP headers, so Worker mode (SharedArrayBuffer)
+# is unavailable there, the same as behind Azure + Cloudflare today.
+#
+# ONE-TIME SETUP (done 08-OCT-2026): the repository's Pages source must be
+# "GitHub Actions" (`gh api -X PUT repos/RetroCoreLabs/nd100x/pages
+# -f build_type=workflow`); in the legacy mode Pages rendered the README
+# from main instead.
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-pages
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+env:
+  # Same pins as deploy-web.yml: local versions on 2026-10-07 were
+  # Emscripten 4.0.8 and Node 22.
+  EMSDK_VERSION: 4.0.8
+  NODE_VERSION: 22
+
+jobs:
+  build:
+    name: Build Glass UI (wasm-glass)
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout (without submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+          fetch-depth: 0
+
+      - name: Install build dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake pkg-config bzip2
+
+      - name: Initialise submodules
+        run: |
+          set -euo pipefail
+          # No --recursive: nd500x's own submodules are not used (see the
+          # note in build-release.yml).
+          git submodule update --init \
+            external/cJSON \
+            external/libdap \
+            external/libsymbols \
+            external/nd500x \
+            template-glass/external/RetroTermWeb \
+            template-glass/external/norskdata-ndfs
+
+      - name: Set up Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Set up Emscripten ${{ env.EMSDK_VERSION }}
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: ${{ env.EMSDK_VERSION }}
+          actions-cache-folder: emsdk-cache
+
+      - name: Install JS build tools
+        run: |
+          set -euo pipefail
+          # The repo root has no tracked package.json; typescript for
+          # `npx tsc` (ts-compile) and esbuild for `npx esbuild` (ndfs-build)
+          # are installed globally. RetroTermWeb installs its own.
+          npm install -g --no-audit --no-fund typescript@6 esbuild
+
+      - name: Show toolchain versions
+        run: |
+          emcc --version | head -1
+          cmake --version | head -1
+          node --version
+          npx tsc --version
+
+      - name: Build (make wasm-glass)
+        run: make wasm-glass
+
+      - name: Assert the ND-500 came from the submodule
+        run: |
+          set -euo pipefail
+          CACHE=build_wasm_glass/CMakeCache.txt
+          grep -q '^ND100X_ND500X_DIR:PATH=.*/external/nd500x$' "$CACHE" || {
+            echo "::error::ND100X_ND500X_DIR does not point at external/nd500x:"
+            grep '^ND100X_ND500X_DIR:PATH=' "$CACHE" || echo "  (not in the cache at all)"
+            exit 1
+          }
+          echo "ND-500 built from external/nd500x."
+
+      - name: List what will be published
+        run: |
+          set -euo pipefail
+          {
+            echo "## Pages site content"
+            echo
+            echo "$(find build_wasm_glass/bin -type f | wc -l) files, $(du -sh build_wasm_glass/bin | cut -f1)"
+            echo
+            echo '```'
+            (cd build_wasm_glass/bin && find . -maxdepth 1 -type f | sed 's|^\./||' | sort)
+            (cd build_wasm_glass/bin && for d in */; do echo "$d ($(find "$d" -type f | wc -l) files)"; done)
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build_wasm_glass/bin
+
+  deploy:
+    name: Publish to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
