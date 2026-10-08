@@ -111,10 +111,11 @@ static int g_pass, g_fail;
     } while (0)
 // clang-format on
 
-/* Build a control word: function in bits 13-14, core-addr-hi in 5-6, go=7. */
+/* Build a control word: function in bits 11-12 (TSS1 XDRUM: SAA 3; AND DTREG;
+ * SHA ZIN 13 octal = 11), core-addr-hi in 5-6, go=7. */
 static uint16_t ctrl_go(uint16_t func, uint16_t addr_hi)
 {
-    return (uint16_t)((func << 13) | ((addr_hi & 3) << 5) | DRUM_CTRL_GO_VALUE);
+    return (uint16_t)((func << 11) | ((addr_hi & 3) << 5) | DRUM_CTRL_GO_VALUE);
 }
 /* Build a drum block address: sector in 15-11, track in 10-0. */
 static uint16_t block_of(uint16_t sector, uint16_t track)
