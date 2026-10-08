@@ -546,7 +546,7 @@ Sent immediately after WebSocket connection is established. Declares the list of
 | `terminals[].logicalDevice` | Integer | SINTRAN logical device number (-1 if unknown) |
 
 **Notes:**
-- The `identCode` is the ND-100 hardware device identification code. For terminals with thumbwheels 12-19, identCodes are 43-50 (decimal), corresponding to octal 053-062.
+- The `identCode` is the ND-100 hardware device identification code. The list holds every terminal of the machine except the console: the machine's own terminals (which also have windows in the browser page; thumbwheels 5-8 are identCodes 36-39, 9-11 are 40-42) and the gateway-only terminals with thumbwheels 12-19, identCodes 43-50 (decimal), corresponding to octal 053-062. A client bound to a window terminal shares it with the window (the window mirrors the session).
 - This message can be sent again to update the terminal list (e.g., after reconfiguration).
 - The gateway replaces its stored terminal list each time a `register` message is received.
 

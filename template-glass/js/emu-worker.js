@@ -384,8 +384,37 @@ function gatewayIsAvailable(driveType, unit) {
 var _ws = null;              // WebSocket connection to gateway
 var _wsUrl = '';             // For reconnection
 var _wsReconnectTimer = null;
-var _remoteIdentCodes = {};  // identCode -> true (set of remote terminals)
-var _remoteTerminals = [];   // { identCode, name, logicalDevice } for register msg
+var _remoteIdentCodes = {};  // identCode -> true: GATEWAY-ONLY terminals (TERMINAL 12-19, no window in the page)
+var _remoteTerminals = [];   // { identCode, name, logicalDevice } - what 'register' sends: every terminal but the console
+var _windowIdentCodes = {};  // identCode -> true: the machine's own terminals (made by Init, each has a window)
+var _gatewayBound = {};      // identCode -> true while a gateway TCP client is bound to that terminal
+var _hungUp = {};            // identCode -> true: window terminal whose gateway client left (carrier dropped), until a key is typed in its window
+
+// The list the gateway gets is EVERY terminal of the machine except the
+// console: the machine's own terminals, which also have windows in the page,
+// plus the gateway-only TERMINAL 12-19 that EnableRemoteTerminals() adds.
+// Output of a gateway-only terminal goes to the gateway alone; a window
+// terminal's output goes to its window, and to the gateway as well while a
+// client is bound to it. Until 08-OCT-2026 only 12-19 were offered, so a
+// guest that knows no terminal beyond 11 - BSD 2.11's kernel has tty1-7 on
+// TERMINAL 5-11 (bsd211_481 cons_mt.c) - could not be reached at all.
+function buildGatewayTerminalList() {
+  _remoteTerminals = [];
+  _remoteIdentCodes = {};
+  for (var i = 1; i < 16; i++) {
+    var id = Module._GetTerminalIdentCode(i);
+    if (id === -1) continue;
+    var nm = '';
+    try {
+      var np = Module._GetTerminalName(i);
+      if (np) nm = Module.UTF8ToString(np);
+    } catch (e) {}
+    _remoteTerminals.push({ identCode: id, name: nm || ('Terminal ' + i),
+                            logicalDevice: Module._GetTerminalLogicalDevice(i) });
+    if (!_windowIdentCodes[id]) _remoteIdentCodes[id] = true;
+  }
+  return _remoteTerminals;
+}
 
 function wsConnect(url) {
   if (_ws) {
@@ -495,6 +524,8 @@ function wsConnect(url) {
     switch (msg.type) {
       case 'client-connected': {
         _wsStats.clientConnects++;
+        _gatewayBound[msg.identCode] = true;
+        delete _hungUp[msg.identCode];
         // Restore carrier on this terminal
         Module._SetTerminalCarrier(0, msg.identCode);
         postMessage({
@@ -507,7 +538,11 @@ function wsConnect(url) {
       }
       case 'client-disconnected': {
         _wsStats.clientDisconnects++;
-        // Set carrier missing
+        delete _gatewayBound[msg.identCode];
+        // Set carrier missing - the guest hangs the session up, as it does
+        // for a dropped telnet line on the native build. A window terminal
+        // gets its carrier back on the next key typed in its window.
+        if (_windowIdentCodes[msg.identCode]) _hungUp[msg.identCode] = true;
         Module._SetTerminalCarrier(1, msg.identCode);
         postMessage({
           type: 'ws-client',
@@ -531,7 +566,16 @@ function wsConnect(url) {
       for (var ic in _remoteIdentCodes) {
         Module._SetTerminalCarrier(1, parseInt(ic, 10));
       }
+      // Window terminals a client was bound to: hang up the same way; the
+      // window gets the carrier back on its next key.
+      for (var bc in _gatewayBound) {
+        if (_windowIdentCodes[bc]) {
+          _hungUp[bc] = true;
+          Module._SetTerminalCarrier(1, parseInt(bc, 10));
+        }
+      }
     }
+    _gatewayBound = {};
     _ws = null;
     // Auto-reconnect after 3 seconds if we had a URL
     if (_wsUrl) {
@@ -558,6 +602,7 @@ function wsDisconnect() {
   }
   _remoteIdentCodes = {};
   _remoteTerminals = [];
+  _gatewayBound = {};
   _wsStats.connectedSince = 0;
   postMessage({ type: 'ws-stats', stats: _wsStats });
   postMessage({ type: 'ws-status', connected: false, error: null });
@@ -580,10 +625,16 @@ function flushRingBuffer() {
   while ((entry = Module._PollTerminalOutput()) >= 0) {
     var ident = (entry >> 8) & 0xFF;
     if (_remoteIdentCodes[ident]) {
+      // Gateway-only terminal: the gateway is its only screen.
       if (!wsOutBuf[ident]) wsOutBuf[ident] = [];
       wsOutBuf[ident].push(entry & 0xFF);
     } else {
       output.push(entry);  // packed: (identCode << 8) | charCode
+      if (_gatewayBound[ident]) {
+        // Window terminal with a gateway client on it: the window mirrors.
+        if (!wsOutBuf[ident]) wsOutBuf[ident] = [];
+        wsOutBuf[ident].push(entry & 0xFF);
+      }
     }
   }
   // Send remote output over WebSocket as binary
@@ -723,12 +774,17 @@ function runLoop() {
     while ((entry = Module._PollTerminalOutput()) >= 0) {
       var ident = (entry >> 8) & 0xFF;
       if (_remoteIdentCodes[ident]) {
-        // Remote terminal -> batch for WebSocket
+        // Gateway-only terminal -> batch for WebSocket
         if (!wsOutBuf[ident]) wsOutBuf[ident] = [];
         wsOutBuf[ident].push(entry & 0xFF);
       } else {
-        // Local terminal -> main thread
+        // Window terminal -> main thread, and to the gateway too while a
+        // client is bound to it (the window mirrors the session)
         termOutput.push(entry);
+        if (_gatewayBound[ident]) {
+          if (!wsOutBuf[ident]) wsOutBuf[ident] = [];
+          wsOutBuf[ident].push(entry & 0xFF);
+        }
       }
     }
     /*
@@ -921,11 +977,15 @@ onmessage = function(e) {
       }
       if (cfgErr) console.error('[worker] machine config rejected: ' + cfgErr);
       initialized = true;
-      // Gather terminal info
+      // Gather terminal info. These are the machine's own terminals - each
+      // gets a window in the page - as opposed to the gateway-only ones
+      // EnableRemoteTerminals() adds later.
       var terminalInfo = [];
+      _windowIdentCodes = {};
       for (var i = 0; i < 16; i++) {
         var address = Module._GetTerminalAddress(i);
         if (address !== -1) {
+          _windowIdentCodes[Module._GetTerminalIdentCode(i)] = true;
           terminalInfo.push({
             index: i,
             address: address,
@@ -947,25 +1007,8 @@ onmessage = function(e) {
       // (auto-connect may have fired before Init), re-discover and register
       // remote terminals with the gateway.
       if (_ws && _ws.readyState === 1) {
-        var rtRes = Module._EnableRemoteTerminals();
-        _remoteTerminals = [];
-        _remoteIdentCodes = {};
-        for (var rti2 = 8; rti2 < 16; rti2++) {
-          var rtId2 = Module._GetTerminalIdentCode(rti2);
-          if (rtId2 !== -1) {
-            var rtNm2 = '';
-            try {
-              var np2 = Module._GetTerminalName(rti2);
-              if (np2) rtNm2 = Module.UTF8ToString(np2);
-            } catch(e2) {}
-            _remoteTerminals.push({
-              identCode: rtId2,
-              name: rtNm2 || ('Terminal ' + rti2),
-              logicalDevice: Module._GetTerminalLogicalDevice(rti2)
-            });
-            _remoteIdentCodes[rtId2] = true;
-          }
-        }
+        Module._EnableRemoteTerminals();
+        buildGatewayTerminalList();
         if (_remoteTerminals.length > 0) {
           _ws.send(JSON.stringify({ type: 'register', terminals: _remoteTerminals }));
           console.log('[Worker] Post-Init: re-registered ' + _remoteTerminals.length + ' remote terminals with gateway');
@@ -1117,6 +1160,13 @@ onmessage = function(e) {
 
     // --- Terminal I/O ---
     case 'key': {
+      // A key typed in the window of a terminal whose gateway client hung
+      // up gives the terminal its carrier back first (the native build's
+      // "re-activate locally").
+      if (_hungUp[msg.identCode]) {
+        delete _hungUp[msg.identCode];
+        Module._SetTerminalCarrier(0, msg.identCode);
+      }
       Module._SendKeyToTerminal(msg.identCode, msg.keyCode);
       break;
     }
@@ -1625,28 +1675,9 @@ onmessage = function(e) {
     }
 
     case 'enableRemoteTerminals': {
-      var rtResult = Module._EnableRemoteTerminals();
-      // Build remote terminal list for register message
-      _remoteTerminals = [];
-      _remoteIdentCodes = {};
-      // Remote terminals occupy slots 8-15 (indices after the 8 local ones)
-      for (var rti = 8; rti < 16; rti++) {
-        var rtIdent = Module._GetTerminalIdentCode(rti);
-        if (rtIdent !== -1) {
-          var rtName = '';
-          try {
-            var namePtr = Module._GetTerminalName(rti);
-            if (namePtr) rtName = Module.UTF8ToString(namePtr);
-          } catch(e) {}
-          var rtLogDev = Module._GetTerminalLogicalDevice(rti);
-          _remoteTerminals.push({
-            identCode: rtIdent,
-            name: rtName || ('Terminal ' + rti),
-            logicalDevice: rtLogDev
-          });
-          _remoteIdentCodes[rtIdent] = true;
-        }
-      }
+      Module._EnableRemoteTerminals();
+      // The register list: the machine's own terminals plus the gateway-only ones
+      buildGatewayTerminalList();
       // Send register message to gateway if WebSocket is connected
       if (_ws && _ws.readyState === 1 && _remoteTerminals.length > 0) {
         _ws.send(JSON.stringify({ type: 'register', terminals: _remoteTerminals }));

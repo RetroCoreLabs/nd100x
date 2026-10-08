@@ -1012,7 +1012,9 @@ The gateway accepts two WebSocket connections: the emulator Worker (first) and t
 
 ### Remote Terminal Devices
 
-When the user enables the WebSocket bridge, `EnableRemoteTerminals()` is called in the WASM module. This creates 8 additional terminal devices using thumbwheels 12-19:
+The gateway is offered **every terminal of the machine except the console** (`buildGatewayTerminalList()` in `emu-worker.js`): the machine's own terminals from the INI `[terminals]` list - each of which also has a window in the page - plus the gateway-only ones below. A gateway client bound to a window terminal shares it: the window mirrors the session, keys from either side reach the guest, and when the client disconnects the guest sees the carrier drop (hang-up); the next key typed in the window gives the terminal its carrier back. Gateway-only terminals have no window; their output goes to the gateway alone. Until 08-OCT-2026 only the gateway-only set was offered, which left a guest whose kernel knows no terminal beyond 11 (BSD 2.11: `tty1-7` on TERMINAL 5-11, `bsd211_481/usr/src/sys/nd100/cons_mt.c`) unreachable through the gateway. Verified headless 08-OCT-2026: BSD 2.11 login on TERMINAL 5 through the gateway, window mirroring it.
+
+When the user enables the WebSocket bridge, `EnableRemoteTerminals()` is called in the WASM module (before the boot, see `remoteTerminalsBeforeBoot()` in `toolbar.js`). This creates 8 additional gateway-only terminal devices using thumbwheels 12-19:
 
 | Slot | Thumbwheel | Name | IdentCode (dec) | IdentCode (oct) |
 |------|------------|------|------------------|------------------|
