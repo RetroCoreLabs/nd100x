@@ -198,13 +198,14 @@ static void draw_about(void)
     printf("    Per-Olof Astrom, Roger Abrahamsson,\n");
     printf("    Zdravko Dimitrov, Goran Axelsson\n\n");
     printf("  Features:\n");
-    printf("    - Full ND-100 CPU emulation (MMS1 and MMS2)\n");
-    printf("    - SMD and floppy disk support\n");
-    printf("    - HDLC networking\n");
-    printf("    - DAP debugger integration\n");
-    printf("    - Telnet server for remote terminals\n");
-    printf("    - WebAssembly browser build\n\n");
-    printf("  https://www.ndwiki.org/wiki/ND-100\n\n");
+    printf("    - CPU models ND-1 to ND-120, MMS1/MMS2, 32/48-bit FPP, 1-16 MB\n");
+    printf("    - Disks: SMD, Winchester, SCSI, floppy; TSS CDC disc and drum\n");
+    printf("    - Paper tape reader/punch, line printer (text or PDF)\n");
+    printf("    - Terminals 5-11, telnet server, national character sets\n");
+    printf("    - HDLC networking, up to 4 links\n");
+    printf("    - ND-5000 CPU beside the ND-100 for ND-500 programs\n");
+    printf("    - INI machine config, DAP debugger, trace and watchpoints\n");
+    printf("    - WebAssembly browser build (Glass)\n\n");
     printf("  Press ESC to return.\n");
     fflush(stdout);
 }

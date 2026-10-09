@@ -536,13 +536,37 @@ CDC 9380 line printer emulation. In native mode, output is saved to files in the
 COM 5025-based HDLC (High-Level Data Link Control) communication controller. Up to 4 HDLC devices can be configured, each operating as either a TCP server or client for point-to-point serial links. Supports DMA transfers, CRC calculation, and full interrupt handling. Enable with `--hdlc=N:PORT` (server) or `--hdlc=N:HOST:PORT` (client). Live status monitoring available via the F12 menu.
 
 ### Virtual Screen Switching (Native)
-Press **Alt+1** through **Alt+9** to switch directly between virtual screens (Console, terminals, Line Printer, Paper Tape Punch, Log). Press **F12** for the unified menu offering Floppy Database Browser, Virtual Screen Selector, HDLC Status, CPU Speed, Character Set, Pending Connections viewer, and About screen. Only terminal screens accept keyboard input; device screens are output-only.
+The emulator window shows one screen at a time: the console, one of the extra terminals, or the output of the line printer, paper tape punch or log. **Alt+N** jumps to screen N, and **Alt+1** always takes you back to the console. F12 > 2 lists the screens with their numbers, for example:
+
+```
+  [1] Console                  *
+  [2] Terminal 36              [Virtual]
+  [3] Terminal 37              [Virtual]
+  [4] Terminal 38              [Virtual]
+  [5] Terminal 39              [Inactive]
+  ...
+  [9] Line Printer             (output only)
+  [a] Paper Tape Punch         (output only)
+  [b] Log                      (output only)
+```
+
+Alt only covers 1 to 9; screens `a` and up are reached through F12 > 2. You can type on terminal screens only; the printer, punch and log screens just show output. `*` marks the screen you are looking at, `[Inactive]` means the terminal is free for telnet (see below).
+
+If your terminal program eats Alt+digit (many use it for tab switching), use F12 > 2 instead.
+
+Press **F12** for the rest of the menu: floppy browser, screen list, HDLC status, CPU speed, character set, the operator's panel switches, and About.
 
 ### National Character Set (Native)
 The emulated terminal speaks 7-bit ISO 646, where national variants reuse the ASCII positions `[ \ ] { | }` for accented letters. Select a variant with `--charset=` (off, norwegian, swedish, german) or at runtime via **F12 > Character Set**, which also shows the exact byte mappings. When active, the local console renders those positions as the national letters (e.g. Norwegian `{ | }` -> `æ ø å`, `[ \ ]` -> `Æ Ø Å`) and maps national keystrokes (UTF-8 or Latin-1) back to the matching 7-bit code. This is a local-console presentation layer only — telnet/TCP traffic is always passed through as raw 7-bit and is never translated.
 
 ### Telnet Server (Native)
-Enable with `--telnet[=PORT]` (default port 9000). Provides remote terminal access to terminals 8-11. Multiple clients can connect simultaneously and select from available terminals. Features include:
+Start it with `--telnet[=PORT]` (default port 9000), or put `telnet = PORT` under `[runtime]` in the config file. Then `telnet localhost 9000` and pick a terminal from the menu.
+
+Out of the box you get terminals 8 to 11 over telnet. Terminals 5, 6 and 7 stay in the emulator window as screens 2 to 4 (Alt+2 to Alt+4). To use one of them over telnet instead, open F12 > 2, press R and then its number. It shows up in the telnet menu straight away. Switch to it in the window again and you get it back.
+
+Both menus use the logical device number, not the terminal number, so terminal 8 is listed as `Terminal 39`. Terminals 5-7 are `Terminal 36`-`38`, 8 is `39`, and 9-11 are `48`-`50`. Start with `--verbose` and the start-up log prints the whole list.
+
+Features include:
 * Non-blocking accept with concurrent pending client handling
 * 60-second auto-disconnect for idle pending connections
 * Live monitoring of pending connections with rx/tx byte stats (via F12 menu)
