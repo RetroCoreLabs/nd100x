@@ -1410,12 +1410,25 @@ function preloadBootImage(ini) {
     // fetched over. A unit nothing holds - a built-in machine's demo image,
     // say - is fetched exactly as in demo mode, or there is nothing to boot.
     var regType = (type === 'wd') ? 'winchester' : type;
-    if (typeof driveRegistry !== 'undefined' && driveRegistry.isOccupied(regType, r.boot.unit)) return;
+    // A unit held by something the user chose (library pick, OPFS or gateway
+    // assignment) is left alone. A unit held only by the page's own start-up
+    // demo load (module-init.js mounts SMD0.IMG as unit 0 for every visitor)
+    // is NOT the machine's image unless it is the very file the machine
+    // names: ND-5000 names ND5000-SMD0.IMG, and skipping the fetch because
+    // "unit 0 is occupied" made it boot the ND-100's SMD0.IMG instead
+    // (found 09-OCT-2026: ND-500-MON-J "NO SUCH FILE NAME" on the ND-5000).
+    var held = (typeof driveRegistry !== 'undefined') ? driveRegistry.get(regType, r.boot.unit) : null;
+    if (held && held.mounted && !(held.source === 'demo' && held.fileName !== image)) return;
     if (_preloadedImages[image]) return;
     if (image === 'SMD0.IMG' && typeof diskImageStatus !== 'undefined' && diskImageStatus.smd) return;
     if (typeof loadDiskImage !== 'function') return pre;
     return pre.then(function() { return loadDiskImage(image, '/' + image); }).then(function(ok) {
-      if (ok) _preloadedImages[image] = true;
+      if (ok) {
+        _preloadedImages[image] = true;
+        if (held && held.mounted && held.source === 'demo' && typeof driveRegistry !== 'undefined') {
+          driveRegistry.mount(regType, r.boot.unit, 'demo', image, image, 0);
+        }
+      }
       else console.warn('[Boot] ' + image + ' is not on the server - the ' + type +
                         ' unit ' + r.boot.unit + ' will be empty');
     });
