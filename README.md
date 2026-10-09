@@ -13,7 +13,7 @@ For more information about the ND-100 series of minicomputers: <https://www.ndwi
 
 ## Try it in your browser
 
-Run the emulator directly at **<https://nd100x.hackercorp.no/>** — no download or install required. WebAssembly build with full terminal, debugger, and SINTRAN OS inspection tools.
+Run the emulator directly at **<https://retrocorelabs.github.io/nd100x>** — no download or install required. WebAssembly build with full terminal, debugger, and SINTRAN OS inspection tools.
 
 ## Quick start
 
@@ -231,7 +231,7 @@ BPUN, SMD, floppy boot and the telnet server all work natively on Windows.
 
 ## Glass Web UI
 
-The emulator includes a glassmorphism browser frontend (the "Glass UI") that runs the full ND-100 emulator in your browser. The live version at **<https://nd100x.hackercorp.no/>** has been upgraded to use this layout.
+The emulator includes a glassmorphism browser frontend (the "Glass UI") that runs the full ND-100 emulator in your browser. The live version at **<https://retrocorelabs.github.io/nd100x>** has been upgraded to use this layout.
 
 Build and run locally:
 
@@ -720,13 +720,6 @@ If a build job fails the release is **not** published — `needs: [build-linux, 
 * **Push to `main`** — runs every build job as a CI check; no release is created.
 * **Pull request to `main`** — same, plus `concurrency.cancel-in-progress: true` cancels superseded PR builds to save runner minutes.
 * **`Actions → Build & Release → Run workflow`** (`workflow_dispatch`) — manual dry build, no release published.
-
-## TODO
-
-* OPCOM implementation
-  * Emulation of OPCOM for memory inspection when CPU is in STOP mode.
-  * Currently STOP mode exits the emulator
-* Clean up code and standardise on 8,16,32 and 64 bit signed and unsigned names for types
 
 ## Contributing
 

@@ -23,3 +23,6 @@
 	path = external/nd500x
 	url = https://github.com/RetroCoreLabs/nd500x.git
 	branch = main
+[submodule "external/Musashi"]
+	path = external/Musashi
+	url = https://github.com/kstenerud/Musashi.git
