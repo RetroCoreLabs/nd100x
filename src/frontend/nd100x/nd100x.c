@@ -549,6 +549,21 @@ void initialize(void)
         // the card answers IOX 500-507, the same address block as the CDC
         // system disc, so adding it unconditionally would change the IOX map
         // of every existing machine configuration.
+        // Ethernet II controller (68000 card). Opt-in via --eth0.
+        if (config.ethEnabled)
+        {
+            FILE *eth_trace = NULL;
+            if (config.ethTraceFile)
+            {
+                eth_trace = fopen(config.ethTraceFile, "w");
+                if (!eth_trace)
+                {
+                    fprintf(stderr, "--eth0-trace: cannot open '%s'\n", config.ethTraceFile);
+                }
+            }
+            (void)devmgr_add_ethernet_device(0, config.ethBank, eth_trace);
+        }
+
         if (config.wdEnabled)
         {
             devmgr_add_device(DEVICE_TYPE_DISC_WINCHESTER, 0);
@@ -1026,6 +1041,27 @@ static bool apply_cli_to_machine_config(MachineConfig *mc, const Config *cfg)
         snprintf(h->hdlc_host, sizeof(h->hdlc_host), "%s",
                  cfg->hdlc[i].address ? cfg->hdlc[i].address : "");
         h->hdlc_port = cfg->hdlc[i].port;
+    }
+
+    // Ethernet II card (thumbwheel 0). Each CLI option overrides only its own key.
+    if (cfg->ethEnabled)
+    {
+        McController *e = mc_find_or_add_controller(mc, CTRL_ETHERNET, 0);
+        if (!e)
+        {
+            fprintf(stderr, "nd100x: cannot add --eth0 to the machine config\n");
+            return false;
+        }
+        e->enabled = true;
+        snprintf(e->eth_net, sizeof(e->eth_net), "%s", cfg->ethSpec ? cfg->ethSpec : "");
+        if (cfg->ethBank != 0)
+        {
+            e->eth_bank = cfg->ethBank;
+        }
+        if (cfg->ethTraceFile)
+        {
+            snprintf(e->eth_trace, sizeof(e->eth_trace), "%s", cfg->ethTraceFile);
+        }
     }
 
     // Boot device.

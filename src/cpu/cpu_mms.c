@@ -1058,6 +1058,105 @@ bool mms_memory_bank_unregister(uint32_t start_word)
     return false;
 }
 
+bool mms_memory_bank_register_over_local(uint32_t start_word, uint32_t length_word, NDMemoryType type,
+                                         NdBankReadFn read, NdBankWriteFn write, void *ctx)
+{
+    uint32_t end_word = start_word + length_word;
+    int hit = -1;
+
+    if ((length_word == 0) || (end_word < start_word))
+    {
+        return false;
+    }
+    for (int i = 0; i < s_memory_bank_count; i++)
+    {
+        uint32_t bs = s_memory_banks[i].start_word;
+        uint32_t be = bs + s_memory_banks[i].length_word;
+        if ((start_word < be) && (end_word > bs))
+        {
+            if ((hit >= 0) || (s_memory_banks[i].type != ND_MEM_LOCAL) || (s_memory_banks[i].read != NULL) ||
+                (s_memory_banks[i].write != NULL) || (start_word < bs) || (end_word > be))
+            {
+                return false; /* overlaps more than one bank, or something other than plain local RAM */
+            }
+            hit = i;
+        }
+    }
+    if (hit < 0)
+    {
+        return mms_memory_bank_register_backed(start_word, length_word, type, read, write, ctx);
+    }
+    {
+        uint32_t ls = s_memory_banks[hit].start_word;
+        uint32_t le = ls + s_memory_banks[hit].length_word;
+        int extra = 1 + ((end_word < le) ? 1 : 0) - ((start_word == ls) ? 1 : 0);
+
+        if (s_memory_bank_count + extra > ND_MEMORY_BANK_MAX)
+        {
+            return false;
+        }
+        if (start_word > ls)
+        {
+            /* low part of local RAM keeps its slot (and its place in the lookup order) */
+            s_memory_banks[hit].length_word = start_word - ls;
+        }
+        else
+        {
+            /* the range starts at the bank start: drop the local entry */
+            for (int j = hit; j < s_memory_bank_count - 1; j++)
+            {
+                s_memory_banks[j] = s_memory_banks[j + 1];
+            }
+            s_memory_bank_count--;
+            memset(&s_memory_banks[s_memory_bank_count], 0, sizeof(s_memory_banks[0]));
+        }
+        s_memory_banks[s_memory_bank_count].start_word = start_word;
+        s_memory_banks[s_memory_bank_count].length_word = length_word;
+        s_memory_banks[s_memory_bank_count].type = type;
+        s_memory_banks[s_memory_bank_count].read = read;
+        s_memory_banks[s_memory_bank_count].write = write;
+        s_memory_banks[s_memory_bank_count].ctx = ctx;
+        s_memory_bank_count++;
+        if (end_word < le)
+        {
+            memset(&s_memory_banks[s_memory_bank_count], 0, sizeof(s_memory_banks[0]));
+            s_memory_banks[s_memory_bank_count].start_word = end_word;
+            s_memory_banks[s_memory_bank_count].length_word = le - end_word;
+            s_memory_banks[s_memory_bank_count].type = ND_MEM_LOCAL;
+            s_memory_bank_count++;
+        }
+    }
+    return true;
+}
+
+bool mms_memory_bank_unregister_over_local(uint32_t start_word)
+{
+    uint32_t length_word = 0;
+
+    for (int i = 0; i < s_memory_bank_count; i++)
+    {
+        if (s_memory_banks[i].start_word == start_word)
+        {
+            length_word = s_memory_banks[i].length_word;
+            break;
+        }
+    }
+    if (!mms_memory_bank_unregister(start_word))
+    {
+        return false;
+    }
+    if (start_word < g_nd_memsize)
+    {
+        uint32_t end_word = start_word + length_word;
+        if (end_word > g_nd_memsize)
+        {
+            end_word = g_nd_memsize;
+        }
+        (void)mms_memory_bank_register(start_word, end_word - start_word, ND_MEM_LOCAL);
+    }
+    return true;
+}
+
 const NdMemoryBank *mms_memory_bank_lookup(uint32_t physical_word_address)
 {
     for (int i = 0; i < s_memory_bank_count; i++)

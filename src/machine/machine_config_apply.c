@@ -10,6 +10,8 @@
  * reads of the native frontend's global `config` - that was the only thing
  * tying it to a command line.
  */
+#include <stdio.h>
+
 #include "machine_config_apply.h"
 #include "machine_protos.h"
 #include "../cpu/cpu_types.h"
@@ -144,6 +146,21 @@ void mc_apply_devices(const MachineConfig *mc)
         {
             machine_add_hdlc(c->wheel, c->hdlc_is_server, c->hdlc_host[0] ? c->hdlc_host : NULL,
                              c->hdlc_port);
+        }
+        else if (c->type == CTRL_ETHERNET)
+        {
+            /* Opt-in card. The trace file stays open for the whole run, as with --eth0-trace. */
+            FILE *eth_trace = NULL;
+            if (c->eth_trace[0])
+            {
+                eth_trace = fopen(c->eth_trace, "w");
+                if (!eth_trace)
+                {
+                    fprintf(stderr, "[controller.eth.%d] trace: cannot open '%s'\n", c->wheel,
+                            c->eth_trace);
+                }
+            }
+            (void)devmgr_add_ethernet_device(c->wheel, c->eth_bank, eth_trace);
         }
     }
 

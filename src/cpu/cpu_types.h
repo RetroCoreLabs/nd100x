@@ -337,9 +337,12 @@ typedef enum {
     ND_MEM_NONE   = 0x00, // Unmapped / not memory
     ND_MEM_MPM5   = 0x04, // KMPM5  - MPM-5 multiport (ND-500/ND-5000 shared memory)
     ND_MEM_LOCAL  = 0x08, // KMECCR - Local ND-100 memory (ECC/parity checked)
-    ND_MEM_PIOC   = 0x02, // KMPIOC - PIOC memory        (not modelled here)
-    ND_MEM_MPM3   = 0x05, // KMPM3  - MPM-3 multiport     (not modelled here)
-    ND_MEM_MPM4   = 0x06  // KMPM4  - MPM-4 multiport     (not modelled here)
+    ND_MEM_PIOC   = 0x10, // KMPIOC - PIOC memory (Ethernet II card DRAM). KMPIO=000020 in the
+                          // SINTRAN K03 symbol lists (SYMBOL-1-LIST.SYMB.TXT:348); was 0x02 (= KMPM4)
+    ND_MEM_MPM3   = 0x01, // KMPM3  - MPM-3 multiport (not modelled here). KMPM3=000001 in the
+                          // SINTRAN K03 symbol lists (SYMBOL-1-LIST.SYMB.TXT:344); was 0x05
+    ND_MEM_MPM4   = 0x02  // KMPM4  - MPM-4 multiport (not modelled here). KMPM4=000002 in the
+                          // SINTRAN K03 symbol lists (SYMBOL-1-LIST.SYMB.TXT:345); was 0x06
 } NDMemoryType;
 // clang-format on
 
@@ -410,6 +413,23 @@ bool mms_memory_bank_register_backed(uint32_t start_word, uint32_t length_word, 
 
 // Remove the bank whose start_word matches exactly. Returns false if none does.
 bool mms_memory_bank_unregister(uint32_t start_word);
+
+/* Register a device bank that may lie INSIDE installed local RAM and then takes
+ * those words from it (a card whose DRAM is strapped over local memory - the
+ * Ethernet II controller, RetroCore ND100Memory.FindMemoryBank checks the card
+ * before local RAM). No priority rule is added to mms_memory_bank_lookup: the
+ * local bank is split around the range here, so banks still never overlap and
+ * the lookup costs exactly what it did. The low part of local RAM keeps its
+ * table slot. Without overlap this is mms_memory_bank_register_backed().
+ * Returns false and changes nothing if the range overlaps anything other than
+ * ONE plain local bank (no accessors), or the table would overflow. */
+bool mms_memory_bank_register_over_local(uint32_t start_word, uint32_t length_word, NDMemoryType type,
+                                         NdBankReadFn read, NdBankWriteFn write, void *ctx);
+
+/* Undo mms_memory_bank_register_over_local(): remove the bank at start_word and
+ * give any of its words that lie in [0, g_nd_memsize) back to local RAM as a
+ * separate ND_MEM_LOCAL bank. Returns false if no bank starts there. */
+bool mms_memory_bank_unregister_over_local(uint32_t start_word);
 
 /* THE MEMORY LOCK OF A TEST-AND-SET. TSET and TSETP read a word and write -1
  * to it "with the memory system locked, so that the two memory accesses cannot

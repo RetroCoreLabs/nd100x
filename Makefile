@@ -393,6 +393,12 @@ test: debug
 	@echo "Running tests..."
 	cd $(BUILD_DIR) && ctest --output-on-failure
 
+# Ethernet II port checks (docs/ETHERNET-II-PORT-PLAN.md, Phase 0):
+# stub/const/matrix/test-parity scripts plus the C tests, built in build_eth.
+.PHONY: eth-check
+eth-check:
+	tools/ethport/eth_check.sh
+
 runv: debug
 	@echo "Running with valgrind.."
 	valgrind --leak-check=full  $(BUILD_DIR)/bin/nd100x -d -v

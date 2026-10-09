@@ -89,6 +89,12 @@ typedef struct {
                          // ND-11.015.01 sec 3.1, unit is one control-word bit.
     bool wdEnabled;      // add the Winchester card at all (opt-in: it shares
                          // IOX 500-507 with the CDC system disc)
+    // Ethernet II controller (--eth0=SPEC, INI [controller.eth.0] net = SPEC).
+    // Opt-in; SPEC names the host network backend (udp[:group:port], tcp:..., none).
+    char *ethSpec;
+    bool ethEnabled;
+    int ethBank;        // --eth0-bank / [controller.eth.0] bank: 7J/9J strap, multiple of 4; 0 = 16
+    char *ethTraceFile; // --eth0-trace / [controller.eth.0] trace: differential trace file
     // SCSI targets (--scsi0 through --scsi6), indexed by SCSI ID.
     // ID 7 is the ND-3201/3204 controller itself and is never a target.
     bool scsiEnabled;            // true if any --scsiN was given

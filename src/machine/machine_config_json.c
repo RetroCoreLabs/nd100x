@@ -179,7 +179,7 @@ bool mc_to_json(const MachineConfig *cfg, char *out, size_t outlen)
     put(&s, "\"controllerTypes\":[");
     {
         static const CtrlType kinds[] = {CTRL_FLOPPY, CTRL_SMD, CTRL_WINCHESTER, CTRL_SCSI,
-                                         CTRL_HDLC};
+                                         CTRL_HDLC, CTRL_ETHERNET};
         int k;
         int first = 1;
         for (k = 0; k < (int)(sizeof(kinds) / sizeof(kinds[0])); k++)

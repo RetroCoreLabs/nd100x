@@ -72,6 +72,9 @@ static struct option long_options[] = {
     {"watch-min-value", required_argument, 0, 0x131},
     {"wd0",        required_argument, 0, 0x170}, // --wd0=FILE : Winchester unit 0 image (IOX 500-507)
     {"wd1",        required_argument, 0, 0x171}, // --wd1=FILE : Winchester unit 1 image
+    {"eth0",       required_argument, 0, 0x180}, // --eth0=SPEC : Ethernet II controller, thumbwheel 0
+    {"eth0-bank",  required_argument, 0, 0x181}, // --eth0-bank=N : DRAM bank strap (multiple of 4)
+    {"eth0-trace", required_argument, 0, 0x182}, // --eth0-trace=FILE : differential trace (no bus bytes)
     {"smd0",       required_argument, 0, 0x100},
     {"smd1",       required_argument, 0, 0x101},
     {"smd2",       required_argument, 0, 0x102},
@@ -153,6 +156,10 @@ void config_init(Config *config)
         config->wdFile[i] = NULL;
     }
     config->wdEnabled = false;
+    config->ethSpec = NULL;
+    config->ethEnabled = false;
+    config->ethBank = 0;
+    config->ethTraceFile = NULL;
     config->scsiEnabled = false;
     config->scsiDebug = false;
     for (int i = 0; i < SCSI_MAX_UNITS; i++)
@@ -766,6 +773,36 @@ bool config_parse_command_line(Config *config, int argc, char *argv[])
             config->wdEnabled = true;
             break;
         }
+        /* Ethernet II controller (opt-in). SPEC = host network backend. */
+        case 0x180:
+            config->ethSpec = strdup(optarg);
+            if (!config->ethSpec)
+            {
+                fprintf(stderr, "Out of memory parsing --eth0\n");
+                return false;
+            }
+            config->ethEnabled = true;
+            break;
+        case 0x181:
+        {
+            char *end = NULL;
+            long bank = strtol(optarg, &end, 0);
+            if ((end == optarg) || (*end != '\0') || (bank < 0) || (bank > 252) || ((bank % 4) != 0))
+            {
+                fprintf(stderr, "--eth0-bank: '%s' is not a bank number 0-252, multiple of 4\n", optarg);
+                return false;
+            }
+            config->ethBank = (int)bank;
+            break;
+        }
+        case 0x182:
+            config->ethTraceFile = strdup(optarg);
+            if (!config->ethTraceFile)
+            {
+                fprintf(stderr, "Out of memory parsing --eth0-trace\n");
+                return false;
+            }
+            break;
         case 0x100:
         case 0x101:
         case 0x102:
@@ -1253,6 +1290,15 @@ void config_print_help(const char *prog_name)
     printf("                          CDC system disc, so only one of the two can be used.\n");
     printf("                          Also settable via the .ini [controller.wd.0] section\n");
     printf("                          (disk0/disk1 keys; boot with [boot] device = wd.0.0)\n");
+    printf("           --eth0=SPEC    Enable the Ethernet II controller (68000 card, thumbwheel 0,\n");
+    printf("                          IOX 140360-140363). SPEC names the host network; no host\n");
+    printf("                          backend exists yet, so use --eth0=none (card runs, no frames\n");
+    printf("                          leave the machine)\n");
+    printf("           --eth0-bank=N  Card DRAM window bank (7J/9J strap, 0-252, multiple of 4;\n");
+    printf("                          default 16 = ND-100 byte address 0x200000). The card's\n");
+    printf("                          512 KB replaces local RAM at that address\n");
+    printf("           --eth0-trace=FILE  Write the card's differential trace to FILE (no\n");
+    printf("                          per-byte bus lines). Needs --eth0\n");
     printf("           --smd0=FILE    SMD unit 0 disk image (default: SMD0.IMG)\n");
     printf("           --smd1=FILE    SMD unit 1 disk image (default: SMD1.IMG)\n");
     printf("           --smd2=FILE    SMD unit 2 disk image (default: SMD2.IMG)\n");

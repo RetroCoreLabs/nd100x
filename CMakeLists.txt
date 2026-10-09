@@ -402,7 +402,24 @@ option(ND100X_ENABLE_ETHERNET "Build the ethernet controller (and the Musashi 68
     ${ND100X_ENABLE_ETHERNET_DEFAULT})
 
 if(ND100X_ENABLE_ETHERNET)
+    set(MUSASHI_CONFIG_HEADER ${CMAKE_CURRENT_LIST_DIR}/src/devices/ethernet/m68k/eth_m68kconf.h)
     include(${CMAKE_CURRENT_LIST_DIR}/cmake/musashi.cmake)
+    # The card lives in the devices library (src/devices/ethernet); its
+    # functions are declared in its own headers, not in devices_protos.h.
+    target_sources(devices PRIVATE
+        ${CMAKE_CURRENT_LIST_DIR}/src/devices/ethernet/device_ethernet.c
+        ${CMAKE_CURRENT_LIST_DIR}/src/devices/ethernet/eth_memory.c
+        ${CMAKE_CURRENT_LIST_DIR}/src/devices/ethernet/eth_iospace.c
+        ${CMAKE_CURRENT_LIST_DIR}/src/devices/ethernet/eth_lance.c
+        ${CMAKE_CURRENT_LIST_DIR}/src/devices/ethernet/eth_mfp.c
+        ${CMAKE_CURRENT_LIST_DIR}/src/devices/ethernet/eth_mfp_regs.c
+        ${CMAKE_CURRENT_LIST_DIR}/src/devices/ethernet/eth_mfp_timer.c
+        ${CMAKE_CURRENT_LIST_DIR}/src/devices/ethernet/eth_mfp_usart.c
+        ${CMAKE_CURRENT_LIST_DIR}/src/devices/ethernet/eth_irq.c
+        ${CMAKE_CURRENT_LIST_DIR}/src/devices/ethernet/eth_m68k.c)
+    target_include_directories(devices PRIVATE ${CMAKE_CURRENT_LIST_DIR}/src/devices/ethernet)
+    target_compile_definitions(devices PRIVATE ND100X_WITH_ETHERNET=1)
+    target_link_libraries(devices PUBLIC musashi)
     message(STATUS "Ethernet ENABLED (Musashi from external/Musashi)")
 else()
     message(STATUS "Ethernet not built (ND100X_ENABLE_ETHERNET=OFF)")

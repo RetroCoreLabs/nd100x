@@ -1,0 +1,33 @@
+# RetroCore test files whose tests must be ported one-for-one (plan rule R5).
+# Paths are relative to RETROCORE_DIR. HLE-only files are out of scope (D1).
+# Not listed, reason in brackets:
+#   Emulated.Tests/ND100/NDBusEthernetIIHleTests.cs            [HLE card, D1]
+#   Emulated.Tests/ND100/Nd100EthIIHleConnAcceptDescriptorTests.cs [HLE, D1]
+#   Emulated.Tests/ND100/Nd100EthIIHleStartNetReplyTests.cs    [HLE, D1]
+#   Emulated.Tests/ND100/Nd100EthernetIIHleDramDumpTests.cs    [HLE, D1]
+#   Emulated.Tests/ND100/Nd100EthernetIIHleHubJoinTests.cs     [HLE, D1]
+#   Emulated.Tests/ND100/Nd100TwoNodeEthernetIIHleHarnessTests.cs [HLE, D1]
+#   Emulated.Tests/AtariST/AtariSTHardwareTests.cs             [Atari ST machine, uses MFP but not this card]
+#   Emulated.Tests/ND100/ND100_DeviceManagerTests.cs           [whole-machine device manager; ethernet parts to be checked in Phase 1]
+Emulated.Tests/NDBusDevices/TestNDBusEthernetII.cs
+Emulated.Tests/NDBusDevices/TestEthernetII_Scenarios.cs
+Emulated.Tests/NDBusDevices/TestEthernetII_Integration.cs
+Emulated.Tests/NDBusDevices/EthernetIITpeBootHarnessTests.cs
+Emulated.Tests/NDBusDevices/TcpEthernetBackendTests.cs
+Emulated.Tests/NDBusDevices/UdpEthernetBackendResilienceTests.cs
+Emulated.Tests/ND100/NDBusEthernetIIDecodeTests.cs
+Emulated.Tests/ND100/Nd100EthernetIILanceInterruptAckTests.cs
+Emulated.Tests/ND100/Nd100EthernetIIOracleDramDumpTests.cs
+Emulated.Tests/ND100/Nd100EthernetIIRuntPaddingTests.cs
+Emulated.Tests/ND100/Nd100MultiEthernetConfigTests.cs
+Emulated.Tests/ND100/Nd100SintranEthernetIIBootHarnessTests.cs
+Emulated.Tests/ND100/Nd100TcpIpFirmwareExecutionTests.cs
+Emulated.Tests/ND100/Nd100TwoNodeEthernetHarnessTests.cs
+Emulated.Tests/Ethernet/LancePROMInitTests.cs
+Emulated.Tests/MC68k/TestMFP_Timers.cs
+Emulated.Tests.Chips/Am7990LanceTests.cs
+Emulated.Tests.Chips/LancePcapIntegrationTests.cs
+Emulated.Tests.Chips/LanceSunPathPcapTests.cs
+Emulated.Tests.Chips/MC68901MFPTests.cs
+Emulated.Tests.Chips/NullEthernetBackendTests.cs
+Emulated.Tests.Chips/IpChecksumRepairTests.cs

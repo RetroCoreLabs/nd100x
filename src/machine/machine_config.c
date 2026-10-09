@@ -38,6 +38,7 @@ static const uint16_t iox_floppy[] = { 001560 };                               /
 static const uint16_t iox_scsi[]   = { 0, 0, 0, 0 };                           /* filled below */
 static const uint16_t iox_scsi_v[] = { 0144300, 0144400, 0144500, 0144600 };   /* wheel 0-3 */
 static const uint16_t iox_hdlc[]   = { 0, 001640, 001660, 001700, 001720 };    /* wheel 1-4 */
+static const uint16_t iox_eth[]    = { 0140360, 0140364, 0140370, 0140374 };   /* wheel 0-3 */
 
 /* The registry. is_disc controllers carry disk_slots; network controllers 0. */
 static const ControllerDescriptor g_descriptors[] = {
@@ -53,6 +54,8 @@ static const ControllerDescriptor g_descriptors[] = {
     { CTRL_WINCHESTER, "wd",  0,  0,  iox_wd,         8,     2,  true,   true  },
     { CTRL_SCSI,   "scsi",    0,  3,  iox_scsi_v,   0100,    7,  true,   true  },
     { CTRL_HDLC,   "hdlc",    1,  4,  iox_hdlc,     020,     0,  false,  false },
+    /* Ethernet II (68000 card), device_ethernet.c eth_create_device_strap. */
+    { CTRL_ETHERNET, "eth",   0,  3,  iox_eth,        4,     0,  false,  false },
 };
 // clang-format on
 static const int g_descriptor_count = (int)(sizeof(g_descriptors) / sizeof(g_descriptors[0]));
@@ -487,7 +490,7 @@ static bool mc_parse_controller_header(const char *rest, CtrlType *type, int *wh
     if (!d)
     {
         return mc_err(err, errlen, path, line,
-                      "unknown controller type '%s'. Known types: floppy, smd, wd, scsi, hdlc.",
+                      "unknown controller type '%s'. Known types: floppy, smd, wd, scsi, hdlc, eth.",
                       type_name);
     }
 
@@ -978,6 +981,27 @@ bool mc_load_file(MachineConfig *cfg, const char *path, char *err, size_t errlen
                                   val);
                 }
                 cur_ctrl->hdlc_port = (int)pt;
+            }
+            else if (d->type == CTRL_ETHERNET && str_ieq(keyl, "net"))
+            {
+                str_copy(cur_ctrl->eth_net, MC_PATH_LEN, val);
+            }
+            else if (d->type == CTRL_ETHERNET && str_ieq(keyl, "bank"))
+            {
+                char *ep;
+                long bk = strtol(val, &ep, 0);
+                if (*ep != '\0' || bk < 0 || bk > 252 || (bk % 4) != 0)
+                {
+                    fclose(f);
+                    return mc_err(err, errlen, path, lineno,
+                                  "[controller.eth.%d] bank = %s: must be 0-252, multiple of 4.",
+                                  cur_wheel, val);
+                }
+                cur_ctrl->eth_bank = (int)bk;
+            }
+            else if (d->type == CTRL_ETHERNET && str_ieq(keyl, "trace"))
+            {
+                str_copy(cur_ctrl->eth_trace, MC_PATH_LEN, val);
             }
             else
             {
@@ -1964,6 +1988,14 @@ void mc_print(const MachineConfig *cfg, FILE *out)
                 }
             }
         }
+        else if (c->type == CTRL_ETHERNET)
+        {
+            /* bank 0 = unset: the card uses 16 + 4 * thumbwheel (device_ethernet.c) */
+            fprintf(out, "        net %s, bank %d%s%s%s\n", c->eth_net[0] ? c->eth_net : "none",
+                    (c->eth_bank != 0) ? c->eth_bank : 16 + (4 * c->wheel),
+                    (c->eth_bank != 0) ? "" : " (default)", c->eth_trace[0] ? ", trace " : "",
+                    c->eth_trace);
+        }
         else if (c->type == CTRL_HDLC)
         {
             if (c->hdlc_is_server)
@@ -2104,6 +2136,21 @@ bool mc_write_file(const MachineConfig *cfg, const char *path, char *err, size_t
                 fprintf(f, "host = %s\n", c->hdlc_host);
             }
             fprintf(f, "port = %d\n", c->hdlc_port);
+        }
+        else if (c->type == CTRL_ETHERNET)
+        {
+            if (c->eth_net[0])
+            {
+                fprintf(f, "net = %s\n", c->eth_net);
+            }
+            if (c->eth_bank != 0)
+            {
+                fprintf(f, "bank = %d\n", c->eth_bank);
+            }
+            if (c->eth_trace[0])
+            {
+                fprintf(f, "trace = %s\n", c->eth_trace);
+            }
         }
         fprintf(f, "\n");
     }

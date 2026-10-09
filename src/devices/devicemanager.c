@@ -32,6 +32,9 @@
 
 #include "devices_types.h"
 #include "devices_protos.h"
+#ifdef ND100X_WITH_ETHERNET
+#include "ethernet/device_ethernet.h"
+#endif
 
 #include "../ndlib/ndlib_types.h"
 #include "../ndlib/ndlib_protos.h"
@@ -193,6 +196,43 @@ bool devmgr_add_hdlc_device_with_config(int thumbwheel, bool is_server, const ch
     return success;
 }
 
+bool devmgr_add_ethernet_device(int thumbwheel, int memory_bank, FILE *trace)
+{
+#ifdef ND100X_WITH_ETHERNET
+    static const uint16_t eth_base_addr[] = {0140360, 0140364, 0140370, 0140374};
+    Device *dev;
+
+    if ((thumbwheel < 0) || (thumbwheel > 3) ||
+        !devmgr_add_device(DEVICE_TYPE_ETHERNET, (uint8_t)thumbwheel))
+    {
+        return false;
+    }
+    dev = devmgr_get_device_by_address(eth_base_addr[thumbwheel]);
+    if ((dev == NULL) || (dev->deviceData == NULL))
+    {
+        return false;
+    }
+    if (eth_set_memory_bank(eth_card(dev), (uint16_t)memory_bank) != 0)
+    {
+        LOG(LOG_CAT_DEVICE, LOG_ERROR, "Ethernet II %d: bank %d cannot be used for its DRAM window\n",
+            thumbwheel, memory_bank);
+        return false;
+    }
+    if (trace != NULL)
+    {
+        eth_set_trace(eth_card(dev), trace, false);
+    }
+    return true;
+#else
+    (void)memory_bank;
+    (void)trace;
+    LOG(LOG_CAT_DEVICE, LOG_ERROR,
+        "Ethernet II %d: this nd100x was built without the Ethernet controller (ND100X_ENABLE_ETHERNET=OFF)\n",
+        thumbwheel);
+    return false;
+#endif
+}
+
 static Device *create_device(DeviceType type, uint8_t thumbwheel)
 {
     Device *dev = NULL;
@@ -249,6 +289,15 @@ static Device *create_device(DeviceType type, uint8_t thumbwheel)
             return NULL;
         }
         break;
+#ifdef ND100X_WITH_ETHERNET
+    case DEVICE_TYPE_ETHERNET:
+        dev = eth_create_device(thumbwheel);
+        if (!dev)
+        {
+            LOG(LOG_CAT_DEVICE, LOG_ERROR, "Failed to create Ethernet II device %d\n", thumbwheel);
+        }
+        break;
+#endif
     case DEVICE_TYPE_DISC_WINCHESTER:
         dev = wd_create_winchester_device(thumbwheel);
         if (!dev)

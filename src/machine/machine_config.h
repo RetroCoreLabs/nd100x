@@ -48,7 +48,8 @@ typedef enum
     CTRL_SMD,
     CTRL_WINCHESTER,
     CTRL_SCSI,
-    CTRL_HDLC
+    CTRL_HDLC,
+    CTRL_ETHERNET
 } CtrlType;
 
 /* One disk image slot on a disc controller. media uses the SCSI unit-type
@@ -72,6 +73,12 @@ typedef struct
     bool hdlc_is_server; /* true = server (listen), false = client */
     char hdlc_host[MC_PATH_LEN];
     int hdlc_port;
+
+    /* Ethernet II only (ignored for other types). The INI side of --eth0,
+     * --eth0-bank and --eth0-trace. */
+    char eth_net[MC_PATH_LEN];   /* host network SPEC; "" = none */
+    int eth_bank;                /* DRAM window bank strap; 0 = default from the thumbwheel */
+    char eth_trace[MC_PATH_LEN]; /* differential trace file; "" = off */
 } McController;
 
 /* Boot device. For a disc boot, (type,wheel,unit) name the controller slot.

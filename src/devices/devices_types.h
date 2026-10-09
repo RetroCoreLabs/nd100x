@@ -146,6 +146,10 @@ typedef enum {
     /* ND-100 octobus interface, IOX 100400-100437 across four cards, idents
      * 40B..47B on level 13. The ND-100 is always octobus station 1B. */
     DEVICE_TYPE_OCTOBUS,
+    /* ND Ethernet II controller (PCB 3094, 68000 + LANCE), IOX 140360-140377 for
+     * thumbwheel 0-3, idents 140034B-140037B on level 12. Built only with
+     * ND100X_WITH_ETHERNET (src/devices/ethernet/device_ethernet.h). */
+    DEVICE_TYPE_ETHERNET,
     DEVICE_TYPE_MAX
 } DeviceType;
 // clang-format on
@@ -575,6 +579,9 @@ Device *devmgr_get_device_by_address(uint32_t);
  * @return true if the controller was added, false on failure.
  */
 bool devmgr_add_hdlc_device_with_config(int, bool, const char *, int);
+/* Ethernet II controller: thumbwheel 0-3, DRAM bank strap (0 = default),
+ * differential trace file or NULL. False if the card is not built in. */
+bool devmgr_add_ethernet_device(int thumbwheel, int memory_bank, FILE *trace);
 
 /**
  * @brief Reset every registered device.

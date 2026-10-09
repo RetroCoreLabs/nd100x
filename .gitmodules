@@ -25,4 +25,5 @@
 	branch = main
 [submodule "external/Musashi"]
 	path = external/Musashi
-	url = https://github.com/kstenerud/Musashi.git
+	url = https://github.com/RetroCoreLabs/Musashi.git
+	branch = master

@@ -71,7 +71,6 @@ R12. House C standard (`c-coding-standard`, nd100x profile) for every new
 |---|---|
 | `Emulated.HW/ND/CPU/NDBUS/NDBusEthernetII.cs` (4930 lines) | Bus card, 68000 memory map, DMA, I/O space, timer, AM9519 |
 | `Emulated.HW/ND/CPU/NDBUS/NDBusEthernetIIDecode.cs` (323) | Register/bit decode used for logging |
-| `Emulated.HW/ND/CPU/NDBUS/EthernetII/NDBusEthernetIIShared.cs` (635) | Shared bus base - parts used by the 68000 card only |
 | `Emulated.HW/AMD/LANCE/Am7990/Am2990Lance.cs` (1929) | LANCE Am7990 |
 | `Emulated.HW/Motorola/MFP/MC68901/` (MC68901MFP.cs, Usart.cs, MfpTimer.cs, Registers.cs) | MFP 68901 |
 | `Emulated.HW/Motorola/CPU/MC68K/Cpu68K.Interrupts.cs` + interrupt parts of `Cpu68K.cs`, `Instructionset.Helpers.cs`, `Instructionset.StackControl.cs` | Interrupt behaviour - clean-room re-implemented around Musashi, not ported line by line (Phase 3) |
@@ -79,12 +78,15 @@ R12. House C standard (`c-coding-standard`, nd100x profile) for every new
 
 ### Out of scope unless Ronny says otherwise
 - `NDBusEthernetIIHle.cs` (the no-68000 HLE card) - see DECISION D1.
+- `NDBusEthernetIIShared.cs` - base class of the HLE card only; the 68000
+  card derives from `NDBusDeviceBase` (`NDBusEthernetII.cs:483`). Users,
+  checked by grep over RetroCore 09-OCT-2026: the HLE card, its 3 test
+  files and `ND100Machine.cs`. Out of scope with D1.
 - RetroCore's `Cpu68K` instruction execution (replaced by Musashi).
 
 ### Not yet read (must be read in Phase 1 before the matrix is final)
 - `Emulated.HW/Common/Network/InProcessEthernetBridge.cs`
 - The test files listed as "contents not read" in section 8.
-- Which parts of `NDBusEthernetIIShared.cs` the 68000 card actually uses.
 
 ---
 
@@ -99,8 +101,12 @@ R12. House C standard (`c-coding-standard`, nd100x profile) for every new
   and its chips (off by default), so R6 differential traces are possible.
 - **D4** Backends in this order: UDP + TCP (+ listen), then pcap (libpcap /
   Npcap loaded at run time), then TAP on Linux. Plus WASM, see D7.
-- **D5** OPEN - Musashi clock mapping, decided from the Phase 2.5
-  measurement.
+- **D5** Clock model = RetroCore's, measured from its source (phase log
+  2.5): one 68000 instruction per ND-100 tick, NOP 4 ticks, interrupts
+  checked before the instruction.
+- **Bus error** (09-OCT-2026): Musashi replaced by the fork
+  https://github.com/RetroCoreLabs/Musashi, patched to push the 68000
+  7-word bus error frame (fork commit 328a672).
 - **D6** One card in the first version (thumbwheel 0). Musashi's CPU state
   is a single global (`external/Musashi/m68kcpu.c:81`), so more cards need a
   context copy per switch (`m68kcpu.c:1172-1180`) and a "current card"
@@ -126,26 +132,26 @@ Todos:
       `docs/ethernet-port/cs-inventory.csv`.
       **Check:** run it on one file, Ronny compares 3 random methods by hand;
       count of `case` labels equals `grep -c "case "` on the same file.
-- [ ] 0.2 `tools/ethport/matrix_check.py`: reads the inventory and the
+- [x] 0.2 `tools/ethport/matrix_check.py`: reads the inventory and the
       matrix (`docs/ethernet-port/TRACE-MATRIX.csv`), fails if any inventory
       row has no matrix row, if a mapped C symbol does not exist at the
       stated file:line, or if a `NOT PORTED` row has no approval mark.
-- [ ] 0.3 `tools/ethport/stub_check.py`: implements R3.
-- [ ] 0.4 `tools/ethport/const_check.py`: implements R4.
-- [ ] 0.5 `tools/ethport/test_parity.py`: implements R5 (lists `[Test]`
+- [x] 0.3 `tools/ethport/stub_check.py`: implements R3.
+- [x] 0.4 `tools/ethport/const_check.py`: implements R4.
+- [x] 0.5 `tools/ethport/test_parity.py`: implements R5 (lists `[Test]`
       methods in the in-scope C# test files, lists C tests, diffs).
-- [ ] 0.6 Trace format spec `docs/ethernet-port/TRACE-FORMAT.md`: one line
+- [x] 0.6 Trace format spec `docs/ethernet-port/TRACE-FORMAT.md`: one line
       per event, ASCII, fields fixed: ND-100 tick, event kind (IOX_R, IOX_W,
       M68K_R8/16/32, M68K_W8/16/32, IRQ_LEVEL, IACK, LANCE_CSR, MFP_REG,
       DMA_R, DMA_W, ND_INT), address, value. Both sides emit exactly this.
-- [ ] 0.7 Trace emitter in the C# card (only after D3 = yes), and
+- [x] 0.7 Trace emitter in the C# card (only after D3 = yes), and
       `tools/ethport/trace_diff.py` that reports the first divergence with
       20 lines of context.
-- [ ] 0.8 C test harness: `tests/ethernet/` with a CTest target; links the
+- [x] 0.8 C test harness: `tests/ethernet/` with a CTest target; links the
       device code without the CPU, with a fake ND-100 bus (IOX read/write,
       IDENT, physical memory array).
-- [ ] 0.9 Mutation script `tools/ethport/mutate.py` (R8).
-- [ ] 0.10 Hook all checks into one command `make eth-check`.
+- [x] 0.9 Mutation script `tools/ethport/mutate.py` (R8).
+- [x] 0.10 Hook all checks into one command `make eth-check`.
       **Phase 0 check:** `make eth-check` runs and fails for the right
       reasons on an empty port (every inventory row unmapped).
 
@@ -154,15 +160,15 @@ Todos:
 Todos:
 - [ ] 1.1 Read the files under "Not yet read" (section 1) and record facts
       with file:line.
-- [ ] 1.2 Generate the inventory (0.1) for every in-scope file.
-- [ ] 1.3 Fill the matrix with the planned C location for every row
+- [x] 1.2 Generate the inventory (0.1) for every in-scope file.
+- [x] 1.3 Fill the matrix with the planned C location for every row
       (file and function name, no line yet), or `NOT PORTED` + reason.
 - [ ] 1.4 Ronny approves every `NOT PORTED` row (logging-only code, the
       mailbox tracer E2:2475-2950, decode enums used only for log text are
       candidates - each one listed, none assumed).
-- [ ] 1.5 Pick the RetroCore tests that are in scope (from section 8) and
+- [x] 1.5 Pick the RetroCore tests that are in scope (from section 8) and
       list each with the firmware/image it needs.
-- [ ] 1.6 Record RetroCore's own results for those tests (run them in
+- [x] 1.6 Record RetroCore's own results for those tests (run them in
       RetroCore, save the output). These are the expected results; the C
       port is compared against them, not against the AI's expectation.
       **Phase 1 check:** `matrix_check.py` reports 0 unmapped rows
@@ -171,24 +177,24 @@ Todos:
 ## Phase 2 - Musashi standalone and its interrupt behaviour
 
 Todos:
-- [ ] 2.1 `src/devices/ethernet/m68k/eth_m68kconf.h` (project config,
+- [x] 2.1 `src/devices/ethernet/m68k/eth_m68kconf.h` (project config,
       selected with `MUSASHI_CONFIG_HEADER`): CPU 68000, `M68K_EMULATE_INT_ACK`
       ON, `M68K_EMULATE_RESET` ON (callback is a no-op, see E2:670-675),
       `M68K_EMULATE_FC` decided by 2.4. Every setting has a comment with the
       reason and source line.
-- [ ] 2.2 Build Musashi's own test suite (`external/Musashi/test/`) for the
+- [x] 2.2 Build Musashi's own test suite (`external/Musashi/test/`) for the
       68000 tests in CI. **Check:** all `TESTS_68000` from
       `external/Musashi/Makefile` pass; the output is logged.
-- [ ] 2.3 Wire `musashi` into the build only for the ethernet target;
+- [x] 2.3 Wire `musashi` into the build only for the ethernet target;
       confirm it is not compiled when `ND100X_ENABLE_ETHERNET=OFF`.
-- [ ] 2.4 Bus error: measure whether `m68k_pulse_bus_error`
+- [x] 2.4 Bus error: measure whether `m68k_pulse_bus_error`
       (`external/Musashi/m68k.h:360`) called from inside a memory callback
       aborts the current instruction the way RetroCore's thrown exception
       does (`Cpu68K.cs:538-583`). The firmware sizes memory with bus errors
       (E2:3651-3658). Write the test first, record the result; if Musashi
       differs, Ronny decides the fix (D-new) - no workaround without a
       decision.
-- [ ] 2.5 Clock mapping measurement for D5: count cycles Musashi reports per
+- [x] 2.5 Clock mapping measurement for D5: count cycles Musashi reports per
       instruction against RetroCore's per-clock model on the same code.
       **Phase 2 check:** Musashi test suite green; bus-error behaviour test
       recorded; `stub_check` clean.
@@ -233,8 +239,8 @@ Behaviour list (each becomes a test; the test name carries the item id):
   (Cpu68K.cs:553-578) - port or not is a matrix row for Ronny.
 
 Todos:
-- [ ] 3.1 Write tests I1-I14 in `tests/ethernet/test_eth_irq.c`.
-- [ ] 3.2 Implement `src/devices/ethernet/eth_irq.c/.h`.
+- [x] 3.1 Write tests I1-I14 in `tests/ethernet/test_eth_irq.c`.
+- [x] 3.2 Implement `src/devices/ethernet/eth_irq.c/.h`.
 - [ ] 3.3 Differential: run the same IRQ stimulus script against the C#
       card (trace emitter) and the C glue; `trace_diff` empty.
       **Phase 3 check:** all I-tests pass, trace diff empty, R7 coverage
@@ -432,3 +438,47 @@ Todos:
 - nd100x device pattern, IDENT, level-sensitive interrupts, DMA, timing,
   threading, config: see the analysis summary in the session log; file:line
   references are repeated in the phase todos where they are used.
+
+## 4. Known failing TPE tests (deferred, fix later in nd100x AND RetroCore)
+
+ETHERNET-TWO (PIOC-ETHER) on the TPE floppy `images/Nd-210523I01-XX-01D.img`,
+all tests, single pass. Recorded 10-OCT-2026. RetroCore = commit 07385a7ce,
+harness `EthernetIITpeBootHarnessTests.RunAllTests_WithTrace`; nd100x =
+branch eth-impl, `tools/ethport/tpe_ethernet.py`.
+
+| Test | nd100x | RetroCore | Console message |
+|---|---|---|---|
+| 12 System Timing Contr. check | FAIL | FAIL | "Timer exceed seriously the expected count limits." |
+| 24 ECC- parity-test from ND-100 | FAIL | FAIL | "No parity err. int. in Ethernet 2 (addr. 5A00)" |
+| 25 ECC- parity-test from MC68000 | FAIL | FAIL | "No parity err. int. in Ethernet 2 (addr. 5A00)" |
+| 26 Protect-test from MC68000 | FAIL | FAIL | "Do not get write protect interrupt. (0 in prot.tab. and write protect on)." MC68000 addr 00005BC8H, ND-100 bank 000020B, address 026744B |
+
+Test 12 calculated frequency, by run (it is not stable):
+
+| Run | Calculated freq |
+|---|---|
+| nd100x, `--rtc=wall` (default), run A | 8629759 Hz |
+| nd100x, `--rtc=wall` (default), run B | 9274378 Hz |
+| RetroCore, harness run | 2092952 Hz |
+| RetroCore, run reported by Ronny | 8175620 Hz |
+
+Test 12, what is known and what is not:
+- nd100x clocks the MFP timers once per ND-100 instruction: `IO_Tick`
+  (`src/machine/io.c`) -> `eth_tick` (`src/devices/ethernet/device_ethernet.c`)
+  -> `ethmem_clock` -> `mfp_clock` (`src/devices/ethernet/eth_memory.c`).
+  The ND-100 real-time clock in `--rtc=wall` mode pulses every 20 ms of host
+  time. Inferred, not measured: the measured frequency is then the host's
+  instruction rate, which explains why it changes between runs.
+- Unknown: the frequency and tolerance test 12 expects, and the real card's
+  MFP timer clock (crystal and divider). Find them in the ETHERNET-TWO source
+  or the card's hardware documentation before changing any timing.
+- Experiment to run first: nd100x with `--rtc=ticks` (deterministic
+  10550 instructions per 20 ms); the frequency should then be the same on
+  every run.
+
+Tests 24-26: neither emulator models the card's DRAM parity error interrupt
+or the write-protect table interrupt. An earlier note that RetroCore passes
+these tests was wrong.
+
+Also seen once in RetroCore and not in nd100x: test 22 (Pattern-test from
+MC68000) FAILED in the harness run. Not yet explained.

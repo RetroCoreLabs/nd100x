@@ -622,3 +622,9 @@ if(ND100X_WITH_ND500)
 
     add_test(NAME mfbus_bridge_tests COMMAND test_mfbus_bridge)
 endif()
+
+# ---------------------------------------------------------------------------
+# Ethernet II controller port (68000 card run by Musashi)
+if(ND100X_ENABLE_ETHERNET)
+    add_subdirectory(ethernet)
+endif()
