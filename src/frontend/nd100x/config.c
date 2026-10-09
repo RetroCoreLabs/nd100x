@@ -103,6 +103,7 @@ static struct option long_options[] = {
     {"shell",      no_argument,       0, 0x160}, // --shell : alias for --monitor
     {"nd100-root", required_argument, 0, 0x161}, // --nd100-root=PATH : directory for BPUN/PROG files (default: current dir)
     {"script",     required_argument, 0, 0x162}, // --script=FILE : load shell commands from script file
+    {"no-boot-status", no_argument,   0, 0x163}, // --no-boot-status : no "Booting from ..." line at start-up
     {"log",        required_argument, 0, 0x154}, // --log=SPEC : per-category log levels, e.g. smd:debug,*:warn
     {"trace-nd110", optional_argument, 0, 0x155}, // --trace-nd110[=FILE] : trace ND-110-only opcodes
     {"ring-at-pf", required_argument, 0, 0x156}, // --ring-at-pf=N : instruction ring dump at the N'th page fault
@@ -127,6 +128,7 @@ void config_init(Config *config)
     config->startAddress = 0;
     config->disasmEnabled = false;
     config->verbose = false;
+    config->bootStatus = true;
     config->showHelp = false;
     config->debuggerEnabled = false;
     config->debuggerPort = 4711;
@@ -1085,6 +1087,10 @@ bool config_parse_command_line(Config *config, int argc, char *argv[])
             break;
         }
 
+        case 0x163: /* --no-boot-status : no "Booting from ..." line at start-up */
+            config->bootStatus = false;
+            break;
+
         case 0x162: /* --script=FILE : load shell commands from script file */
             config->scriptPath = strdup(optarg);
             if (!config->scriptPath)
@@ -1339,6 +1345,9 @@ void config_print_help(const char *prog_name)
     printf("  -v,      --verbose      Verbose output: CPU/memory line, device list and INFO\n");
     printf("                          log lines (default: warnings and errors only).\n");
     printf("                          Also settable via the .ini '[runtime] verbose = on' key.\n");
+    printf("           --no-boot-status  Do not show the \"Booting from ...\" line that runs until\n");
+    printf("                          the guest first prints on the console (default: shown).\n");
+    printf("                          Also settable via the .ini '[runtime] boot_status = off' key.\n");
     printf("  -P DIR,  --printdir=DIR  Printer output directory (default: ./prints/)\n");
     printf("  -D DIR,  --tapedir=DIR   Paper tape output directory (default: ./tapes/)\n");
     printf("  -e FILE, --tape=FILE     Paper tape reader input file (.bpun)\n");

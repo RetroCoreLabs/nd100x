@@ -4,6 +4,7 @@ set(SOURCES
     nd100x.c
     nd100x_shell.c
     screenmenu.c
+    bootstatus.c
     vscreen.c
     charset.c
 )

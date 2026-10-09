@@ -100,6 +100,7 @@ typedef struct
     int debugger_port; /* 0 = off */
     bool trace;
     bool verbose; /* start-up device list and INFO log lines (same as --verbose) */
+    bool boot_status; /* "Booting from ..." line until first console output (default on) */
     /* NORD TSS optional devices, OFF by default. A non-empty path installs the
      * device (same gate as the --drum / --cdc CLI options, which override these). */
     char drum[MC_PATH_LEN]; /* swapping-drum image  (@ IOX 540); "" = no drum */

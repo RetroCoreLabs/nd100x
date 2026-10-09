@@ -67,6 +67,7 @@ typedef struct {
     uint32_t startAddress;
     bool disasmEnabled;
     bool verbose;
+    bool bootStatus;     // "Booting from ..." line until first console output (default on; --no-boot-status)
     bool showHelp;
     bool debuggerEnabled;
     int debuggerPort;

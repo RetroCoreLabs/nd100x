@@ -184,6 +184,7 @@ tapedir = ./tapes
 # debugger = 6661         ; enable DAP debugger on port
 # trace = on
 # verbose = on           ; start-up device list + INFO log lines (default off: warnings/errors only)
+# boot_status = off      ; no "Booting from ..." line before the first console output (default on)
 ```
 
 Notes:

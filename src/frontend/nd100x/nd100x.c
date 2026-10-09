@@ -82,6 +82,7 @@ void debugger_stop_thread(void);
 #include "../../ndlib/printjob.h"
 
 #include "screenmenu.h"
+#include "bootstatus.h"
 #include "nd100x_shell.h"
 
 #if !defined(__EMSCRIPTEN__)
@@ -682,6 +683,59 @@ static const char *get_tape_dir(void)
 }
 
 
+// Boot device as shown on the "Booting from ..." line, e.g. "CDC disc (cdc.img)".
+// Uses the resolved config (CLI and .ini already merged).
+static void boot_status_describe(char *buf, size_t len)
+{
+    const char *img = config.imageFile;
+    int unit = config.bootUnit;
+
+    switch (config.bootType)
+    {
+    case BOOT_CDC:
+        snprintf(buf, len, "CDC disc (%s)", config.cdcFile ? config.cdcFile : "?");
+        break;
+    case BOOT_SMD:
+        if (!img && unit >= 0 && unit < 4)
+        {
+            img = config.smdFile[unit];
+        }
+        if (img)
+        {
+            snprintf(buf, len, "SMD unit %d (%s)", unit, img);
+        }
+        else
+        {
+            snprintf(buf, len, "SMD unit %d", unit);
+        }
+        break;
+    case BOOT_SCSI:
+        snprintf(buf, len, "SCSI ID %d", unit);
+        break;
+    case BOOT_WINCHESTER:
+        snprintf(buf, len, "Winchester unit %d", unit);
+        break;
+    case BOOT_FLOPPY:
+        snprintf(buf, len, "floppy (%s)", img ? img : "?");
+        break;
+    case BOOT_BPUN:
+        snprintf(buf, len, "BPUN tape (%s)", img ? img : "?");
+        break;
+    case BOOT_TAPE:
+        snprintf(buf, len, "paper tape (%s)", img ? img : "?");
+        break;
+    case BOOT_AOUT:
+        snprintf(buf, len, "a.out (%s)", img ? img : "?");
+        break;
+    case BOOT_NONE:
+        snprintf(buf, len, "nothing (CPU at 0)");
+        break;
+    default:
+        snprintf(buf, len, "%s", img ? img : "?");
+        break;
+    }
+}
+
 // VScreen output handler - routes output to the right screen buffer
 // and only prints to physical terminal if screen is active
 static void v_screen_output_handler(Device *device, char c)
@@ -695,6 +749,11 @@ static void v_screen_output_handler(Device *device, char c)
     {
         if (screens[i].device == device)
         {
+            if (i == 0)
+            {
+                // First console output ends the "Booting from ..." line.
+                boot_status_done();
+            }
             vscreen_write(&screens[i], c);
             if (i == active_screen && !menu_is_active(&menu_state))
             {
@@ -1041,6 +1100,10 @@ static bool apply_cli_to_machine_config(MachineConfig *mc, const Config *cfg)
     {
         mc->runtime.verbose = true;
     }
+    if (!cfg->bootStatus)
+    {
+        mc->runtime.boot_status = false;
+    }
     if (cfg->logSpec)
     {
         snprintf(mc->runtime.log_spec, sizeof(mc->runtime.log_spec), "%s", cfg->logSpec);
@@ -1266,6 +1329,10 @@ int main(int argc, char *argv[])
         {
             config.verbose = true;
             (void)log_parse_spec("*:info");
+        }
+        if (!rt->boot_status)
+        {
+            config.bootStatus = false;
         }
         if (rt->log_spec[0] && log_parse_spec(rt->log_spec) != 0)
         {
@@ -1674,6 +1741,14 @@ int main(int argc, char *argv[])
         }
     }
 
+    // "Booting from ..." line until the guest first prints on the console.
+    if (config.bootStatus && !config.pipeMode && !config.shellEnabled)
+    {
+        char boot_text[96];
+        boot_status_describe(boot_text, sizeof(boot_text));
+        boot_status_start(boot_text);
+    }
+
     // Run the machine until it stops
     CPURunMode run_mode = cpu_get_run_mode();
 
@@ -1683,6 +1758,7 @@ int main(int argc, char *argv[])
         machine_run(5000);
 
         run_mode = cpu_get_run_mode();
+        boot_status_tick(run_mode == CPU_PAUSED || run_mode == CPU_BREAKPOINT);
 
         // Check for print job timeout
         if (print_job)
@@ -1705,6 +1781,12 @@ int main(int argc, char *argv[])
         if (run_mode != CPU_SHUTDOWN)
         {
             KeyEvent key = kbd_read_key_event();
+
+            // The F12 menu and Alt+N redraw the whole screen; drop the boot line first.
+            if (key.type == KEY_F12 || key.type == KEY_ALT_DIGIT)
+            {
+                boot_status_done();
+            }
 
             // If menu is active, route keys to menu and check timeouts
             if (menu_is_active(&menu_state))
@@ -1811,6 +1893,8 @@ int main(int argc, char *argv[])
             }
         }
     }
+
+    boot_status_done();
 
     // Flush any pending output before shutdown
     if (print_job)

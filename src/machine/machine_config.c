@@ -212,6 +212,7 @@ void mc_init_baseline(MachineConfig *cfg)
     cfg->runtime.debugger_port = 0;
     cfg->runtime.trace = false;
     cfg->runtime.verbose = false;
+    cfg->runtime.boot_status = true; /* shown unless boot_status = off (or --no-boot-status) */
     cfg->runtime.drum[0] = '\0';        /* no drum unless drum= (or --drum) given */
     cfg->runtime.cdc[0] = '\0';         /* no CDC  unless cdc=  (or --cdc)  given */
     cfg->runtime.memory_mb = 0;         /* unset -> default 4 MB (or whatever --memory set) */
@@ -1496,6 +1497,17 @@ bool mc_load_file(MachineConfig *cfg, const char *path, char *err, size_t errlen
                 int b = parse_bool(val);
                 cfg->runtime.verbose = (b == 1);
             }
+            else if (str_ieq(keyl, "boot_status"))
+            {
+                int b = parse_bool(val);
+                if (b < 0)
+                {
+                    fclose(f);
+                    return mc_err(err, errlen, path, lineno,
+                                  "[runtime] boot_status = %s: must be on or off.", val);
+                }
+                cfg->runtime.boot_status = (b == 1);
+            }
             else if (str_ieq(keyl, "trace_nd110"))
             {
                 /* on = stdout, off = none, anything else = output file (same as --trace-nd110). */
@@ -2163,6 +2175,10 @@ bool mc_write_file(const MachineConfig *cfg, const char *path, char *err, size_t
     if (cfg->runtime.verbose)
     {
         fprintf(f, "verbose = on\n");
+    }
+    if (!cfg->runtime.boot_status)
+    {
+        fprintf(f, "boot_status = off\n");
     }
     if (cfg->runtime.log_spec[0])
     {
