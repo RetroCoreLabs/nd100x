@@ -17,12 +17,12 @@ name: Deploy web (Glass UI) to Azure Storage
 #     floppies/, PDF/.
 #     ALWAYS uploaded, existing blobs OVERWRITTEN.
 #   Disk images - *.IMG in build_wasm_glass/bin (on this runner: SMD0.IMG,
-#     NDIX.IMG, BSD211-WD0.IMG, ND5000-SMD0.IMG, TSS-CDC.IMG, unpacked from images/*.IMG.bz2 by the
-#     Makefile; the gitignored root SMD0.IMG/SCSI0.IMG of a developer tree
-#     do not exist here):
-#     uploaded ONLY WHEN THE BLOB IS MISSING. An image already in $web is
-#     never overwritten - it may have been changed by hand or be the one
-#     users already have.
+#     NDIX.IMG, BSD211-WD0.IMG, ND5000-SMD0.IMG, TSS-CDC.IMG, unpacked from
+#     images/*.IMG.bz2 by the Makefile; the gitignored root images of a
+#     developer tree do not exist here):
+#     ALSO uploaded on EVERY deploy, overwriting, with no check whether the
+#     blob exists - what is in images/ in the repo is what gets served. The
+#     deploy stops if one of the five machine images is missing from the build.
 #   After the upload the Cloudflare cache is purged (secrets CLOUDFLARE_API_TOKEN
 #   + CLOUDFLARE_ZONE_ID; a warning and no purge when they are missing).
 #   Blobs in $web that are not in the build are NEVER deleted; they are
@@ -139,7 +139,7 @@ jobs:
         run: |
           set -euo pipefail
           # deploy/web    - always uploaded, overwrites
-          # deploy/images - uploaded only when missing in $web
+          # deploy/images - ALSO uploaded every time, overwriting
           rm -rf deploy
           mkdir -p deploy/web deploy/images
           rsync -a --exclude '*.IMG' --exclude '*.img' build_wasm_glass/bin/ deploy/web/
@@ -155,7 +155,7 @@ jobs:
             (cd deploy/web && find . -type f | sed 's|^\./||' | sort)
             echo '```'
             echo
-            echo "### Disk images (uploaded only when missing in \$web)"
+            echo "### Disk images (all uploaded on every deploy, overwriting)"
             echo
             echo '```'
             (cd deploy/images && ls -l --time-style=long-iso | tail -n +2 | awk '{print $8, $5, "bytes"}')
@@ -212,34 +212,38 @@ jobs:
             -o none
           echo "Web files uploaded."
 
-      - name: Upload disk images that are missing in the container
+      - name: Upload the disk images (always, overwriting)
         if: ${{ !inputs.dry_run }}
         env:
           AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}
         run: |
           set -euo pipefail
+          # Every image of the repo (images/*.IMG.bz2, unpacked by the build) is
+          # uploaded on EVERY deploy and replaces the blob already in $web - no
+          # "is it there already" check, so a refreshed image in the repo is
+          # what gets served. The machines' own images must all be in the
+          # build output, or the deploy stops here rather than silently
+          # leaving a machine without its disc.
+          for need in SMD0.IMG ND5000-SMD0.IMG BSD211-WD0.IMG NDIX.IMG TSS-CDC.IMG; do
+            [ -s "deploy/images/$need" ] || { echo "::error::$need is missing from the build output"; exit 1; }
+          done
           {
-            echo "## Disk images"
+            echo "## Disk images (all uploaded, overwriting)"
             echo
           } >> "$GITHUB_STEP_SUMMARY"
           for f in deploy/images/*; do
             [ -f "$f" ] || continue
             n=$(basename "$f")
-            exists=$(az storage blob exists --container-name "$AZURE_STORAGE_CONTAINER" --name "$n" --query exists -o tsv)
-            if [ "$exists" = "true" ]; then
-              echo "KEEP    $n (already in \$web, not overwritten)"
-              echo "- KEEP \`$n\` - already in \$web, not overwritten" >> "$GITHUB_STEP_SUMMARY"
-            else
-              echo "UPLOAD  $n ($(stat -c %s "$f") bytes)"
-              az storage blob upload \
-                --file "$f" \
-                --name "$n" \
-                --container-name "$AZURE_STORAGE_CONTAINER" \
-                --content-type application/octet-stream \
-                --no-progress \
-                -o none
-              echo "- UPLOADED \`$n\` ($(stat -c %s "$f") bytes)" >> "$GITHUB_STEP_SUMMARY"
-            fi
+            echo "UPLOAD  $n ($(stat -c %s "$f") bytes)"
+            az storage blob upload \
+              --file "$f" \
+              --name "$n" \
+              --container-name "$AZURE_STORAGE_CONTAINER" \
+              --content-type application/octet-stream \
+              --overwrite true \
+              --no-progress \
+              -o none
+            echo "- UPLOADED \`$n\` ($(stat -c %s "$f") bytes)" >> "$GITHUB_STEP_SUMMARY"
           done
 
       - name: Purge the Cloudflare cache

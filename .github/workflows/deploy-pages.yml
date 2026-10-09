@@ -130,6 +130,16 @@ jobs:
             echo '```'
           } | tee -a "$GITHUB_STEP_SUMMARY"
 
+      - name: Check the machine images are in the build
+        run: |
+          set -euo pipefail
+          # The whole build folder is published every time, so every image of
+          # images/ goes out each deploy. These five are the machines' own
+          # discs: the deploy stops if one is missing.
+          for need in SMD0.IMG ND5000-SMD0.IMG BSD211-WD0.IMG NDIX.IMG TSS-CDC.IMG; do
+            [ -s "build_wasm_glass/bin/$need" ] || { echo "::error::$need is missing from the build output"; exit 1; }
+          done
+
       - name: Upload the Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:

@@ -232,19 +232,17 @@ wasm-glass: check-deps mkptypes retroterm-build ndfs-build ts-compile
 	@cp docs/SINTRAN-Commands.html $(BUILD_DIR_WASM_GLASS)/bin/ 2>/dev/null || true
 	@cp -r template-glass/PDF $(BUILD_DIR_WASM_GLASS)/bin/ 2>/dev/null || true
 	@# The disc images disk-catalog.json points at, served next to the page so
-	@# "Copy to Library" works and the shipped machines boot. Scratch packs at
-	@# the repo root (gitignored /*.IMG) are copied first and win; then every
-	@# images/*.IMG.bz2 is unpacked when the served file is missing or older
-	@# than the archive - so a clean checkout boots ND-100 (SMD0.IMG), BSD 2.11
-	@# (BSD211-WD0.IMG) and 500 NDIX-C (NDIX.IMG) with nothing fetched by hand.
-	@cp SMD0.IMG $(BUILD_DIR_WASM_GLASS)/bin/ 2>/dev/null || true
-	@cp SCSI0.IMG $(BUILD_DIR_WASM_GLASS)/bin/ 2>/dev/null || true
+	@# "Copy to Library" works and the shipped machines boot. EVERY
+	@# images/*.IMG.bz2 is unpacked into the run folder on EVERY build and
+	@# replaces the served copy: what is in images/ is what is served, and
+	@# nothing else overrides it and the repo root is never read (a clean
+	@# checkout and a developer tree get the same ND-100, ND-5000, BSD 2.11,
+	@# NDIX and TSS images).
 	@for bz in images/*.IMG.bz2; do \
 	  [ -f "$$bz" ] || continue; \
 	  img=$(BUILD_DIR_WASM_GLASS)/bin/$$(basename "$$bz" .bz2); \
-	  if [ ! -f "$$img" ] || [ "$$bz" -nt "$$img" ]; then \
-	    echo "Unpacking $$bz -> $$img"; bunzip2 -k -c "$$bz" > "$$img" || { rm -f "$$img"; echo "  failed"; }; \
-	  fi; \
+	  echo "Unpacking $$bz -> $$img"; \
+	  bunzip2 -k -c "$$bz" > "$$img.tmp" && mv "$$img.tmp" "$$img" || { rm -f "$$img.tmp"; echo "  failed"; }; \
 	done
 	@# Generate version.js so the Glass UI tracks the CMake project version.
 	@NDVER=$$(grep -oE 'project\(nd100x VERSION [0-9.]+' CMakeLists.txt | grep -oE '[0-9]+\.[0-9]+\.[0-9]+'); \
