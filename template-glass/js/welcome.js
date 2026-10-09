@@ -236,6 +236,35 @@
   // Only the Close buttons close the window - a click on the dark backdrop
   // does nothing (Ronny, 08-OCT-2026).
 
+  // Drag the Welcome window by its header. The panel is centred by the
+  // overlay's flexbox; on the first drag it switches to absolute placement
+  // inside the (fixed, full-screen) overlay and keeps that spot until reload.
+  (function () {
+    var ov = el('welcome-overlay');
+    var panel = ov && ov.querySelector('.welcome-panel');
+    var header = panel && panel.querySelector('.welcome-header');
+    if (!panel || !header) return;
+    var dragging = false, ox = 0, oy = 0;
+    header.style.cursor = 'move';
+    header.addEventListener('mousedown', function (e) {
+      if (e.target.closest('button')) return;
+      var r = panel.getBoundingClientRect();
+      ox = e.clientX - r.left;
+      oy = e.clientY - r.top;
+      panel.style.position = 'absolute';
+      panel.style.left = r.left + 'px';
+      panel.style.top = r.top + 'px';
+      dragging = true;
+      e.preventDefault();
+    });
+    document.addEventListener('mousemove', function (e) {
+      if (!dragging) return;
+      panel.style.left = Math.max(0, Math.min(window.innerWidth - 100, e.clientX - ox)) + 'px';
+      panel.style.top = Math.max(0, Math.min(window.innerHeight - 60, e.clientY - oy)) + 'px';
+    });
+    document.addEventListener('mouseup', function () { dragging = false; });
+  })();
+
   if (typeof windowManager !== 'undefined' && windowManager.register) windowManager.register('machine-page-window', 'Machine');
   if (typeof makeDraggable === 'function' && el('machine-page-window') && el('machine-page-header')) {
     makeDraggable(el('machine-page-window'), el('machine-page-header'), 'machine-page-pos');
