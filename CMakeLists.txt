@@ -390,6 +390,24 @@ else()
                    " or set ND100X_ND500X_DIR to a checkout")
 endif()
 
+# ---- Ethernet controller (68000 CPU on the card, emulated by Musashi) ----
+# RISC-V: OFF by default, like the ND-500; -DND100X_ENABLE_ETHERNET=ON turns
+# it on. The Musashi opcode tables are pre-generated (cmake/musashi.cmake).
+if(PLATFORM_RISCV OR BUILD_RISCV)
+    set(ND100X_ENABLE_ETHERNET_DEFAULT OFF)
+else()
+    set(ND100X_ENABLE_ETHERNET_DEFAULT ON)
+endif()
+option(ND100X_ENABLE_ETHERNET "Build the ethernet controller (and the Musashi 68k core) into nd100x"
+    ${ND100X_ENABLE_ETHERNET_DEFAULT})
+
+if(ND100X_ENABLE_ETHERNET)
+    include(${CMAKE_CURRENT_LIST_DIR}/cmake/musashi.cmake)
+    message(STATUS "Ethernet ENABLED (Musashi from external/Musashi)")
+else()
+    message(STATUS "Ethernet not built (ND100X_ENABLE_ETHERNET=OFF)")
+endif()
+
 # Add frontend subdirectories conditionally
 if(BUILD_WASM)
     add_subdirectory(src/frontend/nd100wasm)
