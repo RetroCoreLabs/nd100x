@@ -153,7 +153,9 @@
       h += '</ol>';
     }
     h += '<div class="machine-page-actions">' +
-         '<button class="smd-action-btn machine-page-select" data-machine="' + esc(m.name) + '">Select this machine</button>' +
+         '<button class="smd-action-btn machine-page-select" data-machine="' + esc(m.name) + '"' +
+         (machineRunning() ? ' disabled title="A machine is running - power it off first"' : ' title="Select this machine and press Power"') +
+         '>Select this machine</button>' +
          (fromWelcome ? ' <button class="smd-action-btn machine-page-back">Back to Welcome</button>' : '') +
          '</div>';
     return h;
@@ -182,7 +184,13 @@
   }
 
   // The toolbar's menus stop click propagation (so a click inside a menu does
-  // not close it), so every menu entry gets its own listener.
+  // not close it), so every menu entry gets its own listener - and has to
+  // close the menu itself, as the other entries do.
+  function closeMenus() {
+    var cs = document.querySelectorAll('.toolbar-menu-container');
+    for (var i = 0; i < cs.length; i++) cs[i].classList.remove('open');
+  }
+
   function fillMachinesSubmenu(d) {
     var sub = el('machines-submenu');
     if (!sub) return;
@@ -193,7 +201,7 @@
     sub.innerHTML = h || '<div class="toolbar-menu-item disabled">No machine pages</div>';
     var items = sub.querySelectorAll('.machines-submenu-item');
     for (var j = 0; j < items.length; j++) {
-      items[j].addEventListener('click', function () { openMachinePage(this.getAttribute('data-machine')); });
+      items[j].addEventListener('click', function () { closeMenus(); openMachinePage(this.getAttribute('data-machine')); });
     }
   }
 
@@ -217,10 +225,10 @@
     if (t.classList.contains('welcome-card-more')) { openMachinePage(t.getAttribute('data-machine'), true); return; }
     if (t.classList.contains('machine-page-back')) { closeMachinePage(); openWelcome(); return; }
     if (t.classList.contains('welcome-card-start')) { selectAndStart(t.getAttribute('data-machine')); return; }
-    if (t.classList.contains('machine-page-select')) { selectMachine(t.getAttribute('data-machine')); closeMachinePage(); return; }
+    if (t.classList.contains('machine-page-select')) { if (machineRunning()) return; selectMachine(t.getAttribute('data-machine')); closeMachinePage(); return; }
   });
   var mw = el('menu-welcome');
-  if (mw) mw.addEventListener('click', function () { openWelcome(); });
+  if (mw) mw.addEventListener('click', function () { closeMenus(); openWelcome(); });
 
   var cb = el('welcome-show-always');
   if (cb) cb.addEventListener('change', function () { setShowOnLoad(cb.checked); });

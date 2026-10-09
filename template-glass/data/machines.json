@@ -178,6 +178,7 @@
           "paragraphs": [
             "Press Power. The boot log appears in the console prefixed with '| ', then NDIX startup: /etc/rc running and login:. Type root and press Enter: NDIX Release 3 on nd500x, Welcome back to 1988, and the # prompt. [m1]",
             "Try ls /, cat /etc/motd, /bin/hostname, /usr/ucb/whoami, ps. The ttys tty1-tty3 open as further terminal windows when NDIX writes to them, and through the WebSocket gateway a telnet user can log in on them. [m1]",
+            "Arrow keys in vi: NDIX's own /etc/termcap entry for vt100 (the TERM that /.profile sets) expects application cursor keys (ESC O A) but never switches the terminal into that mode, so the arrow keys do nothing. At the # prompt type TERM=vt131; export TERM - the vt131 entry is full ANSI/VT100 drawing with normal-mode arrows (ESC [ A) and works with this console. [m1]",
             "With Config > Persistent disk storage on, the HDD Disk Manager's NDIX tab holds root disks of your own; a cloned machine can boot one of those instead of the served demo disk, and then keeps its changes. [e2]"
           ]
         }
