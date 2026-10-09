@@ -1336,7 +1336,9 @@ void config_print_help(const char *prog_name)
            MAX_CLI_WATCHPOINTS);
     printf("                          SPEC = [phys:]ADDR[:r|w|rw]  (default rw, virtual)\n");
     printf("  -T ADDR, --text-start=ADDR  Text segment load address for a.out (default: 0)\n");
-    printf("  -v,      --verbose      Enable verbose output\n");
+    printf("  -v,      --verbose      Verbose output: CPU/memory line, device list and INFO\n");
+    printf("                          log lines (default: warnings and errors only).\n");
+    printf("                          Also settable via the .ini '[runtime] verbose = on' key.\n");
     printf("  -P DIR,  --printdir=DIR  Printer output directory (default: ./prints/)\n");
     printf("  -D DIR,  --tapedir=DIR   Paper tape output directory (default: ./tapes/)\n");
     printf("  -e FILE, --tape=FILE     Paper tape reader input file (.bpun)\n");

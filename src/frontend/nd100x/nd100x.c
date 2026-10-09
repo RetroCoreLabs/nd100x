@@ -33,6 +33,7 @@
 #include <errno.h>
 #include <signal.h> // For signal / sigaction
 #include <string.h> // For memset
+#include <ctype.h>  // tolower
 #include <limits.h>
 #include <time.h> // for time()
 
@@ -470,8 +471,11 @@ void initialize(void)
         mc_apply_cpu(&machine_config, &mc_opts);
     }
 
-    printf("CPU: %s   Memory: %.3f Mbytes (%u words)\n", cpumodel_display_name(g_current_cpu_type),
-           (double)g_nd_memsize * 2.0 / (1024.0 * 1024.0), (unsigned)g_nd_memsize);
+    if (config.verbose)
+    {
+        printf("CPU: %s   Memory: %.3f Mbytes (%u words)\n", cpumodel_display_name(g_current_cpu_type),
+               (double)g_nd_memsize * 2.0 / (1024.0 * 1024.0), (unsigned)g_nd_memsize);
+    }
 
     if (machine_init(config.debuggerEnabled, config.debuggerPort) != 0)
     {
@@ -877,6 +881,185 @@ static void load_paper_tape_file(Device *ptr, const char *filename)
 }
 
 
+// Copy the machine flags given on the command line into a machine config, so
+// --show-config and --write-config describe the machine this command line
+// would run (CLI wins over the INI). Only flags that were actually given are
+// copied; an unset flag leaves the INI / built-in value alone.
+// Returns false (with a message on stderr) for a --boot type the INI cannot
+// express.
+static bool apply_cli_to_machine_config(MachineConfig *mc, const Config *cfg)
+{
+    if (cfg->cpuType)
+    {
+        CpuType t;
+        if (!cpumodel_from_name(cfg->cpuType, &t))
+        {
+            fprintf(stderr, "Invalid --cputype '%s'.\n", cfg->cpuType);
+            return false;
+        }
+        mc->cpu_model = (int)t;
+    }
+    if (cfg->fppSet)
+    {
+        mc->fpp_bits = cfg->fppBits;
+    }
+    if (cfg->rtcSet)
+    {
+        mc->rtc_wall = cfg->rtcWall;
+    }
+    if (cfg->mmsSet)
+    {
+        mc->mms = cfg->mmsType;
+    }
+    if (cfg->memorySet)
+    {
+        mc->runtime.memory_mb = cfg->memoryMB;
+    }
+
+    // Disk images.
+    for (int i = 0; i < 4; i++)
+    {
+        if (cfg->smdFile[i] && !mc_set_disk(mc, CTRL_SMD, 0, i, SCSI_UNIT_HDD, cfg->smdFile[i]))
+        {
+            fprintf(stderr, "nd100x: cannot add --smd%d to the machine config\n", i);
+            return false;
+        }
+    }
+    for (int i = 0; i < 2; i++)
+    {
+        if (cfg->wdFile[i] &&
+            !mc_set_disk(mc, CTRL_WINCHESTER, 0, i, SCSI_UNIT_HDD, cfg->wdFile[i]))
+        {
+            fprintf(stderr, "nd100x: cannot add --wd%d to the machine config\n", i);
+            return false;
+        }
+    }
+    for (int i = 0; i < SCSI_MAX_UNITS; i++)
+    {
+        SCSIUnitType media = (cfg->scsiType[i] == SCSI_UNIT_NONE) ? SCSI_UNIT_HDD : cfg->scsiType[i];
+        if (cfg->scsiFile[i] && !mc_set_disk(mc, CTRL_SCSI, 0, i, media, cfg->scsiFile[i]))
+        {
+            fprintf(stderr, "nd100x: cannot add --scsi%d to the machine config\n", i);
+            return false;
+        }
+    }
+    if (cfg->cdcFile)
+    {
+        snprintf(mc->runtime.cdc, sizeof(mc->runtime.cdc), "%s", cfg->cdcFile);
+    }
+    if (cfg->drumFile)
+    {
+        snprintf(mc->runtime.drum, sizeof(mc->runtime.drum), "%s", cfg->drumFile);
+    }
+
+    // HDLC links.
+    for (int i = 0; i < cfg->hdlcCount; i++)
+    {
+        McController *h = mc_find_or_add_controller(mc, CTRL_HDLC, cfg->hdlc[i].deviceNum);
+        if (!h)
+        {
+            fprintf(stderr, "nd100x: cannot add --hdlc=%d to the machine config\n",
+                    cfg->hdlc[i].deviceNum);
+            return false;
+        }
+        h->enabled = true;
+        h->hdlc_is_server = cfg->hdlc[i].isServer;
+        snprintf(h->hdlc_host, sizeof(h->hdlc_host), "%s",
+                 cfg->hdlc[i].address ? cfg->hdlc[i].address : "");
+        h->hdlc_port = cfg->hdlc[i].port;
+    }
+
+    // Boot device.
+    switch (cfg->bootType)
+    {
+    case BOOT_NONE:
+        break;
+    case BOOT_FLOPPY:
+    case BOOT_SMD:
+    case BOOT_SCSI:
+    case BOOT_WINCHESTER:
+        mc->boot.is_disc = true;
+        mc->boot.type = (cfg->bootType == BOOT_FLOPPY)   ? CTRL_FLOPPY
+                        : (cfg->bootType == BOOT_SMD)    ? CTRL_SMD
+                        : (cfg->bootType == BOOT_SCSI)   ? CTRL_SCSI
+                                                         : CTRL_WINCHESTER;
+        mc->boot.wheel = 0;
+        mc->boot.unit = cfg->bootUnit;
+        break;
+    case BOOT_CDC:
+        mc->boot.is_disc = false;
+        mc->boot.file_boot_type = BOOT_CDC;
+        mc->boot.file[0] = '\0';
+        break;
+    case BOOT_BPUN:
+    case BOOT_AOUT:
+        mc->boot.is_disc = false;
+        mc->boot.file_boot_type = cfg->bootType;
+        snprintf(mc->boot.file, sizeof(mc->boot.file), "%s", cfg->imageFile ? cfg->imageFile : "");
+        break;
+    default:
+        fprintf(stderr,
+                "nd100x: this --boot type cannot be written to a machine config; the INI "
+                "[boot] device takes <type>.<wheel>.<unit>, bpun:FILE, aout:FILE, cdc or none\n");
+        return false;
+    }
+
+    // Runtime options.
+    if (cfg->telnetEnabled)
+    {
+        mc->runtime.telnet_port = cfg->telnetPort;
+    }
+    if (cpu_throttle_get_enabled())
+    {
+        mc->runtime.throttle_mhz = cpu_throttle_get_mhz();
+    }
+    if (cfg->charset != CHARSET_OFF)
+    {
+        snprintf(mc->runtime.charset, sizeof(mc->runtime.charset), "%s", charset_name(cfg->charset));
+        for (char *p = mc->runtime.charset; *p; p++)
+        {
+            *p = (char)tolower((unsigned char)*p);
+        }
+    }
+    if (cfg->printDir)
+    {
+        snprintf(mc->runtime.printdir, sizeof(mc->runtime.printdir), "%s", cfg->printDir);
+    }
+    if (cfg->tapeDir)
+    {
+        snprintf(mc->runtime.tapedir, sizeof(mc->runtime.tapedir), "%s", cfg->tapeDir);
+    }
+    if (cfg->debuggerEnabled)
+    {
+        mc->runtime.debugger_port = cfg->debuggerPort;
+    }
+    if (cfg->traceEnabled)
+    {
+        mc->runtime.trace = true;
+    }
+    if (cfg->verbose)
+    {
+        mc->runtime.verbose = true;
+    }
+    if (cfg->logSpec)
+    {
+        snprintf(mc->runtime.log_spec, sizeof(mc->runtime.log_spec), "%s", cfg->logSpec);
+    }
+    if (cfg->shellEnabled)
+    {
+        mc->runtime.shell_enabled = true;
+    }
+    if (cfg->nd100Root)
+    {
+        snprintf(mc->runtime.nd100_root, sizeof(mc->runtime.nd100_root), "%s", cfg->nd100Root);
+    }
+    if (cfg->scriptPath)
+    {
+        snprintf(mc->runtime.script, sizeof(mc->runtime.script), "%s", cfg->scriptPath);
+    }
+    return true;
+}
+
 int main(int argc, char *argv[])
 {
 
@@ -888,6 +1071,14 @@ int main(int argc, char *argv[])
     {
         config_print_help(argv[0]);
         return EXIT_FAILURE;
+    }
+
+    // Quiet start-up: without --verbose only warnings and errors are logged.
+    // The .ini [runtime] verbose and log keys and --log are applied later and
+    // still win.
+    if (!config.verbose)
+    {
+        (void)log_parse_spec("*:warn");
     }
 
     // Show help if requested
@@ -937,6 +1128,12 @@ int main(int argc, char *argv[])
                 printf("(no INI file found; showing built-in defaults)\n");
             }
             mc_set_defaults(&mc);
+        }
+
+        // The machine flags on this command line win over the INI.
+        if (!apply_cli_to_machine_config(&mc, &config))
+        {
+            return EXIT_FAILURE;
         }
 
         if (!mc_validate(&mc, mc_err, sizeof(mc_err)))
@@ -1065,6 +1262,11 @@ int main(int argc, char *argv[])
         {
             config.traceEnabled = true;
         }
+        if (!config.verbose && rt->verbose)
+        {
+            config.verbose = true;
+            (void)log_parse_spec("*:info");
+        }
         if (rt->log_spec[0] && log_parse_spec(rt->log_spec) != 0)
         {
             fprintf(stderr, "nd100x: invalid [runtime] log = %s in the .ini\n", rt->log_spec);
@@ -1175,7 +1377,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    if (config.debuggerEnabled)
+    if (config.debuggerEnabled && config.verbose)
     {
         printf("DAP Debugger enabled on port %d\n", config.debuggerPort);
     }

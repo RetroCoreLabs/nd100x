@@ -211,6 +211,7 @@ void mc_init_baseline(MachineConfig *cfg)
     str_copy(cfg->runtime.charset, sizeof(cfg->runtime.charset), "off");
     cfg->runtime.debugger_port = 0;
     cfg->runtime.trace = false;
+    cfg->runtime.verbose = false;
     cfg->runtime.drum[0] = '\0';        /* no drum unless drum= (or --drum) given */
     cfg->runtime.cdc[0] = '\0';         /* no CDC  unless cdc=  (or --cdc)  given */
     cfg->runtime.memory_mb = 0;         /* unset -> default 4 MB (or whatever --memory set) */
@@ -372,6 +373,31 @@ static McController *mc_get_controller(MachineConfig *cfg, CtrlType type, int wh
         *created = true;
     }
     return c;
+}
+
+McController *mc_find_or_add_controller(MachineConfig *cfg, CtrlType type, int wheel)
+{
+    return mc_get_controller(cfg, type, wheel, NULL);
+}
+
+bool mc_set_disk(MachineConfig *cfg, CtrlType type, int wheel, int unit, SCSIUnitType media,
+                 const char *image)
+{
+    const ControllerDescriptor *d = mc_descriptor_for_type(type);
+    if (!d || unit < 0 || unit >= d->disk_slots)
+    {
+        return false;
+    }
+    McController *ctl = mc_get_controller(cfg, type, wheel, NULL);
+    if (!ctl)
+    {
+        return false;
+    }
+    ctl->enabled = true;
+    ctl->disks[unit].present = true;
+    ctl->disks[unit].media = media;
+    str_copy(ctl->disks[unit].image, MC_PATH_LEN, image);
+    return true;
 }
 
 /* Parse a "controller.<name>.<wheel>" section header. Returns false + message. */
@@ -1465,6 +1491,11 @@ bool mc_load_file(MachineConfig *cfg, const char *path, char *err, size_t errlen
                 int b = parse_bool(val);
                 cfg->runtime.trace = (b == 1);
             }
+            else if (str_ieq(keyl, "verbose"))
+            {
+                int b = parse_bool(val);
+                cfg->runtime.verbose = (b == 1);
+            }
             else if (str_ieq(keyl, "trace_nd110"))
             {
                 /* on = stdout, off = none, anything else = output file (same as --trace-nd110). */
@@ -2021,7 +2052,8 @@ bool mc_write_file(const MachineConfig *cfg, const char *path, char *err, size_t
         }
     }
     fprintf(f, "fpp = %d\n", cfg->fpp_bits);
-    fprintf(f, "rtc = %s\n\n", cfg->rtc_wall ? "wall" : "ticks");
+    fprintf(f, "rtc = %s\n", cfg->rtc_wall ? "wall" : "ticks");
+    fprintf(f, "mms = %d\n\n", cfg->mms);
 
     for (int i = 0; i < cfg->controllerCount; i++)
     {
@@ -2127,6 +2159,10 @@ bool mc_write_file(const MachineConfig *cfg, const char *path, char *err, size_t
     if (cfg->runtime.trace)
     {
         fprintf(f, "trace = on\n");
+    }
+    if (cfg->runtime.verbose)
+    {
+        fprintf(f, "verbose = on\n");
     }
     if (cfg->runtime.log_spec[0])
     {

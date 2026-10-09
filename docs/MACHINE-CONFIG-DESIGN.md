@@ -183,6 +183,7 @@ printdir = ./prints
 tapedir = ./tapes
 # debugger = 6661         ; enable DAP debugger on port
 # trace = on
+# verbose = on           ; start-up device list + INFO log lines (default off: warnings/errors only)
 ```
 
 Notes:

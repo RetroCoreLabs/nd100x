@@ -99,6 +99,7 @@ typedef struct
     char tapedir[MC_PATH_LEN];
     int debugger_port; /* 0 = off */
     bool trace;
+    bool verbose; /* start-up device list and INFO log lines (same as --verbose) */
     /* NORD TSS optional devices, OFF by default. A non-empty path installs the
      * device (same gate as the --drum / --cdc CLI options, which override these). */
     char drum[MC_PATH_LEN]; /* swapping-drum image  (@ IOX 540); "" = no drum */
@@ -331,6 +332,28 @@ bool mc_load_file(MachineConfig *cfg, const char *path, char *err, size_t errlen
  * @return true if the configuration is usable; false on the first problem.
  */
 bool mc_validate(const MachineConfig *cfg, char *err, size_t errlen);
+
+/**
+ * @brief Put a disk image into one controller slot, adding the controller
+ *        (enabled) when the configuration does not list it yet.
+ * @details Used to carry command-line disk flags (--smd0, --scsi2, ...) into a
+ *          configuration before --show-config / --write-config.
+ * @param cfg   Configuration to change.
+ * @param type  Controller type.
+ * @param wheel Thumbwheel of the controller.
+ * @param unit  Disk slot on that controller.
+ * @param media Media type of the slot.
+ * @param image Image file name.
+ * @return false when the controller table is full or the unit is out of range.
+ */
+bool mc_set_disk(MachineConfig *cfg, CtrlType type, int wheel, int unit, SCSIUnitType media,
+                 const char *image);
+
+/**
+ * @brief Find the controller (type, wheel), adding it (enabled) when missing.
+ * @return The controller, or NULL when the controller table is full.
+ */
+McController *mc_find_or_add_controller(MachineConfig *cfg, CtrlType type, int wheel);
 
 /**
  * @brief Print the resolved machine (for --show-config).

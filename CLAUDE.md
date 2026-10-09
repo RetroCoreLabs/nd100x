@@ -132,7 +132,7 @@ BOOT_TYPE=floppy IMAGE_FILE=disk.img VERBOSE=1 DEBUGGER=1 make run
 - `-r, --printer=TYPE`: Printer emulation type: text (default), escp, laser (not yet implemented)
 - `-f, --printformat=FMT`: Printer output format: txt (default), pdf
 - `-N, --telnet[=PORT]`: Enable telnet server (default port: 9000)
-- `-v, --verbose`: Enable verbose output
+- `-v, --verbose`: Verbose start-up: CPU/memory line, DAP port line, device list and INFO log lines. Default is quiet (warnings and errors only). Also settable via the INI `[runtime] verbose = on` key; `[runtime] log` and `--log` still override per category
 - `-h, --help`: Show help message
 - `-V, --version`: Show version, git hash (+`-dirty` if the tree had uncommitted tracked changes at build time) and build time, then exit. Use this FIRST when behavior does not match the source - multiple build directories (`build/`, `build_linux/`, ...) diverge in practice, and stale binaries have repeatedly caused phantom bugs
 
