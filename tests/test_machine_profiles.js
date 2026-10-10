@@ -60,7 +60,7 @@ function assertEqual(actual, expected, description) {
 function reset() { localStorage.clear(); }
 
 // The built-in machines every store holds, in order.
-const SHIPPED = ['ND-100', 'ND-5000', 'BSD 2.11', '500 NDIX-C', 'TSS'];
+const SHIPPED = ['ND-100', 'ND-5000', 'BSD 2.11', '500 NDIX-C', 'TSS', 'TCP/IP', 'COSMOS'];
 
 // The INI the page shipped as "Default" before the built-in machines existed.
 const LEGACY_DEFAULT_INI =
@@ -86,7 +86,7 @@ const LEGACY_DEFAULT_INI =
 
 section('First run: the built-in machines');
 reset();
-assertEqual(mp.list().join(','), SHIPPED.join(','), 'starts with the five built-in machines');
+assertEqual(mp.list().join(','), SHIPPED.join(','), 'starts with the seven built-in machines');
 assertEqual(mp.activeName(), 'ND-100', 'and the plain ND-100 is the active one');
 assert(mp.ini().indexOf('device = smd.0.0') >= 0, 'booting SINTRAN from SMD unit 0');
 assert(mp.ini().indexOf('[controller.scsi') < 0, 'with no SCSI controller - floppy and SMD only');
@@ -98,6 +98,10 @@ assert(mp.ini('BSD 2.11').indexOf('BSD211-WD0.IMG') >= 0, 'the BSD Winchester im
 assertEqual(mp.kind('500 NDIX-C'), 'nd500-ndix', '500 NDIX-C is a standalone ND-500');
 assertEqual(mp.ndix('500 NDIX-C').diskUrl, 'NDIX.IMG', 'on the served NDIX root disc');
 assertEqual(mp.ndix('500 NDIX-C').writable, true, 'with the disc writable - it only ever lives in memory');
+assert(mp.ini('TCP/IP').indexOf('WD0-SINTRAN-M.IMG') >= 0, 'TCP/IP boots the SINTRAN M Winchester image');
+assert(mp.ini('TCP/IP').indexOf('net = gateway:0') >= 0, 'with the Ethernet card on gateway segment 0');
+assert(mp.ini('COSMOS').indexOf('BIGDISK0-K-100.IMG') >= 0, 'COSMOS boots the BIGDISK SMD image');
+assert(mp.ini('COSMOS').indexOf('net = gateway:0') >= 0, 'with the Ethernet card on gateway segment 0');
 SHIPPED.forEach((n) => assert(mp.isShipped(n), n + ' is built in'));
 
 section('Built-in machines are read-only');

@@ -14,6 +14,13 @@
     "description": "SINTRAN III VSX/500 version L (generated 16 December 1988) system disc prepared for the ND-5000 machine - the pack the built-in ND-5000 boots; SYSTEM logs in with no password. First version."
   },
   {
+    "name": "SINTRAN with COSMOS (BIGDISK)",
+    "url": "BIGDISK0-K-100.IMG",
+    "size": 78643200,
+    "diskType": "smd",
+    "description": "SINTRAN III SMD system disc with COSMOS over Ethernet and HDLC. What the COSMOS machine boots."
+  },
+  {
     "name": "Clean 75 MB Disk",
     "description": "Empty 75 MB SMD disk image, for installing an OS from floppy",
     "size": 78643200,
@@ -27,6 +34,13 @@
     "size": 75497472,
     "url": "BSD211-WD0.IMG",
     "diskType": "winchester"
+  },
+  {
+    "name": "SINTRAN M with TCP/IP",
+    "url": "WD0-SINTRAN-M.IMG",
+    "size": 78643200,
+    "diskType": "winchester",
+    "description": "SINTRAN III version M with TCP/IP on an ST506/8 inch Winchester image; its AIP files give the ND 192.168.210.40 (docs/ETHERNET.md). What the TCP/IP machine boots."
   },
   {
     "name": "Clean Winchester disk",

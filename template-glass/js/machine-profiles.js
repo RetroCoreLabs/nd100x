@@ -143,6 +143,59 @@
     '[boot]\n' +
     'device = cdc              ; the cartridge disc LOAD button\n';
 
+  // SINTRAN M with TCP/IP: ND-100/CX booting the Winchester image
+  // WD0-SINTRAN-M.IMG, whose AIP files give the ND 192.168.210.40 (see
+  // docs/ETHERNET.md). The Ethernet II card (thumbwheel 0, IOX 140360) sends
+  // and receives its frames through the gateway's Ethernet segment 0.
+  var TCPIP_INI =
+    '# nd100x machine configuration - SINTRAN M with TCP/IP over Ethernet\n' +
+    '# Winchester image WD0-SINTRAN-M.IMG; Ethernet II card on gateway segment 0.\n\n' +
+    '[machine]\n' +
+    'cpu = ND100CX\n' +
+    'mms = 2\n' +
+    'fpp = 48\n\n' +
+    '[controller.floppy.0]\n' +
+    'enabled = yes\n' +
+    'disk0 = FLOPPY.IMG\n\n' +
+    '[controller.wd.0]\n' +
+    'enabled = yes\n' +
+    'disk0 = WD0-SINTRAN-M.IMG\n\n' +
+    '[controller.eth.0]\n' +
+    'enabled = yes\n' +
+    'net = gateway:0           ; frames go through the gateway, Ethernet segment 0\n\n' +
+    '[terminals]\n' +
+    'enabled = 5, 6, 7, 8, 9, 10, 11\n\n' +
+    '[boot]\n' +
+    'device = wd.0.0           ; <type>.<wheel>.<unit>\n\n' +
+    '[runtime]\n' +
+    'memory = 4\n';
+
+  // COSMOS over Ethernet: ND-100/CX booting SINTRAN from the SMD image
+  // BIGDISK0-K-100.IMG. COSMOS uses IEEE 802.3 length framing on the same
+  // Ethernet II card and gateway segment 0.
+  var COSMOS_INI =
+    '# nd100x machine configuration - SINTRAN with COSMOS over Ethernet\n' +
+    '# SMD image BIGDISK0-K-100.IMG; Ethernet II card on gateway segment 0.\n\n' +
+    '[machine]\n' +
+    'cpu = ND100CX\n' +
+    'mms = 2\n' +
+    'fpp = 48\n\n' +
+    '[controller.floppy.0]\n' +
+    'enabled = yes\n' +
+    'disk0 = FLOPPY.IMG\n\n' +
+    '[controller.smd.0]\n' +
+    'enabled = yes\n' +
+    'disk0 = BIGDISK0-K-100.IMG\n\n' +
+    '[controller.eth.0]\n' +
+    'enabled = yes\n' +
+    'net = gateway:0           ; frames go through the gateway, Ethernet segment 0\n\n' +
+    '[terminals]\n' +
+    'enabled = 5, 6, 7, 8, 9, 10, 11\n\n' +
+    '[boot]\n' +
+    'device = smd.0.0          ; <type>.<wheel>.<unit>\n\n' +
+    '[runtime]\n' +
+    'memory = 4\n';
+
   function shippedProfiles() {
     return [
       { name: 'ND-100',   kind: 'nd100', ini: DEFAULT_INI },
@@ -152,12 +205,14 @@
         ndix: { diskUrl: 'NDIX.IMG', diskName: 'NDIX root disk (server)', memoryMb: 16, writable: true } },
       // A 1973 teletype system: the VT100 (xterm) is the plain terminal here.
       { name: 'TSS',      kind: 'nd100', ini: TSS_INI,
-        terminal: { backend: 'xterm', emulator: 'vt100', language: 'no' } }
+        terminal: { backend: 'xterm', emulator: 'vt100', language: 'no' } },
+      { name: 'TCP/IP',   kind: 'nd100', ini: TCPIP_INI },
+      { name: 'COSMOS',   kind: 'nd100', ini: COSMOS_INI }
     ];
   }
   // The shipped machines are BUILT IN: read-only, always present, and kept
   // at the current definition by the store upgrade. Clone one to change it.
-  var SHIPPED_NAMES = ['ND-100', 'ND-5000', 'BSD 2.11', '500 NDIX-C', 'TSS'];
+  var SHIPPED_NAMES = ['ND-100', 'ND-5000', 'BSD 2.11', '500 NDIX-C', 'TSS', 'TCP/IP', 'COSMOS'];
   var OLD_SHIPPED_NAMES = ['NDIX C', 'ND100'];   // shipped under these names once, then renamed
   function isShippedName(name) { return SHIPPED_NAMES.indexOf(name) >= 0; }
 
@@ -170,7 +225,7 @@
     return !n.diskUuid && (!n.diskUrl || n.diskUrl === 'rootfs_full.img' || n.diskUrl === 'NDIX.IMG');
   }
 
-  var STORE_VERSION = 5;   // 2: shipped machines added; 3: built in and first, leftovers dropped; 4: ND-100 name, "Default" gone; 5: TSS shipped
+  var STORE_VERSION = 6;   // 2: shipped machines added; 3: built in and first, leftovers dropped; 4: ND-100 name, "Default" gone; 5: TSS shipped; 6: TCP/IP and COSMOS shipped
 
   // A profile's "kind" decides what boots it and what it is made of:
   //   'nd100'      - the ND-100 INI machine this file has always stored.
