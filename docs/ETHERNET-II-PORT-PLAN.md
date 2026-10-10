@@ -354,6 +354,11 @@ Todos:
       whether NDIX already carries ethernet frames over it; record facts
       with file:line, then either reuse that message type or add one.
       Backend `ws` in the C side sends/receives through it.
+- [ ] 6.7b (Ronny, 10-OCT-2026) Acceptance for the browser: boot
+      WD0-SINTRAN-M.IMG in the WASM build, SINTRAN's TCP/IP frames go over
+      the WebSocket to the gateway (Python gateway or RetroTerm, whichever
+      carries the disk I/O today - read both first), and the gateway makes
+      the machine reachable on the network (ping + telnet from another host).
 - [ ] 6.8 Gateway side: bridge `ws` frames to UDP hub / pcap / TAP on the
       gateway host; test a frame round trip browser -> gateway -> UDP hub ->
       native nd100x.

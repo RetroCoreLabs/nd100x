@@ -581,7 +581,7 @@ Device *devmgr_get_device_by_address(uint32_t);
 bool devmgr_add_hdlc_device_with_config(int, bool, const char *, int);
 /* Ethernet II controller: thumbwheel 0-3, DRAM bank strap (0 = default),
  * differential trace file or NULL. False if the card is not built in. */
-bool devmgr_add_ethernet_device(int thumbwheel, int memory_bank, FILE *trace);
+bool devmgr_add_ethernet_device(int thumbwheel, int memory_bank, FILE *trace, const char *net_spec);
 
 /**
  * @brief Reset every registered device.

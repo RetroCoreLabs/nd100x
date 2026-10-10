@@ -25,7 +25,8 @@ set(ETH_CARD_SRC
     ${CMAKE_SOURCE_DIR}/src/devices/ethernet/eth_mfp.c
     ${CMAKE_SOURCE_DIR}/src/devices/ethernet/eth_mfp_regs.c
     ${CMAKE_SOURCE_DIR}/src/devices/ethernet/eth_mfp_timer.c
-    ${CMAKE_SOURCE_DIR}/src/devices/ethernet/eth_mfp_usart.c)
+    ${CMAKE_SOURCE_DIR}/src/devices/ethernet/eth_mfp_usart.c
+    ${CMAKE_SOURCE_DIR}/src/devices/ethernet/net/eth_ipcsum.c)
 if(ETH_PORT_TESTS)
     add_executable(test_ethernet ${ETH_TEST_RUNNER} ${ETH_PORT_TESTS} ${ETH_CARD_SRC})
     target_include_directories(test_ethernet PRIVATE ${CMAKE_SOURCE_DIR}/src/devices/ethernet)
@@ -87,3 +88,14 @@ target_link_libraries(test_eth_window PRIVATE
     ${ND_LINK_GROUP_BEGIN} cpu machine devices debugger ndlib ${ND_LINK_GROUP_END} m)
 add_dependencies(test_eth_window cpu devices)
 add_test(NAME eth_window COMMAND test_eth_window)
+
+# Host network backends (none / UDP / TCP) on real sockets of this host.
+add_executable(test_eth_net ${ETH_TEST_RUNNER} net_eth_backend.c
+    ${CMAKE_SOURCE_DIR}/src/devices/ethernet/net/eth_net.c)
+target_include_directories(test_eth_net PRIVATE ${CMAKE_SOURCE_DIR}/src/devices/ethernet)
+find_package(Threads REQUIRED)
+target_link_libraries(test_eth_net PRIVATE ndlib Threads::Threads)
+if(WIN32)
+    target_link_libraries(test_eth_net PRIVATE ws2_32)
+endif()
+add_test(NAME eth_net COMMAND test_eth_net)

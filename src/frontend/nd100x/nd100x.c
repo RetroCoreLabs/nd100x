@@ -561,7 +561,10 @@ void initialize(void)
                     fprintf(stderr, "--eth0-trace: cannot open '%s'\n", config.ethTraceFile);
                 }
             }
-            (void)devmgr_add_ethernet_device(0, config.ethBank, eth_trace);
+            if (!devmgr_add_ethernet_device(0, config.ethBank, eth_trace, config.ethSpec))
+            {
+                fprintf(stderr, "--eth0: the card or its network could not be set up\n");
+            }
         }
 
         if (config.wdEnabled)

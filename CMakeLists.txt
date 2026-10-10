@@ -416,7 +416,9 @@ if(ND100X_ENABLE_ETHERNET)
         ${CMAKE_CURRENT_LIST_DIR}/src/devices/ethernet/eth_mfp_timer.c
         ${CMAKE_CURRENT_LIST_DIR}/src/devices/ethernet/eth_mfp_usart.c
         ${CMAKE_CURRENT_LIST_DIR}/src/devices/ethernet/eth_irq.c
-        ${CMAKE_CURRENT_LIST_DIR}/src/devices/ethernet/eth_m68k.c)
+        ${CMAKE_CURRENT_LIST_DIR}/src/devices/ethernet/eth_m68k.c
+        ${CMAKE_CURRENT_LIST_DIR}/src/devices/ethernet/net/eth_ipcsum.c
+        ${CMAKE_CURRENT_LIST_DIR}/src/devices/ethernet/net/eth_net.c)
     target_include_directories(devices PRIVATE ${CMAKE_CURRENT_LIST_DIR}/src/devices/ethernet)
     target_compile_definitions(devices PRIVATE ND100X_WITH_ETHERNET=1)
     target_link_libraries(devices PUBLIC musashi)

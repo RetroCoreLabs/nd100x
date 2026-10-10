@@ -33,6 +33,7 @@
 
 #include "eth_m68k.h"
 #include "eth_memory.h"
+#include "net/eth_net.h"
 
 struct Device;
 
@@ -88,6 +89,12 @@ typedef struct
     int64_t rx_packets;
     int64_t rx_bytes;
     int64_t runt_frames_padded;
+    /* Host network (eth_attach_network). Frames are moved from the backend's
+     * receive ring into the LANCE on the emulation thread, in eth_tick. */
+    EthNet *net;
+    bool repair_checksums;      /* RetroCore RepairOffloadedChecksums, default true */
+    int64_t own_echoes_dropped; /* received frames whose source MAC is the card's own */
+    int64_t checksums_repaired; /* received frames eth_ipcsum_repair changed */
     EthTrace trace;
     bool trace_on;
     long trace_tick;
@@ -129,6 +136,20 @@ int eth_set_memory_bank(EthCard *card, uint16_t memory_bank);
 
 /** @brief TriggerMFPVector (public test helper in the C#). */
 void eth_trigger_mfp_vector(EthCard *card, uint8_t vector);
+
+/**
+ * @brief Connect the card's LANCE to a host network (RetroCore AttachNetwork).
+ * @details Replaces and stops any backend attached before. LANCE transmit goes to the
+ *          backend; received frames are filtered (own echo by source MAC), checksum-repaired
+ *          and padded to 60 bytes, then given to the LANCE.
+ * @param card card
+ * @param spec backend spec, see net/eth_net.h ("none", "udp", "tcp:host:port", ...)
+ * @return 0, or -1 for a bad spec, no memory, or a backend that would not start
+ */
+int eth_attach_network(EthCard *card, const char *spec);
+
+/** @brief Stop and remove the host network backend (RetroCore DetachNetwork). */
+void eth_detach_network(EthCard *card);
 
 /** @brief Is68KRunning: !halt && !reset. */
 bool eth_is_68k_running(const EthCard *card);

@@ -23,6 +23,7 @@
 #include "../devices_protos.h"
 #include "../../cpu/cpu_types.h"
 #include "m68k.h"
+#include "net/eth_ipcsum.h"
 
 /* ---- differential trace -------------------------------------------------------- */
 
@@ -132,9 +133,13 @@ static void eth_memory_map_on_bus_error(void *ctx, uint32_t address, bool is_rea
 static void eth_on_packet_transmit(void *ctx, const uint8_t *data, int length)
 {
     EthCard *c = (EthCard *)ctx;
-    (void)data;
     c->tx_packets++;
     c->tx_bytes += length;
+    /* guest -> wire (RetroCore AttachNetwork: lance.OnPacketTransmit -> backend.SendPacket) */
+    if (c->net != NULL)
+    {
+        eth_net_send(c->net, data, length);
+    }
 }
 
 static void eth_on_packet_receive(void *ctx, const uint8_t *data, int length)
@@ -438,6 +443,99 @@ static uint16_t eth_ident(Device *self, uint16_t level)
     return ident_code;
 }
 
+/* ---- host network ------------------------------------------------------------------- */
+
+#define ETH_MIN_FRAME_BYTES 60 /* cs: Emulated.HW/ND/CPU/NDBUS/NDBusEthernetII.cs:1958 */
+
+/* One received frame, wire -> guest (RetroCore AttachNetwork receive hook, :2070-2119). */
+static void eth_deliver_received(EthCard *c, uint8_t *data, int length)
+{
+    if (length >= 12)
+    {
+        uint8_t mac[6];
+        lance_get_physical_address(&c->mem.lance, mac);
+        if (memcmp(data + 6, mac, sizeof mac) == 0)
+        {
+            /* Own transmission echoed back (multicast loopback, capture): a LANCE in
+             * normal mode does not receive its own frame. */
+            c->own_echoes_dropped++;
+            return;
+        }
+    }
+    /* Frames from a host with TX checksum offload arrive unfinished; repair only
+     * what fails to verify. */
+    if (c->repair_checksums && (eth_ipcsum_repair(data, length) != ETH_IPCSUM_NONE))
+    {
+        c->checksums_repaired++;
+    }
+    /* A real segment never delivers less than 60 bytes plus FCS; software adapters do.
+     * RetroCore measured SINTRAN ignoring 42-byte ARP replies until they were padded. */
+    if ((length >= 14) && (length < ETH_MIN_FRAME_BYTES))
+    {
+        memset(data + length, 0, (size_t)(ETH_MIN_FRAME_BYTES - length));
+        length = ETH_MIN_FRAME_BYTES;
+        c->runt_frames_padded++;
+    }
+    lance_enqueue_received_packet(&c->mem.lance, data, length);
+}
+
+/* Move waiting frames from the backend's ring into the LANCE receive queue. Runs on the
+ * emulation thread. Deviation: RetroCore enqueues on the backend thread and the LANCE drops
+ * when its 16-frame queue is full; here a frame is only taken from the ring when the LANCE
+ * queue has room, so it waits in the 512-frame ring instead of being lost. */
+static void eth_poll_network(EthCard *c)
+{
+    static uint8_t frame[ETH_NET_MAX_FRAME];
+
+    while (eth_net_has_frame(c->net) && (c->mem.lance.rx_queue_count < LANCE_RX_QUEUE_SIZE))
+    {
+        int length = eth_net_receive(c->net, frame, ETH_NET_MAX_FRAME);
+        if (length <= 0)
+        {
+            break;
+        }
+        eth_deliver_received(c, frame, length);
+    }
+}
+
+int eth_attach_network(EthCard *card, const char *spec)
+{
+    EthNetSpec parsed;
+    EthNet *net;
+
+    if ((card == NULL) || (eth_net_parse_spec(spec, &parsed) != 0))
+    {
+        LOG(LOG_CAT_NET, LOG_ERROR, "Ethernet II %d: bad network spec '%s'\n",
+            (card != NULL) ? card->thumbwheel : -1, (spec != NULL) ? spec : "");
+        return -1;
+    }
+    net = eth_net_create(&parsed);
+    if (net == NULL)
+    {
+        return -1;
+    }
+    eth_detach_network(card);
+    if (eth_net_start(net) != 0)
+    {
+        eth_net_destroy(net);
+        return -1;
+    }
+    card->net = net;
+    LOG(LOG_CAT_NET, LOG_INFO, "Ethernet II %d: network attached: %s (active=%d)\n", card->thumbwheel,
+        eth_net_description(net), eth_net_is_active(net) ? 1 : 0);
+    return 0;
+}
+
+void eth_detach_network(EthCard *card)
+{
+    if ((card == NULL) || (card->net == NULL))
+    {
+        return;
+    }
+    eth_net_destroy(card->net);
+    card->net = NULL;
+}
+
 /* Clock */
 static uint16_t eth_tick(Device *self)
 {
@@ -448,6 +546,10 @@ static uint16_t eth_tick(Device *self)
     for (int i = 0; i < ETH_CPU68K_CYCLES_PER_ND100_TICK; i++)
     {
         eth_m68k_tick(&c->cpu, c->halt || c->reset);
+    }
+    if (c->net != NULL)
+    {
+        eth_poll_network(c);
     }
 
     if (c->trace_on)
@@ -472,6 +574,7 @@ static void eth_destroy(Device *self)
     {
         return;
     }
+    eth_detach_network(c);
     if (c->bank_registered)
     {
         (void)mms_memory_bank_unregister_over_local(c->physical_page_start / 2u);
@@ -669,6 +772,7 @@ Device *eth_create_device_strap(uint8_t thumbwheel, uint16_t memory_bank_strap)
     dev->Destroy = eth_destroy;
 
     c->dev = dev;
+    c->repair_checksums = true;
     c->thumbwheel = thumbwheel;
     c->memory_bank = (memory_bank_strap != 0u) ? memory_bank_strap
                                                : (uint16_t)(ETH_BASE_BANK + (ETH_BANK_STEP_PER_CARD * thumbwheel));

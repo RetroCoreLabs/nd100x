@@ -160,7 +160,10 @@ void mc_apply_devices(const MachineConfig *mc)
                             c->eth_trace);
                 }
             }
-            (void)devmgr_add_ethernet_device(c->wheel, c->eth_bank, eth_trace);
+            if (!devmgr_add_ethernet_device(c->wheel, c->eth_bank, eth_trace, c->eth_net))
+            {
+                fprintf(stderr, "[controller.eth.%d]: the card or its network could not be set up\n", c->wheel);
+            }
         }
     }
 

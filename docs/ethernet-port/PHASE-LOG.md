@@ -481,3 +481,20 @@ counts the CRC in MCNT (Am79C90 data, Receive: "including the CRC bytes
 RetroCore run: Am7990LanceTests 54/54 passed. RETROCORE-RESULTS.csv updated
 to Passed; the C port of this test must PASS (no expected-fail marker).
 Uncommitted in RetroCore.
+
+## 10-OCT-2026 - Phase 6: host networking, first live traffic
+
+- Backends in src/devices/ethernet/net/eth_net.c: none, udp (RetroCore wire format),
+  tcp listen/connect (RetroCore RETH framing), tap:IFNAME (Linux, nd100x addition).
+  Checksum repair (eth_ipcsum.c) and the card glue (own-echo drop by source MAC,
+  60-byte runt padding) as RetroCore NDBusEthernetII.AttachNetwork.
+- Tests: test_ethernet (IpChecksumRepairTests 10/10), test_eth_net (Null 4 + 1 ignored
+  pcap, Tcp 5, Udp 4, TAP 2), all on real sockets of the build host.
+- WD0-SINTRAN-M.IMG: (SYSTEM)AIP-CONFIG:SYMB and AIP-HOSTS:SYMB moved from
+  192.168.199.x (Windows ND-Loopback, RetroCore) to 192.168.210.x with ndtool --put;
+  fsck 0 errors, same 6 warnings as before; original kept as WD0-SINTRAN-M.IMG.orig.
+- Measured with nd100x --config nd100-eth.ini (net = tap:nd0, host 192.168.210.1/24):
+  SINTRAN console "TELNET and TCP/IP in Ethernet II with Internet address
+  192.168.210.40 started"; Linux ARP 192.168.210.40 -> 08:00:26:d2:00:00;
+  ping 4/4, rtt 0.78-1.87 ms; TCP port 23 answered "Telnet Server D02 on c3
+  (192.168.210.040) available." followed by ENTER / PASSWORD:.

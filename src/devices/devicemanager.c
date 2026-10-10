@@ -196,12 +196,26 @@ bool devmgr_add_hdlc_device_with_config(int thumbwheel, bool is_server, const ch
     return success;
 }
 
-bool devmgr_add_ethernet_device(int thumbwheel, int memory_bank, FILE *trace)
+bool devmgr_add_ethernet_device(int thumbwheel, int memory_bank, FILE *trace, const char *net_spec)
 {
 #ifdef ND100X_WITH_ETHERNET
     static const uint16_t eth_base_addr[] = {0140360, 0140364, 0140370, 0140374};
     Device *dev;
 
+    /* Musashi holds one 68000 in global state (eth_m68k.c s_cur, plan decision D6), so a
+     * second card would run on the first card's CPU. Refuse it until per-card CPU contexts
+     * exist. */
+    for (int i = 0; i < devmgr_get_device_count(); i++)
+    {
+        Device *other = devmgr_get_device_by_index(i);
+        if ((other != NULL) && (other->type == DEVICE_TYPE_ETHERNET))
+        {
+            LOG(LOG_CAT_DEVICE, LOG_ERROR,
+                "Ethernet II %d: only one Ethernet II card is supported in this version; "
+                "a card at IOX %o is already configured\n", thumbwheel, (unsigned)other->startAddress);
+            return false;
+        }
+    }
     if ((thumbwheel < 0) || (thumbwheel > 3) ||
         !devmgr_add_device(DEVICE_TYPE_ETHERNET, (uint8_t)thumbwheel))
     {
@@ -218,14 +232,25 @@ bool devmgr_add_ethernet_device(int thumbwheel, int memory_bank, FILE *trace)
             thumbwheel, memory_bank);
         return false;
     }
+    LOG(LOG_CAT_DEVICE, LOG_INFO,
+        "Ethernet II %d Device object created. Address[%o-%o] Ident code: [%o] Level: [%d] "
+        "DRAM bank %u = ND-100 byte address 0x%X, 512 KB\n",
+        thumbwheel, (unsigned)dev->startAddress, (unsigned)dev->endAddress, (unsigned)dev->identCode,
+        dev->interruptLevel, (unsigned)eth_card(dev)->memory_bank,
+        (unsigned)eth_card(dev)->physical_page_start);
     if (trace != NULL)
     {
         eth_set_trace(eth_card(dev), trace, false);
+    }
+    if ((net_spec != NULL) && (net_spec[0] != '\0') && (eth_attach_network(eth_card(dev), net_spec) != 0))
+    {
+        return false;
     }
     return true;
 #else
     (void)memory_bank;
     (void)trace;
+    (void)net_spec;
     LOG(LOG_CAT_DEVICE, LOG_ERROR,
         "Ethernet II %d: this nd100x was built without the Ethernet controller (ND100X_ENABLE_ETHERNET=OFF)\n",
         thumbwheel);
