@@ -25,6 +25,7 @@
 #include <strings.h>
 
 #include "../../../ndlib/log.h"
+#include "eth_pcap.h"
 
 #ifndef __EMSCRIPTEN__
 #include <pthread.h>
@@ -78,6 +79,7 @@ struct EthNet
     nd_socket_t conn;      /* TCP: the connected stream */
     struct sockaddr_in udp_dest;
     int tap_fd; /* Linux TAP: the /dev/net/tun descriptor; -1 when closed */
+    EthPcap *pcap; /* Npcap adapter (Windows); NULL when closed */
 #endif
 };
 
@@ -287,6 +289,9 @@ static void describe(EthNetSpec *s, int port)
     case ETH_NET_GATEWAY:
         (void)snprintf(s->description, sizeof s->description, "gateway:%d", s->port);
         break;
+    case ETH_NET_PCAP:
+        (void)snprintf(s->description, sizeof s->description, "pcap:%s", s->host);
+        break;
     case ETH_NET_NONE:
         /* fall through */
     default:
@@ -333,7 +338,11 @@ int eth_net_parse_spec(const char *spec, EthNetSpec *out)
     }
     else if (starts_with_ci(s, "pcap:"))
     {
-        rc = -1; /* not ported yet (plan todo 6.5) */
+        char adapter[256];
+        trim_copy(adapter, sizeof adapter, s + 5);
+        r.kind = ETH_NET_PCAP;
+        (void)snprintf(r.host, sizeof r.host, "%s", adapter);
+        rc = (adapter[0] == '\0') ? -1 : 0;
     }
     else if (strcasecmp(s, "udp") == 0)
     {
@@ -1114,6 +1123,29 @@ static void *tap_thread(void *arg)
 }
 #endif /* __linux__ */
 
+/* ---- pcap (Windows, Npcap; see eth_pcap.c) ---- */
+
+static void *pcap_thread(void *arg)
+{
+    EthNet *n = (EthNet *)arg;
+    uint8_t frame[ETH_NET_MAX_FRAME];
+
+    while (!atomic_load(&n->stop_requested))
+    {
+        const int got = eth_pcap_receive(n->pcap, frame, (int)sizeof frame);
+        if (got > 0)
+        {
+            ring_put(n, frame, got);
+        }
+        else if (got < 0)
+        {
+            atomic_fetch_add(&n->receive_errors, 1u);
+            sleep_ms_local(50);
+        }
+    }
+    return NULL;
+}
+
 int eth_net_start(EthNet *n)
 {
     void *(*thread_fn)(void *) = NULL;
@@ -1157,6 +1189,11 @@ int eth_net_start(EthNet *n)
             "gateway's segment with tcp:GATEWAYHOST:3094\n", n->description);
         rc = -1;
         break;
+    case ETH_NET_PCAP:
+        n->pcap = eth_pcap_open(n->spec.host);
+        rc = (n->pcap != NULL) ? 0 : -1;
+        thread_fn = pcap_thread;
+        break;
     case ETH_NET_TAP:
 #ifdef __linux__
         rc = tap_open(n);
@@ -1192,12 +1229,14 @@ int eth_net_start(EthNet *n)
             n->tap_fd = -1;
         }
 #endif
+        eth_pcap_close(n->pcap);
+        n->pcap = NULL;
         nd_net_shutdown();
         return -1;
     }
     n->thread_running = true;
     atomic_store(&n->started, true);
-    if ((n->spec.kind == ETH_NET_UDP) || (n->spec.kind == ETH_NET_TAP))
+    if ((n->spec.kind == ETH_NET_UDP) || (n->spec.kind == ETH_NET_TAP) || (n->spec.kind == ETH_NET_PCAP))
     {
         atomic_store(&n->active, true);
     }
@@ -1231,6 +1270,8 @@ void eth_net_stop(EthNet *n)
         n->tap_fd = -1;
     }
 #endif
+    eth_pcap_close(n->pcap);
+    n->pcap = NULL;
     if (n->spec.kind != ETH_NET_NONE)
     {
         nd_net_shutdown();
@@ -1309,6 +1350,17 @@ void eth_net_send(EthNet *n, const uint8_t *data, int length)
         }
         break;
     }
+    case ETH_NET_PCAP:
+        if (eth_pcap_send(n->pcap, data, length) == 0)
+        {
+            atomic_fetch_add(&n->frames_sent, 1u);
+        }
+        else if (atomic_fetch_add(&n->send_failures, 1u) == 0u)
+        {
+            LOG(LOG_CAT_NET, LOG_WARN, "Ethernet %s: send failed - further failures counted only\n",
+                n->description);
+        }
+        break;
     case ETH_NET_TAP:
 #ifdef __linux__
         if (write(n->tap_fd, data, (size_t)length) == (ssize_t)length)

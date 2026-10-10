@@ -1297,6 +1297,9 @@ void config_print_help(const char *prog_name)
     printf("                                               to the ND (create IFNAME first:\n");
     printf("                                               sudo ip tuntap add dev IFNAME\n");
     printf("                                               mode tap user $USER)\n");
+    printf("                            pcap:ADAPTER       Windows host adapter through Npcap, e.g.\n");
+    printf("                                               pcap:ND-Loopback (the name Get-NetAdapter\n");
+    printf("                                               shows); pcap:list lists the adapters\n");
     printf("                            udp[:GROUP][:PORT] UDP multicast segment shared with other\n");
     printf("                                               nd100x/RetroCore cards (239.3.9.4:3094)\n");
     printf("                            listen[:PORT]      TCP link, wait for a peer (3094)\n");

@@ -69,14 +69,16 @@ typedef enum
     ETH_NET_TCP_CONNECT,
     ETH_NET_TCP_LISTEN,
     ETH_NET_TAP,
-    ETH_NET_GATEWAY
+    ETH_NET_GATEWAY,
+    ETH_NET_PCAP
 } EthNetKind;
 
 /* A parsed spec. */
 typedef struct
 {
     EthNetKind kind;
-    char host[256];  /* UDP: group address; TCP connect: host name or address; TAP: ifname */
+    char host[256];  /* UDP: group address; TCP connect: host name or address; TAP: ifname;
+                      PCAP: adapter name (see eth_pcap.h) */
     int port;        /* UDP / TCP port; TCP listen 0 = the OS picks */
     char description[300];
 } EthNetSpec;

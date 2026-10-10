@@ -116,8 +116,13 @@ ETH_TEST(NullEthernetBackendTests, Test_NullBackend_NeverReceives)
     eth_net_destroy(n);
 }
 
-ETH_TEST_FLAGS(NullEthernetBackendTests, Test_PcapBackend_ListInterfaces, ETH_TEST_IGNORE) /* cs-ignore: pcap backend not ported yet (plan todo 6.5) */
+/* The C# test listed interfaces; here "pcap:list" logs them and opens nothing, so start fails. */
+ETH_TEST(NullEthernetBackendTests, Test_PcapBackend_ListInterfaces)
 {
+    EthNet *n = make("pcap:list");
+    CHECK(n != NULL);
+    CHECK_EQ(eth_net_start(n), -1);
+    eth_net_destroy(n);
 }
 
 /* ---- TcpEthernetBackendTests ---- */
@@ -354,5 +359,22 @@ ETH_TEST(Port, Gateway_SpecParsesAndNativeRefuses)
     CHECK_EQ(eth_net_parse_spec("gateway:x", &s), -1);
     n = make("gateway:3");
     CHECK_EQ(eth_net_start(n), -1); /* sockets build: use tcp:HOST:3094 instead */
+    eth_net_destroy(n);
+}
+
+ETH_TEST(Port, Pcap_SpecParsesAndUnknownAdapterRefuses)
+{
+    EthNetSpec s;
+    EthNet *n;
+    CHECK_EQ(eth_net_parse_spec("pcap:ND-Loopback", &s), 0);
+    CHECK(s.kind == ETH_NET_PCAP);
+    CHECK(strcmp(s.host, "ND-Loopback") == 0);
+    CHECK(strcmp(s.description, "pcap:ND-Loopback") == 0);
+    CHECK_EQ(eth_net_parse_spec("pcap: Microsoft KM-TEST Loopback Adapter ", &s), 0);
+    CHECK(strcmp(s.host, "Microsoft KM-TEST Loopback Adapter") == 0);
+    CHECK_EQ(eth_net_parse_spec("pcap:", &s), -1);
+    /* Windows: no adapter of that name; elsewhere: no pcap backend at all */
+    n = make("pcap:no-such-adapter-xyzzy");
+    CHECK_EQ(eth_net_start(n), -1);
     eth_net_destroy(n);
 }

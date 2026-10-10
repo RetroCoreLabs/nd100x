@@ -91,7 +91,8 @@ add_test(NAME eth_window COMMAND test_eth_window)
 
 # Host network backends (none / UDP / TCP) on real sockets of this host.
 add_executable(test_eth_net ${ETH_TEST_RUNNER} net_eth_backend.c
-    ${CMAKE_SOURCE_DIR}/src/devices/ethernet/net/eth_net.c)
+    ${CMAKE_SOURCE_DIR}/src/devices/ethernet/net/eth_net.c
+    ${CMAKE_SOURCE_DIR}/src/devices/ethernet/net/eth_pcap.c)
 target_include_directories(test_eth_net PRIVATE ${CMAKE_SOURCE_DIR}/src/devices/ethernet)
 find_package(Threads REQUIRED)
 target_link_libraries(test_eth_net PRIVATE ndlib Threads::Threads)
