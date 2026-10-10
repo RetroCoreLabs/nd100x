@@ -513,21 +513,61 @@ segment its own address.
 ### Native nd100x machines on the browser's segment
 
 A native nd100x joins the gateway's segment instead of opening a TAP
-itself:
+itself: its card dials the gateway's Ethernet port (3094) with the `tcp:`
+backend. Any number of machines can join. Through the gateway's TAP they are
+on `nd0`'s subnet, so WSL and (with the section 4 route) Windows reach each
+of them like the browser machine.
 
-```
-nd100x --config nd100-eth.ini --eth0=tcp:127.0.0.1:3094
+The address to dial depends on where nd100x runs:
+
+| nd100x runs on | Card setting | Why |
+|----------------|--------------|-----|
+| Linux / WSL, same machine as the gateway | `net = tcp:127.0.0.1:3094` | the gateway listens on every address |
+| Windows, gateway in WSL | `net = tcp:WSL-IP:3094`, e.g. `tcp:172.24.50.23:3094` | WSL2's localhost forwarding does NOT carry this port: measured 10-OCT-2026, `127.0.0.1:3094` from Windows fails, WSL's own address works |
+| Another computer | `net = tcp:GATEWAY-HOST-IP:3094` | the gateway host's firewall must let port 3094 in |
+
+Measured 10-OCT-2026: a native Windows nd100x with
+`net = tcp:172.24.50.23:3094` showed no `link up` line with `127.0.0.1`, and
+worked with WSL's address.
+
+**Finding WSL's address** (in WSL):
+
+```sh
+ip -4 -br addr show eth0        # e.g. eth0 UP 172.24.50.23/20
 ```
 
-or `net = tcp:127.0.0.1:3094` under `[controller.eth.0]`. Any number of
-machines can join. Through the gateway's TAP they are on `nd0`'s subnet, so
-WSL and (with the section 4 route) Windows reach each of them like the
-browser machine. Not tested with a native machine yet.
+From Windows, check that the port answers before starting nd100x
+(PowerShell):
+
+```powershell
+Test-NetConnection 172.24.50.23 -Port 3094    # TcpTestSucceeded : True
+```
+
+WSL gets a new address when it restarts (`wsl --shutdown`, reboot), so the
+INI line and the Windows route of section 4 both need the new address then.
+
+**Seeing that it worked:** with `verbose = on`, nd100x logs
+`network attached: tcp:HOST:3094 (active=0)` at start (no link yet, normal)
+and then `Ethernet tcp:HOST:3094: link up` when the gateway accepted it; the
+gateway (`--verbose`) logs `ETH seg=0 TCP client connected` and
+`hello ok, version 1`. No `link up` line means the card never reached the
+gateway: check the address and the `Test-NetConnection` line above.
+
+**Testing from inside SINTRAN:** telnet to an address that is on the ND's
+subnet, for example the WSL host `192.168.210.1` (if it runs a telnet
+server) or another ND. An address on another subnet (say `192.168.1.1`)
+times out even with a working link, because the ND's only route out is its
+IP gateway in AIP-CONFIG.
+
+Every machine on the segment needs its own IP address and its own MAC
+address (below): `WD0-SINTRAN-M.IMG` is set to 192.168.210.40, the same as
+the browser's TCP/IP machine, so the two cannot run at once on one segment
+until one of them is given another address.
 
 | Machine | Card setting |
 |---------|--------------|
 | Browser | `net = gateway:0` |
-| Native nd100x on the gateway's segment | `net = tcp:127.0.0.1:3094` |
+| Native nd100x on the gateway's segment | `net = tcp:127.0.0.1:3094` (Linux/WSL) or `tcp:WSL-IP:3094` (Windows) |
 | Native nd100x straight on a TAP | `net = tap:ndN` (section 11) |
 
 Every machine on one subnet needs its own IP address and its own MAC
