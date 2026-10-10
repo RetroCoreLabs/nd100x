@@ -346,11 +346,55 @@ for this adapter if both are used on one machine (section 4).
 
 ---
 
-## 10. Browser (WebAssembly): network through the gateway (planned)
+## 10. Browser (WebAssembly): network through the gateway
 
-Not implemented. Goal: the browser build boots the same SINTRAN, and the
-card's frames travel over the existing WebSocket connection to the gateway
-(the Python gateway or RetroTerm's), which puts them on a host network
-(UDP segment, TAP or pcap on the gateway host), so the machine in the
-browser is reachable on the network like a native one. Work items are
-todos 6.7 and 6.8 in `docs/ETHERNET-II-PORT-PLAN.md`.
+The browser build has two built-in machines with the card (Machine Setup):
+
+| Machine | Disc image | Card |
+|---------|------------|------|
+| TCP/IP  | `WD0-SINTRAN-M.IMG` on the Winchester (SINTRAN M, AIP files as in section 5) | `net = gateway:0` |
+| COSMOS  | `BIGDISK0-K-100.IMG` on SMD; also HDLC thumbwheel 2 (SINTRAN device 1362, gateway HDLC channel 1) | `net = gateway:0` |
+
+The images are shipped as `images/*.IMG.bz2` and unpacked next to the page
+by `make wasm-glass`.
+
+`net = gateway[:SEGMENT]` (segment 0 when omitted) exists only in the
+browser build. The card's frames go over the page's gateway WebSocket
+(message 0x31 out, 0x30 in, 0x32 link state, see `docs/GATEWAY-PROTOCOL.md`)
+to `tools/nd100-gateway/gateway.js`, which repeats them to every member of
+that Ethernet segment's RETH port (`ethernet[]` in `gateway.conf.json`,
+segment 0 = port 3094). Anything that speaks RETH can be a member: a native
+nd100x with `--eth0=tcp:GATEWAYHOST:3094`, RetroCore, or the host itself
+through `tools/reth-tap`. A native nd100x refuses `gateway`; it joins with
+`tcp:HOST:3094`.
+
+### Reaching the browser machine from the Linux host
+
+1. Create `nd0` once (section 4), host address 192.168.210.1/24.
+2. Start the gateway: `node tools/nd100-gateway/gateway.js` (segment 0 on
+   port 3094 is in the shipped `gateway.conf.json`).
+3. Put the host on the segment:
+   `tools/reth-tap/reth-tap --dev nd0 --host 127.0.0.1 --port 3094`
+   (`make -C tools/reth-tap` builds it).
+4. In the page: Worker mode, connect to the gateway, select the TCP/IP
+   machine, power on.
+5. When the console says `... Internet address 192.168.210.40 started`,
+   `ping 192.168.210.40` and `telnet 192.168.210.40` work as in section 6.
+
+Measured 10-OCT-2026 with `node test-eth-nd100-browser.js --tap=nd0`
+(headless, Worker mode, test gateway on segment port 19094): host ping
+answered, port 23 returns `Telnet Server D02 on c3 (192.168.210.040)
+available.` and the SINTRAN `ENTER` prompt. `--machine=COSMOS` boots the
+COSMOS machine: the console shows `XROUT: Network server ENNS0 started,
+sysid 9800` with no input, and IEEE 802.3 frames (length field 14, LLC
+A8 A8 03) appear on the segment.
+
+### One MAC address per IP address
+
+Measured 10-OCT-2026: once SINTRAN has answered an ARP request from an IP
+address at one MAC address, it ignores ARP requests from the same IP
+address at any other MAC address (for at least the minutes the test ran;
+how long SINTRAN keeps the entry is unknown). Two hosts on the segment
+that both use 192.168.210.1 - say a test tool and the real host through
+reth-tap - lock out whichever came second. Give every member of the
+segment its own address.

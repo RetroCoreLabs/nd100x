@@ -392,8 +392,13 @@ Todos:
           "XROUT: Network server ENNS0 started, sysid 9800" and "START COSMOS
           BASIC MODULE" with no input; IEEE 802.3 frames (length 14, LLC
           A8 A8 03, 08:00:26:64:00:00 -> 08:00:26:66:00:00) reach the segment.
-      NOT done: telnet and ping from the host through tools/reth-tap (the
-      test plays the host itself on the RETH segment); "conn-to d102" after
+      Host path (--tap=nd0): 9/9. reth-tap on nd0 joins the segment; the
+      Linux host pings 192.168.210.40 and port 23 returns the Telnet Server
+      D02 banner and ENTER prompt. First attempt failed: the test's own RETH
+      member used 192.168.210.1, and after SINTRAN had answered .1 at that
+      MAC it ignored the real host's ARP from .1 (measured: four variants,
+      only the first MAC answered). The member now uses .2.
+      NOT done: "conn-to d102" after
       login (no COSMOS peer was on the segment); D101 over HDLC. 1362 is the
       SINTRAN logical device number, not an IOX address: device_hdlc.c:759
       gives 1360 + (thumbwheel - 1) * 2 and src/devices/hdlc/hdlc.cs:85 lists

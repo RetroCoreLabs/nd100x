@@ -12,6 +12,11 @@
 // What this proves: frames leave the page through the gateway (0x31), frames
 // from the segment reach the card (0x30), and SINTRAN's TCP/IP answers.
 //
+// --tap=IFNAME (TCP/IP only) also starts tools/reth-tap/reth-tap on the
+// segment with that existing TAP device (see docs/ETHERNET.md for creating
+// nd0 with 192.168.210.1/24), then the HOST pings 192.168.210.40 and opens
+// TCP port 23 on it - the same path a telnet from the host takes.
+//
 // --machine=COSMOS boots the built-in COSMOS machine (BIGDISK0-K-100.IMG)
 // instead and checks that the console says "Network server ENNS0 started"
 // and that IEEE 802.3 length frames (type/length field <= 1500) from the
@@ -19,7 +24,7 @@
 // expected back.
 //
 // Prerequisites: make wasm-glass (or BUILD_DIR=<dir> for another build dir).
-// Usage (from the repo root): node test-eth-nd100-browser.js [--machine=COSMOS] [--verbose] [--headed]
+// Usage (from the repo root): node test-eth-nd100-browser.js [--machine=COSMOS] [--tap=nd0] [--verbose] [--headed]
 
 'use strict';
 
@@ -27,7 +32,7 @@ const puppeteer = require('puppeteer');
 const net = require('net');
 const fs = require('fs');
 const path = require('path');
-const { spawn } = require('child_process');
+const { spawn, execFileSync } = require('child_process');
 
 const verbose = process.argv.includes('--verbose') || process.argv.includes('-v');
 const headed = process.argv.includes('--headed');
@@ -42,9 +47,14 @@ const IMAGE = { 'TCP/IP': 'WD0-SINTRAN-M.IMG', 'COSMOS': 'BIGDISK0-K-100.IMG' }[
 
 // The ND's address comes from the AIP files on WD0-SINTRAN-M.IMG (docs/ETHERNET.md).
 const ND_IP = [192, 168, 210, 40];
-const HOST_IP = [192, 168, 210, 1];
+// The RETH member is .2, NOT .1: .1 is the Linux host on nd0 (--tap). Measured
+// 10-OCT-2026: once SINTRAN has answered .1 at one MAC it ignores ARP requests
+// from .1 at any other MAC, so a member posing as .1 locks the real host out.
+const HOST_IP = [192, 168, 210, 2];
 const HOST_MAC = Buffer.from([0x02, 0x00, 0x00, 0x00, 0x00, 0x99]);
 
+const TAP = (process.argv.find(a => a.startsWith('--tap=')) || '').slice(6);
+let tapProc = null;
 let browser = null, gatewayProc = null, observer = null, confPath = null;
 let passed = 0, failed = 0;
 
@@ -146,6 +156,31 @@ async function waitFor(fn, ms) {
   return null;
 }
 
+// The host itself on the segment, through reth-tap and the TAP device.
+async function hostChecks() {
+  const bin = path.join(__dirname, 'tools', 'reth-tap', 'reth-tap');
+  tapProc = spawn(bin, ['--dev', TAP, '--host', '127.0.0.1', '--port', String(ETH_PORT)],
+                  { stdio: verbose ? 'inherit' : 'ignore' });
+  await sleep(2000);
+  const ip = ND_IP.join('.');
+  let pingOut = '';
+  try { pingOut = execFileSync('ping', ['-c', '3', '-W', '3', ip], { encoding: 'utf8' }); }
+  catch (e) { pingOut = (e.stdout || '') + (e.stderr || ''); }
+  check('host ping ' + ip + ' through ' + TAP, / 0% packet loss/.test(pingOut) || /[1-3] received/.test(pingOut),
+        pingOut.trim().split('\n').slice(-2).join(' | '));
+  const banner = await new Promise(resolve => {
+    let got = Buffer.alloc(0);
+    const s = net.connect(23, ip);
+    const done = () => { s.destroy(); resolve(got); };
+    s.on('data', d => { got = Buffer.concat([got, d]); });
+    s.on('error', done);
+    setTimeout(done, 8000);
+  });
+  // Telnet option bytes (IAC = 0xFF) and text both count; print the text part.
+  check('host TCP connect to ' + ip + ':23 gets data back', banner.length > 0, 'nothing in 8 s');
+  console.log('  port 23 text: ' + JSON.stringify(banner.toString('latin1').replace(/[^\x20-\x7e\r\n]/g, '')));
+}
+
 async function finish() {
   await cleanup();
   console.log(`\n${passed} passed, ${failed} failed`);
@@ -187,6 +222,7 @@ async function cosmosChecks(page, pageLog) {
 async function cleanup() {
   if (browser) { try { await browser.close(); } catch (e) {} }
   if (observer && observer.sock) observer.sock.destroy();
+  if (tapProc) tapProc.kill('SIGTERM');
   if (gatewayProc) gatewayProc.kill('SIGTERM');
   if (confPath) { try { fs.unlinkSync(confPath); } catch (e) {} }
 }
@@ -286,6 +322,7 @@ async function cleanup() {
     echo = await waitFor(() => observer.frames.find(isEchoReplyFromNd), 5000);
   }
   check('ICMP echo reply from 192.168.210.40', !!echo);
+  if (TAP) await hostChecks();
 
   await cleanup();
   console.log(`\n${passed} passed, ${failed} failed`);
