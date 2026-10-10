@@ -46,7 +46,8 @@ jobs:
           git submodule update --init --recursive \
             external/cJSON \
             external/libdap \
-            external/libsymbols
+            external/libsymbols \
+            external/Musashi
 
       - name: Initialise CodeQL
         uses: github/codeql-action/init@v3

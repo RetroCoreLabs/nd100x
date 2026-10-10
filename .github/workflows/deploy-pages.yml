@@ -72,6 +72,7 @@ jobs:
             external/cJSON \
             external/libdap \
             external/libsymbols \
+            external/Musashi \
             external/nd500x \
             template-glass/external/RetroTermWeb \
             template-glass/external/norskdata-ndfs

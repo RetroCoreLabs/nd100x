@@ -70,6 +70,7 @@ jobs:
             external/cJSON \
             external/libdap \
             external/libsymbols \
+            external/Musashi \
             external/nd500x \
             template-glass/external/RetroTermWeb
 
@@ -208,6 +209,7 @@ jobs:
             external/cJSON \
             external/libdap \
             external/libsymbols \
+            external/Musashi \
             external/nd500x
 
       - name: Configure (Debug, -Werror, ASan + UBSan)
@@ -318,6 +320,7 @@ jobs:
           # No --recursive: see the note in build-linux.
           git submodule update --init \
             external/cJSON \
+            external/Musashi \
             external/nd500x \
             template-glass/external/RetroTermWeb
           # libdap and libsymbols are skipped by CMake on Windows until their
@@ -476,6 +479,7 @@ jobs:
             external/cJSON \
             external/libdap \
             external/libsymbols \
+            external/Musashi \
             external/nd500x
 
       - name: Show toolchain versions
@@ -565,6 +569,7 @@ jobs:
             external/cJSON \
             external/libdap \
             external/libsymbols \
+            external/Musashi \
             external/nd500x \
             template-glass/external/RetroTermWeb
 
