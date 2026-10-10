@@ -26,4 +26,4 @@
 [submodule "external/Musashi"]
 	path = external/Musashi
 	url = https://github.com/RetroCoreLabs/Musashi.git
-	branch = master
+	branch = nd100x
