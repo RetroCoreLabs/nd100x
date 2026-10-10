@@ -41,6 +41,7 @@ typedef enum
     MENU_ETH_FRAMES,     // one card's recent TX/RX frames, live list
     MENU_ETH_FRAME_DUMP, // hex dump of one frame from that list
     MENU_ABOUT,
+    MENU_CONFIRM_EXIT,   // "Shut down and exit? (y/N)"
     MENU_MESSAGE,
 } MenuMode;
 

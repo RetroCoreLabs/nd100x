@@ -51,6 +51,7 @@
 static void draw_f12(void);
 static void draw_screen_select(MenuState *state, void *telnet_server);
 static void draw_release_prompt(MenuState *state);
+static void draw_confirm_exit(void);
 static void draw_hdlc_status(void);
 static void draw_eth_status(void);
 static void draw_eth_frames(void);
@@ -124,6 +125,9 @@ static void menu_set_mode(MenuState *state, MenuMode mode, void *telnet_server)
         break;
     case MENU_ABOUT:
         draw_about();
+        break;
+    case MENU_CONFIRM_EXIT:
+        draw_confirm_exit();
         break;
     case MENU_PENDING_LIST:
 #if !defined(__EMSCRIPTEN__)
@@ -350,7 +354,18 @@ static void draw_f12(void)
     printf("  [6] Control Panel Switches  (OPR = %06o)\n", (unsigned)((g_reg != NULL) ? gOPR : 0));
     printf("  [7] Ethernet Status\n");
     printf("  [A] About\n");
-    printf("\nPress 1-7/A to select, ESC to cancel: ");
+    printf("  [Q] Shut down and exit\n");
+    printf("\nPress 1-7/A/Q to select, ESC to cancel: ");
+    fflush(stdout);
+}
+
+static void draw_confirm_exit(void)
+{
+    printf("\033[2J\033[H");
+    printf("=== Shut down and exit ===\n\n");
+    printf("  Stops the machine and exits nd100x.\n");
+    printf("  Disk images are closed the same way as at a normal shutdown.\n");
+    printf("\nShut down and exit? (y/N): ");
     fflush(stdout);
 }
 
@@ -1143,6 +1158,26 @@ void menu_process_key(MenuState *state, const KeyEvent *key, void *telnetServer)
         else if (ch == 'a' || ch == 'A')
         {
             menu_set_mode(state, MENU_ABOUT, telnet_server);
+        }
+        else if (ch == 'q' || ch == 'Q')
+        {
+            menu_set_mode(state, MENU_CONFIRM_EXIT, telnet_server);
+        }
+        break;
+
+    // ----- Shut down and exit confirmation -----
+    case MENU_CONFIRM_EXIT:
+        if (ch == 'y' || ch == 'Y')
+        {
+            // The main loop in nd100x.c ends on CPU_SHUTDOWN and runs the normal cleanup.
+            state->mode = MENU_NONE;
+            printf("\r\n");
+            fflush(stdout);
+            cpu_set_run_mode(CPU_SHUTDOWN);
+        }
+        else if (is_esc || ch != '\0')
+        {
+            menu_set_mode(state, MENU_F12, telnet_server);
         }
         break;
 
