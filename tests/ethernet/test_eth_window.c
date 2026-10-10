@@ -171,3 +171,60 @@ ETH_TEST(Port, Window_StrapMovesTheWindow)
     CHECK(eth_create_device_strap(1, 6u) == NULL); /* not a multiple of 4 */
     dev->Destroy(dev);
 }
+
+/* F12 page accessor: every field the page shows is the card's own state. */
+ETH_TEST(Port, Status_SnapshotMatchesTheCard)
+{
+    EthernetStatus st;
+    Device *dev = NULL;
+
+    memset(&s_test_regs, 0, sizeof(s_test_regs));
+    g_reg = &s_test_regs;
+    g_nd_memsize = ND_WORDS_PER_MB * 2u;
+    mms_memory_banks_init();
+    CHECK_EQ(devmgr_init(), 0);
+    CHECK(!devmgr_get_ethernet_status(0, &st)); /* no card yet */
+
+    CHECK(devmgr_add_ethernet_device(0, 0, NULL, "none"));
+    CHECK(devmgr_get_ethernet_status(0, &st));
+    CHECK(!devmgr_get_ethernet_status(1, &st)); /* index 1: no second card */
+    CHECK(devmgr_get_ethernet_status(0, &st));
+    for (int i = 0; i < devmgr_get_device_count(); i++)
+    {
+        Device *d = devmgr_get_device_by_index(i);
+        if ((d != NULL) && (d->type == DEVICE_TYPE_ETHERNET))
+        {
+            dev = d;
+        }
+    }
+    CHECK(dev != NULL);
+    if (dev == NULL)
+    {
+        devmgr_destroy();
+        return;
+    }
+    CHECK_EQ(st.thumbwheel, 0);
+    CHECK_EQ(st.iox_start, 0140360);
+    CHECK_EQ(st.iox_end, 0140363);
+    CHECK_EQ(st.ident, 0140034);
+    CHECK_EQ(st.level, 12);
+    CHECK_EQ(st.memory_bank, 16);
+    CHECK_EQ(st.window_byte_address, 0x200000);
+    CHECK(st.net_attached);
+    CHECK(st.net_active);
+    CHECK(strcmp(st.net_description, "none") == 0);
+    CHECK_EQ(st.nd_window_writes, 0);
+
+    /* counters move with the card: one ND-100 write and one read through the window */
+    mms_write_physical_memory((int)WINDOW_WORD, 0x1234u, true);
+    (void)mms_read_physical_memory((int)WINDOW_WORD, true);
+    CHECK(devmgr_get_ethernet_status(0, &st));
+    CHECK_EQ(st.nd_window_writes, eth_card(dev)->nd_window_writes);
+    CHECK_EQ(st.nd_window_writes, 1);
+    CHECK_EQ(st.nd_window_reads, eth_card(dev)->nd_window_reads);
+    CHECK_EQ(st.lance_csr0, eth_card(dev)->mem.lance.csr[0]);
+    CHECK_EQ(st.tx_packets, eth_card(dev)->tx_packets);
+    CHECK_EQ(st.m68k_running, eth_is_68k_running(eth_card(dev)));
+
+    devmgr_destroy();
+}

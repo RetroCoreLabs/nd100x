@@ -337,3 +337,22 @@ ETH_TEST(Port, Tap_MissingInterfaceFailsToStart)
     CHECK(!eth_net_is_active(n));
     eth_net_destroy(n);
 }
+
+/* ---- gateway spec (browser build backend; native refuses to start it) ---- */
+
+ETH_TEST(Port, Gateway_SpecParsesAndNativeRefuses)
+{
+    EthNetSpec s;
+    EthNet *n;
+    CHECK_EQ(eth_net_parse_spec("gateway", &s), 0);
+    CHECK(s.kind == ETH_NET_GATEWAY);
+    CHECK_EQ(s.port, 0);
+    CHECK(strcmp(s.description, "gateway:0") == 0);
+    CHECK_EQ(eth_net_parse_spec("gateway:3", &s), 0);
+    CHECK_EQ(s.port, 3);
+    CHECK_EQ(eth_net_parse_spec("gateway:256", &s), -1);
+    CHECK_EQ(eth_net_parse_spec("gateway:x", &s), -1);
+    n = make("gateway:3");
+    CHECK_EQ(eth_net_start(n), -1); /* sockets build: use tcp:HOST:3094 instead */
+    eth_net_destroy(n);
+}

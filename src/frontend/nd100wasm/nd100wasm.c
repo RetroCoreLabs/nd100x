@@ -58,6 +58,7 @@
 #include "../devices/papertapewriter/device_paper_tape_writer.h"
 #include "../devices/scsi/device_scsi.h"
 #include "../devices/hdlc/device_hdlc.h"
+#include "../devices/ethernet/net/eth_net.h"
 #include "../devices/hdlc/modem.h"
 #include "../devices/devices_protos.h"
 #include "../ndlib/printjob.h"
@@ -1848,6 +1849,50 @@ EMSCRIPTEN_EXPORT void HDLC_SetCarrier(int channel, int present)
         return;
     }
     modem_set_carrier_present(hd->modem, present != 0);
+}
+
+// =========================================================
+// Ethernet II card <-> gateway (WebSocket types 0x30 / 0x31 / 0x32)
+// =========================================================
+// The card's backend is "gateway[:SEGMENT]" (src/devices/ethernet/net/eth_net.c).
+// The worker drains Nd100_Eth_PollTxFrame every tick and sends 0x31 frames, and hands
+// 0x30 / 0x32 messages to Nd100_Eth_InjectRxFrame / Nd100_Eth_SetLink. Same three-getter
+// idiom as HDLC_PollTxFrame and Nd500_Eth_PollTxFrame.
+static const uint8_t *s_eth_last_buf;
+static int s_eth_last_len;
+static int s_eth_last_seg;
+
+// 1 = a frame the card sent is ready, 0 = none
+EMSCRIPTEN_EXPORT int Nd100_Eth_PollTxFrame(void)
+{
+    return eth_net_gateway_poll_tx(&s_eth_last_buf, &s_eth_last_len, &s_eth_last_seg);
+}
+
+EMSCRIPTEN_EXPORT int Nd100_Eth_GetLastTxSegment(void)
+{
+    return s_eth_last_seg;
+}
+
+EMSCRIPTEN_EXPORT int Nd100_Eth_GetLastTxLength(void)
+{
+    return s_eth_last_len;
+}
+
+EMSCRIPTEN_EXPORT const uint8_t *Nd100_Eth_GetLastTxBuffer(void)
+{
+    return s_eth_last_buf;
+}
+
+// A frame from the segment (0x30). 0 = queued for the card, -1 = not this card's segment
+EMSCRIPTEN_EXPORT int Nd100_Eth_InjectRxFrame(int segment, const uint8_t *data, int length)
+{
+    return eth_net_gateway_inject_rx(segment, data, length);
+}
+
+// Link status (0x32): another member is on the segment (1) or not (0)
+EMSCRIPTEN_EXPORT void Nd100_Eth_SetLink(int segment, int present)
+{
+    eth_net_gateway_set_link(segment, present);
 }
 
 // Called from modem.c (Emscripten) when the HDLC DMA path sends a frame to the wire

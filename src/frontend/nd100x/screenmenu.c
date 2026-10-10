@@ -19,6 +19,11 @@
 #include <string.h>
 #include <inttypes.h>
 #include <stdatomic.h>
+#include <time.h>
+#if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
+#include <sys/ioctl.h>
+#include <unistd.h>
+#endif
 
 #include "keyboard.h"
 #include "nd100x_version.h" /* generated into the build dir by cmake/git_stamp.cmake */
@@ -26,6 +31,7 @@
 #include "nd100x_types.h"
 #include "nd100x_protos.h" /* show_floppy_menu() from menu.c */
 #include "charset.h"
+#include "eth_decode.h"
 #include "../../devices/devices_types.h"
 #include "../../devices/devices_protos.h"
 #include "../../devices/hdlc/device_hdlc.h"
@@ -46,6 +52,9 @@ static void draw_f12(void);
 static void draw_screen_select(MenuState *state, void *telnet_server);
 static void draw_release_prompt(MenuState *state);
 static void draw_hdlc_status(void);
+static void draw_eth_status(void);
+static void draw_eth_frames(void);
+static void draw_eth_frame_dump(void);
 static void draw_cpu_speed(void);
 static void draw_charset(void);
 static void draw_panel_switches(void);
@@ -91,6 +100,17 @@ static void menu_set_mode(MenuState *state, MenuMode mode, void *telnet_server)
     case MENU_HDLC_STATUS:
         state->lastRefresh = time(NULL);
         draw_hdlc_status();
+        break;
+    case MENU_ETH_STATUS:
+        state->lastRefresh = time(NULL);
+        draw_eth_status();
+        break;
+    case MENU_ETH_FRAMES:
+        state->lastRefresh = time(NULL);
+        draw_eth_frames();
+        break;
+    case MENU_ETH_FRAME_DUMP:
+        draw_eth_frame_dump();
         break;
     case MENU_CPU_SPEED:
         state->lastRefresh = time(NULL);
@@ -328,8 +348,242 @@ static void draw_f12(void)
     printf("  [4] CPU Speed\n");
     printf("  [5] Character Set  (local console: %s)\n", charset_name(charset_get()));
     printf("  [6] Control Panel Switches  (OPR = %06o)\n", (unsigned)((g_reg != NULL) ? gOPR : 0));
+    printf("  [7] Ethernet Status\n");
     printf("  [A] About\n");
-    printf("\nPress 1-6/A to select, ESC to cancel: ");
+    printf("\nPress 1-7/A to select, ESC to cancel: ");
+    fflush(stdout);
+}
+
+// Ethernet II status page. Every value comes from devmgr_get_ethernet_status(), a copy of
+// the card's own state; the menu runs between machine_run() slices on the emulation thread.
+static void draw_eth_status(void)
+{
+    // Am7990 CSR0 bit names, bit 0 first (same bits as CSR0_FLAGS_* in
+    // src/devices/ethernet/eth_lance.h).
+    static const char *const csr0_names[16] = {"INIT", "STRT", "STOP", "TDMD", "TXON", "RXON",
+                                               "INEA", "INTR", "IDON", "TINT", "RINT", "MERR",
+                                               "MISS", "CERR", "BABL", "ERR"};
+    EthernetStatus st;
+    int n = 0;
+
+    printf("\033[H\033[J");
+    printf("=== Ethernet II Status ===\n\n");
+
+    while (devmgr_get_ethernet_status(n, &st))
+    {
+        char tx[16];
+        char rx[16];
+
+        printf("  Card %d  IOX %o-%o  Ident %o  Level %d  DRAM bank %u (ND-100 byte 0x%X)\n",
+               st.thumbwheel, (unsigned)st.iox_start, (unsigned)st.iox_end, (unsigned)st.ident,
+               st.level, st.memory_bank, (unsigned)st.window_byte_address);
+        printf("    ND-100 side : int enable %-3s  INT12 pending %-3s  halt %-3s  reset %-3s\n",
+               st.interrupt_enabled ? "on" : "off", st.interrupt_pending ? "yes" : "no",
+               st.halt ? "yes" : "no", st.reset ? "yes" : "no");
+        printf("                  window reads %" PRIu64 "  writes %" PRIu64 "\n", st.nd_window_reads,
+               st.nd_window_writes);
+        printf("    68000       : %-7s  PC %06X  SR %04X  (IPL %u)\n",
+               st.m68k_halted ? "HALTED" : (!st.m68k_running ? "held" : (st.m68k_stopped ? "STOP" : "running")),
+               (unsigned)st.m68k_pc, (unsigned)(st.m68k_sr & 0xFFFFu),
+               (unsigned)((st.m68k_sr >> 8u) & 7u));
+        printf("    LANCE       : %s  MAC %02x:%02x:%02x:%02x:%02x:%02x  RX queued %d\n",
+               st.lance_initialized ? "initialized" : "not initialized", st.mac[0], st.mac[1],
+               st.mac[2], st.mac[3], st.mac[4], st.mac[5], st.lance_rx_queued);
+        printf("                  CSR0 %04X ", (unsigned)st.lance_csr0);
+        for (int b = 15; b >= 0; b--)
+        {
+            if ((st.lance_csr0 & (1u << (unsigned)b)) != 0u)
+            {
+                printf(" %s", csr0_names[b]);
+            }
+        }
+        printf("\n");
+        format_bytes((uint64_t)st.tx_bytes, tx, sizeof tx);
+        format_bytes((uint64_t)st.rx_bytes, rx, sizeof rx);
+        printf("    Frames      : TX %" PRId64 " (%s)  RX %" PRId64 " (%s)\n", st.tx_packets, tx,
+               st.rx_packets, rx);
+        printf("                  padded to 60 %" PRId64 "  own echoes dropped %" PRId64
+               "  checksums repaired %" PRId64 "\n",
+               st.runt_frames_padded, st.own_echoes_dropped, st.checksums_repaired);
+        if (st.net_attached)
+        {
+            printf("    Network     : %s  %s\n", st.net_description, st.net_active ? "ACTIVE" : "not active");
+            printf("                  sent %" PRIu64 "  received %" PRIu64 "  ring full drops %" PRIu64
+                   "  send failures %" PRIu64 "  rx errors %" PRIu64 "  links up %" PRIu64 "\n",
+                   st.net_frames_sent, st.net_frames_received, st.net_frames_dropped_ring,
+                   st.net_send_failures, st.net_receive_errors, st.net_links_up);
+        }
+        else
+        {
+            printf("    Network     : none attached\n");
+        }
+        printf("\n");
+        n++;
+    }
+    if (n == 0)
+    {
+        printf("  No Ethernet II card configured. Use --eth0=<spec> or [controller.eth.0].\n\n");
+    }
+    printf("Refreshes every second. P: packet view%s   ESC: back", (n > 1) ? " (then card number)" : "");
+    fflush(stdout);
+}
+
+// ---- Ethernet packet view --------------------------------------------------------------
+
+static int s_eth_card;           // card whose frames are shown
+static bool s_eth_paused;        // list frozen; frames are still recorded by the card
+static int s_eth_selected;       // index into s_eth_frames while paused
+static int s_eth_count;          // frames in s_eth_frames
+static bool s_eth_choose_card;   // waiting for a card digit after P
+static EthernetFrame s_eth_frames[ETHERNET_FRAME_LOG_SIZE];
+
+// Terminal size; 80x24 when it cannot be read.
+static void eth_term_size(int *rows, int *cols)
+{
+    *rows = 24;
+    *cols = 80;
+#if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
+    {
+        struct winsize ws;
+        if ((ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 0) && (ws.ws_row > 0) && (ws.ws_col > 0))
+        {
+            *rows = ws.ws_row;
+            *cols = ws.ws_col;
+        }
+    }
+#endif
+}
+
+// One list line for frame f, cut to cols characters.
+static void eth_frame_line(const EthernetFrame *f, const uint8_t *own_mac, bool selected, int cols)
+{
+    char src[32];
+    char dst[32];
+    char what[160];
+    char line[512];
+    char clock[16];
+    time_t secs = (time_t)(f->time_ms / 1000);
+    struct tm tmv;
+
+#if defined(_WIN32)
+    localtime_s(&tmv, &secs);
+#else
+    localtime_r(&secs, &tmv);
+#endif
+    (void)strftime(clock, sizeof clock, "%H:%M:%S", &tmv);
+    if (f->captured >= 14)
+    {
+        eth_decode_mac_name(f->data + 6, own_mac, src, sizeof src);
+        eth_decode_mac_name(f->data, own_mac, dst, sizeof dst);
+    }
+    else
+    {
+        (void)snprintf(src, sizeof src, "?");
+        (void)snprintf(dst, sizeof dst, "?");
+    }
+    eth_decode_summary(f->data, f->captured, what, sizeof what);
+    (void)snprintf(line, sizeof line, "%c%5" PRIu64 " %s.%03d %s %4d  %s > %s  %s", selected ? '>' : ' ',
+                   f->seq, clock, (int)(f->time_ms % 1000), f->is_tx ? "TX" : "RX", f->length, src,
+                   dst, what);
+    if ((cols > 1) && ((int)strlen(line) > cols - 1))
+    {
+        line[cols - 1] = '\0';
+    }
+    printf("%s\n", line);
+}
+
+static void draw_eth_frames(void)
+{
+    EthernetStatus st;
+    int rows;
+    int cols;
+    int list_rows;
+    int first;
+
+    eth_term_size(&rows, &cols);
+    printf("\033[H\033[J");
+    if (!devmgr_get_ethernet_status(s_eth_card, &st))
+    {
+        printf("=== Ethernet II packets ===\n\n  Card %d not configured.\n\nESC: back", s_eth_card);
+        fflush(stdout);
+        return;
+    }
+    if (!s_eth_paused)
+    {
+        s_eth_count = devmgr_get_ethernet_frames(s_eth_card, s_eth_frames, ETHERNET_FRAME_LOG_SIZE);
+    }
+    printf("=== Ethernet II card %d packets  (%s)  TX %" PRId64 "  RX %" PRId64 "  %s ===\n",
+           st.thumbwheel, st.net_attached ? st.net_description : "no network", st.tx_packets,
+           st.rx_packets, s_eth_paused ? "PAUSED" : "live");
+    printf("    #  time         dir  len  src > dst  what\n");
+
+    list_rows = rows - 4; // title, column line, blank, key line
+    if (list_rows < 1)
+    {
+        list_rows = 1;
+    }
+    // Live: newest at the bottom. Paused: keep the selected frame in view.
+    first = s_eth_count - list_rows;
+    if (s_eth_paused && (s_eth_selected < first))
+    {
+        first = s_eth_selected;
+    }
+    if (first < 0)
+    {
+        first = 0;
+    }
+    if (s_eth_count == 0)
+    {
+        printf("  (no frames yet)\n");
+    }
+    for (int i = first; (i < s_eth_count) && (i < first + list_rows); i++)
+    {
+        eth_frame_line(&s_eth_frames[i], st.mac, s_eth_paused && (i == s_eth_selected), cols);
+    }
+    printf("\n%s", s_eth_paused ? "SPACE resume  Up/Down or k/j select  ENTER hex dump  C clear  ESC back"
+                                 : "SPACE pause  C clear  ESC back");
+    fflush(stdout);
+}
+
+static void draw_eth_frame_dump(void)
+{
+    const EthernetFrame *f;
+    char what[160];
+
+    printf("\033[H\033[J");
+    if ((s_eth_selected < 0) || (s_eth_selected >= s_eth_count))
+    {
+        printf("No frame selected.\n\nESC: back");
+        fflush(stdout);
+        return;
+    }
+    f = &s_eth_frames[s_eth_selected];
+    eth_decode_summary(f->data, f->captured, what, sizeof what);
+    printf("=== Frame #%" PRIu64 "  %s  %d bytes%s ===\n%s\n\n", f->seq, f->is_tx ? "TX (card -> network)" : "RX (network -> card)",
+           f->length, (f->captured < f->length) ? " (cut)" : "", what);
+    for (int off = 0; off < f->captured; off += 16)
+    {
+        printf("  %04X  ", off);
+        for (int i = 0; i < 16; i++)
+        {
+            if (off + i < f->captured)
+            {
+                printf("%02x ", f->data[off + i]);
+            }
+            else
+            {
+                printf("   ");
+            }
+        }
+        printf(" ");
+        for (int i = 0; (i < 16) && (off + i < f->captured); i++)
+        {
+            const uint8_t b = f->data[off + i];
+            putchar(((b >= 0x20u) && (b < 0x7Fu)) ? (int)b : '.');
+        }
+        printf("\n");
+    }
+    printf("\nESC: back to the list");
     fflush(stdout);
 }
 
@@ -789,6 +1043,23 @@ void menu_tick(MenuState *state, void *telnetServer)
             draw_hdlc_status();
         }
     }
+    // Live refresh for Ethernet status view and packet list (every 1 second)
+    if ((state->mode == MENU_ETH_STATUS) || (state->mode == MENU_ETH_FRAMES))
+    {
+        time_t now = time(NULL);
+        if (now - state->lastRefresh >= 1)
+        {
+            state->lastRefresh = now;
+            if (state->mode == MENU_ETH_STATUS)
+            {
+                draw_eth_status();
+            }
+            else
+            {
+                draw_eth_frames();
+            }
+        }
+    }
     // Live refresh for CPU speed view (every 1 second)
     if (state->mode == MENU_CPU_SPEED)
     {
@@ -864,6 +1135,10 @@ void menu_process_key(MenuState *state, const KeyEvent *key, void *telnetServer)
         else if (ch == '6')
         {
             menu_set_mode(state, MENU_PANEL_SWITCHES, telnet_server);
+        }
+        else if (ch == '7')
+        {
+            menu_set_mode(state, MENU_ETH_STATUS, telnet_server);
         }
         else if (ch == 'a' || ch == 'A')
         {
@@ -1055,6 +1330,96 @@ void menu_process_key(MenuState *state, const KeyEvent *key, void *telnetServer)
         if (is_esc)
         {
             menu_set_mode(state, MENU_F12, telnet_server);
+        }
+        break;
+
+    // ----- Ethernet status (live view) -----
+    case MENU_ETH_STATUS:
+        if (is_esc)
+        {
+            s_eth_choose_card = false;
+            menu_set_mode(state, MENU_F12, telnet_server);
+        }
+        else if (s_eth_choose_card && (ch >= '0') && (ch <= '9'))
+        {
+            EthernetStatus st;
+            s_eth_choose_card = false;
+            if (devmgr_get_ethernet_status(ch - '0', &st))
+            {
+                s_eth_card = ch - '0';
+                s_eth_paused = false;
+                menu_set_mode(state, MENU_ETH_FRAMES, telnet_server);
+            }
+        }
+        else if ((ch == 'p') || (ch == 'P'))
+        {
+            EthernetStatus st;
+            if (devmgr_get_ethernet_status(1, &st))
+            {
+                s_eth_choose_card = true; // more than one card: the next digit picks it
+            }
+            else if (devmgr_get_ethernet_status(0, &st))
+            {
+                s_eth_card = 0;
+                s_eth_paused = false;
+                menu_set_mode(state, MENU_ETH_FRAMES, telnet_server);
+            }
+        }
+        break;
+
+    // ----- Ethernet packet list (live view) -----
+    case MENU_ETH_FRAMES:
+    {
+        const bool up = ((key->type == KEY_UNKNOWN) && (key->seqLen == 3) &&
+                         ((memcmp(key->seq, "\x1B[A", 3) == 0) || (memcmp(key->seq, "\x1BOA", 3) == 0))) ||
+                        (ch == 'k');
+        const bool down = ((key->type == KEY_UNKNOWN) && (key->seqLen == 3) &&
+                           ((memcmp(key->seq, "\x1B[B", 3) == 0) || (memcmp(key->seq, "\x1BOB", 3) == 0))) ||
+                          (ch == 'j');
+        if (is_esc)
+        {
+            s_eth_paused = false;
+            menu_set_mode(state, MENU_ETH_STATUS, telnet_server);
+        }
+        else if (ch == ' ')
+        {
+            s_eth_paused = !s_eth_paused;
+            if (s_eth_paused)
+            {
+                s_eth_count = devmgr_get_ethernet_frames(s_eth_card, s_eth_frames, ETHERNET_FRAME_LOG_SIZE);
+                s_eth_selected = s_eth_count - 1;
+            }
+            draw_eth_frames();
+        }
+        else if ((ch == 'c') || (ch == 'C'))
+        {
+            devmgr_clear_ethernet_frames(s_eth_card);
+            s_eth_count = 0;
+            s_eth_selected = -1;
+            draw_eth_frames();
+        }
+        else if (s_eth_paused && up && (s_eth_selected > 0))
+        {
+            s_eth_selected--;
+            draw_eth_frames();
+        }
+        else if (s_eth_paused && down && (s_eth_selected < s_eth_count - 1))
+        {
+            s_eth_selected++;
+            draw_eth_frames();
+        }
+        else if (s_eth_paused && ((ch == '\r') || (ch == '\n')) && (s_eth_count > 0))
+        {
+            menu_set_mode(state, MENU_ETH_FRAME_DUMP, telnet_server);
+        }
+        break;
+    }
+
+    // ----- Ethernet frame hex dump -----
+    case MENU_ETH_FRAME_DUMP:
+        if (is_esc)
+        {
+            menu_set_mode(state, MENU_ETH_FRAMES, telnet_server);
         }
         break;
 

@@ -284,6 +284,9 @@ static void describe(EthNetSpec *s, int port)
     case ETH_NET_TAP:
         (void)snprintf(s->description, sizeof s->description, "tap:%s", s->host);
         break;
+    case ETH_NET_GATEWAY:
+        (void)snprintf(s->description, sizeof s->description, "gateway:%d", s->port);
+        break;
     case ETH_NET_NONE:
         /* fall through */
     default:
@@ -321,6 +324,12 @@ int eth_net_parse_spec(const char *spec, EthNetSpec *out)
         (void)snprintf(r.host, sizeof r.host, "%s", ifname);
         /* Linux IFNAMSIZ is 16 including the terminator. */
         rc = ((ifname[0] == '\0') || (strlen(ifname) > 15u)) ? -1 : 0;
+    }
+    else if ((strcasecmp(s, "gateway") == 0) || starts_with_ci(s, "gateway:"))
+    {
+        r.kind = ETH_NET_GATEWAY;
+        r.port = (s[7] == ':') ? parse_port(s + 8, 0, 255) : 0; /* the segment number */
+        rc = (r.port < 0) ? -1 : 0;
     }
     else if (starts_with_ci(s, "pcap:"))
     {
@@ -423,15 +432,113 @@ bool eth_net_has_frame(const EthNet *n)
     return (n != NULL) && (atomic_load(&n->ring_count) > 0);
 }
 
+/* The receive ring is shared with the backend's thread on native builds; the
+ * browser build is single-threaded (no pthreads in the WASM link), so the lock
+ * is a no-op there. */
+static void ring_lock(EthNet *n)
+{
 #ifdef __EMSCRIPTEN__
+    (void)n;
+#else
+    pthread_mutex_lock(&n->ring_lock);
+#endif
+}
+
+static void ring_unlock(EthNet *n)
+{
+#ifdef __EMSCRIPTEN__
+    (void)n;
+#else
+    pthread_mutex_unlock(&n->ring_lock);
+#endif
+}
+
+/* Copy one received frame into the ring, dropping it when the ring is full
+ * (UdpEthernetBackend.Enqueue). */
+static void ring_put(EthNet *n, const uint8_t *data, int length)
+{
+    if (length > ETH_NET_MAX_FRAME)
+    {
+        length = ETH_NET_MAX_FRAME;
+    }
+    ring_lock(n);
+    if (atomic_load(&n->ring_count) >= ETH_NET_RX_RING_SIZE)
+    {
+        unsigned long long dropped = atomic_fetch_add(&n->frames_dropped_ring, 1u) + 1u;
+        ring_unlock(n);
+        if ((dropped == 1u) || ((dropped % 1000u) == 0u))
+        {
+            LOG(LOG_CAT_NET, LOG_WARN, "Ethernet %s: receive ring full - %llu frame(s) dropped\n",
+                n->description, dropped);
+        }
+        return;
+    }
+    memcpy(n->ring[n->ring_write], data, (size_t)length);
+    n->ring_length[n->ring_write] = length;
+    n->ring_write = (n->ring_write + 1) % ETH_NET_RX_RING_SIZE;
+    atomic_fetch_add(&n->ring_count, 1);
+    atomic_fetch_add(&n->frames_received, 1u);
+    ring_unlock(n);
+}
+
+int eth_net_receive(EthNet *n, uint8_t *buffer, int size)
+{
+    int length;
+
+    if ((n == NULL) || (buffer == NULL) || (size <= 0) || (atomic_load(&n->ring_count) == 0))
+    {
+        return 0;
+    }
+    ring_lock(n);
+    if (atomic_load(&n->ring_count) == 0)
+    {
+        ring_unlock(n);
+        return 0;
+    }
+    length = n->ring_length[n->ring_read];
+    if (length > size)
+    {
+        length = size;
+    }
+    memcpy(buffer, n->ring[n->ring_read], (size_t)length);
+    n->ring_read = (n->ring_read + 1) % ETH_NET_RX_RING_SIZE;
+    atomic_fetch_sub(&n->ring_count, 1);
+    ring_unlock(n);
+    return length;
+}
+
+#ifdef __EMSCRIPTEN__
+
+/* The browser's gateway backend: one card (plan decision D6), so one slot. */
+static EthNet *s_gateway;
+static struct
+{
+    int length;
+    uint8_t data[ETH_NET_MAX_FRAME];
+} s_gw_tx[ETH_NET_GATEWAY_TX_RING];
+static int s_gw_tx_head;
+static int s_gw_tx_tail;
+static uint8_t s_gw_last[ETH_NET_MAX_FRAME];
 
 int eth_net_start(EthNet *n)
 {
-    if ((n == NULL) || (n->spec.kind != ETH_NET_NONE))
+    if ((n == NULL) || ((n->spec.kind != ETH_NET_NONE) && (n->spec.kind != ETH_NET_GATEWAY)))
     {
-        LOG(LOG_CAT_NET, LOG_ERROR, "Ethernet: '%s' needs sockets; this build has none\n",
+        LOG(LOG_CAT_NET, LOG_ERROR,
+            "Ethernet: '%s' needs sockets; in the browser use net = gateway[:SEGMENT]\n",
             eth_net_description(n));
         return -1;
+    }
+    if (n->spec.kind == ETH_NET_GATEWAY)
+    {
+        if ((s_gateway != NULL) && (s_gateway != n))
+        {
+            LOG(LOG_CAT_NET, LOG_ERROR, "Ethernet: a gateway backend is already running\n");
+            return -1;
+        }
+        s_gateway = n;
+        s_gw_tx_head = 0;
+        s_gw_tx_tail = 0;
     }
     atomic_store(&n->active, true);
     atomic_store(&n->started, true);
@@ -444,28 +551,73 @@ void eth_net_stop(EthNet *n)
     {
         atomic_store(&n->active, false);
         atomic_store(&n->started, false);
+        if (s_gateway == n)
+        {
+            s_gateway = NULL;
+        }
     }
 }
 
 void eth_net_send(EthNet *n, const uint8_t *data, int length)
 {
-    (void)n;
-    (void)data;
-    (void)length;
+    int next;
+
+    if ((n == NULL) || (data == NULL) || (length <= 0) || (length > ETH_NET_MAX_FRAME) ||
+        (n != s_gateway) || !atomic_load(&n->active))
+    {
+        return; /* "none": dropped */
+    }
+    next = (s_gw_tx_head + 1) % ETH_NET_GATEWAY_TX_RING;
+    if (next == s_gw_tx_tail)
+    {
+        /* The page is not draining; drop and count rather than stall the guest. */
+        atomic_fetch_add(&n->send_failures, 1u);
+        return;
+    }
+    s_gw_tx[s_gw_tx_head].length = length;
+    memcpy(s_gw_tx[s_gw_tx_head].data, data, (size_t)length);
+    s_gw_tx_head = next;
+    atomic_fetch_add(&n->frames_sent, 1u);
 }
 
-int eth_net_receive(EthNet *n, uint8_t *buffer, int size)
+int eth_net_gateway_poll_tx(const uint8_t **data, int *length, int *segment)
 {
-    (void)n;
-    (void)buffer;
-    (void)size;
+    if ((s_gateway == NULL) || (s_gw_tx_head == s_gw_tx_tail) || (data == NULL) || (length == NULL) ||
+        (segment == NULL))
+    {
+        return 0;
+    }
+    *length = s_gw_tx[s_gw_tx_tail].length;
+    memcpy(s_gw_last, s_gw_tx[s_gw_tx_tail].data, (size_t)*length);
+    *data = s_gw_last;
+    *segment = s_gateway->spec.port;
+    s_gw_tx_tail = (s_gw_tx_tail + 1) % ETH_NET_GATEWAY_TX_RING;
+    return 1;
+}
+
+int eth_net_gateway_inject_rx(int segment, const uint8_t *data, int length)
+{
+    if ((s_gateway == NULL) || (segment != s_gateway->spec.port) || (data == NULL) || (length <= 0))
+    {
+        return -1;
+    }
+    ring_put(s_gateway, data, length);
     return 0;
+}
+
+void eth_net_gateway_set_link(int segment, int present)
+{
+    if ((s_gateway != NULL) && (segment == s_gateway->spec.port) && (present != 0))
+    {
+        atomic_fetch_add(&s_gateway->links_up, 1u);
+    }
 }
 
 void eth_net_destroy(EthNet *n)
 {
     if (n != NULL)
     {
+        eth_net_stop(n);
         free(n->ring);
         free(n);
     }
@@ -483,60 +635,6 @@ static void sleep_ms_local(int ms)
     ts.tv_nsec = (long)(ms % 1000) * 1000000L;
     (void)nanosleep(&ts, NULL);
 #endif
-}
-
-/* Copy one received frame into the ring, dropping it when the ring is full
- * (UdpEthernetBackend.Enqueue). */
-static void ring_put(EthNet *n, const uint8_t *data, int length)
-{
-    if (length > ETH_NET_MAX_FRAME)
-    {
-        length = ETH_NET_MAX_FRAME;
-    }
-    pthread_mutex_lock(&n->ring_lock);
-    if (atomic_load(&n->ring_count) >= ETH_NET_RX_RING_SIZE)
-    {
-        unsigned long long dropped = atomic_fetch_add(&n->frames_dropped_ring, 1u) + 1u;
-        pthread_mutex_unlock(&n->ring_lock);
-        if ((dropped == 1u) || ((dropped % 1000u) == 0u))
-        {
-            LOG(LOG_CAT_NET, LOG_WARN, "Ethernet %s: receive ring full - %llu frame(s) dropped\n",
-                n->description, dropped);
-        }
-        return;
-    }
-    memcpy(n->ring[n->ring_write], data, (size_t)length);
-    n->ring_length[n->ring_write] = length;
-    n->ring_write = (n->ring_write + 1) % ETH_NET_RX_RING_SIZE;
-    atomic_fetch_add(&n->ring_count, 1);
-    atomic_fetch_add(&n->frames_received, 1u);
-    pthread_mutex_unlock(&n->ring_lock);
-}
-
-int eth_net_receive(EthNet *n, uint8_t *buffer, int size)
-{
-    int length;
-
-    if ((n == NULL) || (buffer == NULL) || (size <= 0) || (atomic_load(&n->ring_count) == 0))
-    {
-        return 0;
-    }
-    pthread_mutex_lock(&n->ring_lock);
-    if (atomic_load(&n->ring_count) == 0)
-    {
-        pthread_mutex_unlock(&n->ring_lock);
-        return 0;
-    }
-    length = n->ring_length[n->ring_read];
-    if (length > size)
-    {
-        length = size;
-    }
-    memcpy(buffer, n->ring[n->ring_read], (size_t)length);
-    n->ring_read = (n->ring_read + 1) % ETH_NET_RX_RING_SIZE;
-    atomic_fetch_sub(&n->ring_count, 1);
-    pthread_mutex_unlock(&n->ring_lock);
-    return length;
 }
 
 /* Wait up to POLL_MS for fd to become readable. 1 = readable, 0 = timeout, -1 = error. */
@@ -956,9 +1054,20 @@ static int tap_open(EthNet *n)
     (void)snprintf(ifr.ifr_name, sizeof ifr.ifr_name, "%.15s", n->spec.host); /* checked <= 15 at parse */
     if (ioctl(fd, TUNSETIFF, &ifr) != 0)
     {
-        LOG(LOG_CAT_NET, LOG_ERROR,
-            "Ethernet tap:%s: cannot attach (%s). Create it first: sudo ip tuntap add dev %s mode tap user $USER\n",
-            n->spec.host, strerror(errno), n->spec.host);
+        const int err = errno;
+        if (err == EBUSY)
+        {
+            LOG(LOG_CAT_NET, LOG_ERROR,
+                "Ethernet tap:%s: cannot attach (%s) - another program already has it open\n",
+                n->spec.host, strerror(err));
+        }
+        else
+        {
+            LOG(LOG_CAT_NET, LOG_ERROR,
+                "Ethernet tap:%s: cannot attach (%s). It must exist and belong to you: "
+                "sudo ip tuntap add dev %s mode tap user $USER\n",
+                n->spec.host, strerror(err), n->spec.host);
+        }
         (void)close(fd);
         return -1;
     }
@@ -1041,6 +1150,12 @@ int eth_net_start(EthNet *n)
         break;
     case ETH_NET_TCP_CONNECT:
         thread_fn = tcp_connect_thread;
+        break;
+    case ETH_NET_GATEWAY:
+        LOG(LOG_CAT_NET, LOG_ERROR,
+            "Ethernet %s: the gateway backend is for the browser build; natively join the "
+            "gateway's segment with tcp:GATEWAYHOST:3094\n", n->description);
+        rc = -1;
         break;
     case ETH_NET_TAP:
 #ifdef __linux__
@@ -1212,6 +1327,28 @@ void eth_net_send(EthNet *n, const uint8_t *data, int length)
     default:
         break; /* NullEthernetBackend: dropped */
     }
+}
+
+int eth_net_gateway_poll_tx(const uint8_t **data, int *length, int *segment)
+{
+    (void)data;
+    (void)length;
+    (void)segment;
+    return 0;
+}
+
+int eth_net_gateway_inject_rx(int segment, const uint8_t *data, int length)
+{
+    (void)segment;
+    (void)data;
+    (void)length;
+    return -1;
+}
+
+void eth_net_gateway_set_link(int segment, int present)
+{
+    (void)segment;
+    (void)present;
 }
 
 #endif /* sockets */

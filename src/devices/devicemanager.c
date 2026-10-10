@@ -34,6 +34,7 @@
 #include "devices_protos.h"
 #ifdef ND100X_WITH_ETHERNET
 #include "ethernet/device_ethernet.h"
+#include "m68k.h" /* M68K_REG_PC / M68K_REG_SR */
 #endif
 
 #include "../ndlib/ndlib_types.h"
@@ -194,6 +195,145 @@ bool devmgr_add_hdlc_device_with_config(int thumbwheel, bool is_server, const ch
     }
 
     return success;
+}
+
+#ifdef ND100X_WITH_ETHERNET
+_Static_assert(ETHERNET_FRAME_MAX_BYTES == ETH_FRAME_LOG_BYTES, "frame size differs from the card's log");
+_Static_assert(ETHERNET_FRAME_LOG_SIZE == ETH_FRAME_LOG_SIZE, "frame count differs from the card's log");
+
+/* The n'th Ethernet II card's state, or NULL. */
+static EthCard *nth_ethernet_card(int n)
+{
+    int seen = 0;
+    for (int i = 0; i < devmgr_get_device_count(); i++)
+    {
+        Device *dev = devmgr_get_device_by_index(i);
+        if ((dev != NULL) && (dev->type == DEVICE_TYPE_ETHERNET) && (dev->deviceData != NULL))
+        {
+            if (seen++ == n)
+            {
+                return eth_card(dev);
+            }
+        }
+    }
+    return NULL;
+}
+#endif
+
+int devmgr_get_ethernet_frames(int n, EthernetFrame *out, int max)
+{
+#ifdef ND100X_WITH_ETHERNET
+    static EthFrameLogEntry tmp[ETH_FRAME_LOG_SIZE];
+    const EthCard *c = nth_ethernet_card(n);
+    int count;
+
+    if ((c == NULL) || (out == NULL) || (max <= 0))
+    {
+        return 0;
+    }
+    count = eth_get_recent_frames(c, tmp, (max < ETH_FRAME_LOG_SIZE) ? max : ETH_FRAME_LOG_SIZE);
+    for (int i = 0; i < count; i++)
+    {
+        out[i].seq = tmp[i].seq;
+        out[i].time_ms = tmp[i].time_ms;
+        out[i].is_tx = tmp[i].is_tx;
+        out[i].length = tmp[i].length;
+        out[i].captured = tmp[i].captured;
+        memcpy(out[i].data, tmp[i].data, (size_t)tmp[i].captured);
+    }
+    return count;
+#else
+    (void)n;
+    (void)out;
+    (void)max;
+    return 0;
+#endif
+}
+
+void devmgr_clear_ethernet_frames(int n)
+{
+#ifdef ND100X_WITH_ETHERNET
+    eth_clear_recent_frames(nth_ethernet_card(n));
+#else
+    (void)n;
+#endif
+}
+
+bool devmgr_get_ethernet_status(int n, EthernetStatus *out)
+{
+#ifdef ND100X_WITH_ETHERNET
+    int seen = 0;
+
+    if (out == NULL)
+    {
+        return false;
+    }
+    for (int i = 0; i < devmgr_get_device_count(); i++)
+    {
+        Device *dev = devmgr_get_device_by_index(i);
+        const EthCard *c;
+        EthNetStats ns;
+        if ((dev == NULL) || (dev->type != DEVICE_TYPE_ETHERNET) || (dev->deviceData == NULL))
+        {
+            continue;
+        }
+        if (seen++ != n)
+        {
+            continue;
+        }
+        c = eth_card(dev);
+        memset(out, 0, sizeof *out);
+        out->thumbwheel = c->thumbwheel;
+        out->iox_start = dev->startAddress;
+        out->iox_end = dev->endAddress;
+        out->ident = dev->identCode;
+        out->level = dev->interruptLevel;
+        out->memory_bank = c->memory_bank;
+        out->window_byte_address = c->physical_page_start;
+        out->nd_window_reads = c->nd_window_reads;
+        out->nd_window_writes = c->nd_window_writes;
+        out->interrupt_enabled = c->interrupt_enabled;
+        out->interrupt_pending = (dev->interruptBits & (1u << (unsigned)dev->interruptLevel)) != 0u;
+        out->halt = c->halt;
+        out->reset = c->reset;
+        out->m68k_running = eth_is_68k_running(c);
+        out->m68k_halted = eth_m68k_is_halted(&c->cpu);
+        out->m68k_stopped = m68k_is_stopped() != 0; /* Musashi fork 4188dc5; one global CPU */
+        out->m68k_pc = eth_m68k_get_reg(&c->cpu, M68K_REG_PC);
+        out->m68k_sr = eth_m68k_get_reg(&c->cpu, M68K_REG_SR);
+        out->lance_initialized = c->mem.lance.initialized;
+        out->lance_csr0 = c->mem.lance.csr[0];
+        lance_get_physical_address(&c->mem.lance, out->mac);
+        out->lance_rx_queued = c->mem.lance.rx_queue_count;
+        out->tx_packets = c->tx_packets;
+        out->tx_bytes = c->tx_bytes;
+        out->rx_packets = c->rx_packets;
+        out->rx_bytes = c->rx_bytes;
+        out->runt_frames_padded = c->runt_frames_padded;
+        out->own_echoes_dropped = c->own_echoes_dropped;
+        out->checksums_repaired = c->checksums_repaired;
+        out->net_attached = (c->net != NULL);
+        if (c->net != NULL)
+        {
+            out->net_active = eth_net_is_active(c->net);
+            (void)snprintf(out->net_description, sizeof out->net_description, "%s",
+                           eth_net_description(c->net));
+            eth_net_get_stats(c->net, &ns);
+            out->net_frames_sent = ns.frames_sent;
+            out->net_frames_received = ns.frames_received;
+            out->net_frames_dropped_ring = ns.frames_dropped_ring;
+            out->net_send_failures = ns.send_failures;
+            out->net_receive_errors = ns.receive_errors;
+            out->net_links_up = ns.links_up;
+        }
+        return true;
+    }
+    return false;
+#else
+    (void)n;
+    (void)out;
+    return false;
+#endif
 }
 
 bool devmgr_add_ethernet_device(int thumbwheel, int memory_bank, FILE *trace, const char *net_spec)

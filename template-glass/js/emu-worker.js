@@ -528,12 +528,21 @@ function wsConnect(url) {
         var ethLen = (buf[2] << 8) | buf[3];
         // The guard is not paranoia: a length that overruns the message would
         // read whatever follows it in the heap and hand it to NDIX as a frame.
-        if (typeof Module._Nd500_Eth_InjectRxFrame === 'function' &&
-            ethLen > 0 && buf.length >= 4 + ethLen) {
+        if (ethLen > 0 && buf.length >= 4 + ethLen &&
+            (typeof Module._Nd500_Eth_InjectRxFrame === 'function' ||
+             typeof Module._Nd100_Eth_InjectRxFrame === 'function')) {
           var ethData = buf.subarray(4, 4 + ethLen);
           var ethPtr = Module._malloc(ethLen);
           Module.HEAPU8.set(ethData, ethPtr);
-          Module._Nd500_Eth_InjectRxFrame(ethSeg, ethPtr, ethLen);
+          // Both machines are offered the frame; each takes only its own segment.
+          if (typeof Module._Nd500_Eth_InjectRxFrame === 'function') {
+            Module._Nd500_Eth_InjectRxFrame(ethSeg, ethPtr, ethLen);
+          }
+          // ND-100 Ethernet II card (net = gateway[:segment]); queued, the card
+          // collects it on its next tick.
+          if (typeof Module._Nd100_Eth_InjectRxFrame === 'function') {
+            Module._Nd100_Eth_InjectRxFrame(ethSeg, ethPtr, ethLen);
+          }
           Module._free(ethPtr);
         }
       }
@@ -541,6 +550,9 @@ function wsConnect(url) {
         // Ethernet link status: [0x32][segment][present]
         if (typeof Module._Nd500_Eth_SetLink === 'function') {
           Module._Nd500_Eth_SetLink(buf[1], buf[2] & 0x01);
+        }
+        if (typeof Module._Nd100_Eth_SetLink === 'function') {
+          Module._Nd100_Eth_SetLink(buf[1], buf[2] & 0x01);
         }
       }
       return;
@@ -914,6 +926,27 @@ function runLoop() {
           _ws.send(txFrame.buffer);
           _wsStats.hdlcTx.frames++;
           _wsStats.hdlcTx.bytes += txFrame.length;
+        }
+      }
+    }
+
+    // Poll ethernet TX frames from the ND-100 Ethernet II card (net = gateway[:segment])
+    // and send them to the segment. Drain all: the card's ring holds 32.
+    if (typeof Module._Nd100_Eth_PollTxFrame === 'function') {
+      while (Module._Nd100_Eth_PollTxFrame() > 0) {
+        var cLen = Module._Nd100_Eth_GetLastTxLength();
+        var cPtr = Module._Nd100_Eth_GetLastTxBuffer();
+        var cSeg = Module._Nd100_Eth_GetLastTxSegment();
+        if (cLen > 0) {
+          var cFrame = new Uint8Array(4 + cLen);
+          cFrame[0] = 0x31;  // ethernet TX
+          cFrame[1] = cSeg;
+          cFrame[2] = (cLen >> 8) & 0xFF;
+          cFrame[3] = cLen & 0xFF;
+          cFrame.set(Module.HEAPU8.subarray(cPtr, cPtr + cLen), 4);
+          _ws.send(cFrame.buffer);
+          _wsStats.ethTx.frames++;
+          _wsStats.ethTx.bytes += cFrame.length;
         }
       }
     }

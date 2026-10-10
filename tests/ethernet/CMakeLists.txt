@@ -99,3 +99,9 @@ if(WIN32)
     target_link_libraries(test_eth_net PRIVATE ws2_32)
 endif()
 add_test(NAME eth_net COMMAND test_eth_net)
+
+# The F12 packet view's frame decoder (frontend code, no device state).
+add_executable(test_eth_decode ${ETH_TEST_RUNNER} test_decode_frames.c
+    ${CMAKE_SOURCE_DIR}/src/frontend/nd100x/eth_decode.c)
+target_include_directories(test_eth_decode PRIVATE ${CMAKE_SOURCE_DIR}/src/frontend/nd100x)
+add_test(NAME eth_decode COMMAND test_eth_decode)

@@ -248,6 +248,42 @@ interface does not exist or does not belong to you (section 4).
 
 ---
 
+### The F12 status page and packet view
+
+F12, then `7` (Ethernet Status), shows each card live, refreshed every
+second: IOX, IDENT, level, DRAM window, the ND-100 side (interrupt enable,
+INT12 pending, halt, reset, window reads/writes), the 68000 (running / STOP /
+held / HALTED, PC, SR), the LANCE (MAC, CSR0 with bit names, receive queue),
+frame counters and the host network's counters.
+
+`P` on that page opens the packet view: the card's last 64 frames, both
+directions, newest at the bottom, one decoded line each. Keys: `SPACE`
+pause/resume (the card keeps recording), `Up`/`Down` or `k`/`j` select while
+paused, `ENTER` hex dump of the selected frame, `C` clear, `ESC` back. On
+Windows the arrow keys are not passed to the menu yet; use `k`/`j`.
+
+Measured 10-OCT-2026 during a telnet session from Linux:
+
+```
+=== Ethernet II card 0 packets  (tap:nd0)  TX 17  RX 20  live ===
+    #  time         dir  len  src > dst  what
+    12 02:34:45.499 TX   60  nd > 4a:32:91:f9:e4:69  TCP 192.168.210.40:23 > 192.168.210.1:47220 [S.] len 0
+    13 02:34:45.499 RX   60  4a:32:91:f9:e4:69 > nd  TCP 192.168.210.1:47220 > 192.168.210.40:23 [.] len 0
+    14 02:34:45.527 TX  120  nd > 4a:32:91:f9:e4:69  TCP 192.168.210.40:23 > 192.168.210.1:47220 [P.] len 66
+```
+
+How a frame is decoded depends on the field after the two MAC addresses,
+and that depends on the firmware the card runs:
+
+- **TCP/IP firmware** (COSMOS TCP/IP gateway, ND-211185) sends **Ethernet II
+  (DIX)** frames: the field is an EtherType, 0x0600 or higher. The view
+  decodes 0x0806 as ARP and 0x0800 as IPv4 (ICMP, TCP, UDP); other types are
+  shown as `type XXXX`.
+- **COSMOS firmware** sends **IEEE 802.3** frames: the field is a length,
+  1500 or less, and an 802.2 LLC header follows. The view shows
+  `802.3 len N LLC dsap XX ssap XX ctl XX`; the COSMOS payload itself is not
+  decoded yet.
+
 ## 7. SINTRAN without TCP/IP: COSMOS over Ethernet
 
 To be written. This section will describe running a SINTRAN that has no

@@ -59,6 +59,21 @@ typedef struct
     long seq_net;
 } EthTrace;
 
+/* Recent-frame log for the F12 packet view (RetroCore keeps 512 for `net dump`;
+ * 64 decided by Ronny 10-OCT-2026). */
+#define ETH_FRAME_LOG_SIZE 64
+#define ETH_FRAME_LOG_BYTES 1518 /* longest Ethernet frame without FCS is 1514; 1518 with it */
+
+typedef struct
+{
+    uint64_t seq;    /* 1 = first frame since power-on or clear; 0 = slot empty */
+    int64_t time_ms; /* host wall clock, milliseconds since 1970 */
+    bool is_tx;      /* true: card -> network, false: network -> card */
+    int length;     /* frame length as sent / as given to the LANCE */
+    int captured;   /* bytes kept in data (length, cut at ETH_FRAME_LOG_BYTES) */
+    uint8_t data[ETH_FRAME_LOG_BYTES];
+} EthFrameLogEntry;
+
 /** The card's state (C#: the NDBusEthernetII fields). */
 typedef struct
 {
@@ -95,6 +110,9 @@ typedef struct
     bool repair_checksums;      /* RetroCore RepairOffloadedChecksums, default true */
     int64_t own_echoes_dropped; /* received frames whose source MAC is the card's own */
     int64_t checksums_repaired; /* received frames eth_ipcsum_repair changed */
+    EthFrameLogEntry *frame_log; /* ETH_FRAME_LOG_SIZE entries, oldest overwritten */
+    int frame_log_pos;           /* next slot to write */
+    uint64_t frame_seq;          /* last sequence number handed out */
     EthTrace trace;
     bool trace_on;
     long trace_tick;
@@ -147,6 +165,18 @@ void eth_trigger_mfp_vector(EthCard *card, uint8_t vector);
  * @return 0, or -1 for a bad spec, no memory, or a backend that would not start
  */
 int eth_attach_network(EthCard *card, const char *spec);
+
+/**
+ * @brief Copy the recent-frame log, oldest first.
+ * @param card card
+ * @param out  receives up to max entries
+ * @param max  size of out
+ * @return number of entries copied
+ */
+int eth_get_recent_frames(const EthCard *card, EthFrameLogEntry *out, int max);
+
+/** @brief Empty the recent-frame log; sequence numbers start again at 1. */
+void eth_clear_recent_frames(EthCard *card);
 
 /** @brief Stop and remove the host network backend (RetroCore DetachNetwork). */
 void eth_detach_network(EthCard *card);

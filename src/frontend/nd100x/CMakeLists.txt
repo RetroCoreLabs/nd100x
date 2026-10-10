@@ -7,6 +7,7 @@ set(SOURCES
     bootstatus.c
     vscreen.c
     charset.c
+    eth_decode.c
 )
 
 # Include menu.c (F12 floppy-DB browser) when curl + ncurses are available.

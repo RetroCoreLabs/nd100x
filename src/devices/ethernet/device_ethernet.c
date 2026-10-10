@@ -18,6 +18,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include "../devices_types.h"
 #include "../devices_protos.h"
@@ -130,11 +131,67 @@ static void eth_memory_map_on_bus_error(void *ctx, uint32_t address, bool is_rea
     eth_m68k_bus_error(&c->cpu, address, is_read); /* does not return */
 }
 
+/* Record one frame in the recent-frame log (F12 packet view). */
+static void eth_log_frame(EthCard *c, bool is_tx, const uint8_t *data, int length)
+{
+    EthFrameLogEntry *e;
+    struct timespec ts;
+
+    if ((c->frame_log == NULL) || (data == NULL) || (length < 0))
+    {
+        return;
+    }
+    e = &c->frame_log[c->frame_log_pos];
+    c->frame_log_pos = (c->frame_log_pos + 1) % ETH_FRAME_LOG_SIZE;
+    e->seq = ++c->frame_seq;
+    e->time_ms = 0;
+    if (clock_gettime(CLOCK_REALTIME, &ts) == 0)
+    {
+        e->time_ms = ((int64_t)ts.tv_sec * 1000) + (ts.tv_nsec / 1000000L);
+    }
+    e->is_tx = is_tx;
+    e->length = length;
+    e->captured = (length > ETH_FRAME_LOG_BYTES) ? ETH_FRAME_LOG_BYTES : length;
+    memcpy(e->data, data, (size_t)e->captured);
+}
+
+int eth_get_recent_frames(const EthCard *card, EthFrameLogEntry *out, int max)
+{
+    int n = 0;
+
+    if ((card == NULL) || (card->frame_log == NULL) || (out == NULL) || (max <= 0))
+    {
+        return 0;
+    }
+    /* frame_log_pos is the oldest slot once the ring has wrapped */
+    for (int i = 0; (i < ETH_FRAME_LOG_SIZE) && (n < max); i++)
+    {
+        const EthFrameLogEntry *e = &card->frame_log[(card->frame_log_pos + i) % ETH_FRAME_LOG_SIZE];
+        if (e->seq != 0u)
+        {
+            out[n++] = *e;
+        }
+    }
+    return n;
+}
+
+void eth_clear_recent_frames(EthCard *card)
+{
+    if ((card == NULL) || (card->frame_log == NULL))
+    {
+        return;
+    }
+    memset(card->frame_log, 0, sizeof(EthFrameLogEntry) * ETH_FRAME_LOG_SIZE);
+    card->frame_log_pos = 0;
+    card->frame_seq = 0u;
+}
+
 static void eth_on_packet_transmit(void *ctx, const uint8_t *data, int length)
 {
     EthCard *c = (EthCard *)ctx;
     c->tx_packets++;
     c->tx_bytes += length;
+    eth_log_frame(c, true, data, length);
     /* guest -> wire (RetroCore AttachNetwork: lance.OnPacketTransmit -> backend.SendPacket) */
     if (c->net != NULL)
     {
@@ -476,6 +533,7 @@ static void eth_deliver_received(EthCard *c, uint8_t *data, int length)
         length = ETH_MIN_FRAME_BYTES;
         c->runt_frames_padded++;
     }
+    eth_log_frame(c, false, data, length);
     lance_enqueue_received_packet(&c->mem.lance, data, length);
 }
 
@@ -579,6 +637,7 @@ static void eth_destroy(Device *self)
     {
         (void)mms_memory_bank_unregister_over_local(c->physical_page_start / 2u);
     }
+    free(c->frame_log);
     free(c);
     self->deviceData = NULL;
 }
@@ -773,6 +832,13 @@ Device *eth_create_device_strap(uint8_t thumbwheel, uint16_t memory_bank_strap)
 
     c->dev = dev;
     c->repair_checksums = true;
+    c->frame_log = calloc(ETH_FRAME_LOG_SIZE, sizeof(EthFrameLogEntry));
+    if (c->frame_log == NULL)
+    {
+        free(c);
+        free(dev);
+        return NULL;
+    }
     c->thumbwheel = thumbwheel;
     c->memory_bank = (memory_bank_strap != 0u) ? memory_bank_strap
                                                : (uint16_t)(ETH_BASE_BANK + (ETH_BANK_STEP_PER_CARD * thumbwheel));
@@ -798,6 +864,7 @@ Device *eth_create_device_strap(uint8_t thumbwheel, uint16_t memory_bank_strap)
     bus.iack = eth_cpu_on_interrupt_ack;
     if (eth_m68k_init(&c->cpu, &bus) != 0)
     {
+        free(c->frame_log);
         free(c);
         free(dev);
         return NULL;
@@ -815,6 +882,7 @@ Device *eth_create_device_strap(uint8_t thumbwheel, uint16_t memory_bank_strap)
             "memory - choose another bank\n",
             thumbwheel, c->physical_page_start / 2u, (c->physical_page_start + ETHMEM_DRAM_SIZE) / 2u - 1u,
             c->memory_bank);
+        free(c->frame_log);
         free(c);
         free(dev);
         return NULL;

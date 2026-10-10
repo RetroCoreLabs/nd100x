@@ -583,6 +583,91 @@ bool devmgr_add_hdlc_device_with_config(int, bool, const char *, int);
  * differential trace file or NULL. False if the card is not built in. */
 bool devmgr_add_ethernet_device(int thumbwheel, int memory_bank, FILE *trace, const char *net_spec);
 
+/* Read-only snapshot of one Ethernet II card, for the F12 status page. Every field is
+ * copied from the card's own state; nothing is computed for display only. */
+typedef struct
+{
+    int thumbwheel;
+    uint32_t iox_start;
+    uint32_t iox_end;
+    uint16_t ident;
+    int level;
+    unsigned memory_bank;
+    uint32_t window_byte_address;
+    uint64_t nd_window_reads;
+    uint64_t nd_window_writes;
+    /* ND-100 side */
+    bool interrupt_enabled;
+    bool interrupt_pending; /* level-12 request bit set */
+    bool halt;
+    bool reset;
+    /* 68000 */
+    bool m68k_running; /* !halt && !reset */
+    bool m68k_halted;  /* Musashi halted (double fault / runaway guard) */
+    bool m68k_stopped; /* executing STOP, waiting for an interrupt */
+    uint32_t m68k_pc;
+    uint32_t m68k_sr;
+    /* LANCE */
+    bool lance_initialized;
+    uint16_t lance_csr0;
+    uint8_t mac[6];
+    int lance_rx_queued;
+    /* frames, as counted by the card */
+    int64_t tx_packets;
+    int64_t tx_bytes;
+    int64_t rx_packets;
+    int64_t rx_bytes;
+    int64_t runt_frames_padded;
+    int64_t own_echoes_dropped;
+    int64_t checksums_repaired;
+    /* host network backend */
+    bool net_attached;
+    bool net_active;
+    char net_description[300];
+    uint64_t net_frames_sent;
+    uint64_t net_frames_received;
+    uint64_t net_frames_dropped_ring;
+    uint64_t net_send_failures;
+    uint64_t net_receive_errors;
+    uint64_t net_links_up;
+} EthernetStatus;
+
+/**
+ * @brief Snapshot of the n'th Ethernet II card (in device order).
+ * @param n   0 for the first card
+ * @param out receives the snapshot
+ * @return true when that card exists; false otherwise, and always in a build without Ethernet
+ */
+bool devmgr_get_ethernet_status(int n, EthernetStatus *out);
+
+/* One frame from a card's recent-frame log (F12 packet view). */
+#define ETHERNET_FRAME_LOG_SIZE 64
+#define ETHERNET_FRAME_MAX_BYTES 1518
+typedef struct
+{
+    uint64_t seq;    /* 1 = first frame since power-on or clear */
+    int64_t time_ms; /* host wall clock, ms since 1970 */
+    bool is_tx;      /* true: card -> network */
+    int length;
+    int captured;    /* bytes in data */
+    uint8_t data[ETHERNET_FRAME_MAX_BYTES];
+} EthernetFrame;
+
+/**
+ * @brief Copy the n'th card's recent frames, oldest first.
+ * @param n   0 for the first card
+ * @param out receives up to max frames
+ * @param max size of out
+ * @return number of frames copied; 0 when the card does not exist
+ */
+int devmgr_get_ethernet_frames(int n, EthernetFrame *out, int max);
+
+/**
+ * @brief Empty the n'th card's recent-frame log.
+ * @param n 0 for the first card
+ */
+void devmgr_clear_ethernet_frames(int n);
+
 /**
  * @brief Reset every registered device.
  */

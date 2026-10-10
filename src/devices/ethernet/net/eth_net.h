@@ -31,6 +31,11 @@
  *                                   sudo ip addr add 192.168.210.1/24 dev nd0
  *                                   sudo ip link set nd0 up
  *                                 The host then reaches the guest directly (telnet).
+ *   gateway | gateway:<segment>   browser build only: frames go over the page's
+ *                                 WebSocket to tools/nd100-gateway as message types
+ *                                 0x30 (RX) / 0x31 (TX) / 0x32 (link) on that segment
+ *                                 (default 0; docs/GATEWAY-PROTOCOL.md). A native
+ *                                 nd100x joins the same segment with tcp:HOST:3094.
  *
  * Threads. Deviation from RetroCore, deliberate: RetroCore hands a received
  * frame to the card on the backend's thread. Here the backend's thread only
@@ -63,7 +68,8 @@ typedef enum
     ETH_NET_UDP,
     ETH_NET_TCP_CONNECT,
     ETH_NET_TCP_LISTEN,
-    ETH_NET_TAP
+    ETH_NET_TAP,
+    ETH_NET_GATEWAY
 } EthNetKind;
 
 /* A parsed spec. */
@@ -174,5 +180,34 @@ int eth_net_local_port(const EthNet *n);
  * @param out Receives the counters.
  */
 void eth_net_get_stats(const EthNet *n, EthNetStats *out);
+
+/* ---- browser gateway backend (called by the WASM exports in nd100wasm.c) ---- */
+
+#define ETH_NET_GATEWAY_TX_RING 32 /* frames waiting for the page to send */
+
+/**
+ * @brief Take the oldest frame the card sent through the started gateway backend.
+ * @param data    receives a pointer to the frame, valid until the next call
+ * @param length  receives the frame length
+ * @param segment receives the gateway segment
+ * @return 1 when a frame was taken, 0 when none is waiting or no gateway backend runs
+ */
+int eth_net_gateway_poll_tx(const uint8_t **data, int *length, int *segment);
+
+/**
+ * @brief A frame arrived from the gateway (type 0x30); queue it for the card.
+ * @param segment the segment it arrived on; frames for other segments are ignored
+ * @param data    frame bytes
+ * @param length  frame length
+ * @return 0 when queued, -1 when not for this card or no gateway backend runs
+ */
+int eth_net_gateway_inject_rx(int segment, const uint8_t *data, int length);
+
+/**
+ * @brief Gateway link status (type 0x32): anything else on the segment or not.
+ * @param segment the segment
+ * @param present 1 = another member is on the segment
+ */
+void eth_net_gateway_set_link(int segment, int present);
 
 #endif /* ETH_NET_H */

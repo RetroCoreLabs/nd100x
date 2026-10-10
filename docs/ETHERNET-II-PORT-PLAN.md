@@ -359,10 +359,36 @@ Todos:
       the WebSocket to the gateway (Python gateway or RetroTerm, whichever
       carries the disk I/O today - read both first), and the gateway makes
       the machine reachable on the network (ping + telnet from another host).
+- [ ] 6.7c (Ronny, 10-OCT-2026) Browser test through the predefined machines.
+      Add two machines to template-glass/js/machine-profiles.js (standalone INIs,
+      see memory rule "built-in machine INIs are standalone") plus their disc images
+      to the browser disc catalog:
+        * TCP/IP: WD0-SINTRAN-M.IMG on the Winchester, [controller.eth.0]
+          net = gateway:0; acceptance: SINTRAN prints "Internet address
+          192.168.210.40 started", and ping + telnet reach it from the host
+          through tools/nd100-gateway (segment 0, RETH port 3094) and
+          tools/reth-tap on a TAP interface.
+        * COSMOS: BIGDISK0-K-100.IMG on SMD, [controller.eth.0] net = gateway:0;
+          acceptance: after login, "conn-to d102" sends IEEE 802.3 frames on the
+          segment (packet view / gateway log). This image also has HDLC on
+          IOX 1362 (Ronny): machine D101 connects to it over HDLC through the
+          gateway (WebSocket types 0x10-0x12) - test that too.
+      Done 10-OCT-2026 for this todo's code side: backend gateway[:SEGMENT]
+      (eth_net.c Emscripten branch), exports Nd100_Eth_PollTxFrame /
+      GetLastTxSegment / GetLastTxLength / GetLastTxBuffer / InjectRxFrame /
+      SetLink (nd100wasm.c), emu-worker.js forwards 0x30/0x32 and drains TX;
+      the WASM build compiles and exports them. NOT yet run in a browser.
 - [ ] 6.8 Gateway side: bridge `ws` frames to UDP hub / pcap / TAP on the
       gateway host; test a frame round trip browser -> gateway -> UDP hub ->
       native nd100x.
-- [ ] 6.9 F12 menu "Ethernet Status" page (native frontend), modelled on
+- [x] 6.9 DONE 10-OCT-2026: F12 [7] Ethernet Status (screenmenu.c
+      draw_eth_status, data from devmgr_get_ethernet_status). Shown live on
+      SINTRAN M: 68000 running, LANCE initialized, CSR0 0073, MAC
+      08:00:26:d2:00:00. Test: test_eth_window Port/Status_SnapshotMatchesTheCard.
+      NOT done from the list below: IACK counts per level, bus-error count,
+      STARTED flag, ring sizes/indices, MFP bits, last N frames - the card
+      does not keep these yet.
+      Original todo: F12 menu "Ethernet Status" page (native frontend), modelled on
       the HDLC page: menu entry in `draw_f12()` and a `MENU_ETH_STATUS` mode
       in `src/frontend/nd100x/screenmenu.c` (HDLC page:
       `draw_hdlc_status()`, screenmenu.c:353-539, refreshed like
