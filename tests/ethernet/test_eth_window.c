@@ -16,6 +16,7 @@
 
 #include "eth_test.h"
 
+#include <stdlib.h>
 #include <string.h>
 
 #include "cpu_types.h"
@@ -57,7 +58,8 @@ ETH_TEST(Port, Window_Nd100WriteLandsInCardDram)
     CHECK_EQ(ethmem_read_memory(&c->mem, 0u), 0x12);
     CHECK_EQ(ethmem_read_memory(&c->mem, 1u), 0x34);
     CHECK_EQ(c->nd_window_writes, 2);
-    dev->Destroy(dev);
+    dev_destroy(dev); /* as devmgr_destroy: the card's data, then the Device */
+    free(dev);
 }
 
 ETH_TEST(Port, Window_68000WriteIsSeenByNd100)
@@ -74,7 +76,8 @@ ETH_TEST(Port, Window_68000WriteIsSeenByNd100)
     ethmem_write_memory(&c->mem, 0x405u, 0x73u);
     CHECK_EQ(mms_read_physical_memory((int)(WINDOW_WORD + 0x202u), true), 0x5473);
     CHECK_EQ(c->nd_window_reads, 1);
-    dev->Destroy(dev);
+    dev_destroy(dev); /* as devmgr_destroy: the card's data, then the Device */
+    free(dev);
 }
 
 ETH_TEST(Port, Window_ByteWritesHitTheRightHalf)
@@ -95,7 +98,8 @@ ETH_TEST(Port, Window_ByteWritesHitTheRightHalf)
     CHECK_EQ(c->mem.dram[16], 0xAA);
     CHECK_EQ(c->mem.dram[17], 0x55);
     CHECK_EQ(mms_read_physical_memory((int)(WINDOW_WORD + 8u), true), 0xAA55);
-    dev->Destroy(dev);
+    dev_destroy(dev); /* as devmgr_destroy: the card's data, then the Device */
+    free(dev);
 }
 
 ETH_TEST(Port, Window_LocalRamBelowTheWindowIsUntouched)
@@ -113,7 +117,8 @@ ETH_TEST(Port, Window_LocalRamBelowTheWindowIsUntouched)
     CHECK_EQ(mms_read_physical_memory((int)(WINDOW_WORD - 1u), true), 0x1111);
     CHECK_EQ(c->mem.dram[0], 0x22);
     CHECK_EQ(c->nd_window_writes, 1); /* only the card word went through the window */
-    dev->Destroy(dev);
+    dev_destroy(dev); /* as devmgr_destroy: the card's data, then the Device */
+    free(dev);
 }
 
 ETH_TEST(Port, Window_CardTakesTheWindowOverLocalRam)
@@ -144,7 +149,8 @@ ETH_TEST(Port, Window_CardTakesTheWindowOverLocalRam)
     CHECK_EQ(c->nd_window_writes, 1);
 
     /* removing the card gives the window back to local RAM */
-    dev->Destroy(dev);
+    dev_destroy(dev); /* as devmgr_destroy: the card's data, then the Device */
+    free(dev);
     CHECK(mms_get_physical_memory_type(WINDOW_WORD) == ND_MEM_LOCAL);
 }
 
@@ -169,7 +175,8 @@ ETH_TEST(Port, Window_StrapMovesTheWindow)
     CHECK_EQ(c->mem.dram[0], 0x01);
     CHECK_EQ(c->mem.dram[1], 0x02);
     CHECK(eth_create_device_strap(1, 6u) == NULL); /* not a multiple of 4 */
-    dev->Destroy(dev);
+    dev_destroy(dev); /* as devmgr_destroy: the card's data, then the Device */
+    free(dev);
 }
 
 /* F12 page accessor: every field the page shows is the card's own state. */

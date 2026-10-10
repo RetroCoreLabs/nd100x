@@ -4838,7 +4838,7 @@ static void m68k_op_ble_32(void)
 static void m68k_op_bchg_32_r_d(void)
 {
 	uint* r_dst = &DY;
-	uint mask = 1 << (DX & 0x1f);
+	uint mask = 1u << (DX & 0x1f);
 
 	FLAG_Z = *r_dst & mask;
 	*r_dst ^= mask;
@@ -4947,7 +4947,7 @@ static void m68k_op_bchg_8_r_al(void)
 static void m68k_op_bchg_32_s_d(void)
 {
 	uint* r_dst = &DY;
-	uint mask = 1 << (OPER_I_8() & 0x1f);
+	uint mask = 1u << (OPER_I_8() & 0x1f);
 
 	FLAG_Z = *r_dst & mask;
 	*r_dst ^= mask;
@@ -5056,7 +5056,7 @@ static void m68k_op_bchg_8_s_al(void)
 static void m68k_op_bclr_32_r_d(void)
 {
 	uint* r_dst = &DY;
-	uint mask = 1 << (DX & 0x1f);
+	uint mask = 1u << (DX & 0x1f);
 
 	FLAG_Z = *r_dst & mask;
 	*r_dst &= ~mask;
@@ -5165,7 +5165,7 @@ static void m68k_op_bclr_8_r_al(void)
 static void m68k_op_bclr_32_s_d(void)
 {
 	uint* r_dst = &DY;
-	uint mask = 1 << (OPER_I_8() & 0x1f);
+	uint mask = 1u << (OPER_I_8() & 0x1f);
 
 	FLAG_Z = *r_dst & mask;
 	*r_dst &= ~mask;
@@ -7789,7 +7789,7 @@ static void m68k_op_bra_32(void)
 static void m68k_op_bset_32_r_d(void)
 {
 	uint* r_dst = &DY;
-	uint mask = 1 << (DX & 0x1f);
+	uint mask = 1u << (DX & 0x1f);
 
 	FLAG_Z = *r_dst & mask;
 	*r_dst |= mask;
@@ -7898,7 +7898,7 @@ static void m68k_op_bset_8_r_al(void)
 static void m68k_op_bset_32_s_d(void)
 {
 	uint* r_dst = &DY;
-	uint mask = 1 << (OPER_I_8() & 0x1f);
+	uint mask = 1u << (OPER_I_8() & 0x1f);
 
 	FLAG_Z = *r_dst & mask;
 	*r_dst |= mask;
@@ -8044,7 +8044,7 @@ static void m68k_op_bsr_32(void)
 
 static void m68k_op_btst_32_r_d(void)
 {
-	FLAG_Z = DY & (1 << (DX & 0x1f));
+	FLAG_Z = DY & (1u << (DX & 0x1f));
 }
 
 
@@ -8122,7 +8122,7 @@ static void m68k_op_btst_8_r_i(void)
 
 static void m68k_op_btst_32_s_d(void)
 {
-	FLAG_Z = DY & (1 << (OPER_I_8() & 0x1f));
+	FLAG_Z = DY & (1u << (OPER_I_8() & 0x1f));
 }
 
 
@@ -28754,8 +28754,8 @@ static void m68k_op_roxr_32_s(void)
 	uint* r_dst = &DY;
 	uint shift = (((REG_IR >> 9) - 1) & 7) + 1;
 	uint src = *r_dst;
-	uint res = MASK_OUT_ABOVE_32((ROR_33(src, shift) & ~(1 << (32 - shift))) | (XFLAG_AS_1() << (32 - shift)));
-	uint new_x_flag = src & (1 << (shift - 1));
+	uint res = MASK_OUT_ABOVE_32((ROR_33(src, shift) & ~(1u << (32 - shift))) | (XFLAG_AS_1() << (32 - shift)));
+	uint new_x_flag = src & (1u << (shift - 1));
 
 	if(shift != 0)
 		USE_CYCLES(shift<<CYC_SHIFT);
