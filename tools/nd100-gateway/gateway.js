@@ -18,7 +18,7 @@
 // Single WebSocket server, all message types multiplexed by frame type byte.
 // Emulator worker and disk sub-worker both connect to the same endpoint.
 //
-// Usage: node gateway.js [--config path] [--static dir] [--verbose]
+// Usage: node gateway.js [--config path] [--static dir] [--tap=NAME | --no-tap] [--verbose]
 
 'use strict';
 
@@ -27,6 +27,7 @@ const net = require('net');
 const fs = require('fs');
 const path = require('path');
 const { WebSocketServer } = require('ws');
+const { spawn } = require('child_process');
 
 // =========================================================
 // Configuration
@@ -34,6 +35,7 @@ const { WebSocketServer } = require('ws');
 const args = process.argv.slice(2);
 let configPath = path.join(__dirname, 'gateway.conf.json');
 let verbose = false;
+let cliTap = null;   // null = per segment config; false = --no-tap; 'NAME' = --tap=NAME
 let staticDirOverride = null;
 
 for (let i = 0; i < args.length; i++) {
@@ -41,14 +43,20 @@ for (let i = 0; i < args.length; i++) {
     configPath = args[++i];
   } else if (args[i] === '--static' && args[i + 1]) {
     staticDirOverride = args[++i];
+  } else if (args[i].startsWith('--tap=')) {
+    cliTap = args[i].slice(6);
+  } else if (args[i] === '--no-tap') {
+    cliTap = false;
   } else if (args[i] === '--verbose' || args[i] === '-v') {
     verbose = true;
   } else if (args[i] === '--help' || args[i] === '-h') {
-    console.log('Usage: node gateway.js [--config path] [--static dir] [--verbose]');
+    console.log('Usage: node gateway.js [--config path] [--static dir] [--tap=NAME | --no-tap] [--verbose]');
     console.log('');
     console.log('Options:');
     console.log('  --config path  Path to config file (default: gateway.conf.json)');
     console.log('  --static dir   Serve static files from directory (with COOP/COEP headers)');
+    console.log('  --tap=NAME     put every Ethernet segment on host TAP NAME (default nd0 if it exists)');
+    console.log('  --no-tap       keep the Ethernet segments off the host network');
     console.log('  --verbose, -v  Enable verbose logging');
     console.log('  --help, -h     Show this help');
     process.exit(0);
@@ -130,6 +138,7 @@ const hdlcServers = [];          // Active HDLC TCP servers
 // because it is reached through emulatorWs rather than a TCP socket.
 const ethBindings = new Map();   // segment -> Set({ socket, clientAddr, rx })
 const ethServers = [];           // Active ethernet TCP servers
+const tapProcs = [];             // reth-tap children, one per segment on the host network
 
 // RETH wire format, as spoken by RetroCore's TcpEthernetBackend/TcpEthernetRelay
 // and by nd500x's ND500X_ETH_UPLINK=tcp:host:port. Reading it here means a
@@ -1003,7 +1012,47 @@ if (config.ethernet) {
       continue;
     }
     createEthServer(ethConf);
+    const tap = tapFor(ethConf);
+    if (tap) startRethTap(ethConf, tap);
   }
+}
+
+// Default: every segment is put on the host network through TAP nd0 when
+// that device exists, so all frames the browser's card sends - TCP/IP (DIX)
+// and COSMOS (IEEE 802.3) alike - reach the network with no extra step.
+// "tap": "NAME" picks another device, "tap": false turns it off; --tap=NAME
+// and --no-tap on the command line override every segment.
+function tapFor(ethConf) {
+  if (cliTap === false) return null;
+  const name = cliTap || (ethConf.tap === false ? null : (ethConf.tap || 'nd0'));
+  if (!name) return null;
+  if (!fs.existsSync('/sys/class/net/' + name)) {
+    log('ETH ' + ethConf.name + ': no TAP device ' + name + ' - segment not on the host network ' +
+        '(create it: docs/ETHERNET.md section 4)');
+    return null;
+  }
+  return name;
+}
+
+// "tap": "nd0" on a segment puts the host on it. Node cannot open
+// /dev/net/tun without a native add-on, so the gateway runs tools/reth-tap
+// (a RETH member on this segment's port) and stops it on exit. The TAP
+// device must already exist (docs/ETHERNET.md section 4).
+function startRethTap(ethConf, tap) {
+  const dir = path.join(__dirname, '..', 'reth-tap');
+  const bin = path.join(dir, 'reth-tap');
+  if (!fs.existsSync(bin)) {
+    try { require('child_process').execFileSync('make', ['-C', dir], { stdio: 'ignore' }); } catch (e) {}
+  }
+  if (!fs.existsSync(bin)) {
+    log('ETH ' + ethConf.name + ': TAP ' + tap + ' not started - build failed: make -C tools/reth-tap');
+    return;
+  }
+  const p = spawn(bin, ['--dev', tap, '--host', '127.0.0.1', '--port', String(ethConf.port)],
+                  { stdio: ['ignore', 'inherit', 'inherit'] });
+  p.on('exit', (code) => log('ETH ' + ethConf.name + ': reth-tap on ' + tap + ' exited (' + code + ')'));
+  tapProcs.push(p);
+  log('ETH ' + ethConf.name + ': segment on the host network through TAP ' + tap);
 }
 
 // =========================================================
@@ -1115,6 +1164,9 @@ function shutdown() {
   ethBindings.clear();
   for (const es of ethServers) {
     es.close();
+  }
+  for (const p of tapProcs) {
+    try { p.kill('SIGTERM'); } catch (e) {}
   }
 
   tcpServer.close();

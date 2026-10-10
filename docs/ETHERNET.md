@@ -16,7 +16,8 @@ This document covers:
 7. [SINTRAN without TCP/IP: COSMOS over Ethernet](#7-sintran-without-tcpip-cosmos-over-ethernet)
 8. [Limits of this version](#8-limits-of-this-version)
 9. [Windows: Npcap and the loopback adapter (not yet in nd100x)](#9-windows-npcap-and-the-loopback-adapter-not-yet-in-nd100x)
-10. [Browser (WebAssembly): network through the gateway (planned)](#10-browser-webassembly-network-through-the-gateway-planned)
+10. [Browser (WebAssembly): network through the gateway](#10-browser-webassembly-network-through-the-gateway)
+11. [Several native nd100x on one subnet without the gateway](#11-several-native-nd100x-on-one-subnet-without-the-gateway)
 
 Every fact below that was measured says so and gives the date. Port details
 and the evidence for each part of the card are in
@@ -142,11 +143,53 @@ when running under WSL, already uses. Check with `ip -4 addr` (Linux) and
 written on; 192.168.199.0/24 there belongs to the Windows "ND-Loopback"
 adapter RetroCore uses.
 
-### Under WSL2
+### Under WSL2: reaching the ND from Windows
 
-With WSL's default NAT networking the TAP interface lives inside WSL: Linux
-programs in WSL reach the ND; Windows programs do not, unless a route to the
-WSL address is added on Windows. Not tested.
+With WSL's default NAT networking, `nd0` lives inside WSL. Linux programs
+in WSL reach the ND directly. Windows has no route to 192.168.210.0/24
+until two things are set. Measured 10-OCT-2026: after both steps, Windows
+telnets to the ND in the browser (gateway with TAP `nd0`).
+
+1. WSL forwards packets between Windows and `nd0`:
+   ```sh
+   sudo sysctl -w net.ipv4.ip_forward=1
+   ```
+2. Windows sends 192.168.210.x to WSL. Find WSL's address with
+   `ip -4 -br addr show eth0` in WSL (for example `172.24.50.23`), then in
+   an administrator `cmd`:
+   ```
+   route add 192.168.210.0 mask 255.255.255.0 172.24.50.23
+   ```
+
+Replies need nothing extra: the ND's IP gateway is 192.168.210.1 (the
+AIP-CONFIG line in section 5), which is WSL, and WSL's default route goes
+back to Windows.
+
+### Keeping it working after a restart
+
+None of the steps above survive a WSL restart or a Windows reboot (`wsl
+--shutdown`, Windows update, ...):
+
+| Lost on | What | Restore |
+|---------|------|---------|
+| WSL restart | `nd0` and its address | the three `ip` commands in "Create the interface once" |
+| WSL restart | forwarding | `sudo sysctl -w net.ipv4.ip_forward=1`, or once for good: `echo net.ipv4.ip_forward=1 \| sudo tee /etc/sysctl.d/99-nd100x.conf` |
+| WSL restart | WSL's address (NAT gives a new one) | the Windows route, with the new address |
+| Windows reboot | the Windows route | the Windows route |
+
+The Windows route cannot be made permanent with `route -p`, because the
+WSL address it points at changes. Instead re-add it with the current
+address, from an administrator PowerShell, after WSL has started (these
+three lines have not been run yet):
+
+```powershell
+$wsl = (wsl -e sh -c "ip -4 -br addr show eth0").Split(' ',[StringSplitOptions]::RemoveEmptyEntries)[2].Split('/')[0]
+route delete 192.168.210.0 2>$null
+route add 192.168.210.0 mask 255.255.255.0 $wsl
+```
+
+Run order after a restart: WSL commands first (`nd0`, forwarding), then the
+PowerShell lines on Windows, then the gateway or nd100x.
 
 ---
 
@@ -371,15 +414,23 @@ through `tools/reth-tap`. A native nd100x refuses `gateway`; it joins with
 ### Reaching the browser machine from the Linux host
 
 1. Create `nd0` once (section 4), host address 192.168.210.1/24.
-2. Start the gateway: `node tools/nd100-gateway/gateway.js` (segment 0 on
-   port 3094 is in the shipped `gateway.conf.json`).
-3. Put the host on the segment:
-   `tools/reth-tap/reth-tap --dev nd0 --host 127.0.0.1 --port 3094`
-   (`make -C tools/reth-tap` builds it).
-4. In the page: Worker mode, connect to the gateway, select the TCP/IP
+2. Start the gateway: `node tools/nd100-gateway/gateway.js`. By default
+   it puts every Ethernet segment on TAP `nd0` when that device exists: it
+   runs `tools/reth-tap/reth-tap` itself (building it with `make` if
+   needed) and stops it on exit. All frames pass, TCP/IP (DIX) and COSMOS
+   (IEEE 802.3). `--tap=NAME` picks another TAP device, `--no-tap` keeps the
+   segments off the host network; per segment, `"tap": "NAME"` or
+   `"tap": false` in `gateway.conf.json`. `nd0` can be held by one program
+   only: stop any native nd100x using `tap:nd0` first.
+3. In the page: Worker mode, connect to the gateway, select the TCP/IP
    machine, power on.
-5. When the console says `... Internet address 192.168.210.40 started`,
-   `ping 192.168.210.40` and `telnet 192.168.210.40` work as in section 6.
+4. When the console says `... Internet address 192.168.210.40 started`,
+   `ping 192.168.210.40` and `telnet 192.168.210.40` work from WSL as in
+   section 6, and from Windows with the route in section 4.
+
+Port 3094 is not used by the browser: the page's frames reach the gateway
+over the WebSocket. 3094 is where programs OUTSIDE the gateway join the
+same segment - reth-tap, a native nd100x, RetroCore.
 
 Measured 10-OCT-2026 with `node test-eth-nd100-browser.js --tap=nd0`
 (headless, Worker mode, test gateway on segment port 19094): host ping
@@ -398,3 +449,61 @@ how long SINTRAN keeps the entry is unknown). Two hosts on the segment
 that both use 192.168.210.1 - say a test tool and the real host through
 reth-tap - lock out whichever came second. Give every member of the
 segment its own address.
+
+### Native nd100x machines on the browser's segment
+
+A native nd100x joins the gateway's segment instead of opening a TAP
+itself:
+
+```
+nd100x --config nd100-eth.ini --eth0=tcp:127.0.0.1:3094
+```
+
+or `net = tcp:127.0.0.1:3094` under `[controller.eth.0]`. Any number of
+machines can join. Through the gateway's TAP they are on `nd0`'s subnet, so
+WSL and (with the section 4 route) Windows reach each of them like the
+browser machine. Not tested with a native machine yet.
+
+| Machine | Card setting |
+|---------|--------------|
+| Browser | `net = gateway:0` |
+| Native nd100x on the gateway's segment | `net = tcp:127.0.0.1:3094` |
+| Native nd100x straight on a TAP | `net = tap:ndN` (section 11) |
+
+Every machine on one subnet needs its own IP address and its own MAC
+address:
+
+- IP address: a disc image copy per machine with its own address in
+  AIP-CONFIG (section 5), e.g. .41, .42, ...
+- MAC address: the card's MAC is set at start-up from the ND machine's CPU
+  number, which comes from the SINTRAN on the disc image - nd100x has no
+  setting for it. Seen: the COSMOS image prints `CPU NUMBER: 100` and its
+  MAC is 08:00:26:64:00:00 (0x64 = 100); the TCP/IP image's MAC is
+  08:00:26:d2:00:00 (0xD2 = 210, its CPU number not checked on the
+  console). Copies of one image therefore share a MAC; each machine needs
+  an image whose SINTRAN has its own CPU number.
+
+---
+
+## 11. Several native nd100x on one subnet without the gateway
+
+One TAP per machine, all attached to a Linux bridge that holds the host
+address. After each WSL start (not tested yet):
+
+```sh
+sudo ip link add br-nd type bridge
+sudo ip addr add 192.168.210.1/24 dev br-nd
+sudo ip link set br-nd up
+for i in 1 2 3 4 5 6 7 8 9 10; do
+  sudo ip tuntap add dev nd$i mode tap user $USER
+  sudo ip link set nd$i master br-nd up
+done
+```
+
+- Machine 1 uses `net = tap:nd1`, machine 2 `net = tap:nd2`, and so on.
+- Only the bridge has 192.168.210.1: remove it from `nd0` first
+  (`sudo ip addr del 192.168.210.1/24 dev nd0`) and add `nd0` to the bridge
+  too (`sudo ip link set nd0 master br-nd`) if the gateway should share
+  the subnet.
+- The Windows route of section 4 is unchanged.
+- IP and MAC rules as above: one IP and one CPU number per machine.
