@@ -15,7 +15,7 @@ This document covers:
 6. [Checking that it works](#6-checking-that-it-works)
 7. [SINTRAN without TCP/IP: COSMOS over Ethernet](#7-sintran-without-tcpip-cosmos-over-ethernet)
 8. [Limits of this version](#8-limits-of-this-version)
-9. [Windows: Npcap and the loopback adapter (not yet in nd100x)](#9-windows-npcap-and-the-loopback-adapter-not-yet-in-nd100x)
+9. [Windows: the card on a host adapter with Npcap (`pcap:`)](#9-windows-the-card-on-a-host-adapter-with-npcap-pcap)
 10. [Browser (WebAssembly): network through the gateway](#10-browser-webassembly-network-through-the-gateway)
 11. [Several native nd100x on one subnet without the gateway](#11-several-native-nd100x-on-one-subnet-without-the-gateway)
 
@@ -87,6 +87,7 @@ eth     wheel 0  IOX 0140360-0140363  enabled
 |------|--------------|---------|
 | `none` | Card runs, sent frames are dropped, nothing is received | nothing |
 | `tap:IFNAME` | Linux TAP interface (section 4) | the Linux host's own IP stack: ping, telnet, ftp from the host |
+| `pcap:ADAPTER` | Windows host adapter through Npcap (section 9); `pcap:list` lists adapters | the Windows PC (KM-TEST loopback adapter) or the LAN (real adapter) |
 | `udp` | UDP multicast segment, group 239.3.9.4, port 3094 | other nd100x and RetroCore cards on the same group |
 | `udp:PORT`, `udp:GROUP`, `udp:GROUP:PORT` | same, other group or port | same |
 | `listen`, `listen:PORT` | TCP link, waits for one peer (default port 3094; 0 = the OS picks) | one peer emulator |
@@ -110,8 +111,8 @@ RetroCore):
 - frames shorter than 60 bytes are padded to 60, as a real segment would
   deliver them (SINTRAN ignores shorter ARP replies - measured by RetroCore).
 
-Not available yet: `pcap:` (real host adapter through libpcap / Npcap),
-TAP on Windows, and the browser build's network.
+`pcap:` is Windows only; `tap:` is Linux only. The browser build uses
+`gateway:` (section 10).
 
 ---
 
@@ -349,43 +350,102 @@ the same segment with the `udp` or TCP backends.
   through the INI.
 - **TPE ETHERNET-TWO**: tests 12, 24, 25 and 26 fail (in RetroCore too);
   see section 4 of `docs/ETHERNET-II-PORT-PLAN.md`.
-- **No pcap, no Windows host network, no browser network** yet.
+- **`pcap:` only on Windows**; Linux uses `tap:`. No pcap backend on
+  Linux or macOS.
 
 ---
 
-## 9. Windows: Npcap and the loopback adapter (not yet in nd100x)
+## 9. Windows: the card on a host adapter with Npcap (`pcap:`)
 
-nd100x has no `pcap:` backend yet, so this section describes the setup
-RetroCore uses on Windows and that nd100x will follow. The facts are from
-RetroCore's `DOCS/ND_EthernetII_Network_Configuration_2026-09-27.md`, measured
-there on 27-SEP-2026; they have not been repeated with nd100x.
+On Windows the card reaches the network through **Npcap**:
 
-1. Install Npcap from <https://npcap.com/> (RetroCore verified 1.10.4).
-   Wireshark installs it too.
-2. Npcap never hands a frame the card sends to the Windows host's own IP
-   stack, so with the card on a real adapter the ND is reachable from every
-   OTHER machine on the LAN but not from the PC itself
-   (<https://github.com/nmap/npcap/issues/544>).
-3. To reach the ND from the PC itself, put the card on the **Microsoft
-   KM-TEST Loopback Adapter**, which ships with Windows:
-   - add it with `hdwwiz.exe`: Network adapters, Microsoft,
-     "Microsoft KM-TEST Loopback Adapter";
-   - give it a static address and no gateway, for example
-     192.168.199.1 / 255.255.255.0 (RetroCore names the adapter
-     "ND-Loopback");
-   - put the ND on the same /24 in AIP-CONFIG and AIP-HOSTS (section 5),
-     with the adapter's address as its gateway;
-   - bridge the card to the adapter (in RetroCore:
-     `--net=pcap:<adapter GUID>` or `--net=pcap:KM-TEST`).
-   Frames the card sends then come up into Windows' IP stack, and Windows'
-   frames are captured and reach the card. The ND is off the LAN unless
-   Internet Connection Sharing is added on top.
-4. The loopback adapter delivers short frames (42-byte ARP); the 60-byte
-   padding in section 3 is what makes SINTRAN accept them.
+```
+nd100x --config nd100-eth.ini --eth0=pcap:ND-Loopback
+```
 
-With that, RetroCore measured ping, telnet (port 23) and FTP (port 21) from
-the PC to SINTRAN. Use a different subnet for nd100x's Linux TAP setup than
-for this adapter if both are used on one machine (section 4).
+or in the INI, under `[controller.eth.0]`: `net = pcap:ND-Loopback`.
+
+Measured 10-OCT-2026 with a native Windows `nd100x.exe` (w64devkit build),
+SINTRAN M on `WD0-SINTRAN-M.IMG` with the ND at 192.168.199.40, `net =
+pcap:ND-Loopback`, Npcap installed: SINTRAN prints `TELNET and TCP/IP in
+Ethernet II with Internet address 192.168.199.40 started`; `ping
+192.168.199.40` from Windows answers in under 1 ms; port 23 returns
+`Telnet Server D02 on c3 (192.168.199.040) available.` and the `ENTER`
+prompt.
+
+### What it needs
+
+1. **Npcap**, from <https://npcap.com/> (Wireshark installs it too). nd100x
+   loads `C:\Windows\System32\Npcap\wpcap.dll` when the card starts; without
+   Npcap only the card fails to start, with the message "Npcap is not
+   installed", and the rest of nd100x runs.
+2. **An adapter to put the card on.** Npcap never hands a frame the card
+   sends to the Windows PC's own IP stack, so on a real adapter the ND is
+   reachable from every OTHER machine on the LAN but not from the PC itself
+   (<https://github.com/nmap/npcap/issues/544>). To reach the ND from the PC
+   itself, use the **Microsoft KM-TEST Loopback Adapter** (below).
+
+### The adapter name: what to write after `pcap:`
+
+`pcap:` takes any of these, matched without regard to case:
+
+| Form | Example |
+|------|---------|
+| The Windows connection name (column `Name` of `Get-NetAdapter`, the name in Network Connections) | `pcap:ND-Loopback` |
+| The adapter description (column `InterfaceDescription`) | `pcap:Microsoft KM-TEST Loopback Adapter` |
+| The adapter GUID | `pcap:{77EA1A90-3A90-43EA-9DE2-CCCE67E9AA49}` |
+| The full Npcap device name | `pcap:\Device\NPF_{77EA1A90-3A90-43EA-9DE2-CCCE67E9AA49}` |
+
+Two ways to see the names:
+
+- PowerShell: `Get-NetAdapter | Format-Table Name,InterfaceDescription,InterfaceGuid`
+- nd100x itself: `--eth0=pcap:list` (or `net = pcap:list`) prints every
+  adapter with its name, description and Npcap device name, and starts the
+  card without a network. A name that matches no adapter prints the same list.
+
+### Is the KM-TEST loopback adapter installed?
+
+```powershell
+Get-NetAdapter | Where-Object InterfaceDescription -like '*KM-TEST*'
+```
+
+No output means it is not installed.
+
+### Installing and configuring it (administrator)
+
+The adapter ships with Windows; it is added with the Add Hardware wizard.
+These steps are from RetroCore's setup
+(`DOCS/ND_EthernetII_Network_Configuration_2026-09-27.md`); they were not run
+again for nd100x, which used the adapter already installed on the test PC.
+
+1. Run `hdwwiz.exe`. Choose "Install the hardware that I manually select from
+   a list (Advanced)", then **Network adapters**, manufacturer **Microsoft**,
+   model **Microsoft KM-TEST Loopback Adapter**, and finish.
+2. Give it a name (optional; makes `pcap:` easy to write). Find its current
+   name with the `Get-NetAdapter` line above, then:
+   ```powershell
+   Rename-NetAdapter -Name "Ethernet 3" -NewName "ND-Loopback"
+   ```
+3. Give it a static address and no gateway, on a subnet nothing else uses:
+   ```powershell
+   New-NetIPAddress -InterfaceAlias "ND-Loopback" -IPAddress 192.168.199.1 -PrefixLength 24
+   ```
+4. Put the ND on the same /24 in AIP-CONFIG and AIP-HOSTS (section 5), with
+   the adapter's address (192.168.199.1) as its IP gateway.
+5. Start nd100x with `net = pcap:ND-Loopback`. Frames the card sends come up
+   into Windows' IP stack, and Windows' frames to the ND reach the card. The
+   ND is not on the LAN unless Internet Connection Sharing is added on top.
+
+The loopback adapter delivers short frames (42-byte ARP); nd100x pads every
+received frame to 60 bytes, which is what makes SINTRAN accept them. Use a
+different subnet for this adapter than for a Linux TAP setup on the same PC
+(section 4).
+
+### Linux and macOS
+
+`pcap:` is built for Windows only. On Linux use `tap:` (section 4); anywhere
+else join a gateway or another nd100x with the UDP or TCP backends
+(section 3).
 
 ---
 

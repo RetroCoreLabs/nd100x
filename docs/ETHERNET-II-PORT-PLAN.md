@@ -347,8 +347,12 @@ Todos:
 - [ ] 6.4 Interop test: nd100x card on `udp` and RetroCore card on `udp`,
       same group - frames from each arrive at the other, byte-identical
       (compare with a capture).
-- [ ] 6.5 pcap backend (Linux then Windows), test with a loopback-capable
-      setup recorded in `docs/ethernet-port/NET-SETUP.md`.
+- [x] 6.5 DONE 10-OCT-2026 for Windows: `pcap:ADAPTER` (src/devices/ethernet/net/
+      eth_pcap.c, Npcap's wpcap.dll loaded at run time; adapter by connection
+      name, description, GUID or \Device\NPF_ name; `pcap:list`). Measured
+      with native nd100x.exe (w64devkit) on the KM-TEST loopback adapter
+      "ND-Loopback": ping <1 ms, telnet port 23 banner. Setup in
+      docs/ETHERNET.md section 9. NOT done: pcap on Linux (tap: covers it).
 - [ ] 6.6 TAP backend (Linux).
 - [ ] 6.7 WASM: read the gateway (WebSocket binary frame protocol) and find
       whether NDIX already carries ethernet frames over it; record facts
