@@ -22,6 +22,7 @@
 #include "eth_pcap.h"
 
 #include <stdio.h>
+#include <stdbool.h>
 #include <string.h>
 
 #include "../../../ndlib/log.h"
@@ -76,6 +77,8 @@ static int load_wpcap(void)
     char sys[MAX_PATH];
     char path[MAX_PATH + 32];
     UINT n;
+    DWORD npcap_error = 0;
+    bool npcap_present = false;
 
     if (s_wpcap != NULL)
     {
@@ -85,11 +88,30 @@ static int load_wpcap(void)
     if ((n > 0u) && (n < (UINT)sizeof sys))
     {
         (void)snprintf(path, sizeof path, "%s\\Npcap\\wpcap.dll", sys);
-        s_wpcap = LoadLibraryA(path);
+        /* LOAD_WITH_ALTERED_SEARCH_PATH: wpcap.dll's own import, Packet.dll, is then taken
+         * from the Npcap folder. Without it Windows takes System32\Packet.dll, which on a PC
+         * that once had WinPcap is the old WinPcap one, and the load fails with "entry point
+         * PacketGetMonitorMode not found". SEM_FAILCRITICALERRORS keeps such a failure out of
+         * a message box; it is logged below instead. */
+        UINT old_mode = SetErrorMode(SEM_FAILCRITICALERRORS);
+        s_wpcap = LoadLibraryExA(path, NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
+        npcap_error = GetLastError();
+        (void)SetErrorMode(old_mode);
+        npcap_present = (GetFileAttributesA(path) != INVALID_FILE_ATTRIBUTES);
     }
     if (s_wpcap == NULL)
     {
+        UINT old_mode = SetErrorMode(SEM_FAILCRITICALERRORS);
         s_wpcap = LoadLibraryA("wpcap.dll");
+        (void)SetErrorMode(old_mode);
+    }
+    if ((s_wpcap == NULL) && npcap_present)
+    {
+        LOG(LOG_CAT_NET, LOG_ERROR,
+            "Ethernet pcap: Npcap is installed but %s could not be loaded (Windows error %lu). "
+            "Reinstalling Npcap from https://npcap.com may help\n",
+            path, (unsigned long)npcap_error);
+        return -1;
     }
     if (s_wpcap == NULL)
     {

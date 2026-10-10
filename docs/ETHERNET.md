@@ -19,6 +19,7 @@ This document covers:
 9. [Windows: the card on a host adapter with Npcap (`pcap:`)](#9-windows-the-card-on-a-host-adapter-with-npcap-pcap)
 10. [Browser (WebAssembly): network through the gateway](#10-browser-webassembly-network-through-the-gateway)
 11. [Several native nd100x on one subnet without the gateway](#11-several-native-nd100x-on-one-subnet-without-the-gateway)
+12. [FAQ](#12-faq)
 
 Every fact below that was measured says so and gives the date. Port details
 and the evidence for each part of the card are in
@@ -536,7 +537,8 @@ prompt.
 1. **Npcap**, from <https://npcap.com/> (Wireshark installs it too). nd100x
    loads `C:\Windows\System32\Npcap\wpcap.dll` when the card starts; without
    Npcap only the card fails to start, with the message "Npcap is not
-   installed", and the rest of nd100x runs.
+   installed", and the rest of nd100x runs. Old WinPcap must not be installed
+   next to Npcap; see [FAQ](#12-faq).
 2. **An adapter to put the card on.** Npcap never hands a frame the card
    sends to the Windows PC's own IP stack, so on a real adapter the ND is
    reachable from every OTHER machine on the LAN but not from the PC itself
@@ -765,3 +767,92 @@ done
   the subnet.
 - The Windows route of section 4 is unchanged.
 - IP and MAC rules as above: one IP and one CPU number per machine.
+
+## 12. FAQ
+
+### Windows: "Entry Point Not Found ... PacketGetMonitorMode ... wpcap.dll"
+
+**What is seen.** nd100x.exe starts and Windows shows a message box:
+
+```
+nd100x.exe - Entry Point Not Found
+The procedure entry point PacketGetMonitorMode could not be located in the
+dynamic link library C:\WINDOWS\system32\Npcap\wpcap.dll.
+```
+
+**Why.** The PC has two packet-capture packages installed at once:
+
+| Package | Files | Driver service |
+|---|---|---|
+| Npcap (current, e.g. 1.79 with files dated 2024) | `C:\Windows\System32\Npcap\wpcap.dll`, `C:\Windows\System32\Npcap\Packet.dll` | `npcap` |
+| WinPcap 4.1.3 (last release, files dated 2013, no longer maintained) | `C:\Windows\System32\wpcap.dll`, `C:\Windows\System32\Packet.dll` | `npf` |
+
+nd100x loads Npcap's `wpcap.dll`. That DLL needs a `Packet.dll`, and Windows
+looks for it in `C:\Windows\System32` before the Npcap folder, so it gets
+WinPcap's old `Packet.dll`. The old one has no `PacketGetMonitorMode`, and
+the load fails.
+
+```mermaid
+flowchart LR
+    ND["nd100x.exe"] --> W["Npcap wpcap.dll<br/>System32\Npcap"]
+    W -- "needs Packet.dll" --> OLD["WinPcap Packet.dll<br/>System32 (built 2013)"]
+    W -. "should use" .-> NEW["Npcap Packet.dll<br/>System32\Npcap"]
+    OLD --> ERR["Entry Point Not Found:<br/>PacketGetMonitorMode"]
+
+    classDef blue fill:#E3F2FD,stroke:#0D47A1,color:#0D47A1
+    classDef teal fill:#E0F7FA,stroke:#00838F,color:#004D54
+    classDef green fill:#E8F5E9,stroke:#2E7D32,color:#1B5E20
+    classDef orange fill:#FFF3E0,stroke:#E65100,color:#7A2E00
+    class ND blue
+    class W teal
+    class NEW green
+    class OLD,ERR orange
+```
+
+**Check which packages are installed** (PowerShell):
+
+```powershell
+Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*, HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* | ? DisplayName -match 'pcap' | select DisplayName, DisplayVersion
+Get-ChildItem C:\Windows\System32, C:\Windows\System32\Npcap -Filter *.dll | ? Name -match '^(wpcap|packet)\.dll$' | select FullName, @{n='Ver';e={$_.VersionInfo.ProductName + ' ' + $_.VersionInfo.FileVersion}}
+Get-Service npcap, npf -ErrorAction SilentlyContinue
+```
+
+Both `Npcap` and `WinPcap 4.1.3` in the list, or a `wpcap.dll` /
+`Packet.dll` directly in `C:\Windows\System32` whose version says WinPcap,
+means this is the problem.
+
+**Solution.**
+
+1. Uninstall WinPcap: Settings > Apps > Installed apps > WinPcap 4.1.3 >
+   Uninstall.
+2. Reboot, so the `npf` driver is unloaded.
+3. Run the check above again: only Npcap should be listed, and
+   `C:\Windows\System32\wpcap.dll` and `C:\Windows\System32\Packet.dll`
+   should be gone.
+4. Start nd100x again.
+
+Keep Npcap. Wireshark and other capture tools work with Npcap alone; WinPcap
+is not needed by anything current.
+
+If Npcap was installed with "WinPcap API-compatible mode", it puts its own
+`wpcap.dll` and `Packet.dll` in `C:\Windows\System32`. That is fine: then
+both files there are Npcap's and nd100x works.
+
+### Windows: "Npcap is not installed (no wpcap.dll)" ... "socket error 126" with Npcap installed
+
+This is nd100x 1.0.19 on a PC where Npcap is installed and WinPcap is not
+(or was just removed). 1.0.19 loads Npcap's `wpcap.dll` in a way that makes
+Windows look for `Packet.dll` in `C:\Windows\System32` and not in the Npcap
+folder; with no `Packet.dll` there the load fails with Windows error 126
+("module not found"), and 1.0.19 wrongly reports that Npcap is missing.
+With WinPcap still installed, the same search finds WinPcap's old
+`Packet.dll` instead, which gives the "PacketGetMonitorMode" message box above.
+
+**Solution.** Use nd100x 1.0.20 or later. It loads
+`C:\Windows\System32\Npcap\wpcap.dll` so that Windows takes `Packet.dll`
+from the same folder, which fixes both problems. If Npcap is present but still
+cannot be loaded, 1.0.20 says so with the Windows error number instead of
+claiming that Npcap is not installed.
+
+Uninstalling WinPcap is still recommended: two capture drivers on one PC
+confuse other programs too.
