@@ -51,6 +51,7 @@ typedef int (*PcapNextExFn)(pcap_t *, struct pcap_pkthdr **, const unsigned char
 typedef int (*PcapSendPacketFn)(pcap_t *, const unsigned char *, int);
 typedef void (*PcapCloseFn)(pcap_t *);
 typedef char *(*PcapGetErrFn)(pcap_t *);
+typedef int (*PcapSetMinToCopyFn)(pcap_t *, int);
 typedef ULONG(WINAPI *GetAdaptersAddressesFn)(ULONG, ULONG, PVOID, PIP_ADAPTER_ADDRESSES, PULONG);
 
 static HMODULE s_wpcap;
@@ -59,6 +60,7 @@ static PcapNextExFn s_next_ex;
 static PcapSendPacketFn s_send_packet;
 static PcapCloseFn s_close;
 static PcapGetErrFn s_geterr;
+static PcapSetMinToCopyFn s_setmintocopy; /* Npcap/WinPcap extension; may be absent */
 
 struct EthPcap
 {
@@ -101,6 +103,7 @@ static int load_wpcap(void)
     s_send_packet = (PcapSendPacketFn)(void *)GetProcAddress(s_wpcap, "pcap_sendpacket");
     s_close = (PcapCloseFn)(void *)GetProcAddress(s_wpcap, "pcap_close");
     s_geterr = (PcapGetErrFn)(void *)GetProcAddress(s_wpcap, "pcap_geterr");
+    s_setmintocopy = (PcapSetMinToCopyFn)(void *)GetProcAddress(s_wpcap, "pcap_setmintocopy");
     if ((s_open_live == NULL) || (s_next_ex == NULL) || (s_send_packet == NULL) || (s_close == NULL) ||
         (s_geterr == NULL))
     {
@@ -243,6 +246,13 @@ static pcap_t *open_handle(const char *device)
     if (h == NULL)
     {
         LOG(LOG_CAT_NET, LOG_ERROR, "Ethernet pcap: cannot open %s: %s\n", device, err);
+        return NULL;
+    }
+    /* Npcap hands frames to the reader only when 16000 bytes are waiting or the read timeout
+     * passes, which put about 60 ms on every ping. 0 = deliver each frame as it arrives. */
+    if (s_setmintocopy != NULL)
+    {
+        (void)s_setmintocopy(h, 0);
     }
     return h;
 }
