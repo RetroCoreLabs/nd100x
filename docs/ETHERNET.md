@@ -7,6 +7,7 @@ connects the LANCE's wire side to a host network.
 
 This document covers:
 
+0. [Start here: which setup do I need?](#start-here-which-setup-do-i-need)
 1. [The card on the ND-100 bus](#1-the-card-on-the-nd-100-bus)
 2. [Configuring the card (command line and INI)](#2-configuring-the-card)
 3. [Host network backends](#3-host-network-backends)
@@ -24,6 +25,163 @@ and the evidence for each part of the card are in
 `docs/ETHERNET-II-PORT-PLAN.md` and `docs/ethernet-port/PHASE-LOG.md`.
 
 ---
+
+## Start here: which setup do I need?
+
+The emulated ND talks to the outside world through a **host network
+backend**: the `net =` line of the card in the INI (or `--eth0=` on the
+command line). Pick the backend from **where nd100x runs** and **who must
+reach the ND**. Most people need only the first or second picture below.
+
+**The gateway is only for the browser.** A native nd100x (Linux, WSL or
+Windows) that just has to be reached with telnet, ping or ftp does NOT need
+the gateway: it opens the host network itself, with `tap:` on Linux or
+`pcap:` on Windows.
+
+```mermaid
+flowchart TD
+    Q1{"Where does the ND run?"}
+    Q1 -->|"native nd100x<br/>on Linux or WSL"| L["net = tap:nd0<br/>(section 4)"]
+    Q1 -->|"native nd100x<br/>on Windows"| W["net = pcap:ND-Loopback<br/>(section 9)"]
+    Q1 -->|"in the browser"| B["net = gateway:0<br/>+ the gateway<br/>(section 10)"]
+    L --> Q2{"Also reach it<br/>from Windows?"}
+    Q2 -->|"yes"| R["add the Windows route<br/>to WSL (section 4)"]
+    Q2 -->|"no"| D1["done: telnet 192.168.210.40"]
+    R --> D2["done"]
+    W --> D3["done: telnet 192.168.199.40"]
+    B --> D4["done: the gateway puts it<br/>on nd0 like a native ND"]
+    classDef blue fill:#E3F2FD,stroke:#0D47A1,stroke-width:2px,color:#0D47A1
+    classDef teal fill:#E0F7FA,stroke:#00838F,stroke-width:2px,color:#004D57
+    classDef green fill:#E8F5E9,stroke:#2E7D32,stroke-width:2px,color:#1B5E20
+    classDef purple fill:#F3E5F5,stroke:#7B1FA2,stroke-width:2px,color:#4A148C
+    classDef orange fill:#FFF3E0,stroke:#E65100,stroke-width:2px,color:#BF360C
+    classDef darkteal fill:#E0F2F1,stroke:#00695C,stroke-width:2px,color:#004D40
+    class Q1,Q2 blue
+    class L,W,B teal
+    class R orange
+    class D1,D2,D3,D4 green
+```
+
+### Picture 1 - native nd100x on Linux / WSL: no gateway
+
+nd100x opens the TAP interface `nd0` itself. Linux sees the ND as a machine
+on a cable plugged into `nd0`.
+
+```mermaid
+flowchart LR
+    subgraph EMU["nd100x (native, Linux / WSL)"]
+        SIN["SINTRAN TCP/IP<br/>192.168.210.40"] --> CARD["Ethernet II card<br/>net = tap:nd0"]
+    end
+    CARD <-->|"Ethernet frames"| TAP["TAP interface nd0<br/>192.168.210.1"]
+    TAP <--> HOST["Linux host<br/>telnet / ping / ftp"]
+    classDef blue fill:#E3F2FD,stroke:#0D47A1,stroke-width:2px,color:#0D47A1
+    classDef teal fill:#E0F7FA,stroke:#00838F,stroke-width:2px,color:#004D57
+    classDef green fill:#E8F5E9,stroke:#2E7D32,stroke-width:2px,color:#1B5E20
+    classDef purple fill:#F3E5F5,stroke:#7B1FA2,stroke-width:2px,color:#4A148C
+    classDef orange fill:#FFF3E0,stroke:#E65100,stroke-width:2px,color:#BF360C
+    classDef darkteal fill:#E0F2F1,stroke:#00695C,stroke-width:2px,color:#004D40
+    class SIN blue
+    class CARD purple
+    class TAP teal
+    class HOST green
+```
+
+### Picture 2 - native nd100x on Windows: no gateway
+
+nd100x opens the KM-TEST loopback adapter through Npcap. Windows sees the
+ND as a machine on that adapter.
+
+```mermaid
+flowchart LR
+    subgraph EMU["nd100x.exe (native, Windows)"]
+        SIN["SINTRAN TCP/IP<br/>192.168.199.40"] --> CARD["Ethernet II card<br/>net = pcap:ND-Loopback"]
+    end
+    CARD <-->|"Ethernet frames<br/>through Npcap"| LOOP["KM-TEST loopback adapter<br/>ND-Loopback, 192.168.199.1"]
+    LOOP <--> WIN["Windows<br/>telnet / ping / ftp"]
+    classDef blue fill:#E3F2FD,stroke:#0D47A1,stroke-width:2px,color:#0D47A1
+    classDef teal fill:#E0F7FA,stroke:#00838F,stroke-width:2px,color:#004D57
+    classDef green fill:#E8F5E9,stroke:#2E7D32,stroke-width:2px,color:#1B5E20
+    classDef purple fill:#F3E5F5,stroke:#7B1FA2,stroke-width:2px,color:#4A148C
+    classDef orange fill:#FFF3E0,stroke:#E65100,stroke-width:2px,color:#BF360C
+    classDef darkteal fill:#E0F2F1,stroke:#00695C,stroke-width:2px,color:#004D40
+    class SIN blue
+    class CARD purple
+    class LOOP teal
+    class WIN green
+```
+
+### Picture 3 - the ND in the browser: the gateway carries the frames
+
+A web page cannot open a TAP interface or a network adapter. So the
+browser's card sends its frames over the page's WebSocket to the gateway
+(`tools/nd100-gateway/gateway.js`, running in WSL or on Linux), and the
+gateway puts them on `nd0` for it, through `reth-tap`, which it starts
+itself.
+
+```mermaid
+flowchart LR
+    subgraph BR["Browser"]
+        SIN["SINTRAN TCP/IP<br/>192.168.210.40"] --> CARD["Ethernet II card<br/>net = gateway:0"]
+    end
+    CARD <-->|"WebSocket<br/>port 8765"| GW["gateway.js<br/>Ethernet segment 0"]
+    GW <-->|"RETH, port 3094"| RT["reth-tap<br/>(started by the gateway)"]
+    RT <--> TAP["TAP interface nd0<br/>192.168.210.1"]
+    TAP <--> HOST["Linux / WSL host<br/>telnet / ping / ftp"]
+    classDef blue fill:#E3F2FD,stroke:#0D47A1,stroke-width:2px,color:#0D47A1
+    classDef teal fill:#E0F7FA,stroke:#00838F,stroke-width:2px,color:#004D57
+    classDef green fill:#E8F5E9,stroke:#2E7D32,stroke-width:2px,color:#1B5E20
+    classDef purple fill:#F3E5F5,stroke:#7B1FA2,stroke-width:2px,color:#4A148C
+    classDef orange fill:#FFF3E0,stroke:#E65100,stroke-width:2px,color:#BF360C
+    classDef darkteal fill:#E0F2F1,stroke:#00695C,stroke-width:2px,color:#004D40
+    class SIN blue
+    class CARD purple
+    class GW,RT darkteal
+    class TAP teal
+    class HOST green
+```
+
+### Picture 4 - several machines on one network through the gateway
+
+Port 3094 is the gateway's door for everything that is NOT the browser page:
+other native nd100x, RetroCore, and `reth-tap`. Everything connected to
+segment 0 hears every frame, like machines on one Ethernet cable. Each ND
+needs its own IP address and its own CPU number (the CPU number sets the
+MAC address).
+
+```mermaid
+flowchart TB
+    B["ND in the browser<br/>net = gateway:0<br/>192.168.210.40"] <-->|"WebSocket 8765"| GW["gateway.js<br/>segment 0"]
+    N1["native nd100x (Linux / WSL)<br/>net = tcp:127.0.0.1:3094<br/>192.168.210.41"] <-->|"TCP 3094"| GW
+    N2["native nd100x.exe (Windows)<br/>net = tcp:WSL-IP:3094<br/>192.168.210.42"] <-->|"TCP 3094"| GW
+    GW <-->|"TCP 3094"| RT["reth-tap"] <--> TAP["nd0, 192.168.210.1<br/>WSL / Linux host"]
+    TAP <-.->|"Windows route via WSL<br/>(section 4)"| WIN["Windows<br/>telnet / ping"]
+    classDef blue fill:#E3F2FD,stroke:#0D47A1,stroke-width:2px,color:#0D47A1
+    classDef teal fill:#E0F7FA,stroke:#00838F,stroke-width:2px,color:#004D57
+    classDef green fill:#E8F5E9,stroke:#2E7D32,stroke-width:2px,color:#1B5E20
+    classDef purple fill:#F3E5F5,stroke:#7B1FA2,stroke-width:2px,color:#4A148C
+    classDef orange fill:#FFF3E0,stroke:#E65100,stroke-width:2px,color:#BF360C
+    classDef darkteal fill:#E0F2F1,stroke:#00695C,stroke-width:2px,color:#004D40
+    class B,N1,N2 blue
+    class GW,RT darkteal
+    class TAP teal
+    class WIN green
+```
+
+### The words used in this document
+
+| Word | Meaning |
+|------|---------|
+| **backend** | how the card's wire is connected on the host: the value of `net =` |
+| **TAP interface** (`nd0`) | a virtual network card in Linux; nd100x plugs the ND into it (Linux only) |
+| **Npcap** | the Windows driver that lets a program send and receive raw Ethernet frames on an adapter |
+| **KM-TEST loopback adapter** | a virtual network card that ships with Windows; gives Windows a "cable" to the ND |
+| **gateway** | `tools/nd100-gateway/gateway.js`, a Node program; the browser page's link to the host (terminals, disks, HDLC, Ethernet) |
+| **segment** | one virtual Ethernet cable inside the gateway; everything on segment 0 hears everything else on it |
+| **RETH, port 3094** | the gateway's TCP protocol for joining a segment from outside the browser |
+| **reth-tap** | the small program that connects a gateway segment to `nd0`; the gateway starts it itself |
+
+---
+
 
 ## 1. The card on the ND-100 bus
 
