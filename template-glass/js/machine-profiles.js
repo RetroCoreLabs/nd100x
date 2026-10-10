@@ -172,7 +172,10 @@
 
   // COSMOS over Ethernet: ND-100/CX booting SINTRAN from the SMD image
   // BIGDISK0-K-100.IMG. COSMOS uses IEEE 802.3 length framing on the same
-  // Ethernet II card and gateway segment 0.
+  // Ethernet II card and gateway segment 0. The pack also runs HDLC on
+  // SINTRAN logical device 1362 = HDLC thumbwheel 2 (device_hdlc.c:
+  // 1360 + (thumbwheel - 1) * 2), IOX 1660, which the browser puts on
+  // gateway HDLC channel 1 (nd100wasm.c hdlc_base_addrs_oct).
   var COSMOS_INI =
     '# nd100x machine configuration - SINTRAN with COSMOS over Ethernet\n' +
     '# SMD image BIGDISK0-K-100.IMG; Ethernet II card on gateway segment 0.\n\n' +
@@ -186,6 +189,8 @@
     '[controller.smd.0]\n' +
     'enabled = yes\n' +
     'disk0 = BIGDISK0-K-100.IMG\n\n' +
+    '[controller.hdlc.2]       ; IOX 1660, SINTRAN logical device 1362, gateway HDLC channel 1\n' +
+    'enabled = yes\n\n' +
     '[controller.eth.0]\n' +
     'enabled = yes\n' +
     'net = gateway:0           ; frames go through the gateway, Ethernet segment 0\n\n' +

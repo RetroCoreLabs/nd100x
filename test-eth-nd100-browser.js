@@ -36,6 +36,7 @@ const SERVE_DIR = path.join(__dirname, process.env.BUILD_DIR || 'build_wasm_glas
 const WS_PORT = 19766;
 const ETH_PORT = 19094;
 const TERM_PORT = 19003;
+const HDLC1_PORT = 19011;   // gateway HDLC channel 1 = HDLC thumbwheel 2, IOX 1660
 const MACHINE = (process.argv.find(a => a.startsWith('--machine=')) || '--machine=TCP/IP').slice(10);
 const IMAGE = { 'TCP/IP': 'WD0-SINTRAN-M.IMG', 'COSMOS': 'BIGDISK0-K-100.IMG' }[MACHINE];
 
@@ -151,7 +152,12 @@ async function finish() {
   process.exit(failed === 0 ? 0 : 1);
 }
 
-async function cosmosChecks(page) {
+async function cosmosChecks(page, pageLog) {
+  // What a D101 would see: a TCP client on the gateway's HDLC channel 1.
+  const hdlc = { bytes: 0 };
+  const hs = net.connect(HDLC1_PORT, '127.0.0.1');
+  hs.on('data', d => { hdlc.bytes += d.length; });
+  hs.on('error', () => {});
   let con = '';
   for (let i = 0; i < 300; i++) {
     await sleep(1000);
@@ -169,6 +175,12 @@ async function cosmosChecks(page) {
     console.log('  first: dst ' + f.slice(0, 6).toString('hex') + ' src ' + f.slice(6, 12).toString('hex') +
                 ' len ' + f.readUInt16BE(12) + ' LLC ' + f.slice(14, 17).toString('hex'));
   }
+  check('HDLC thumbwheel 2 (IOX 1660, SINTRAN 1362) is created',
+        pageLog.some(l => /HDLC 2 added/.test(l)),
+        'no "HDLC 2 added" line in the page log');
+  await sleep(10000);
+  console.log('  bytes from gateway HDLC channel 1 (no D101 attached): ' + hdlc.bytes);
+  hs.destroy();
   await finish();
 }
 
@@ -194,7 +206,8 @@ async function cleanup() {
   confPath = path.join(__dirname, '.test-eth-nd100-gateway.json');
   fs.writeFileSync(confPath, JSON.stringify({
     websocket: { port: WS_PORT }, staticDir: SERVE_DIR,
-    terminals: { port: TERM_PORT, welcome: 'nd100 eth test' }, hdlc: [],
+    terminals: { port: TERM_PORT, welcome: 'nd100 eth test' },
+    hdlc: [{ name: 'HDLC-1', channel: 1, port: HDLC1_PORT, enabled: true }],
     ethernet: [{ name: 'ETH-0', segment: 0, port: ETH_PORT, enabled: true }],
     smd: { images: [] }, floppy: { images: [] }, scsi: { images: [] }
   }));
@@ -206,7 +219,8 @@ async function cleanup() {
 
   browser = await puppeteer.launch({ headless: !headed, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
   const page = await browser.newPage();
-  page.on('console', m => log('page:', m.text()));
+  const pageLog = [];
+  page.on('console', m => { pageLog.push(m.text()); log('page:', m.text()); });
   page.on('pageerror', e => log('pageerror:', e.message));
 
   const url = `http://localhost:${WS_PORT}/index.html?worker=1`;
@@ -237,7 +251,7 @@ async function cleanup() {
                              { timeout: 120000 }).catch(() => {});
   await page.evaluate((p) => emu.wsConnect('ws://localhost:' + p + '/'), WS_PORT);
   console.log('Booting ' + MACHINE + ' from ' + IMAGE + ' (up to 5 minutes)...');
-  if (MACHINE === 'COSMOS') { await cosmosChecks(page); return; }
+  if (MACHINE === 'COSMOS') { await cosmosChecks(page, pageLog); return; }
 
   let started = null;
   for (let i = 0; i < (+process.env.BOOT_SECONDS || 300) && !started; i++) {

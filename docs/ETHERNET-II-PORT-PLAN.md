@@ -388,16 +388,21 @@ Todos:
           request from the RETH member gets a reply from MAC
           08:00:26:d2:00:00 (the first request, sent right after "started",
           got none; the second, 5 s later, did); an ICMP echo gets a reply.
-        * COSMOS: 6/6. Console shows "ENNS0-COSMOS Ethernet II Option : B01",
+        * COSMOS: 6/6 (7/7 with the HDLC check below). Console shows "ENNS0-COSMOS Ethernet II Option : B01",
           "XROUT: Network server ENNS0 started, sysid 9800" and "START COSMOS
           BASIC MODULE" with no input; IEEE 802.3 frames (length 14, LLC
           A8 A8 03, 08:00:26:64:00:00 -> 08:00:26:66:00:00) reach the segment.
       NOT done: telnet and ping from the host through tools/reth-tap (the
       test plays the host itself on the RETH segment); "conn-to d102" after
-      login (no COSMOS peer was on the segment); HDLC on IOX 1362 to D101 -
-      1362 is not one of the HDLC thumbwheel addresses in machine_config.c
-      (iox_hdlc: 1640/1660/1700/1720), so how that HDLC is configured is
-      unknown and the COSMOS INI has no HDLC section yet; the Help >
+      login (no COSMOS peer was on the segment); D101 over HDLC. 1362 is the
+      SINTRAN logical device number, not an IOX address: device_hdlc.c:759
+      gives 1360 + (thumbwheel - 1) * 2 and src/devices/hdlc/hdlc.cs:85 lists
+      wheel 2 / IOX 1660 / 1362, so the COSMOS machine has
+      [controller.hdlc.2], which nd100wasm.c puts on gateway HDLC channel 1.
+      The test sees "HDLC 2 added" (7/7 with that check); a TCP client on
+      the gateway's channel-1 port got 0 bytes in about 45 s with no D101
+      attached - whether SINTRAN sends anything before a peer answers is
+      unknown. The D101 test needs a D101 on that port; the Help >
       Machines pages (template-glass/data/machines.json) have no entry for
       the two machines.
 - [ ] 6.8 Gateway side: bridge `ws` frames to UDP hub / pcap / TAP on the

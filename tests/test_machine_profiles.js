@@ -102,6 +102,7 @@ assert(mp.ini('TCP/IP').indexOf('WD0-SINTRAN-M.IMG') >= 0, 'TCP/IP boots the SIN
 assert(mp.ini('TCP/IP').indexOf('net = gateway:0') >= 0, 'with the Ethernet card on gateway segment 0');
 assert(mp.ini('COSMOS').indexOf('BIGDISK0-K-100.IMG') >= 0, 'COSMOS boots the BIGDISK SMD image');
 assert(mp.ini('COSMOS').indexOf('net = gateway:0') >= 0, 'with the Ethernet card on gateway segment 0');
+assert(mp.ini('COSMOS').indexOf('[controller.hdlc.2]') >= 0, 'and HDLC thumbwheel 2 (SINTRAN device 1362)');
 SHIPPED.forEach((n) => assert(mp.isShipped(n), n + ' is built in'));
 
 section('Built-in machines are read-only');
