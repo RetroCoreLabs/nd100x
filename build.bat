@@ -15,11 +15,9 @@ REM     Override by setting the W64DEVKIT env var before running this script:
 REM       set W64DEVKIT=D:\tools\w64devkit
 REM       build.bat
 REM
-REM   - For HTTP image loads (floppy-DB downloads), libcurl-devel must be
-REM     reachable by pkg-config. w64devkit alone does NOT ship libcurl. If
-REM     you need URL image loads on Windows, use MSYS2 MINGW64 with
-REM     mingw-w64-x86_64-curl instead. Without libcurl, download_file()
-REM     compiles as a stub and local disk images still work.
+REM   - Nothing else. HTTP image loads (floppy-DB downloads) use WinHTTP,
+REM     a Windows system DLL, so no libcurl package is needed and no DLL
+REM     or certificate file is staged next to the exe.
 REM
 REM This script does NOT permanently modify your PATH. It only prepends
 REM w64devkit\bin for the duration of this build.
