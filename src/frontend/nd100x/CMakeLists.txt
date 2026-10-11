@@ -39,20 +39,6 @@ add_custom_target(nd100x_version_stamp
     COMMENT "Stamping nd100x_version.h (git hash + build time)")
 add_dependencies(nd100x nd100x_version_stamp)
 
-# Stage the vendored libcurl runtime next to the freshly built exe, for ANY build
-# method (plain `cmake --build`, not just `make`). nd100x.exe hard-depends on
-# libcurl-x64.dll at load time, so without this the exe fails to start with
-# "libcurl-x64.dll: cannot open shared object file". copy_if_different = cheap no-op
-# on rebuilds. Guarded on the vendored-curl path (empty on system-curl / no-curl).
-if(DEFINED ND100X_VENDORED_CURL_BIN AND ND100X_VENDORED_CURL_BIN)
-    add_custom_command(TARGET nd100x POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                "${ND100X_VENDORED_CURL_BIN}/libcurl-x64.dll"    "$<TARGET_FILE_DIR:nd100x>"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                "${ND100X_VENDORED_CURL_BIN}/curl-ca-bundle.crt" "$<TARGET_FILE_DIR:nd100x>"
-        COMMENT "Staging vendored libcurl runtime (libcurl-x64.dll + curl-ca-bundle.crt) next to nd100x")
-endif()
-
 # Include directories
 target_include_directories(nd100x PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}

@@ -87,10 +87,6 @@ template-glass/PDF/*.pdf
 tools/__pycache__/
 **/__pycache__/
 
-# Vendored prebuilt MinGW libcurl (fetched by scripts/fetch-curl.sh, not committed)
-external/curl/
-external/curl-*-win64-mingw.zip
-
 # Disk/tape images at the repo root (scratch packs, test images, Windows ADS
 # metadata). Sanctioned image location is images/ - root-level images are
 # working copies and must never end up in a commit.

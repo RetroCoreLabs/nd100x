@@ -311,7 +311,6 @@ jobs:
             ${{ matrix.prefix }}-cmake
             ${{ matrix.prefix }}-ninja
             ${{ matrix.prefix }}-pkgconf
-            ${{ matrix.prefix }}-curl
 
       - name: Initialise submodules (tolerate libdap pin drift)
         run: |
@@ -336,7 +335,6 @@ jobs:
           gcc --version | head -1
           cmake --version | head -1
           ninja --version
-          pkg-config --modversion libcurl || echo "libcurl not found"
 
       - name: Build release
         run: make release
@@ -347,26 +345,10 @@ jobs:
           STAGE="dist/nd100x-windows-${{ matrix.arch }}"
           mkdir -p "$STAGE"
           cp build_release/bin/nd100x.exe "$STAGE/"
-          # The vendored libcurl (external/curl, see the top CMakeLists.txt) is
-          # not under /mingw64, so the ldd sweep below never finds it. The
-          # build copies the DLL and its CA bundle next to the exe; take them
-          # from there.
-          for f in libcurl-x64.dll curl-ca-bundle.crt; do
-            if [ -f "build_release/bin/$f" ]; then
-              cp "build_release/bin/$f" "$STAGE/"
-            fi
-          done
-          # Discover and copy every non-system DLL the exe depends on. This
-          # catches libcurl + its transitive deps (openssl, zstd, brotli,
-          # nghttp2, ...) plus the MinGW runtime (libgcc_s_seh-1, libwinpthread-1)
-          # without hardcoding a list.
-          ldd "$STAGE/nd100x.exe" \
-            | awk '{print $3}' \
-            | grep -Ei '^(/mingw64|/c/msys64/mingw64)/' \
-            | sort -u \
-            | while read -r dll; do
-                [ -f "$dll" ] && cp "$dll" "$STAGE/"
-              done
+          # No DLLs are staged on purpose. The exe uses WinHTTP for downloads
+          # (a Windows system DLL) and links the MinGW runtime statically
+          # (-static in src/frontend/nd100x/CMakeLists.txt), so every import
+          # must resolve from System32. The check step below enforces that.
           cp README.md "$STAGE/" 2>/dev/null || true
           cp LICENSE "$STAGE/" 2>/dev/null || true
           echo "=== Staged contents ==="
@@ -376,7 +358,8 @@ jobs:
         # A missing DLL only shows up when a user starts the exe ("libcurl-x64.dll
         # was not found", v1.0.13). objdump lists the DLLs each PE file imports;
         # every one must be either staged beside the exe or a Windows system DLL.
-        # The staged DLLs are checked too, for their own imports.
+        # Since the WinHTTP + -static change nothing is staged, so this step is
+        # the proof that nd100x.exe imports Windows system DLLs only.
         run: |
           set -euo pipefail
           STAGE="dist/nd100x-windows-${{ matrix.arch }}"
@@ -403,8 +386,8 @@ jobs:
       - name: Upload build artifact
         # Upload the staging DIRECTORY, not a pre-zipped file. GitHub wraps
         # artifact contents in a zip on download, so uploading a zip would
-        # yield a zip-inside-a-zip. Pointing at the dir puts the exe + DLLs
-        # at the root of the downloaded zip.
+        # yield a zip-inside-a-zip. Pointing at the dir puts the exe at the
+        # root of the downloaded zip.
         uses: actions/upload-artifact@v4
         with:
           name: nd100x-windows-${{ matrix.arch }}

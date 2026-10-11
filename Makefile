@@ -55,37 +55,9 @@ else
     JOBS := $(shell nproc 2>/dev/null || echo 4)
 endif
 
-# Vendored libcurl (Windows only). On a Windows host, native builds depend on
-# fetch-curl so external/curl (a prebuilt MinGW libcurl) is present before CMake
-# configures — mirrors how the tiki100 project vendors SDL2. Elsewhere the build
-# uses a system libcurl, so this is empty.
-ifdef HOST_WINDOWS
-    CURL_PREREQ := fetch-curl
-else
-    CURL_PREREQ :=
-endif
-
 # Default target is debug
 .PHONY: all
 all: debug
-
-# Fetch the vendored MinGW libcurl into external/curl if it is not already there.
-.PHONY: fetch-curl
-fetch-curl:
-	@if [ ! -d external/curl ]; then \
-		echo "external/curl not found — fetching vendored MinGW libcurl..."; \
-		sh scripts/fetch-curl.sh; \
-	fi
-
-# Stage the libcurl runtime DLL + CA bundle next to a freshly built .exe (Windows
-# only; a no-op if the vendored copy is absent). $(1) = build dir.
-define stage_curl_runtime
-	@if [ -f external/curl/bin/libcurl-x64.dll ]; then \
-		cp -f external/curl/bin/libcurl-x64.dll   $(1)/bin/ 2>/dev/null || true; \
-		cp -f external/curl/bin/curl-ca-bundle.crt $(1)/bin/ 2>/dev/null || true; \
-		echo "Staged libcurl-x64.dll + curl-ca-bundle.crt into $(1)/bin"; \
-	fi
-endef
 
 # Check for required dependencies
 .PHONY: check-deps
@@ -175,19 +147,17 @@ ts-compile:
 
 .PHONY: debug release sanitize wasm wasm-run wasm-glass wasm-glass-run riscv clean install run help gateway-install gateway gateway-run gateway-test gateway-test-wasm wasm-glass-gateway test submodules boot-smd boot-wd boot-floppy
 
-debug: check-deps mkptypes $(CURL_PREREQ)
+debug: check-deps mkptypes
 	@echo "Building debug version..."
 	@mkdir -p $(BUILD_DIR_DEBUG)
 	cd $(BUILD_DIR_DEBUG) && $(CMAKE) .. $(CMAKE_GENERATOR_FLAG) -DCMAKE_BUILD_TYPE=Debug -DDEBUGGER_ENABLED=$(DEBUGGER_ENABLED)
 	cd $(BUILD_DIR_DEBUG) && $(CMAKE) --build . -- -j$(JOBS)
-	$(call stage_curl_runtime,$(BUILD_DIR_DEBUG))
 
-release: check-deps mkptypes $(CURL_PREREQ)
+release: check-deps mkptypes
 	@echo "Building release version..."
 	@mkdir -p $(BUILD_DIR_RELEASE)
 	cd $(BUILD_DIR_RELEASE) && $(CMAKE) .. $(CMAKE_GENERATOR_FLAG) -DCMAKE_BUILD_TYPE=Release -DDEBUGGER_ENABLED=$(DEBUGGER_ENABLED)
 	cd $(BUILD_DIR_RELEASE) && $(CMAKE) --build . -- -j$(JOBS)
-	$(call stage_curl_runtime,$(BUILD_DIR_RELEASE))
 
 sanitize: check-deps mkptypes
 	@echo "Building with sanitizers..."
