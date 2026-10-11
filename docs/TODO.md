@@ -184,3 +184,117 @@ that turns out wrong can be traced back and undone.
 
 Any new rename mechanism - the clang-rename pass for rule 3.1 above all - must
 append to the same trace before it is used on real code.
+
+---
+
+## G. Performance - stop ticking every device on every ND-100 instruction
+
+Added 12-OCT-2026. Not started.
+
+### G.1 What was measured
+
+`perf` on the ND-100 thread, 15 seconds, SINTRAN III VSX/500 L idle after
+CPU-STAT on four ND-5000 CPUs, binary at commit `fa4d043`:
+
+| Where | Share of the ND-100 thread |
+|---|---|
+| `IO_Tick` (`src/machine/io.c`), called from `cpu_run` after every instruction | 62% |
+| `private_cpu_tick` - fetching and executing the instruction | 34% |
+
+Inside `IO_Tick` (own time, not including callees):
+
+| Function | Share |
+|---|---|
+| `devmgr_tick` (`src/devices/devicemanager.c`) - the loop over all devices | 19% |
+| `dev_tick` (`src/devices/device.c`) - the indirect call per device | 10% |
+| `terminal_tick` | 9% |
+| `dev_tick_io_delay` | 6% |
+| `scsi_bus_clock`, `NCR_Clock`, `scsi_target_clock` | 4.5% |
+| `mfbus_service_nd5000_mailboxes` | 3.5% |
+| `rtc_tick` | 2% |
+
+So ticking the devices costs about 1.8 times as much as executing the
+instruction. Removing most of it would let the ND-100 run two to three times
+as many instructions per second on the same host core, and under `--throttle`
+it would cut the host load by the same factor. That is the value. It is an
+estimate from the shares above, not a measurement.
+
+It does NOT by itself make the ND-100 thread less busy when SINTRAN is idle:
+that load is set by the idle rule in `private_cpu_tick` (`src/cpu/cpu.c`,
+1 ms sleep after 10000 instructions in a row on level 0). See G.4.
+
+### G.2 Why "call IO_Tick every N instructions" alone is wrong
+
+Fifteen devices have a `Tick` routine, and they count calls as time:
+
+- `dev_tick_io_delay` decrements `delayTicks` by one per call. Ten device
+  files queue such delays (floppy DMA 14 places, SMD 9, floppy PIO 7,
+  winchester 4, CDC 3, drum 2, SCSI 2, terminal 1, paper tape writer 1).
+  With a divider of N every disc and floppy timeout becomes N times longer.
+- `rtc_tick` in ticks mode decrements `rtcCounter` once per call: 10550
+  calls per 20 ms pulse. This mode is the deterministic one the unit tests
+  and the TPE runs select.
+- `terminal_tick` counts `checkInputQueueTick` up to `MAX_TICKS` (100)
+  before it moves one character from the input queue.
+- `scsi_tick` clocks the SCSI bus state machine one step per call.
+- `octobus_tick` counts down the card's delayed operation.
+- A device interrupt reaches the CPU only through the value `IO_Tick`
+  returns, so with a divider an interrupt raised by an IOX instruction is
+  seen up to N - 1 instructions late.
+
+### G.3 The change
+
+- [ ] Give every `Tick` routine the number of ND-100 instructions that have
+      passed since its last call (a parameter, or one field the device
+      manager sets), and make each of the six counters in G.2 subtract or
+      add that number instead of one. `dev_tick_io_delay` must fire every
+      delay that has run out, in order, when several run out in one call.
+- [ ] Let each device say how many instructions it can go without a call:
+      the shortest queued delay, the remaining `rtcCounter`, the remaining
+      `checkInputQueueTick`, 1 while a SCSI transfer or an octobus
+      operation is in flight, "nothing pending" otherwise.
+- [ ] `cpu_run` counts down to the smallest of those and calls `IO_Tick`
+      only then, with the elapsed count. This keeps every timeout exact:
+      the tick happens on the same instruction as today, there are just no
+      ticks in between.
+- [ ] Force a tick right after every IOX/IOXT instruction and after
+      anything else that can queue a delay or raise an interrupt line
+      (IDENT, a telnet or keyboard byte arriving, a frame on the octobus),
+      so the next deadline is recomputed and interrupt latency stays at one
+      instruction.
+- [ ] Cap the distance between ticks (64 instructions) for the two things
+      that depend on host time and not on a counter: the wall-clock RTC and
+      the ND-5000 doorbell poll.
+- [ ] The WebAssembly build runs the ND-5000 CPUs from this tick
+      (`s_pump_mask` in `src/machine/mfbus_bridge.c`); while a CPU is being
+      pumped the deadline must stay at 1.
+
+### G.4 Separate, smaller item: the idle rule
+
+- [ ] `private_cpu_tick` sleeps 1 ms only after 10000 consecutive level-0
+      instructions. Measured on an idle SINTRAN with four ND-5000s: about
+      250 to 310 sleeps per second and 65 to 70% of a host core. Find which
+      interrupt levels break up the level-0 stretches before changing the
+      threshold.
+
+### G.5 Validation - all of it, before the commit
+
+- [ ] `ctest`: all tests, including `tests/test_rtc.c` in both ticks and
+      wall mode. Add a test that queues delays of 1, N - 1, N and N + 1
+      ticks and checks each fires on the same instruction count as before
+      the change.
+- [ ] RTC ticks mode: pulse count over a fixed instruction count is
+      unchanged (exactly one per 10550).
+- [ ] TPE instruction verifier (`docs/TPE-AUTORUN.md`) - same result as
+      before.
+- [ ] Boot SINTRAN from SMD, from floppy, from SCSI and from winchester,
+      on scratch copies of the images (`docs/VERIFICATION.md`).
+- [ ] DISC-TEMA and the floppy tests on scratch copies only: these exercise
+      the controller timeouts that G.2 lists.
+- [ ] Terminal input: paste a long line into a telnet terminal and into the
+      console; no lost or reordered characters.
+- [ ] ND-5000: four CPUs, one LED per CPU, a key in each - the 12-OCT-2026
+      procedure in `docs/ND5000-MULTI-CPU.md`.
+- [ ] `make wasm-glass` builds and boots in the browser.
+- [ ] `perf` before and after on the same idle state, and instructions per
+      second at full speed before and after. Record both here.
