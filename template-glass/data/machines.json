@@ -69,7 +69,7 @@
           "paragraphs": [
             "The ND-500 was Norsk Data's 32-bit superminicomputer, delivered from 1981. It relied on an ND-100 to do the housekeeping and to run the operating system, SINTRAN III; the ND-100 owned the terminals, the files and the monitor calls, the ND-500 ran the programs. The architecture went through four implementations sold under many model numbers (ND-500, 520, 540, 560, 570 ...). [s1]",
             "The ND-5000 ('Samson') was the fourth generation of that line, introduced in 1987 (models 5400, 5700, 5800). [s2] [unverified: year and model list taken from the Wikipedia summary, not checked against an ND document]",
-            "In the emulator this machine boots its own SINTRAN L pack, ND5000-SMD0.IMG, and is the ND-100 above plus an ND-5000 CPU on octobus station 070B with MF-bus shared memory; SINTRAN sees it as a real ND-500 and runs :DOM and :PSEG/:DSEG programs on it. Up to seven ND-5000s fit on stations 070B-076B. [e1]"
+            "In the emulator this machine boots its own SINTRAN L pack, ND5000-SMD0.IMG, and is the ND-100 above plus an ND-5000 CPU on octobus station 070B with MF-bus shared memory; SINTRAN sees it as a real ND-500 and runs :DOM and :PSEG/:DSEG programs on it. Up to four ND-5000s can be configured, on stations 070B-073B, as in the ND-5900. [e1]"
           ]
         },
         {

@@ -187,19 +187,21 @@ typedef struct
 /*
  * ONE ND-5000 CPU.
  *
- * Station numbers are 070B..076B - seven slots, ND-05.020.01 T329 - and they are
- * OCTAL in every ND document. 070B is 56 decimal; writing 70 would not even fit
- * the 6-bit station field.
+ * Station numbers are 070B..073B - four slots - and they are OCTAL in every ND
+ * document. 070B is 56 decimal; writing 70 would not even fit the 6-bit station
+ * field. The octobus station table (ND-05.020.01 T329) has seven ND-5000 slots,
+ * 070B..076B, but the shipped ND-5900 had at most four CPUs and SINTRAN M06's
+ * LN5DEST is 073B, so the configuration stops at four.
  */
-#define MC_ND5000_MAX_CPUS 7
+#define MC_ND5000_MAX_CPUS 4
 #define MC_ND5000_STATION_FIRST 56 /* 070B */
-#define MC_ND5000_STATION_LAST  62 /* 076B */
+#define MC_ND5000_STATION_LAST  59 /* 073B */
 
 typedef struct
 {
     bool enabled;
-    int  slot;        /* the <n> of [nd5000.<n>], 1..7 */
-    int  station;     /* 56..62 (070B..076B) */
+    int  slot;        /* the <n> of [nd5000.<n>], 1..4 */
+    int  station;     /* 56..59 (070B..073B) */
     /* Per-CPU ND-100 page for this CPU's ND-500 address 0. SINTRAN stores this
      * per CPU, so it is stored per CPU here; on all available evidence the value
      * is the same for every CPU, so an unset one inherits [mfbus] base_page.

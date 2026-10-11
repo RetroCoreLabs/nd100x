@@ -378,6 +378,9 @@ typedef enum {
  */
 typedef uint16_t (*NdBankReadFn)(void *ctx, uint32_t word_offset);
 typedef void (*NdBankWriteFn)(void *ctx, uint32_t word_offset, uint16_t value, WriteMode wm);
+/* Store `value` and return what was there, as ONE operation no other memory
+ * port can split. Optional; used only by the write half of a test-and-set. */
+typedef uint16_t (*NdBankExchangeFn)(void *ctx, uint32_t word_offset, uint16_t value);
 
 typedef struct
 {
@@ -388,6 +391,7 @@ typedef struct
     NdBankReadFn  read;
     NdBankWriteFn write;
     void         *ctx;
+    NdBankExchangeFn exchange; /* NULL = no exchange; TSET reads then writes */
 } NdMemoryBank;
 
 // Maximum number of simultaneously registered banks: local RAM plus one MPM-5
@@ -448,6 +452,21 @@ bool mms_memory_bank_unregister_over_local(uint32_t start_word);
 void mms_set_tset_lock(void (*lock)(void), void (*unlock)(void));
 void mms_tset_lock_begin(void);
 void mms_tset_lock_end(void);
+
+/* THE TEST-AND-SET AS ONE EXCHANGE. The lock above keeps other test-and-sets
+ * out, but a semaphore is released with an ordinary store, which takes no lock;
+ * a release that lands between the read and the write of a TSET is overwritten
+ * by the -1 and the cell stays set with no owner. A bank shared with another
+ * CPU therefore offers an exchange: while the lock is held, a WORD write into
+ * such a bank is done as the exchange, and the instruction takes the old value
+ * from it instead of from its earlier read.
+ *
+ * mms_memory_bank_set_exchange() gives the bank starting at start_word its
+ * exchange (NULL removes it); false when no bank starts there.
+ * mms_tset_take_old() returns true, once, when the write just made was such an
+ * exchange, with the word that was there. */
+bool mms_memory_bank_set_exchange(uint32_t start_word, NdBankExchangeFn exchange);
+bool mms_tset_take_old(uint16_t *old);
 
 // The bank containing this word address, or NULL.
 const NdMemoryBank *mms_memory_bank_lookup(uint32_t physical_word_address);

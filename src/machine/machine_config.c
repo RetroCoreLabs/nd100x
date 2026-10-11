@@ -725,7 +725,7 @@ bool mc_load_file(MachineConfig *cfg, const char *path, char *err, size_t errlen
                     fclose(f);
                     return mc_err(err, errlen, path, lineno,
                                   "[%s]: CPU slot %ld out of range. The hardware has %d ND-5000 "
-                                  "slots, 070B to 076B.",
+                                  "slots, 070B to 073B.",
                                   sec, slot, MC_ND5000_MAX_CPUS);
                 }
                 /* A duplicate slot is an error, exactly as a duplicate
@@ -1391,7 +1391,7 @@ bool mc_load_file(MachineConfig *cfg, const char *path, char *err, size_t errlen
                     fclose(f);
                     return mc_err(err, errlen, path, lineno,
                                   "[nd5000.%d] station = %s: out of range. ND-5000 CPUs are at "
-                                  "070B to 076B (%d to %d decimal); other numbers belong to other "
+                                  "070B to 073B (%d to %d decimal); other numbers belong to other "
                                   "devices.",
                                   c->slot, val, MC_ND5000_STATION_FIRST, MC_ND5000_STATION_LAST);
                 }

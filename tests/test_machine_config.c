@@ -408,7 +408,7 @@ int main(void)
     mc_check_bool("LoadFile(decimal station)", mc_load_file(&cfg, path, err, sizeof(err)));
     mc_check("decimal 56 is the same station", 56, cfg.nd5000[0].station);
 
-    /* A station outside 070B..076B belongs to another device entirely. */
+    /* A station outside 070B..073B belongs to another device entirely. */
     snprintf(path, sizeof(path), "%s/badstation.ini", dir);
     {
         FILE *f = fopen(path, "w");
@@ -454,7 +454,7 @@ int main(void)
     mc_check_bool("LoadFile(duplicate slot) rejected",
                   !mc_load_file(&cfg, path, err, sizeof(err)));
 
-    /* There are seven hardware slots, 070B..076B. */
+    /* The configuration allows four slots, 070B..073B. */
     snprintf(path, sizeof(path), "%s/slot8.ini", dir);
     {
         FILE *f = fopen(path, "w");
@@ -467,6 +467,57 @@ int main(void)
     mc_init_baseline(&cfg);
     err[0] = '\0';
     mc_check_bool("LoadFile(slot 8) rejected", !mc_load_file(&cfg, path, err, sizeof(err)));
+
+    /* Four CPUs is the ND-5900's full complement: slots 1..4 on 070B..073B. */
+    snprintf(path, sizeof(path), "%s/four.ini", dir);
+    {
+        FILE *f = fopen(path, "w");
+        if (f)
+        {
+            fprintf(f, "[mfbus]\nsize = 8\n[nd5000.1]\nenabled = yes\n[nd5000.2]\nenabled = yes\n"
+                       "[nd5000.3]\nenabled = yes\n[nd5000.4]\nenabled = yes\n");
+            fclose(f);
+        }
+    }
+    mc_init_baseline(&cfg);
+    err[0] = '\0';
+    mc_check_bool("LoadFile(four CPUs)", mc_load_file(&cfg, path, err, sizeof(err)));
+    mc_check("four ND-5000 CPUs configured", 4, cfg.nd5000Count);
+    mc_check("slot 1 defaults to station 070B", 56, cfg.nd5000[0].station);
+    mc_check("slot 2 defaults to station 071B", 57, cfg.nd5000[1].station);
+    mc_check("slot 3 defaults to station 072B", 58, cfg.nd5000[2].station);
+    mc_check("slot 4 defaults to station 073B", 59, cfg.nd5000[3].station);
+
+    /* A fifth CPU is refused: the configuration stops at four. */
+    snprintf(path, sizeof(path), "%s/slot5.ini", dir);
+    {
+        FILE *f = fopen(path, "w");
+        if (f)
+        {
+            fprintf(f, "[nd5000.5]\nenabled = yes\n");
+            fclose(f);
+        }
+    }
+    mc_init_baseline(&cfg);
+    err[0] = '\0';
+    mc_check_bool("LoadFile(slot 5) rejected", !mc_load_file(&cfg, path, err, sizeof(err)));
+
+    /* Station 074B is an ND-5000 slot on the octobus but past the fourth CPU. */
+    snprintf(path, sizeof(path), "%s/station074.ini", dir);
+    {
+        FILE *f = fopen(path, "w");
+        if (f)
+        {
+            fprintf(f, "[nd5000.1]\nstation = 074B\n");
+            fclose(f);
+        }
+    }
+    mc_init_baseline(&cfg);
+    err[0] = '\0';
+    mc_check_bool("LoadFile(station 074B) rejected",
+                  !mc_load_file(&cfg, path, err, sizeof(err)));
+    mc_check_bool("and the message names the last legal station, 073B",
+                  strstr(err, "073B") != NULL);
 
     /* A malformed page number is a configuration error, not a different page. */
     snprintf(path, sizeof(path), "%s/badpage.ini", dir);

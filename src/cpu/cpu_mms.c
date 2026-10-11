@@ -995,6 +995,7 @@ bool mms_memory_bank_register_backed(uint32_t start_word, uint32_t length_word, 
     s_memory_banks[s_memory_bank_count].read        = read;
     s_memory_banks[s_memory_bank_count].write       = write;
     s_memory_banks[s_memory_bank_count].ctx         = ctx;
+    s_memory_banks[s_memory_bank_count].exchange    = NULL;
     s_memory_bank_count++;
     return true;
 }
@@ -1004,6 +1005,37 @@ bool mms_memory_bank_register_backed(uint32_t start_word, uint32_t length_word, 
 static void (*s_tset_lock_fn)(void) = NULL;
 static void (*s_tset_unlock_fn)(void) = NULL;
 static bool s_tset_lock_held = false;
+/* The word the write half of the current test-and-set exchanged out of a shared
+ * bank - see mms_tset_take_old(). ND-100 CPU thread only, like the flag above. */
+static uint16_t s_tset_old = 0;
+static bool     s_tset_old_valid = false;
+
+bool mms_memory_bank_set_exchange(uint32_t start_word, NdBankExchangeFn exchange)
+{
+    for (int i = 0; i < s_memory_bank_count; i++)
+    {
+        if (s_memory_banks[i].start_word == start_word)
+        {
+            s_memory_banks[i].exchange = exchange;
+            return true;
+        }
+    }
+    return false;
+}
+
+bool mms_tset_take_old(uint16_t *old)
+{
+    if (!s_tset_old_valid)
+    {
+        return false;
+    }
+    s_tset_old_valid = false;
+    if (old != NULL)
+    {
+        *old = s_tset_old;
+    }
+    return true;
+}
 
 void mms_set_tset_lock(void (*lock)(void), void (*unlock)(void))
 {
@@ -1020,6 +1052,7 @@ void mms_set_tset_lock(void (*lock)(void), void (*unlock)(void))
 
 void mms_tset_lock_begin(void)
 {
+    s_tset_old_valid = false;
     if (s_tset_lock_fn != NULL && !s_tset_lock_held)
     {
         s_tset_lock_fn();
@@ -1444,6 +1477,16 @@ void mms_write_physical_memory_wm(int physical_address, uint16_t value, bool pri
         const NdMemoryBank *bank = mms_memory_bank_lookup((uint32_t)physical_address);
         if (bank != NULL && bank->write != NULL)
         {
+            /* The write half of a test-and-set into a shared bank: one exchange,
+             * so a release from the other CPU cannot land between the read and
+             * this write. See mms_tset_take_old() in cpu_types.h. */
+            if (s_tset_lock_held && bank->exchange != NULL && wm == WRITEMODE_WORD)
+            {
+                s_tset_old = bank->exchange(bank->ctx,
+                                            (uint32_t)physical_address - bank->start_word, value);
+                s_tset_old_valid = true;
+                return;
+            }
             bank->write(bank->ctx, (uint32_t)physical_address - bank->start_word, value, wm);
             return;
         }

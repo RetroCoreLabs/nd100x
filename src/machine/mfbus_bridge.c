@@ -193,6 +193,7 @@ unsigned mfbus_tick_work = 0;
 #define MFBUS_WORK_SCAN    2u
 #define MFBUS_WORK_ARMED   4u
 #define MFBUS_WORK_PUMP    8u
+#define MFBUS_WORK_DEFER   16u  /* a start message waits for a busy CPU */
 
 static void mfbus_work_set(unsigned bit)
 {
@@ -216,6 +217,9 @@ static void mfbus_work_clear(unsigned bit)
  * Nd500Machine inside a type that ndbus also sees - which is exactly the
  * coupling the vtable rule exists to prevent.
  */
+/** How many start messages can wait for one busy CPU. */
+#define MFBUS_DEFERRED_MAX 16u
+
 typedef struct
 {
     Nd500Machine machine;
@@ -282,6 +286,23 @@ typedef struct
      * trap_captured says the number is a real reading, not a leftover one. */
     uint16_t      trap_number_at_raise;
     bool          trap_captured;
+    /* THIS CPU'S OWN TRAP STORE. The ND-500 core keeps one trap_occurred flag
+     * per process unless told otherwise; with several CPUs on their own host
+     * threads that flag would be shared. Bound to the stepping thread at the top
+     * of mfbus_cpu_step(). */
+    Nd500TrapState  trap_state;
+    /* Yields the host thread when the guest spins on one TSET - see
+     * mfbus_tset_result(). Touched only by the thread stepping this CPU. */
+    NdbusSpinDamper spin_damper;
+
+    /* START MESSAGES THAT ARRIVED WHILE THIS CPU WAS RUNNING ANOTHER PROCESS.
+     * See mfbus_start_process() and mfbus_release_deferred(). ND-100 thread only. */
+    struct
+    {
+        uint32_t msg_byte;
+        uint16_t micfu;
+    } deferred[MFBUS_DEFERRED_MAX];
+    unsigned deferred_count;
     unsigned long steps_run;      /* instructions executed since attach */
     unsigned long spin_samples;   /* periodic P samples already logged */
 } MfbusCpuSlot;
@@ -536,9 +557,137 @@ static bool mfbus_cpu_step_inner(MfbusCpuSlot *slot);
 /* The runner's step. A false return ends the host thread, so it is marked as
  * leaving on EVERY such return - the two stop paths that answer SINTRAN set the
  * mark earlier, before the answer goes out, and this covers the rest. */
+/* The CPU the calling thread is stepping, for hooks the ND-500 core calls with
+ * no CPU argument. Thread-local, so each runner thread sees its own; in a build
+ * with no host threads it is simply the CPU being pumped. */
+static _Thread_local MfbusCpuSlot *t_stepping_slot = NULL;
+
+static void mfbus_host_yield(void *ctx)
+{
+    (void)ctx;
+#ifndef __EMSCRIPTEN__
+    (void)sched_yield();
+#endif
+}
+
+static const NdbusHostOps s_spin_host_ops = {
+    .log   = NULL,
+    .yield = mfbus_host_yield,
+    .ctx   = NULL,
+};
+
+/* Called by the ND-500 TSET instruction after its locked pair. A TSET that keeps
+ * failing at the same instruction is a wait loop; past the damper's threshold
+ * the host thread yields so the thread holding the semaphore can run. */
+static void mfbus_tset_result(uint32_t key, int taken)
+{
+    MfbusCpuSlot *slot = t_stepping_slot;
+    if (slot == NULL)
+    {
+        return;
+    }
+    if (taken)
+    {
+        ndbus_spin_damper_succeeded(&slot->spin_damper);
+    }
+    else
+    {
+        (void)ndbus_spin_damper_failed(&slot->spin_damper, key, &s_spin_host_ops);
+    }
+}
+
+/* s_cpus[] and s_nd5000[] are parallel arrays - same index, same machine. */
+static int mfbus_slot_index(const MfbusCpuSlot *slot)
+{
+    return (int)(slot - s_cpus);
+}
+
+/* THE ND-500 WEXT INSTRUCTION, device 0: the register is an octobus frame and it
+ * goes onto the bus with this CPU's station as the source.
+ *
+ * Same path as the microcode's own answer interrupt (GIVEINT), which writes its
+ * frame to the same ACCP input buffer: MICRO-5800-B30 010571, D,SPEC,AIB. The
+ * low 16 bits are the frame; destination station in bits 13-8.
+ *
+ * MEASURED: SINTRAN's swapper, running on CPU 1, executes W3 WEXT the moment a
+ * process is placed on CPU 2. It is how one ND-5000 reaches another.
+ *
+ * Under the engine lock, which the ND-100's own transmit takes too, so two
+ * senders do not run one station's frame handler at the same time. Returns 0
+ * when the frame was taken by a station, 1 ("unable to write") when no station
+ * is at that number or this CPU is not on a bus. */
+static int mfbus_ext_write(Nd500Cpu *cpu, uint32_t device, uint32_t value)
+{
+    (void)cpu;
+    MfbusCpuSlot *slot = t_stepping_slot;
+    if (device != 0u || slot == NULL || !s_fabric_ready)
+    {
+        return 1;
+    }
+    int index = mfbus_slot_index(slot);
+    if (index < 0 || index >= s_nd5000_count)
+    {
+        return 1;
+    }
+    uint8_t  source = s_nd5000[index].station.number;
+    uint16_t frame = (uint16_t)(value & 0xFFFFu);
+    uint8_t  destination = (uint8_t)((frame >> 8u) & 0x3Fu);
+
+    uint16_t replies[NDBUS_MAX_REPLY_FRAMES];
+    ndbus_engine_lock();
+    int n = ndbus_fabric_has_station(&s_fabric, destination)
+                ? ndbus_fabric_send(&s_fabric, source, frame, replies)
+                : -1;
+    ndbus_engine_unlock();
+    mfbus_work_set(MFBUS_WORK_SCAN);
+
+    static unsigned logged;   /* bounded; racy between CPU threads, a log budget only */
+    if (logged < 200u)
+    {
+        logged++;
+        LOG(LOG_CAT_MMS, LOG_INFO,
+            "MFbus: %s WEXT register=0x%08X sends frame 0x%04X to station %oB: %d reply "
+            "frame(s) at P=0x%08X\n",
+            slot->name, (unsigned)value, (unsigned)frame, (unsigned)destination, n,
+            (unsigned)slot->cpu.cur_instr_pc);
+    }
+    return (n < 0) ? 1 : 0;
+}
+
+/* THE ND-500 REXT INSTRUCTION, device 0. Nothing is ever waiting: frames that
+ * arrive for an ND-5000 are consumed by its station model (ndbus_nd5000.c),
+ * which stands in for the ACCP and the microprogram, and none is queued for the
+ * guest to read. "Nothing read" is K = 1. Said out loud when it happens, because
+ * a guest that polls REXT for an answer would wait for ever. */
+static int mfbus_ext_read(Nd500Cpu *cpu, uint32_t device, uint32_t *value)
+{
+    (void)cpu;
+    (void)device;
+    if (value != NULL)
+    {
+        *value = 0;
+    }
+    static unsigned logged;
+    MfbusCpuSlot *slot = t_stepping_slot;
+    if (logged < 40u && slot != NULL)
+    {
+        logged++;
+        LOG(LOG_CAT_MMS, LOG_WARN,
+            "MFbus: %s REXT device %u at P=0x%08X - no frame queue for the guest, answering "
+            "\"nothing read\"\n",
+            slot->name, (unsigned)device, (unsigned)slot->cpu.cur_instr_pc);
+    }
+    return 1;
+}
+
 static bool mfbus_cpu_step(void *ctx)
 {
     MfbusCpuSlot *slot = (MfbusCpuSlot *)ctx;
+
+    /* Every step, not once per thread: a build with no host threads pumps
+     * several CPUs from one thread, and each must see its own trap store. */
+    t_stepping_slot = slot;
+    nd500_trap_bind_thread_state(&slot->trap_state);
 
     if (mfbus_cpu_step_inner(slot))
     {
@@ -1314,6 +1463,19 @@ static void mfbus_bank_write(void *ctx, uint32_t word_offset, uint16_t value, Wr
     }
 }
 
+/* The write half of the ND-100's TSET on a word in the window: one exchange. */
+static uint16_t mfbus_bank_exchange(void *ctx, uint32_t word_offset, uint16_t value)
+{
+    (void)ctx;
+    uint16_t old = 0;
+    mfbus_bank_write_watch(word_offset, value, WRITEMODE_WORD);
+    if (!ndbus_window_exchange_word(&s_window, word_offset, value, &old))
+    {
+        return 0;
+    }
+    return old;
+}
+
 bool mfbus_attach(uint32_t size_bytes, uint32_t base_page)
 {
     if (s_attached)
@@ -1369,6 +1531,9 @@ bool mfbus_attach(uint32_t size_bytes, uint32_t base_page)
      * side can land between the two halves of the other. Installed before the
      * window becomes reachable, removed in mfbus_detach(). */
     mms_set_tset_lock(ndbus_lock, ndbus_unlock);
+    nd500_set_tset_lock(ndbus_lock, ndbus_unlock);   /* the ND-500 TSET, same mutex */
+    nd500_set_tset_result_hook(mfbus_tset_result);
+    nd500_set_ext_device_hooks(mfbus_ext_write, mfbus_ext_read);
 
     if (!mms_memory_bank_register_backed(s_base_word, length_word, ND_MEM_MPM5, mfbus_bank_read,
                                          mfbus_bank_write, NULL))
@@ -1384,10 +1549,14 @@ bool mfbus_attach(uint32_t size_bytes, uint32_t base_page)
             "size.\n",
             (unsigned)base_page, (unsigned)s_base_word, (unsigned)length_word);
         mms_set_tset_lock(NULL, NULL);
+        nd500_set_tset_lock(NULL, NULL);
+        nd500_set_tset_result_hook(NULL);
+        nd500_set_ext_device_hooks(NULL, NULL);
         ndbus_pool_destroy(&s_pool);
         memset(&s_window, 0, sizeof(s_window));
         return false;
     }
+    (void)mms_memory_bank_set_exchange(s_base_word, mfbus_bank_exchange);
 
     if (!s_fabric_ready)
     {
@@ -2312,6 +2481,27 @@ static bool mfbus_load_named_process(void *ctx, uint16_t x5cpu)
     return mfbus_switch_to_process(nd, c, (int)x5cpu);
 }
 
+/* Keep a message for a CPU that is busy with another process. True when it was
+ * kept: the caller then returns true to the servicer, which leaves the message
+ * unanswered, and mfbus_release_deferred() puts it back in the queue once the
+ * CPU's process has stopped. False when the table is full. ND-100 thread only. */
+static bool mfbus_defer_message(MfbusCpuSlot *c, uint32_t msg_byte, uint16_t micfu)
+{
+    if (c->deferred_count >= MFBUS_DEFERRED_MAX)
+    {
+        return false;
+    }
+    c->deferred[c->deferred_count].msg_byte = msg_byte;
+    c->deferred[c->deferred_count].micfu = micfu;
+    c->deferred_count++;
+    mfbus_work_set(MFBUS_WORK_DEFER);
+    LOG(LOG_CAT_MMS, LOG_INFO,
+        "MFbus: MICFU %oB (msg 0x%06X) for %s waits - the CPU is running another process "
+        "(%u waiting)\n",
+        (unsigned)micfu, (unsigned)msg_byte, c->name, c->deferred_count);
+    return true;
+}
+
 static bool mfbus_start_process(void *ctx, uint32_t msg_byte, uint16_t micfu, uint32_t ctx_byte)
 {
     NdbusNd5000 *nd = (NdbusNd5000 *)ctx;
@@ -2643,6 +2833,25 @@ static bool mfbus_start_process(void *ctx, uint32_t msg_byte, uint16_t micfu, ui
      * do rather than waiting on us. */
     if (ndbus_micfu_is_continue(micfu))
     {
+        /* A CONTINUE FOR ANOTHER PROCESS WHILE THIS CPU IS EXECUTING ONE WAITS.
+         * With one user the CPU is always parked when an answer arrives, because
+         * the only process there is asked the question. With two users - or one
+         * user and the swapper - an answer for process A arrives while process B
+         * is executing. The microprogram does not look at the queue until B
+         * stops (ND-05.017.01 Appendix A.7), so the message stays where it is.
+         * MEASURED 11-OCT-2026, two terminals on one ND-5000: the swapper's 24B
+         * arrived while process 1 ran, was refused here, and SINTRAN reported
+         * "ND-500(0) CPU locked". */
+        if (!c->parked && msg_x5cpu >= 0 && msg_x5cpu != c->loaded_x5cpu)
+        {
+            NdbusRunnerState busy_state = ndbus_runner_state(&c->runner);
+            if ((busy_state == NDBUS_RUNNER_RUNNING || busy_state == NDBUS_RUNNER_STOPPING
+                 || __atomic_load_n(&c->runner_leaving, __ATOMIC_ACQUIRE) != 0u)
+                && mfbus_defer_message(c, msg_byte, micfu))
+            {
+                return true;
+            }
+        }
         c->continues_refused++;
         if (c->continues_refused <= MFBUS_MON_LOG_LIMIT)
         {
@@ -2695,9 +2904,26 @@ static bool mfbus_start_process(void *ctx, uint32_t msg_byte, uint16_t micfu, ui
     NdbusRunnerState runner_state = ndbus_runner_state(&c->runner);
     if (runner_state == NDBUS_RUNNER_RUNNING || runner_state == NDBUS_RUNNER_STOPPING)
     {
-        LOG(LOG_CAT_MMS, LOG_INFO,
-            "MFbus: start MICFU %oB for %s declined - the CPU is already running\n",
-            (unsigned)micfu, c->name);
+        /* THE CPU IS BUSY, SO THE MESSAGE WAITS. ND-05.017.01 Appendix A.7: the
+         * microprogram takes one message at a time, and one it has not taken
+         * stays in the execution queue with status 1 until the queue is scanned
+         * again. Refusing it instead made the servicer answer as a machine with
+         * no CPU does, and SINTRAN reported "Fatal internal system error" for the
+         * second of two users who typed RUN at the same moment (MEASURED
+         * 11-OCT-2026, two terminals on one ND-5000).
+         *
+         * Returning true tells the servicer the message is in hand: it is left
+         * unanswered. mfbus_release_deferred() puts it back to status 1 with its
+         * own function code once this CPU's process has stopped, and rings the
+         * doorbell so the queue is walked again. */
+        if (mfbus_defer_message(c, msg_byte, micfu))
+        {
+            return true;
+        }
+        LOG(LOG_CAT_MMS, LOG_ERROR,
+            "MFbus: start MICFU %oB for %s declined - the CPU is running and %u messages "
+            "already wait\n",
+            (unsigned)micfu, c->name, (unsigned)MFBUS_DEFERRED_MAX);
         return false;
     }
 
@@ -2982,7 +3208,11 @@ static void mfbus_reset_cpu_to_idle(void *ctx)
     __atomic_store_n(&c->runner_leaving, 0u, __ATOMIC_RELEASE);
 
     nd500_cpu_reset(&c->cpu);
-    nd500_trap_clear();
+    /* This CPU's own store, directly: this is the ND-100 thread, and
+     * nd500_trap_clear() would clear whatever store this thread is bound to. */
+    memset(&c->trap_state, 0, sizeof(c->trap_state));
+    ndbus_spin_damper_reset(&c->spin_damper);
+    c->deferred_count = 0;   /* a reset CPU owes no message a start */
     c->parked = false;
     c->loaded_x5cpu = -1;
     c->trap_captured = false;
@@ -3124,13 +3354,40 @@ static bool mfbus_card_transmit(void *ctx, Device *card, uint16_t frame)
      * unicast branch, so a broadcast naming an empty station was delivered to
      * everyone with no error. */
     uint8_t destination = (uint8_t)((frame >> 8u) & 0x3Fu);
+
+    /* WHO THE ND-100 TALKS TO. The first frames to EACH destination are named,
+     * with whether a station is there and how many frames it answered with. With
+     * several ND-5000s configured this is what shows whether SINTRAN ever
+     * addresses the second one - a question the per-station logs cannot answer,
+     * because a station that is never addressed logs nothing. Bounded per
+     * destination so the busy first CPU cannot flood the log. ND-100 thread only. */
+    static unsigned sent_to[64];
+    bool            name_it = (sent_to[destination]++ < 24u);
+
     if (!ndbus_fabric_has_station(&s_fabric, destination))
     {
+        if (name_it)
+        {
+            LOG(LOG_CAT_MMS, LOG_INFO,
+                "MFbus: ND-100 sends frame 0x%04X to station %oB: NO STATION (timeout)\n",
+                (unsigned)frame, (unsigned)destination);
+        }
         return false;
     }
 
     uint16_t replies[NDBUS_MAX_REPLY_FRAMES];
+    /* Under the engine lock: an ND-5000 can now send frames too (WEXT), and two
+     * senders must not run one station's frame handler at the same time. */
+    ndbus_engine_lock();
     int      n = ndbus_fabric_send(&s_fabric, (uint8_t)NDBUS_STATION_ND120_CPU, frame, replies);
+    ndbus_engine_unlock();
+    if (name_it)
+    {
+        LOG(LOG_CAT_MMS, LOG_INFO,
+            "MFbus: ND-100 sends frame 0x%04X to station %oB: %d reply frame(s)%s0x%04X\n",
+            (unsigned)frame, (unsigned)destination, n, (n > 0) ? ", first " : " ",
+            (n > 0) ? (unsigned)replies[0] : 0u);
+    }
 
     /* The frame may have started a station's monitor (ENKICK) or reset it. */
     mfbus_work_set(MFBUS_WORK_SCAN);
@@ -3621,6 +3878,54 @@ void mfbus_stop_nd5000(uint8_t station_number)
 #endif
 }
 
+/* Put the start messages that waited for a busy CPU back in the queue, for every
+ * CPU whose process has now stopped. ND-100 thread only.
+ *
+ * Each message gets status 1 (MSGN500, "for the ND-500") and its ORIGINAL
+ * function code back - the servicer marks a message it hands to the host as
+ * taken, and rewrites a 24B or 26B to 23B - and then the CPU's doorbell is rung,
+ * which is what makes the normal mailbox service walk the queue again. */
+static void mfbus_release_deferred(void)
+{
+    bool any_left = false;
+    for (int i = 0; i < s_nd5000_count; i++)
+    {
+        MfbusCpuSlot *c = &s_cpus[i];
+        if (c->deferred_count == 0u)
+        {
+            continue;
+        }
+        NdbusRunnerState state = ndbus_runner_state(&c->runner);
+        /* The runner's STATE, not runner_leaving: that mark stays set after the
+         * thread has gone, until the next message's quiesce clears it, so testing
+         * it here would hold the message for ever. MEASURED: it did. */
+        if (state == NDBUS_RUNNER_RUNNING || state == NDBUS_RUNNER_STOPPING)
+        {
+            any_left = true;
+            continue;
+        }
+        for (unsigned k = 0; k < c->deferred_count; k++)
+        {
+            uint32_t msg = c->deferred[k].msg_byte;
+            uint32_t sta_at = msg + NDBUS_MSG_N5STA * 2u;
+            uint16_t sta = ndbus_pool_read16(&s_pool, sta_at);
+            (void)ndbus_pool_write16(&s_pool, sta_at,
+                                     (uint16_t)((sta & (uint16_t)~NDBUS_N5STA_MASK)
+                                                | NDBUS_N5STA_TO_ND500));
+            (void)ndbus_pool_write16(&s_pool, msg + NDBUS_MSG_MICFU * 2u, c->deferred[k].micfu);
+        }
+        LOG(LOG_CAT_MMS, LOG_INFO,
+            "MFbus: %s has stopped - %u waiting start message(s) put back in the queue\n",
+            c->name, c->deferred_count);
+        c->deferred_count = 0;
+        (void)ndbus_mailbox_ring(&s_nd5000[i].mailbox);
+    }
+    if (!any_left)
+    {
+        mfbus_work_clear(MFBUS_WORK_DEFER);
+    }
+}
+
 int mfbus_service_nd5000_mailboxes(void)
 {
     /* THE COMMON CASE, AND IT MUST COST NOTHING. This runs once per ND-100
@@ -3665,6 +3970,11 @@ int mfbus_service_nd5000_mailboxes(void)
         {
             mfbus_work_clear(MFBUS_WORK_ARMED);
         }
+    }
+
+    if ((__atomic_load_n(&mfbus_tick_work, __ATOMIC_ACQUIRE) & MFBUS_WORK_DEFER) != 0u)
+    {
+        mfbus_release_deferred();
     }
 
     /* Only a station whose monitor has started has a doorbell. */
@@ -3792,6 +4102,9 @@ void mfbus_detach(void)
      * physical access a callback over a freed pool. */
     (void)mms_memory_bank_unregister(s_base_word);
     mms_set_tset_lock(NULL, NULL);
+    nd500_set_tset_lock(NULL, NULL);
+    nd500_set_tset_result_hook(NULL);
+    nd500_set_ext_device_hooks(NULL, NULL);
     ndbus_pool_destroy(&s_pool);
     memset(&s_window, 0, sizeof(s_window));
     s_attached = false;

@@ -1925,6 +1925,16 @@ static void do_tset(uint16_t instr)
     mms_tset_lock_begin();
     gA = cpu_memory_read(gT, true);
     cpu_memory_write(0xFFFF, gT, true, 2);
+    {
+        /* In memory shared with an ND-5000 the write was one exchange, and the
+         * word it returned is the value this instruction read - not the earlier
+         * read, which a release from the other CPU may have followed. */
+        uint16_t old = 0;
+        if (mms_tset_take_old(&old))
+        {
+            gA = old;
+        }
+    }
     mms_tset_lock_end();
 }
 
@@ -6395,6 +6405,13 @@ static void opcode_tsetp_test_and_set_physical_word(uint16_t operand)
     mms_tset_lock_begin();
     gA = (uint16_t)mms_read_physical_memory((int)phys_addr, true);
     mms_write_physical_memory((int)phys_addr, 0xFFFF, true);
+    {
+        uint16_t old = 0;
+        if (mms_tset_take_old(&old)) /* shared bank: one exchange - see do_tset */
+        {
+            gA = old;
+        }
+    }
     mms_tset_lock_end();
 }
 

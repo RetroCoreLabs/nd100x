@@ -30,6 +30,10 @@
 #include "mfbus_config.h"
 #include "ndbus_pool.h"
 #include "ndbus_octobus.h"
+#include "ndbus_accp.h"
+#include "ndbus_mailbox.h"
+#include "ndbus_msgqueue.h"
+#include "ndbus_servicer.h"
 
 /* Data-available through the bitfield union, the way the device works with it. */
 static bool octobus_in_status_ck(Device *card)
@@ -381,6 +385,145 @@ int main(void)
 
     mfbus_detach();
 
+    /* ---- FOUR ND-5000 CPUs, ONE SEMAPHORE, REAL TSET INSTRUCTIONS ----------
+     *
+     * The ND-5900 is four ND-5000 CPUs on one shared memory. Each CPU here runs
+     * on its own host thread and executes the same program out of the pool:
+     *
+     *   0: FD 40 40        BY TSET b.0         take the semaphore at B+0
+     *   3: C6 FD           if >< go -3         not mine (Z clear): try again
+     *   5: 4F 41           W INCR b.4          the guarded word at B+4
+     *   7: 48 40           BY STZ b.0          release
+     *   9: FD 25 D0 00 F7  W LOOPD I1,$0,$-9   count down I1, back to 0
+     *  14: 02              bp                  stop
+     *
+     * Every encoding is a row of nd500x's conformance corpus
+     * (test/nd500-conformance.json: Tset_Memory_NotSet, ifNego_Taken_ZeroClear,
+     * Incr_00000000, Stz_StoreZero, Loopd_Index10_Limit0_Taken, Bp_Breakpoint);
+     * `4F 41` is `w incr b.0x4` by the nd500-dis disassembler.
+     *
+     * W INCR on memory is a read and a write. If TSET's own read and write could
+     * be split by another CPU, two CPUs would hold the semaphore at once and an
+     * increment would be lost: the word would come out short.
+     *
+     * HOW MANY TIMES ONE CPU GOES ROUND IS MEASURED, NOT ASSUMED. Whether LOOPD
+     * with I1 = N makes N passes or N + 1 is a property of the instruction, so
+     * one CPU runs alone first and the count it leaves is the unit. */
+    {
+        static const uint8_t program[] = {0xFD, 0x40, 0x40, 0xC6, 0xFD, 0x4F, 0x41, 0x48,
+                                          0x40, 0xFD, 0x25, 0xD0, 0x00, 0xF7, 0x02};
+        const uint32_t x4_code = 0x4000u;
+        const uint32_t x4_data = 0x5000u; /* B: +0 the semaphore, +4 the counter */
+        const uint32_t x4_ctx  = 0x2000u;
+        const uint32_t x4_loops = 20000u;
+        static const uint8_t x4_stations[4] = {56, 57, 58, 59}; /* 070B..073B */
+
+        uint32_t unit = 0;
+        for (int pass = 0; pass < 2; pass++)
+        {
+            int ncpu = (pass == 0) ? 1 : 4;
+
+            /* A FRESH BUS FOR EACH PASS. The bp that ends the program is a trap
+             * with nobody to report it to, and the bridge deliberately keeps an
+             * unreported trap pending (discarding it would lose a fault). A CPU
+             * that stopped that way does not run again until it is reset - on
+             * the machine, by an ACCP CPURES - so the pass that measured the
+             * unit must not hand its stopped CPU to the pass that uses it.
+             * MEASURED: reusing it, station 070B executed nothing in pass 2. */
+            CHECK(mfbus_attach(TEST_POOL_BYTES, TEST_BASE_PAGE), "attach for the four-CPU test");
+            NdbusPool *x4_pool = mfbus_pool();
+            for (int i = 0; i < 4; i++)
+            {
+                CHECK(mfbus_add_nd5000(x4_stations[i]), "a station for each of the four");
+                CHECK(mfbus_attach_cpu(x4_stations[i]), "and a CPU behind it");
+            }
+            CHECK(mfbus_nd5000_count() == 4, "four ND-5000s on the bus");
+            CHECK(ndbus_pool_write_bytes(x4_pool, x4_code, program, (uint32_t)sizeof(program)),
+                  "the program is in the pool");
+            (void)ndbus_pool_write32(x4_pool, x4_data, 0);
+            (void)ndbus_pool_write32(x4_pool, x4_data + 4u, 0);
+            for (int i = 0; i < ncpu; i++)
+            {
+                NdbusContext cv;
+                CHECK(mfbus_place_context(x4_stations[i], x4_ctx, x4_code, x4_data),
+                      "a context block for this CPU");
+                CHECK(ndbus_context_attach(&cv, x4_pool, x4_ctx, i), "its block is in the pool");
+                CHECK(ndbus_context_write(&cv, NDBUS_CTX_I1, x4_loops), "I1 is the loop count");
+                CHECK(mfbus_load_context(x4_stations[i]), "the CPU loads from its block");
+            }
+            for (int i = 0; i < ncpu; i++)
+            {
+                CHECK(mfbus_start_nd5000(x4_stations[i]), "the CPU's host thread starts");
+            }
+            /* Until every CPU has stopped at its bp, with a ceiling so a CPU that
+             * never stops fails the test instead of hanging it. */
+            int waited_ms = 0;
+            while (mfbus_nd5000_running_mask() != 0u && waited_ms < 60000)
+            {
+                usleep(1000);
+                waited_ms++;
+            }
+            CHECK(mfbus_nd5000_running_mask() == 0u, "every CPU ran to its stop");
+            for (int i = 0; i < ncpu; i++)
+            {
+                mfbus_stop_nd5000(x4_stations[i]);
+            }
+
+            uint32_t counter = ndbus_pool_read32(x4_pool, x4_data + 4u);
+            if (pass == 0)
+            {
+                unit = counter;
+                printf("  one CPU alone, I1=%u: counter=%u, %llu instructions\n", x4_loops, unit,
+                       mfbus_nd5000_instructions(x4_stations[0]));
+                CHECK(unit == x4_loops || unit == x4_loops + 1u,
+                      "one CPU alone counts its loop (N or N+1 passes)");
+            }
+            else
+            {
+                printf("  four CPUs: counter=%u, expected %u; instructions %llu %llu %llu %llu\n",
+                       counter, 4u * unit, mfbus_nd5000_instructions(x4_stations[0]),
+                       mfbus_nd5000_instructions(x4_stations[1]),
+                       mfbus_nd5000_instructions(x4_stations[2]),
+                       mfbus_nd5000_instructions(x4_stations[3]));
+                CHECK(counter == 4u * unit,
+                      "four CPUs: no increment lost - the ND-500 TSET is uninterruptible");
+                for (int i = 0; i < 4; i++)
+                {
+                    CHECK(mfbus_nd5000_instructions(x4_stations[i]) > 0ull,
+                          "each of the four executed instructions");
+                }
+            }
+            CHECK(ndbus_pool_read8(x4_pool, x4_data) == 0u, "the semaphore is free at the end");
+            mfbus_detach();
+        }
+    }
+
+    /* ---- THE ND-100 TSET'S WRITE INTO THE WINDOW IS AN EXCHANGE ------------
+     * While the test-and-set lock is held, a word write into the shared window
+     * stores the value and hands back what was there as one operation, so a
+     * release by an ND-5000 cannot land between the instruction's read and its
+     * write. Outside a test-and-set the same write is an ordinary store. */
+    {
+        CHECK(mfbus_attach(TEST_POOL_BYTES, TEST_BASE_PAGE), "attach for the exchange test");
+        NdbusPool *xp = mfbus_pool();
+        const uint32_t word = TEST_BASE_PAGE * 1024u + 0x300u; /* window word 0x300 */
+        uint16_t old = 0;
+
+        (void)ndbus_pool_write16(xp, 0x600u, 0x1234u);
+        mms_tset_lock_begin();
+        mms_write_physical_memory((int)word, 0xFFFF, true);
+        CHECK(mms_tset_take_old(&old), "inside a test-and-set the write was an exchange");
+        CHECK(old == 0x1234u, "and it returned the word that was there");
+        CHECK(!mms_tset_take_old(&old), "the old value is handed out once");
+        mms_tset_lock_end();
+        CHECK(ndbus_pool_read16(xp, 0x600u) == 0xFFFFu, "the cell is all ones");
+
+        mms_write_physical_memory((int)word, 0x0000, true);
+        CHECK(!mms_tset_take_old(&old), "outside a test-and-set it is an ordinary store");
+        CHECK(ndbus_pool_read16(xp, 0x600u) == 0x0000u, "which stored its value");
+        mfbus_detach();
+    }
+
     /* ---- THE ROUND-TRIP PROPERTY: save then load restores EVERY register ----
      *
      * This is the test that was missing, and its absence is why a real defect
@@ -661,6 +804,199 @@ int main(void)
     }
 
     mfbus_detach();
+
+    /* ---- A MESSAGE FOR A BUSY CPU WAITS, AND IS SERVED ONCE THE CPU STOPS ---
+     *
+     * ND-05.017.01 Appendix A.7: the microprogram takes one message at a time,
+     * and one it has not taken stays in the execution queue until the queue is
+     * looked at again. MEASURED 11-OCT-2026 under SINTRAN with two terminals on
+     * one ND-5000: a start that arrived while the CPU ran another process was
+     * answered as "no CPU" and SINTRAN reported "Fatal internal system error";
+     * a continue in the same position gave "CPU locked".
+     *
+     * The mailbox is located the way SINTRAN locates it: LPARP, one LOCSM pulse
+     * that loads control-store cells 020B (context area), 025B (SAMSON_CPU) and
+     * 026B (START_MESS), STARTMIC, ENKICK.
+     *
+     * THE BUSY PROCESS is real code on its own thread: FD 40 40 (BY TSET b.0)
+     * and C6 FD (if >< go -3), the first two instructions of the four-CPU test
+     * above, on a semaphore that is never released - so it never stops by
+     * itself.
+     *
+     * WHAT THE WAITING MESSAGE DOES AFTERWARDS is deliberately the smallest
+     * thing with one meaning: its process has an empty context block (P = 0),
+     * which the bridge declines, so the servicer answers the message. An answer
+     * can only appear if the message was put back in the queue and the queue was
+     * walked again. Starting a second real process would need page tables. */
+    {
+        const uint32_t w_param  = 0x0800u;
+        const uint32_t w_ctx    = 0x2000u;  /* block 0 at +0x100, block 1 at +0x200 */
+        const uint32_t w_header = 0x4000u;
+        const uint32_t w_ext1   = w_header + 256u;
+        const uint32_t w_ring   = w_header + 0x800u;
+        const uint32_t w_msg    = w_header + 0x1000u;
+        const uint32_t w_code   = 0x6000u;
+        const uint32_t w_data   = 0x7000u;
+        static const uint8_t spin[] = {0xFD, 0x40, 0x40, 0xC6, 0xFD};
+        static const uint16_t codes[2] = {NDBUS_MICFU_START, NDBUS_MICFU_MONCO};
+        static const char *const names[2] = {"3START (23B)", "3MONCO (24B)"};
+
+        for (int v = 0; v < 2; v++)
+        {
+            char what[160];
+            printf("  waiting message: %s\n", names[v]);
+
+            CHECK(mfbus_attach(TEST_POOL_BYTES, TEST_BASE_PAGE), "attach for the waiting test");
+            Device *wcard = octobus_create_device(0);
+            CHECK(wcard != NULL && mfbus_attach_card(wcard), "an octobus card on the bus");
+            if (wcard == NULL)
+            {
+                mfbus_detach();
+                continue;
+            }
+            CHECK(mfbus_add_nd5000(56), "a station");
+            CHECK(mfbus_attach_cpu(56), "with a CPU");
+            NdbusPool *pool = mfbus_pool();
+            uint16_t dest = (uint16_t)(56u << 8u);
+
+            /* One multibyte ACCP message, written to the octobus card's transmit
+             * register as SINTRAN writes it: SOMB, source OMD, byte count, the
+             * bytes, EOMB. */
+#define W_ACCP(body, len)                                                               \
+    do                                                                                  \
+    {                                                                                   \
+        wcard->Write(wcard, 0100405, (uint16_t)(dest | 0x8000u | 0x0020u | 0x0010u | 3u)); \
+        wcard->Write(wcard, 0100405, (uint16_t)(dest | 3u));                            \
+        wcard->Write(wcard, 0100405, (uint16_t)(dest | (uint16_t)(len)));               \
+        for (int wi = 0; wi < (len); wi++)                                              \
+        {                                                                               \
+            wcard->Write(wcard, 0100405, (uint16_t)(dest | (body)[wi]));                \
+        }                                                                               \
+        wcard->Write(wcard, 0100405, (uint16_t)(dest | 0x8000u | 0x0020u | 3u));        \
+    } while (0)
+
+            /* The parameter block: 7 microwords from cell 020B. A cell's value is
+             * the 32 bits in halfwords 6 and 7 of its microword. */
+            (void)ndbus_pool_write16(pool, w_param, 7u);
+            (void)ndbus_pool_write16(pool, w_param + 2u, 0x10u);
+            for (uint32_t i = 0; i < 7u * 8u; i++)
+            {
+                (void)ndbus_pool_write16(pool, w_param + 4u + i * 2u, 0u);
+            }
+#define W_CELL(cell, value)                                                             \
+    do                                                                                  \
+    {                                                                                   \
+        uint32_t at = w_param + 4u + (((cell) - 0x10u) * 8u + 6u) * 2u;                 \
+        (void)ndbus_pool_write16(pool, at, (uint16_t)((uint32_t)(value) >> 16u));       \
+        (void)ndbus_pool_write16(pool, at + 2u, (uint16_t)((uint32_t)(value) & 0xFFFFu)); \
+    } while (0)
+            W_CELL(0x10u, w_ctx);    /* 020B OFFSET: the context block area */
+            W_CELL(0x15u, 1u);       /* 025B SAMSON_CPU: extension block 1 */
+            W_CELL(0x16u, w_header); /* 026B START_MESS */
+
+            const uint8_t lparp[5] = {NDBUS_ACCP_LPARP, (uint8_t)(w_param >> 24u),
+                                      (uint8_t)(w_param >> 16u), (uint8_t)(w_param >> 8u),
+                                      (uint8_t)(w_param & 0xFFu)};
+            const uint8_t locsm[1]    = {NDBUS_ACCP_LOCSM};
+            const uint8_t startmic[3] = {NDBUS_ACCP_STARTMIC, 0u, 0u}; /* two parameter bytes */
+            const uint8_t enkick[1]   = {NDBUS_ACCP_ENKICK};
+
+            /* The mailbox as XMSINIT leaves it: an empty ring and an empty queue. */
+            (void)ndbus_pool_write16(pool, w_header + NDBUS_MBX_X5SEM_WORD * 2u, 0u);
+            (void)ndbus_pool_write16(pool, w_header + NDBUS_MBX_X5HEN_WORD * 2u, 0u);
+            (void)ndbus_pool_write16(pool, w_header + NDBUS_MBX_X5FYL_WORD * 2u, 0u);
+            (void)ndbus_pool_write16(pool, w_header + NDBUS_MBX_X5MXF_WORD * 2u, 8u);
+            (void)ndbus_pool_write16(pool, w_header + NDBUS_MBX_X5FIF_WORD * 2u,
+                                     (uint16_t)(w_ring >> 16u));
+            (void)ndbus_pool_write16(pool, w_header + (NDBUS_MBX_X5FIF_WORD + 1u) * 2u,
+                                     (uint16_t)(w_ring & 0xFFFFu));
+            (void)ndbus_pool_write16(pool, w_ext1 + 0u, 0xFFFFu);
+            (void)ndbus_pool_write16(pool, w_ext1 + 2u, 0xFFFFu);
+            (void)ndbus_pool_write16(pool, w_ext1 + NDBUS_MBX_X5ACT_WORD * 2u, 0xFFFFu);
+            (void)ndbus_pool_write16(pool, w_ext1 + NDBUS_MBX_X5PRO_WORD * 2u, 0xFFFFu);
+
+            W_ACCP(lparp, 5);
+            W_ACCP(locsm, 1);
+            W_ACCP(startmic, 3);
+            W_ACCP(enkick, 1);
+#undef W_CELL
+#undef W_ACCP
+
+            /* The busy process, started directly: context block 0, never stops. */
+            for (uint32_t i = 0; i < sizeof(spin); i++)
+            {
+                (void)ndbus_pool_write8(pool, w_code + i, spin[i]);
+            }
+            (void)ndbus_pool_write8(pool, w_data, 0xFFu); /* a semaphore nobody releases */
+            CHECK(mfbus_place_context(56, w_ctx, w_code, w_data), "the busy process's context");
+            CHECK(mfbus_load_context(56), "is loaded");
+            CHECK(mfbus_start_nd5000(56), "and the CPU runs it");
+
+            unsigned long long before = mfbus_nd5000_instructions(56);
+            for (int spins = 0; spins < 2000 && mfbus_nd5000_instructions(56) < before + 100u;
+                 spins++)
+            {
+                usleep(1000);
+            }
+            CHECK(mfbus_nd5000_instructions(56) >= before + 100u,
+                  "the busy process is executing instructions");
+
+            /* One message for process 1, queued and the doorbell rung (X5ACT = 0). */
+            (void)ndbus_pool_write16(pool, w_msg + 0u, 0xFFFFu);
+            (void)ndbus_pool_write16(pool, w_msg + 2u, 0xFFFFu);
+            (void)ndbus_pool_write16(pool, w_msg + NDBUS_MSG_N5STA * 2u, NDBUS_N5STA_TO_ND500);
+            (void)ndbus_pool_write16(pool, w_msg + NDBUS_MSG_X5CPU * 2u, 1u);
+            (void)ndbus_pool_write16(pool, w_msg + NDBUS_MSG_MICFU * 2u, codes[v]);
+            (void)ndbus_pool_write16(pool, w_ext1 + 0u, (uint16_t)(w_msg >> 16u));
+            (void)ndbus_pool_write16(pool, w_ext1 + 2u, (uint16_t)(w_msg & 0xFFFFu));
+            (void)ndbus_pool_write16(pool, w_ext1 + NDBUS_MBX_X5ACT_WORD * 2u, 0u);
+
+            uint16_t sta = 0;
+            for (int tick = 0; tick < 50; tick++)
+            {
+                (void)mfbus_service_nd5000_mailboxes();
+            }
+            sta = (uint16_t)(ndbus_pool_read16(pool, w_msg + NDBUS_MSG_N5STA * 2u)
+                             & NDBUS_N5STA_MASK);
+            printf("    while the CPU runs: N5STA=%u MICFU=%u X5ACT=%u\n", (unsigned)sta,
+                   (unsigned)ndbus_pool_read16(pool, w_msg + NDBUS_MSG_MICFU * 2u),
+                   (unsigned)ndbus_pool_read16(pool, w_ext1 + NDBUS_MBX_X5ACT_WORD * 2u));
+            snprintf(what, sizeof(what), "%s: the doorbell was seen (X5ACT is re-armed to 1)",
+                     names[v]);
+            CHECK(ndbus_pool_read16(pool, w_ext1 + NDBUS_MBX_X5ACT_WORD * 2u) == 1u, what);
+            snprintf(what, sizeof(what),
+                     "%s: after 50 ticks with the CPU busy the message is WAITING, not answered",
+                     names[v]);
+            CHECK(sta == NDBUS_N5STA_WAITING, what);
+            snprintf(what, sizeof(what), "%s: and the busy process is still running", names[v]);
+            unsigned long long mid = mfbus_nd5000_instructions(56);
+            usleep(20000);
+            CHECK(mfbus_nd5000_instructions(56) > mid, what);
+
+            /* The process stops. The next tick must put the message back and walk
+             * the queue; its process has no entry point, so it is answered. */
+            mfbus_stop_nd5000(56);
+            for (int tick = 0; tick < 50; tick++)
+            {
+                (void)mfbus_service_nd5000_mailboxes();
+            }
+            sta = (uint16_t)(ndbus_pool_read16(pool, w_msg + NDBUS_MSG_N5STA * 2u)
+                             & NDBUS_N5STA_MASK);
+            uint16_t micfu_after = ndbus_pool_read16(pool, w_msg + NDBUS_MSG_MICFU * 2u);
+            printf("    after the CPU stopped: N5STA=%u MICFU=%u\n", (unsigned)sta,
+                   (unsigned)micfu_after);
+            snprintf(what, sizeof(what),
+                     "%s: once the CPU has stopped the message is served and answered", names[v]);
+            CHECK(sta == NDBUS_N5STA_ANSWER, what);
+            snprintf(what, sizeof(what),
+                     "%s: and it was served under its own function code", names[v]);
+            CHECK(micfu_after == codes[v], what);
+
+            dev_destroy(wcard);
+            free(wcard);
+            mfbus_detach();
+        }
+    }
 
     /* ---- an .ini in, a working machine out --------------------------------
      * The path Ronny actually uses. A configuration that parses cleanly and then
