@@ -73,15 +73,17 @@ if(NOT (PLATFORM_WASM OR BUILD_WASM))
     target_link_libraries(ndlib PUBLIC pthread)
 endif()
 
-# Winsock on Windows (ws2_32 provides socket(), WSAPoll, WSAStartup, etc.)
+# Windows system libraries:
+# - ws2_32: Winsock (socket(), WSAPoll, WSAStartup, etc.) for the telnet server.
+# - winhttp: the HTTP/HTTPS client used by download.c. Part of every Windows,
+#   so nothing is shipped next to the exe.
 if(PLATFORM_WINDOWS)
-    target_link_libraries(ndlib PUBLIC ws2_32)
+    target_link_libraries(ndlib PUBLIC ws2_32 winhttp)
 endif()
 
-# Link CURL only when the parent find_package(CURL) succeeded.
-# On Windows CURL is optional (find_package is QUIET) and download_file()
-# compiles as a stub (!defined(HAVE_CURL)) when curl is missing.
-if(CURL_FOUND AND NOT (PLATFORM_WASM OR BUILD_WASM OR PLATFORM_RISCV OR BUILD_RISCV))
+# Link CURL on the POSIX platforms where the parent find_package(CURL) ran.
+# Windows never links libcurl (download.c uses WinHTTP there).
+if(CURL_FOUND AND NOT (PLATFORM_WINDOWS OR PLATFORM_WASM OR BUILD_WASM OR PLATFORM_RISCV OR BUILD_RISCV))
     if(TARGET CURL::libcurl)
         target_link_libraries(ndlib PUBLIC CURL::libcurl)
     else()

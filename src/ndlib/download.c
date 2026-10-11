@@ -1,5 +1,13 @@
 /*
- * download.c - File download with libcurl, with stubs where curl is unavailable.
+ * download.c - One HTTP/HTTPS GET into a heap buffer.
+ *
+ * Backends:
+ *   - Windows: WinHTTP (winhttp.dll, part of every Windows since XP). TLS and
+ *     certificate validation against the Windows certificate store are done
+ *     by the OS, so no library and no CA file ship with the exe.
+ *   - Linux / BSD / macOS: libcurl, the library the OS or the distro already
+ *     provides. It reads the platform root store on its own.
+ *   - WASM / RISC-V / builds without HAVE_CURL: stubs that return NULL.
  *
  * nd100x - ND100 Virtual Machine
  *
@@ -31,13 +39,14 @@
 #include <string.h>
 
 #include "log.h"
-#include "nd_format.h"
 
-#if defined(__EMSCRIPTEN__) || defined(__riscv) || !defined(HAVE_CURL)
+// Upper bound on one download (500 MB), shared by every backend.
+#define DL_MAX_BYTES ((size_t)500 * 1024 * 1024)
 
-// No libcurl on this platform. Provide stubs so machine.c / menu.c still link.
-// Triggered on WASM, RISC-V, and any build where CMake did not find CURL
-// (e.g. w64devkit without libcurl).
+#if defined(__EMSCRIPTEN__) || defined(__riscv) || (!defined(_WIN32) && !defined(HAVE_CURL))
+
+// No HTTP client on this platform. Provide stubs so machine.c / menu.c still link.
+// Triggered on WASM, RISC-V, and any non-Windows build where CMake did not find CURL.
 
 // Get the actual size of downloaded data (not supported in WASM)
 size_t dl_get_downloaded_size(void)
@@ -49,73 +58,344 @@ size_t dl_get_downloaded_size(void)
 char *dl_download_file(const char *url)
 {
     (void)url;
-    LOG(LOG_CAT_NET, LOG_WARN, "Download not supported in WASM build (CURL disabled)\n");
+    LOG(LOG_CAT_NET, LOG_WARN, "Download not supported in this build (no HTTP client)\n");
     return NULL;
 }
 
-#else
+#elif defined(_WIN32)
 
-#include <curl/curl.h>
+// ---------------------------------------------------------------------------
+// Windows backend: WinHTTP.
+//
+// Same contract as the libcurl backend below: one GET, follow redirects,
+// 30 second timeouts, user agent "nd100x/1.0", HTTP 200 required, body
+// returned NUL-terminated in a malloc'd buffer, size in g_downloaded_size.
+// Certificate validation is left at the WinHTTP default (on, Windows root
+// store). No SECURITY_FLAG_IGNORE_* bits are set anywhere in this file.
+// ---------------------------------------------------------------------------
 
-#ifdef _WIN32
 #include <windows.h>
-// Resolve the CA bundle for TLS verification on Windows. The vendored curl-for-win
-// build verifies HTTPS against a CA *file* (there is no Windows-cert-store default),
-// so we must hand libcurl one or every https:// fetch fails with a verification
-// error. Preference order:
-//   1. curl-ca-bundle.crt staged next to the .exe (build.bat / Makefile copy it there).
-//   2. ND100X_VENDORED_CA_BUNDLE - the external/curl copy, baked in at compile time.
-// If neither exists we set nothing and let libcurl fall back to its own default /
-// the CURL_CA_BUNDLE env var. We NEVER disable peer verification.
-static const char *win_ca_bundle(void)
-{
-    static char path[MAX_PATH];
-    static int resolved = 0;
-    if (resolved)
-    {
-        return path[0] ? path : NULL;
-    }
-    resolved = 1;
+#include <winhttp.h>
 
-    // (1) exe-relative curl-ca-bundle.crt
-    char exe[MAX_PATH];
-    DWORD n = GetModuleFileNameA(NULL, exe, (DWORD)sizeof(exe));
-    if (n > 0 && n < sizeof(exe))
+// Older mingw-w64 headers lack the TLS 1.3 bit. Value from the Windows SDK.
+#ifndef WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_3
+#define WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_3 0x00002000
+#endif
+
+// Global variable to track the actual downloaded size
+static size_t g_downloaded_size = 0;
+
+// Log a WinHTTP / Win32 error code with its message text.
+static void dl_log_win_error(const char *what, DWORD err)
+{
+    wchar_t wmsg[512];
+    char msg[512];
+    DWORD n = FormatMessageW(FORMAT_MESSAGE_FROM_HMODULE | FORMAT_MESSAGE_FROM_SYSTEM |
+                                 FORMAT_MESSAGE_IGNORE_INSERTS,
+                             GetModuleHandleW(L"winhttp.dll"), err, 0,
+                             wmsg, (DWORD)(sizeof(wmsg) / sizeof(wmsg[0])), NULL);
+    while (n > 0 && (wmsg[n - 1] == L'\r' || wmsg[n - 1] == L'\n' || wmsg[n - 1] == L' '))
     {
-        char *slash = strrchr(exe, '\\');
-        if (slash)
+        wmsg[--n] = L'\0';
+    }
+    if (n == 0 || !WideCharToMultiByte(CP_UTF8, 0, wmsg, -1, msg, (int)sizeof(msg), NULL, NULL))
+    {
+        LOG(LOG_CAT_NET, LOG_ERROR, "Error: %s failed (WinHTTP error %lu)\n", what, (unsigned long)err);
+        return;
+    }
+    LOG(LOG_CAT_NET, LOG_ERROR, "Error: %s failed: %s (%lu)\n", what, msg, (unsigned long)err);
+}
+
+// UTF-8 -> UTF-16 on the heap. Returns NULL on failure.
+static wchar_t *dl_utf8_to_wide(const char *s)
+{
+    int n = MultiByteToWideChar(CP_UTF8, 0, s, -1, NULL, 0);
+    if (n <= 0)
+    {
+        return NULL;
+    }
+    wchar_t *w = (wchar_t *)malloc((size_t)n * sizeof(wchar_t));
+    if (!w)
+    {
+        return NULL;
+    }
+    if (!MultiByteToWideChar(CP_UTF8, 0, s, -1, w, n))
+    {
+        free(w);
+        return NULL;
+    }
+    return w;
+}
+
+// Copy a (pointer, length) slice that WinHttpCrackUrl returned into its own
+// NUL-terminated heap string.
+static wchar_t *dl_wide_slice(const wchar_t *p, DWORD len)
+{
+    wchar_t *w = (wchar_t *)malloc(((size_t)len + 1) * sizeof(wchar_t));
+    if (!w)
+    {
+        return NULL;
+    }
+    memcpy(w, p, (size_t)len * sizeof(wchar_t));
+    w[len] = L'\0';
+    return w;
+}
+
+// Get the actual size of downloaded data
+size_t dl_get_downloaded_size(void)
+{
+    return g_downloaded_size;
+}
+
+// Unified download function that can handle both JSON and binary files
+char *dl_download_file(const char *url)
+{
+    wchar_t *wurl = NULL;
+    wchar_t *host = NULL;
+    wchar_t *path = NULL;
+    HINTERNET hSession = NULL;
+    HINTERNET hConnect = NULL;
+    HINTERNET hRequest = NULL;
+    char *data = NULL;
+    size_t size = 0;
+    char *result = NULL;
+
+    g_downloaded_size = 0;
+
+    if (!url)
+    {
+        LOG(LOG_CAT_NET, LOG_ERROR, "Error: NULL URL provided to download_file\n");
+        return NULL;
+    }
+
+    wurl = dl_utf8_to_wide(url);
+    if (!wurl)
+    {
+        LOG(LOG_CAT_NET, LOG_ERROR, "Error: cannot convert URL to UTF-16: %s\n", url);
+        goto done;
+    }
+
+    // Split the URL. Lengths of (DWORD)-1 ask WinHttpCrackUrl to point into
+    // wurl and fill in the real lengths; the pieces are not NUL-terminated.
+    URL_COMPONENTSW uc;
+    memset(&uc, 0, sizeof(uc));
+    uc.dwStructSize = sizeof(uc);
+    uc.dwSchemeLength = (DWORD)-1;
+    uc.dwHostNameLength = (DWORD)-1;
+    uc.dwUrlPathLength = (DWORD)-1;
+    uc.dwExtraInfoLength = (DWORD)-1;
+    if (!WinHttpCrackUrl(wurl, 0, 0, &uc))
+    {
+        dl_log_win_error("WinHttpCrackUrl", GetLastError());
+        goto done;
+    }
+
+    BOOL secure;
+    if (uc.nScheme == INTERNET_SCHEME_HTTPS)
+    {
+        secure = TRUE;
+    }
+    else if (uc.nScheme == INTERNET_SCHEME_HTTP)
+    {
+        secure = FALSE;
+    }
+    else
+    {
+        LOG(LOG_CAT_NET, LOG_ERROR, "Error: URL scheme is not http or https: %s\n", url);
+        goto done;
+    }
+
+    if (uc.dwHostNameLength == 0)
+    {
+        LOG(LOG_CAT_NET, LOG_ERROR, "Error: URL has no host name: %s\n", url);
+        goto done;
+    }
+    host = dl_wide_slice(uc.lpszHostName, uc.dwHostNameLength);
+
+    // Path and query are adjacent in the original URL, so one slice covers both.
+    if (uc.dwUrlPathLength == 0)
+    {
+        path = dl_wide_slice(L"/", 1);
+    }
+    else
+    {
+        path = dl_wide_slice(uc.lpszUrlPath, uc.dwUrlPathLength + uc.dwExtraInfoLength);
+    }
+    if (!host || !path)
+    {
+        LOG(LOG_CAT_NET, LOG_ERROR, "Error: out of memory while splitting URL\n");
+        goto done;
+    }
+
+    hSession = WinHttpOpen(L"nd100x/1.0", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
+                           WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
+    if (!hSession)
+    {
+        dl_log_win_error("WinHttpOpen", GetLastError());
+        goto done;
+    }
+
+    // 30 s for resolve, connect, send and receive (matches CURLOPT_TIMEOUT 30).
+    WinHttpSetTimeouts(hSession, 30000, 30000, 30000, 30000);
+
+    // Do not rely on the OS default protocol set (Windows 7 defaults to TLS 1.0
+    // without KB3140245). Ask for TLS 1.2 + 1.3; if the TLS 1.3 bit is unknown
+    // to this Windows, fall back to TLS 1.2 alone.
+    {
+        DWORD protos = WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_2 | WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_3;
+        if (!WinHttpSetOption(hSession, WINHTTP_OPTION_SECURE_PROTOCOLS, &protos, sizeof(protos)))
         {
-            size_t dirlen = (size_t)(slash - exe) + 1; // keep the trailing backslash
-            const char *leaf = "curl-ca-bundle.crt";
-            if (dirlen + strlen(leaf) < sizeof(path))
+            protos = WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_2;
+            if (!WinHttpSetOption(hSession, WINHTTP_OPTION_SECURE_PROTOCOLS, &protos, sizeof(protos)))
             {
-                memcpy(path, exe, dirlen);
-                snprintf(path + dirlen, sizeof(path) - dirlen, "%s", leaf);
-                FILE *f = fopen(path, "rb");
-                if (f)
-                {
-                    fclose(f);
-                    return path;
-                }
+                LOG(LOG_CAT_NET, LOG_WARN, "WinHTTP: cannot set TLS protocol list, using the OS default\n");
             }
         }
     }
 
-#ifdef ND100X_VENDORED_CA_BUNDLE
-    // (2) compile-time vendored path (external/curl/bin/curl-ca-bundle.crt)
-    /* A cut-off path would name a different file, so it is not opened. */
-    FILE *f2 = ND_PATH(path, "%s", ND100X_VENDORED_CA_BUNDLE) ? fopen(path, "rb") : NULL;
-    if (f2)
+    hConnect = WinHttpConnect(hSession, host, uc.nPort, 0);
+    if (!hConnect)
     {
-        fclose(f2);
-        return path;
+        dl_log_win_error("WinHttpConnect", GetLastError());
+        goto done;
     }
-#endif
 
-    path[0] = '\0';
-    return NULL;
+    // Redirects are followed by the WinHTTP default policy
+    // (WINHTTP_OPTION_REDIRECT_POLICY_DISALLOW_HTTPS_TO_HTTP, max 10).
+    hRequest = WinHttpOpenRequest(hConnect, L"GET", path, NULL, WINHTTP_NO_REFERER,
+                                  WINHTTP_DEFAULT_ACCEPT_TYPES,
+                                  secure ? WINHTTP_FLAG_SECURE : 0);
+    if (!hRequest)
+    {
+        dl_log_win_error("WinHttpOpenRequest", GetLastError());
+        goto done;
+    }
+
+    if (!WinHttpSendRequest(hRequest, WINHTTP_NO_ADDITIONAL_HEADERS, 0,
+                            WINHTTP_NO_REQUEST_DATA, 0, 0, 0))
+    {
+        dl_log_win_error("WinHttpSendRequest", GetLastError());
+        goto done;
+    }
+
+    if (!WinHttpReceiveResponse(hRequest, NULL))
+    {
+        dl_log_win_error("WinHttpReceiveResponse", GetLastError());
+        goto done;
+    }
+
+    {
+        DWORD status = 0;
+        DWORD status_size = sizeof(status);
+        if (!WinHttpQueryHeaders(hRequest, WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
+                                 WINHTTP_HEADER_NAME_BY_INDEX, &status, &status_size,
+                                 WINHTTP_NO_HEADER_INDEX))
+        {
+            dl_log_win_error("WinHttpQueryHeaders(status)", GetLastError());
+            goto done;
+        }
+        if (status != 200)
+        {
+            LOG(LOG_CAT_NET, LOG_ERROR, "Error: HTTP request failed with code %lu\n", (unsigned long)status);
+            goto done;
+        }
+    }
+
+    // Read the body. Same growth, overflow and size-cap rules as write_callback()
+    // in the libcurl backend.
+    for (;;)
+    {
+        DWORD avail = 0;
+        if (!WinHttpQueryDataAvailable(hRequest, &avail))
+        {
+            dl_log_win_error("WinHttpQueryDataAvailable", GetLastError());
+            goto done;
+        }
+        if (avail == 0)
+        {
+            break;
+        }
+
+        size_t new_size = size + (size_t)avail;
+        if (new_size < size)
+        {
+            LOG(LOG_CAT_NET, LOG_ERROR, "Error: Integer overflow in realloc size calculation\n");
+            goto done;
+        }
+        if (new_size > DL_MAX_BYTES)
+        {
+            LOG(LOG_CAT_NET, LOG_ERROR, "Error: File size exceeds 500MB limit\n");
+            goto done;
+        }
+
+        char *grown = (char *)realloc(data, new_size);
+        if (!grown)
+        {
+            LOG(LOG_CAT_NET, LOG_ERROR, "Error: Failed to reallocate memory for download response\n");
+            goto done;
+        }
+        data = grown;
+
+        DWORD got = 0;
+        if (!WinHttpReadData(hRequest, data + size, avail, &got))
+        {
+            dl_log_win_error("WinHttpReadData", GetLastError());
+            goto done;
+        }
+        if (got == 0)
+        {
+            break;
+        }
+        size += (size_t)got;
+    }
+
+    if (!data || size == 0)
+    {
+        LOG(LOG_CAT_NET, LOG_ERROR, "Error: No data received from %s\n", url);
+        goto done;
+    }
+
+    {
+        // Add null terminator for compatibility with string functions
+        char *final_data = (char *)realloc(data, size + 1);
+        if (!final_data)
+        {
+            LOG(LOG_CAT_NET, LOG_ERROR, "Error: Failed to allocate memory for null terminator\n");
+            goto done;
+        }
+        final_data[size] = '\0';
+        data = NULL; // ownership moves to the caller
+        g_downloaded_size = size;
+        result = final_data;
+    }
+
+done:
+    if (hRequest)
+    {
+        WinHttpCloseHandle(hRequest);
+    }
+    if (hConnect)
+    {
+        WinHttpCloseHandle(hConnect);
+    }
+    if (hSession)
+    {
+        WinHttpCloseHandle(hSession);
+    }
+    free(data);
+    free(path);
+    free(host);
+    free(wurl);
+    return result;
 }
-#endif // _WIN32
+
+#else
+
+// ---------------------------------------------------------------------------
+// POSIX backend: libcurl (system library on Linux, BSD and macOS).
+// ---------------------------------------------------------------------------
+
+#include <curl/curl.h>
 
 // Global variable to track the actual downloaded size
 static size_t g_downloaded_size = 0;
@@ -144,7 +424,7 @@ static size_t write_callback(void *contents, size_t size, size_t nmemb, void *us
     }
 
     // Check for maximum file size (500MB as requested)
-    if (new_size > 500 * 1024 * 1024)
+    if (new_size > DL_MAX_BYTES)
     {
         LOG(LOG_CAT_NET, LOG_ERROR, "Error: File size exceeds 500MB limit\n");
         return 0;
@@ -191,25 +471,14 @@ char *dl_download_file(const char *url)
 
     DownloadData download_data = {NULL, 0};
 
-    // Set up CURL options
+    // Set up CURL options. TLS trust comes from the platform root store that
+    // the system libcurl is built against; nothing is configured here.
     curl_easy_setopt(curl, CURLOPT_URL, url);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &download_data);
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30L);
     curl_easy_setopt(curl, CURLOPT_USERAGENT, "nd100x/1.0");
-
-#ifdef _WIN32
-    // Give the vendored (CA-file-verifying) libcurl a CA bundle for HTTPS. On
-    // Linux/macOS the system CA store is used automatically, so this is Windows-only.
-    {
-        const char *ca = win_ca_bundle();
-        if (ca)
-        {
-            curl_easy_setopt(curl, CURLOPT_CAINFO, ca);
-        }
-    }
-#endif
 
     // Perform the request
     CURLcode res = curl_easy_perform(curl);
@@ -271,4 +540,4 @@ char *dl_download_file(const char *url)
     }
 }
 
-#endif // __EMSCRIPTEN__
+#endif // backend selection

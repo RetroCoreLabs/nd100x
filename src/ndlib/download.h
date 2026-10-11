@@ -30,13 +30,15 @@
 #include <stddef.h>
 
 /**
- * @brief Fetch a URL over HTTP/HTTPS with libcurl into one heap buffer.
+ * @brief Fetch a URL over HTTP/HTTPS into one heap buffer.
  * @details Follows redirects, times out after 30 seconds, rejects a body
  *          larger than 500 MB and requires HTTP status 200. The buffer is
  *          NUL-terminated one byte past the body, so it also works with
  *          string functions for JSON. The caller frees it with free().
- *          Builds without libcurl (WebAssembly, RISC-V, HAVE_CURL unset)
- *          link a stub that always fails.
+ *          Backend: WinHTTP on Windows (part of the OS), the system libcurl
+ *          on Linux, BSD and macOS. TLS trust comes from the platform root
+ *          store in both cases; no CA file is shipped. WebAssembly, RISC-V
+ *          and POSIX builds without HAVE_CURL link a stub that always fails.
  * @param url Absolute URL to fetch; NULL is an error.
  * @return Pointer to the NUL-terminated body on success, NULL on any error.
  */
