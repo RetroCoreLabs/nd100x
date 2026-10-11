@@ -13,7 +13,7 @@
  *
  * PARSING uses the bundled cJSON, so it builds on EVERY target (incl. Windows).
  * The network fetch of floppies.json uses download_file(), which is real only on
- * libcurl builds; without libcurl it is a stub, so floppydb falls back to the
+ * WinHTTP / libcurl builds; on WASM and RISC-V it is a stub, so floppydb falls back to the
  * on-disk cache. Callers that need the actual image on a no-curl build download
  * it out of band (e.g. the Python driver) and mount the local file.
  *
@@ -390,7 +390,7 @@ bool floppydb_parse_record(const struct cJSON *item, FloppyDbEntry *out)
 
 /* ---- catalog fetch ------------------------------------------------------ */
 
-/* Get floppies.json: fresh cache -> use it; else download (libcurl builds) and
+/* Get floppies.json: fresh cache -> use it; else download (via download.c) and
  * cache; else fall back to a stale cache. Returns malloc'd text or NULL. */
 static char *fdb_get_json(bool force_refresh)
 {
@@ -437,7 +437,7 @@ static char *fdb_get_json(bool force_refresh)
         return net;
     }
 
-    /* offline / no libcurl: use whatever cache we have, however old. */
+    /* offline / no HTTP client: use whatever cache we have, however old. */
     if (path)
     {
         char *stale = fdb_read_file(path);

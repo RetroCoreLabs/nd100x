@@ -334,16 +334,17 @@ class Nd100x:
         return dest
 
     def dbmount(self, unit, selector, confirm=True, timeout=120):
-        """Mount from the catalog using nd100x's OWN C resolver+downloader (libcurl
-        builds only). `selector` is "md5:<hash>", "dir:<name>" or a bare token. On a
-        no-libcurl build this fails; prefer mount_catalog() there."""
+        """Mount from the catalog using nd100x's OWN C resolver+downloader (WinHTTP
+        on Windows, libcurl on Linux/BSD/macOS). `selector` is "md5:<hash>",
+        "dir:<name>" or a bare token. On WASM/RISC-V builds this fails; prefer
+        mount_catalog() there."""
         self._control("dbmount %d %s" % (int(unit), selector))
         if confirm:
             self.expect("-> ok", timeout=timeout,
                         abort=["NOT FOUND", "NO CATALOG", "MOUNT FAILED", "BAD UNIT"])
 
     def dblist(self, selector):
-        """Ask nd100x's C catalog to list matches for a selector (libcurl builds).
+        """Ask nd100x's C catalog to list matches for a selector.
         Results are printed to the emulator's stderr; returns nothing."""
         self._control("dblist %s" % selector)
 

@@ -184,13 +184,14 @@ static void pipe_handle_control(const char *cmd)
     else if (sscanf(cmd, "dbmount %d %399[^\n]", &unit, arg) == 2)
     {
         // dbmount <unit> <md5:hash|dir:name|token> : mount straight from the online
-        // catalog (needs libcurl to fetch the image; resolves either way).
+        // catalog (fetches the image through download.c: WinHTTP on Windows,
+        // libcurl elsewhere; resolves either way).
         int rc = machine_floppy_mount_catalog(unit, arg);
         const char *msg = (rc == 0)    ? "ok"
                           : (rc == -1) ? "BAD UNIT"
                           : (rc == -2) ? "NOT FOUND"
                           : (rc == -3) ? "NO CATALOG"
-                                       : "MOUNT FAILED (no libcurl?)";
+                                       : "MOUNT FAILED (download failed? offline?)";
         fprintf(stderr, "[pipe-control] dbmount %d '%s' -> %s\n", unit, arg, msg);
     }
     else if (sscanf(cmd, "dblist %399[^\n]", arg) == 1)

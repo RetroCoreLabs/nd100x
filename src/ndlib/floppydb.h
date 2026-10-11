@@ -75,7 +75,7 @@ bool floppydb_parse_record(const struct cJSON *item, FloppyDbEntry *out);
  *          previous load is freed first.
  * @param force_refresh true bypasses the cache and downloads a fresh copy.
  * @return Entry count on success, or -1 on failure (no data, for example
- *         offline with no cache, or a build without libcurl and no cache).
+ *         offline with no cache, or a WASM/RISC-V build and no cache).
  */
 int floppydb_load(bool force_refresh);
 

@@ -491,9 +491,10 @@ int machine_floppy_swap(int unit, const char *path)
  *
  * The catalog is loaded on first use (fresh cache, else download, else stale
  * cache). The image itself is the remote images/<md5>/<file>.img.gz, fetched by
- * mount_drive via download_file() and decompressed there - real only on libcurl
- * builds; on a build without libcurl the download is a stub and this returns -4 (resolve the md5 here, fetch the
- * image out of band, then machine_floppy_swap() the local file instead).
+ * mount_drive via download_file() (WinHTTP on Windows, libcurl on Linux, BSD
+ * and macOS) and decompressed there. On WASM and RISC-V the download is a stub
+ * and this returns -4 (resolve the md5 here, fetch the image out of band, then
+ * machine_floppy_swap() the local file instead).
  *
  * The drive TYPE (floppy vs SMD) comes from the catalog entry, so `unit` is
  * range-checked against that type (floppy 0-2, SMD 0-3).
@@ -513,7 +514,7 @@ int machine_floppy_mount_catalog(int unit, const char *selector)
         if (floppydb_load(false) <= 0)
         {
             LOG(LOG_CAT_MACHINE, LOG_WARN,
-                "[catalog] no catalog available (offline / no cache / no libcurl)\n");
+                "[catalog] no catalog available (offline / no cache / no HTTP client)\n");
             return -3;
         }
     }
@@ -587,7 +588,7 @@ int machine_floppy_mount_catalog(int unit, const char *selector)
     // is the reliable success signal (is_mounted is set only after a real load).
     if (!machine_is_mounted(dt, unit))
     {
-        LOG(LOG_CAT_MACHINE, LOG_ERROR, "[catalog] mount FAILED (no libcurl? offline?): %s\n", url);
+        LOG(LOG_CAT_MACHINE, LOG_ERROR, "[catalog] mount FAILED (download failed? offline?): %s\n", url);
         return -4;
     }
     LOG(LOG_CAT_MACHINE, LOG_INFO, "[catalog] mounted %s '%s' as %s unit %d (md5 %s)\n",
