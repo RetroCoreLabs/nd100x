@@ -52,6 +52,16 @@
 // explicitly). Default changed because an unthrottled host ran guest clocks
 // about seven times too fast.
 #define RTC_WALL_PERIOD_NS 20000000ULL /* 20 ms */
+
+// The host clock is NOT read on every tick. rtc_tick runs once per ND-100
+// instruction, and reading the clock there cost 9% of the ND-100 thread
+// (measured with perf, 12-OCT-2026). It is read once per batch of ticks, and
+// the batch is sized from the tick rate just measured so that a batch lasts
+// about RTC_WALL_BATCH_NS: at full speed that is the cap of RTC_WALL_BATCH_MAX
+// ticks, and when ticks come slowly (single-stepping, a debugger attached) the
+// batch is 0 and every tick reads the clock, as before.
+#define RTC_WALL_BATCH_NS 50000ULL /* 50 us, 1/400 of the period */
+#define RTC_WALL_BATCH_MAX 64u
 static bool rtc_wall_clock_mode = true;
 
 void rtc_set_wall_clock_mode(bool enable)
@@ -93,6 +103,9 @@ static void rtc_reset(Device *self)
     data->statusRegister.raw = 0;
     data->controlRegister.raw = 0;
     data->nextPulseNs = 0;
+    data->wallLastReadNs = 0;
+    data->wallBatch = 0;
+    data->wallSkip = 0;
 }
 
 static void rtc_clear_clock_ticks(Device *self)
@@ -143,7 +156,30 @@ static uint16_t rtc_tick(Device *self)
             data->rtcCounter = data->divisionNumberN;
         }
 
+        if (data->wallSkip > 0)
+        {
+            data->wallSkip--;
+            return self->interruptBits;
+        }
+
         uint64_t now = rtc_now_ns();
+        uint32_t batch = 0;
+        if (data->wallLastReadNs != 0)
+        {
+            uint64_t per_tick = (now - data->wallLastReadNs) / ((uint64_t)data->wallBatch + 1u);
+            if (per_tick == 0 || RTC_WALL_BATCH_NS / per_tick >= RTC_WALL_BATCH_MAX)
+            {
+                batch = RTC_WALL_BATCH_MAX;
+            }
+            else
+            {
+                batch = (uint32_t)(RTC_WALL_BATCH_NS / per_tick);
+            }
+        }
+        data->wallLastReadNs = now;
+        data->wallBatch = batch;
+        data->wallSkip = batch;
+
         if (data->nextPulseNs == 0)
         {
             data->nextPulseNs = now + RTC_WALL_PERIOD_NS;

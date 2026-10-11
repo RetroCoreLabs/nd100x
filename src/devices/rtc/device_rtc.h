@@ -105,6 +105,11 @@ typedef struct
     uint64_t
         nextPulseNs; /* wall-clock mode only: host monotonic time (ns) of next 20 ms pulse; 0 = not armed yet */
 
+    /* wall-clock mode only: the host clock is read once per batch of ticks, see rtc_tick */
+    uint64_t wallLastReadNs; /* host time of the last clock read; 0 = none yet */
+    uint32_t wallBatch;      /* ticks skipped since that read */
+    uint32_t wallSkip;       /* ticks still to skip before the next read */
+
     RTCControlRegister controlRegister;
     RTCStatusRegister statusRegister;
     RTCFrequency selectedFrequency;

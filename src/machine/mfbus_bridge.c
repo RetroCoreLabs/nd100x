@@ -179,6 +179,17 @@ static unsigned long s_inbound_dropped = 0;
 static unsigned s_armed_mask = 0;
 static unsigned s_pump_mask = 0;
 
+/* WHERE EACH ARMED STATION'S DOORBELL IS, so the tick can look at it without a
+ * call. Entry n is the address of the X5ACT word of the station in slot n, or
+ * NULL when that station is not armed or the word lies outside the pool. Set by
+ * the scan, on the ND-100 thread, together with s_armed_mask.
+ *
+ * MEASURED 12-OCT-2026 with perf, four ND-5000s configured and all four idle:
+ * polling the doorbells through ndbus_nd5000_service_mailbox() took 20% of the
+ * ND-100 thread, because it is four calls deep and runs once per station per
+ * ND-100 instruction. The answer was "not rung" every time. */
+static const uint8_t *s_doorbell[MFBUS_MAX_ND5000];
+
 /* ONE WORD THAT SAYS WHETHER THE TICK HAS ANYTHING TO DO, so the octobus card's
  * tick tests a single value inline and skips the call when it is zero. A bit is
  * set by whatever creates the work and cleared by the code that finishes it:
@@ -3949,16 +3960,30 @@ int mfbus_service_nd5000_mailboxes(void)
 
     /* A frame went onto the bus since the last look: find out which stations
      * now have a mailbox. Cleared BEFORE the scan so a frame sent meanwhile
-     * asks for another one. */
-    if ((__atomic_fetch_and(&mfbus_tick_work, ~MFBUS_WORK_SCAN, __ATOMIC_ACQ_REL) & MFBUS_WORK_SCAN)
-        != 0u)
+     * asks for another one.
+     * The flag is LOADED first and only cleared when it is set. Clearing it
+     * unconditionally is a locked read-modify-write on every ND-100 instruction
+     * for as long as any monitor is started. This thread is the only one that
+     * clears the flag, so a set that arrives between the load and the clear is
+     * either seen by this scan or left for the next tick. */
+    if ((__atomic_load_n(&mfbus_tick_work, __ATOMIC_ACQUIRE) & MFBUS_WORK_SCAN) != 0u)
     {
+        mfbus_work_clear(MFBUS_WORK_SCAN);
         unsigned armed = 0;
         for (int i = 0; i < s_nd5000_count; i++)
         {
+            s_doorbell[i] = NULL;
             if (s_nd5000[i].start_mess != 0u)
             {
                 armed |= 1u << i;
+                const NdbusPool *pool = s_nd5000[i].pool;
+                uint32_t at = ndbus_mailbox_ext_base(&s_nd5000[i].mailbox)
+                              + NDBUS_MBX_X5ACT_WORD * 2u;
+                if (pool != NULL && pool->bytes != NULL && pool->size >= 2u
+                    && at <= pool->size - 2u)
+                {
+                    s_doorbell[i] = pool->bytes + at;
+                }
             }
         }
         __atomic_store_n(&s_armed_mask, armed, __ATOMIC_RELEASE);
@@ -3977,11 +4002,23 @@ int mfbus_service_nd5000_mailboxes(void)
         mfbus_release_deferred();
     }
 
-    /* Only a station whose monitor has started has a doorbell. */
+    /* Only a station whose monitor has started has a doorbell. X5ACT is rung
+     * when it is ZERO, so a station whose word is not zero has nothing pending
+     * and is skipped here, with two byte loads and no call. A station with no
+     * known doorbell address is asked the long way. */
     unsigned armed = __atomic_load_n(&s_armed_mask, __ATOMIC_ACQUIRE);
     for (int i = 0; armed != 0u && i < s_nd5000_count; i++)
     {
-        if ((armed & (1u << i)) != 0u && ndbus_nd5000_service_mailbox(&s_nd5000[i]))
+        if ((armed & (1u << i)) == 0u)
+        {
+            continue;
+        }
+        const uint8_t *doorbell = s_doorbell[i];
+        if (doorbell != NULL && (ndbus_pool_r8(doorbell) | ndbus_pool_r8(doorbell + 1)) != 0u)
+        {
+            continue;
+        }
+        if (ndbus_nd5000_service_mailbox(&s_nd5000[i]))
         {
             answered++;
         }
@@ -4067,6 +4104,7 @@ void mfbus_clear_nd5000(void)
     memset(s_nd5000, 0, sizeof(s_nd5000));
     __atomic_store_n(&s_pump_mask, 0u, __ATOMIC_RELEASE);
     __atomic_store_n(&s_armed_mask, 0u, __ATOMIC_RELEASE);
+    memset(s_doorbell, 0, sizeof(s_doorbell));
     mfbus_work_clear(MFBUS_WORK_SCAN | MFBUS_WORK_ARMED | MFBUS_WORK_PUMP);
 }
 
