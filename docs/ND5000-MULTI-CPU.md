@@ -205,6 +205,13 @@ So CPU numbers in `CHANGE-CPU` are 1-based (2 = station 071B), a session
 without the command uses CPU 1, and a second ND-5000 runs a real program under
 SINTRAN from control-store load to exit.
 
+`[MEASURED 12-OCT-2026]` four CPUs configured, one console session: CPU-STAT
+on CPU 1, then `CHANGE-CPU 3`, `PLACE-DOMAIN CPU-STAT`, `RUN`, then the same
+with `CHANGE-CPU 4`. Each printed "Loading Control Store" and all nine fields.
+Station 072B took `SAMSON_CPU` cell 3 and station 073B cell 4; each made 51
+monitor calls ending in `MON 0B`. No fatal error. "Loading Swapper" was not
+printed for CPU 3 or 4; the swapper was already running on CPU 1.
+
 ### Two CPUs at the same time
 
 `[MEASURED 11-OCT-2026]` four CPUs configured; console terminal on CPU 1, a
@@ -246,7 +253,7 @@ Getting there needed four things, each found by a failing run:
 
 Limits: a process that never stops (no trap, no monitor call) keeps its CPU,
 and a waiting message waits with it - the preempting kick is not modelled
-here. `CHANGE-CPU 3` and `4`, and `SET-CPU-STATUS`, are `[UNVERIFIED]`.
+here. `SET-CPU-STATUS` is `[UNVERIFIED]`.
 Telnet terminals lose the first character of each line inside the ND-500
 monitor (worked around with a leading space; cause not found).
 
