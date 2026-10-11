@@ -138,34 +138,49 @@ The project is organized into several key components:
 - Make build system
 - mkptypes tool (automatically built during compilation)
 
-### Installing dependencies on Ubuntu/Debian
+### Prerequisites per OS
 
-On a clean Ubuntu install, run:
+nd100x needs two things from the operating system beyond the C toolchain: an
+HTTP/HTTPS client for the floppy-database catalog downloads, and ncurses for
+the F12 floppy-database browser.
 
-```bash
-sudo apt update
-sudo apt install -y build-essential cmake git libcurl4-openssl-dev libncurses-dev
-```
+- **Windows needs nothing.** Downloads go through WinHTTP, which is part of
+  every Windows release and validates TLS against the Windows certificate
+  store. The MinGW runtime is linked statically. The release zip is
+  `nd100x.exe` alone: no DLLs, no certificate file.
+- **Linux, BSD and macOS use the libcurl the OS or distro already provides**,
+  linked dynamically, plus ncurses. libcurl reads the platform root store on
+  its own, so no certificate file ships with nd100x.
 
-What each package provides:
+Build packages (headers and the compiler) and runtime packages (what a
+downloaded release binary needs) per OS:
 
-| Package | Purpose |
-|---|---|
-| `build-essential` | gcc, g++, make |
-| `cmake` | CMake 3.14+ build system |
-| `git` | needed to clone the repo and fetch submodules |
-| `libcurl4-openssl-dev` | downloading floppy database images over HTTP/HTTPS |
-| `libncurses-dev` | F12 floppy-database browser and terminal UI |
+| OS | Build from source | Run a release binary |
+|---|---|---|
+| Ubuntu 24.04+ / Debian 13 | `sudo apt install -y build-essential cmake git libcurl4-openssl-dev libncurses-dev` | `sudo apt install libcurl4t64 libncurses6` |
+| Ubuntu 22.04 / Debian 12 | same as above | `sudo apt install libcurl4 libncurses6` |
+| Fedora / RHEL | `sudo dnf install gcc cmake git libcurl-devel ncurses-devel` | `sudo dnf install libcurl ncurses-libs` |
+| Arch | `sudo pacman -S base-devel cmake git curl ncurses` | `sudo pacman -S curl ncurses` |
+| Alpine | `apk add build-base cmake git curl-dev ncurses-dev` | `apk add libcurl ncurses-libs` |
+| macOS 12+ | Xcode command line tools, `brew install cmake` | nothing: libcurl and ncurses are part of macOS |
+| FreeBSD | `pkg install cmake git curl ncurses` | `pkg install curl ncurses` |
+| OpenBSD | `pkg_add cmake git curl` (ncurses is in base) | `pkg_add curl` |
+| NetBSD | `pkgin install cmake git curl` (ncurses is in base) | `pkgin install curl` |
+| Windows | w64devkit or MSYS2 MINGW64 (`mingw-w64-x86_64-gcc cmake ninja`), see [Building on Windows](#building-on-windows) | nothing |
 
-`libcurl` and `ncurses` are **required** on Linux builds — `find_package(CURL REQUIRED)` and `find_package(Curses REQUIRED)` in `CMakeLists.txt` will fail the configure step if they are missing. They are skipped automatically on RISC-V and WebAssembly builds.
+On most desktop Linux installs both runtime libraries are already present
+because many other programs use them; install them only if the loader
+complains. The Ubuntu 24.04, Fedora and Alpine runtime package names were
+checked against the package indexes; the Debian, Arch, FreeBSD, OpenBSD and
+NetBSD names follow those systems' conventions and were not checked
+individually.
+
+`libcurl` and `ncurses` are **required** on Linux, BSD and macOS builds —
+`find_package(CURL REQUIRED)` and `find_package(Curses REQUIRED)` in
+`CMakeLists.txt` fail the configure step if they are missing. They are skipped
+on Windows (WinHTTP, no F12 browser yet), RISC-V and WebAssembly builds.
 
 > **Note on package names:** older docs reference `libncurses5-dev`, which is no longer available on Ubuntu 24.04+ — use `libncurses-dev` instead.
-
-On FreeBSD:
-
-```bash
-pkg install curl ncurses
-```
 
 **Note**: The floppy database browser requires an internet connection to download the catalog at runtime.
 
@@ -225,7 +240,7 @@ A native Windows build is produced via **MinGW-w64** — either [w64devkit](http
 - `--debugger` (DAP server) is unavailable — `external/libdap` uses POSIX-only socket headers and hasn't been ported yet.
 - `--boot=aout` is unavailable — `external/libsymbols` needs the same treatment.
 - The F12 floppy-database browser is compiled out — it uses ncurses, which w64devkit doesn't ship. Use `--boot=bpun`, `--boot=floppy`, or `--boot=smd` with a local image instead.
-- `libcurl` is optional but easy to get on w64devkit: run `make fetch-curl` (or let `make debug` do it automatically), which vendors a prebuilt MinGW libcurl into `external/curl/` and stages `libcurl-x64.dll` next to the exe — no MSYS2 needed. Without it, HTTP image-URL / catalog loads fall back to stubs; local disk images still work. (MSYS2 users can instead install `mingw-w64-x86_64-curl`.)
+- Catalog and image-URL downloads work on every Windows build without any extra package: `src/ndlib/download.c` uses WinHTTP, a Windows system DLL, with TLS validated against the Windows certificate store. No libcurl and no CA file are needed or shipped.
 
 BPUN, SMD, floppy boot and the telnet server all work natively on Windows.
 
@@ -698,9 +713,9 @@ Pre-built binaries for Linux, Windows, macOS, and RISC-V (Milk-V Duo) are produc
 | `nd100x-macos-arm64.tar.gz` | macOS Apple Silicon | `macos-latest`, Homebrew cmake, `make release` |
 | `SHA256SUMS.txt` | All of the above | `sha256sum` over every release artifact — verify with `sha256sum -c SHA256SUMS.txt` |
 
-The Windows zip contains `nd100x.exe` plus every non-system DLL the exe depends on (libcurl + its transitive deps, `libgcc_s_seh-1`, `libwinpthread-1`, ...), the repo's bundled `images/` directory, `README.md`, and `LICENSE`. DLL discovery is driven by `ldd` so the bundle tracks whatever MSYS2 ships — no hardcoded list to maintain.
+The Windows zip contains `nd100x.exe`, the repo's bundled `images/` directory, `README.md`, and `LICENSE`. There are no DLLs: downloads use WinHTTP (a Windows system DLL) and the MinGW runtime is linked statically. The workflow's import check (`objdump -p nd100x.exe`) fails the build if the exe imports anything that is not a Windows system DLL.
 
-The Linux and macOS tarballs bundle just the `nd100x` binary plus `images/`, `README.md`, and `LICENSE`. They link dynamically against `libcurl` and `libncurses`; install those at runtime via your distro's package manager (see [Installing dependencies on Ubuntu/Debian](#installing-dependencies-on-ubuntudebian)).
+The Linux and macOS tarballs bundle just the `nd100x` binary plus `images/`, `README.md`, and `LICENSE`. They link dynamically against `libcurl` and `libncurses`; on macOS both are part of the OS, on Linux install them via your distro's package manager (see [Prerequisites per OS](#prerequisites-per-os)).
 
 ### Cutting a release
 

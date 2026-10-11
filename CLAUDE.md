@@ -55,14 +55,14 @@ make help
 
 ### Build Dependencies
 - **Core**: cmake, gcc, mkptypes (auto-built)
-- **Floppy Menu**: libcurl4-openssl-dev, libncurses5-dev
+- **Floppy Menu / catalog downloads (Linux, BSD, macOS)**: libcurl4-openssl-dev, libncurses-dev. Windows uses WinHTTP (part of the OS) and links no libcurl; the release zip is `nd100x.exe` alone, no DLLs and no CA file
 - **WebAssembly**: Emscripten SDK
 - **RISC-V**: riscv64-unknown-linux-musl toolchain
 
 Install on Ubuntu/Debian:
 ```bash
 sudo apt update
-sudo apt install libcurl4-openssl-dev libncurses5-dev
+sudo apt install libcurl4-openssl-dev libncurses-dev
 ```
 
 ### Direct CMake Commands
@@ -182,7 +182,7 @@ The project includes HDLC (High-Level Data Link Control) support on the `hdlc` b
 - **MMS types**: MMS1 (4 page tables, 16-bit PTE) vs MMS2 (16 page tables, 32-bit PTE, required for VSX)
 
 ### Platform-Specific Features
-- **Linux/Windows**: Full debugger support with WITH_DEBUGGER flag, libcurl for floppy database downloads, ncurses for terminal UI
+- **Linux/Windows**: Full debugger support with WITH_DEBUGGER flag, ncurses for terminal UI. Catalog downloads: system libcurl on Linux/BSD/macOS, WinHTTP on Windows (`src/ndlib/download.c`, one backend per `#if` branch)
 - **WebAssembly (standard)**: `make wasm` - basic UI, debugger OFF, uses MEMFS virtual filesystem, xterm.js terminal
 - **WebAssembly (Glass UI)**: `make wasm-glass` - glassmorphism UI, debugger ON (`DEBUGGER_ENABLED=ON`), 74 exported Dbg_* functions, SINTRAN OS inspection tools, draggable windows, theme system
 - **RISC-V**: Cross-compiled for RISC-V Linux, debugger disabled, static linking enabled

@@ -154,15 +154,16 @@ the mounted disk.
 > catalog JSON and image requests, which the server serves. If you script the catalog
 > download yourself, set that header too.
 
-**C side (`dbmount` / `dblist` control commands) — libcurl builds only.** nd100x can also resolve
+**C side (`dbmount` / `dblist` control commands).** nd100x can also resolve
 and download the image itself via its bundled catalog API (`src/ndlib/floppydb.c` +
-`machine_floppy_mount_catalog`). This needs libcurl, so it is available on Linux / MSYS2 builds
-but **not** the Windows w64devkit build (no libcurl → the download stub returns nothing). The
+`machine_floppy_mount_catalog`). The download goes through `src/ndlib/download.c`: WinHTTP on
+Windows (every Windows build, no libcurl needed), the system libcurl on Linux / BSD / macOS.
+Only WASM and RISC-V builds lack it (the download stub returns nothing). The
 control verbs are `dbmount <unit> <md5:hash|dir:name|token>` and `dblist <selector>`:
 
 ```python
 vm.dblist("dir:N-10-102-I")        # emulator logs all matches to its stderr
-vm.dbmount(0, "md5:2cb9ffb6...")   # C-side resolve + download + mount  (libcurl builds)
+vm.dbmount(0, "md5:2cb9ffb6...")   # C-side resolve + download + mount
 ```
 
 On Windows, prefer `mount_catalog()` (Python fetch) over `dbmount()` (C fetch). Both end at the
