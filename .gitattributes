@@ -1,3 +1,9 @@
+# Every text file is checked out with LF on every platform, whatever the local
+# core.autocrlf says. Without this a Windows checkout gets CR LF in *.md, *.txt,
+# *.cmake ..., a second git (MSYS2 in the Windows release build) then sees every
+# such file as modified, and nd100x --version reports "-dirty" for a clean commit.
+* text=auto eol=lf
+
 # Line endings for C sources are always LF, on every platform.
 *.c text eol=lf
 *.h text eol=lf
@@ -14,3 +20,14 @@
 
 # Golden emulator output: compared byte for byte (CR LF from the guest)
 docs/house-audit/golden/* -text
+
+# Committed with CR LF or mixed line ends before the rule above existed. Kept
+# byte for byte, so the rule does not report them as modified.
+.gitignore -text
+docs/SINTRAN-Commands.html -text
+docs/SINTRAN-Commands.md -text
+docs/cpu_documentation.md -text
+src/devices/hdlc/doc/xmsg-deep-analysis.md -text
+src/frontend/nd100x/Makefile -text
+src/machine/Makefile -text
+template/floppies/floppies.json -text
