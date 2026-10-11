@@ -133,6 +133,16 @@ if(PLATFORM_WINDOWS)
     configure_file(nd100x.rc.in ${CMAKE_CURRENT_BINARY_DIR}/nd100x.rc @ONLY)
     add_library(nd100x_rc OBJECT ${CMAKE_CURRENT_BINARY_DIR}/nd100x.rc)
     target_sources(nd100x PRIVATE $<TARGET_OBJECTS:nd100x_rc>)
+
+    # Link the MinGW runtime statically so the exe does not import
+    # libwinpthread-1.dll or libgcc_s_seh-1.dll. Every other Windows dependency
+    # (ws2_32, winhttp, iphlpapi, ...) is a system DLL reached through an import
+    # library, which still links under -static. Npcap is not linked at all: it
+    # is loaded with LoadLibrary at run time (src/devices/ethernet/net/eth_pcap.c).
+    # Result: the release zip is nd100x.exe alone, no DLLs. -static is the form
+    # that reliably picks the static winpthreads; -Wl,-Bstatic -lwinpthread does
+    # not, because the gcc driver appends its own -lpthread after it.
+    target_link_options(nd100x PRIVATE -static)
 endif()
 if(APPLE)
     configure_file(Info.plist.in ${CMAKE_CURRENT_BINARY_DIR}/Info.plist @ONLY)
