@@ -10,13 +10,14 @@ Written for and tested on a **Raspberry Pi** (Debian 11 bullseye, aarch64,
 dhcpcd, no NetworkManager). Everything except the dhcpcd line is generic
 Linux (Ubuntu too); differences are marked **Pi** / **Ubuntu**.
 
-Files (in `deploy/systemd/`): `nd100x-net.sh`, `nd100x-net.service`,
-`nd100x.service`, `nd100x.default`.
+The four files you create (`nd100x-net.sh`, `nd100x-net.service`,
+`nd100x.service`, `/etc/default/nd100x`) are listed in full in section 3;
+nothing else in the repository changes.
 
 ## 1. How the traffic gets onto the LAN
 
 The Ethernet II card is attached to a TAP interface `nd0`
-(`net = tap:nd0` in `nd100-eth.ini`). The ND's IP address is **not** an INI
+(`net = tap:nd0` in the INI). The ND's IP address is **not** an INI
 setting; it lives in the disc image (section 2).
 
 | Method | eth0 | Wi-Fi | Touches the host's own network? |
@@ -63,18 +64,153 @@ Pick an address that is free (not in the router's DHCP range, `ping` and
 
 ## 3. Install
 
+Create these files (paths as shown). Adjust `User=`, `WorkingDirectory=` and
+`ExecStart=` in `nd100x.service` to where the repo and `build/bin/nd100x`
+live (here `/home/ronny/repos/nd100x`).
+
+**`/usr/local/sbin/nd100x-net.sh`** (`sudo chmod 755`):
+
 ```sh
-cd deploy/systemd
-sudo install -m755 nd100x-net.sh /usr/local/sbin/
-sudo install -m644 nd100x.default /etc/default/nd100x      # edit it, section 4
-sudo install -m644 nd100x-net.service nd100x.service /etc/systemd/system/
+#!/bin/sh
+# nd100x-net.sh start|stop - put the ND (Ethernet II card on TAP nd0) on the
+# host's LAN by proxy ARP + routing. Nothing on eth0/wlan0 is reconfigured
+# (no bridge, no address change), so it is safe over ssh and works on Wi-Fi.
+# Settings come from /etc/default/nd100x (see nd100x.default).
+set -e
+[ -r /etc/default/nd100x ] && . /etc/default/nd100x
+ND_IP=${ND_IP:-192.168.1.40}
+ND_UPLINK=${ND_UPLINK:-wlan0}          # wlan0 or eth0
+ND_TAP=${ND_TAP:-nd0}
+ND_USER=${ND_USER:-root}
+TABLE=${ND_TABLE:-140}
+ND_MODE=${ND_MODE:-proxyarp}           # proxyarp (wlan0 or eth0) | bridge (eth0 only)
+ND_BRIDGE=${ND_BRIDGE:-br0}
+
+if [ "$ND_MODE" = bridge ]; then
+    # eth0 + nd0 in one bridge; dhcpcd must run on $ND_BRIDGE, not on eth0
+    # (/etc/dhcpcd.conf: denyinterfaces eth0 nd0). Wi-Fi cannot be bridged.
+    case "$1" in
+    start)
+        ip tuntap add dev "$ND_TAP" mode tap user "$ND_USER" 2>/dev/null || true
+        ip link show "$ND_BRIDGE" >/dev/null 2>&1 || ip link add "$ND_BRIDGE" type bridge
+        ip link set "$ND_BRIDGE" address "$(cat /sys/class/net/eth0/address)"
+        ip link set eth0 master "$ND_BRIDGE"
+        ip link set "$ND_TAP" master "$ND_BRIDGE"
+        ip link set "$ND_TAP" up; ip link set eth0 up; ip link set "$ND_BRIDGE" up
+        systemctl restart dhcpcd
+        ;;
+    stop)
+        ip link set eth0 nomaster 2>/dev/null || true
+        ip link del "$ND_BRIDGE" 2>/dev/null || true
+        ip tuntap del dev "$ND_TAP" mode tap 2>/dev/null || true
+        systemctl restart dhcpcd
+        ;;
+    esac
+    exit 0
+fi
+
+case "$1" in
+start)
+    ip link show "$ND_UPLINK" >/dev/null
+    ip tuntap add dev "$ND_TAP" mode tap user "$ND_USER" 2>/dev/null || true
+    ip link set "$ND_TAP" up
+    ip route replace "$ND_IP/32" dev "$ND_TAP"
+    sysctl -q -w net.ipv4.ip_forward=1
+    sysctl -q -w "net.ipv4.conf.$ND_TAP.proxy_arp=1" "net.ipv4.conf.$ND_UPLINK.proxy_arp=1"
+    sysctl -q -w "net.ipv4.conf.$ND_TAP.rp_filter=0" "net.ipv4.conf.$ND_UPLINK.rp_filter=0"
+    # Everything the ND sends leaves through the chosen uplink, even when
+    # the other interface holds the main default route.
+    # At boot the uplink may not have its DHCP lease yet: wait (max 90 s)
+    i=0
+    while [ $i -lt 90 ] && ! ip -4 route show default dev "$ND_UPLINK" | grep -q via; do
+        sleep 1; i=$((i+1))
+    done
+    GW=$(ip -4 route show default dev "$ND_UPLINK" | awk '{print $3; exit}')
+    NET=$(ip -4 route show dev "$ND_UPLINK" scope link | awk '{print $1; exit}')
+    ip rule del from "$ND_IP" lookup "$TABLE" 2>/dev/null || true
+    ip rule add from "$ND_IP" lookup "$TABLE"
+    ip route flush table "$TABLE" 2>/dev/null || true
+    if [ -n "$NET" ]; then ip route add "$NET" dev "$ND_UPLINK" table "$TABLE"; fi
+    if [ -n "$GW" ]; then ip route add default via "$GW" dev "$ND_UPLINK" table "$TABLE"; fi
+    ;;
+stop)
+    ip rule del from "$ND_IP" lookup "$TABLE" 2>/dev/null || true
+    ip route flush table "$TABLE" 2>/dev/null || true
+    ip route del "$ND_IP/32" dev "$ND_TAP" 2>/dev/null || true
+    sysctl -q -w "net.ipv4.conf.$ND_UPLINK.proxy_arp=0" 2>/dev/null || true
+    ip tuntap del dev "$ND_TAP" mode tap 2>/dev/null || true
+    ;;
+*) echo "usage: $0 start|stop" >&2; exit 2;;
+esac
 ```
 
-Edit `nd100x.service`: `User=`, `WorkingDirectory=` and the `ExecStart=`
-paths to match where the repo and `build/bin/nd100x` live (here
-`/home/ronny/repos/nd100x`). Then:
+**`/etc/default/nd100x`**:
 
 ```sh
+# /etc/default/nd100x - read by nd100x-net.sh
+ND_IP=192.168.1.40        # the ND's address (must equal AIP-CONFIG in the disc image)
+ND_UPLINK=eth0           # wlan0 or eth0
+ND_TAP=nd0                # must equal net = tap:... in the INI
+ND_USER=ronny             # owner of the TAP = the user nd100x runs as
+ND_MODE=proxyarp         # proxyarp (Wi-Fi or eth0, default) | bridge (eth0 only)
+```
+
+**`/etc/systemd/system/nd100x-net.service`**:
+
+```ini
+[Unit]
+Description=Network plumbing for nd100x (TAP + proxy ARP onto the LAN)
+After=network-online.target dhcpcd.service wpa_supplicant.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/nd100x-net.sh start
+ExecStop=/usr/local/sbin/nd100x-net.sh stop
+TimeoutStartSec=120
+
+[Install]
+WantedBy=multi-user.target
+```
+
+**`/etc/systemd/system/nd100x.service`**:
+
+```ini
+[Unit]
+Description=ND-100 emulator with Ethernet II (SINTRAN M, TCP/IP)
+Requires=nd100x-net.service
+After=nd100x-net.service
+
+[Service]
+User=ronny
+WorkingDirectory=/home/ronny/repos/nd100x
+ExecStart=/home/ronny/repos/nd100x/build/bin/nd100x --config nd100-eth.ini
+Restart=on-failure
+RestartSec=5
+StandardInput=null
+
+[Install]
+WantedBy=multi-user.target
+```
+
+**The INI** (`nd100-eth.ini`, the part that matters; the rest is the
+existing file):
+
+```ini
+[controller.eth.0]
+enabled = yes
+net = tap:nd0          ; the service creates nd0, see ND_TAP
+
+[runtime]
+verbose = on
+telnet = 9000          ; optional: the emulator's own terminal server
+```
+
+Then:
+
+```sh
+sudo chmod 755 /usr/local/sbin/nd100x-net.sh
 sudo systemctl daemon-reload
 sudo systemctl enable --now nd100x.service     # pulls in nd100x-net.service
 ```
@@ -90,8 +226,7 @@ unmanaged, e.g. `/etc/NetworkManager/conf.d/nd0.conf` with
 `[keyfile]` / `unmanaged-devices=interface-name:nd0`.
 
 The service runs headless (`StandardInput=null`). Console output goes to the
-journal: `journalctl -u nd100x -f`. `nd100-eth.ini` has `telnet = 9000`
-enabled so the emulator's terminals can be reached over the network too.
+journal: `journalctl -u nd100x -f`.
 
 ## 4. Settings: `/etc/default/nd100x`
 
