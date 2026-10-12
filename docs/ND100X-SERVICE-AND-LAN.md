@@ -4,7 +4,7 @@
 
 Goal: nd100x boots by itself, with nobody logged in and no console, and the
 emulated ND answers on the real LAN (here 192.168.1.40 on 192.168.1.0/24),
-through **eth0 or Wi-Fi** (wired PCs need eth0, section 6).
+through **Wi-Fi or the wired port, whichever you choose** (section 4a).
 
 Written for and tested on a **Raspberry Pi** (Debian 11 bullseye, aarch64,
 dhcpcd, no NetworkManager). Everything except the dhcpcd line is generic
@@ -149,7 +149,7 @@ esac
 ```sh
 # /etc/default/nd100x - read by nd100x-net.sh
 ND_IP=192.168.1.40        # the ND's address (must equal AIP-CONFIG in the disc image)
-ND_UPLINK=eth0           # wlan0 or eth0
+ND_UPLINK=wlan0           # wlan0 (Wi-Fi) or eth0 (wire): you choose, section 4a
 ND_TAP=nd0                # must equal net = tap:... in the INI
 ND_USER=ronny             # owner of the TAP = the user nd100x runs as
 ND_MODE=proxyarp         # proxyarp (Wi-Fi or eth0, default) | bridge (eth0 only)
@@ -233,7 +233,7 @@ journal: `journalctl -u nd100x -f`.
 | Variable | Meaning |
 |---|---|
 | `ND_IP` | the ND's address; must equal AIP-CONFIG in the image |
-| `ND_UPLINK` | `wlan0` (preferred) or `eth0` |
+| `ND_UPLINK` | `wlan0` (Wi-Fi) or `eth0` (wire): **your choice**, see section 4a |
 | `ND_TAP` | TAP name; must equal `net = tap:...` in the INI |
 | `ND_USER` | owner of the TAP = the user nd100x runs as |
 | `ND_MODE` | `proxyarp` (default) or `bridge` |
@@ -251,6 +251,52 @@ NetworkManager use `After=NetworkManager-wait-online.service` and enable it
 (`systemctl enable NetworkManager-wait-online`); with netplan/networkd,
 `systemd-networkd-wait-online.service`.
 
+## 4a. Choose the uplink: Wi-Fi or wire
+
+`ND_UPLINK` in `/etc/default/nd100x` decides which Pi interface the ND
+appears on. Both work; pick the one that matches how **your PCs** are
+connected, then apply with `sudo systemctl restart nd100x-net nd100x`
+(always both).
+
+| | `ND_UPLINK=wlan0` (Wi-Fi) | `ND_UPLINK=eth0` (wire) |
+|---|---|---|
+| Use when | the Pi is on Wi-Fi only, or the PCs you test from are on Wi-Fi | the Pi has a cable, or your PCs are wired |
+| Reachable from | PCs that can see the Pi's Wi-Fi ARP broadcasts | wired PCs (measured) |
+| If the link drops | ND is off the LAN until Wi-Fi is back and both units are restarted | same, when the cable is unplugged |
+| Tested here | Pi to ND, ND to router and Internet | wired Windows PC to the ND: ping, telnet, FTP |
+
+**How to tell which one your PC needs.** The ND's address is answered by
+ARP, and the PC's ARP request only reaches the Pi on the interface the PC is
+(effectively) connected through. On the Pi run
+
+```sh
+sudo tcpdump -n -i any arp
+```
+
+and ping the ND from the PC. The line `who-has 192.168.1.40 tell <PC>` is
+printed with an interface name. Use that interface as `ND_UPLINK`. On the
+test network a wired PC's request arrived on `eth0` only, never on `wlan0`
+(the router does not pass wired broadcasts to this Wi-Fi client), so
+`wlan0` gave no answer to it; Wi-Fi PCs are expected to be the other way
+round (not tested).
+
+**Switching:**
+
+```sh
+sudoedit /etc/default/nd100x          # ND_UPLINK=wlan0  or  ND_UPLINK=eth0
+sudo systemctl restart nd100x-net nd100x
+ip rule | grep 140; ip route show table 140     # shows the chosen interface
+```
+
+The two units must be restarted together: the network unit recreates the TAP
+and the running emulator keeps the dead one otherwise.
+
+**Link loss.** If the chosen interface loses its link (cable pulled, Wi-Fi
+lost), the kernel removes the ND's routes in table 140 and the ND disappears
+from the LAN; nothing in this setup puts them back. After the link is back,
+restart both units again (or reboot). Observed 12-OCT-2026 when `eth0` lost
+carrier at 20:09.
+
 ## 5. Bridge mode (eth0 only)
 
 `ND_MODE=bridge` makes the service build `br0` at boot with eth0 and `nd0`
@@ -260,7 +306,7 @@ in it, so the ND is a normal station on the wire. Extra step on the **Pi**:
 A mistake here takes the host off the network, so keep proxy ARP unless you
 need a bridge. **Bridge mode is untested.**
 
-## 6. Which uplink? (measured: Wi-Fi did not work here, eth0 did)
+## 6. Measurement behind the uplink choice
 
 On the test network the Windows PC is on the wired side. Its ARP broadcast
 for the ND (`who-has 192.168.1.40`) arrived at the Pi on **eth0 only**,
@@ -268,7 +314,8 @@ never on wlan0, and the PC could ping the Pi's wlan0 address (.44) only
 because unicast is routed. With `ND_UPLINK=wlan0` nobody answered the ARP
 and the PC got no reply; with `ND_UPLINK=eth0` it worked at once. Reason: the
 router/AP does not forward wired broadcasts to this Wi-Fi client. Wi-Fi PCs
-on the same AP should work with `ND_UPLINK=wlan0`; wired PCs need `eth0`.
+on the same AP should work with `ND_UPLINK=wlan0`; wired PCs need `eth0`
+(section 4a).
 Check which side a PC is on with `sudo tcpdump -n -i any arp` while it
 pings the ND. Setting `proxy_arp` on both interfaces would answer on both,
 but the ND's replies leave through one uplink only (table 140).
