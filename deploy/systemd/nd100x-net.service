@@ -1,0 +1,14 @@
+[Unit]
+Description=Network plumbing for nd100x (TAP + proxy ARP onto the LAN)
+After=network-online.target dhcpcd.service wpa_supplicant.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/nd100x-net.sh start
+ExecStop=/usr/local/sbin/nd100x-net.sh stop
+TimeoutStartSec=120
+
+[Install]
+WantedBy=multi-user.target
