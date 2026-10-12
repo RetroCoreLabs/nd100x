@@ -1,6 +1,0 @@
-# /etc/default/nd100x - read by nd100x-net.sh
-ND_IP=192.168.1.40        # the ND's address (must equal AIP-CONFIG in the disc image)
-ND_UPLINK=eth0           # wlan0 or eth0
-ND_TAP=nd0                # must equal net = tap:... in the INI
-ND_USER=ronny             # owner of the TAP = the user nd100x runs as
-ND_MODE=proxyarp         # proxyarp (Wi-Fi or eth0, default) | bridge (eth0 only)
