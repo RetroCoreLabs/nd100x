@@ -251,9 +251,8 @@ Getting there needed four things, each found by a failing run:
    store cell 025B (`SAMSON_CPU`) to 1 for station 070B and 2 for 071B
    (measured; logged by `ndbus_nd5000_mailbox_from_control_store`).
 
-Limits: a kick that an ND-5000 sends with `WEXT` does not take a running
-process off the target CPU; only a kick from the ND-100 does (see "CPU time
-and the preempting kick"). `SET-CPU-STATUS` is `[UNVERIFIED]`.
+A kick takes a running process off its CPU whoever sends it, the ND-100 or
+another ND-5000 with `WEXT` (see "CPU time and the preempting kick"). `SET-CPU-STATUS` is `[UNVERIFIED]`.
 Telnet terminals lose the first character of each line inside the ND-500
 monitor (worked around with a leading space; cause not found).
 
@@ -297,8 +296,29 @@ while keys were typed into the LED on CPU 1:
   times and resumed seven times; both CPU-STAT runs finished with `MON 0B`.
 - All four LEDs answered a key afterwards. No fatal error.
 
-Not verified: a process preempted before its first stop (its message is a
-3START), and preemption on CPU 2 to 4.
+A kick that one ND-5000 sends to another with `WEXT` preempts too. Its sender
+is a host thread and must not wait for the target's host thread - two CPUs
+kicking each other would both stop - so the sender only records the kick
+(`s_pending_kick`) and the ND-100's thread does the preempt and then puts the
+frame on the bus.
+
+`[MEASURED 12-OCT-2026]` second run, four LEDs, the console on CPU 2, then 3,
+then 4, running CPU-STAT twice on each while keys were typed into that CPU's
+LED:
+
+| Station | Preempted by kick 1 (ND-100) | by kick 2 (`WEXT`) | Resumed |
+|---|---|---|---|
+| 071B | 13 | 1 | 14 |
+| 072B | 46 | 0 | 46 |
+| 073B | 13 | 1 | 14 |
+
+Every CPU-STAT run ended in `MON 0B`, all four LEDs answered afterwards, no
+fatal error.
+
+A process preempted before its first stop, whose message is still its 3START,
+is covered by the unit test "X5PRO and the preempting kick" in
+`tests/test_mfbus_bridge.c`: the process must continue inside its loop with
+its semaphore still held, not start again from the entry point.
 
 ## Not yet done
 

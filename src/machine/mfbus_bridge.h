@@ -349,6 +349,29 @@ void mfbus_stop_nd5000(uint8_t station_number);
 unsigned long long mfbus_nd5000_instructions(uint8_t station_number);
 
 /**
+ * @brief Say which process a CPU started with mfbus_start_nd5000() is executing.
+ *
+ * A CPU that a mailbox message starts knows its process number and the message it
+ * was started on. One that is loaded and started directly - mfbus_place_context(),
+ * mfbus_load_context(), mfbus_start_nd5000() - knows neither, so X5PRO stays -1
+ * and a kick has nothing to take off the CPU. Call this between the load and the
+ * start to give it both.
+ *
+ * @param station_number The station whose CPU is about to be started.
+ * @param x5cpu          The process number, as message word 4 carries it.
+ * @param msg_byte       Pool byte offset of that process's message, or 0 for none.
+ * @return false when the station has no CPU or the number is out of range.
+ */
+bool mfbus_set_loaded_process(uint8_t station_number, int x5cpu, uint32_t msg_byte);
+
+/**
+ * @brief How many times a kick has taken a running process off this CPU.
+ * @param station_number The station to ask about.
+ * @return The count since the CPU was attached, or 0 when the station has no CPU.
+ */
+unsigned long mfbus_nd5000_preempts(uint8_t station_number);
+
+/**
  * @brief Poll every configured ND-5000's mailbox doorbell once.
  *
  * SOMETHING HAS TO DO THIS OR THE MACHINE TIMES OUT. After ENKICK the ND-500/5000

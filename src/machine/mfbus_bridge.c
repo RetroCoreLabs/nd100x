@@ -206,6 +206,7 @@ unsigned mfbus_tick_work = 0;
 #define MFBUS_WORK_ARMED   4u
 #define MFBUS_WORK_PUMP    8u
 #define MFBUS_WORK_DEFER   16u  /* a start message waits for a busy CPU */
+#define MFBUS_WORK_KICK    32u  /* an ND-5000 sent a kick that must first preempt */
 
 static void mfbus_work_set(unsigned bit)
 {
@@ -663,6 +664,29 @@ static void mfbus_write_x5pro(int index, int process)
  * senders do not run one station's frame handler at the same time. Returns 0
  * when the frame was taken by a station, 1 ("unable to write") when no station
  * is at that number or this CPU is not on a bus. */
+/* A KICK 1 OR 2 THAT ONE ND-5000 SENT TO ANOTHER WHICH IS EXECUTING A PROCESS.
+ *
+ * The kick must first take that process off its CPU (mfbus_preempt_for_kick), and
+ * that means waiting for the target's host thread to stop. The sender is a host
+ * thread too. If CPU A waited for CPU B's thread while CPU B waited for CPU A's,
+ * both would stop for ever. So the sender only records the kick here, one per
+ * target slot, and the ND-100's thread - which no CPU waits for - does the
+ * preempt and then puts the frame on the bus, in mfbus_service_nd5000_mailboxes().
+ * A second kick for a slot that already has one waiting replaces it: the walk the
+ * first one causes serves the whole queue, as ACTIVATE does on the real machine.
+ *
+ * Written by ND-5000 threads and read by the ND-100's, under the bus lock. */
+typedef struct
+{
+    bool     pending;
+    uint16_t frame;
+    uint8_t  source;
+} MfbusPendingKick;
+static MfbusPendingKick s_pending_kick[MFBUS_MAX_ND5000];
+
+static int  mfbus_kick_would_preempt(uint8_t destination, uint16_t frame);
+static void mfbus_preempt_for_kick(uint8_t destination, uint16_t frame);
+
 static int mfbus_ext_write(Nd500Cpu *cpu, uint32_t device, uint32_t value)
 {
     (void)cpu;
@@ -679,6 +703,20 @@ static int mfbus_ext_write(Nd500Cpu *cpu, uint32_t device, uint32_t value)
     uint8_t  source = s_nd5000[index].station.number;
     uint16_t frame = (uint16_t)(value & 0xFFFFu);
     uint8_t  destination = (uint8_t)((frame >> 8u) & 0x3Fu);
+
+    /* A kick that has to take a process off another CPU is handed to the ND-100's
+     * thread. The frame is taken: the station exists and will get it. */
+    int target = mfbus_kick_would_preempt(destination, frame);
+    if (target >= 0 && target != index)
+    {
+        ndbus_lock();
+        s_pending_kick[target].frame = frame;
+        s_pending_kick[target].source = source;
+        s_pending_kick[target].pending = true;
+        ndbus_unlock();
+        mfbus_work_set(MFBUS_WORK_KICK);
+        return 0;
+    }
 
     uint16_t replies[NDBUS_MAX_REPLY_FRAMES];
     ndbus_engine_lock();
@@ -3465,39 +3503,55 @@ int mfbus_nd5000_count(void)
  *
  * Runs on the ND-100's thread BEFORE the frame goes onto the bus and before the
  * engine lock is taken: the CPU's host thread takes that lock to park, and
- * waiting for the thread while holding it would stop both. Only kicks sent by
- * the ND-100 come through here. A kick an ND-5000 sends with WEXT does not
- * preempt: that sender is itself a host thread, and two of them waiting for
- * each other would stop both.
+ * waiting for the thread while holding it would stop both. A kick an ND-5000
+ * sends with WEXT gets here too, but through s_pending_kick: its sender is a host
+ * thread itself and must not wait for another one.
  */
-static void mfbus_preempt_for_kick(uint8_t destination, uint16_t frame)
+/* The slot whose process this frame would take off its CPU, or -1: the frame is
+ * not kick 1 or 2 to one station, the station would drop it, or its CPU is not
+ * executing a process. A snapshot - the process may stop by itself a moment
+ * later, and mfbus_preempt_for_kick() checks again after it has the thread. */
+static int mfbus_kick_would_preempt(uint8_t destination, uint16_t frame)
 {
     if ((frame & NDBUS_FRAME_C_CONTROL) == 0u || (frame & NDBUS_FRAME_K_KICK) == 0u
         || (frame & NDBUS_FRAME_M_MULTIBYTE) != 0u || (frame & NDBUS_FRAME_B_BROADCAST) != 0u)
     {
-        return;
+        return -1;
     }
     unsigned kick_number = (unsigned)(frame & 0x3Fu);
     if (kick_number != 1u && kick_number != 2u)
     {
-        return;
+        return -1;
     }
     int slot = mfbus_slot_of(destination);
     if (slot < 0 || !s_cpus[slot].present)
     {
-        return;
+        return -1;
     }
-    MfbusCpuSlot *c = &s_cpus[slot];
-    NdbusNd5000  *nd = &s_nd5000[slot];
+    const MfbusCpuSlot *c = &s_cpus[slot];
+    const NdbusNd5000  *nd = &s_nd5000[slot];
     if (!nd->accp.kicks_enabled || nd->start_mess == 0u)
     {
-        return;   /* the station drops the kick, or has no mailbox to walk */
+        return -1;   /* the station drops the kick, or has no mailbox to walk */
     }
     if (c->parked || c->loaded_x5cpu < 0
         || ndbus_runner_state(&c->runner) != NDBUS_RUNNER_RUNNING)
     {
-        return;   /* nothing is executing: the kick is a plain queue walk */
+        return -1;   /* nothing is executing: the kick is a plain queue walk */
     }
+    return slot;
+}
+
+static void mfbus_preempt_for_kick(uint8_t destination, uint16_t frame)
+{
+    int slot = mfbus_kick_would_preempt(destination, frame);
+    if (slot < 0)
+    {
+        return;
+    }
+    unsigned      kick_number = (unsigned)(frame & 0x3Fu);
+    MfbusCpuSlot *c = &s_cpus[slot];
+    NdbusNd5000  *nd = &s_nd5000[slot];
 
     /* Between two instructions. */
     ndbus_runner_stop_and_join(&c->runner);
@@ -4228,6 +4282,30 @@ int mfbus_service_nd5000_mailboxes(void)
         }
     }
 
+    /* Kicks ND-5000s sent to CPUs that were executing: preempt, then the frame. */
+    if ((__atomic_load_n(&mfbus_tick_work, __ATOMIC_ACQUIRE) & MFBUS_WORK_KICK) != 0u)
+    {
+        mfbus_work_clear(MFBUS_WORK_KICK);
+        for (int i = 0; i < s_nd5000_count; i++)
+        {
+            ndbus_lock();
+            MfbusPendingKick kick = s_pending_kick[i];
+            s_pending_kick[i].pending = false;
+            ndbus_unlock();
+            if (!kick.pending)
+            {
+                continue;
+            }
+            uint8_t  destination = s_nd5000[i].station.number;
+            uint16_t replies[NDBUS_MAX_REPLY_FRAMES];
+            mfbus_preempt_for_kick(destination, kick.frame);
+            ndbus_engine_lock();
+            (void)ndbus_fabric_send(&s_fabric, kick.source, kick.frame, replies);
+            ndbus_engine_unlock();
+            mfbus_work_set(MFBUS_WORK_SCAN);
+        }
+    }
+
     if ((__atomic_load_n(&mfbus_tick_work, __ATOMIC_ACQUIRE) & MFBUS_WORK_DEFER) != 0u)
     {
         mfbus_release_deferred();
@@ -4299,6 +4377,29 @@ unsigned mfbus_nd5000_running_mask(void)
     return mask;
 }
 
+bool mfbus_set_loaded_process(uint8_t station_number, int x5cpu, uint32_t msg_byte)
+{
+    int slot = mfbus_slot_of(station_number);
+    if (slot < 0 || !s_cpus[slot].present || x5cpu < 0
+        || (unsigned)x5cpu >= NDBUS_SERVICER_MAX_PROCESSES)
+    {
+        return false;
+    }
+    s_cpus[slot].loaded_x5cpu = x5cpu;
+    s_nd5000[slot].servicer.process_msg[x5cpu] = msg_byte;
+    return true;
+}
+
+unsigned long mfbus_nd5000_preempts(uint8_t station_number)
+{
+    int slot = mfbus_slot_of(station_number);
+    if (slot < 0 || !s_cpus[slot].present)
+    {
+        return 0;
+    }
+    return s_cpus[slot].preempts;
+}
+
 unsigned long long mfbus_nd5000_instructions(uint8_t station_number)
 {
     int slot = mfbus_slot_of(station_number);
@@ -4336,7 +4437,8 @@ void mfbus_clear_nd5000(void)
     __atomic_store_n(&s_pump_mask, 0u, __ATOMIC_RELEASE);
     __atomic_store_n(&s_armed_mask, 0u, __ATOMIC_RELEASE);
     memset(s_doorbell, 0, sizeof(s_doorbell));
-    mfbus_work_clear(MFBUS_WORK_SCAN | MFBUS_WORK_ARMED | MFBUS_WORK_PUMP);
+    memset(s_pending_kick, 0, sizeof(s_pending_kick));
+    mfbus_work_clear(MFBUS_WORK_SCAN | MFBUS_WORK_ARMED | MFBUS_WORK_PUMP | MFBUS_WORK_KICK);
 }
 
 void mfbus_detach(void)

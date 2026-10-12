@@ -998,6 +998,180 @@ int main(void)
         }
     }
 
+    /* ---- X5PRO NAMES THE RUNNING PROCESS, AND KICK 1 TAKES IT OFF THE CPU ----
+     *
+     * X5PRO is word 6 of the CPU's mailbox extension block. The microprogram
+     * writes the receiver process number there when it fetches a message
+     * (MICRO-5800-B30 015207) and -1 when it goes idle (017433). SINTRAN adds
+     * CPU time to the process it names every 20 ms, and sends kick 1 when a
+     * message outranks it (ACT52).
+     *
+     * The process is the same never-ending spin as above. It is loaded and
+     * started directly, and then named: process 1, on a 3START message that is
+     * in the queue and WAITING, which is the state a message-started process
+     * leaves its message in. (Starting it THROUGH the message would turn the MMU
+     * on, and this fixture has no segment tables.) The process has NOT stopped
+     * once when the kick arrives, so the message that brings it back is still
+     * its 3START. That is the case in which a second start from the context
+     * block's entry point would be wrong and only "resume from the saved
+     * registers" is right.
+     *
+     * Kick 1 must: stop the process, write X5PRO = -1, put the message back in
+     * the queue (N5STA 2 -> 1). The walk the same kick causes then finds that
+     * message with the CPU free and the process runs again. */
+    {
+        const uint32_t p_param  = 0x0800u;
+        const uint32_t p_ctx    = 0x2000u;
+        const uint32_t p_header = 0x4000u;
+        const uint32_t p_ext1   = p_header + 256u;
+        const uint32_t p_ring   = p_header + 0x800u;
+        const uint32_t p_msg    = p_header + 0x1000u;
+        const uint32_t p_code   = 0x6000u;
+        const uint32_t p_data   = 0x7000u;
+        const uint32_t p_block1 = p_ctx + 0x200u;   /* dummy block, block 0, block 1 */
+        const uint32_t p_x5pro  = p_ext1 + NDBUS_MBX_X5PRO_WORD * 2u;
+        static const uint8_t pspin[] = {0xFD, 0x40, 0x40, 0xC6, 0xFD};
+
+        printf("  X5PRO and the preempting kick\n");
+        CHECK(mfbus_attach(TEST_POOL_BYTES, TEST_BASE_PAGE), "attach for the preempt test");
+        Device *pcard = octobus_create_device(0);
+        CHECK(pcard != NULL && mfbus_attach_card(pcard), "an octobus card on the bus");
+        if (pcard != NULL)
+        {
+            CHECK(mfbus_add_nd5000(56), "a station");
+            CHECK(mfbus_attach_cpu(56), "with a CPU");
+            NdbusPool *pool = mfbus_pool();
+            uint16_t   dest = (uint16_t)(56u << 8u);
+
+#define P_ACCP(body, len)                                                               \
+    do                                                                                  \
+    {                                                                                   \
+        pcard->Write(pcard, 0100405, (uint16_t)(dest | 0x8000u | 0x0020u | 0x0010u | 3u)); \
+        pcard->Write(pcard, 0100405, (uint16_t)(dest | 3u));                            \
+        pcard->Write(pcard, 0100405, (uint16_t)(dest | (uint16_t)(len)));               \
+        for (int pi = 0; pi < (len); pi++)                                              \
+        {                                                                               \
+            pcard->Write(pcard, 0100405, (uint16_t)(dest | (body)[pi]));                \
+        }                                                                               \
+        pcard->Write(pcard, 0100405, (uint16_t)(dest | 0x8000u | 0x0020u | 3u));        \
+    } while (0)
+#define P_CELL(cell, value)                                                             \
+    do                                                                                  \
+    {                                                                                   \
+        uint32_t at = p_param + 4u + (((cell) - 0x10u) * 8u + 6u) * 2u;                 \
+        (void)ndbus_pool_write16(pool, at, (uint16_t)((uint32_t)(value) >> 16u));       \
+        (void)ndbus_pool_write16(pool, at + 2u, (uint16_t)((uint32_t)(value) & 0xFFFFu)); \
+    } while (0)
+
+            (void)ndbus_pool_write16(pool, p_param, 7u);
+            (void)ndbus_pool_write16(pool, p_param + 2u, 0x10u);
+            for (uint32_t i = 0; i < 7u * 8u; i++)
+            {
+                (void)ndbus_pool_write16(pool, p_param + 4u + i * 2u, 0u);
+            }
+            P_CELL(0x10u, p_ctx);
+            P_CELL(0x15u, 1u);
+            P_CELL(0x16u, p_header);
+
+            const uint8_t lparp[5] = {NDBUS_ACCP_LPARP, (uint8_t)(p_param >> 24u),
+                                      (uint8_t)(p_param >> 16u), (uint8_t)(p_param >> 8u),
+                                      (uint8_t)(p_param & 0xFFu)};
+            const uint8_t locsm[1]    = {NDBUS_ACCP_LOCSM};
+            const uint8_t startmic[3] = {NDBUS_ACCP_STARTMIC, 0u, 0u};
+            const uint8_t enkick[1]   = {NDBUS_ACCP_ENKICK};
+
+            (void)ndbus_pool_write16(pool, p_header + NDBUS_MBX_X5SEM_WORD * 2u, 0u);
+            (void)ndbus_pool_write16(pool, p_header + NDBUS_MBX_X5HEN_WORD * 2u, 0u);
+            (void)ndbus_pool_write16(pool, p_header + NDBUS_MBX_X5FYL_WORD * 2u, 0u);
+            (void)ndbus_pool_write16(pool, p_header + NDBUS_MBX_X5MXF_WORD * 2u, 8u);
+            (void)ndbus_pool_write16(pool, p_header + NDBUS_MBX_X5FIF_WORD * 2u,
+                                     (uint16_t)(p_ring >> 16u));
+            (void)ndbus_pool_write16(pool, p_header + (NDBUS_MBX_X5FIF_WORD + 1u) * 2u,
+                                     (uint16_t)(p_ring & 0xFFFFu));
+            (void)ndbus_pool_write16(pool, p_ext1 + 0u, 0xFFFFu);
+            (void)ndbus_pool_write16(pool, p_ext1 + 2u, 0xFFFFu);
+            (void)ndbus_pool_write16(pool, p_ext1 + NDBUS_MBX_X5ACT_WORD * 2u, 0xFFFFu);
+            (void)ndbus_pool_write16(pool, p_x5pro, 0xFFFFu);
+
+            P_ACCP(lparp, 5);
+            P_ACCP(locsm, 1);
+            P_ACCP(startmic, 3);
+            P_ACCP(enkick, 1);
+#undef P_CELL
+#undef P_ACCP
+
+            /* Process 1: the spin, entered at p_code with B on the semaphore. */
+            for (uint32_t i = 0; i < sizeof(pspin); i++)
+            {
+                (void)ndbus_pool_write8(pool, p_code + i, pspin[i]);
+            }
+            (void)ndbus_pool_write8(pool, p_data, 0xFFu);
+
+            /* Its 3START, in the queue and already taken (WAITING). */
+            (void)ndbus_pool_write16(pool, p_msg + 0u, 0xFFFFu);
+            (void)ndbus_pool_write16(pool, p_msg + 2u, 0xFFFFu);
+            (void)ndbus_pool_write16(pool, p_msg + NDBUS_MSG_N5STA * 2u, NDBUS_N5STA_WAITING);
+            (void)ndbus_pool_write16(pool, p_msg + NDBUS_MSG_X5CPU * 2u, 1u);
+            (void)ndbus_pool_write16(pool, p_msg + NDBUS_MSG_MICFU * 2u, NDBUS_MICFU_START);
+            (void)ndbus_pool_write16(pool, p_ext1 + 0u, (uint16_t)(p_msg >> 16u));
+            (void)ndbus_pool_write16(pool, p_ext1 + 2u, (uint16_t)(p_msg & 0xFFFFu));
+
+            CHECK(ndbus_pool_read16(pool, p_x5pro) == 0xFFFFu, "X5PRO is -1 before any process runs");
+
+            CHECK(mfbus_place_context(56, p_ctx, p_code, p_data), "the process's context");
+            CHECK(mfbus_load_context(56), "is loaded");
+            CHECK(mfbus_set_loaded_process(56, 1, p_msg), "it is process 1, on that message");
+            CHECK(mfbus_start_nd5000(56), "and the CPU runs it");
+
+            unsigned long long before = mfbus_nd5000_instructions(56);
+            for (int spins = 0; spins < 2000 && mfbus_nd5000_instructions(56) < before + 100u;
+                 spins++)
+            {
+                usleep(1000);
+            }
+            CHECK(mfbus_nd5000_instructions(56) >= before + 100u,
+                  "process 1 is executing");
+            CHECK(ndbus_pool_read16(pool, p_x5pro) == 1u, "X5PRO names process 1 while it executes");
+            CHECK((ndbus_pool_read16(pool, p_msg + NDBUS_MSG_N5STA * 2u) & NDBUS_N5STA_MASK)
+                      == NDBUS_N5STA_WAITING,
+                  "its message is WAITING, unanswered");
+            CHECK(mfbus_nd5000_preempts(56) == 0u, "nothing has been preempted yet");
+
+            /* Kick 1 from the ND-100: control frame, K set, kick number 1. */
+            pcard->Write(pcard, 0100405, (uint16_t)(dest | 0x8000u | 0x0040u | 1u));
+
+            CHECK(mfbus_nd5000_preempts(56) == 1u, "kick 1 took the running process off the CPU");
+            for (int tick = 0; tick < 50; tick++)
+            {
+                (void)mfbus_service_nd5000_mailboxes();
+            }
+            unsigned long long after_kick = mfbus_nd5000_instructions(56);
+            for (int spins = 0; spins < 2000 && mfbus_nd5000_instructions(56) < after_kick + 100u;
+                 spins++)
+            {
+                usleep(1000);
+            }
+            CHECK(mfbus_nd5000_instructions(56) >= after_kick + 100u,
+                  "the walk the kick caused found its message and the process executes again");
+            CHECK(ndbus_pool_read16(pool, p_x5pro) == 1u, "X5PRO names process 1 again");
+            CHECK((ndbus_pool_read16(pool, p_msg + NDBUS_MSG_N5STA * 2u) & NDBUS_N5STA_MASK)
+                      == NDBUS_N5STA_WAITING,
+                  "and its message is WAITING again, still unanswered");
+            uint32_t saved_p = ndbus_pool_read32(pool, p_block1 + NDBUS_CTX_P);
+            CHECK(saved_p == p_code || saved_p == p_code + 3u,
+                  "the kick saved the process's P into its context block, inside the spin");
+            CHECK(ndbus_pool_read8(pool, p_data) == 0xFFu,
+                  "the semaphore is still held: the process did not start over and fall through");
+
+            mfbus_stop_nd5000(56);
+            CHECK(ndbus_pool_read16(pool, p_x5pro) == 0xFFFFu, "X5PRO is -1 once the CPU has stopped");
+
+            dev_destroy(pcard);
+            free(pcard);
+        }
+        mfbus_detach();
+    }
+
     /* ---- an .ini in, a working machine out --------------------------------
      * The path Ronny actually uses. A configuration that parses cleanly and then
      * builds the wrong machine is a failure no parser test catches, and until
