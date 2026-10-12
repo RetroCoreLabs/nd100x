@@ -51,12 +51,20 @@
 
 static DeviceManager device_manager = {0}; // Initialize to zero
 
+/* devmgr_tick()'s list of the tickAlways devices and its kept OR of the
+ * interrupt bits; see devmgr_tick(). */
+static Device *s_tick_always[64];
+static int     s_tick_always_count = 0;
+static int     s_tick_list_devices = -1; /* deviceCount the list was built for */
+static uint16_t s_irq_bits = 0;
+
 // Returns 0, or -1 if the device table could not be allocated.
 int devmgr_init(void)
 {
 
     device_manager.deviceCapacity = INITIAL_DEVICE_CAPACITY;
     device_manager.deviceCount = 0;
+    s_tick_list_devices = -1;
     device_manager.devices = malloc(sizeof(DeviceInfo) * INITIAL_DEVICE_CAPACITY);
     if (device_manager.devices)
     {
@@ -92,6 +100,7 @@ void devmgr_destroy(void)
 
     device_manager.deviceCount = 0;
     device_manager.deviceCapacity = 0;
+    s_tick_list_devices = -1;
 }
 
 void devmgr_add_all_devices(void)
@@ -674,6 +683,7 @@ int devmgr_ident(uint16_t level)
                 // "IDENT PL12 ... WAIT; JMP LEV12", and the terminal kept
                 // re-asserting level 12 after each char, starving LOGON.
                 dev->interruptBits &= ~(1 << level);
+                dev_irq_changed();
                 return id;
             }
         }
@@ -685,19 +695,89 @@ int devmgr_ident(uint16_t level)
     return 0;
 }
 
+/* Called after every ND-100 instruction. Returns the OR of every device's
+ * interruptBits, as it always did.
+ *
+ * It used to call every device's Tick every time: measured 12-OCT-2026, 62% of
+ * the ND-100 thread. Now a device is called only when it has something to do
+ * (see tickAlways / TickNeeded in devices_types.h), and the OR is kept and only
+ * computed again when dev_irq_changed() says a bit moved.
+ *
+ * A device that is called is called on exactly the instructions it was called
+ * on before, and in the same order, so no I/O delay changes length. One
+ * exception: a tickAlways device whose Tick queues a delay on a LATER device
+ * while nothing else is pending - that delay starts one instruction later. No
+ * device does this today. */
 uint16_t devmgr_tick(void)
 {
-    uint16_t interrupt_bits = 0;
-    for (int i = 0; i < device_manager.deviceCount; i++)
+    if (s_tick_list_devices != device_manager.deviceCount)
     {
-        Device *dev = device_manager.devices[i].device;
-        if (dev)
+        s_tick_always_count = 0;
+        for (int i = 0; i < device_manager.deviceCount; i++)
         {
-            interrupt_bits |= dev_tick(dev);
+            Device *dev = device_manager.devices[i].device;
+            if (dev && dev->Tick && dev->tickAlways
+                && s_tick_always_count < (int)(sizeof(s_tick_always) / sizeof(s_tick_always[0])))
+            {
+                s_tick_always[s_tick_always_count++] = dev;
+            }
+        }
+        s_tick_list_devices = device_manager.deviceCount;
+        dev_request_tick();
+        dev_irq_changed();
+    }
+
+    if (__atomic_load_n(&g_dev_tick_wanted, __ATOMIC_ACQUIRE) != 0u)
+    {
+        /* Cleared first: a request made while the loop runs sets it again. */
+        __atomic_store_n(&g_dev_tick_wanted, 0u, __ATOMIC_RELEASE);
+        bool again = false;
+        for (int i = 0; i < device_manager.deviceCount; i++)
+        {
+            Device *dev = device_manager.devices[i].device;
+            if (!dev || !dev->Tick)
+            {
+                continue;
+            }
+            if (dev->tickAlways)
+            {
+                (void)dev->Tick(dev);
+            }
+            else if (dev->ioDelayCount > 0 || (dev->TickNeeded && dev->TickNeeded(dev)))
+            {
+                (void)dev->Tick(dev);
+                again = true;
+            }
+        }
+        if (again)
+        {
+            dev_request_tick();
+        }
+    }
+    else
+    {
+        for (int i = 0; i < s_tick_always_count; i++)
+        {
+            (void)s_tick_always[i]->Tick(s_tick_always[i]);
         }
     }
 
-    return interrupt_bits;
+    if (__atomic_load_n(&g_dev_irq_dirty, __ATOMIC_ACQUIRE))
+    {
+        /* Cleared first, for the same reason. */
+        __atomic_store_n(&g_dev_irq_dirty, false, __ATOMIC_RELEASE);
+        uint16_t bits = 0;
+        for (int i = 0; i < device_manager.deviceCount; i++)
+        {
+            Device *dev = device_manager.devices[i].device;
+            if (dev && dev->Tick) /* a device with no Tick never contributed */
+            {
+                bits |= dev->interruptBits;
+            }
+        }
+        s_irq_bits = bits;
+    }
+    return s_irq_bits;
 }
 Device *devmgr_get_device_by_address(uint32_t address)
 {

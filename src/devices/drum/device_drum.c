@@ -295,6 +295,7 @@ static void drum_reset(Device *self)
     d->status = 0;
     d->interruptEnabled = false;
     self->interruptBits = 0;
+    dev_irq_changed();
 }
 
 static void drum_destroy(Device *self)

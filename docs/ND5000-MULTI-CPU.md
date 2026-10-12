@@ -253,8 +253,56 @@ Getting there needed four things, each found by a failing run:
 
 A kick takes a running process off its CPU whoever sends it, the ND-100 or
 another ND-5000 with `WEXT` (see "CPU time and the preempting kick"). `SET-CPU-STATUS` is `[UNVERIFIED]`.
-Telnet terminals lose the first character of each line inside the ND-500
-monitor (worked around with a leading space; cause not found).
+Earlier runs lost the first character of a line typed on a telnet terminal
+inside the ND-500 monitor, and the scripts typed a leading space to get round
+it. `[MEASURED 12-OCT-2026]` on the build of `b3007e6` this does not happen:
+11 commands typed with no leading space on terminal 36 (`WHO`, `CHANGE-CPU`,
+`PROCESS-STATUS`, `LED-CONV`; as one burst, one character per second, and
+170 ms after the first `ND-5000:` prompt) all arrived whole, and the byte
+trace of the terminal shows every character echoed. Which earlier change
+removed the loss is `[UNKNOWN]`; no bisect was done.
+
+`[MEASURED 12-OCT-2026]` The mailbox extension cell `X5CPU` (word 4) reads 1
+(`MPACTIVE`) for stations 070B and 071B at the first process start, without
+nd100x ever writing it. SINTRAN tests that cell before it picks a CPU
+(`MP-P2-N500.NPL` `ACT50`, `RP-P2-N500.NPL` 127436). `XMSINIT` zeroes it, so
+something after `XMSINIT` writes the 1; which routine is `[UNKNOWN]`. The
+bridge must not write this cell.
+
+`[MEASURED 12-OCT-2026]` A terminal that has never given `CHANGE-CPU` shows
+`cpu  1` in `WHO` (terminal 36, first command after entering the monitor).
+
+## Messages, queues and several CPUs
+
+The message is described field by field, with the source of every statement,
+in the comment at the top of `src/machine/mfbus_bridge.c` and in nd500x
+`src/ndbus/ndbus_msgqueue.h`. What follows are the four rules that came out of
+it and what was measured.
+
+`[MEASURED 12-OCT-2026]` Four users, each `CHANGE-CPU n` and `LED-CONV`,
+started without waiting for the previous one to finish loading:
+
+| Build | Result |
+|---|---|
+| nd100x `b3007e6` | 2 runs, 8 of 8 users in LED (the faults below were present but not hit) |
+| nd100x with rules 2 and 3 only | 3 runs, users 2, 3 and 4 hung every time |
+| nd100x with all four rules | 5 runs, 20 of 20 users in LED, 0 messages served by a CPU other than the assigned one |
+
+1. A CPU takes a queued message only when the message's `5CPUN` (word -6) is
+   its own number. Before, a walk took any message with `N5STA` = 1. Of 430
+   messages three were taken by the wrong CPU: the swapper's `3MONCO`,
+   `5CPUN` = 1, by CPUs 2, 3 and 4. nd500x `ndbus_servicer_process_message`.
+   The microprogram's take-over of another CPU's message (MICRO-5800-B30
+   015155-015174) is not modelled.
+2. A queue walk ends when one of its messages has started a process; the queue
+   is walked again when that process stops. `mfbus_cpu_is_executing`.
+3. What a process needs to continue is kept per process, for all CPUs
+   (`s_proc`), and is written at every stop; `s_proc_owner` records which CPU
+   executed the process last. A CPU that holds an older copy reloads it from
+   the context block. The swapper's message is not CPU bound (`5MSFL` =
+   0x3000), so SINTRAN may queue it on another CPU.
+4. The ND-100's `TSET` and the ND-5000 side's test-and-set exclude each other
+   (already so in nd100x; fixed in RetroCore the same day).
 
 ## CPU time and the preempting kick
 

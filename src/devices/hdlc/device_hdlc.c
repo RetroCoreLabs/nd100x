@@ -770,6 +770,7 @@ Device *hdlc_create_device(uint8_t thumbwheel)
     // Set device function pointers
     dev->Reset = hdlc_reset;
     dev->Tick = hdlc_tick;
+    dev->tickAlways = true;
     dev->Read = hdlc_read;
     dev->Write = hdlc_write;
     dev->Ident = hdlc_ident;

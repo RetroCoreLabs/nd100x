@@ -372,6 +372,14 @@ bool mfbus_set_loaded_process(uint8_t station_number, int x5cpu, uint32_t msg_by
 unsigned long mfbus_nd5000_preempts(uint8_t station_number);
 
 /**
+ * @brief How many times this CPU found that its loaded process had executed on
+ *        another CPU since, and reloaded it from its context block.
+ * @param station_number The station to ask about.
+ * @return The count since the CPU was attached, or 0 when the station has no CPU.
+ */
+unsigned long mfbus_nd5000_stale_reloads(uint8_t station_number);
+
+/**
  * @brief Poll every configured ND-5000's mailbox doorbell once.
  *
  * SOMETHING HAS TO DO THIS OR THE MACHINE TIMES OUT. After ENKICK the ND-500/5000

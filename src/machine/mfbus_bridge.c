@@ -41,6 +41,219 @@
 
 #ifdef ND100X_WITH_ND500
 
+/*
+ * THE ND-100 / ND-5000 MESSAGE, FIELD BY FIELD: WHO WRITES IT, WHO READS IT, AND
+ * WHAT THE VALUES MEAN
+ *
+ * Sources, and how each line below is marked:
+ *   [SYM]  offset or value from the SINTRAN III VSX/500 L07 symbol file
+ *          (N500-SYMBOLS). Octal there; octal here where it ends in B.
+ *   [NPL]  read in the SINTRAN source, file and octal address given
+ *          (CC-P2-N500, MP-P2-N500, RP-P2-N500, 5P-P2-MON60).
+ *   [MIC]  read in the microprogram listing MICRO-5800-B30, octal address given.
+ *   [MEAS] measured on a running SINTRAN, date given.
+ *   [EMU]  a choice this emulator makes; the real machine does something else
+ *          or more.
+ *
+ * 1. WHAT A MESSAGE IS
+ *
+ * One message block per ND-500 process, 200B words long [SYM 55MES], in the
+ * shared memory. SINTRAN fills it in to ask the ND-5000 for something; the
+ * microprogram writes the answer into the SAME block. A process has one block
+ * for its whole life, so "the message of process 3" is always the same address
+ * (MEAS 12-OCT-2026: process 0 the swapper at 0x8D30, process 1 at 0x8E30,
+ * 2 at 0x8F30, 3 at 0x9030, 4 at 0x9130 - 0x100 bytes apart).
+ *
+ * All offsets are WORDS (16 bits) from the message base. Six words lie IN FRONT
+ * of the base and have negative offsets.
+ *
+ * 2. THE WORDS IN FRONT OF THE BASE
+ *
+ *  -10B,-7  500TU  [SYM 177770B] Double word. CPU time the process has used, in
+ *                  20 ms units. SINTRAN's clock routine adds 1 every 20 ms to the
+ *                  process named in the mailbox cell X5PRO [NPL MP 500H2].
+ *                  The ND-5000 side must never write here. A write of 1 into the
+ *                  high word showed as "21 min 50.7 s" in PROCESS-STATUS
+ *                  [MEAS 12-OCT-2026].
+ *  -6       5CPUN  [SYM 177772B] The number of the CPU the message is ASSIGNED
+ *                  to: 1 for station 070B, 2 for 071B, 3, 4. Written by SINTRAN
+ *                  when it queues the message [NPL RP 127502, MP 133674]. Read by
+ *                  the microprogram before it takes a message: equal to its own
+ *                  number (control store cell 025B, SAMSON_CPU) -> take it
+ *                  [MIC 015151-015154]. Not equal -> the microprogram looks at
+ *                  5MSFL and at the other CPU and may take the message over by
+ *                  writing its own number here [MIC 015155-015174].
+ *                  [EMU] not equal -> the message is left alone. No take-over.
+ *                  [MEAS 12-OCT-2026] 430 messages, every one had 5CPUN 1..4.
+ *  -5       5PRIO  [SYM 177773B] Priority. Higher runs first. The swapper is
+ *                  given 300 [NPL MP 133671]; a break sets 5BRKPRIOR
+ *                  [NPL MP 141660]; the time slicer counts it up and down
+ *                  [NPL MP 134213-134220]. SINTRAN keeps each CPU's queue sorted
+ *                  on it [NPL CC 022566-022617] and compares it with the priority
+ *                  of the executing process to choose between the doorbell and
+ *                  kick 1 [NPL MP ACT50, 145451-145520]. The ND-5000 side does not
+ *                  use it.
+ *  -1       5MSFL  [SYM 177777B] Flag bits, numbered as SINTRAN numbers them
+ *                  (bit 0 = least significant; octal bit numbers from [SYM]):
+ *                    bit 15B (0x2000) 5IEXQUEUE  the message is in an execution
+ *                                     queue. Set by ITO500XQ, cleared by IFM500XQ
+ *                                     [NPL CC 022554, 022670].
+ *                    bit 14B (0x1000) 5SYSRES    system-reserved process
+ *                                     [NPL 5P 030620].
+ *                    bit 13B (0x0800) 5CPUBOUND  the process may only run on the
+ *                                     CPU in 5CPUN. Without it SINTRAN moves the
+ *                                     message to the active CPU with the shortest
+ *                                     queue [NPL RP 127411-127450].
+ *                    bit 11B (0x0200) 52ESCSET, bit 10B (0x0100) 5IBRK  break /
+ *                                     escape handling [NPL 5P 032644, 035165].
+ *                    bit 6   (0x0040) 5ITMQUEUE  the message is in the time queue
+ *                                     [NPL CC 022710].
+ *                  [MEAS 12-OCT-2026] a user process after CHANGE-CPU: 0x6800
+ *                  (in queue, CPU bound, and bit 0x4000 whose name is UNKNOWN).
+ *                  The swapper: 0x3000 (in queue, system reserved, NOT bound - so
+ *                  the swapper moves between CPUs). The watchdog message: 0x3800, which is what
+ *                 SINTRAN builds: 5SYSRES + 5CPUBOUND, priority 77776B, one per
+ *                 CPU [NPL RP 131507-131526].
+ *                  The ND-5000 side only reads this word.
+ *
+ * 3. THE WORDS FROM THE BASE
+ *
+ *   0,1     LINK   [SYM 0,1] Double word. The next message in the queue, as a
+ *                  byte offset in the shared memory; -1 (0xFFFFFFFF) ends the
+ *                  queue. Written by SINTRAN only, under the semaphore X5SEM
+ *                  [NPL CC ITO500XQ 022620-022653]. The microprogram follows it
+ *                  [MIC MSG_NEXT 017455-017457].
+ *   2       N5STA  [SYM 2] Where the message is in its life. Low 13 bits:
+ *                    1 MSGN500   for the ND-5000, not taken yet. The ONLY value
+ *                                the microprogram takes [MIC MSG_LINK1 015141-44].
+ *                    2 WAITING   taken, the process is executing or parked.
+ *                    3 ANSWER    answered, for SINTRAN.
+ *                    4 5ERANSWER answered with an error.
+ *                  Top 3 bits (0xE000) are power-fail flags; whoever writes the
+ *                  low bits keeps them. The microprogram's OCB_CLNUP writes 2 back
+ *                  to 1 when a kick takes the process off the CPU [MIC 025570].
+ *   3       SENDE  [SYM 3] The process that sent it. -1 for SINTRAN's watchdog
+ *                  message [NPL RP 131513].
+ *   4       5RECE  [SYM 4] The RECEIVER: the ND-500 process number the message is
+ *                  for. 0 is the swapper. This is the number the microprogram
+ *                  writes to X5PRO when it starts the process [MIC 015207].
+ *                  NAMING TRAP: the emulators call this word "X5CPU". X5CPU is a
+ *                  different thing - word 4 of the MAILBOX EXTENSION BLOCK, where
+ *                  1 means "microprogram active" [SYM X5CPU=4, MPACT=1]. The two
+ *                  have the same offset in two different structures. It is a
+ *                  process number, never a CPU number; the CPU number is 5CPUN.
+ *   5       5CCLR  [SYM 5] The value the CPU's cache-clear counter X5CCL had when
+ *                  this process last ran there. SINTRAN subtracts the CPU's
+ *                  current X5CCL from it; not zero means the process has to be
+ *                  placed again [NPL MP 145347-145357]. NAMING TRAP: the
+ *                  emulators call this word "X5ACT". X5ACT is word 5 of the
+ *                  extension block, the doorbell. The ND-5000 side does not touch
+ *                  the message's word 5.
+ *   6       MICFU  [SYM 6] What the ND-5000 is asked to do. The values and their
+ *                  routines are listed with the servicer. The ones that put a
+ *                  process on the CPU: 22B start process 0, 23B 3START,
+ *                  24B 3MONCO (continue after a monitor call), 25B 3TRACO
+ *                  (continue after a trap), 26B 3WMONCO. The ones that only move
+ *                  data: 1 3RMICV, 10B/11B DMEMRD/DMEMWR (read/write the memory
+ *                  of the process named in 5RECE - the microprogram loads that
+ *                  process's context first [MIC 015336] but does NOT execute it),
+ *                  13B/14B, 30B/31B, 34B/35B.
+ *   7,10B   N500A  [SYM 7] ND-500 address of a transfer, double word; in a
+ *                  swapper message the two words are SWFUN and SWRST instead.
+ *   11B     N100A / STOPR / ACPRO / KFLIP  [SYM 11B, four names] One word, four
+ *                  meanings. Going to the ND-5000 in a transfer: ND-100 address.
+ *                  Coming back after a stop: the stop reason (1 = monitor call,
+ *                  2 = trap). In a continue: the K flag to give the process.
+ *   12B     NUMPA  [SYM 12B] Going back: number of parameters of the monitor
+ *                  call. In a continue: a mask of which results to write back.
+ *   13B     NRBYT / MCNO / FUNCV  [SYM 13B, three names] Transfer: byte count.
+ *                  Stop: the monitor call number. Continue: the function value.
+ *   14B     MSWMC  [SYM 14B] swapper monitor call field.
+ *   16B     TRAPN  [SYM 16B] trap number of a trap stop.
+ *   37B     SMCNO  [SYM 37B] SINTRAN's saved copy of MCNO [NPL MP 1302].
+ *   147B    PLINK  [SYM 147B] Link to the PREVIOUS message, SINTRAN's own
+ *                  [NPL CC 022633-022643]. The ND-5000 side does not use it.
+ *
+ * 4. THE QUEUES AND THE MAILBOX
+ *
+ * There is one mailbox header for the machine and one extension block per CPU,
+ * 256 bytes apart (extension block of CPU n = header + n * 256).
+ *
+ * Header [SYM]:   0 X5SEM   the semaphore every queue change is made under.
+ *                           SINTRAN takes it with TSET / TSETP [NPL CC SLOCK
+ *                           023667], the microprogram with LOCK_QUE [MIC 025442].
+ *                 3 X5HEN, 4 X5FYL, 5 X5MXF, 6-7 X5FIF  the ring the answered
+ *                           messages are handed back to SINTRAN in.
+ *                 47B X5RES who holds X5SEM: -1 is the ND-100 [NPL CC 024003].
+ * Extension block [SYM]:
+ *                 0-1 X5BEX  head of THIS CPU's execution queue, -1 = empty.
+ *                 2-3 X5NAC  the next CPU's extension block.
+ *                 4   X5CPU  1 (MPACTIVE) = this CPU's microprogram runs. SINTRAN
+ *                           only gives work to a CPU that has 1 here [NPL MP
+ *                           145435, RP 127436]. [MEAS 12-OCT-2026] it is 1 without
+ *                           the emulator writing it.
+ *                 5   X5ACT  the doorbell: SINTRAN writes 0 to say "walk your
+ *                           queue" when the CPU is idle [NPL MP ACT51 145500].
+ *                 6   X5PRO  the process this CPU executes, -1 idle, written by
+ *                           the microprogram [MIC PRNOWR 025416].
+ *                 7   X5STA  the CPU's octobus station.
+ *                 10B X5CLR, 11B X5CCL  cache-clear request and its counter.
+ *
+ * Each CPU has a queue of its own (X5BEX), sorted on 5PRIO, and its length is in
+ * SINTRAN's own LEXQUEUE. A message is in exactly one queue.
+ *
+ * 5. THE LIFE OF A MESSAGE, AND WHAT THE EMULATOR MUST HONOUR
+ *
+ *   a. SINTRAN picks the CPU: the one in 5CPUN if 5CPUBOUND, else the active CPU
+ *      with the shortest queue, and writes 5CPUN [NPL RP 127404-127510].
+ *   b. Under X5SEM it links the message into that CPU's queue (ITO500XQ) and
+ *      sets N5STA = 1.
+ *   c. If that CPU is idle (X5PRO = -1) it writes X5ACT = 0. If the CPU executes
+ *      a process of lower priority it sends kick 1 [NPL MP ACT50-ACT52].
+ *   d. The microprogram, idle or kicked, walks its queue under LOCK_QUE. On a
+ *      kick it first takes the executing process off the CPU: saves its
+ *      context, writes its message back to N5STA = 1 [MIC ACTIVATE 024723].
+ *   e. It takes the first message with N5STA = 1 and its own number in 5CPUN,
+ *      writes N5STA = 2 and does what MICFU says. If that starts a process the
+ *      walk ENDS there: the microprogram executes the process and is not in its
+ *      message loop again until the process stops.
+ *   f. At a stop it saves the context, writes the stop record into the message,
+ *      N5STA = 3, puts the message in the ring and interrupts the ND-100.
+ *
+ * What follows from this for an emulator with several CPUs:
+ *   - A walk must not take a message whose 5CPUN is another CPU's. A walk can
+ *     REACH such a message, because SINTRAN relinks the queues while a CPU
+ *     walks and this emulator does not hold X5SEM for the whole walk.
+ *   - A walk must stop when one of its messages has started a process.
+ *   - A process is not tied to a CPU. The swapper is not CPU bound, so its
+ *     message can go to another CPU's queue between two stops. Everything a
+ *     process needs to continue must therefore be where every CPU finds it:
+ *     the context block in the shared memory, and what the block does not
+ *     carry in one table for all CPUs. A CPU that still holds an old copy of a
+ *     process must notice that another CPU has executed it since, and reload.
+ *   - DMEMRD and DMEMWR load the named process's context so that its addresses
+ *     translate. That must not release the process to execute.
+ *
+ * 6. WHERE THIS FILE DOES EACH OF THOSE THINGS
+ *
+ *   5CPUN compared with the CPU's own number ... nd500x ndbus_servicer.c,
+ *       ndbus_servicer_process_message(); the number comes from the control
+ *       store cell 025B through nd500x ndbus_nd5000.c.
+ *   the walk ends when a message started a process ... mfbus_cpu_is_executing()
+ *       here, asked by the walk in nd500x ndbus_servicer.c; the queue is walked
+ *       again from mfbus_release_deferred() when the CPU has stopped.
+ *   kick 1 / kick 2 takes the process off the CPU ... mfbus_preempt_for_kick().
+ *   X5PRO ... mfbus_write_x5pro().
+ *   the table every CPU reads, and who executed a process last ... s_proc and
+ *       s_proc_owner; mfbus_save_process_state() at every stop,
+ *       mfbus_switch_to_process() for the reload of a stale copy.
+ *   DMEMRD / DMEMWR load the named process ... mfbus_load_named_process(); the
+ *       CPU stays parked because "parked" is a field of its own here.
+ *   500TU is never written ... nd500x ndbus_servicer.c (NDBUS_MSG_500TU_BACK_BYTES).
+ *
+ * The same text is in nd500x src/ndbus/ndbus_msgqueue.h, next to the offsets.
+ */
+
 #include <sched.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -280,9 +493,10 @@ typedef struct
      * next: a process that parked inside its trap handler left OTE = 0 for
      * whoever ran next, and a process that page-faulted on its callee's entry left
      * its CALL in flight for the other one. One user never sees it; two do. */
-    MfbusProcessState proc[MFBUS_PROCESS_SLOTS];
     bool          stop_reported;  /* the non-retryable stop has been named once */
     unsigned long preempts;       /* processes taken off this CPU by a kick */
+    unsigned long stale_reloads;  /* loaded process had run on another CPU: reloaded */
+    bool          walk_again;     /* a queue walk ended early; walk again when this CPU stops */
     uint32_t      continues_refused; /* continues with nothing to continue */
 
     /* WHAT THE TRAP LOOKED LIKE AT THE MOMENT IT WAS RAISED.
@@ -683,6 +897,29 @@ typedef struct
     uint8_t  source;
 } MfbusPendingKick;
 static MfbusPendingKick s_pending_kick[MFBUS_MAX_ND5000];
+
+/* WHAT THE CONTEXT BLOCK DOES NOT CARRY OF A PROCESS, AND WHICH CPU EXECUTED IT
+ * LAST. ONE TABLE FOR ALL CPUS, because a process is not tied to a CPU.
+ *
+ * SINTRAN queues the message of a process that is not bound to a CPU on the
+ * active CPU with the shortest execution queue (RP-P2-N500.NPL 127404-127447).
+ * MEASURED 12-OCT-2026 in RetroCore, which has the same code as this file had:
+ * with four users starting together the swapper's restart went to station 071B
+ * while station 070B still held the swapper as its loaded process, and 070B
+ * later resumed it from registers that were several stops old - users hung, or
+ * got "Illegal physical segment". Here the same run kept the swapper on 070B
+ * (two runs), so the fault was not seen, but nothing prevented it.
+ *
+ * So the state that travels is kept per PROCESS (s_proc, slot = X5CPU + 1) and
+ * is written at every stop, and s_proc_owner names the CPU slot (+1; 0 = none
+ * yet) that executed the process last. A CPU that is not that one holds a stale
+ * copy: it reloads from the block and from s_proc, and never saves the copy.
+ *
+ * Written by a CPU's host thread at its stop and by the ND-100's thread at a
+ * switch. The two never touch the same process at once: a process is on one
+ * CPU, and its next message is served only after its stop has been answered. */
+static MfbusProcessState s_proc[MFBUS_PROCESS_SLOTS];
+static int               s_proc_owner[MFBUS_PROCESS_SLOTS];
 
 static int  mfbus_kick_would_preempt(uint8_t destination, uint16_t frame);
 static void mfbus_preempt_for_kick(uint8_t destination, uint16_t frame);
@@ -2063,16 +2300,43 @@ static int mfbus_mon_call(void *ctx, uint32_t mon_number, uint32_t arg_count,
  * the first time has no snapshot and keeps the live values. The pending CALL
  * (return address, argument count, argument addresses) travels the same way.
  * The reference also carries a "call anchor"; this CPU has no such field. */
-static void mfbus_swap_process_state(MfbusCpuSlot *c, int from_x5cpu, int to_x5cpu)
+/* True when this CPU is the last one to have executed the process, or nobody has
+ * yet. False means another CPU has executed it since. */
+static bool mfbus_owns_process(const MfbusCpuSlot *c, int x5cpu)
 {
-    if (from_x5cpu == to_x5cpu)
+    if (x5cpu < 0 || (x5cpu + 1) >= MFBUS_PROCESS_SLOTS)
     {
-        return;
+        return true;
     }
+    int owner = __atomic_load_n(&s_proc_owner[x5cpu + 1], __ATOMIC_ACQUIRE);
+    return owner == 0 || owner == mfbus_slot_index(c) + 1;
+}
 
+/* The loaded process if this CPU may save it, else -1: nothing is loaded, or what
+ * is loaded is a stale copy. */
+static int mfbus_owned_loaded(const MfbusCpuSlot *c)
+{
+    return mfbus_owns_process(c, c->loaded_x5cpu) ? c->loaded_x5cpu : -1;
+}
+
+/* This CPU executes the process from now on: every other CPU's copy is stale. */
+static void mfbus_take_process(const MfbusCpuSlot *c)
+{
+    if (c->loaded_x5cpu >= 0 && (c->loaded_x5cpu + 1) < MFBUS_PROCESS_SLOTS)
+    {
+        __atomic_store_n(&s_proc_owner[c->loaded_x5cpu + 1], mfbus_slot_index(c) + 1,
+                         __ATOMIC_RELEASE);
+    }
+}
+
+/* The "from" half of mfbus_swap_process_state(): the process's state outside the
+ * block goes into s_proc. Called at every stop as well as at a switch, so the CPU
+ * that gets the process's next message - which may be another one - finds it. */
+static void mfbus_save_process_state(MfbusCpuSlot *c, int from_x5cpu)
+{
     if (from_x5cpu >= 0 && (from_x5cpu + 1) < MFBUS_PROCESS_SLOTS)
     {
-        MfbusProcessState *f = &c->proc[from_x5cpu + 1];
+        MfbusProcessState *f = &s_proc[from_x5cpu + 1];
         f->trap_enables[0] = c->cpu.OTE1;
         f->trap_enables[1] = c->cpu.OTE2;
         f->trap_enables[2] = c->cpu.CTE1;
@@ -2095,10 +2359,20 @@ static void mfbus_swap_process_state(MfbusCpuSlot *c, int from_x5cpu, int to_x5c
             f->call_args[i] = c->cpu.pending_call_arg_addresses[i];
         }
     }
+}
+
+static void mfbus_swap_process_state(MfbusCpuSlot *c, int from_x5cpu, int to_x5cpu)
+{
+    if (from_x5cpu == to_x5cpu)
+    {
+        return;
+    }
+
+    mfbus_save_process_state(c, from_x5cpu);
 
     if (to_x5cpu >= 0 && (to_x5cpu + 1) < MFBUS_PROCESS_SLOTS)
     {
-        const MfbusProcessState *t = &c->proc[to_x5cpu + 1];
+        const MfbusProcessState *t = &s_proc[to_x5cpu + 1];
         if (t->have_trap_enables)
         {
             c->cpu.OTE1 = t->trap_enables[0];
@@ -2133,9 +2407,9 @@ static void mfbus_note_started_process(MfbusCpuSlot *c, int x5cpu)
 {
     if (x5cpu >= 0 && (x5cpu + 1) < MFBUS_PROCESS_SLOTS)
     {
-        c->proc[x5cpu + 1].have_trap_enables = false;
+        s_proc[x5cpu + 1].have_trap_enables = false;
     }
-    mfbus_swap_process_state(c, c->loaded_x5cpu, x5cpu);
+    mfbus_swap_process_state(c, mfbus_owned_loaded(c), x5cpu);
     c->cpu.pending_call_return_address = 0u;
     c->cpu.pending_call_arg_count = 0u;
 }
@@ -2252,8 +2526,9 @@ static bool mfbus_resume_runner(MfbusCpuSlot *c, uint8_t station_number)
     }
 
     /* The process becomes active here: its first step looks for a trap that is
-     * already pending. */
+     * already pending. And this CPU is the one that executes it from now on. */
     __atomic_store_n(&c->activation_trap_check, 1u, __ATOMIC_RELEASE);
+    mfbus_take_process(c);
 
     if (state == NDBUS_RUNNER_STOPPED)
     {
@@ -2308,6 +2583,12 @@ static bool mfbus_save_context(MfbusCpuSlot *c)
         ok = ndbus_context_write(&c->context, f->offset, value) && ok;
     }
 
+    /* And what the block does not carry, into the table every CPU reads: the
+     * process's next message may be served by another CPU. */
+    if (ok)
+    {
+        mfbus_save_process_state(c, c->loaded_x5cpu);
+    }
     return ok;
 }
 
@@ -2341,14 +2622,27 @@ static bool mfbus_switch_to_process(NdbusNd5000 *nd, MfbusCpuSlot *c, int wanted
     {
         return false;
     }
-    if (c->loaded_x5cpu == wanted_x5cpu)
+    /* What this CPU holds is only good if no other CPU has executed that process
+     * since - see s_proc_owner. A stale copy is reloaded when it is the wanted
+     * process, and is never saved: the block and s_proc hold the newer state. */
+    int  owned = mfbus_owned_loaded(c);
+    bool stale = c->loaded_x5cpu >= 0 && owned < 0;
+    if (c->loaded_x5cpu == wanted_x5cpu && !stale)
     {
         return true;   /* 011474B true side: nothing to do */
+    }
+    if (stale)
+    {
+        c->stale_reloads++;
+        LOG(LOG_CAT_MMS, LOG_INFO,
+            "MFbus: %s process %d has executed on another CPU since this one held it - the "
+            "copy here is dropped, process %d is loaded from its block (#%lu)\n",
+            c->name, c->loaded_x5cpu, wanted_x5cpu, c->stale_reloads);
     }
 
     int x5 = ndbus_cpu_context_x5cpu(nd->station.number);
 
-    if (c->loaded_x5cpu >= 0)
+    if (owned >= 0)
     {
         uint32_t loaded_byte =
             ndbus_servicer_process_context_byte(&nd->servicer, (uint16_t)c->loaded_x5cpu);
@@ -2427,7 +2721,7 @@ static bool mfbus_switch_to_process(NdbusNd5000 *nd, MfbusCpuSlot *c, int wanted
         c->name, c->loaded_x5cpu, wanted_x5cpu, (unsigned)c->cpu.PC, (unsigned)c->cpu.PS,
         (unsigned)c->cpu.CED, (unsigned)c->cpu.B, (unsigned)c->cpu.R);
 
-    mfbus_swap_process_state(c, c->loaded_x5cpu, wanted_x5cpu);
+    mfbus_swap_process_state(c, owned, wanted_x5cpu);
     c->loaded_x5cpu = wanted_x5cpu;
     return true;
 }
@@ -2558,7 +2852,8 @@ static bool mfbus_load_named_process(void *ctx, uint16_t x5cpu)
     /* A thread that has just reported a stop may still be on its way out. */
     mfbus_quiesce_runner(c);
 
-    if (c->loaded_x5cpu < 0 || c->loaded_x5cpu == (int)x5cpu)
+    if (c->loaded_x5cpu < 0
+        || (c->loaded_x5cpu == (int)x5cpu && mfbus_owns_process(c, (int)x5cpu)))
     {
         return true;
     }
@@ -2571,6 +2866,37 @@ static bool mfbus_load_named_process(void *ctx, uint16_t x5cpu)
         return false;
     }
     return mfbus_switch_to_process(nd, c, (int)x5cpu);
+}
+
+/* The servicer's cpu_is_executing hook: asked before each message of a queue walk.
+ * True once a message has started a process on this CPU; the walk then ends and
+ * mfbus_release_deferred() rings the doorbell again when the process has stopped.
+ * See the hook's comment in nd500x ndbus_servicer.h. ND-100 thread only. */
+static bool mfbus_cpu_is_executing(void *ctx)
+{
+    NdbusNd5000 *nd = (NdbusNd5000 *)ctx;
+    if (nd == NULL)
+    {
+        return false;
+    }
+    int slot = mfbus_slot_of(nd->station.number);
+    if (slot < 0 || !s_cpus[slot].present)
+    {
+        return false;
+    }
+    MfbusCpuSlot *c = &s_cpus[slot];
+    if (c->parked || c->loaded_x5cpu < 0)
+    {
+        return false;
+    }
+    NdbusRunnerState state = ndbus_runner_state(&c->runner);
+    if (state != NDBUS_RUNNER_RUNNING && state != NDBUS_RUNNER_STOPPING)
+    {
+        return false;
+    }
+    c->walk_again = true;
+    mfbus_work_set(MFBUS_WORK_DEFER);
+    return true;
 }
 
 /* Keep a message for a CPU that is busy with another process. True when it was
@@ -2652,14 +2978,14 @@ static bool mfbus_start_process(void *ctx, uint32_t msg_byte, uint16_t micfu, ui
      * sent for, the code below makes this message wait, as it does for any
      * message that finds the CPU busy, and it comes back here afterwards. */
     if (msg_x5cpu >= 0 && (msg_x5cpu + 1) < MFBUS_PROCESS_SLOTS
-        && c->proc[msg_x5cpu + 1].preempted)
+        && s_proc[msg_x5cpu + 1].preempted)
     {
         NdbusRunnerState preempt_state = ndbus_runner_state(&c->runner);
         if (c->parked && preempt_state != NDBUS_RUNNER_RUNNING
             && preempt_state != NDBUS_RUNNER_STOPPING
-            && (c->loaded_x5cpu == msg_x5cpu || mfbus_switch_to_process(nd, c, msg_x5cpu)))
+            && mfbus_switch_to_process(nd, c, msg_x5cpu))
         {
-            c->proc[msg_x5cpu + 1].preempted = false;
+            s_proc[msg_x5cpu + 1].preempted = false;
             c->parked = false;
             c->stop_reported = false;
             c->steps_since_resume = 0u;
@@ -2673,7 +2999,7 @@ static bool mfbus_start_process(void *ctx, uint32_t msg_byte, uint16_t micfu, ui
                     "MFbus: %s could not resume preempted process %d - it stays parked\n",
                     c->name, msg_x5cpu);
                 c->parked = true;
-                c->proc[msg_x5cpu + 1].preempted = true;
+                s_proc[msg_x5cpu + 1].preempted = true;
                 return false;
             }
             return true;
@@ -2694,8 +3020,7 @@ static bool mfbus_start_process(void *ctx, uint32_t msg_byte, uint16_t micfu, ui
      * initialisation, lost the page-fault work order and asked the identical
      * MON 377B again while the domain stayed parked forever. */
     if (ndbus_micfu_is_continue(micfu) && c->parked
-        && (c->loaded_x5cpu < 0 || c->loaded_x5cpu == msg_x5cpu
-            || mfbus_switch_to_process(nd, c, msg_x5cpu)))
+        && (c->loaded_x5cpu < 0 || mfbus_switch_to_process(nd, c, msg_x5cpu)))
     {
         c->parked = false;
         c->stop_reported = false;
@@ -3346,7 +3671,18 @@ static void mfbus_reset_cpu_to_idle(void *ctx)
     c->parked = false;
     c->loaded_x5cpu = -1;
     c->trap_captured = false;
-    memset(c->proc, 0, sizeof(c->proc));
+    c->walk_again = false;
+    /* The table is one for all CPUs: a reset of this CPU forgets the processes
+     * this CPU executed last, and leaves the ones another CPU holds. */
+    for (int p = 0; p < MFBUS_PROCESS_SLOTS; p++)
+    {
+        int owner = __atomic_load_n(&s_proc_owner[p], __ATOMIC_ACQUIRE);
+        if (owner == 0 || owner == mfbus_slot_index(c) + 1)
+        {
+            memset(&s_proc[p], 0, sizeof(s_proc[p]));
+            __atomic_store_n(&s_proc_owner[p], 0, __ATOMIC_RELEASE);
+        }
+    }
 
     LOG(LOG_CAT_MMS, LOG_INFO,
         "MFbus: %s CPU reset - register file cleared, no process loaded, waiting for a start\n",
@@ -3439,6 +3775,7 @@ bool mfbus_add_nd5000(uint8_t station_number)
      * directly: the reader's setter above has already pointed host.ctx at `nd`. */
     nd->servicer.host.write_nd500_data_bytes = mfbus_write_nd500_data_bytes;
     nd->servicer.host.load_named_process     = mfbus_load_named_process;
+    nd->servicer.host.cpu_is_executing       = mfbus_cpu_is_executing;
 
     /* Master clear, CPURES and microprogram start reach the CPU through these. */
     (void)ndbus_nd5000_set_cpu_hooks(nd, mfbus_reset_cpu_to_idle, mfbus_reset_cpu_to_idle, nd);
@@ -3598,7 +3935,7 @@ static void mfbus_preempt_for_kick(uint8_t destination, uint16_t frame)
     c->preempts++;
     if ((process + 1) < MFBUS_PROCESS_SLOTS)
     {
-        c->proc[process + 1].preempted = true;
+        s_proc[process + 1].preempted = true;
     }
     mfbus_write_x5pro(slot, -1);
 
@@ -4138,6 +4475,7 @@ bool mfbus_start_nd5000(uint8_t station_number)
     /* Before the host thread exists: a process that stops at once writes its -1
      * after this, not before. */
     mfbus_write_x5pro(slot, s_cpus[slot].loaded_x5cpu);
+    mfbus_take_process(&s_cpus[slot]);
     bool started = ndbus_runner_start(&s_cpus[slot].runner);
     if (!started && ndbus_runner_state(&s_cpus[slot].runner) != NDBUS_RUNNER_RUNNING)
     {
@@ -4187,7 +4525,7 @@ static void mfbus_release_deferred(void)
     for (int i = 0; i < s_nd5000_count; i++)
     {
         MfbusCpuSlot *c = &s_cpus[i];
-        if (c->deferred_count == 0u)
+        if (c->deferred_count == 0u && !c->walk_again)
         {
             continue;
         }
@@ -4210,10 +4548,14 @@ static void mfbus_release_deferred(void)
                                                 | NDBUS_N5STA_TO_ND500));
             (void)ndbus_pool_write16(&s_pool, msg + NDBUS_MSG_MICFU * 2u, c->deferred[k].micfu);
         }
-        LOG(LOG_CAT_MMS, LOG_INFO,
-            "MFbus: %s has stopped - %u waiting start message(s) put back in the queue\n",
-            c->name, c->deferred_count);
+        if (c->deferred_count != 0u)
+        {
+            LOG(LOG_CAT_MMS, LOG_INFO,
+                "MFbus: %s has stopped - %u waiting start message(s) put back in the queue\n",
+                c->name, c->deferred_count);
+        }
         c->deferred_count = 0;
+        c->walk_again = false;
         (void)ndbus_mailbox_ring(&s_nd5000[i].mailbox);
     }
     if (!any_left)
@@ -4390,6 +4732,12 @@ bool mfbus_set_loaded_process(uint8_t station_number, int x5cpu, uint32_t msg_by
     return true;
 }
 
+unsigned long mfbus_nd5000_stale_reloads(uint8_t station_number)
+{
+    int slot = mfbus_slot_of(station_number);
+    return (slot >= 0 && s_cpus[slot].present) ? s_cpus[slot].stale_reloads : 0ul;
+}
+
 unsigned long mfbus_nd5000_preempts(uint8_t station_number)
 {
     int slot = mfbus_slot_of(station_number);
@@ -4438,6 +4786,8 @@ void mfbus_clear_nd5000(void)
     __atomic_store_n(&s_armed_mask, 0u, __ATOMIC_RELEASE);
     memset(s_doorbell, 0, sizeof(s_doorbell));
     memset(s_pending_kick, 0, sizeof(s_pending_kick));
+    memset(s_proc, 0, sizeof(s_proc));
+    memset(s_proc_owner, 0, sizeof(s_proc_owner));
     mfbus_work_clear(MFBUS_WORK_SCAN | MFBUS_WORK_ARMED | MFBUS_WORK_PUMP | MFBUS_WORK_KICK);
 }
 

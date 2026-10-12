@@ -534,6 +534,7 @@ static void cdc_reset(Device *self)
     d->status.raw = 0;
     d->status.bits.onCylinder = 1; /* bit 14 = READY */
     self->interruptBits = 0;
+    dev_irq_changed();
 }
 
 static void cdc_destroy(Device *self)

@@ -678,6 +678,69 @@ static bool check_and_switch(void)
 static uint16_t s_lvlcnt = 0;
 static bool s_activate_sleep = false;
 
+// THE SAME RULE, SOONER, WHEN THE MACHINE IS KNOWN TO BE IDLE.
+//
+// MEASURED 12-OCT-2026 (status register on every level-0 instruction): idle
+// SINTRAN runs a five-instruction loop at 011302-011306 on level 0 with the
+// interrupt system AND paging on, every instruction of it. The stand-alone TPE
+// monitor runs its work on level 0 with paging OFF (39 million instructions,
+// none with paging on; interrupts on for 5% of them). So level 0 with both on is
+// SINTRAN doing nothing, and it may sleep after far fewer instructions.
+// It is NOT free for every stand-alone program: TPE MEMORY-D04 runs on level 0
+// with both on, and its "ADDRESSES IN ADDRESSES" pass took 28.1 s with this rule
+// against 8.4 s with --idle-count=0 (MEASURED 12-OCT-2026). With 10000 the host load of an idle SINTRAN was
+// 50% of a core, because 10000 instructions take 0.8 ms and the sleep 1.1 ms.
+//
+// --idle-count=N / [runtime] idle_count = N. 0 turns this off (10000 always).
+#define CPU_IDLE_COUNT_DEFAULT 2000u
+#define CPU_IDLE_COUNT_PLAIN   10000u
+#define CPU_IDLE_COUNT_MAX     60000u
+static uint32_t s_idle_count = CPU_IDLE_COUNT_DEFAULT;
+static bool     s_idle_count_given = false;   /* set by the command line or the INI file */
+static bool     s_idle_count_from_cli = false;
+
+// from_cli: a command-line value wins over a later value from the INI file.
+void cpu_idle_set_count(uint32_t count, bool from_cli)
+{
+    if (!from_cli && s_idle_count_from_cli)
+    {
+        return;
+    }
+    if (count > CPU_IDLE_COUNT_MAX)
+    {
+        count = CPU_IDLE_COUNT_MAX;   // s_lvlcnt is 16 bits wide
+    }
+    s_idle_count = count;
+    s_idle_count_from_cli = s_idle_count_from_cli || from_cli;
+    s_idle_count_given = true;
+}
+
+// THE DEFAULT DEPENDS ON WHAT THE MACHINE BOOTS FROM, because that says what will
+// run on level 0. The frontend calls this once with the boot type's default
+// (set_default_idle_for_boot() in src/frontend/nd100x/nd100x.c):
+//
+//   a disc (SMD, SCSI, Winchester, CDC) boots an operating system, whose level 0
+//       is its idle loop                                        -> CPU_IDLE_COUNT_DISC
+//   a floppy, or a program loaded directly (BPUN, BP, a.out, PROG, tape), is
+//       normally a stand-alone program that does its work on level 0 - TPE
+//       MEMORY-D04 does, with paging and interrupts on, and lost a factor 3.3 to
+//       an early sleep (MEASURED 12-OCT-2026)                   -> CPU_IDLE_COUNT_DIRECT
+//
+// A value from --idle-count or [runtime] idle_count always wins, whichever is
+// set first.
+void cpu_idle_set_boot_default(uint32_t count)
+{
+    if (!s_idle_count_given)
+    {
+        s_idle_count = (count > CPU_IDLE_COUNT_MAX) ? CPU_IDLE_COUNT_MAX : count;
+    }
+}
+
+uint32_t cpu_idle_get_count(void)
+{
+    return s_idle_count;
+}
+
 // allocate once
 static uint16_t g_operand;
 
@@ -765,7 +828,13 @@ static void private_cpu_tick(void)
         // Check if we need to sleep
         s_lvlcnt = (gPIL == 0) ? (s_lvlcnt + 1) : 0;
 
-        if (s_lvlcnt > 10000)
+        uint32_t idle_after = CPU_IDLE_COUNT_PLAIN;
+        if (s_idle_count != 0u && STS_PAGING_ON_IS_SET
+            && (gSTSr & (1u << STS_INTERRUPT_ON)) != 0u)
+        {
+            idle_after = s_idle_count;
+        }
+        if (s_lvlcnt > idle_after)
         {
 #ifndef __EMSCRIPTEN__
             sleep_ms(1); // Sleep 1 ms - skip on WASM to avoid blocking browser

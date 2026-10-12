@@ -211,6 +211,7 @@ void mc_init_baseline(MachineConfig *cfg)
 
     cfg->runtime.telnet_port = 0;
     cfg->runtime.throttle_mhz = 0.0;
+    cfg->runtime.idle_count = -1;
     str_copy(cfg->runtime.charset, sizeof(cfg->runtime.charset), "off");
     cfg->runtime.debugger_port = 0;
     cfg->runtime.trace = false;
@@ -1495,6 +1496,11 @@ bool mc_load_file(MachineConfig *cfg, const char *path, char *err, size_t errlen
             {
                 cfg->runtime.throttle_mhz = strtod(val, NULL);
             }
+            else if (str_ieq(keyl, "idle_count"))
+            {
+                long n = strtol(val, NULL, 10);
+                cfg->runtime.idle_count = (n < 0) ? 0 : (int)n;
+            }
             else if (str_ieq(keyl, "charset"))
             {
                 str_copy(cfg->runtime.charset, sizeof(cfg->runtime.charset), val);
@@ -2198,6 +2204,10 @@ bool mc_write_file(const MachineConfig *cfg, const char *path, char *err, size_t
     if (cfg->runtime.throttle_mhz)
     {
         fprintf(f, "throttle = %g\n", cfg->runtime.throttle_mhz);
+    }
+    if (cfg->runtime.idle_count >= 0)
+    {
+        fprintf(f, "idle_count = %d\n", cfg->runtime.idle_count);
     }
     if (cfg->runtime.charset[0])
     {

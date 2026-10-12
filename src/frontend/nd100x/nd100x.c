@@ -384,6 +384,34 @@ static void apply_cputype_override(const char *name)
 
 /// @brief Initialize the emulator. Add devices and load program
 
+/* The idle-sleep count this kind of boot gets when neither --idle-count nor
+ * [runtime] idle_count set one. A disc boots an operating system, whose level 0 is
+ * its idle loop, so it may sleep early. A floppy or a directly loaded program is
+ * normally a stand-alone program that works on level 0, so it must not. See
+ * cpu_idle_set_boot_default() in src/cpu/cpu.c. */
+static void set_default_idle_for_boot(BOOT_TYPE type)
+{
+    switch (type)
+    {
+    case BOOT_SMD:
+    case BOOT_SCSI:
+    case BOOT_WINCHESTER:
+    case BOOT_CDC:
+        cpu_idle_set_boot_default(CPU_IDLE_COUNT_DISC);
+        break;
+    case BOOT_FLOPPY:
+    case BOOT_BPUN:
+    case BOOT_BP:
+    case BOOT_AOUT:
+    case BOOT_PROG:
+    case BOOT_TAPE:
+    case BOOT_NONE:
+    default:
+        cpu_idle_set_boot_default(CPU_IDLE_COUNT_DIRECT);
+        break;
+    }
+}
+
 void initialize(void)
 {
     srand(time(NULL)); /* Generate PRNG Seed */
@@ -599,6 +627,7 @@ void initialize(void)
 
     if (config.bootType == BOOT_NONE)
     {
+        set_default_idle_for_boot(config.bootType);
         /* "[boot] device = none": power on with nothing loaded, CPU at 0.
          * Only reachable with a config file - without one the CLI already
          * refused for want of a boot type. */
@@ -607,6 +636,7 @@ void initialize(void)
     }
     else
     {
+        set_default_idle_for_boot(config.bootType);
         int load_rc = machine_program_load(config.bootType, config.bootUnit, config.imageFile,
                                            config.verbose, (uint16_t)config.textStart,
                                            config.overlayDeposit);
@@ -1430,6 +1460,10 @@ int main(int argc, char *argv[])
         {
             cpu_throttle_set_enabled(true);
             cpu_throttle_set_mhz(rt->throttle_mhz);
+        }
+        if (rt->idle_count >= 0)
+        {
+            cpu_idle_set_count((uint32_t)rt->idle_count, false);   /* --idle-count wins */
         }
         // NORD TSS optional devices: install from the .ini drum=/cdc= keys unless the
         // matching --drum/--cdc flag already supplied a path (CLI wins). Both feed the

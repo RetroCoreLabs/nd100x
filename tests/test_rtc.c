@@ -51,6 +51,12 @@ void dev_init(Device *dev, uint8_t thumbwheel, DeviceClass device_class, size_t 
     (void)block_size;
 }
 
+/* The device manager is not in this test, so nothing reads the mark. */
+void dev_irq_changed(void);
+void dev_irq_changed(void)
+{
+}
+
 void dev_tick_io_delay(Device *dev)
 {
     (void)dev;

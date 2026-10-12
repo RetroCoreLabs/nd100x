@@ -27,6 +27,7 @@
 #include "devices_protos.h"
 #include "octobus/device_octobus.h"
 #include "ndbus_context.h"
+#include "ndbus_cpunum.h"
 #include "mfbus_config.h"
 #include "ndbus_pool.h"
 #include "ndbus_octobus.h"
@@ -1040,6 +1041,8 @@ int main(void)
         {
             CHECK(mfbus_add_nd5000(56), "a station");
             CHECK(mfbus_attach_cpu(56), "with a CPU");
+            CHECK(mfbus_add_nd5000(57), "a second station, the one that will send with WEXT");
+            CHECK(mfbus_attach_cpu(57), "with a CPU");
             NdbusPool *pool = mfbus_pool();
             uint16_t   dest = (uint16_t)(56u << 8u);
 
@@ -1163,8 +1166,95 @@ int main(void)
             CHECK(ndbus_pool_read8(pool, p_data) == 0xFFu,
                   "the semaphore is still held: the process did not start over and fall through");
 
+            /* THE SAME KICK, SENT BY ANOTHER ND-5000 WITH WEXT.
+             *
+             * This is how SINTRAN's swapper reaches a second CPU. The sender is
+             * a host thread, so it must not wait for station 070B's thread
+             * itself: mfbus_ext_write() only records the kick, and the ND-100's
+             * tick does the preempt and then delivers the frame.
+             *
+             * Station 071B runs FF EC 40 (W1 WEXT b.0): device number 0 is the
+             * word at B+0, the frame is I1. WEXT is privileged, so ST1 has PIA.
+             * What it executes after the WEXT does not matter here. */
+            {
+                const uint32_t p_code2 = 0x6100u;
+                const uint32_t p_data2 = 0x7100u;
+                static const uint8_t wext[] = {0xFF, 0xEC, 0x40};
+                NdbusContext cv2;
+
+                for (uint32_t i = 0; i < sizeof(wext); i++)
+                {
+                    (void)ndbus_pool_write8(pool, p_code2 + i, wext[i]);
+                }
+                (void)ndbus_pool_write32(pool, p_data2, 0u);
+                CHECK(mfbus_place_context(57, p_ctx, p_code2, p_data2), "a context for the sender");
+                CHECK(ndbus_context_attach(&cv2, pool, p_ctx, ndbus_cpu_context_x5cpu(57)),
+                      "its block is in the pool");
+                CHECK(ndbus_context_write(&cv2, NDBUS_CTX_I1,
+                                          (uint32_t)(dest | 0x8000u | 0x0040u | 1u)),
+                      "I1 is kick 1 for station 070B");
+                CHECK(ndbus_context_write(&cv2, NDBUS_CTX_STATUS, 2u), "ST1 has PIA");
+                CHECK(mfbus_load_context(57), "the sender loads it");
+
+                unsigned long before_wext = mfbus_nd5000_preempts(56);
+                CHECK(mfbus_start_nd5000(57), "and executes the WEXT");
+                for (int spins = 0; spins < 2000 && mfbus_nd5000_instructions(57) == 0u; spins++)
+                {
+                    usleep(1000);
+                }
+                CHECK(mfbus_nd5000_instructions(57) >= 1u, "the sender executed");
+                CHECK(mfbus_nd5000_preempts(56) == before_wext,
+                      "the sender's own thread did not preempt station 070B");
+                for (int tick = 0; tick < 50; tick++)
+                {
+                    (void)mfbus_service_nd5000_mailboxes();
+                }
+                CHECK(mfbus_nd5000_preempts(56) == before_wext + 1u,
+                      "the ND-100's tick did, once, for the WEXT kick");
+                unsigned long long after_wext = mfbus_nd5000_instructions(56);
+                for (int spins = 0;
+                     spins < 2000 && mfbus_nd5000_instructions(56) < after_wext + 100u; spins++)
+                {
+                    usleep(1000);
+                }
+                CHECK(mfbus_nd5000_instructions(56) >= after_wext + 100u,
+                      "and process 1 executes again after the WEXT kick");
+                CHECK(ndbus_pool_read16(pool, p_x5pro) == 1u, "X5PRO names process 1 once more");
+                CHECK(ndbus_pool_read8(pool, p_data) == 0xFFu,
+                      "and it resumed, it did not start over");
+                mfbus_stop_nd5000(57);
+            }
+
             mfbus_stop_nd5000(56);
             CHECK(ndbus_pool_read16(pool, p_x5pro) == 0xFFFFu, "X5PRO is -1 once the CPU has stopped");
+
+            /* 5CPUN, word -6 OF THE MESSAGE, IS THE CPU IT IS ASSIGNED TO. Station
+             * 070B is CPU 1 (control store cell 025B above). The microprogram takes
+             * a message only when 5CPUN is its own number (MICRO-5800-B30
+             * 015151-015154); the walk can reach another CPU's message because
+             * SINTRAN relinks the queues while a CPU walks. */
+            {
+                uint32_t p_sta = p_msg + NDBUS_MSG_N5STA * 2u;
+                (void)ndbus_pool_write16(pool, p_sta, NDBUS_N5STA_TO_ND500);
+                (void)ndbus_pool_write16(pool, p_msg - NDBUS_MSG_5CPUN_BACK_BYTES, 2u);
+                (void)ndbus_pool_write16(pool, p_ext1 + NDBUS_MBX_X5ACT_WORD * 2u, 0u);
+                for (int tick = 0; tick < 50; tick++)
+                {
+                    (void)mfbus_service_nd5000_mailboxes();
+                }
+                CHECK((ndbus_pool_read16(pool, p_sta) & NDBUS_N5STA_MASK) == NDBUS_N5STA_TO_ND500,
+                      "a message with 5CPUN = 2 is left in CPU 1's queue, N5STA still 1");
+
+                (void)ndbus_pool_write16(pool, p_msg - NDBUS_MSG_5CPUN_BACK_BYTES, 1u);
+                (void)ndbus_pool_write16(pool, p_ext1 + NDBUS_MBX_X5ACT_WORD * 2u, 0u);
+                for (int tick = 0; tick < 50; tick++)
+                {
+                    (void)mfbus_service_nd5000_mailboxes();
+                }
+                CHECK((ndbus_pool_read16(pool, p_sta) & NDBUS_N5STA_MASK) != NDBUS_N5STA_TO_ND500,
+                      "with 5CPUN = 1 the same message is taken");
+                mfbus_stop_nd5000(56);
+            }
 
             dev_destroy(pcard);
             free(pcard);

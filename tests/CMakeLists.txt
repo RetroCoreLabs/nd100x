@@ -510,6 +510,28 @@ add_dependencies(test_memory_banks cpu devices)
 
 add_test(NAME memory_bank_tests COMMAND test_memory_banks)
 
+# devmgr_tick(): a device is called only when it has work, and every I/O delay
+# still fires on the call it always fired on. Same group link as above.
+add_executable(test_devmgr_tick
+    test_devmgr_tick.c
+)
+
+target_include_directories(test_devmgr_tick PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/cpu
+    ${CMAKE_SOURCE_DIR}/src/machine
+    ${CMAKE_SOURCE_DIR}/src/devices
+    ${CMAKE_SOURCE_DIR}/src/ndlib
+)
+
+target_link_libraries(test_devmgr_tick PRIVATE
+    ${ND_LINK_GROUP_BEGIN} cpu machine devices debugger ndlib ${ND_LINK_GROUP_END} m)
+
+add_dependencies(test_devmgr_tick cpu devices)
+
+add_test(NAME devmgr_tick_tests COMMAND test_devmgr_tick)
+
 # MOVB / MOVBF on fields that start on different byte halves, run through the
 # real dispatch table. Linked against the whole emulator for the same reason as
 # test_memory_banks: the instruction file reaches the machine and the devices.

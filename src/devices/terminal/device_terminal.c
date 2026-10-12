@@ -131,6 +131,15 @@ static void terminal_reset(Device *self)
     // Clear other
 }
 
+/* Tick has work only while a character waits in the input queue: it counts
+ * MAX_TICKS calls and then hands the UART one character. With the queue empty
+ * the count is all it does, so it is not called and the count stands still. */
+static bool terminal_tick_needed(Device *self)
+{
+    TerminalData *data = (TerminalData *)self->deviceData;
+    return data != NULL && data->inputQueue.count > 0;
+}
+
 static uint16_t terminal_tick(Device *self)
 {
     if (!self)
@@ -461,6 +470,7 @@ void terminal_queue_key_code(Device *self, uint8_t keycode)
     data->inputQueue.buffer[data->inputQueue.tail] = keycode;
     data->inputQueue.tail = (data->inputQueue.tail + 1) % TERMINAL_QUEUE_SIZE;
     data->inputQueue.count++;
+    dev_request_tick();
 }
 
 // Character input handler for terminal devices
@@ -524,6 +534,7 @@ Device *terminal_create_device(uint8_t thumbwheel)
     // Set up device function pointers
     dev->Reset = terminal_reset;
     dev->Tick = terminal_tick;
+    dev->TickNeeded = terminal_tick_needed;
     dev->Read = terminal_read;
     dev->Write = terminal_write;
     dev->Ident = terminal_ident;

@@ -879,6 +879,7 @@ Device *octobus_create_device(uint8_t thumbwheel)
     // Set up device function pointers
     dev->Reset = octobus_reset;
     dev->Tick = octobus_tick;
+    dev->tickAlways = true;
     dev->Read = octobus_read;
     dev->Write = octobus_write;
     dev->Ident = octobus_ident;

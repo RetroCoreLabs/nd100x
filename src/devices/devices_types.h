@@ -63,6 +63,10 @@ extern void mms_write_physical_memory(int physical_address, uint16_t value, bool
 #define PARITY_TABLE_SIZE 256
 extern const uint8_t g_odd_parity_table[PARITY_TABLE_SIZE];
 
+/* See dev_request_tick() / dev_irq_changed() in device.c. */
+extern unsigned g_dev_tick_wanted;
+extern bool     g_dev_irq_dirty;
+
 
 // Device initialization/classification types
 // clang-format off
@@ -201,6 +205,19 @@ typedef struct Device {
     // Device functions
     void (*Reset)(struct Device *self);
     uint16_t (*Tick)(struct Device *self);
+
+    /* WHEN Tick IS CALLED (devmgr_tick, src/devices/devicemanager.c).
+     *
+     * tickAlways: after every ND-100 instruction. For a device whose Tick
+     * counts instructions or clocks a state machine of its own (RTC, SCSI,
+     * HDLC, Ethernet, octobus).
+     *
+     * Otherwise Tick is called after an instruction only while the device has
+     * a queued I/O delay (ioDelayCount > 0) or TickNeeded returns true. For a
+     * device whose Tick does nothing else than dev_tick_io_delay() the two are
+     * the same thing: a call with no delay queued changes nothing. */
+    bool tickAlways;
+    bool (*TickNeeded)(struct Device *self); /* optional; NULL = delays only */
     int (*Boot)(struct Device *self, int unit);
     uint16_t (*Read)(struct Device *self, uint32_t address);
     void (*Write)(struct Device *self, uint32_t address, uint16_t value);

@@ -256,6 +256,10 @@ extern InstrFunc g_instr_funcs[65536];
 #define STS_SHIFT_OUT           7  /* M, the bit shifted out */
 #define STS_PROGRAM_LEVEL       8  /* bits 8-11, current level 0-15 */
 #define STS_ND100_INDICATOR     12 /* always 1 on an ND-100 */
+/* Default --idle-count per kind of boot; see cpu_idle_set_boot_default() in cpu.c. */
+#define CPU_IDLE_COUNT_DISC   2000u   /* SMD, SCSI, Winchester, CDC: an operating system */
+#define CPU_IDLE_COUNT_DIRECT 50000u  /* floppy, BPUN, BP, a.out, PROG, tape: stand-alone */
+
 #define STS_EXTENDED_ADDRESSING 13 /* SEXI: 24-bit physical, 16 page tables */
 #define STS_PAGING_ON           14 /* PONI: memory management enabled */
 #define STS_INTERRUPT_ON        15 /* IONI: interrupt system enabled */

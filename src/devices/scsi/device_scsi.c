@@ -952,6 +952,7 @@ Device *scsi_create_device(uint8_t thumbwheel)
     dev->Read = scsi_read;
     dev->Write = scsi_write;
     dev->Tick = scsi_tick;
+    dev->tickAlways = true;
     dev->Reset = scsi_reset;
     dev->Ident = scsi_ident;
     dev->Boot = scsi_boot;

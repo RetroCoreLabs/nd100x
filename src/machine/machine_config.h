@@ -101,6 +101,8 @@ typedef struct
 {
     int telnet_port;     /* 0 = off */
     double throttle_mhz; /* 0 = off */
+    int idle_count;      /* -1 = not given; instructions on level 0 with paging and
+                          * interrupts on before the 1 ms idle sleep; 0 = off */
     char charset[16];    /* "off"|"norwegian"|"swedish"|"german" */
     char printdir[MC_PATH_LEN];
     char tapedir[MC_PATH_LEN];

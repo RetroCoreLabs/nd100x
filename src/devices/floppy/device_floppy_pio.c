@@ -78,6 +78,7 @@ static void floppy_pio_reset(Device *self)
     data->bufferPointer = 0;
     data->testmodeByte = 0;
     self->interruptBits = 0;
+    dev_irq_changed();
     data->selectedDrive = -1;
 }
 

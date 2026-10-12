@@ -296,6 +296,7 @@ static void rtc_write(Device *self, uint32_t address, uint16_t value)
         {
             data->statusRegister.bits.readyForTransfer = 0;
             self->interruptBits &= ~(1 << 13);
+            dev_irq_changed();
         }
 
         // Clear external hold signal if requested
@@ -402,6 +403,7 @@ Device *rtc_create_device(uint8_t thumbwheel)
     // Set up device function pointers
     dev->Reset = rtc_reset;
     dev->Tick = rtc_tick;
+    dev->tickAlways = true;
     dev->Read = rtc_read;
     dev->Write = rtc_write;
     dev->Ident = rtc_ident;

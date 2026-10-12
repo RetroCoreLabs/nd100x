@@ -66,6 +66,7 @@ static struct option long_options[] = {
     {"charset",    required_argument, 0, 'L'},
     {"hdlc",       required_argument, 0, 'H'},
     {"throttle",   optional_argument, 0, 'Z'},
+    {"idle-count", required_argument, 0, 0x164}, // --idle-count=N : see cpu_idle_set_count()
     {"ring-dump",  optional_argument, 0, 'R'},
     {"overlay-deposit", no_argument, 0, 'O'},
     {"watch-skip", required_argument, 0, 0x130},
@@ -1124,6 +1125,19 @@ bool config_parse_command_line(Config *config, int argc, char *argv[])
             break;
         }
 
+        case 0x164:
+        { /* --idle-count=N : level-0 instructions, with paging and interrupts on,
+           * before the 1 ms idle sleep. 0 = off. Also [runtime] idle_count. */
+            long n = strtol(optarg, &endptr, 10);
+            if (endptr == optarg || *endptr != '\0' || n < 0)
+            {
+                fprintf(stderr, "Invalid --idle-count: %s\n", optarg);
+                return false;
+            }
+            cpu_idle_set_count((uint32_t)n, true);
+            break;
+        }
+
         case 0x163: /* --no-boot-status : no "Booting from ..." line at start-up */
             config->bootStatus = false;
             break;
@@ -1420,6 +1434,11 @@ void config_print_help(const char *prog_name)
     printf("  -R[N],   --ring-dump[=N]  Dump last N instructions on halt/crash (default: 50, max: "
            "65536)\n");
     printf("  -Z[MHZ], --throttle[=MHZ] Throttle CPU to real-time speed (default: 0.5275 MHz)\n");
+    printf("           --idle-count=N Sleep 1 ms after N instructions on level 0 with paging and\n");
+    printf("                          interrupts on (idle SINTRAN). Default by boot type: 2000 for\n");
+    printf("                          smd/scsi/wd/cdc, 50000 for floppy and directly loaded\n");
+    printf("                          programs (bpun, bp, aout, prog, tape). 0 = off, max 60000.\n");
+    printf("                          Lower = less host CPU. Also [runtime] idle_count = N\n");
     printf("           --config=FILE  Machine configuration INI file (also --config FILE;\n");
     printf("                          there is no short form)\n");
     printf("           --ini=FILE     Alias for --config\n");

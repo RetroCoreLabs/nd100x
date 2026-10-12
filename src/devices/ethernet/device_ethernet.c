@@ -826,6 +826,7 @@ Device *eth_create_device_strap(uint8_t thumbwheel, uint16_t memory_bank_strap)
     dev->Read = eth_read;
     dev->Write = eth_write;
     dev->Tick = eth_tick;
+    dev->tickAlways = true;
     dev->Reset = eth_reset;
     dev->Ident = eth_ident;
     dev->Destroy = eth_destroy;

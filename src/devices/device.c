@@ -210,6 +210,30 @@ uint16_t dev_ident(Device *dev, uint16_t level)
     return dev->Ident(dev, level);
 }
 
+/* THE TWO THINGS devmgr_tick() WOULD OTHERWISE HAVE TO ASK EVERY DEVICE ABOUT
+ * AFTER EVERY INSTRUCTION.
+ *
+ * g_dev_tick_wanted: some device that is not tickAlways may need its Tick. Set
+ * when a delay is queued and when terminal input arrives (that one from another
+ * host thread, hence the atomic). devmgr_tick() clears it BEFORE it looks at the
+ * devices and sets it again if it found one, so a request that arrives while it
+ * is looking is never lost.
+ *
+ * g_dev_irq_dirty: some device's interruptBits changed, so the OR of them all
+ * must be computed again. Every write to interruptBits calls dev_irq_changed(). */
+unsigned g_dev_tick_wanted = 1u;
+bool     g_dev_irq_dirty = true;
+
+void dev_request_tick(void)
+{
+    __atomic_store_n(&g_dev_tick_wanted, 1u, __ATOMIC_RELEASE);
+}
+
+void dev_irq_changed(void)
+{
+    __atomic_store_n(&g_dev_irq_dirty, true, __ATOMIC_RELEASE);
+}
+
 void dev_queue_io_delay(Device *dev, uint16_t ticks, IODelayedCallback cb, int param,
                         uint8_t irqlevel)
 {
@@ -239,6 +263,7 @@ void dev_queue_io_delay(Device *dev, uint16_t ticks, IODelayedCallback cb, int p
     delay->context = dev;
     delay->parameter = param;
     delay->level = irqlevel;
+    dev_request_tick();
 }
 
 void dev_tick_io_delay(Device *dev)
@@ -281,6 +306,7 @@ static void device_clear_interrupt(Device *dev, uint16_t level)
         if ((dev->interruptBits & (1 << level)) != 0)
         {
             dev->interruptBits &= ~(1 << level);
+            dev_irq_changed();
         }
     }
 }
@@ -297,6 +323,7 @@ void dev_generate_interrupt(Device *dev, uint16_t level)
         if ((dev->interruptBits & (1 << level)) == 0)
         {
             dev->interruptBits |= (1 << level);
+            dev_irq_changed();
         }
     }
 }

@@ -76,6 +76,12 @@ void dev_queue_io_delay(Device *dev, uint16_t ticks, IODelayedCallback cb, int p
 /* Mimics the real Device_TickIODelay: fire the queued callback and, if it
  * returns true, raise the interrupt bit for its level (what the real IO-delay
  * machinery + Device_GenerateInterrupt do). */
+/* The device manager is not in this test, so nothing reads the mark. */
+void dev_irq_changed(void);
+void dev_irq_changed(void)
+{
+}
+
 void dev_tick_io_delay(Device *dev)
 {
     if (!pending_set)
