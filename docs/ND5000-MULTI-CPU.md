@@ -251,11 +251,54 @@ Getting there needed four things, each found by a failing run:
    store cell 025B (`SAMSON_CPU`) to 1 for station 070B and 2 for 071B
    (measured; logged by `ndbus_nd5000_mailbox_from_control_store`).
 
-Limits: a process that never stops (no trap, no monitor call) keeps its CPU,
-and a waiting message waits with it - the preempting kick is not modelled
-here. `SET-CPU-STATUS` is `[UNVERIFIED]`.
+Limits: a kick that an ND-5000 sends with `WEXT` does not take a running
+process off the target CPU; only a kick from the ND-100 does (see "CPU time
+and the preempting kick"). `SET-CPU-STATUS` is `[UNVERIFIED]`.
 Telnet terminals lose the first character of each line inside the ND-500
 monitor (worked around with a leading space; cause not found).
+
+## CPU time and the preempting kick
+
+`[MEASURED 12-OCT-2026]` Two defects made `PROCESS-STATUS` useless, and both
+are fixed.
+
+1. Every process that had printed anything showed "21 min 50.7 s". The
+   servicer set bit 0 of the word 16 bytes before the message on every output
+   monitor call, taking it for `MIFLAG`. In the message that word is the high
+   half of `500TU`, the CPU time used, counted in 20 ms units; 0x00010000 units
+   is 21 min 50.7 s. Found with the two write watches (`MFBUS_WWATCH_BYTE`,
+   `NDBUS_POOL_WWATCH_BYTE`): the ND-100 only ever wrote 0 there. Removed in
+   nd500x `5a3f84b`.
+2. With that gone every process showed 0.0 s. SINTRAN's 20 ms clock routine
+   (`MP-P2-N500.NPL`, label `500H2`) adds time to the process named in the
+   mailbox cell `X5PRO`, and nd100x only ever wrote -1 ("idle") there.
+
+`X5PRO` is now written as the microprogram writes it (MICRO-5800-B30 listing,
+`PRNOWR` at 025416 and its callers): the process number while the CPU executes
+a process, -1 when it does not. `mfbus_write_x5pro` in
+`src/machine/mfbus_bridge.c`.
+
+A correct `X5PRO` also switches on a SINTRAN path that had never run: when a
+message arrives for a CPU that is executing a process of lower priority,
+`ACT52` (`MP-P2-N500.NPL` 145520) sends kick 1 instead of ringing the
+doorbell. The microprogram's `ACTIVATE` then saves the running process's
+registers, puts its message back in the queue (`OCB_CLNUP`, N5STA 2 -> 1) and
+walks the queue. `mfbus_preempt_for_kick` does the same. One difference, on
+purpose: when the walk reaches the requeued message the process is resumed
+from the saved registers and the message's answer is not applied a second
+time.
+
+Result with four LEDs, one per CPU, and the console running CPU-STAT on CPU 1
+while keys were typed into the LED on CPU 1:
+
+- `PROCESS-STATUS` shows times that grow with use (0.2 s after start, 6.0 s
+  for the terminal that was typed on most).
+- SINTRAN sent kick 1 seven times; the LED process was taken off CPU 1 seven
+  times and resumed seven times; both CPU-STAT runs finished with `MON 0B`.
+- All four LEDs answered a key afterwards. No fatal error.
+
+Not verified: a process preempted before its first stop (its message is a
+3START), and preemption on CPU 2 to 4.
 
 ## Not yet done
 

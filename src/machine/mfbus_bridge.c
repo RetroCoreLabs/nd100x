@@ -144,6 +144,7 @@ typedef struct
     uint32_t call_return;         /* pending CALL: return address, 0 = none */
     uint32_t call_arg_count;
     uint32_t call_args[TRAP_SEQ_MAXARG];
+    bool     preempted;           /* taken off the CPU by a kick; see mfbus_preempt_for_kick() */
 } MfbusProcessState;
 
 #define MFBUS_ND100_INBOUND_WORDS 256u
@@ -280,6 +281,7 @@ typedef struct
      * its CALL in flight for the other one. One user never sees it; two do. */
     MfbusProcessState proc[MFBUS_PROCESS_SLOTS];
     bool          stop_reported;  /* the non-retryable stop has been named once */
+    unsigned long preempts;       /* processes taken off this CPU by a kick */
     uint32_t      continues_refused; /* continues with nothing to continue */
 
     /* WHAT THE TRAP LOOKED LIKE AT THE MOMENT IT WAS RAISED.
@@ -613,6 +615,40 @@ static int mfbus_slot_index(const MfbusCpuSlot *slot)
     return (int)(slot - s_cpus);
 }
 
+/*
+ * X5PRO, "CURRENT PROCESS ON THIS CPU": word 6 of the CPU's mailbox extension
+ * block. The process number while the CPU executes a process, -1 when it does
+ * not.
+ *
+ * WHAT THE MICROPROGRAM DOES, read from the MICRO-5800-B30 listing. PRNOWR
+ * (025416) writes SC12 - 1 to [extension block + 0x0C]. Its callers:
+ *     015207  message fetch    SC12 = 5RECE + 1    -> the receiver process number
+ *     017433  before IDLE      SC12 = 0            -> -1
+ *     017446/017467 queue end  SC12 = 0            -> -1
+ *     024726  ACTIVATE         SC12 = -1           -> -2, while it walks the queue
+ * Only "process number" and -1 are written here: the -2 lasts for the length of
+ * a queue walk, which this bridge does in one call on the ND-100's own thread,
+ * so the ND-100 cannot read it.
+ *
+ * WHAT SINTRAN DOES WITH IT (L07 sources):
+ *   - MP-P2-N500.NPL 500H2, every 20 ms: adds 1 to 500TU (CPU time used) of the
+ *     process X5PRO names. With X5PRO always -1 no process ever got any time;
+ *     PROCESS-STATUS showed 0.0 s for all of them (measured 12-OCT-2026).
+ *   - MP-P2-N500.NPL ACT50: -1 = ring the doorbell; a process number = compare
+ *     priorities and send kick 1 when the new message outranks it.
+ *
+ * `process` < 0 writes -1. Nothing is written before the mailbox is located.
+ */
+static void mfbus_write_x5pro(int index, int process)
+{
+    if (index < 0 || index >= s_nd5000_count || s_nd5000[index].start_mess == 0u)
+    {
+        return;
+    }
+    (void)ndbus_mailbox_write_ext(&s_nd5000[index].mailbox, NDBUS_MBX_X5PRO_WORD,
+                                  (process < 0) ? 0xFFFFu : (uint16_t)process);
+}
+
 /* THE ND-500 WEXT INSTRUCTION, device 0: the register is an octobus frame and it
  * goes onto the bus with this CPU's station as the source.
  *
@@ -704,6 +740,10 @@ static bool mfbus_cpu_step(void *ctx)
     {
         return true;
     }
+    /* The CPU has stopped executing, whatever the reason. Written by this thread
+     * before it ends, so a restart - which first waits for this thread - always
+     * writes its process number after this. */
+    mfbus_write_x5pro(mfbus_slot_index(slot), -1);
     __atomic_store_n(&slot->runner_leaving, 1u, __ATOMIC_RELEASE);
     return false;
 }
@@ -1093,6 +1133,7 @@ static bool mfbus_cpu_step_inner(MfbusCpuSlot *slot)
      * for the lock. */
     ndbus_engine_lock();
     slot->parked = true;
+    mfbus_write_x5pro(mfbus_slot_index(slot), -1);   /* idle before SINTRAN is told */
     __atomic_store_n(&slot->runner_leaving, 1u, __ATOMIC_RELEASE);
 
     bool trap_answered =
@@ -1776,6 +1817,7 @@ static int mfbus_mon_call(void *ctx, uint32_t mon_number, uint32_t arg_count,
      * "leaving" mark on a thread that is going to keep running. */
     ndbus_engine_lock();
     c->parked = true;
+    mfbus_write_x5pro(mfbus_slot_index(c), -1);   /* idle before SINTRAN is told */
     __atomic_store_n(&c->runner_leaving, 1u, __ATOMIC_RELEASE);
 
     if (!ndbus_servicer_answer_monitor_call(&nd->servicer, (uint16_t)c->loaded_x5cpu, resume,
@@ -1785,6 +1827,7 @@ static int mfbus_mon_call(void *ctx, uint32_t mon_number, uint32_t arg_count,
          * the local seam report it is more honest than a silent hang. Nothing was
          * told to SINTRAN, so the process is not parked and the thread goes on. */
         c->parked = false;
+        mfbus_write_x5pro(mfbus_slot_index(c), c->loaded_x5cpu);   /* still executing */
         __atomic_store_n(&c->runner_leaving, 0u, __ATOMIC_RELEASE);
         ndbus_engine_unlock();
         c->cpu.PC = pc_before;
@@ -2560,6 +2603,44 @@ static bool mfbus_start_process(void *ctx, uint32_t msg_byte, uint16_t micfu, ui
      *
      * This arm therefore only unparks for a CONTINUE, and lets the CPU carry on. */
     const int msg_x5cpu = ndbus_servicer_read_message_x5cpu(&nd->servicer, msg_byte);
+
+    /* A PROCESS THAT A KICK TOOK OFF THE CPU COMES BACK THROUGH ITS OWN MESSAGE.
+     * mfbus_preempt_for_kick() put that message back in the queue; this is the
+     * walk reaching it. The process continues from the registers saved at the
+     * kick, whatever function code the message carries, and the message's answer
+     * is NOT applied again.
+     *
+     * Only when the CPU is free. If it is executing the process the kick was
+     * sent for, the code below makes this message wait, as it does for any
+     * message that finds the CPU busy, and it comes back here afterwards. */
+    if (msg_x5cpu >= 0 && (msg_x5cpu + 1) < MFBUS_PROCESS_SLOTS
+        && c->proc[msg_x5cpu + 1].preempted)
+    {
+        NdbusRunnerState preempt_state = ndbus_runner_state(&c->runner);
+        if (c->parked && preempt_state != NDBUS_RUNNER_RUNNING
+            && preempt_state != NDBUS_RUNNER_STOPPING
+            && (c->loaded_x5cpu == msg_x5cpu || mfbus_switch_to_process(nd, c, msg_x5cpu)))
+        {
+            c->proc[msg_x5cpu + 1].preempted = false;
+            c->parked = false;
+            c->stop_reported = false;
+            c->steps_since_resume = 0u;
+            LOG(LOG_CAT_MMS, LOG_INFO,
+                "MFbus: %s MICFU %oB (msg 0x%06X) resumes PREEMPTED process %d at P=0x%X - "
+                "no answer applied\n",
+                c->name, (unsigned)micfu, (unsigned)msg_byte, msg_x5cpu, (unsigned)c->cpu.PC);
+            if (!mfbus_resume_runner(c, nd->station.number))
+            {
+                LOG(LOG_CAT_MMS, LOG_ERROR,
+                    "MFbus: %s could not resume preempted process %d - it stays parked\n",
+                    c->name, msg_x5cpu);
+                c->parked = true;
+                c->proc[msg_x5cpu + 1].preempted = true;
+                return false;
+            }
+            return true;
+        }
+    }
 
     /* A CONTINUE NAMING A DIFFERENT PROCESS SWITCHES CONTEXT AND THEN RESUMES.
      *
@@ -3355,6 +3436,145 @@ int mfbus_nd5000_count(void)
  * times out on an empty receive FIFO. Pushing a synthetic "no answer" frame
  * would make an absent station indistinguishable from a quiet one.
  */
+/*
+ * KICK 1 OR 2 FROM THE ND-100 TO A CPU THAT IS EXECUTING A PROCESS: take the
+ * process off the CPU, so the queue walk the kick causes can serve the message
+ * SINTRAN wants served first.
+ *
+ * SINTRAN sends this kick from ACT52 (MP-P2-N500.NPL 145520) when X5PRO names a
+ * process whose priority is lower than the new message's. The microprogram's
+ * answer, read from the MICRO-5800-B30 listing:
+ *     ACTIVATE  024723  LOCK_QUE
+ *               024725  CNTXTSAVE when a process is loaded - its registers go
+ *                       into its context block
+ *               024726  PRNOWR
+ *               024727  SET_IDLE
+ *               024730  OCB_CLNUP - 025575..025604: the message in progress, if
+ *                       its N5STA is WAITING (2), gets N5STA := 1 (MSGN500), so
+ *                       it is back in the queue as a message for the ND-500
+ *               024731  walk the queue from its head
+ * The process is NOT answered and NOT resumed by the microprogram. It runs again
+ * when the walk reaches its message, which is in priority order.
+ *
+ * WHAT IS DIFFERENT HERE. The microprogram would execute the requeued message's
+ * function again. This bridge marks the process `preempted` instead and
+ * mfbus_start_process() resumes it from the saved registers without applying
+ * the message's answer a second time: the answer (FUNCV, the K flag, the
+ * write-backs) was applied when the process was first resumed, and the process
+ * has executed since.
+ *
+ * Runs on the ND-100's thread BEFORE the frame goes onto the bus and before the
+ * engine lock is taken: the CPU's host thread takes that lock to park, and
+ * waiting for the thread while holding it would stop both. Only kicks sent by
+ * the ND-100 come through here. A kick an ND-5000 sends with WEXT does not
+ * preempt: that sender is itself a host thread, and two of them waiting for
+ * each other would stop both.
+ */
+static void mfbus_preempt_for_kick(uint8_t destination, uint16_t frame)
+{
+    if ((frame & NDBUS_FRAME_C_CONTROL) == 0u || (frame & NDBUS_FRAME_K_KICK) == 0u
+        || (frame & NDBUS_FRAME_M_MULTIBYTE) != 0u || (frame & NDBUS_FRAME_B_BROADCAST) != 0u)
+    {
+        return;
+    }
+    unsigned kick_number = (unsigned)(frame & 0x3Fu);
+    if (kick_number != 1u && kick_number != 2u)
+    {
+        return;
+    }
+    int slot = mfbus_slot_of(destination);
+    if (slot < 0 || !s_cpus[slot].present)
+    {
+        return;
+    }
+    MfbusCpuSlot *c = &s_cpus[slot];
+    NdbusNd5000  *nd = &s_nd5000[slot];
+    if (!nd->accp.kicks_enabled || nd->start_mess == 0u)
+    {
+        return;   /* the station drops the kick, or has no mailbox to walk */
+    }
+    if (c->parked || c->loaded_x5cpu < 0
+        || ndbus_runner_state(&c->runner) != NDBUS_RUNNER_RUNNING)
+    {
+        return;   /* nothing is executing: the kick is a plain queue walk */
+    }
+
+    /* Between two instructions. */
+    ndbus_runner_stop_and_join(&c->runner);
+    if (c->parked)
+    {
+        /* The process reported a stop of its own while this thread waited: it is
+         * off the CPU already and its message is answered. Nothing to preempt.
+         * The "leaving" mark it set is cleared by the next start's quiesce. */
+        return;
+    }
+    __atomic_store_n(&c->runner_leaving, 0u, __ATOMIC_RELEASE);
+#ifdef __EMSCRIPTEN__
+    if (__atomic_and_fetch(&s_pump_mask, ~(1u << slot), __ATOMIC_ACQ_REL) == 0u)
+    {
+        mfbus_work_clear(MFBUS_WORK_PUMP);
+    }
+#endif
+
+    int      process = c->loaded_x5cpu;
+    int      x5 = ndbus_cpu_context_x5cpu(nd->station.number);
+    uint32_t block = ndbus_servicer_process_context_byte(&nd->servicer, (uint16_t)process);
+
+    /* CNTXTSAVE. Into the process's own block, found the way a context switch
+     * finds it. */
+    if (block == 0u
+        || !ndbus_context_attach(&c->context, &s_pool,
+                                 block - NDBUS_CTX_STRIDE_BYTES
+                                     - ((uint32_t)x5 * NDBUS_CTX_STRIDE_BYTES),
+                                 x5)
+        || !mfbus_save_context(c))
+    {
+        LOG(LOG_CAT_MMS, LOG_WARN,
+            "MFbus: %s kick %u: process %d has no context block to save into - it stays "
+            "loaded and is resumed from the live registers\n",
+            c->name, kick_number, process);
+    }
+    else
+    {
+        c->context_set = true;
+    }
+
+    c->parked = true;
+    c->stop_reported = false;
+    c->preempts++;
+    if ((process + 1) < MFBUS_PROCESS_SLOTS)
+    {
+        c->proc[process + 1].preempted = true;
+    }
+    mfbus_write_x5pro(slot, -1);
+
+    /* OCB_CLNUP: the message in progress goes back to "for the ND-500". */
+    uint32_t msg = ((unsigned)process < NDBUS_SERVICER_MAX_PROCESSES)
+                       ? nd->servicer.process_msg[process] : 0u;
+    uint16_t sta = 0u;
+    bool     requeued = false;
+    if (msg != 0u)
+    {
+        uint32_t sta_at = msg + NDBUS_MSG_N5STA * 2u;
+        sta = ndbus_pool_read16(&s_pool, sta_at);
+        if ((uint16_t)(sta & NDBUS_N5STA_MASK) == NDBUS_N5STA_WAITING)
+        {
+            (void)ndbus_pool_write16(&s_pool, sta_at,
+                                     (uint16_t)((sta & NDBUS_N5STA_PF_MASK)
+                                                | NDBUS_N5STA_TO_ND500));
+            requeued = true;
+        }
+    }
+
+    LOG(LOG_CAT_MMS, LOG_INFO,
+        "MFbus: %s KICK %u PREEMPTS process %d at P=0x%X after %lu instruction(s): context "
+        "saved, X5PRO := -1, message 0x%06X N5STA 0x%04X %s (preempt #%lu)\n",
+        c->name, kick_number, process, (unsigned)c->cpu.PC, c->steps_since_resume,
+        (unsigned)msg, (unsigned)sta,
+        requeued ? "-> 1, back in the queue" : "NOT requeued - it was not WAITING",
+        c->preempts);
+}
+
 static bool mfbus_card_transmit(void *ctx, Device *card, uint16_t frame)
 {
     (void)ctx;
@@ -3385,6 +3605,9 @@ static bool mfbus_card_transmit(void *ctx, Device *card, uint16_t frame)
         }
         return false;
     }
+
+    /* A kick to a CPU that is executing takes its process off first. */
+    mfbus_preempt_for_kick(destination, frame);
 
     uint16_t replies[NDBUS_MAX_REPLY_FRAMES];
     /* Under the engine lock: an ND-5000 can now send frames too (WEXT), and two
@@ -3858,7 +4081,14 @@ bool mfbus_start_nd5000(uint8_t station_number)
     {
         return false;
     }
+    /* Before the host thread exists: a process that stops at once writes its -1
+     * after this, not before. */
+    mfbus_write_x5pro(slot, s_cpus[slot].loaded_x5cpu);
     bool started = ndbus_runner_start(&s_cpus[slot].runner);
+    if (!started && ndbus_runner_state(&s_cpus[slot].runner) != NDBUS_RUNNER_RUNNING)
+    {
+        mfbus_write_x5pro(slot, -1);
+    }
 #ifdef __EMSCRIPTEN__
     if (started)
     {
@@ -3881,6 +4111,7 @@ void mfbus_stop_nd5000(uint8_t station_number)
     /* Asks AND waits: the thread may be mid-instruction when the request
      * arrives, and the pool it is reading must outlive it. */
     ndbus_runner_stop_and_join(&s_cpus[slot].runner);
+    mfbus_write_x5pro(slot, -1);
 #ifdef __EMSCRIPTEN__
     if (__atomic_and_fetch(&s_pump_mask, ~(1u << slot), __ATOMIC_ACQ_REL) == 0u)
     {
