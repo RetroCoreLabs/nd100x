@@ -112,6 +112,9 @@ fi
 case "$1" in
 start)
     ip link show "$ND_UPLINK" >/dev/null
+    # Wi-Fi power save makes the access point hold frames for a sleeping
+    # station: telnet/FTP to the ND then stalls for a while. Keep it awake.
+    iw dev "$ND_UPLINK" set power_save off 2>/dev/null || true
     ip tuntap add dev "$ND_TAP" mode tap user "$ND_USER" 2>/dev/null || true
     ip link set "$ND_TAP" up
     ip route replace "$ND_IP/32" dev "$ND_TAP"
@@ -140,7 +143,17 @@ stop)
     sysctl -q -w "net.ipv4.conf.$ND_UPLINK.proxy_arp=0" 2>/dev/null || true
     ip tuntap del dev "$ND_TAP" mode tap 2>/dev/null || true
     ;;
-*) echo "usage: $0 start|stop" >&2; exit 2;;
+garp)
+    # Over Wi-Fi the PCs' ARP broadcasts for ND_IP may never reach this host
+    # (the access point answers or drops them), so announce the address
+    # ourselves: gratuitous ARP teaches every host the uplink's MAC for it.
+    while :; do
+        arping -U -c 2 -i "$ND_UPLINK" -S "$ND_IP" "$ND_IP" >/dev/null 2>&1 || \
+        arping -U -c 2 -I "$ND_UPLINK" -s "$ND_IP" "$ND_IP" >/dev/null 2>&1 || true
+        sleep "${ND_GARP_INTERVAL:-10}"
+    done
+    ;;
+*) echo "usage: $0 start|stop|garp" >&2; exit 2;;
 esac
 ```
 
@@ -169,6 +182,25 @@ RemainAfterExit=yes
 ExecStart=/usr/local/sbin/nd100x-net.sh start
 ExecStop=/usr/local/sbin/nd100x-net.sh stop
 TimeoutStartSec=120
+
+[Install]
+WantedBy=multi-user.target
+```
+
+**`/etc/systemd/system/nd100x-garp.service`** (needed on Wi-Fi, harmless on
+wire; install `arping`: `sudo apt install arping`):
+
+```ini
+[Unit]
+Description=Announce the ND's IP address on the LAN (gratuitous ARP)
+Requires=nd100x-net.service
+After=nd100x-net.service
+PartOf=nd100x-net.service
+
+[Service]
+ExecStart=/usr/local/sbin/nd100x-net.sh garp
+Restart=always
+RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
@@ -212,7 +244,7 @@ Then:
 ```sh
 sudo chmod 755 /usr/local/sbin/nd100x-net.sh
 sudo systemctl daemon-reload
-sudo systemctl enable --now nd100x.service     # pulls in nd100x-net.service
+sudo systemctl enable --now nd100x.service nd100x-garp.service   # nd100x-net comes with them
 ```
 
 **Pi (dhcpcd):** dhcpcd would try to run DHCP on the new `nd0`. Add
@@ -265,6 +297,17 @@ connected, then apply with `sudo systemctl restart nd100x-net nd100x`
 | If the link drops | ND is off the LAN until Wi-Fi is back and both units are restarted | same, when the cable is unplugged |
 | Tested here | Pi to ND, ND to router and Internet | wired Windows PC to the ND: ping, telnet, FTP |
 
+**Wi-Fi needs the gratuitous ARP (`nd100x-garp.service`).** Measured
+12-OCT-2026 with the Pi on Wi-Fi only: the PC's ARP request for the ND never
+reached the Pi (no ARP broadcast at all showed on `wlan0`, only multicast),
+so Windows reported `Destination host unreachable` / `Request timed out`.
+Once the Pi announced the address itself (`arping -U`, gratuitous ARP), the
+PC learned the Pi's Wi-Fi MAC for it and its pings went through: in on
+`wlan0`, out `nd0`, the ND answered, reply out `wlan0`. The garp service
+repeats the announcement every 10 s (`ND_GARP_INTERVAL`) so the PCs' ARP
+caches never expire. Without it a PC works only until its cache entry
+expires, and fails again after.
+
 **How to tell which one your PC needs.** The ND's address is answered by
 ARP, and the PC's ARP request only reaches the Pi on the interface the PC is
 (effectively) connected through. On the Pi run
@@ -276,9 +319,9 @@ sudo tcpdump -n -i any arp
 and ping the ND from the PC. The line `who-has 192.168.1.40 tell <PC>` is
 printed with an interface name. Use that interface as `ND_UPLINK`. On the
 test network a wired PC's request arrived on `eth0` only, never on `wlan0`
-(the router does not pass wired broadcasts to this Wi-Fi client), so
-`wlan0` gave no answer to it; Wi-Fi PCs are expected to be the other way
-round (not tested).
+(the access point does not pass broadcasts to this Wi-Fi client), so
+`wlan0` gave no answer to it. With the gratuitous ARP service, `wlan0` works
+for the same PC (see above).
 
 **Switching:**
 
@@ -524,6 +567,107 @@ test; use `telnet 192.168.1.40` (the ND's own server, port 23) instead.
 ### I changed something and the ND stopped answering
 Restart **both** units: `sudo systemctl restart nd100x-net nd100x`
 (section 4).
+
+### How do I find out what is wrong with the network setup? (decision list)
+Work top to bottom on the Pi; stop at the first thing that is wrong.
+
+1. **Is the ND itself up?** `ping -c3 192.168.1.40` on the Pi. No answer =
+   the emulator or the TAP is broken, not the LAN: `systemctl status nd100x
+   nd100x-net`, `journalctl -u nd100x -b`, `ip -br link show nd0`.
+   Fix: `sudo systemctl restart nd100x-net nd100x`.
+2. **Does the chosen uplink have a link and an address?** `ip -br addr`.
+   `eth0 DOWN` or no `192.168.1.x` on `ND_UPLINK` = the cable or Wi-Fi is
+   gone (observed: `dhcpcd: eth0: carrier lost`). The ND's routes disappear
+   with the link. Restore the link, then restart both units.
+3. **Are the routes there?** `ip rule | grep 140` must show
+   `from 192.168.1.40 lookup 140`, and `ip route show table 140` must show a
+   LAN route and a default via the uplink. Empty table 140 = link was lost
+   or the network unit failed: restart both units.
+4. **Is proxy ARP on?** `sysctl net.ipv4.conf.<uplink>.proxy_arp` must be 1
+   and `net.ipv4.ip_forward` 1.
+5. **Does the PC's request reach the Pi?** `sudo tcpdump -n -i any arp` on
+   the Pi while the PC pings. You must see `who-has 192.168.1.40 tell <PC>`.
+   - Seen on the uplink and answered (`is-at`) but still no ping: firewall
+     on the PC, or the ND's replies leave the wrong way (check step 3).
+   - Seen on the **other** interface: set `ND_UPLINK` to that one (4a).
+   - **Not seen on any interface**: the router or access point does not pass
+     the PC's ARP broadcast to the Pi (typical when the PC is wired and the Pi
+     is on Wi-Fi, and the router filters broadcast to Wi-Fi). Use `eth0` as
+     the uplink (a cable on the Pi), or put the PC on the same medium as the
+     Pi. Fix: run the `nd100x-garp.service` (gratuitous ARP every 10 s):
+     `sudo systemctl enable --now nd100x-garp`. Verified 12-OCT-2026: the PC
+     then pinged the ND over Wi-Fi. If the PC still has a stale entry, flush
+     it in an **administrator** prompt: `arp -d *` (a non-elevated prompt
+     fails with "requires elevation"), and in WSL `sudo ip neigh flush all`.
+6. **Does the ND answer inside?** `sudo tcpdump -n -i nd0` shows the request
+   arriving; no reply from the ND = the emulator holds a stale TAP
+   (restart `nd100x`) or the address in the disc image is not .40
+   (journal line `Internet address ... started`).
+7. **Does the reply get back?** The same capture on the uplink must show the
+   reply `192.168.1.40 > <PC>` leaving. If it leaves on a different
+   interface than the request arrived, fix `ND_UPLINK` / table 140.
+
+Address clash: if `ping` answers from something that is not the ND (TTL 64 or
+128 instead of the ND's 15, a MAC other than `08:00:26:d2:00:00` in `ip neigh`),
+another device already uses the address; pick another in AIP-CONFIG.
+
+### What is `nd100x-garp.service`, and why does Wi-Fi need it but a cable did not?
+The ND is not a real station on the LAN; the Pi answers for it (proxy ARP).
+A PC finds the ND's MAC by broadcasting "who has 192.168.1.40?" and
+waiting for the answer.
+
+- **On a cable (`eth0`)** the switch delivers that broadcast to the Pi, the Pi
+  answers with its MAC, done. No extra service needed.
+- **On Wi-Fi** the broadcast does not reach the Pi (measured: no ARP at all
+  on `wlan0`, only multicast), so the Pi never gets to answer and the PC
+  reports `Destination host unreachable` or `Request timed out`.
+
+`nd100x-garp.service` fixes that by announcing the address itself:
+every 10 s (`ND_GARP_INTERVAL`) it sends a gratuitous ARP
+("192.168.1.40 is at <the uplink's MAC>") from the uplink, via
+`nd100x-net.sh garp` (needs the `arping` package). PCs learn the MAC without
+asking, and the entry never expires. It is harmless on a cable, so it can
+stay enabled for either uplink. Check it: `systemctl is-active
+nd100x-garp` and `sudo tcpdump -n -i wlan0 arp and host 192.168.1.40`
+(a `Request who-has 192.168.1.40 (ff:ff:ff:ff:ff:ff)` line every ~10 s).
+
+### Ping says "Request timed out" / "unreachable" from Windows after I changed the uplink
+The PC still holds the old MAC for the ND (for example the Pi's `eth0` MAC).
+Flush it in an **administrator** prompt (a normal prompt fails with "The
+requested operation requires elevation"):
+
+```
+arp -d *
+arp -a | findstr 192.168.1.40      (should print nothing)
+ping 192.168.1.40
+```
+
+In WSL: `sudo ip neigh flush all`. With the garp service running, the PC
+relearns the right MAC within 10 s.
+
+### Ping from the Pi works but not from a PC
+The Pi reaches the ND over the local `nd0` link, which proves only that the
+emulator and the TAP are fine. The PC path is separate: follow the decision
+list above (ARP seen? answered? reply leaves the right interface?) and
+remember the Wi-Fi case needs `nd100x-garp.service`.
+
+### The ND vanished after the cable/Wi-Fi dropped
+The kernel deletes routes that go through a dead link, including the ND's
+table 140. Nothing puts them back. After the link returns:
+`sudo systemctl restart nd100x-net nd100x` (both; restarting only the network
+unit strands the emulator on a dead TAP), or reboot. Seen when `eth0` lost
+carrier (`dhcpcd: eth0: carrier lost`).
+
+### Telnet/FTP to the ND stalls, then continues (Wi-Fi)
+Cause measured 12-OCT-2026: **Wi-Fi power save** on the Pi's `wlan0`
+(`iw dev wlan0 get power_save` says `on`). The access point holds frames for
+a "sleeping" station, so replies from the ND arrive late whenever the link has
+been idle (e.g. every `list-files` output pause). Direct connections to the
+emulator's port 9000 did not stall because they do not depend on the ND's
+TCP/IP traffic crossing Wi-Fi in bursts. Fix: `sudo iw dev wlan0 set
+power_save off`; the net script now does this at every start (it needs the
+`iw` package, preinstalled on Raspberry Pi OS: `sudo apt install iw`). Check
+with `iw dev wlan0 get power_save`. Does not apply to `eth0`.
 
 ### Quick checklist on the Pi
 ```sh
