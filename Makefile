@@ -313,9 +313,16 @@ update-libdap:
 	git commit -m "Update libdap submodule to latest commit"
 
 	
+# Installs the RELEASE build (build_release/), never the Debug one: a Debug
+# build is too slow on small hosts (a Raspberry Pi truncates long SINTRAN
+# output). Run `make release` first (as yourself), then `sudo make install`.
+# PREFIX defaults to /usr/local, so the binary lands in /usr/local/bin.
+PREFIX ?= /usr/local
+
 install:
-	@echo "Installing..."
-	$(CMAKE) --install $(BUILD_DIR)
+	@test -x $(BUILD_DIR_RELEASE)/bin/nd100x || { echo "Error: no release build. Run 'make release' first, then 'sudo make install'."; exit 1; }
+	@echo "Installing release build to $(PREFIX)/bin ..."
+	$(CMAKE) --install $(BUILD_DIR_RELEASE) --prefix $(PREFIX)
 
 # Default run arguments - you can override these by setting environment variables
 # e.g., BOOT_TYPE=floppy make run
@@ -441,7 +448,7 @@ help:
 	@echo "  test          - Build and run unit tests (ctest)"
 	@echo "  submodules    - Init and update all git submodules (recursive)"
 	@echo "  clean         - Remove build directories"
-	@echo "  install       - Install the build"
+	@echo "  install       - Install the RELEASE build (run 'make release' first; PREFIX=/usr/local)"
 	@echo "  run           - Build and run nd100x (uses defaults below)"
 	@echo "  boot-smd      - Build and boot from SMD unit 0 (SMD0_IMAGE, default SMD0.IMG)"
 	@echo "  boot-wd       - Build and boot from Winchester unit 0 (WD0_IMAGE, default WD0.IMG)"
