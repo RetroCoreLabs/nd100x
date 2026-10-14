@@ -129,11 +129,12 @@ Ubuntu 22.04 (x64 and arm64).
    | Arch | `sudo pacman -S base-devel cmake git curl ncurses` | `sudo pacman -S curl ncurses` |
    | Alpine | `apk add build-base cmake git pkgconf curl-dev ncurses-dev` | `apk add libcurl ncurses-libs` |
 
-   The Ubuntu 24.04, Fedora and Alpine runtime names were checked against the
-   package indexes. The Debian and Arch names follow those distributions'
-   conventions and were not checked individually. Older documents mention
-   `libncurses5-dev`; that package no longer exists on Ubuntu 24.04, use
-   `libncurses-dev`.
+   Every name in the table was checked against the package index of its
+   distribution (packages.debian.org for Debian 12 and 13, archlinux.org for
+   Arch, Ubuntu 24.04, Fedora and Alpine as well) on 14-OCT-2026. On Debian 13
+   `pkg-config` is a small package that only pulls in `pkgconf`; installing
+   either works. Older documents mention `libncurses5-dev`; that package no
+   longer exists on Ubuntu 24.04, use `libncurses-dev`.
 
    `libcurl` and `ncurses` are required: `find_package(CURL REQUIRED)` and
    `find_package(Curses REQUIRED)` in `CMakeLists.txt` stop the configure
