@@ -178,6 +178,8 @@ device = scsi.0.0         ; <type>.<wheel>.<unit>. Also: floppy.0.0, smd.0.0
 [runtime]                 ; non-hardware options (optional; CLI overrides these)
 telnet = 9000             ; enable telnet server on port (omit = off)
 throttle = 0.5275         ; MHz real-time throttle (omit = full speed)
+# idle_count = 2000       ; level-0 instructions (paging + interrupts on) before the 1 ms
+#                         ; idle sleep. Omit = by boot type: 2000 disc, 50000 floppy/direct
 charset = norwegian       ; local console charset: off|norwegian|swedish|german
 printdir = ./prints
 tapedir = ./tapes
@@ -248,7 +250,7 @@ naturally with the coming CPU-type selection: an `nd110x` symlink can ship an
   removed in favor of `--config`. Recommendation: keep as aliases one release,
   print a deprecation hint suggesting the INI equivalent.
 - **Runtime options live in the `[runtime]` INI section AND on the CLI.** The
-  INI provides defaults; a CLI flag (`--telnet`, `--throttle`, `--charset`,
+  INI provides defaults; a CLI flag (`--telnet`, `--throttle`, `--idle-count`, `--charset`,
   `--printdir/--tapedir`, `--debugger/--port`, `--trace`, `--watch`,
   `--breakpoint`, `--max-instr`, `--ring-dump`, `--verbose`) overrides the INI
   value for that run. CLI wins so one-off debugging never requires editing the

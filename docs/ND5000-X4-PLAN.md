@@ -198,7 +198,10 @@ Still process-wide in the ND-500 core, i.e. shared by four threads `[READ]`:
 1. Which SINTRAN build is on `ND5000.IMG` - M06 (four stations) or L07
    (eight)? Decides whether 5.2 can even see station 073B. `[UNVERIFIED]`
 2. Does the ND-500 monitor on that pack load microcode and the swapper for
-   every CPU it finds, or only CPU 1 unless told otherwise? `[UNVERIFIED]`
+   every CPU it finds, or only CPU 1 unless told otherwise?
+   `[MEASURED 12-OCT-2026]` A CPU is brought up when a terminal gives
+   `CHANGE-CPU n`. There is one swapper (process 0); its message is not CPU
+   bound and was served by station 070B in every nd100x run.
 3. Is `ADRZERO` ever per CPU in practice? The configuration forces one
    `base_page` for all (`src/machine/machine_config.c:1813-1847`); the carved
    `DEFMC` stores it per CPU datafield. `[UNVERIFIED]`
@@ -226,3 +229,18 @@ Open: 1.3, 1.4, 2.6 (WASM build not rebuilt), phase 3, 4.4, phase 5 (SINTRAN),
 scratch copies both run CPU-STAT to `MON 0B`. With four CPUs SINTRAN used only
 station 070B. 5.2 and 5.3 are blocked on finding out how SINTRAN is told to
 start more than one ND-5000.
+
+12-OCT-2026. The 11-OCT entry above is superseded: SINTRAN uses all four
+stations once a terminal gives `CHANGE-CPU n`, so 5.2 and 5.3 are no longer
+blocked. Done and measured, details in `docs/ND5000-MULTI-CPU.md`:
+
+- `X5PRO`, real CPU time in `PROCESS-STATUS`, and the kick that takes a running
+  process off its CPU, from the ND-100 and from another ND-5000 (`684b0b2`,
+  `b3007e6`).
+- A CPU takes only messages assigned to it (`5CPUN`); a queue walk ends when a
+  message has started a process; a process's state outside the context block
+  is kept per process for all CPUs (`ee16986`, nd500x `d309ee5`).
+- Four users starting LED on four CPUs at once: 5 runs, 20 of 20.
+
+Still open: the microprogram's take-over of another CPU's message
+(MICRO-5800-B30 015155-015174) is not modelled; open questions 1 and 3 above.

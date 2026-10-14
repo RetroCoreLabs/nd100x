@@ -56,6 +56,55 @@ The targets check image existence before launching. Run them against scratch
 copies (rule 1). A floppy that does not boot is usually a data floppy with no
 FLOMON loader, not an emulator bug.
 
+## ND-5000 / several CPUs
+
+For any change in `src/machine/mfbus_bridge.c` or in nd500x `src/ndbus/`.
+
+```bash
+build/bin/test_mfbus_bridge          # the bridge's own checks
+ctest --test-dir <nd500x build>      # nd500x has 44 tests of its own
+```
+
+Then the live test. One user started alone does NOT find multi-CPU faults:
+every fault found on 12-OCT-2026 needed users starting at the same time.
+
+1. Scratch copies of `ND5000.IMG`, `SCSI0.IMG`, `FLOPPY.IMG` and an INI with
+   `[nd5000.1]` to `[nd5000.4]` enabled; start with `--telnet=<free port>` and
+   `--log mms:info`.
+2. Console: log in as SYSTEM, `@SET-AVAILABLE`.
+3. Four telnet terminals (8 to 11 are free). On each, without waiting for the
+   one before to finish loading: log in, `@SET-T-T,,93`, `@ND-500`,
+   `CHANGE-CPU n` (n = 1 to 4), `LED-CONV`.
+4. Pass: all four show the LED screen. In the ND-500 monitor on the console,
+   `WHO` shows cpu 1 to 4 and `PROCESS-STATUS` shows a CPU time that is not
+   0.0 s for each.
+5. In the log, every `RECV ... 5CPUN=n ... on CPU m` line must have n = m:
+   ```bash
+   grep -o '5CPUN=[0-9]* 5MSFL=0x[0-9A-F]* on CPU [0-9]*' session.log \
+     | awk '{split($1,a,"="); if (a[2] != $5) n++} END {print n+0}'    # must print 0
+   ```
+6. Repeat the whole run at least three times; the faults were intermittent.
+
+Failure signs seen: a terminal that stays on `ND-5000: LED-CONV`,
+"Illegal physical segment", "Fatal internal system error", "ND-5000 lock
+timeout", "CPU locked".
+
+## Device tick or CPU loop changes
+
+For any change in `src/devices/devicemanager.c`, a device `Tick`, or the run
+loop in `src/cpu/cpu.c`. The complete `--trace` output must not change:
+
+```bash
+# once with the binary before the change, once after; the two sums must be equal
+build/bin/nd100x --pipe --boot=smd --config <ini> --rtc=ticks --trace \
+    --max-instr=100000000 < /dev/null 2>&1 >/dev/null \
+    | grep -av 'time used\|usertime\|cycle time' | md5sum
+```
+
+Do the same for `--boot=floppy` (40 000 000) and for a winchester boot
+(60 000 000), on scratch copies. `--rtc=ticks` is what makes the run
+repeatable.
+
 ## WASM / glass UI changes
 
 Do not declare a browser-facing fix done on build success alone - verify it

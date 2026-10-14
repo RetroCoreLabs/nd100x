@@ -353,6 +353,7 @@ static void scsi_step_go_state(Device *self)
 
 static void scsi_reset(Device *self)
 {
+    dev_request_tick(); /* see scsi_tick_needed() */
     SCSIData *data = (SCSIData *)self->deviceData;
     if (!data)
     {
@@ -495,6 +496,7 @@ static uint16_t scsi_status_word(SCSIData *data)
 
 static uint16_t scsi_read(Device *self, uint32_t address)
 {
+    dev_request_tick(); /* an IOX can start the controller; see scsi_tick_needed() */
     SCSIData *data = (SCSIData *)self->deviceData;
     uint32_t reg = dev_register_address(self, address);
     uint16_t rval = 0;
@@ -682,6 +684,7 @@ static void scsi_write_control(Device *self, SCSIData *data, uint16_t value)
 
 static void scsi_write(Device *self, uint32_t address, uint16_t value)
 {
+    dev_request_tick(); /* an IOX can start the controller; see scsi_tick_needed() */
     SCSIData *data = (SCSIData *)self->deviceData;
     uint32_t reg = dev_register_address(self, address);
 
@@ -743,6 +746,56 @@ static void scsi_write(Device *self, uint32_t address, uint16_t value)
     }
 }
 
+
+/*
+ * WHEN THE TICK HAS WORK. scsi_tick() does three things, and each has a
+ * condition under which it does nothing at all:
+ *   - dev_tick_io_delay(): nothing without a queued delay (the device manager
+ *     looks at ioDelayCount itself);
+ *   - scsi_bus_clock(): calls the Clock of each device on the bus, and both
+ *     kinds return at once while their timer is off - NCR_Clock() tests
+ *     ncr->timerEnabled first (ncr5386.c), scsi_target_clock() tests
+ *     t->timerEnabled first (scsi_device.c);
+ *   - scsi_step_go_state(): with data->active set, it acts only when the chip
+ *     has raised an interrupt (interruptFromNCR) or, with DMA on, a data
+ *     request (dataRequestFromNCR). "Active" alone is NOT work: SINTRAN sets
+ *     the Active bit and leaves it set while the bus is idle. MEASURED
+ *     14-OCT-2026, SMD boot with SCSI configured: active in 29 354 280 of
+ *     29 360 128 checks, chip timer on once, disc timers never. A first version
+ *     that ticked on "active" sent the device manager down its slow path after
+ *     almost every instruction and made the emulator 45% slower.
+ * So with no transfer active and every timer off, a tick changes nothing and
+ * is skipped. A timer is armed, and active set, only from inside this tick or
+ * from an IOX to the controller; every IOX and every reset therefore asks the
+ * device manager for a tick (dev_request_tick in scsi_read, scsi_write and
+ * scsi_reset). Before 14-OCT-2026 this device was ticked after every ND-100
+ * instruction whether it was used or not: 7.7% of the ND-100 thread.
+ */
+static bool scsi_tick_needed(Device *self)
+{
+    const SCSIData *data = (const SCSIData *)self->deviceData;
+    if (data == NULL)
+    {
+        return false;
+    }
+    if (data->ncr.timerEnabled)
+    {
+        return true;
+    }
+    if (data->active
+        && (data->interruptFromNCR || (data->dmaEnable && data->dataRequestFromNCR)))
+    {
+        return true;
+    }
+    for (int u = 0; u < SCSI_MAX_UNITS; u++)
+    {
+        if (data->diskPresent[u] && data->disks[u].target.timerEnabled)
+        {
+            return true;
+        }
+    }
+    return false;
+}
 
 /*
  * Tick.
@@ -952,7 +1005,7 @@ Device *scsi_create_device(uint8_t thumbwheel)
     dev->Read = scsi_read;
     dev->Write = scsi_write;
     dev->Tick = scsi_tick;
-    dev->tickAlways = true;
+    dev->TickNeeded = scsi_tick_needed;
     dev->Reset = scsi_reset;
     dev->Ident = scsi_ident;
     dev->Boot = scsi_boot;
