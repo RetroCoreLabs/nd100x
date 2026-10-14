@@ -64,9 +64,25 @@ Pick an address that is free (not in the router's DHCP range, `ping` and
 
 ## 3. Install
 
-Create these files (paths as shown). Adjust `User=`, `WorkingDirectory=` and
-`ExecStart=` in `nd100x.service` to where the repo and `build/bin/nd100x`
-live (here `/home/ronny/repos/nd100x`).
+**Build and install the emulator first, as a Release build:**
+
+```sh
+make release          # as your user, builds build_release/bin/nd100x
+sudo make install     # installs /usr/local/bin/nd100x (PREFIX=/usr to change)
+nd100x --version      # check the version and git hash
+```
+
+Use the Release build for the service. The default `make` is a Debug build,
+which is several times slower; with network traffic reaching the ND it made
+terminal output (for example `file-stat,,,`) stall for more than 10 seconds
+in the middle of a listing before continuing. Release does not.
+
+Then create these files (paths as shown). Adjust `User=` and
+`WorkingDirectory=` in `nd100x.service` to where the repo lives (here
+`/home/ronny/repos/nd100x`; it holds the INI and the disc image).
+`ExecStart=` points at the installed `/usr/local/bin/nd100x`. After a new
+`make release` and `sudo make install`, run
+`sudo systemctl restart nd100x-net nd100x` to use it.
 
 **`/usr/local/sbin/nd100x-net.sh`** (`sudo chmod 755`):
 
@@ -217,7 +233,7 @@ After=nd100x-net.service
 [Service]
 User=ronny
 WorkingDirectory=/home/ronny/repos/nd100x
-ExecStart=/home/ronny/repos/nd100x/build/bin/nd100x --config nd100-eth.ini
+ExecStart=/usr/local/bin/nd100x --config nd100-eth.ini
 Restart=on-failure
 RestartSec=5
 StandardInput=null
