@@ -1,6 +1,8 @@
 # ND-100X Interactive Shell - Example Script
-# Save this as: commands.sh
-# Run with: ./build/bin/nd100x --monitor --nd100-root=/path/to/bpun --script=commands.sh
+# Run from the repo root with:
+#   ./build/bin/nd100x --monitor --nd100-root=DIR --script=tools/examples/shell/example-shell-commands.sh
+# or name it in the script key of example-shell-config.ini next to this file.
+# Lines starting with '#' are comments; one shell command per line.
 
 # Show available commands
 HELP

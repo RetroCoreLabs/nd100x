@@ -172,11 +172,11 @@ Shell exited.
 **File: `/tmp/my-nd100-shell.ini`**
 
 ```ini
-[cpu]
-type = 100
+[machine]
+cpu = 100
 
 [boot]
-device = smd.0.0
+device = none
 
 [runtime]
 shell = on
@@ -185,6 +185,11 @@ nd100_root = /path/to/bpun
 # script = /tmp/commands.sh
 memory = 4
 ```
+
+The section is `[machine]` with the key `cpu`; a `[cpu]` section is rejected
+with "unknown section [cpu]". `device = none` powers the machine on with
+nothing loaded, which is what the shell wants; a disc boot needs a
+`[controller.smd.0]` section with a `disk0`.
 
 **Run:**
 ```bash
