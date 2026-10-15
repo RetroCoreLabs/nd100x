@@ -3701,11 +3701,9 @@ static int cmd_launch_callback(DAPServer *server)
             else if (s_symbol_tables.debug_info)
             {
                 // The map holds no FUNC lines (an assembly or NPL program, or a
-                // .srcmap from mac -S): there is no C debug info. Keeping the
-                // empty table would make every stack frame look like a PC outside
-                // all C functions, and cmd_stack_trace then leaves the source and
-                // line of the frame blank (measured 2026-10-15 with an NPL BPUN:
-                // the step said ex.npl:3, the frame said line 0). Free it.
+                // .srcmap from mac -S), so there is no C debug info. An empty
+                // table here makes cmd_stack_trace treat every PC as outside all C
+                // functions and leave the frame's source and line blank.
                 symbols_debug_info_free(s_symbol_tables.debug_info);
                 s_symbol_tables.debug_info = NULL;
             }
