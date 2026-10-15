@@ -421,9 +421,17 @@ unsigned mfbus_tick_work = 0;
 #define MFBUS_WORK_DEFER   16u  /* a start message waits for a busy CPU */
 #define MFBUS_WORK_KICK    32u  /* an ND-5000 sent a kick that must first preempt */
 
+/* From src/devices/device.c. Declared here rather than by including
+ * devices_protos.h, for the same basename reason as the cpu headers above. */
+void dev_request_tick(void);
+
 static void mfbus_work_set(unsigned bit)
 {
     (void)__atomic_fetch_or(&mfbus_tick_work, bit, __ATOMIC_ACQ_REL);
+    /* The octobus card's Tick is what serves this work, and the card is ticked
+     * only while it has work (octobus_tick_needed). The flag goes first, so the
+     * device manager finds it set when it answers the request. */
+    dev_request_tick();
 }
 
 static void mfbus_work_clear(unsigned bit)

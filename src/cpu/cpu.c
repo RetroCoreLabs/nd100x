@@ -736,6 +736,28 @@ void cpu_idle_set_boot_default(uint32_t count)
     }
 }
 
+// --host-cpu=low|full / [runtime] host_cpu. low (the default) is the sleeping
+// above. full never sleeps when the machine is idle: the emulator runs at full
+// speed and keeps one host core busy all the time. --throttle is separate and
+// still applies.
+static bool s_host_cpu_full = false;
+static bool s_host_cpu_from_cli = false;
+
+void cpu_idle_set_host_cpu_full(bool full, bool from_cli)
+{
+    if (!from_cli && s_host_cpu_from_cli)
+    {
+        return;
+    }
+    s_host_cpu_full = full;
+    s_host_cpu_from_cli = s_host_cpu_from_cli || from_cli;
+}
+
+bool cpu_idle_get_host_cpu_full(void)
+{
+    return s_host_cpu_full;
+}
+
 uint32_t cpu_idle_get_count(void)
 {
     return s_idle_count;
@@ -823,7 +845,7 @@ static void private_cpu_tick(void)
     }
 
 
-    if (s_activate_sleep)
+    if (s_activate_sleep && !s_host_cpu_full)
     {
         // Check if we need to sleep
         s_lvlcnt = (gPIL == 0) ? (s_lvlcnt + 1) : 0;

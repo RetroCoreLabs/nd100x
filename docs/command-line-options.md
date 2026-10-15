@@ -72,6 +72,9 @@ Options:
   -O,      --overlay-deposit Deposit data_click at phys word 1 for kernel boot-info
   -R[N],   --ring-dump[=N]  Dump last N instructions on halt/crash (default: 50, max: 512)
   -Z[MHZ], --throttle[=MHZ] Throttle CPU to real-time speed (default: 0.5275 MHz)
+           --host-cpu=low|full low (default): sleep when the machine is idle,
+                          little host CPU. full: never sleep - full speed, one
+                          host core always busy. Also [runtime] host_cpu
            --idle-count=N Sleep 1 ms after N instructions on level 0 with paging and
                           interrupts on (idle SINTRAN). Default by boot type: 2000 for
                           smd/scsi/wd/cdc, 50000 for floppy and directly loaded

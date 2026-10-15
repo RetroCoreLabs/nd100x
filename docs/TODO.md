@@ -244,8 +244,15 @@ instruction with all registers), old binary against new, `--rtc=ticks`:
 | Boot | Instructions | Result |
 |---|---|---|
 | SMD, ND-5000 pack | 100 000 000 | traces identical (md5), disc images identical |
-| Floppy, TPE monitor | 40 000 000 | traces identical, image identical |
+| Floppy, TPE monitor | 40 000 000 | traces identical, image identical - BUT see below |
 | Winchester, `WD0-SINTRAN-M` | 60 000 000 | traces identical, written image identical |
+
+The floppy row proves nothing. `[MEASURED 14-OCT-2026]` A floppy (TPE) trace
+is not repeatable even with one binary: the TPE monitor reads the panel status
+register (`TRA PANS`, written in `src/devices/panel/panel.c`), and two runs of
+the same binary first differed at line 1 119 424. The two runs compared here
+happened to read the same value. The SMD and winchester rows hold: their sums
+were the same in every run.
 
 Also run on the new binary:
 

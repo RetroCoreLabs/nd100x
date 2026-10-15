@@ -218,6 +218,8 @@ typedef struct Device {
      * the same thing: a call with no delay queued changes nothing. */
     bool tickAlways;
     bool (*TickNeeded)(struct Device *self); /* optional; NULL = delays only */
+    bool inTickList; /* devmgr_tick() only: a conditional device that has work now */
+    int  tickOrder;  /* devmgr_tick() only: the device's position in the device table */
     int (*Boot)(struct Device *self, int unit);
     uint16_t (*Read)(struct Device *self, uint32_t address);
     void (*Write)(struct Device *self, uint32_t address, uint16_t value);

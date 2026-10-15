@@ -1461,6 +1461,10 @@ int main(int argc, char *argv[])
             cpu_throttle_set_enabled(true);
             cpu_throttle_set_mhz(rt->throttle_mhz);
         }
+        if (rt->host_cpu_full >= 0)
+        {
+            cpu_idle_set_host_cpu_full(rt->host_cpu_full != 0, false);   /* --host-cpu wins */
+        }
         if (rt->idle_count >= 0)
         {
             cpu_idle_set_count((uint32_t)rt->idle_count, false);   /* --idle-count wins */

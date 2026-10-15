@@ -101,6 +101,7 @@ typedef struct
 {
     int telnet_port;     /* 0 = off */
     double throttle_mhz; /* 0 = off */
+    int host_cpu_full;   /* -1 = not given, 0 = low (sleep when idle), 1 = full */
     int idle_count;      /* -1 = not given; instructions on level 0 with paging and
                           * interrupts on before the 1 ms idle sleep; 0 = off */
     char charset[16];    /* "off"|"norwegian"|"swedish"|"german" */

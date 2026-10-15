@@ -143,6 +143,43 @@ static void octobus_reset(Device *self)
     dev_set_interrupt_status(self, false, self->interruptLevel);
 }
 
+/* WHEN THE TICK HAS WORK. octobus_tick() below does three things, and each has
+ * a condition under which it does nothing:
+ *   - dev_tick_io_delay(): nothing without a queued delay (the device manager
+ *     looks at ioDelayCount itself);
+ *   - octobus_update_interrupt(): only with a request pending and enabled, or
+ *     the line still high - the same test as in the tick;
+ *   - mfbus_service_nd5000_mailboxes(): only while mfbus_tick_work is not zero.
+ *     Every bit of it is set through mfbus_work_set(), which asks for a tick.
+ * The requests become pending in an IOX to the card (octobus_write/read ask for
+ * a tick) or in a frame the servicer hands the card, which happens inside this
+ * tick. Until 14-OCT-2026 the card was ticked after every ND-100 instruction:
+ * 3.5% of an SMD boot with the ND-5000 never started. Once the ND-500 monitor
+ * runs, the doorbell poll keeps mfbus_tick_work set and the card is ticked every
+ * instruction as before. */
+static bool octobus_tick_needed(Device *self)
+{
+    const OctobusData *data = (const OctobusData *)self->deviceData;
+    if (data != NULL)
+    {
+        bool inputActive = data->inputIrqPending && data->statusRegister.bits.interruptEnabled;
+        bool outputActive = data->outputIrqPending
+                            && data->outputStatusRegister.bits.interruptEnabled
+                            && !data->outputStatusRegister.bits.busy;
+        if (inputActive || outputActive || data->lineHigh)
+        {
+            return true;
+        }
+    }
+#ifdef ND100X_WITH_ND500
+    if (__atomic_load_n(&mfbus_tick_work, __ATOMIC_ACQUIRE) != 0u)
+    {
+        return true;
+    }
+#endif
+    return false;
+}
+
 static uint16_t octobus_tick(Device *self)
 {
     if (!self)
@@ -437,6 +474,7 @@ static void octobus_process_control_change(Device *self, OctobusData *data, uint
 
 static uint16_t octobus_read(Device *self, uint32_t address)
 {
+    dev_request_tick(); /* an IOX can change a request; see octobus_tick_needed() */
     if (!self)
     {
         return 0;
@@ -522,6 +560,7 @@ static uint16_t octobus_read(Device *self, uint32_t address)
 
 static void octobus_write(Device *self, uint32_t address, uint16_t value)
 {
+    dev_request_tick(); /* an IOX can raise a request; see octobus_tick_needed() */
     if (!self)
     {
         return;
@@ -879,7 +918,7 @@ Device *octobus_create_device(uint8_t thumbwheel)
     // Set up device function pointers
     dev->Reset = octobus_reset;
     dev->Tick = octobus_tick;
-    dev->tickAlways = true;
+    dev->TickNeeded = octobus_tick_needed;
     dev->Read = octobus_read;
     dev->Write = octobus_write;
     dev->Ident = octobus_ident;

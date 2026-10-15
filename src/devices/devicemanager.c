@@ -53,8 +53,8 @@ static DeviceManager device_manager = {0}; // Initialize to zero
 
 /* devmgr_tick()'s list of the tickAlways devices and its kept OR of the
  * interrupt bits; see devmgr_tick(). */
-static Device *s_tick_always[64];
-static int     s_tick_always_count = 0;
+static Device *s_tick_list[64];
+static int     s_tick_list_count = 0;
 static int     s_tick_list_devices = -1; /* deviceCount the list was built for */
 static uint16_t s_irq_bits = 0;
 
@@ -703,63 +703,122 @@ int devmgr_ident(uint16_t level)
  * (see tickAlways / TickNeeded in devices_types.h), and the OR is kept and only
  * computed again when dev_irq_changed() says a bit moved.
  *
- * A device that is called is called on exactly the instructions it was called
- * on before, and in the same order, so no I/O delay changes length. One
- * exception: a tickAlways device whose Tick queues a delay on a LATER device
- * while nothing else is pending - that delay starts one instruction later. No
- * device does this today. */
+ * THE TICK LIST. s_tick_list holds, in device-table order, the tickAlways
+ * devices and the other devices that have work right now (inTickList). Each
+ * instruction ticks exactly that list. The whole table is looked at only when
+ * something asked for a tick (dev_request_tick: a delay queued, terminal input,
+ * an IOX to a device that wants one, ND-5000 work): then every device that is
+ * not in the list is asked whether it has work, and joins the list if so. A
+ * device leaves the list when, after its tick, it has none left.
+ *
+ * Until 14-OCT-2026 the whole table was walked after every instruction for as
+ * long as ANY conditional device had work, and each device's TickNeeded was
+ * called each time. With one device that has work most of the time that walk
+ * cost more than ticking the device: a SCSI controller ticked that way made the
+ * emulator 45% slower. MEASURED 14-OCT-2026.
+ *
+ * Order: a device is ticked in the same position relative to every other
+ * device as before, because the list keeps table order. A device that gets work
+ * through a request is ticked on the same instruction as the request. */
+static void devmgr_rebuild_tick_list(void)
+{
+    s_tick_list_count = 0;
+    for (int i = 0; i < device_manager.deviceCount; i++)
+    {
+        Device *dev = device_manager.devices[i].device;
+        if (dev)
+        {
+            dev->tickOrder = i;
+        }
+        if (dev && dev->Tick && (dev->tickAlways || dev->inTickList)
+            && s_tick_list_count < (int)(sizeof(s_tick_list) / sizeof(s_tick_list[0])))
+        {
+            s_tick_list[s_tick_list_count++] = dev;
+        }
+    }
+}
+
+static bool devmgr_has_work(Device *dev)
+{
+    return dev->ioDelayCount > 0 || (dev->TickNeeded && dev->TickNeeded(dev));
+}
+
+/* The table is looked at for devices that asked for a tick. Returns true when
+ * the list was rebuilt (a device joined). */
+static bool devmgr_take_requests(void)
+{
+    if (__atomic_load_n(&g_dev_tick_wanted, __ATOMIC_ACQUIRE) == 0u)
+    {
+        return false;
+    }
+    /* Cleared first: a request made while the table is looked at sets it again. */
+    __atomic_store_n(&g_dev_tick_wanted, 0u, __ATOMIC_RELEASE);
+    bool added = false;
+    for (int i = 0; i < device_manager.deviceCount; i++)
+    {
+        Device *dev = device_manager.devices[i].device;
+        if (dev && dev->Tick && !dev->tickAlways && !dev->inTickList && devmgr_has_work(dev))
+        {
+            dev->inTickList = true;
+            added = true;
+        }
+    }
+    if (added)
+    {
+        devmgr_rebuild_tick_list();
+    }
+    return added;
+}
+
 uint16_t devmgr_tick(void)
 {
     if (s_tick_list_devices != device_manager.deviceCount)
     {
-        s_tick_always_count = 0;
         for (int i = 0; i < device_manager.deviceCount; i++)
         {
             Device *dev = device_manager.devices[i].device;
-            if (dev && dev->Tick && dev->tickAlways
-                && s_tick_always_count < (int)(sizeof(s_tick_always) / sizeof(s_tick_always[0])))
+            if (dev)
             {
-                s_tick_always[s_tick_always_count++] = dev;
+                dev->inTickList = false;
             }
         }
         s_tick_list_devices = device_manager.deviceCount;
+        devmgr_rebuild_tick_list();
         dev_request_tick();
         dev_irq_changed();
     }
 
-    if (__atomic_load_n(&g_dev_tick_wanted, __ATOMIC_ACQUIRE) != 0u)
+    (void)devmgr_take_requests();
+
+    /* A request made DURING the loop - a delay callback that queues a delay on
+     * another device - is taken at once, and the loop goes on from the device it
+     * was on: a device later in the table is ticked in this same pass, an earlier
+     * one on the next instruction. That is what walking the table did. */
+    bool removed = false;
+    for (int i = 0; i < s_tick_list_count; i++)
     {
-        /* Cleared first: a request made while the loop runs sets it again. */
-        __atomic_store_n(&g_dev_tick_wanted, 0u, __ATOMIC_RELEASE);
-        bool again = false;
-        for (int i = 0; i < device_manager.deviceCount; i++)
+        Device *dev = s_tick_list[i];
+        int order = dev->tickOrder;
+        (void)dev->Tick(dev);
+        if (!dev->tickAlways && !devmgr_has_work(dev))
         {
-            Device *dev = device_manager.devices[i].device;
-            if (!dev || !dev->Tick)
-            {
-                continue;
-            }
-            if (dev->tickAlways)
-            {
-                (void)dev->Tick(dev);
-            }
-            else if (dev->ioDelayCount > 0 || (dev->TickNeeded && dev->TickNeeded(dev)))
-            {
-                (void)dev->Tick(dev);
-                again = true;
-            }
+            dev->inTickList = false;
+            removed = true;
         }
-        if (again)
+        if (__atomic_load_n(&g_dev_tick_wanted, __ATOMIC_ACQUIRE) != 0u && devmgr_take_requests())
         {
-            dev_request_tick();
+            removed = false; /* the rebuild below dropped it already */
+            int next = 0;
+            while (next < s_tick_list_count && s_tick_list[next]->tickOrder <= order)
+            {
+                next++;
+            }
+            i = next - 1;
         }
     }
-    else
+    if (removed)
     {
-        for (int i = 0; i < s_tick_always_count; i++)
-        {
-            (void)s_tick_always[i]->Tick(s_tick_always[i]);
-        }
+        devmgr_rebuild_tick_list();
     }
 
     if (__atomic_load_n(&g_dev_irq_dirty, __ATOMIC_ACQUIRE))

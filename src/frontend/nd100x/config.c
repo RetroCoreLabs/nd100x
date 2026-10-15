@@ -67,6 +67,7 @@ static struct option long_options[] = {
     {"hdlc",       required_argument, 0, 'H'},
     {"throttle",   optional_argument, 0, 'Z'},
     {"idle-count", required_argument, 0, 0x164}, // --idle-count=N : see cpu_idle_set_count()
+    {"host-cpu",   required_argument, 0, 0x165}, // --host-cpu=low|full : see cpu_idle_set_host_cpu_full()
     {"ring-dump",  optional_argument, 0, 'R'},
     {"overlay-deposit", no_argument, 0, 'O'},
     {"watch-skip", required_argument, 0, 0x130},
@@ -1138,6 +1139,25 @@ bool config_parse_command_line(Config *config, int argc, char *argv[])
             break;
         }
 
+        case 0x165:
+            /* --host-cpu=low|full : low (default) sleeps when the machine is idle,
+             * full never does - full speed, one host core always busy. Also
+             * [runtime] host_cpu. No silent default on bad input. */
+            if (strcasecmp(optarg, "full") == 0)
+            {
+                cpu_idle_set_host_cpu_full(true, true);
+            }
+            else if (strcasecmp(optarg, "low") == 0)
+            {
+                cpu_idle_set_host_cpu_full(false, true);
+            }
+            else
+            {
+                fprintf(stderr, "Invalid --host-cpu: %s (low or full)\n", optarg);
+                return false;
+            }
+            break;
+
         case 0x163: /* --no-boot-status : no "Booting from ..." line at start-up */
             config->bootStatus = false;
             break;
@@ -1434,6 +1454,9 @@ void config_print_help(const char *prog_name)
     printf("  -R[N],   --ring-dump[=N]  Dump last N instructions on halt/crash (default: 50, max: "
            "65536)\n");
     printf("  -Z[MHZ], --throttle[=MHZ] Throttle CPU to real-time speed (default: 0.5275 MHz)\n");
+    printf("           --host-cpu=low|full low (default): sleep when the machine is idle,\n");
+    printf("                          little host CPU. full: never sleep - full speed, one\n");
+    printf("                          host core always busy. Also [runtime] host_cpu\n");
     printf("           --idle-count=N Sleep 1 ms after N instructions on level 0 with paging and\n");
     printf("                          interrupts on (idle SINTRAN). Default by boot type: 2000 for\n");
     printf("                          smd/scsi/wd/cdc, 50000 for floppy and directly loaded\n");

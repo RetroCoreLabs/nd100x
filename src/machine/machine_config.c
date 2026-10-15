@@ -212,6 +212,7 @@ void mc_init_baseline(MachineConfig *cfg)
     cfg->runtime.telnet_port = 0;
     cfg->runtime.throttle_mhz = 0.0;
     cfg->runtime.idle_count = -1;
+    cfg->runtime.host_cpu_full = -1;
     str_copy(cfg->runtime.charset, sizeof(cfg->runtime.charset), "off");
     cfg->runtime.debugger_port = 0;
     cfg->runtime.trace = false;
@@ -1496,6 +1497,21 @@ bool mc_load_file(MachineConfig *cfg, const char *path, char *err, size_t errlen
             {
                 cfg->runtime.throttle_mhz = strtod(val, NULL);
             }
+            else if (str_ieq(keyl, "host_cpu"))
+            {
+                if (str_ieq(val, "full"))
+                {
+                    cfg->runtime.host_cpu_full = 1;
+                }
+                else if (str_ieq(val, "low"))
+                {
+                    cfg->runtime.host_cpu_full = 0;
+                }
+                else
+                {
+                    fprintf(stderr, "nd100x: [runtime] host_cpu = %s - must be low or full\n", val);
+                }
+            }
             else if (str_ieq(keyl, "idle_count"))
             {
                 long n = strtol(val, NULL, 10);
@@ -2204,6 +2220,10 @@ bool mc_write_file(const MachineConfig *cfg, const char *path, char *err, size_t
     if (cfg->runtime.throttle_mhz)
     {
         fprintf(f, "throttle = %g\n", cfg->runtime.throttle_mhz);
+    }
+    if (cfg->runtime.host_cpu_full >= 0)
+    {
+        fprintf(f, "host_cpu = %s\n", cfg->runtime.host_cpu_full ? "full" : "low");
     }
     if (cfg->runtime.idle_count >= 0)
     {

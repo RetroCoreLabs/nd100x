@@ -101,9 +101,15 @@ build/bin/nd100x --pipe --boot=smd --config <ini> --rtc=ticks --trace \
     | grep -av 'time used\|usertime\|cycle time' | md5sum
 ```
 
-Do the same for `--boot=floppy` (40 000 000) and for a winchester boot
-(60 000 000), on scratch copies. `--rtc=ticks` is what makes the run
+Do the same for a winchester boot (60 000 000) and, if a SCSI pack is at hand,
+a SCSI boot, on scratch copies. `--rtc=ticks` is what makes the run
 repeatable.
+
+NOT a floppy (TPE) boot: its trace is not repeatable even with the same
+binary. The TPE monitor reads the panel status register (`TRA PANS`), which is
+written in `src/devices/panel/panel.c`. MEASURED 14-OCT-2026: two runs of one
+binary first differ at trace line 1 119 424, `A=172250` against `A=172360`
+after `TRA PANS`. Check a floppy-only change with the TPE programs instead.
 
 ## WASM / glass UI changes
 
