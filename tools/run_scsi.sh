@@ -4,13 +4,13 @@
 #
 # Two ways to exercise the SCSI disk:
 #
-#   ./run_scsi.sh          Boot SINTRAN from SMD0.IMG with the SCSI card
-#                          attached, then mount the SCSI disk by hand.
-#   ./run_scsi.sh boot     Boot directly from the SCSI disk.
-#   ./run_scsi.sh debug    As default, plus the --scsi-debug protocol log.
+#   tools/run_scsi.sh          Boot SINTRAN from SMD0.IMG with the SCSI card
+#                              attached, then mount the SCSI disk by hand.
+#   tools/run_scsi.sh boot     Boot directly from the SCSI disk.
+#   tools/run_scsi.sh debug    As default, plus the --scsi-debug protocol log.
 #
 # Any extra arguments are passed through to nd100x, e.g.
-#   ./run_scsi.sh debug --trace
+#   tools/run_scsi.sh debug --trace
 #
 # ---------------------------------------------------------------------------
 # Mounting the SCSI disk from a running SINTRAN (the default mode)
@@ -29,7 +29,7 @@
 # NOTE on SCSI-K.image
 # ---------------------------------------------------------------------------
 # The repo copy of SCSI-K.image has been modified in two places so it can be
-# mounted alongside SMD0.IMG. The original at D:\ND\HDD\SCSI-K.image is
+# mounted alongside SMD0.IMG. The original copy outside the repo is
 # untouched. Both edits are in the master block (image bytes 2000-2047):
 #
 #   * directory name       PACK-ONE -> SCSI-PACK
@@ -54,7 +54,7 @@
 
 set -e
 
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."    # the repo root; this script lives in tools/
 
 NDX=./build/bin/nd100x
 SCSI_IMAGE=SCSI-K.image
@@ -66,7 +66,7 @@ fi
 
 if [ ! -f "$SCSI_IMAGE" ]; then
     echo "Error: $SCSI_IMAGE not found in $(pwd)." >&2
-    echo "Copy it in with:  cp /mnt/d/ND/HDD/SCSI-K.image ." >&2
+    echo "Copy your SCSI-K.image into the repo root first." >&2
     exit 1
 fi
 

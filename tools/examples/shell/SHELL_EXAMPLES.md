@@ -32,13 +32,13 @@ Then in the shell:
 cd /path/to/nd100x
 
 # Use the example config (edit nd100_root path if needed)
-./build/bin/nd100x --config=example-shell-config.ini
+./build/bin/nd100x --config=tools/examples/shell/example-shell-config.ini
 ```
 
 **Edit first:**
 ```bash
 # Change the path in the INI file
-nano example-shell-config.ini
+nano tools/examples/shell/example-shell-config.ini
 # Find line: nd100_root = /path/to/bpun
 # Change to your path if needed
 ```
@@ -51,13 +51,13 @@ cd /path/to/nd100x
 # Run commands automatically from script
 ./build/bin/nd100x --monitor \
   --nd100-root=/path/to/bpun \
-  --script=example-shell-commands.sh
+  --script=tools/examples/shell/example-shell-commands.sh
 ```
 
 **Edit script first:**
 ```bash
 # Uncomment or edit commands in the script
-nano example-shell-commands.sh
+nano tools/examples/shell/example-shell-commands.sh
 ```
 
 ---
@@ -268,10 +268,10 @@ ls /path/to/bpun/*.bpun
 
 ## File Locations (Created Files)
 
-**Example files:**
+**Example files (all in `tools/examples/shell/`):**
 - `example-shell-config.ini`
 - `example-shell-commands.sh`
-- `SHELL_EXAMPLES.md` ← You are here
+- `SHELL_EXAMPLES.md` - this file
 
 **Quick Start Guide:**
 - `docs/ND100X_SHELL_QUICKSTART.md`

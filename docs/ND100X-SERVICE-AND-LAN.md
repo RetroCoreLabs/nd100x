@@ -233,7 +233,7 @@ After=nd100x-net.service
 [Service]
 User=ronny
 WorkingDirectory=/home/ronny/repos/nd100x
-ExecStart=/usr/local/bin/nd100x --config nd100-eth.ini
+ExecStart=/usr/local/bin/nd100x --config config/nd100-eth.ini
 Restart=on-failure
 RestartSec=5
 StandardInput=null
@@ -242,7 +242,7 @@ StandardInput=null
 WantedBy=multi-user.target
 ```
 
-**The INI** (`nd100-eth.ini`, the part that matters; the rest is the
+**The INI** (`config/nd100-eth.ini`, the part that matters; the rest is the
 existing file):
 
 ```ini

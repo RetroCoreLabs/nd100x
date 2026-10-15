@@ -493,7 +493,7 @@ Uncommitted in RetroCore.
 - WD0-SINTRAN-M.IMG: (SYSTEM)AIP-CONFIG:SYMB and AIP-HOSTS:SYMB moved from
   192.168.199.x (Windows ND-Loopback, RetroCore) to 192.168.210.x with ndtool --put;
   fsck 0 errors, same 6 warnings as before; original kept as WD0-SINTRAN-M.IMG.orig.
-- Measured with nd100x --config nd100-eth.ini (net = tap:nd0, host 192.168.210.1/24):
+- Measured with nd100x --config config/nd100-eth.ini (net = tap:nd0, host 192.168.210.1/24):
   SINTRAN console "TELNET and TCP/IP in Ethernet II with Internet address
   192.168.210.40 started"; Linux ARP 192.168.210.40 -> 08:00:26:d2:00:00;
   ping 4/4, rtt 0.78-1.87 ms; TCP port 23 answered "Telnet Server D02 on c3

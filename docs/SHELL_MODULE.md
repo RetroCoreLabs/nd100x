@@ -854,7 +854,7 @@ The ND-100X Interactive Shell provides:
 
 ## References
 
-- **Quick Start:** `SHELL_EXAMPLES.md`
+- **Quick Start:** `tools/examples/shell/SHELL_EXAMPLES.md`
 - **File Loading:** `docs/ND100X_FILE_LOADING_ARCHITECTURE.md`
 - **Implementation Plan:** `docs/ND100X_SHELL_IMPLEMENTATION_PLAN.md`
 - **Source Code:** `src/frontend/nd100x/nd100x_shell.{c,h}` (470 lines)

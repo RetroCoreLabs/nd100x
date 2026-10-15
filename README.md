@@ -51,7 +51,7 @@ Load and run BPUN files directly from the command line without the GUI:
 - ✅ Readline support (history, editing)
 - ✅ Works on headless systems and CI/CD
 
-**Documentation:** See **[SHELL_MODULE.md](docs/SHELL_MODULE.md)** for comprehensive guide, API reference, and examples. Quick-start examples at **[SHELL_EXAMPLES.md](SHELL_EXAMPLES.md)**.
+**Documentation:** See **[SHELL_MODULE.md](docs/SHELL_MODULE.md)** for comprehensive guide, API reference, and examples. Quick-start examples at **[SHELL_EXAMPLES.md](tools/examples/shell/SHELL_EXAMPLES.md)**.
 
 ## Origins
 

@@ -220,7 +220,7 @@ line wins.
 
 Naming the section adds the card; `enabled = no` leaves it out.
 
-INI example (`nd100-eth.ini` in the repository root is a complete machine):
+INI example (`config/nd100-eth.ini` is a complete machine):
 
 ```ini
 [controller.eth.0]
@@ -230,7 +230,7 @@ net = tap:nd0
 # trace = eth-trace.txt
 ```
 
-`nd100x --config nd100-eth.ini --show-config` prints the card as it was
+`nd100x --config config/nd100-eth.ini --show-config` prints the card as it was
 understood, for example:
 
 ```
@@ -427,7 +427,7 @@ The edit can also be made inside SINTRAN with its own editor.
 
 ## 6. Checking that it works
 
-Measured 10-OCT-2026 with `nd100x --config nd100-eth.ini` (SINTRAN III
+Measured 10-OCT-2026 with `nd100x --config config/nd100-eth.ini` (SINTRAN III
 VSX/500 M on WD0-SINTRAN-M.IMG, `net = tap:nd0`, host 192.168.210.1/24):
 
 1. The SINTRAN console prints during start-up:
@@ -519,7 +519,7 @@ the same segment with the `udp` or TCP backends.
 On Windows the card reaches the network through **Npcap**:
 
 ```
-nd100x --config nd100-eth.ini --eth0=pcap:ND-Loopback
+nd100x --config config/nd100-eth.ini --eth0=pcap:ND-Loopback
 ```
 
 or in the INI, under `[controller.eth.0]`: `net = pcap:ND-Loopback`.
