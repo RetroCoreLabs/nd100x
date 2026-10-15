@@ -55,7 +55,7 @@ Extra gates for the modules they guard, run after any step that touches them:
 | G10 | TPE `INSTRUCTION-C03` and `PAGING-C02` via `tools/tpe_autorun.py` on a scratch `FLOPPY.IMG` | any step touching `src/cpu/` or `src/machine/` |
 | G11 | Winchester boot (scratch `WD0.IMG`) to `SINTRAN III RUNNING` | any step touching `src/devices/` |
 | G12 | Floppy boot to `TPE Monitor` | any step touching `src/devices/floppy/` |
-| G13 | Puppeteer: `verify-disasm-worker.js`, `test-gateway-browser.js`, `test-hdd-manager-browser.js` (the Winchester-tab check fixed first, see phase 0) | any step touching `src/frontend/nd100wasm/` or exported `Dbg_*` |
+| G13 | Puppeteer: `tests/browser/verify-disasm-worker.js`, `tests/browser/test-gateway-browser.js`, `tests/browser/test-hdd-manager-browser.js` (the Winchester-tab check fixed first, see phase 0) | any step touching `src/frontend/nd100wasm/` or exported `Dbg_*` |
 | G14 | DAP attach + pause confirmed stopped, port 6661 | any step touching `src/debugger/` |
 
 Rules for running the gate: scratch copies only, never the repo images;

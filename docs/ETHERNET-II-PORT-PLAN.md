@@ -385,7 +385,7 @@ Todos:
       Browser run 10-OCT-2026 (machines "TCP/IP" and "COSMOS" in
       machine-profiles.js, images/WD0-SINTRAN-M.IMG.bz2 and
       images/BIGDISK0-K-100.IMG.bz2, catalog entries in disk-catalog.json;
-      test: node test-eth-nd100-browser.js [--machine=COSMOS], headless
+      test: node tests/browser/test-eth-nd100-browser.js [--machine=COSMOS], headless
       puppeteer, Worker mode, a gateway with Ethernet segment 0 and a plain
       RETH member on that segment):
         * TCP/IP: 7/7. SINTRAN prints "192.168.210.40 started"; an ARP

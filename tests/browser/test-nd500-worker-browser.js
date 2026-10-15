@@ -22,7 +22,7 @@
 // ethernet segment a native nd500x joins.
 //
 // Prerequisites: make wasm-glass, and an NDIX image (ND500X_ROOT or NDIX_IMAGE).
-// Usage: node test-nd500-worker-browser.js [--verbose] [--headed]
+// Usage (from the repo root): node tests/browser/test-nd500-worker-browser.js [--verbose] [--headed]
 
 'use strict';
 
@@ -31,6 +31,7 @@ const net = require('net');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const REPO_ROOT = path.resolve(__dirname, '..', '..'); // this file lives in tests/browser/
 const { spawn, execFileSync } = require('child_process');
 
 const verbose = process.argv.includes('--verbose') || process.argv.includes('-v');
@@ -39,9 +40,9 @@ const headed = process.argv.includes('--headed');
 const HTTP_PORT = 19081;
 const WS_PORT = 19766;
 const ETH_PORT = 19094;
-const SERVE_DIR = path.join(__dirname, 'build_wasm_glass', 'bin');
+const SERVE_DIR = path.join(REPO_ROOT, 'build_wasm_glass', 'bin');
 const ND500X_ROOT = process.env.ND500X_ROOT ||
-      path.resolve(__dirname, '..', 'nd500x');
+      path.resolve(REPO_ROOT, '..', 'nd500x');
 const NDIX_IMAGE = process.env.NDIX_IMAGE ||
       path.join(ND500X_ROOT, 'docker', 'disk', 'rootfs_net.img');
 
@@ -127,7 +128,7 @@ async function cleanup() {
     ethernet: [{ name: 'ETH-0', segment: 0, port: ETH_PORT, enabled: true }],
     smd: { images: [] }, floppy: { images: [] }, scsi: { images: [] }
   }));
-  gatewayProc = spawn('node', [path.join(__dirname, 'tools', 'nd100-gateway', 'gateway.js'),
+  gatewayProc = spawn('node', [path.join(REPO_ROOT, 'tools', 'nd100-gateway', 'gateway.js'),
                                '--config', conf],
                       { stdio: verbose ? 'inherit' : 'ignore' });
   await sleep(1500);

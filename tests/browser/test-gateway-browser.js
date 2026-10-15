@@ -8,7 +8,7 @@
 //   - make wasm-glass (build must be complete)
 //   - npm install (puppeteer must be available)
 //
-// Usage: node test-gateway-browser.js [--verbose] [--headed]
+// Usage (from the repo root): node tests/browser/test-gateway-browser.js [--verbose] [--headed]
 
 'use strict';
 
@@ -17,8 +17,10 @@ const http = require('http');
 const net = require('net');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
+const REPO_ROOT = path.resolve(__dirname, '..', '..'); // this file lives in tests/browser/
 const { spawn } = require('child_process');
-const WebSocket = require('./node_modules/ws');
+const WebSocket = require('ws');
 
 const verbose = process.argv.includes('--verbose') || process.argv.includes('-v');
 const headed = process.argv.includes('--headed');
@@ -26,7 +28,7 @@ const headed = process.argv.includes('--headed');
 const HTTP_PORT = 19080;
 const WS_PORT = 19765;
 const TCP_PORT = 19001;
-const SERVE_DIR = path.join(__dirname, 'build_wasm_glass', 'bin');
+const SERVE_DIR = path.join(REPO_ROOT, 'build_wasm_glass', 'bin');
 
 let httpServer = null;
 let gatewayProc = null;
@@ -96,7 +98,7 @@ function startHTTPServer() {
 // =========================================================
 function startGateway() {
   return new Promise((resolve, reject) => {
-    const configPath = path.join(__dirname, '.test-browser-gateway.json');
+    const configPath = path.join(os.tmpdir(), '.test-browser-gateway.json');
     fs.writeFileSync(configPath, JSON.stringify({
       websocket: { port: WS_PORT },
       terminals: { port: TCP_PORT, welcome: 'Test Terminal Server' },
@@ -104,7 +106,7 @@ function startGateway() {
     }));
 
     gatewayProc = spawn('node', [
-      path.join(__dirname, 'tools', 'nd100-gateway', 'gateway.js'),
+      path.join(REPO_ROOT, 'tools', 'nd100-gateway', 'gateway.js'),
       '--config', configPath
     ], { stdio: verbose ? 'inherit' : 'pipe' });
 
@@ -151,7 +153,7 @@ function tcpRead(sock, ms) {
 // Cleanup
 // =========================================================
 async function cleanup() {
-  try { fs.unlinkSync(path.join(__dirname, '.test-browser-gateway.json')); } catch(e) {}
+  try { fs.unlinkSync(path.join(os.tmpdir(), '.test-browser-gateway.json')); } catch(e) {}
   if (browser) try { await browser.close(); } catch(e) {}
   if (gatewayProc) try { gatewayProc.kill('SIGTERM'); } catch(e) {}
   if (httpServer) httpServer.close();

@@ -9,7 +9,7 @@
 //   3. the disk manager window opens without error
 //
 // Prerequisites: make wasm-glass; npm install (puppeteer).
-// Usage: node test-hdd-manager-browser.js [--verbose] [--headed]
+// Usage (from the repo root): node tests/browser/test-hdd-manager-browser.js [--verbose] [--headed]
 
 'use strict';
 
@@ -17,11 +17,12 @@ const puppeteer = require('puppeteer');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const REPO_ROOT = path.resolve(__dirname, '..', '..'); // this file lives in tests/browser/
 
 const verbose = process.argv.includes('--verbose') || process.argv.includes('-v');
 const headed = process.argv.includes('--headed');
 const HTTP_PORT = 19081;
-const SERVE_DIR = path.join(__dirname, 'build_wasm_glass', 'bin');
+const SERVE_DIR = path.join(REPO_ROOT, 'build_wasm_glass', 'bin');
 
 let httpServer = null, browser = null, passed = 0, failed = 0;
 function log(...a){ if (verbose) console.log('  [test]', ...a); }

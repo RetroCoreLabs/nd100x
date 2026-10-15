@@ -151,7 +151,7 @@ over ordinary TCP -- no emulator, no browser, no disk image.
 in `build_wasm/bin/`. It does **not** prove frames reach NDIX -- that needs a
 booted guest and belongs in an end-to-end run.
 
-A fourth suite, `test-gateway-browser.js` (Puppeteer, 10 checks), drives the
+A fourth suite, `tests/browser/test-gateway-browser.js` (Puppeteer, 10 checks), drives the
 whole stack through a real page; it lives with the Glass UI tests, not here.
 
 ## Known limits

@@ -652,7 +652,7 @@ Port 3094 is not used by the browser: the page's frames reach the gateway
 over the WebSocket. 3094 is where programs OUTSIDE the gateway join the
 same segment - reth-tap, a native nd100x, RetroCore.
 
-Measured 10-OCT-2026 with `node test-eth-nd100-browser.js --tap=nd0`
+Measured 10-OCT-2026 with `node tests/browser/test-eth-nd100-browser.js --tap=nd0`
 (headless, Worker mode, test gateway on segment port 19094): host ping
 answered, port 23 returns `Telnet Server D02 on c3 (192.168.210.040)
 available.` and the SINTRAN `ENTER` prompt. `--machine=COSMOS` boots the

@@ -259,7 +259,7 @@ if has_extra wasm; then
     step "G13 puppeteer"
     [ -d build_wasm_glass/bin ] || fail "run make wasm-glass first (puppeteer serves build_wasm_glass/bin)"
     for t in verify-disasm-worker.js test-gateway-browser.js test-hdd-manager-browser.js; do
-        timeout 300 node "$t" >"$TMP/$t.log" 2>&1 || { tail -20 "$TMP/$t.log"; fail "$t"; }
+        timeout 300 node "tests/browser/$t" >"$TMP/$t.log" 2>&1 || { tail -20 "$TMP/$t.log"; fail "$t"; }
         echo "$t: pass"
     done
 fi

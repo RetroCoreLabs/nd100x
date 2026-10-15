@@ -10,7 +10,7 @@
 // It mounts SMD0.IMG via OPFS on unit 0 in Worker mode, reads sector 0, and
 // disassembles a handful of words. No SINTRAN boot required.
 //
-// Usage: node verify-disasm-worker.js [--headed]
+// Usage (from the repo root): node tests/browser/verify-disasm-worker.js [--headed]
 
 'use strict';
 
@@ -18,10 +18,11 @@ const puppeteer = require('puppeteer');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const REPO_ROOT = path.resolve(__dirname, '..', '..'); // this file lives in tests/browser/
 
 const headed = process.argv.includes('--headed');
 const HTTP_PORT = 19081;
-const SERVE_DIR = path.join(__dirname, 'build_wasm_glass', 'bin');
+const SERVE_DIR = path.join(REPO_ROOT, 'build_wasm_glass', 'bin');
 
 let httpServer = null;
 let browser = null;

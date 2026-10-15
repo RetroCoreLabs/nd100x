@@ -108,17 +108,22 @@ repeatable.
 ## WASM / glass UI changes
 
 Do not declare a browser-facing fix done on build success alone - verify it
-headlessly with puppeteer. Working examples at the repo root:
+headlessly with puppeteer. Working examples in `tests/browser/`:
 
-- verify-disasm-worker.js - worker mode + OPFS mount + segment disassembly
-- test-gateway-browser.js - gateway / SharedArrayBuffer disk I/O
-- test-hdd-manager-browser.js - HDD manager window
+- tests/browser/verify-disasm-worker.js - worker mode + OPFS mount + segment disassembly
+- tests/browser/test-gateway-browser.js - gateway / SharedArrayBuffer disk I/O
+- tests/browser/test-hdd-manager-browser.js - HDD manager window
+- tests/browser/test-nd500-worker-browser.js - ND-500 in Worker mode over the gateway
+- tests/browser/test-eth-nd100-browser.js - Ethernet II card through the gateway
 
-Puppeteer scripts MUST run from the repo root (local puppeteer dependency).
-Typical cycle:
+The scripts find puppeteer in the repo's node_modules from any folder inside
+the repo (Node walks up from the script's own directory); they locate
+build_wasm_glass/bin and tools/ from their own location, so the working
+directory does not matter. New browser tests go in tests/browser/, never in
+the repo root. Typical cycle:
 ```bash
 make wasm-glass
-node verify-disasm-worker.js
+node tests/browser/verify-disasm-worker.js
 ```
 
 ## Symbol-table / SINTRAN inspector changes

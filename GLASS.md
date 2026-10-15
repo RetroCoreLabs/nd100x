@@ -1195,7 +1195,7 @@ Four test suites verify the bridge:
 | Gateway unit tests | `tools/nd100-gateway/test-gateway.js` | 14 | `make gateway-test` |
 | Ethernet segment | `tools/nd100-gateway/test-ethernet.js` | 13 | `make gateway-test` |
 | ND-500 ethernet exports | `tools/nd100-gateway/test-eth-wasm.js` | 17 | `make gateway-test-wasm` |
-| Browser integration | `test-gateway-browser.js` | 10 | `node test-gateway-browser.js` |
+| Browser integration | `tests/browser/test-gateway-browser.js` | 10 | `node tests/browser/test-gateway-browser.js` |
 
 **Gateway unit tests** verify: server start, WebSocket connect/reject (2 allowed, 3rd rejected), TCP banner, terminal registration, menu selection, byte forwarding (both directions), disconnect handling, reconnection, and menu refresh.
 

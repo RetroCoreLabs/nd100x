@@ -24,7 +24,7 @@
 // expected back.
 //
 // Prerequisites: make wasm-glass (or BUILD_DIR=<dir> for another build dir).
-// Usage (from the repo root): node test-eth-nd100-browser.js [--machine=COSMOS] [--tap=nd0] [--verbose] [--headed]
+// Usage (from the repo root): node tests/browser/test-eth-nd100-browser.js [--machine=COSMOS] [--tap=nd0] [--verbose] [--headed]
 
 'use strict';
 
@@ -32,12 +32,14 @@ const puppeteer = require('puppeteer');
 const net = require('net');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
+const REPO_ROOT = path.resolve(__dirname, '..', '..'); // this file lives in tests/browser/
 const { spawn, execFileSync } = require('child_process');
 
 const verbose = process.argv.includes('--verbose') || process.argv.includes('-v');
 const headed = process.argv.includes('--headed');
 
-const SERVE_DIR = path.join(__dirname, process.env.BUILD_DIR || 'build_wasm_glass', 'bin');
+const SERVE_DIR = path.join(REPO_ROOT, process.env.BUILD_DIR || 'build_wasm_glass', 'bin');
 const WS_PORT = 19766;
 const ETH_PORT = 19094;
 const TERM_PORT = 19003;
@@ -158,7 +160,7 @@ async function waitFor(fn, ms) {
 
 // The host itself on the segment, through reth-tap and the TAP device.
 async function hostChecks() {
-  const bin = path.join(__dirname, 'tools', 'reth-tap', 'reth-tap');
+  const bin = path.join(REPO_ROOT, 'tools', 'reth-tap', 'reth-tap');
   tapProc = spawn(bin, ['--dev', TAP, '--host', '127.0.0.1', '--port', String(ETH_PORT)],
                   { stdio: verbose ? 'inherit' : 'ignore' });
   await sleep(2000);
@@ -239,7 +241,7 @@ async function cleanup() {
 
   // The gateway serves the build (staticDir sends the COOP/COEP headers) and
   // carries Ethernet segment 0.
-  confPath = path.join(__dirname, '.test-eth-nd100-gateway.json');
+  confPath = path.join(os.tmpdir(), '.test-eth-nd100-gateway.json');
   fs.writeFileSync(confPath, JSON.stringify({
     websocket: { port: WS_PORT }, staticDir: SERVE_DIR,
     terminals: { port: TERM_PORT, welcome: 'nd100 eth test' },
@@ -247,7 +249,7 @@ async function cleanup() {
     ethernet: [{ name: 'ETH-0', segment: 0, port: ETH_PORT, enabled: true }],
     smd: { images: [] }, floppy: { images: [] }, scsi: { images: [] }
   }));
-  gatewayProc = spawn('node', [path.join(__dirname, 'tools', 'nd100-gateway', 'gateway.js'),
+  gatewayProc = spawn('node', [path.join(REPO_ROOT, 'tools', 'nd100-gateway', 'gateway.js'),
                                '--config', confPath].concat(verbose ? ['--verbose'] : []), { stdio: verbose ? 'inherit' : 'ignore' });
   await sleep(1500);
   observer = await joinSegment(ETH_PORT);
