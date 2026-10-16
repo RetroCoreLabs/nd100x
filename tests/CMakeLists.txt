@@ -650,3 +650,18 @@ endif()
 if(ND100X_ENABLE_ETHERNET)
     add_subdirectory(ethernet)
 endif()
+
+# QPC tick-to-nanosecond conversion regression (src/ndlib/qpc_time.h)
+#
+# Header-only pure arithmetic, so it runs on every host, not just Windows.
+# Guards the 64-bit overflow that stopped the wall-clock RTC every 1844.67 s
+# on Windows (bug report 16-OCT-2026).
+add_executable(test_qpc_time
+    test_qpc_time.c
+)
+
+target_include_directories(test_qpc_time PRIVATE
+    ${CMAKE_SOURCE_DIR}/src/ndlib
+)
+
+add_test(NAME qpc_time_tests COMMAND test_qpc_time)

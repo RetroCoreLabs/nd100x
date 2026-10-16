@@ -33,6 +33,7 @@
 
 #if defined(_WIN32) || defined(_WIN64)
 #include <windows.h>
+#include "qpc_time.h"
 #else
 #include <time.h>
 #endif
@@ -79,7 +80,7 @@ static uint64_t rtc_now_ns(void)
     }
     LARGE_INTEGER now;
     QueryPerformanceCounter(&now);
-    return (uint64_t)(now.QuadPart * 1000000000ULL / freq.QuadPart);
+    return qpc_ticks_to_ns((uint64_t)now.QuadPart, (uint64_t)freq.QuadPart);
 #else
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
