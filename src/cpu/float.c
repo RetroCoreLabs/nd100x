@@ -28,7 +28,8 @@
  * 48-bit floating point arithmetic for the ND-100.
  *
  * Reimplemented using pure integer arithmetic (ported from the SIMH
- * ND100 simulator) instead of the previous long double approach.
+ * ND100 simulator, with permission from Ragge) instead of the previous
+ * long double approach.
  * This gives bit-exact results matching the real hardware.
  *
  * ND-100 48-bit float format (3 x 16-bit words):
