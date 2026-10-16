@@ -59,7 +59,7 @@
   // off an image served next to the page:
   //   ND-100    - SINTRAN from SMD0.IMG.
   //   ND-5000   - SINTRAN L from ND5000-SMD0.IMG, with an ND-5000 CPU on the octobus (MFbus shared
-  //               memory, station 070B), as ND5000.ini does natively. The
+  //               memory, station 070B), as config/ND5000.ini does natively. The
   //               mms log category is held at warn: the ND-5000 mailbox/MON
   //               traffic at info floods the console once the CPU starts.
   //   BSD 2.11  - the BSD port, from the Winchester image BSD211-WD0.IMG

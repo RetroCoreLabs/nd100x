@@ -683,7 +683,7 @@
     out.push('');
 
     if (chk('mf-nd5000')) {
-      // Same sections ND5000.ini ships with. Naming a section is what
+      // Same sections config/ND5000.ini ships with. Naming a section is what
       // enables it, so an unticked box writes none of them.
       out.push('[mfbus]');
       out.push('size      = 8');

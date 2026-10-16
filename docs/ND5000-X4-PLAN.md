@@ -158,7 +158,7 @@ Still process-wide in the ND-500 core, i.e. shared by four threads `[READ]`:
 
 ### Phase 5 - validation on SINTRAN (needs Ronny's go: long runs)
 
-- [x] 5.1 Scratch copy of `ND5000.IMG`; an INI derived from `ND5000.ini` with
+- [x] 5.1 Scratch copy of `ND5000.IMG`; an INI derived from `config/ND5000.ini` with
       `[nd5000.1]`..`[nd5000.4]`. Boot to the SINTRAN prompt. ~8 minutes per
       boot `[MEASURED in earlier sessions, per nd500x docs]`.
 - [ ] 5.2 Evidence that SINTRAN found four CPUs: the bridge's
@@ -180,7 +180,7 @@ Still process-wide in the ND-500 core, i.e. shared by four threads `[READ]`:
 - [x] 6.1 `docs/ND5000-MULTI-CPU.md`: the limit and its sources, the INI
       schema for four CPUs, the three numberings, the concurrency model as
       built, what is per CPU and what is shared, how to validate, open items.
-- [x] 6.2 `ND5000.ini`: a commented four-CPU example (sections 2-4 present,
+- [x] 6.2 `config/ND5000.ini`: a commented four-CPU example (sections 2-4 present,
       disabled).
 - [x] 6.3 `template-glass/data/machines.json:72` still says "up to seven" -
       change to four.

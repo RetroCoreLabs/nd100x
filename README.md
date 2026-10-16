@@ -322,8 +322,8 @@ has not been tested yet.
 
 An ND-5000 is added to the machine through three sections of the machine
 configuration INI. Naming a section is what enables it; deleting or commenting
-it out switches the hardware off again. `ND5000.ini` in the repository root is a
-complete example:
+it out switches the hardware off again. `config/ND5000.ini` is a complete,
+commented example:
 
 ```ini
 [machine]
@@ -346,7 +346,7 @@ nd100   = yes
 nd500_p = yes
 nd500_d = yes
 
-[controller.octobus.0]    ; the octobus card, IOX 100400-100437, level 13
+[controller.octobus.0]    ; the octobus card, IOX 100400-100407, level 13
 enabled = yes
 
 [nd5000.1]                ; the ND-5000 CPU in slot 1
@@ -357,7 +357,7 @@ station = 070B
 Start it with:
 
 ```bash
-build/bin/nd100x --config ND5000.ini
+build/bin/nd100x --config config/ND5000.ini
 ```
 
 Things to know:
@@ -366,8 +366,9 @@ Things to know:
   `DEFINE-MEMORY-CONFIGURATION` asks for: give the monitor `04100B` when the INI says
   `04100B`. The pool must not overlap installed ND-100 memory; the emulator refuses to
   start the bus if it does.
-* **Slots and stations.** `<n>` in `[nd5000.<n>]` is the CPU slot. The octobus has
-  seven stations, 070B to 076B, so up to seven ND-5000s; a duplicate slot is an error.
+* **Slots and stations.** `<n>` in `[nd5000.<n>]` is the CPU slot, 1 to 4. The
+  configuration allows stations 070B to 073B, four CPUs, as the largest shipped
+  ND-5900 had; a duplicate slot is an error.
   The ND-100 is always station 1B. Identification codes come from the hardware, never
   from the INI.
 * **The disk.** The SMD image must be a SINTRAN pack with ND-500 support. Disk images

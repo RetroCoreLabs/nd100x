@@ -1528,7 +1528,7 @@ void config_print_help(const char *prog_name)
     printf("  %s --boot=smd1                  # Boot from SMD unit 1\n", prog_name);
     printf("  %s --boot=scsi0 --scsi0=hdd:SCSI-K.image  # Boot from SCSI ID 0\n", prog_name);
     printf("  %s --hdlc=1:5000 --hdlc=2:5001  # Two HDLC devices\n", prog_name);
-    printf("  %s --config ND5000.ini           # ND-100 booting SINTRAN from an SMD pack\n",
+    printf("  %s --config config/ND5000.ini    # ND-100 booting SINTRAN from an SMD pack\n",
            prog_name);
     printf("                                    # with MFbus, octobus and an ND-5000 enabled\n");
 
