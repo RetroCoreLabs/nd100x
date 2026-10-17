@@ -247,15 +247,15 @@ static void cjp(bool jmp_flag, uint16_t operand)
  * BACK-WIRING PROM, read by VERSN itself through the dedicated microcode IDB
  * source IDBS,INR (code 35 octal) which is wired to eight backplane pins; the
  * CPU board drives PIL[3:0] out to the B-plug and reads INR[7:0] back.
- *   - E:/Dev/Ronny/nd-120/Verilog/DECODE-GateArray/DGA/circuit/DECODE_DGA_IDBS.v:32
- *   - E:/Dev/Ronny/nd-120/Verilog/CPU-BOARD-3202/circuit/ND3202D.v:83,89
+ *   - Verilog/DECODE-GateArray/DGA/circuit/DECODE_DGA_IDBS.v:32 (nd-120 repository)
+ *   - Verilog/CPU-BOARD-3202/circuit/ND3202D.v:83,89 (nd-120 repository)
  * The byte address is the PIL, loaded from A bits 8-11 by COMM,LDPIL. A
  * microcode bug (LDPIL has not settled when the next microword samples
  * IDBS,INR) means the CURRENT PIL is used, which is why SINTRAN's GCPUNR runs
  * VERSN once on each of levels 0-7 to collect bytes 0-7:
  *   "DUE TO ERROR IN MICROPROGRAM THE VERSN INSTRUCTION HAS TO BE EXECUTED ON
  *    THE LEVEL CORRESPONDING TO THE BYT NO. TO BE READ"
- *   E:/Dev/Ronny/NDInsight/SINTRAN/NPL-SOURCE/NPL/PH-P2-OPPSTART.NPL:3534-3570
+ *   SINTRAN/NPL-SOURCE/NPL/PH-P2-OPPSTART.NPL:3534-3570 (NDInsight repository)
  * GCPUNR also sets A = level << 8 before each VERSN, so indexing from A bits
  * 8-11 (as below) returns exactly the byte the real hardware returns. No extra
  * device, memory region or IOX port is needed to model the PROM.

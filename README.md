@@ -63,7 +63,7 @@ The original project can be found at <https://github.com/tingox/nd100em> and <ht
 
 ## Status
 
-Version 1.0.16
+Version 1.0.22 (the version in `CMakeLists.txt`; the latest tag is `v1.0.22`)
 
 The emulator is under active development.
 
