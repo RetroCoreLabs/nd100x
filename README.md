@@ -653,12 +653,6 @@ If a build job fails the release is **not** published — `needs: [build-linux, 
 See [CONTRIBUTING.md](CONTRIBUTING.md). Documentation follows the house standards: run
 `python tools/check-docs.py` before opening a pull request.
 
-## License
-
-GNU General Public License, version 2 or later - inherited from nd100em, see
-[Origins](#origins) above. The [LICENSE](LICENSE) file holds the GPL version 2 text, which is what
-the source file headers refer to.
-
 ## Provenance and rights of the disk images
 
 - **The GPL covers the emulator source only.** The disk images in `images/` hold other people's
@@ -669,3 +663,9 @@ the source file headers refer to.
   want an image removed, open an issue in this repository and it will be taken down.
 - **The ND-100 floating-point code** in `src/cpu/float.c` comes from Ragge's simulator and is used
   with permission, as the file says.
+
+## License
+
+GNU General Public License, version 2 or later - inherited from nd100em, see
+[Origins](#origins) above. The [LICENSE](LICENSE) file holds the GPL version 2 text, which is what
+the source file headers refer to.
