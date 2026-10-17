@@ -656,4 +656,16 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Documentation follows the house standard
 ## License
 
 GNU General Public License, version 2 or later - inherited from nd100em, see
-[Origins](#origins) above. See the [LICENSE](LICENSE) file for the full text.
+[Origins](#origins) above. The [LICENSE](LICENSE) file holds the GPL version 2 text, which is what
+the source file headers refer to.
+
+## Provenance and rights of the disk images
+
+- **The GPL covers the emulator source only.** The disk images in `images/` hold other people's
+  software: Norsk Data's SINTRAN III, NORD TSS and ND-5000 software, 2.11BSD, and programs from
+  Norsk Data disks that were preserved as files. They are not relicensed by this repository.
+- **Norsk Data no longer operates, and I do not know who holds the rights to its software today.**
+  The images are here so the machines can run and the software is not lost. If you hold rights and
+  want an image removed, open an issue in this repository and it will be taken down.
+- **The ND-100 floating-point code** in `src/cpu/float.c` comes from Ragge's simulator and is used
+  with permission, as the file says.
