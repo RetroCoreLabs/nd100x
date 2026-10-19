@@ -95,3 +95,6 @@ tools/__pycache__/
 /*.image
 *:Zone.Identifier
 .gate.lock/
+
+# local assistant notes stay out of the repository
+CLAUDE.md

@@ -118,6 +118,10 @@ body {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Links to the RetroCore Labs front page and to the GitHub repository, at the right end of the
+   toolbar. The organisation picture is a dark square, so it sits on a light backing. */
+.toolbar-link { text-decoration: none; color: inherit; }
+.toolbar-link img { display: block; border-radius: 4px; background: #e7eaf0; padding: 2px; box-sizing: content-box; width: 22px; height: 22px; }
 .cpu-load-container {
   display: flex;
   align-items: center;
@@ -3768,3 +3772,13 @@ button:disabled {
 }
 .welcome-stack { display: flex; flex-direction: column; gap: 14px; }
 .welcome-note { margin: 0 0 6px 0; opacity: 0.85; }
+
+/* Narrow screens: the toolbar is one row that cannot wrap, so drop what is not needed to use it
+   (the product name, version, status text and the "Machine:" label) until the menus, the machine
+   picker, Power and the two links at the right end fit. */
+@media (max-width: 720px) {
+  .toolbar { padding: 0 8px; }
+  .toolbar-brand, .toolbar-version, .toolbar-status, .toolbar-boot-label { display: none; }
+  .toolbar-left, .toolbar-center, .toolbar-right { gap: 4px; }
+  .toolbar-boot-select { max-width: 90px; }
+}
