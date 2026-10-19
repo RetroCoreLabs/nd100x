@@ -91,7 +91,21 @@ typedef enum
     //  max 16 surfaces
     //  max 44 sectors (+1 spare)
     //  max 1024 cylinders
-    DISK_825_MB
+    DISK_825_MB,
+
+    // ***************
+    // Formats from the SINTRAN disk layout table (DTxxx). Heads = SECSY/SECTR,
+    // cylinders = MAXCY+1, sectors are 1024 bytes. Several formats of one drive
+    // differ only in sectors per track (17/18, 26/27) or head count.
+    // ***************
+    DISK_DT135,   // DISC-140MB-S  10 heads 17 sectors 823 cyl
+    DISK_DT285,   // DISC-288MB-S  24 heads 17 sectors 711 cyl
+    DISK_DT300,   // DISC-288MB-F  24 heads 18 sectors 711 cyl
+    DISK_DT450,   // DISC-450MB-S  24 heads 26 sectors 711 cyl
+    DISK_DT460,   // DISC-450MB-F  24 heads 27 sectors 711 cyl
+    DISK_DT310,   // DISC-288MB-E  10 heads 26 sectors 1217 cyl
+    DISK_DT470,   // DISC-450MB-N  19 heads 31 sectors 760 cyl
+    DISK_DT290    // DISC-288MB-N  10 heads 35 sectors 823 cyl
 } DiskType;
 
 // Disk structure
@@ -131,6 +145,20 @@ typedef struct {
  * @param dt Disk type selecting heads/cylinder, sectors/track and cylinder count.
  */
 void smd_disk_set_type(DiskInfo *disk, DiskType dt);
+
+/**
+ * @brief Choose the disk type for an image file from its size in bytes.
+ *
+ * The old size windows come first (so existing images keep their geometry). After
+ * that the largest SINTRAN layout whose full size (cylinders * heads * sectors * 1024)
+ * fits in the file is used; a file smaller than every layout gets DISK_75_MB. The file
+ * size cannot tell formats of equal size apart; that needs an image at least as long as
+ * the layout, and a layout the file size selects.
+ *
+ * @param fileSize Image file size in bytes.
+ * @return The disk type to pass to smd_disk_set_type().
+ */
+DiskType smd_disk_type_for_size(long fileSize);
 
 
 #endif /* DISK_SMD_H */

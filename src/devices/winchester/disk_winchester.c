@@ -37,6 +37,35 @@
  * Geometry table. Sources per entry are in disk_winchester.h; all Winchester
  * drives use 1024-byte (512-word) sectors per ND-11.015.01 sec 2.1.
  */
+static const struct { WDDiskType type; int heads; int sectors; int cylinders; } wd_layouts[] = {
+    { WD_DISK_DT014, 3, 12, 384 },
+    { WD_DISK_DT021, 3, 12, 605 },
+    { WD_DISK_DT023, 3, 9, 830 },
+    { WD_DISK_DT028, 3, 9, 1022 },
+    { WD_DISK_MICROPOLIS_1304, 6, 9, 830 },   /* DT045 */
+    { WD_DISK_MICROPOLIS_1325, 8, 9, 1022 },  /* DT074 */
+};
+
+WDDiskType wd_disk_type_for_size(size_t fileSize)
+{
+    size_t i;
+    WDDiskType best = WD_DISK_MICROPOLIS_1325;
+    size_t bestSize = 0;
+
+    for (i = 0; i < sizeof(wd_layouts) / sizeof(wd_layouts[0]); i++)
+    {
+        size_t size = (size_t)wd_layouts[i].cylinders * (size_t)wd_layouts[i].heads *
+                      (size_t)wd_layouts[i].sectors * 1024u;
+        /* at most 2% above the file */
+        if (size <= fileSize + fileSize / 50 && size > bestSize)
+        {
+            best = wd_layouts[i].type;
+            bestSize = size;
+        }
+    }
+    return best;
+}
+
 void wd_disk_set_type(WDDiskInfo *disk, WDDiskType dt)
 {
     if (!disk)
@@ -82,6 +111,34 @@ void wd_disk_set_type(WDDiskInfo *disk, WDDiskType dt)
         disk->sectorsPrTrack = 9;
         disk->maxCylinders = 1024;
         disk->badTracks = 14;
+        break;
+
+    case WD_DISK_DT014:
+        disk->headsPrCylinder = 3;
+        disk->sectorsPrTrack = 12;
+        disk->maxCylinders = 384;
+        disk->badTracks = 0; /* not in the layout table */
+        break;
+
+    case WD_DISK_DT021:
+        disk->headsPrCylinder = 3;
+        disk->sectorsPrTrack = 12;
+        disk->maxCylinders = 605;
+        disk->badTracks = 0; /* not in the layout table */
+        break;
+
+    case WD_DISK_DT023:
+        disk->headsPrCylinder = 3;
+        disk->sectorsPrTrack = 9;
+        disk->maxCylinders = 830;
+        disk->badTracks = 0; /* not in the layout table */
+        break;
+
+    case WD_DISK_DT028:
+        disk->headsPrCylinder = 3;
+        disk->sectorsPrTrack = 9;
+        disk->maxCylinders = 1022;
+        disk->badTracks = 0; /* not in the layout table */
         break;
 
     case WD_DISK_TYPE_UNKNOWN:

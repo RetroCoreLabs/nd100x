@@ -122,6 +122,12 @@ static bool wd_unit_attached(Device *self, WDDiskInfo *disk)
         disk->unitAttached = (image_size > 0);
         disk->diskIsWriteProtected = is_write_protected;
         disk->diskFileSize = image_size;
+        /* Geometry from the image length (SINTRAN disk layout table); an empty unit keeps
+         * the default set at start. */
+        if (image_size > 0)
+        {
+            wd_disk_set_type(disk, wd_disk_type_for_size(image_size));
+        }
         disk->unitAttachChecked = true;
     }
     return disk->unitAttached;

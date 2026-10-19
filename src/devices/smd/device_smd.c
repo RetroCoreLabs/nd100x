@@ -865,12 +865,7 @@ static int smd_boot(Device *self, int unit)
             regs->selectedDisk->diskFileSize = image_size;
             regs->selectedDisk->diskIsWriteProtected = is_write_protected;
         }
-        DiskType dt = DISK_75_MB; // Default
-        if (regs->selectedDisk->diskFileSize > 0x1000000 &&
-            regs->selectedDisk->diskFileSize <= 0x2000000)
-        {
-            dt = DISK_150_MB;
-        }
+        DiskType dt = smd_disk_type_for_size((long)regs->selectedDisk->diskFileSize);
         smd_disk_set_type(regs->selectedDisk, dt);
     }
     self->blockSizeBytes = regs->selectedDisk->bytesPrSector;
@@ -993,31 +988,7 @@ static void execute_go(Device *self)
     {
         // TODO: Set disk type based on size of SMD image file (TODO: Add more disk sizes)
 
-        DiskType dt = DISK_75_MB; // Default to 75MB
-
-        if (data->regs.selectedDisk->diskFileSize > 0x1000000 &&
-            data->regs.selectedDisk->diskFileSize <= 0x2000000)
-        {
-            // Assume 150 MB disk
-            dt = DISK_150_MB;
-        }
-        else if (data->regs.selectedDisk->diskFileSize >= 0x9600000 &&
-                 data->regs.selectedDisk->diskFileSize <= 0x9601000)
-        {
-            // Assume 150 MB disk
-            dt = DISK_150_MB;
-        }
-        else if (data->regs.selectedDisk->diskFileSize >= 0x12000000 &&
-                 data->regs.selectedDisk->diskFileSize <= 0x12001000)
-        {
-            // Assume 288 MB disk
-            dt = DISK_288_MB;
-        }
-        else if (data->regs.selectedDisk->diskFileSize >= 0x33900000)
-        {
-            // Assume 825 MB disk
-            dt = DISK_825_MB;
-        }
+        DiskType dt = smd_disk_type_for_size((long)data->regs.selectedDisk->diskFileSize);
         smd_disk_set_type(data->regs.selectedDisk, dt);
     }
 

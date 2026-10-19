@@ -67,7 +67,16 @@ typedef enum
      * "DISC-74-1" drive: 8 heads x 9 sectors x 1024 cylinders x 1024 bytes =
      * 75,497,472 bytes. It is not in the manual's example table; the geometry
      * comes from the RetroCore model, which SINTRAN boots from today. */
-    WD_DISK_MICROPOLIS_1325
+    WD_DISK_MICROPOLIS_1325,
+
+    /* Formats from the SINTRAN disk layout table (DT014, DT021, DT023, DT028) that
+     * no drive above has: 3 heads. Heads = SECSY/SECTR, cylinders = MAXCY+1. The
+     * 45 MB format (DT045: 6 heads, 9 sectors, 830 cylinders) is the 1304 above and
+     * the 74 MB format (DT074: 8 heads, 9 sectors, 1022 cylinders) is the 1325. */
+    WD_DISK_DT014, /* DISC-14MB: 3 heads, 12 sectors, 384 cylinders  */
+    WD_DISK_DT021, /* DISC-21MB: 3 heads, 12 sectors, 605 cylinders  */
+    WD_DISK_DT023, /* DISC-23MB: 3 heads,  9 sectors, 830 cylinders  */
+    WD_DISK_DT028  /* DISC-28MB: 3 heads,  9 sectors, 1022 cylinders */
 } WDDiskType;
 
 /* One drive. Mirrors DiskInfo in disk_smd.h so the two block controllers keep
@@ -108,6 +117,19 @@ typedef struct
  *        and bad-track count; WD_DISK_TYPE_UNKNOWN zeroes the geometry.
  */
 void wd_disk_set_type(WDDiskInfo *disk, WDDiskType dt);
+
+/**
+ * @brief Choose the drive type for an image file from its size in bytes.
+ *
+ * The file size cannot tell the SINTRAN layouts apart by name, so the layout whose
+ * full size (cylinders * heads * sectors * 1024) is the largest one not more than 2%
+ * above the file size is used (a real 74 MB image is 1.2% shorter than its layout).
+ * A file smaller than every layout, or size 0, gets the Micropolis 1325.
+ *
+ * @param fileSize Image file size in bytes.
+ * @return The drive type to pass to wd_disk_set_type().
+ */
+WDDiskType wd_disk_type_for_size(size_t fileSize);
 
 /**
  * @brief Convert a cylinder/head/sector address to a linear block address using

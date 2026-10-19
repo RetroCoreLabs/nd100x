@@ -34,6 +34,51 @@
 #include "../devices_types.h"
 #include "../devices_protos.h"
 
+static const struct { DiskType type; int heads; int sectors; int cylinders; } smd_layouts[] = {
+    { DISK_38_MB, 5, 18, 411 },
+    { DISK_75_MB, 5, 18, 823 },
+    { DISK_DT135, 10, 17, 823 },
+    { DISK_150_MB, 10, 18, 823 },
+    { DISK_288_MB, 19, 18, 823 },
+    { DISK_DT285, 24, 17, 711 },
+    { DISK_DT300, 24, 18, 711 },
+    { DISK_DT450, 24, 26, 711 },
+    { DISK_DT460, 24, 27, 711 },
+    { DISK_DT310, 10, 26, 1217 },
+    { DISK_DT470, 19, 31, 760 },
+    { DISK_DT290, 10, 35, 823 },
+};
+
+DiskType smd_disk_type_for_size(long fileSize)
+{
+    size_t i;
+    DiskType best = DISK_75_MB;
+    long bestSize = 0;
+
+    // Old size windows first, so images that worked before keep their geometry.
+    if (fileSize > 0x1000000 && fileSize <= 0x2000000)
+        return DISK_150_MB;
+    if (fileSize >= 0x9600000 && fileSize <= 0x9601000)
+        return DISK_150_MB;
+    if (fileSize >= 0x12000000 && fileSize <= 0x12001000)
+        return DISK_288_MB;
+    if (fileSize >= 0x33900000)
+        return DISK_825_MB;
+
+    // Largest SINTRAN layout that fits in the file (1024 byte sectors).
+    for (i = 0; i < sizeof(smd_layouts) / sizeof(smd_layouts[0]); i++)
+    {
+        long size = (long)smd_layouts[i].cylinders * smd_layouts[i].heads *
+                    smd_layouts[i].sectors * 1024L;
+        if (size <= fileSize && size > bestSize)
+        {
+            best = smd_layouts[i].type;
+            bestSize = size;
+        }
+    }
+    return best;
+}
+
 void smd_disk_set_type(DiskInfo *disk, DiskType dt)
 {
     disk->diskType = dt;
@@ -77,6 +122,46 @@ void smd_disk_set_type(DiskInfo *disk, DiskType dt)
         disk->headsPrCylinder = 16;
         disk->sectorsPrTrack = 44;
         disk->maxCylinders = 1024;
+        break;
+    case DISK_DT135:
+        disk->headsPrCylinder = 10;
+        disk->sectorsPrTrack = 17;
+        disk->maxCylinders = 823;
+        break;
+    case DISK_DT285:
+        disk->headsPrCylinder = 24;
+        disk->sectorsPrTrack = 17;
+        disk->maxCylinders = 711;
+        break;
+    case DISK_DT300:
+        disk->headsPrCylinder = 24;
+        disk->sectorsPrTrack = 18;
+        disk->maxCylinders = 711;
+        break;
+    case DISK_DT450:
+        disk->headsPrCylinder = 24;
+        disk->sectorsPrTrack = 26;
+        disk->maxCylinders = 711;
+        break;
+    case DISK_DT460:
+        disk->headsPrCylinder = 24;
+        disk->sectorsPrTrack = 27;
+        disk->maxCylinders = 711;
+        break;
+    case DISK_DT310:
+        disk->headsPrCylinder = 10;
+        disk->sectorsPrTrack = 26;
+        disk->maxCylinders = 1217;
+        break;
+    case DISK_DT470:
+        disk->headsPrCylinder = 19;
+        disk->sectorsPrTrack = 31;
+        disk->maxCylinders = 760;
+        break;
+    case DISK_DT290:
+        disk->headsPrCylinder = 10;
+        disk->sectorsPrTrack = 35;
+        disk->maxCylinders = 823;
         break;
     default:
         break;
