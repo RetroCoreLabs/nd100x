@@ -533,6 +533,83 @@ static int cmd_release_debugger(DAPServer *server)
     return 0;
 }
 
+static int step_cpu_once(DAPServer *server, StepType step_type);
+
+/// @brief The source line of an address: STABS first (C programs), then the source map (NPL, MAC), then a.out.
+/// @param pc The address
+/// @param line Receives the 1-based line, 0 when the address has no line
+/// @param file Receives the file name, NULL when the address has no line
+static void source_line_at(uint16_t pc, int *line, const char **file)
+{
+    *line = 0;
+    *file = NULL;
+    if (s_symbol_tables.symbol_table_stabs)
+    {
+        *line = symbols_get_line(s_symbol_tables.symbol_table_stabs, pc);
+        *file = symbols_get_file(s_symbol_tables.symbol_table_stabs, pc);
+    }
+    if ((!*line || !*file) && s_symbol_tables.symbol_table_map)
+    {
+        *line = symbols_get_line(s_symbol_tables.symbol_table_map, pc);
+        *file = symbols_get_file(s_symbol_tables.symbol_table_map, pc);
+    }
+    if ((!*line || !*file) && s_symbol_tables.symbol_table_aout)
+    {
+        *line = symbols_get_line(s_symbol_tables.symbol_table_aout, pc);
+        *file = symbols_get_file(s_symbol_tables.symbol_table_aout, pc);
+    }
+}
+
+/// A source-line step (next, step in) that is in progress. The CPU is stepped one instruction, or to the
+/// next map entry, and cmd_check_cpu_events steps again for as long as the program is still on the same
+/// source line. One line is usually several instructions and several map entries (NPL: one entry for every
+/// MAC statement), and a jump inside the line can leave it anywhere, so a single temporary breakpoint at the
+/// next map entry is not the end of a line.
+#define LINE_STEP_FILE_MAX   256
+#define LINE_STEP_REPEAT_MAX 100000 // a line that never ends (a loop on one line is left after one turn, below)
+static struct
+{
+    bool active;
+    StepType type;
+    int line;
+    char file[LINE_STEP_FILE_MAX];
+    uint16_t start_pc;
+    int repeats;
+} s_line_step;
+
+/// @brief After a stop: is the step finished?
+/// @return true when the stop was a step that is still inside the source line it started on, and the CPU
+///         has been started again; false when the stop is to be reported
+static bool line_step_continue(DAPServer *server, CpuStopReason reason)
+{
+    int line = 0;
+    const char *file = NULL;
+    if (!s_line_step.active)
+    {
+        return false;
+    }
+    if (reason != STOP_REASON_STEP)
+    {
+        // a user breakpoint, a pause, an exception: the step is over and the stop is reported as it is
+        s_line_step.active = false;
+        return false;
+    }
+    source_line_at(gPC, &line, &file);
+    // gPC == start_pc: a one-line loop came back to where it began, which is a new turn of the line
+    if (line == s_line_step.line && file && !strcmp(file, s_line_step.file) &&
+        gPC != s_line_step.start_pc && s_line_step.repeats < LINE_STEP_REPEAT_MAX)
+    {
+        s_line_step.repeats++;
+        cpu_set_stop_reason(STOP_REASON_NONE);
+        if (step_cpu_once(server, s_line_step.type) == 0)
+        {
+            return true;
+        }
+    }
+    s_line_step.active = false;
+    return false;
+}
+
 static int cmd_check_cpu_events(DAPServer *server)
 {
     // Flush any buffered console output (from CPU thread ring buffers)
@@ -541,28 +618,16 @@ static int cmd_check_cpu_events(DAPServer *server)
     CpuStopReason reason = cpu_get_stop_reason();
     if (reason != STOP_REASON_NONE)
     {
+        if (line_step_continue(server, reason))
+        {
+            return 0; // still on the line: no stop to report yet
+        }
         const char *dap_reason_str = cpu_stop_reason_to_string(reason);
 
         // Get current source location for detailed context
         int line = 0;
         const char *file = NULL;
-
-        // Try to get source location from symbol tables
-        if (s_symbol_tables.symbol_table_stabs)
-        {
-            line = symbols_get_line(s_symbol_tables.symbol_table_stabs, gPC);
-            file = symbols_get_file(s_symbol_tables.symbol_table_stabs, gPC);
-        }
-        if ((!line || !file) && s_symbol_tables.symbol_table_map)
-        {
-            line = symbols_get_line(s_symbol_tables.symbol_table_map, gPC);
-            file = symbols_get_file(s_symbol_tables.symbol_table_map, gPC);
-        }
-        if ((!line || !file) && s_symbol_tables.symbol_table_aout)
-        {
-            line = symbols_get_line(s_symbol_tables.symbol_table_aout, gPC);
-            file = symbols_get_file(s_symbol_tables.symbol_table_aout, gPC);
-        }
+        source_line_at(gPC, &line, &file);
 
         // Create detailed stop message
         char description[256];
@@ -818,11 +883,43 @@ void debugger_build_stack_trace(uint16_t pc, uint16_t operand)
     }
 }
 
-/// @brief Step the CPU by the given step type
+/// @brief Step the CPU by the given step type: for next and step in by line, until the source line changes
 /// @param server The DAP server instance
 /// @param step_type The type of step to take
 /// @return 0 on success, -1 on failure
 int debugger_step_cpu(DAPServer *server, StepType step_type)
+{
+    int line = 0;
+    const char *file = NULL;
+
+    if (!server)
+    {
+        return -1;
+    }
+    s_line_step.active = false;
+    if ((step_type == STEP_OVER || step_type == STEP_IN) &&
+        (server->current_command.context.step.granularity == DAP_STEP_GRANULARITY_LINE ||
+         server->current_command.context.step.granularity == DAP_STEP_GRANULARITY_STATEMENT))
+    {
+        source_line_at(gPC, &line, &file);
+        if (line > 0 && file)
+        {
+            s_line_step.type = step_type;
+            s_line_step.line = line;
+            snprintf(s_line_step.file, sizeof s_line_step.file, "%s", file);
+            s_line_step.start_pc = gPC;
+            s_line_step.repeats = 0;
+            s_line_step.active = true;
+        }
+    }
+    return step_cpu_once(server, step_type);
+}
+
+/// @brief One step of the given type, as the debugger front end does it (see debugger_step_cpu)
+/// @param server The DAP server instance
+/// @param step_type The type of step to take
+/// @return 0 on success, -1 on failure
+static int step_cpu_once(DAPServer *server, StepType step_type)
 {
     if (!server)
     {
@@ -904,7 +1001,11 @@ int debugger_step_cpu(DAPServer *server, StepType step_type)
 
         // If we have symbol table and want to step by line
         // CRITICAL FIX: Check STABS first, then MAP
-        if ((s_symbol_tables.symbol_table_stabs || s_symbol_tables.symbol_table_map) &&
+        // A step that is following a source line (s_line_step) goes one instruction at a time and
+        // cmd_check_cpu_events decides at every stop whether the line has ended: a temporary breakpoint at
+        // the next map entry would be passed by a jump, and one line has several map entries.
+        if (!s_line_step.active &&
+            (s_symbol_tables.symbol_table_stabs || s_symbol_tables.symbol_table_map) &&
             ((ctx->granularity == DAP_STEP_GRANULARITY_LINE) ||
              (ctx->granularity == DAP_STEP_GRANULARITY_STATEMENT)))
         {
@@ -1089,8 +1190,9 @@ int debugger_step_cpu(DAPServer *server, StepType step_type)
             }
 
             // No call found in this line - step to next source line
-            // next_line_addr already computed above
-            if (next_line_addr && next_line_addr != current_pc)
+            // next_line_addr already computed above; a step that follows a source line (s_line_step)
+            // takes one instruction instead, see the same note in STEP_OVER
+            if (!s_line_step.active && next_line_addr && next_line_addr != current_pc)
             {
                 snprintf(log_message, sizeof(log_message), "Stepping to next line at %06o\n",
                          next_line_addr);
