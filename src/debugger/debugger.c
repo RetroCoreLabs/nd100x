@@ -3698,6 +3698,15 @@ static int cmd_launch_callback(DAPServer *server)
                          s_symbol_tables.debug_info->function_count);
                 dap_server_send_output_category(server, DAP_OUTPUT_CONSOLE, message);
             }
+            else if (s_symbol_tables.debug_info)
+            {
+                // The map holds no FUNC lines (an assembly or NPL program, or a
+                // .srcmap from mac -S), so there is no C debug info. An empty
+                // table here makes cmd_stack_trace treat every PC as outside all C
+                // functions and leave the frame's source and line blank.
+                symbols_debug_info_free(s_symbol_tables.debug_info);
+                s_symbol_tables.debug_info = NULL;
+            }
         }
     }
 
