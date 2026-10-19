@@ -258,6 +258,45 @@ int main(void)
     mc_check("round-tripped disk0 stays read-only", 0, cfg.nd500.disk_writable[0]);
     mc_check("round-tripped disk1 stays writable", 1, cfg.nd500.disk_writable[1]);
 
+    /* formatN forces the disk layout of an SMD or Winchester unit; a bad slot is an error. */
+    snprintf(path, sizeof(path), "%s/format.ini", dir);
+    {
+        FILE *f = fopen(path, "w");
+        mc_check_bool("write format.ini", f != NULL);
+        if (f)
+        {
+            fprintf(f, "[controller.smd.0]\ndisk0 = a.img\nformat0 = DT300\n"
+                       "disk1 = b.img\nformat1 = 450mb-n\n");
+            fclose(f);
+        }
+    }
+    mc_init_baseline(&cfg);
+    mc_check_bool("LoadFile(format keys)", mc_load_file(&cfg, path, err, sizeof(err)));
+    {
+        int ci, found = 0;
+        for (ci = 0; ci < cfg.controllerCount; ci++)
+        {
+            if (cfg.controllers[ci].type == CTRL_SMD)
+            {
+                found = 1;
+                mc_check_bool("smd format0 stored", strcmp(cfg.controllers[ci].format[0], "DT300") == 0);
+                mc_check_bool("smd format1 stored", strcmp(cfg.controllers[ci].format[1], "450mb-n") == 0);
+                mc_check_bool("smd format2 empty", cfg.controllers[ci].format[2][0] == '\0');
+            }
+        }
+        mc_check_bool("smd controller present", found);
+    }
+    {
+        FILE *f = fopen(path, "w");
+        if (f)
+        {
+            fprintf(f, "[controller.smd.0]\ndisk0 = a.img\nformat9 = DT300\n");
+            fclose(f);
+        }
+    }
+    mc_init_baseline(&cfg);
+    mc_check_bool("format slot out of range is an error", !mc_load_file(&cfg, path, err, sizeof(err)));
+
     /* A machine with no ND-500 must not GROW an [nd500] section. */
     mc_set_defaults(&cfg);
     snprintf(path, sizeof(path), "%s/no_nd500_out.ini", dir);

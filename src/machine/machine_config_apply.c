@@ -17,6 +17,8 @@
 #include "../cpu/cpu_types.h"
 #include "../devices/devices_types.h"
 #include "../devices/devices_protos.h"
+#include "../devices/smd/disk_smd.h"
+#include "../devices/winchester/disk_winchester.h"
 #ifdef ND100X_WITH_ND500
 #include "mfbus_config.h"
 #endif
@@ -98,6 +100,13 @@ void mc_apply_devices(const MachineConfig *mc)
             {
                 if (c->disks[s].present)
                 {
+                    if (c->format[s][0])
+                    {
+                        DiskType ft = smd_disk_type_from_name(c->format[s]);
+                        if (ft == DISK_TYPE_UNKNOWN)
+                            fprintf(stderr, "[controller.smd.%d] format%d: unknown format '%s' (use DT288, 288MB-F, ...); choosing from the image size.\n", c->wheel, s, c->format[s]);
+                        smd_disk_preset_format(s, ft);
+                    }
                     machine_mount_smd(c->disks[s].image, s);
                 }
             }
@@ -121,6 +130,13 @@ void mc_apply_devices(const MachineConfig *mc)
             {
                 if (c->disks[s].present)
                 {
+                    if (c->format[s][0])
+                    {
+                        WDDiskType ft = wd_disk_type_from_name(c->format[s]);
+                        if (ft == WD_DISK_TYPE_UNKNOWN)
+                            fprintf(stderr, "[controller.wd.%d] format%d: unknown format '%s' (use DT045, 45MB, ...); choosing from the image size.\n", c->wheel, s, c->format[s]);
+                        wd_disk_preset_format(s, ft);
+                    }
                     machine_mount_winchester(c->disks[s].image, s);
                 }
             }

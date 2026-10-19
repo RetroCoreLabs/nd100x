@@ -69,6 +69,10 @@ typedef struct
     bool enabled;
     McDiskSlot disks[MC_MAX_DISK_SLOTS];
 
+    /* formatN = SINTRAN layout (DT288, 288MB-F, ...) for SMD and Winchester units; empty = choose
+     * from the image size. */
+    char format[MC_MAX_DISK_SLOTS][24];
+
     /* HDLC-only settings (ignored for other types). */
     bool hdlc_is_server; /* true = server (listen), false = client */
     char hdlc_host[MC_PATH_LEN];

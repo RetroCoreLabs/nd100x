@@ -126,7 +126,10 @@ static bool wd_unit_attached(Device *self, WDDiskInfo *disk)
          * the default set at start. */
         if (image_size > 0)
         {
-            wd_disk_set_type(disk, wd_disk_type_for_size(image_size));
+            WDDiskType dt = wd_disk_preset_get(disk->unit);
+            if (dt == WD_DISK_TYPE_UNKNOWN)
+                dt = wd_disk_type_for_size(image_size);
+            wd_disk_set_type(disk, dt);
         }
         disk->unitAttachChecked = true;
     }

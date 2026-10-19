@@ -34,19 +34,24 @@
 #include "../devices_types.h"
 #include "../devices_protos.h"
 
-static const struct { DiskType type; int heads; int sectors; int cylinders; } smd_layouts[] = {
-    { DISK_38_MB, 5, 18, 411 },
-    { DISK_75_MB, 5, 18, 823 },
-    { DISK_DT135, 10, 17, 823 },
-    { DISK_150_MB, 10, 18, 823 },
-    { DISK_288_MB, 19, 18, 823 },
-    { DISK_DT285, 24, 17, 711 },
-    { DISK_DT300, 24, 18, 711 },
-    { DISK_DT450, 24, 26, 711 },
-    { DISK_DT460, 24, 27, 711 },
-    { DISK_DT310, 10, 26, 1217 },
-    { DISK_DT470, 19, 31, 760 },
-    { DISK_DT290, 10, 35, 823 },
+/* The SINTRAN layouts. isDefault marks the one layout used for a file of that size class when
+ * the file length does not match any layout exactly: several formats of one drive size overlap
+ * (288 MB: R, S, F, E, N; 450 MB: S, F, N; 140 MB: S, F) and the file length cannot tell them
+ * apart. The default of a class is the first listed format of the layout table (288MB-R = DT288,
+ * 450MB-S = DT450, 140MB-F = DT140). A formatN key in the config file overrides the choice. */
+static const struct { DiskType type; int heads; int sectors; int cylinders; int isDefault; } smd_layouts[] = {
+    { DISK_38_MB,    5, 18,  411, 1 },
+    { DISK_75_MB,    5, 18,  823, 1 },
+    { DISK_DT135,   10, 17,  823, 0 },
+    { DISK_150_MB,  10, 18,  823, 1 },
+    { DISK_288_MB,  19, 18,  823, 1 },
+    { DISK_DT285,   24, 17,  711, 0 },
+    { DISK_DT300,   24, 18,  711, 0 },
+    { DISK_DT450,   24, 26,  711, 1 },
+    { DISK_DT460,   24, 27,  711, 0 },
+    { DISK_DT310,   10, 26, 1217, 0 },
+    { DISK_DT470,   19, 31,  760, 0 },
+    { DISK_DT290,   10, 35,  823, 0 }
 };
 
 DiskType smd_disk_type_for_size(long fileSize)
@@ -55,7 +60,7 @@ DiskType smd_disk_type_for_size(long fileSize)
     DiskType best = DISK_75_MB;
     long bestSize = 0;
 
-    // Old size windows first, so images that worked before keep their geometry.
+    /* Old size windows first, so images that worked before keep their geometry. */
     if (fileSize > 0x1000000 && fileSize <= 0x2000000)
         return DISK_150_MB;
     if (fileSize >= 0x9600000 && fileSize <= 0x9601000)
@@ -65,18 +70,85 @@ DiskType smd_disk_type_for_size(long fileSize)
     if (fileSize >= 0x33900000)
         return DISK_825_MB;
 
-    // Largest SINTRAN layout that fits in the file (1024 byte sectors).
+    /* A file exactly as long as one layout (up to 4096 bytes more) is that layout. */
     for (i = 0; i < sizeof(smd_layouts) / sizeof(smd_layouts[0]); i++)
     {
         long size = (long)smd_layouts[i].cylinders * smd_layouts[i].heads *
                     smd_layouts[i].sectors * 1024L;
-        if (size <= fileSize && size > bestSize)
+        if (fileSize >= size && fileSize <= size + 4096)
+            return smd_layouts[i].type;
+    }
+
+    /* Otherwise the default layout of the largest size class that fits in the file. */
+    for (i = 0; i < sizeof(smd_layouts) / sizeof(smd_layouts[0]); i++)
+    {
+        long size = (long)smd_layouts[i].cylinders * smd_layouts[i].heads *
+                    smd_layouts[i].sectors * 1024L;
+        if (smd_layouts[i].isDefault && size <= fileSize && size > bestSize)
         {
             best = smd_layouts[i].type;
             bestSize = size;
         }
     }
     return best;
+}
+
+static DiskType smd_preset[4];
+
+void smd_disk_preset_format(int unit, DiskType dt)
+{
+    if (unit >= 0 && unit < 4)
+        smd_preset[unit] = dt;
+}
+
+DiskType smd_disk_preset_get(int unit)
+{
+    return (unit >= 0 && unit < 4) ? smd_preset[unit] : DISK_TYPE_UNKNOWN;
+}
+
+/* Layout table name (DTxxx) or SINTRAN disk type name -> type. The pairs come from the
+ * comments in the SINTRAN layout table (DT table). DT070 has the geometry of DT075,
+ * and DT140 and DT160 the geometry of the 150 MB entry. */
+static const struct { const char *name; DiskType type; } smd_names[] = {
+    { "DT037", DISK_38_MB },  { "38MB", DISK_38_MB },
+    { "DT070", DISK_75_MB },  { "70MB", DISK_75_MB },
+    { "DT075", DISK_75_MB },  { "75MB", DISK_75_MB },
+    { "DT135", DISK_DT135 },  { "140MB-S", DISK_DT135 },
+    { "DT140", DISK_150_MB }, { "140MB-F", DISK_150_MB },
+    { "DT160", DISK_150_MB }, { "2-75MB", DISK_150_MB },
+    { "DT288", DISK_288_MB }, { "288MB-R", DISK_288_MB },
+    { "DT285", DISK_DT285 },  { "288MB-S", DISK_DT285 },
+    { "DT300", DISK_DT300 },  { "288MB-F", DISK_DT300 },
+    { "DT310", DISK_DT310 },  { "288MB-E", DISK_DT310 },
+    { "DT290", DISK_DT290 },  { "288MB-N", DISK_DT290 },
+    { "DT450", DISK_DT450 },  { "450MB-S", DISK_DT450 },
+    { "DT460", DISK_DT460 },  { "450MB-F", DISK_DT460 },
+    { "DT470", DISK_DT470 },  { "450MB-N", DISK_DT470 }
+};
+
+DiskType smd_disk_type_from_name(const char *name)
+{
+    size_t i, k;
+
+    if (!name)
+        return DISK_TYPE_UNKNOWN;
+    if (strncmp(name, "DISC-", 5) == 0 || strncmp(name, "disc-", 5) == 0)
+        name += 5;
+    for (i = 0; i < sizeof(smd_names) / sizeof(smd_names[0]); i++)
+    {
+        const char *want = smd_names[i].name;
+        for (k = 0; want[k] && name[k]; k++)
+        {
+            char c = name[k];
+            if (c >= 'a' && c <= 'z')
+                c = (char)(c - 'a' + 'A');
+            if (c != want[k])
+                break;
+        }
+        if (want[k] == '\0' && name[k] == '\0')
+            return smd_names[i].type;
+    }
+    return DISK_TYPE_UNKNOWN;
 }
 
 void smd_disk_set_type(DiskInfo *disk, DiskType dt)

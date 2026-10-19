@@ -149,16 +149,40 @@ void smd_disk_set_type(DiskInfo *disk, DiskType dt);
 /**
  * @brief Choose the disk type for an image file from its size in bytes.
  *
- * The old size windows come first (so existing images keep their geometry). After
- * that the largest SINTRAN layout whose full size (cylinders * heads * sectors * 1024)
- * fits in the file is used; a file smaller than every layout gets DISK_75_MB. The file
- * size cannot tell formats of equal size apart; that needs an image at least as long as
- * the layout, and a layout the file size selects.
+ * 1. The old size windows come first (so existing images keep their geometry).
+ * 2. A file exactly as long as one SINTRAN layout (cylinders * heads * sectors * 1024 bytes,
+ *    up to 4096 bytes more) is that layout.
+ * 3. Otherwise the default layout of the largest size class that fits: 38 MB (DT037), 75 MB
+ *    (DT075), 150 MB (DT140), 288 MB (DT288, the R format) or 450 MB (DT450, the S format);
+ *    a file smaller than every class gets DISK_75_MB.
  *
+ * Several formats share a size class and the file length cannot tell them apart (288 MB: R, S,
+ * F, E, N). A formatN key in the config file forces the layout of a unit.
  * @param fileSize Image file size in bytes.
  * @return The disk type to pass to smd_disk_set_type().
  */
 DiskType smd_disk_type_for_size(long fileSize);
+
+/**
+ * @brief Find a disk type by SINTRAN layout name.
+ *
+ * Accepts the layout table names DT037, DT070, DT075, DT135, DT140, DT160, DT285, DT288,
+ * DT290, DT300, DT310, DT450, DT460, DT470, and the disk type names that SINTRAN gives them
+ * (with or without the DISC- prefix): 38MB, 70MB, 75MB, 140MB-S, 140MB-F, 288MB-R, 288MB-S,
+ * 288MB-F, 288MB-E, 288MB-N, 450MB-S, 450MB-F, 450MB-N. Upper or lower case.
+ *
+ * @return The disk type, or DISK_TYPE_UNKNOWN if the name is not one of these.
+ */
+DiskType smd_disk_type_from_name(const char *name);
+
+/**
+ * @brief Force the disk type of one unit (from the config file), before the image is used.
+ *        DISK_TYPE_UNKNOWN goes back to choosing from the image size.
+ */
+void smd_disk_preset_format(int unit, DiskType dt);
+
+/** @brief The forced disk type of a unit, or DISK_TYPE_UNKNOWN if none was set. */
+DiskType smd_disk_preset_get(int unit);
 
 
 #endif /* DISK_SMD_H */

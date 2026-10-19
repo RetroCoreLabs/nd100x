@@ -66,6 +66,53 @@ WDDiskType wd_disk_type_for_size(size_t fileSize)
     return best;
 }
 
+static WDDiskType wd_preset[2];
+
+void wd_disk_preset_format(int unit, WDDiskType dt)
+{
+    if (unit >= 0 && unit < 2)
+        wd_preset[unit] = dt;
+}
+
+WDDiskType wd_disk_preset_get(int unit)
+{
+    return (unit >= 0 && unit < 2) ? wd_preset[unit] : WD_DISK_TYPE_UNKNOWN;
+}
+
+static const struct { const char *name; WDDiskType type; } wd_names[] = {
+    { "DT014", WD_DISK_DT014 }, { "14MB", WD_DISK_DT014 },
+    { "DT021", WD_DISK_DT021 }, { "21MB", WD_DISK_DT021 },
+    { "DT023", WD_DISK_DT023 }, { "23MB", WD_DISK_DT023 },
+    { "DT028", WD_DISK_DT028 }, { "28MB", WD_DISK_DT028 },
+    { "DT045", WD_DISK_MICROPOLIS_1304 }, { "45MB", WD_DISK_MICROPOLIS_1304 },
+    { "DT074", WD_DISK_MICROPOLIS_1325 }, { "74MB", WD_DISK_MICROPOLIS_1325 }
+};
+
+WDDiskType wd_disk_type_from_name(const char *name)
+{
+    size_t i, k;
+
+    if (!name)
+        return WD_DISK_TYPE_UNKNOWN;
+    if (strncmp(name, "DISC-", 5) == 0 || strncmp(name, "disc-", 5) == 0)
+        name += 5;
+    for (i = 0; i < sizeof(wd_names) / sizeof(wd_names[0]); i++)
+    {
+        const char *want = wd_names[i].name;
+        for (k = 0; want[k] && name[k]; k++)
+        {
+            char c = name[k];
+            if (c >= 'a' && c <= 'z')
+                c = (char)(c - 'a' + 'A');
+            if (c != want[k])
+                break;
+        }
+        if (want[k] == '\0' && name[k] == '\0')
+            return wd_names[i].type;
+    }
+    return WD_DISK_TYPE_UNKNOWN;
+}
+
 void wd_disk_set_type(WDDiskInfo *disk, WDDiskType dt)
 {
     if (!disk)

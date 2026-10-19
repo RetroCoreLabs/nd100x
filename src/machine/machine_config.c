@@ -941,6 +941,19 @@ bool mc_load_file(MachineConfig *cfg, const char *path, char *err, size_t errlen
                 }
                 cur_ctrl->enabled = (b == 1);
             }
+            else if (strncmp(keyl, "format", 6) == 0 && d->is_disc &&
+                     (d->type == CTRL_SMD || d->type == CTRL_WINCHESTER))
+            {
+                char *fend;
+                long fslot = strtol(keyl + 6, &fend, 10);
+                if (*fend != '\0' || fslot < 0 || fslot >= d->disk_slots)
+                {
+                    fclose(f);
+                    return mc_err(err, errlen, path, lineno, "[controller.%s.%d]: bad key '%s'. Use format0..format%d.",
+                                  d->name, cur_ctrl->wheel, keyl, d->disk_slots - 1);
+                }
+                str_copy(cur_ctrl->format[fslot], sizeof(cur_ctrl->format[fslot]), val);
+            }
             else if (strncmp(keyl, "disk", 4) == 0 && d->is_disc)
             {
                 if (!mc_parse_disk_key(cur_ctrl, d, keyl + 4, val, err, errlen, path, lineno))

@@ -156,6 +156,7 @@ rtc = ticks               ; ticks | wall - RTC time base (default ticks;
 [controller.smd.0]        ; SMD controller on thumbwheel 0
 disk0 = SMD0.IMG          ; unit 0 (boot unit)
 disk1 = DATA.IMG          ; unit 1
+# format1 = DT300         ; optional: force the disk layout of unit 1 (see "Disk geometry" below)
 
 [controller.scsi.0]       ; SCSI (ND-3201/3204) on thumbwheel 0
 disk0 = hdd:SCSI-K.image  ; SCSI ID 0, media hdd
@@ -190,6 +191,34 @@ tapedir = ./tapes
 # verbose = on           ; start-up device list + INFO log lines (default off: warnings/errors only)
 # boot_status = off      ; no "Booting from ..." line before the first console output (default on)
 ```
+
+### Disk geometry of SMD and Winchester units
+
+SINTRAN sends the disk controller a cylinder, head and sector for every transfer, worked out
+from the layout entry (DT table) of the disk type it was told about (for example
+`DISC-288MB-1-F` is layout DT300: 24 heads, 18 sectors per track, 711 cylinders). The
+controller turns that address back into a position in the image file with its own head and
+sector counts. The two must be the same, or SINTRAN gets `Disk transfer error` (an address
+outside the controller's geometry) or reads other pages than it wrote.
+
+The controller cannot read the layout from SINTRAN, so it picks it for each unit:
+
+1. `formatN = NAME` in the config file wins. NAME is a layout table name (DT037, DT070, DT075,
+   DT135, DT140, DT160, DT285, DT288, DT290, DT300, DT310, DT450, DT460, DT470 for SMD; DT014,
+   DT021, DT023, DT028, DT045, DT074 for Winchester) or a disk type name with or without `DISC-`
+   (`288MB-F`, `450MB-N`, `45MB`, ...).
+2. Otherwise, for SMD: the old size windows (16 to 32 MB and about 157 MB: 150 MB layout; about
+   302 MB: DT288; 865 MB and up: 825 MB drive), then a file exactly as long as one layout
+   (cylinders x heads x sectors x 1024 bytes, up to 4096 bytes more) is that layout, then the
+   default layout of the largest size class that fits: 38 MB DT037, 75 MB DT075, 150 MB DT140,
+   288 MB DT288 (the R format), 450 MB DT450 (the S format).
+3. Otherwise, for Winchester: the largest layout that is at most 2 percent longer than the file
+   (a real 74 MB image is 1.2 percent shorter than its layout); smaller files get the
+   Micropolis 1325 layout (DT074).
+
+Several formats of one drive size overlap and the file length cannot tell them apart (288 MB:
+R, S, F, E, N; 450 MB: S, F, N; 140 MB: S, F). Give such a unit a `formatN` key unless the
+image is exactly as long as its layout. The image must be at least as long as the full layout.
 
 Notes:
 - `diskN = [media:]path`. `media` optional, defaults to the controller's

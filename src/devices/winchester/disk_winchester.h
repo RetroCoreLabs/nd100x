@@ -132,6 +132,19 @@ void wd_disk_set_type(WDDiskInfo *disk, WDDiskType dt);
 WDDiskType wd_disk_type_for_size(size_t fileSize);
 
 /**
+ * @brief Find a drive type by SINTRAN layout name: DT014, DT021, DT023, DT028, DT045, DT074,
+ *        or the disk type name (with or without DISC-): 14MB, 21MB, 23MB, 28MB, 45MB, 74MB.
+ * @return The drive type, or WD_DISK_TYPE_UNKNOWN if the name is not one of these.
+ */
+WDDiskType wd_disk_type_from_name(const char *name);
+
+/** @brief Force the drive type of one unit (from the config file). WD_DISK_TYPE_UNKNOWN = choose from the image size. */
+void wd_disk_preset_format(int unit, WDDiskType dt);
+
+/** @brief The forced drive type of a unit, or WD_DISK_TYPE_UNKNOWN if none was set. */
+WDDiskType wd_disk_preset_get(int unit);
+
+/**
  * @brief Convert a cylinder/head/sector address to a linear block address using
  *        the same formula as the SMD controller's ConvertCHStoLBA.
  * @param disk The drive geometry to convert against.
