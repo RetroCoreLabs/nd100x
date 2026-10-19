@@ -567,6 +567,7 @@ static void source_line_at(uint16_t pc, int *line, const char **file)
 /// next map entry is not the end of a line.
 #define LINE_STEP_FILE_MAX   256
 #define LINE_STEP_REPEAT_MAX 100000 // a line that never ends (a loop on one line is left after one turn, below)
+#define LINE_STEP_UNMAPPED_MAX 16   // instructions a step in may run after the call, to reach the first line of the callee
 static struct
 {
     bool active;
@@ -575,7 +576,95 @@ static struct
     char file[LINE_STEP_FILE_MAX];
     uint16_t start_pc;
     int repeats;
+    int unmapped;
+    uint16_t prologue_start; // the code of a called C function before its first line, [start, end); end 0: none seen
+    uint16_t prologue_end;
 } s_line_step;
+
+/// @brief Is the address inside cret, the epilogue helper that every compiled C function leaves through?
+/// Same range as the cret case of STEP_OUT (cret.s is 8 words), found the same way: a.out symbols, then the map.
+static bool in_cret(uint16_t pc)
+{
+    const symbol_entry_t *cret_sym = NULL;
+    if (s_symbol_tables.symbol_table_aout)
+    {
+        cret_sym = symbols_lookup_by_name(s_symbol_tables.symbol_table_aout, "cret");
+    }
+    if (!cret_sym && s_symbol_tables.symbol_table_map)
+    {
+        cret_sym = symbols_lookup_by_name(s_symbol_tables.symbol_table_map, "cret");
+    }
+    return cret_sym && pc >= cret_sym->address && pc < cret_sym->address + 8;
+}
+
+/// @brief Is a table's line entry at exactly this address?
+static bool has_line_entry_at(const symbol_table_t *table, uint16_t pc)
+{
+    if (!table)
+    {
+        return false;
+    }
+    for (size_t i = 0; i < table->count; i++)
+    {
+        if (table->entries[i].type == SYMBOL_TYPE_LINE && table->entries[i].address == pc)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+/// @brief The lowest line entry above an address and not above the end of its function, 0 when there is none
+static uint16_t first_line_above(const symbol_table_t *table, uint16_t pc, uint16_t end)
+{
+    uint16_t best = 0;
+    if (!table)
+    {
+        return 0;
+    }
+    for (size_t i = 0; i < table->count; i++)
+    {
+        const symbol_entry_t *e = &table->entries[i];
+        if (e->type == SYMBOL_TYPE_LINE && e->address > pc && e->address <= end && (!best || e->address < best))
+        {
+            best = e->address;
+        }
+    }
+    return best;
+}
+
+/// @brief Is the address in the code that a called C function runs before its first source line?
+/// A compiled C function starts with its csav call and the first line comes after that, and the line lookup of
+/// those addresses finds the last line of whatever lies before the function. Found when a step in lands on
+/// the first word of a function that has no line entry there; the range is kept while the step goes on.
+static bool in_function_prologue(uint16_t pc)
+{
+    if (s_line_step.prologue_end != 0)
+    {
+        return pc >= s_line_step.prologue_start && pc < s_line_step.prologue_end;
+    }
+    const symbol_function_t *fn =
+        s_symbol_tables.debug_info ? symbols_find_function_at(s_symbol_tables.debug_info, pc) : NULL;
+    if (!fn || fn->start_address != pc || has_line_entry_at(s_symbol_tables.symbol_table_stabs, pc) ||
+        has_line_entry_at(s_symbol_tables.symbol_table_map, pc))
+    {
+        return false;
+    }
+    uint16_t stabs_first = first_line_above(s_symbol_tables.symbol_table_stabs, pc, fn->end_address);
+    uint16_t map_first = first_line_above(s_symbol_tables.symbol_table_map, pc, fn->end_address);
+    uint16_t first = stabs_first;
+    if (map_first && (!first || map_first < first))
+    {
+        first = map_first;
+    }
+    if (!first)
+    {
+        return false;
+    }
+    s_line_step.prologue_start = pc;
+    s_line_step.prologue_end = first;
+    return true;
+}
 
 /// @brief After a stop: is the step finished?
 /// @return true when the stop was a step that is still inside the source line it started on, and the CPU
@@ -595,8 +684,30 @@ static bool line_step_continue(DAPServer *server, CpuStopReason reason)
         return false;
     }
     source_line_at(gPC, &line, &file);
+    // The last line of a C function jumps into cret: the step goes on to the caller, as step out does
+    // inside cret, instead of stopping on the lines of cret.s.
+    if (in_cret(gPC) && !in_cret(s_line_step.start_pc) && s_line_step.repeats < LINE_STEP_REPEAT_MAX)
+    {
+        s_line_step.repeats++;
+        cpu_set_stop_reason(STOP_REASON_NONE);
+        if (step_cpu_once(server, STEP_OUT) == 0)
+        {
+            return true;
+        }
+    }
+    // A step in lands on the entry of a C function, before its first line (csav runs first): go on, calls
+    // stepped over, until a line is reached.
+    else if (s_line_step.type == STEP_IN && s_line_step.unmapped < LINE_STEP_UNMAPPED_MAX && in_function_prologue(gPC))
+    {
+        s_line_step.unmapped++;
+        cpu_set_stop_reason(STOP_REASON_NONE);
+        if (step_cpu_once(server, STEP_OVER) == 0)
+        {
+            return true;
+        }
+    }
     // gPC == start_pc: a one-line loop came back to where it began, which is a new turn of the line
-    if (line == s_line_step.line && file && !strcmp(file, s_line_step.file) &&
+    else if (line == s_line_step.line && file && !strcmp(file, s_line_step.file) &&
         gPC != s_line_step.start_pc && s_line_step.repeats < LINE_STEP_REPEAT_MAX)
     {
         s_line_step.repeats++;
@@ -909,6 +1020,8 @@ int debugger_step_cpu(DAPServer *server, StepType step_type)
             snprintf(s_line_step.file, sizeof s_line_step.file, "%s", file);
             s_line_step.start_pc = gPC;
             s_line_step.repeats = 0;
+            s_line_step.unmapped = 0;
+            s_line_step.prologue_end = 0;
             s_line_step.active = true;
         }
     }
