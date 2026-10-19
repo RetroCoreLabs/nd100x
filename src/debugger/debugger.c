@@ -4653,9 +4653,9 @@ static int cmd_disassemble(DAPServer *server)
 
     int virtual_address = memory_reference + offset + instruction_offset;
 
-    // Allocate memory for the instructions
+    // Allocate memory for the instructions; zeroed, so an entry that is skipped carries no source and no stray pointer
     server->current_command.context.disassemble.instructions =
-        (DisassembleInstruction *)malloc(instruction_count * sizeof(DisassembleInstruction));
+        (DisassembleInstruction *)calloc((size_t)instruction_count, sizeof(DisassembleInstruction));
     if (!server->current_command.context.disassemble.instructions)
     {
         return -1;
@@ -4701,6 +4701,21 @@ static int cmd_disassemble(DAPServer *server)
                 if (sym)
                 {
                     instruction->symbol = strdup(sym);
+                }
+            }
+
+            // The source line of the instruction from the line map (the same lookup the stack frames use), so the
+            // Disassembly view can show the source line above its instructions.
+            instruction->source_path = NULL;
+            instruction->line = 0;
+            if (s_symbol_tables.symbol_table_map)
+            {
+                int sline = symbols_get_line(s_symbol_tables.symbol_table_map, (uint16_t)virtual_address);
+                const char *sfile = symbols_get_file(s_symbol_tables.symbol_table_map, (uint16_t)virtual_address);
+                if (sline > 0 && sfile)
+                {
+                    instruction->source_path = resolve_source_path(server, sfile);
+                    instruction->line = sline;
                 }
             }
         }
