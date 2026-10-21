@@ -378,6 +378,33 @@ add_dependencies(test_winchester devices)
 
 add_test(NAME winchester_tests COMMAND test_winchester)
 
+# Floppy DMA controller (3112) test-mode unit tests
+#
+# device_floppy_dma.c is linked in DIRECTLY together with the fake Device_*
+# infrastructure in test_floppy_dma_testmode.c (fake DMA memory, delayed-IO and
+# an in-memory diskette behind the block callbacks), so the controller's real
+# IOX handlers and its test mode (control word bit 3, tests 0-25 as the Z80
+# firmware ROM 34300G does them) run without the machine or an image file.
+add_executable(test_floppy_dma_testmode
+    test_floppy_dma_testmode.c
+    ${CMAKE_SOURCE_DIR}/src/devices/floppy/device_floppy_dma.c
+)
+
+target_include_directories(test_floppy_dma_testmode PRIVATE
+    ${CMAKE_SOURCE_DIR}/src/devices/floppy
+    ${CMAKE_SOURCE_DIR}/src/devices
+    ${CMAKE_SOURCE_DIR}/src/ndlib
+    ${CMAKE_SOURCE_DIR}/src/cpu
+)
+
+target_link_libraries(test_floppy_dma_testmode PRIVATE m)
+
+# device_floppy_dma.c #includes the generated devices_protos.h; force the devices
+# target (which runs mkptypes to emit it) to build first.
+add_dependencies(test_floppy_dma_testmode devices)
+
+add_test(NAME floppy_dma_testmode_tests COMMAND test_floppy_dma_testmode)
+
 # Winchester conformance-trace driver.
 #
 # Walks the shared sequence in wd_conformance_seq.h against this repository's

@@ -33,6 +33,28 @@
 #include <stdint.h>
 #include "../devices_types.h"
 
+/* Z80 RAM window modelled for the test mode: 2000H-5FFFH. RAM 1 is 2000H-27FFH (digest 07),
+ * the staging buffer at 2200H is 2048 bytes long, so the window is kept generously large. */
+#define FLOPPY_DMA_Z80_RAM_BASE 0x2000
+#define FLOPPY_DMA_Z80_RAM_SIZE 0x4000
+#define FLOPPY_DMA_Z80_STAGING_BUFFER 0x2200 /* sector_data_staging_buf (digest 07) */
+#define FLOPPY_DMA_BOOT_BLOCK_BYTES 2048     /* bytes the autoload reads from the diskette */
+#define FLOPPY_DMA_TEST_BLOCK_BYTES 128      /* block size of tests 9, 10 and 11 */
+#define FLOPPY_DMA_PARAM_FIELD_WORDS 3       /* ND-100 words in the test 13/14 parameter field */
+#define FLOPPY_DMA_MAX_DAMAGED 8             /* sectors/tracks damaged by tests 16, 17 and 18 */
+/* Read extended status (036 octal), firmware 34300G 03F8H-0462H: board number 3112 (0C28H,
+ * port 77H bit 7 set; 0C22H = 3106 otherwise), word 1 = sub version (bits 15-8) and micro
+ * program version (bits 7-0) = 0006H (version 6 = "G"), at most 23 words (17H). */
+#define FLOPPY_DMA_BOARD_NUMBER 0x0C28
+#define FLOPPY_DMA_MICROPROGRAM_VERSION 0x0006
+#define FLOPPY_DMA_EXT_STATUS_WORDS 23
+/* Test 1 watchdog: the NMI handler (ROM 0066H-0075H) counts (20AAH) down and raises error 026
+ * when it reaches 0; the manual (section 3.10) calls it a ~10 s watchdog. One queued delay
+ * holds at most 65535 ticks, so the wait is chained: 80 x 65535 ticks = 5.2 M ticks, about
+ * 10 s at the RTC's 10550 ticks per 20 ms. */
+#define FLOPPY_DMA_WATCHDOG_CHUNKS 80
+#define FLOPPY_DMA_WATCHDOG_CHUNK_TICKS 65535
+
 // Floppy DMA device registers
 typedef enum
 {
@@ -76,6 +98,14 @@ typedef enum
     /// The sector given in the command block is read to the local memory and written back as a deleted record.
     /// </summary>
     FLOPPY_FUNC_WRITE_EOF = 0x05,
+
+    /// <summary>
+    /// Read extended status (036 octal, ND-11.021.1 section 4.1.7)
+    /// Board number, micro program version, buffer start and size, Z80 registers, status
+    /// words and streamer status bytes are written to the ND-100 memory as if a READ DATA
+    /// were performed. Word count is clamped to 23 words by the firmware (03F8H-0462H).
+    /// </summary>
+    FLOPPY_FUNC_READ_EXTENDED_STATUS = 0x1E,
 
     /// <summary>
     /// Format Floppy
@@ -157,6 +187,8 @@ typedef enum
         TIMEOUT = oct 26
         UNDEFINED ERROR = oct 27
     */
+    FLOPPY_ERR_MICROPROGRAM_OUT_OF_RANGE = 0x15, // oct 25: Z80 ran into FFH = RST 38H (ROM 0038H)
+    FLOPPY_ERR_TIMEOUT = 0x16,                   // oct 26: watchdog (ROM 0066H NMI handler)
     FLOPPY_ERR_TRACK_OUT_OF_RANGE = 0x18, // oct 30
     /*
         COMPARE ERROR(DURING COMPARE OF DATA) = oct 32
@@ -169,6 +201,7 @@ typedef enum
         ILLEGAL COMPETION(CONT.TRANSF) = oct 45
         ADR-REG ERROR = 46
     */
+    FLOPPY_ERR_ILLEGAL_COMMAND = 0x23, // oct 43
     FLOPPY_ERR_NO_BOOTSTRAP = 0x28,    // oct 50
     FLOPPY_ERR_WRONG_BOOTSTRAP = 0x29, // oct 51
                                        /*
@@ -371,6 +404,21 @@ typedef union {
 } StatusRegister2;
 // clang-format on
 
+// One sector (or one whole track when sector == 0) damaged by test 16, 17 or 18, and the
+// error code a later read or check of it reports: 05 CRC error after test 16 (the data CRC
+// is wrong), 06 sector not found after test 18 (the write track stopped after one sector,
+// its ID field is gone), 07 track not found after test 17 (the whole track was rewritten
+// with no ID fields). The codes are what the TPE FLOPPY-STREA PROVOKE-ERRORS command
+// expects for codes 5, 6 and 7 after those tests.
+typedef struct
+{
+    bool used;
+    uint8_t unit;   // drive 0-3, from the one-hot FDVSEL bits 0-3 in POH
+    uint8_t track;  // FD1797 track register value (POM)
+    uint8_t sector; // FD1797 sector register value (POL), 1-based; 0 = whole track
+    uint8_t error;  // FloppyError reported when the sector is read or checked
+} FloppyDamagedMark;
+
 // Floppy DMA device data
 // TODO: Refactor to support multiple units
 typedef struct
@@ -382,8 +430,8 @@ typedef struct
     uint32_t commandBlockAddress;
     CommandBlock commandBlock; // Command black for DMA  read and write to ND memory
 
-    uint8_t data;   // Data register
-    uint8_t sector; // Current sector
+    uint16_t dataOut; // Data-out register, read with IOX +0 (DLO = bits 0-7, DHI = bits 8-15)
+    uint8_t sector;   // Current sector
     uint8_t track;  // Current track
     uint8_t drive;  // Selected drive
 
@@ -394,6 +442,24 @@ typedef struct
     uint16_t readFormat;    // Format read from disk
     long diskFileSize;      // Size of floppy disk file
     bool readOnly;          // Read-only flag
+
+    /* Model of the controller's local Z80 RAM, used by the test mode (ND-11.021.1 chapter 7).
+     * Z80 address A is z80Ram[A - FLOPPY_DMA_Z80_RAM_BASE]. The firmware keeps its sector
+     * staging buffer at Z80 2200H and the autoload fills it with the first 2048 bytes of the
+     * diskette (NDInsight FloppyDMA digest 04 step 2, 07 RAM map). The floppy monitor that
+     * SINTRAN boot floppies carry copies the rest of itself out of that buffer with test 14. */
+    uint8_t z80Ram[FLOPPY_DMA_Z80_RAM_SIZE];
+    bool z80BootBlockStaged;  // z80Ram at 2200H holds the diskette's first 2048 bytes
+    uint16_t z80StackPointer; // value loaded by test 22 and returned by test 23
+    bool watchdogActive;      // test 1 is running; the watchdog chain is live
+    int watchdogChunksLeft;   // delay chunks before the watchdog raises error 026
+
+    /* Diskette damage done by tests 16, 17 and 18 (firmware 1DB1H, 1DC0H, 1DCDH). The image
+     * file is never written for these; the marks live here only. A later read or check of a
+     * marked sector reports the mark's error code, a later write or format of it clears the
+     * mark. sector 0 marks the whole track (test 17). The side is not modelled (always side
+     * 0, see execute_test). */
+    FloppyDamagedMark damaged[FLOPPY_DMA_MAX_DAMAGED];
 } FloppyDMAData;
 
 
