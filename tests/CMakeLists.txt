@@ -637,6 +637,30 @@ add_dependencies(test_scsi cpu devices)
 
 add_test(NAME scsi_tests COMMAND test_scsi)
 
+# The SMD controller's memory address and word count registers: the 10/15 MHz
+# card's shared flip-flop and the ND-120 mass storage load's single +7 write.
+#
+# device_smd.c is INCLUDED by the test rather than listed here, so the
+# registers in its file-local data can be checked directly.
+add_executable(test_smd
+    test_smd.c
+    ${CMAKE_SOURCE_DIR}/src/devices/smd/disk_smd.c
+    ${CMAKE_SOURCE_DIR}/src/devices/device.c
+)
+
+target_include_directories(test_smd PRIVATE
+    ${CMAKE_SOURCE_DIR}/src/devices
+    ${CMAKE_SOURCE_DIR}/src/cpu
+    ${CMAKE_SOURCE_DIR}/src/machine
+    ${CMAKE_SOURCE_DIR}/src/ndlib
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(test_smd PRIVATE ${ND_LINK_GROUP_BEGIN} ndlib ${ND_LINK_GROUP_END} m)
+add_dependencies(test_smd cpu devices)
+
+add_test(NAME smd_tests COMMAND test_smd)
+
 # The MFbus bridge: the ND-100 / ND-5000 shared-memory join.
 #
 # Only when the ND-500 is built - the bridge compiles to nothing otherwise. Uses

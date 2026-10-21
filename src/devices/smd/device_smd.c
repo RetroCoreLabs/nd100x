@@ -214,15 +214,15 @@ static uint16_t smd_read(Device *self, uint32_t address)
             // After a transfer, the upper/lower memory address(or word count) control bit(flip-flop) is reset.
             // A Read Status instruction(DEV.NO. + 4) or a Device Clear will also reset this bit
 
-            if ((!data->regs.wcrFlipFlop) || (!data->regs.hasWordCountFlipFlop))
+            if (!data->regs.hasFlipFlops)
             {
-                data->regs.wcrFlipFlop = true;
                 value = data->regs.wordCounter;
             }
             else
             {
-                data->regs.wcrFlipFlop = false;
-                value = data->regs.wordCounterHI;
+                // First read bits 0-15, second read bits 16-23 (marWcFlipFlop, device_smd.h).
+                value = data->regs.marWcFlipFlop ? data->regs.wordCounterHI : data->regs.wordCounter;
+                data->regs.marWcFlipFlop = !data->regs.marWcFlipFlop;
             }
         }
         else
@@ -233,15 +233,16 @@ static uint16_t smd_read(Device *self, uint32_t address)
             // The first one gets the lower 16 bits(Address bits 0-15 into the A - reg. 0-15), and the second one gets the upper bits
             // (Address bits 16 - 23 into A-reg. 0 - 7). When reading the most significant bits, the upper byte of the A-reg. is undefined and has tobe masked.
 
-            if ((!data->regs.marFlipFlop) || (!data->regs.hasFlipFlops))
+            if (!data->regs.hasFlipFlops)
             {
-                data->regs.marFlipFlop = true;
                 value = data->regs.coreAddress;
             }
             else
             {
-                data->regs.marFlipFlop = false;
-                value = data->regs.coreAddressHiBits;
+                // First read bits 0-15, second read bits 16-23 (marWcFlipFlop, device_smd.h).
+                value = data->regs.marWcFlipFlop ? data->regs.coreAddressHiBits
+                                                 : data->regs.coreAddress;
+                data->regs.marWcFlipFlop = !data->regs.marWcFlipFlop;
             }
         }
         break;
@@ -476,23 +477,18 @@ static void smd_write(Device *self, uint32_t address, uint16_t value)
             if (!data->regs.hasFlipFlops)
             {
                 data->regs.coreAddress = value;
-                data->regs.mawFlipFlop = false;
             }
             else
             {
-                // mawFlipFlop == false means "this is the FIRST of the two
-                // accesses". Which half that first access loads is the
-                // loadLowFirst question - see device_smd.h.
-                bool first_access = !data->regs.mawFlipFlop;
-                if (first_access == data->regs.loadLowFirst)
+                // The first access loads all 24 bits (bits 16-23 from A 0-7
+                // through the 11B byte swapper, bits 0-15 from A); the second
+                // loads bits 0-15 only. See marWcFlipFlop in device_smd.h.
+                if (!data->regs.marWcFlipFlop)
                 {
-                    data->regs.coreAddress = value; // low 16
+                    data->regs.coreAddressHiBits = value & 0xFF;
                 }
-                else
-                {
-                    data->regs.coreAddressHiBits = value & 0xFF; // high 8
-                }
-                data->regs.mawFlipFlop = !data->regs.mawFlipFlop;
+                data->regs.coreAddress = value;
+                data->regs.marWcFlipFlop = !data->regs.marWcFlipFlop;
             }
         }
         break;
@@ -774,23 +770,21 @@ static void smd_write(Device *self, uint32_t address, uint16_t value)
             // The Word Count is set to an integer multiple of the number of words in a sector when device operation is M0-M3.
 
 
-            if (!data->regs.hasWordCountFlipFlop)
+            if (!data->regs.hasFlipFlops)
             {
                 data->regs.wordCounter = value;
-                data->regs.wcwFlipFlop = false;
             }
             else
             {
-                bool first_access = !data->regs.wcwFlipFlop;
-                if (first_access == data->regs.loadLowFirst)
+                // Same as the memory address: the first access loads all 24
+                // bits, the second bits 0-15. The microcode's single +7 write
+                // of 002000 therefore leaves 00 002000. See marWcFlipFlop.
+                if (!data->regs.marWcFlipFlop)
                 {
-                    data->regs.wordCounter = value; // low 16
+                    data->regs.wordCounterHI = value & 0xFF;
                 }
-                else
-                {
-                    data->regs.wordCounterHI = value & 0xFF; // high 8
-                }
-                data->regs.wcwFlipFlop = !data->regs.wcwFlipFlop;
+                data->regs.wordCounter = value;
+                data->regs.marWcFlipFlop = !data->regs.marWcFlipFlop;
             }
         }
         break;
@@ -1648,11 +1642,8 @@ static void finish_operation(Device *self)
 
 static void clear_flip_flops(ControllerRegs *regs)
 {
-    regs->wcwFlipFlop = false;
     regs->wcEccwFlipFlop = false;
-    regs->wcrFlipFlop = false;
-    regs->mawFlipFlop = false;
-    regs->marFlipFlop = false;
+    regs->marWcFlipFlop = false;
 }
 
 static int64_t convert_cylinder_head_sector_to_logical_block(ControllerRegs *regs, int cylinder,
@@ -1868,30 +1859,7 @@ Device *smd_create_device(uint8_t thumbwheel)
     {
         data->regs.hasFlipFlops = false;
     }
-
-    // Word-counter protocol: follows the card by default, separately override-
-    // able so the single-+7-write mass-load path can be tested against a card
-    // that is otherwise the two-access 15 MHz type. See device_smd.h.
-    data->regs.hasWordCountFlipFlop = data->regs.hasFlipFlops;
-    {
-        const char *w = getenv("ND100X_SMD_WC_FF");
-        if (w != NULL)
-        {
-            data->regs.hasWordCountFlipFlop = (w[0] != '0');
-        }
-    }
-
-    // Two-access load order: HI first (as the memory-address text states) or
-    // LO first (which would match the documented READ order and make a single
-    // +7 write load a full count). See device_smd.h.
-    data->regs.loadLowFirst = false;
-    {
-        const char *o = getenv("ND100X_SMD_LOAD_ORDER");
-        if (o != NULL && strcmp(o, "lo") == 0)
-        {
-            data->regs.loadLowFirst = true;
-        }
-    }
+    data->regs.marWcFlipFlop = false;
 
     // Initialize device properties
     data->bytes_pr_sector = 1024; // Standard SMD sector size

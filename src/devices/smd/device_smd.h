@@ -240,33 +240,27 @@ typedef struct
 
     // FlipFlops
     bool hasFlipFlops; //SMD 10Mhz and 15Mhz has flip-flops
-    // The WORD COUNTER's load/read protocol, kept separate from hasFlipFlops.
-    // RetroCore models four independent flip-flop flags (core memory, memory
-    // address, word counter, ECC control) rather than one card-wide strap, and
-    // the ND-120 mass-load microroutine needs that distinction: it writes the
-    // MEMORY ADDRESS with two +1 accesses (flip-flop protocol) but the WORD
-    // COUNT with a single +7 write of 002000, which only loads 1024 words if
-    // the word counter is single-access. Ground truth for that asymmetry:
-    // nd-120 repo, Verilog/ND-BUS-DEVICES/SMD/sim/traces/mass-load-21540.trace
-    // Defaults to hasFlipFlops; override with ND100X_SMD_WC_FF=0|1.
-    bool hasWordCountFlipFlop;
 
-    // Which half the FIRST of the two accesses loads. ND-11.020.01 sec 2.2
-    // states HI first for the MEMORY ADDRESS ("The first loads the 8 upper
-    // bits ... and the second one loads the lower 16 bits") but documents
-    // READS as LO then HI, and never states the WRITE order for the word
-    // counter at all. If the real flip-flop simply toggles from a known reset
-    // state, writes and reads would share one order (LO first) - and then the
-    // mass-load microroutine's single +7 write of 002000 loads 1024 directly,
-    // with no per-register strap needed. Switchable so the two orders can be
-    // compared against DISC-TEMA: ND100X_SMD_LOAD_ORDER=hi (default) | lo
-    bool loadLowFirst;
+    // Memory address and word count flip-flop (10/15 MHz card, hasFlipFlops).
+    // From the 15 MHz card's logic diagram, card 3044 sheet 3 (ND-11.020.01,
+    // scan page 118), simulated in the nd-120 repository,
+    // Logisim/ND-BUS-DEVICES/SMD-3044:
+    //  - ONE flip-flop (4E) serves the memory address and the word count,
+    //    writes and reads alike. It toggles at the end of every load memory
+    //    address (+1), load word count (+7), read memory address (+0) and read
+    //    word count (+0, multiplex bit set); not on the control word, the
+    //    block address or the ECC control register.
+    //  - The FIRST access of a pair loads all 24 bits: bits 16-23 get A bits
+    //    0-7 (through the 11B byte swapper) and bits 0-15 get A. The second
+    //    access loads bits 0-15 only. So one write of V leaves bits 0-7 of V
+    //    in bits 16-23 and V in bits 0-15 - which is why the ND-120 mass
+    //    storage load's single +7 write of 002000 gives a word count of 1024.
+    //  - Reads: the first gives bits 0-15, the second bits 16-23 on A 0-7.
+    // false = the next access is the FIRST of a pair. Reset by device clear,
+    // status read and the end of a transfer (clear_flip_flops).
+    bool marWcFlipFlop;
 
-    bool wcwFlipFlop;
-    bool wcrFlipFlop;
     bool wcEccwFlipFlop;
-    bool mawFlipFlop;
-    bool marFlipFlop;
 
     // Controller registers
     uint8_t selectedUnit;
