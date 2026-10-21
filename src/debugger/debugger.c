@@ -566,7 +566,6 @@ static void source_line_at(uint16_t pc, int *line, const char **file)
 /// MAC statement), and a jump inside the line can leave it anywhere, so a single temporary breakpoint at the
 /// next map entry is not the end of a line.
 #define LINE_STEP_FILE_MAX   256
-#define LINE_STEP_REPEAT_MAX 100000 // a line that never ends (a loop on one line is left after one turn, below)
 #define LINE_STEP_UNMAPPED_MAX 16   // instructions a step in may run after the call, to reach the first line of the callee
 static struct
 {
@@ -575,7 +574,6 @@ static struct
     int line;
     char file[LINE_STEP_FILE_MAX];
     uint16_t start_pc;
-    int repeats;
     int unmapped;
     uint16_t prologue_start; // the code of a called C function before its first line, [start, end); end 0: none seen
     uint16_t prologue_end;
@@ -686,9 +684,8 @@ static bool line_step_continue(DAPServer *server, CpuStopReason reason)
     source_line_at(gPC, &line, &file);
     // The last line of a C function jumps into cret: the step goes on to the caller, as step out does
     // inside cret, instead of stopping on the lines of cret.s.
-    if (in_cret(gPC) && !in_cret(s_line_step.start_pc) && s_line_step.repeats < LINE_STEP_REPEAT_MAX)
+    if (in_cret(gPC) && !in_cret(s_line_step.start_pc))
     {
-        s_line_step.repeats++;
         cpu_set_stop_reason(STOP_REASON_NONE);
         if (step_cpu_once(server, STEP_OUT) == 0)
         {
@@ -706,11 +703,11 @@ static bool line_step_continue(DAPServer *server, CpuStopReason reason)
             return true;
         }
     }
-    // gPC == start_pc: a one-line loop came back to where it began, which is a new turn of the line
-    else if (line == s_line_step.line && file && !strcmp(file, s_line_step.file) &&
-        gPC != s_line_step.start_pc && s_line_step.repeats < LINE_STEP_REPEAT_MAX)
+    // Still on the line it started on: go on. A loop that stays on the line (also one that comes back to the
+    // first instruction of the line) is part of the line, and a line that never ends is left by a pause or a
+    // breakpoint, which end the step above (reason other than a step).
+    else if (line == s_line_step.line && file && !strcmp(file, s_line_step.file))
     {
-        s_line_step.repeats++;
         cpu_set_stop_reason(STOP_REASON_NONE);
         if (step_cpu_once(server, s_line_step.type) == 0)
         {
@@ -1019,13 +1016,20 @@ int debugger_step_cpu(DAPServer *server, StepType step_type)
             s_line_step.line = line;
             snprintf(s_line_step.file, sizeof s_line_step.file, "%s", file);
             s_line_step.start_pc = gPC;
-            s_line_step.repeats = 0;
             s_line_step.unmapped = 0;
             s_line_step.prologue_end = 0;
             s_line_step.active = true;
         }
     }
-    return step_cpu_once(server, step_type);
+    int result = step_cpu_once(server, step_type);
+    if (result == 0)
+    {
+        // The target runs now. libdap keeps has_stopped true after a step request until the next stopped event, and a
+        // pause is refused as "already paused" for as long as it is: a step that does not end (a loop on one line)
+        // could not be paused. cmd_check_cpu_events sets it again when the step ends.
+        server->debugger_state.has_stopped = false;
+    }
+    return result;
 }
 
 /// @brief One step of the given type, as the debugger front end does it (see debugger_step_cpu)
@@ -1203,121 +1207,10 @@ static int step_cpu_once(DAPServer *server, StepType step_type)
         snprintf(log_message, sizeof(log_message), "Step In from %06o\n", current_pc);
         dap_server_send_output_category(server, DAP_OUTPUT_CONSOLE, log_message);
 
-        // Check granularity - are we stepping by line or instruction?
-        bool is_line_granularity = (ctx->granularity == DAP_STEP_GRANULARITY_LINE) ||
-                                   (ctx->granularity == DAP_STEP_GRANULARITY_STATEMENT);
-
-        if (is_line_granularity)
-        {
-            // Source-level Step In
-            // Scan all instructions in the current source line for a procedure call.
-            // A C source line like "result = test_break(5)" compiles to multiple
-            // instructions (push args, JPL, store result). The JPL may not be the
-            // first instruction at the line's address.
-
-            // Find the next line address to know the range of the current line
-            uint16_t next_line_addr = 0;
-            if (s_symbol_tables.symbol_table_stabs)
-            {
-                next_line_addr =
-                    symbols_get_next_line_address(s_symbol_tables.symbol_table_stabs, current_pc);
-            }
-            if ((!next_line_addr || next_line_addr == current_pc) &&
-                s_symbol_tables.symbol_table_map)
-            {
-                next_line_addr =
-                    symbols_get_next_line_address(s_symbol_tables.symbol_table_map, current_pc);
-            }
-
-            // Scan instructions from current_pc to next_line_addr for a JPL
-            // When next_line_addr is unknown, scan up to 8 instructions ahead
-            // to cover multi-instruction C statements (arg push + call)
-            uint16_t scan_limit =
-                (next_line_addr && next_line_addr > current_pc) ? next_line_addr : current_pc + 8;
-            uint16_t jpl_addr = 0;
-            uint16_t jpl_operand = 0;
-
-            for (uint16_t addr = current_pc; addr < scan_limit; addr++)
-            {
-                uint16_t operand = Dbg_ReadVirtualMemoryISpace(addr);
-                if (is_procedure_call(operand))
-                {
-                    jpl_addr = addr;
-                    jpl_operand = operand;
-                    break;
-                }
-            }
-
-            if (jpl_addr != 0)
-            {
-                // Found a procedure call in this source line
-                uint16_t call_target = get_jpl_target_address(jpl_addr, jpl_operand);
-
-                if (call_target != 0)
-                {
-                    // Try to find the first source line in the called function
-                    int target_line = 0;
-                    const char *target_file = NULL;
-
-                    // Try STABS first (for C functions)
-                    if (s_symbol_tables.symbol_table_stabs)
-                    {
-                        target_line =
-                            symbols_get_line(s_symbol_tables.symbol_table_stabs, call_target);
-                        target_file =
-                            symbols_get_file(s_symbol_tables.symbol_table_stabs, call_target);
-                    }
-
-                    // Try MAP if STABS didn't work (for assembly functions)
-                    if ((!target_line || !target_file) && s_symbol_tables.symbol_table_map)
-                    {
-                        target_line =
-                            symbols_get_line(s_symbol_tables.symbol_table_map, call_target);
-                        target_file =
-                            symbols_get_file(s_symbol_tables.symbol_table_map, call_target);
-                    }
-
-                    if (target_line && target_file)
-                    {
-                        // Found source info - step into the function
-                        snprintf(log_message, sizeof(log_message),
-                                 "Stepping into %s:%d (address %06o)\n", target_file, target_line,
-                                 call_target);
-                        dap_server_send_output_category(server, DAP_OUTPUT_CONSOLE, log_message);
-
-                        // Set temporary breakpoint at function entry
-                        bkpt_manager_add(call_target, BP_TYPE_TEMPORARY, NULL, NULL, NULL);
-                        ensure_cpu_running();
-                        return 0;
-                    }
-
-                    // No source info - still step into, but at instruction level
-                    snprintf(log_message, sizeof(log_message),
-                             "Stepping into function at %06o (no source info)\n", call_target);
-                    dap_server_send_output_category(server, DAP_OUTPUT_CONSOLE, log_message);
-
-                    bkpt_manager_add(call_target, BP_TYPE_TEMPORARY, NULL, NULL, NULL);
-                    ensure_cpu_running();
-                    return 0;
-                }
-            }
-
-            // No call found in this line - step to next source line
-            // next_line_addr already computed above; a step that follows a source line (s_line_step)
-            // takes one instruction instead, see the same note in STEP_OVER
-            if (!s_line_step.active && next_line_addr && next_line_addr != current_pc)
-            {
-                snprintf(log_message, sizeof(log_message), "Stepping to next line at %06o\n",
-                         next_line_addr);
-                dap_server_send_output_category(server, DAP_OUTPUT_CONSOLE, log_message);
-
-                bkpt_manager_add(next_line_addr, BP_TYPE_TEMPORARY, NULL, NULL, NULL);
-                ensure_cpu_running();
-                return 0;
-            }
-        }
-
-        // Fallback: instruction-level step
+        // One instruction. A step in follows its source line (s_line_step, see line_step_continue): when the
+        // instruction is a call (JPL) the program is then in the callee and the step ends there, and when the
+        // line has a condition that skips its call the step ends on the next line. Looking ahead in the line for
+        // a JPL and running to its target does neither: a call that the line skips is never reached.
         snprintf(log_message, sizeof(log_message), "Step In (instruction level) from %06o\n",
                  current_pc);
         dap_server_send_output_category(server, DAP_OUTPUT_CONSOLE, log_message);
@@ -4098,6 +3991,7 @@ static int cmd_configuration_done(DAPServer *server)
 /// @return 0 if successful, -1 if error
 static int cmd_pause(DAPServer *server)
 {
+    s_line_step.active = false; // a pause ends a source-line step, which would otherwise start the CPU again
     // Request the CPU to pause (same mechanism as cmd_wait_for_debugger)
     return cmd_wait_for_debugger(server);
 }
