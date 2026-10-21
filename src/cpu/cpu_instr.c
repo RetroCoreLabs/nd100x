@@ -1761,12 +1761,12 @@ static void do_bops(uint16_t operand)
 static uint16_t shift_reg(uint16_t reg, uint16_t instr)
 {
     bool isneg = ((instr & 0x0020) >> 5) ? 1 : 0;
-    /* Right-shift count is the two's complement of the 6-bit field, but the hardware shift counter is
-     * only 5 BITS, so it wraps mod 32: field 040 octal (= 32) loads as 0 -> NO shift (register unchanged,
-     * M preserved). Oracle-validated (RetroCore CpuND100.Fetch, commit 135a2ff28). Fields 041..077
-     * (counts 31..1) already fit and are unaffected. M-on-count-0 is already correct here (tmp inits to M). */
+    /* Right-shift count is the two's complement of the 6-bit field (1 to 32): field 040 octal is a
+     * 32-place shift. ND-110 microcode LDLC loads the 6 low instruction bits into the loop counter
+     * with the top bit as sign and has no special case for 32; the ND-120 design simulated on
+     * Verilator shifts 32 places (new-planc docs/measurements/nd100-shift-32-proof-2026-10-20.md). */
     uint16_t offset =
-        (isneg) ? (uint16_t)((~((instr & 0x003F) | 0xFFC0) + 1) & 0x1F) : (instr & 0x003F);
+        (isneg) ? (uint16_t)((~((instr & 0x003F) | 0xFFC0) + 1) & 0x3F) : (instr & 0x003F);
     uint16_t shifttype = ((instr >> 9) & 0x03);
     int i, tmp, msb;
     int m = cpu_getbit(_STS, STS_SHIFT_OUT);
@@ -1804,10 +1804,9 @@ static uint16_t shift_reg(uint16_t reg, uint16_t instr)
 static uint32_t shift_double_reg(uint32_t reg, uint16_t instr)
 {
     bool isneg = ((instr & 0x0020) >> 5) ? 1 : 0;
-    /* 5-bit shift-counter wrap: field 040 octal (=32) -> 0 = NO shift (SAD register pair unchanged, M
-     * preserved). Oracle-validated (RetroCore 135a2ff28). See shift_reg for the full note. */
+    /* 32-place right shift for field 040 octal, as in shift_reg. */
     uint16_t offset =
-        (isneg) ? (uint16_t)((~((instr & 0x003F) | 0xFFC0) + 1) & 0x1F) : (instr & 0x003F);
+        (isneg) ? (uint16_t)((~((instr & 0x003F) | 0xFFC0) + 1) & 0x3F) : (instr & 0x003F);
     uint16_t shifttype = ((instr >> 9) & 0x03);
     int i;
     uint32_t tmp, msb;
