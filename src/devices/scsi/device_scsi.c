@@ -32,6 +32,7 @@
 
 #include "../devices_types.h"
 #include "../devices_protos.h"
+#include "nd3201_autoload_rom.h"
 
 
 /* Read by the NCR 5386 port (ncr5386.c, vendored, not edited). The frontend
@@ -855,28 +856,33 @@ static uint16_t scsi_ident(Device *self, uint16_t level)
 
 
 /*
- * Boot.
+ * Boot - the ND-3201 card's autoload.
  *
- * This deliberately bypasses the SCSI register/NCR/bus path entirely and reads
- * the boot blocks straight through the block callback, exactly as SMD_Boot
- * does. That is not a shortcut: on real hardware the boot load is performed by
- * CPU microcode, and nd100x does not execute microcode, so modelling it as a
- * direct block read is the faithful choice at this level of emulation.
+ * On the real card the boot does NOT come from CPU microcode reading the disc.
+ * The CPU's mass storage load sends the card the autoload command, and the
+ * card's Z80 (ROM 45900E, handler 0x15B6) DMAs an ND-100 SCSI driver out of
+ * its own ROM into ND-100 memory at 6000, plus JMP I *+1 / 6035 at address 0.
+ * It does not look at the disc or the floppy. The CPU then starts at 0, and
+ * that planted driver reads the disc through this card's NCR 5386 registers.
+ * See nd3201_autoload_rom.h for the ROM offsets.
  *
- * The cheat only covers the first 2048 words. What gets loaded is the disk
- * bootstrap, which the CPU then executes - and that bootstrap is a real SCSI
- * driver that will drive this card's registers for real.
+ * So this function writes exactly those ROM words and returns start address
+ * 0. Everything after that - selecting the target, reading the boot blocks,
+ * jumping into them - is the ROM's own driver running on the emulated CPU
+ * against the real register, NCR and bus model.
+ *
+ * nd100x does not run the Z80, and does not model the CPU microcode that
+ * sends the autoload command; it enters here directly. What the Z80 writes
+ * into ND-100 memory is reproduced word for word.
+ *
+ * (An earlier version read 4 disc blocks straight to address 0 and called
+ * that the microcode's job. That was wrong for this card.)
  */
 static int scsi_boot(Device *self, int unit)
 {
     if (!self)
     {
         return -1;
-    }
-
-    if (!self->blockCallbacks.readFunc)
-    {
-        return -1; /* Need callbacks hooked up */
     }
 
     SCSIData *data = (SCSIData *)self->deviceData;
@@ -900,68 +906,27 @@ static int scsi_boot(Device *self, int unit)
         return -1;
     }
 
-    self->blockSizeBytes = data->bytesPrSector;
-
-    /* 4 blocks of 1024 bytes = 4096 bytes = 2048 ND words, loaded to address 0.
-     * TODO(phase 6): confirm the real ND SCSI boot load length against the
-     * bootstrap on SCSI-K.image - this currently mirrors SMD_Boot's 4 blocks. */
-    const uint32_t block_counter = 4;
-    const int word_counter = 2048;
-
-    uint8_t *buffer = (uint8_t *)malloc(block_counter * self->blockSizeBytes);
-    if (!buffer)
+    /* Z80 0x15B6, first DMA: ROM 0x15DF-0x1A86 -> ND-100 words 6000-7123. */
+    const int driver_words =
+        (int)(sizeof(nd3201_autoload_driver_words) / sizeof(nd3201_autoload_driver_words[0]));
+    for (int i = 0; i < driver_words; i++)
     {
-        return -1;
+        dev_dma_write(ND3201_AUTOLOAD_DRIVER_ADDR + i, nd3201_autoload_driver_words[i]);
     }
 
-    int blocks_read = self->blockCallbacks.readFunc(self, buffer, block_counter, 0, unit);
-    if ((blocks_read < 0) || (blocks_read != (int)block_counter))
-    {
-        LOG(LOG_CAT_SCSI, LOG_ERROR, "[SCSI Boot] Block read failed: got %d blocks, expected %d\n",
-            blocks_read, block_counter);
-        free(buffer);
-        return -1;
-    }
-
-    /* Reject a blank/unformatted disk rather than executing zeros. */
-    {
-        int all_zero = 1;
-        for (uint32_t i = 0; i < block_counter * self->blockSizeBytes; i++)
-        {
-            if (buffer[i] != 0)
-            {
-                all_zero = 0;
-                break;
-            }
-        }
-        if (all_zero)
-        {
-            LOG(LOG_CAT_SCSI, LOG_ERROR,
-                "Error: SCSI boot sector is all zeros (blank or unformatted disk)\n");
-            free(buffer);
-            return -1;
-        }
-    }
-
-    /* The image is stored big-endian / ND word order: word N is at byte offset
-     * N*2, MSB first. Device_IO_BufferReadWord does that unpacking, and it is
-     * the same convention the DMA pump uses when it packs SCSI bytes into ND
-     * words (even byte -> high). */
-    for (int i = 0; i < word_counter; i++)
-    {
-        uint32_t read_data = dev_io_buffer_read_word(self, buffer, i);
-        dev_dma_write(i, (uint16_t)read_data);
-    }
-
-    free(buffer);
+    /* Second DMA: ROM 0x15DB-0x15DE -> ND-100 words 0-1 (JMP I *+1, 6035). */
+    dev_dma_write(0, nd3201_autoload_addr0_words[0]);
+    dev_dma_write(1, nd3201_autoload_addr0_words[1]);
 
     if (Log_IsEnabled(LOG_CAT_SCSI, LOG_DEBUG))
     {
-        log_write(LOG_CAT_SCSI, LOG_DEBUG, "Boot loaded %d words from unit %d to address 0\n",
-                  word_counter, unit);
+        log_write(LOG_CAT_SCSI, LOG_DEBUG,
+                  "Autoload: planted %d-word ROM SCSI driver at %o and JMP I to 6035 at 0 "
+                  "(boot unit %d requested)\n",
+                  driver_words, ND3201_AUTOLOAD_DRIVER_ADDR, unit);
     }
 
-    /* Return boot address. */
+    /* The CPU starts at 0. */
     return 0;
 }
 

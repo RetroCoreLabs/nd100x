@@ -32,15 +32,34 @@
 #include "scsi/device_scsi.c"
 
 /* Stubs for what device.c's DMA helpers reference. The control word's test-mode
- * path does one PIO word through them; nothing here needs real ND memory, and
- * linking the CPU in would mean a failure could come from anywhere. */
-int  g_dma_access = 0;
-int  mms_read_physical_memory(int addr, bool priv) { (void)addr; (void)priv; return 0; }
+ * path does one PIO word through them, and the autoload test reads back what
+ * the card planted, so the stub keeps a small ND memory (words 0-7777 octal).
+ * Linking the CPU in would mean a failure could come from anywhere. Writes
+ * outside the window are counted, so a stray address cannot pass silently. */
+#define TEST_MEM_WORDS 010000
+static uint16_t s_mem[TEST_MEM_WORDS];
+static int s_mem_out_of_range = 0;
+
+int g_dma_access = 0;
+int mms_read_physical_memory(int addr, bool priv)
+{
+    (void)priv;
+    if (addr < 0 || addr >= TEST_MEM_WORDS)
+    {
+        s_mem_out_of_range++;
+        return 0;
+    }
+    return s_mem[addr];
+}
 void mms_write_physical_memory(int addr, uint16_t v, bool priv)
 {
-    (void)addr;
-    (void)v;
     (void)priv;
+    if (addr < 0 || addr >= TEST_MEM_WORDS)
+    {
+        s_mem_out_of_range++;
+        return;
+    }
+    s_mem[addr] = v;
 }
 
 static int s_failed = 0;
@@ -157,6 +176,34 @@ int main(void)
     scsi_write_ctrl(card, SCSI_CTRL_ENABLE_INTERRUPT);
     CHECK(data->dma_bytes_read == 5 && data->dma_bytes_written == 5,
           "a control word without activate does not touch the counters");
+
+    /* ---- Boot: the card's autoload plants the ROM's ND-100 SCSI driver ----
+     *
+     * Z80 ROM 45900E handler 0x15B6: ROM 0x15DF-0x1A86 -> ND 6000-7123, and
+     * ROM 0x15DB-0x15DE (125001 006035, JMP I *+1 to 6035) -> ND 0-1. It reads
+     * nothing from the disc: no disc callback is attached here on purpose.
+     * The expected values were read from the ROM dump at the offsets named,
+     * not from the table under test. */
+    for (int i = 0; i < TEST_MEM_WORDS; i++)
+    {
+        s_mem[i] = 0177777;
+    }
+    s_mem_out_of_range = 0;
+    data->unitType[0] = SCSI_UNIT_HDD;
+
+    CHECK(card->Boot(card, 0) == 0, "boot returns start address 0");
+    CHECK(s_mem[0] == 0125001, "ND 0 = 125001 (JMP I *+1), ROM 0x15DB");
+    CHECK(s_mem[1] == 0006035, "ND 1 = 006035 (driver entry), ROM 0x15DD");
+    CHECK(s_mem[2] == 0177777, "ND 2 is not written");
+    CHECK(s_mem[05777] == 0177777, "ND 5777, just below the driver, is not written");
+    CHECK(s_mem[06000] == 0, "ND 6000 = 000000, ROM 0x15DF");
+    CHECK(s_mem[06014] == 0144300, "ND 6014 = 144300 (SCSI bus 1 base), ROM 0x15F7");
+    CHECK(s_mem[06035] == 0044052, "ND 6035 = 044052 (LDA 6107), ROM 0x1619");
+    CHECK(s_mem[06036] == 0146153, "ND 6036 = 146153 (COPY SA DB), ROM 0x161B");
+    CHECK(s_mem[06264] == 0150415, "ND 6264 = 150415 (IOXT), ROM 0x1747");
+    CHECK(s_mem[07123] == 0005130, "ND 7123 = 005130, last word, ROM 0x1A85");
+    CHECK(s_mem[07124] == 0177777, "ND 7124, just past the driver, is not written");
+    CHECK(s_mem_out_of_range == 0, "boot writes nothing outside ND 0-7777");
 
     printf("\n%d checks, %d failed\n", s_checks, s_failed);
     return s_failed == 0 ? 0 : 1;

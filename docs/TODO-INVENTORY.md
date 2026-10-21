@@ -1,6 +1,6 @@
 # TODO and FIXME inventory
 
-Every `TODO` and `FIXME` in the source that carries no owner - 51 of them, in 16 files. They are listed so each can be judged on its own and either acted on, given an owner, or deleted.
+Every `TODO` and `FIXME` in the source that carries no owner - 50 of them, in 15 files. They are listed so each can be judged on its own and either acted on, given an owner, or deleted.
 
 This file is generated from the audit's rule 11.4 listing (`python3 tools/house/audit.py --list 11.4`). Regenerate it after changing any of them, or the line numbers drift.
 
@@ -109,12 +109,6 @@ Only entries backed by reading the surrounding code carry a note. Nothing here i
 | 224 | `panel_process_terminal_panc` | `// TODO: Implement!` | **Still open.** The `case` contains only `break;` - the panel function is not implemented. |
 | 227 | `panel_process_terminal_panc` | `// TODO: Implement!` | **Still open.** The `case` contains only `break;` - the panel function is not implemented. |
 | 230 | `panel_process_terminal_panc` | `// TODO: Implement!` | **Still open.** The `case` contains only `break;` - the panel function is not implemented. |
-
-## src/devices/scsi/device_scsi.c
-
-| Line | Function | Comment | Checked |
-|---|---|---|---|
-| 823 | `scsi_boot` | `* TODO(phase 6): confirm the real ND SCSI boot load length against the` |  |
 
 ## src/devices/smd/device_smd.c
 
