@@ -716,3 +716,29 @@ target_include_directories(test_qpc_time PRIVATE
 )
 
 add_test(NAME qpc_time_tests COMMAND test_qpc_time)
+
+# The ND-110/ND-120 instruction group replayed from the micro code vectors in tests/vectors
+# (written by the NDMicroCpu micro code CPU; copies, never edited here). Runs every case
+# through the real dispatch table and compares registers and memory afterwards.
+add_executable(test_nd110_vectors
+    test_nd110_vectors.c
+)
+
+target_include_directories(test_nd110_vectors PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/cpu
+    ${CMAKE_SOURCE_DIR}/src/machine
+    ${CMAKE_SOURCE_DIR}/src/devices
+    ${CMAKE_SOURCE_DIR}/src/ndlib
+)
+
+target_compile_definitions(test_nd110_vectors PRIVATE
+    VECTOR_DIR="${CMAKE_CURRENT_SOURCE_DIR}/vectors")
+
+target_link_libraries(test_nd110_vectors PRIVATE
+    ${ND_LINK_GROUP_BEGIN} cpu machine devices debugger ndlib ${ND_LINK_GROUP_END} m)
+
+add_dependencies(test_nd110_vectors cpu devices)
+
+add_test(NAME nd110_vector_tests COMMAND test_nd110_vectors)

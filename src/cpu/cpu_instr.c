@@ -916,7 +916,13 @@ static void clepu_mark_working_set(uint32_t idx)
     uint32_t page = idx & 0x7F;   /* 8 words * 16 bits = 128 pages */
     uint32_t word = page >> 4;    /* word number (0..7) */
     int bit = (int)(page & 0x0F); /* bit within the word */
-    uint32_t table_addr = (uint32_t)((gL + word) & 0xFFFF);
+    /*
+     * The table word is read with EXRQ and written with DERQ (004107, 004114) in the segment
+     * PATA1 loaded from T, the bank the chain lives in - NOT bank 0. Measured on the micro
+     * code 2026-10-28 (vector CLEPU/two_nodes_pgu_then_unused_bank1: T = 1, L = 010000, the
+     * micro code wrote 0210000 while this wrote 010000).
+     */
+    uint32_t table_addr = (uint32_t)(((gT & 0xFF) << 16) | ((gL + word) & 0xFFFF));
     uint16_t tw = (uint16_t)mms_read_physical_memory((int)table_addr, true); /* 004107 EXRQ */
 
     tw |= (uint16_t)(1 << bit);                           /* 004112 set bit */
@@ -5137,44 +5143,36 @@ static void opcode_setpt_set_page_tables(uint16_t operand)
     9226  004054  %        JMP *-7
     */
 
-    int cnt = 0;
-
-    // JXZ * 10 % FINISHED
-    while (gX != 0)
+    /*
+     * Faithful to the RASK SEPT1 body (ND-110-RASK.LISTING.TXT 9296-9330, 004056-004070), the
+     * same PATA2 chain walk CLEPT/CLEPU use: every pass reads the next-node pointer at [X]
+     * FIRST (004121-004123) and the X == 0 pass still performs that read and loads X from it.
+     * For a node: [X+1] -> B = 0177000 | 2*index, A := [X+2], D := [X+3], the PGU bit (bit 11)
+     * is cleared in A and the pair is written through the alternative page table.
+     *
+     * The macro version this was ported from read the words in the order 020, 010, 000 and
+     * reported the loop COUNT in X. The micro code reads 000, 010, 020, 030 and leaves X =
+     * the word at [X] of the terminating pass (normally word 0 of bank T). Measured on the
+     * micro code 2026-10-28 (vectors SETPT/one_node, SETPT/node_wraps_bank).
+     */
+    for (;;)
     {
-        uint32_t el = 0;
-        uint32_t effective_address = 0;
-
-        //  LDDTX 20 <=  A: = (EL), D: = (EL + 1)
-        el = calc_el(2); // Calculates using X, T and mriDisplacement // oct 020 >>3
-        gA = (uint16_t)read_el(el);
-        gD = (uint16_t)read_el(el + 1);
-
-        // BSET ZRO 130 DA % PGU - BIT *
-
-        gA = gA & ~(1 << 0x0b); // 0x0b = 13 octalt. Clear bit 013 in register A
-
-        // LDBTX 10
-        el = calc_el(1); // oct 10 >> 3
-        uint32_t elval = read_el(el);
-        gB = (uint16_t)(((elval + elval) & 0xFFFF) | 0xFE00); // 177000
-
-        // 177777                   % OLD BUG IN LDBTX
-
-        // STD ,B
-        effective_address = (uint32_t)(gB & 0xFFFF); // (+displacement, which is 0 here)
-        mms_write_virtual_memory(effective_address, gA, true, WRITEMODE_WORD);
-        mms_write_virtual_memory(effective_address + 1, gD, true, WRITEMODE_WORD);
-
-        //  LDXTX 00 <=  X:= (EL)
-        gX = (uint16_t)read_el(calc_el(0)); // Calculates using X, T and mriDisplacement
-
-        // Increase counter
-        cnt++;
+        uint16_t next_x = (uint16_t)read_el(calc_el(0)); /* 004121-004122: [X] first */
+        if (gX == 0)
+        {
+            gX = next_x; /* 004123: X := [X] on the final pass too */
+            break;
+        }
+        uint32_t idx = read_el(calc_el(1)); /* 004124-004130: [X+1] -> B */
+        gB = (uint16_t)(((idx + idx) & 0xFFFF) | 0xFE00); /* 177000 */
+        gA = (uint16_t)read_el(calc_el(2)); /* 004057-004060: A := [X+2] */
+        gD = (uint16_t)read_el(calc_el(3)); /* 004061-004063: D := [X+3] */
+        gA = gA & ~(1 << 0x0b); /* 004065: clear the PGU bit, 013 octal */
+        uint32_t entry = (uint32_t)(gB & 0xFFFF);
+        mms_write_virtual_memory(entry, gA, true, WRITEMODE_WORD); /* 004065 */
+        mms_write_virtual_memory((entry + 1) & 0xFFFF, gD, true, WRITEMODE_WORD); /* 004067 */
+        gX = next_x;
     }
-
-    gX = (uint16_t)
-        cnt; // Report number of loops in X (undocumented, but testing using "INSTRUCTION - Version: C00 - 1986-10-30" sub-program "SEGMENTS" identified it.
 }
 
 /**
@@ -6017,8 +6015,16 @@ static void opcode_clpt_clear_segment_from_page_tables(uint16_t operand)
                  * ND100CX control run performs 91 clearing writes into page table 9 while the
                  * ND110CX run performed ZERO.  With it, RetroCore's ND110CX harness reaches
                  * "SINTRAN III RUNNING -" in 23 s.
+                 *
+                 * RESOLVED 2026-10-28 on the micro code: 004553 `A,R3 B,A ALUF,PASSB COND,F=0`
+                 * latches F = the A REGISTER, so CLPK4 clears the saved entry ONLY when A == 0
+                 * (vectors CLPT/save_mode_used_then_unused, A = 0: saved and cleared;
+                 * CLPT/save_mode_three_nodes, A = 077777: saved, not cleared).
                  */
-                mms_write_virtual_memory(b_reg, 0, true, WRITEMODE_WORD);
+                if (gA == 0)
+                {
+                    mms_write_virtual_memory(b_reg, 0, true, WRITEMODE_WORD);
+                }
             }
 
             /*
