@@ -5834,7 +5834,15 @@ static void opcode_rempl_remove_page_from_page_list(uint16_t operand)
     {
         /* 004512-004513 (middle page): predecessor.next := successor (executes even if R2==0). */
         mms_write_physical_memory((int)(cmbnk | r2), r1, true);
-        skip_inherit = (r2 == 0);
+        /*
+         * 004512 names COND,F=0 while the ALU carries R2, but the condition is latched one
+         * micro cycle late, so REMP3 CONDENABL (004521) sees the ALU output of 004513,
+         * "A,R1 ALUF,PASSA" - the SUCCESSOR. The skip depends on r1 on this path too.
+         * Measured on the micro code oracle 2026-10-28: removing the last page of a
+         * two-page list (r1 = 0, r2 = 0x80) makes NO inherit write; "r2 == 0" here wrote
+         * r2 into physical word 1 of the core-map bank on every such removal.
+         */
+        skip_inherit = (r1 == 0);
     }
 
     /* 004521-004523 (REMP3): unless the successor is nil, successor.prev := R2 (predecessor/marker). */
