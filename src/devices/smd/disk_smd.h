@@ -111,16 +111,13 @@ typedef enum
 // Disk structure
 // clang-format off
 typedef struct {
-    // Is a disk pack actually mounted on this unit, i.e. was an image attached?
-    // DISC-TEMA requires that every unit NOT specified for test is powered off
-    // (ND-11.020.01 sec 5, item 16), and checks status bit 13 "by the selection
-    // of specified units and by reading from non-specified units" (item 14). A
-    // unit with no image must therefore read NOT READY. Resolved lazily on
-    // first use (the image-size callback stats a file) and then cached, because
-    // DISC-TEMA reads the status register tens of thousands of times per run.
-    bool unitAttachChecked;
-    bool unitAttached;
-
+    // Whether a disk pack is mounted on this unit is NOT kept here: the
+    // controller asks the machine's disk-info callback each time it needs it
+    // (device_smd.c unit_attached), so a pack mounted or removed while the
+    // machine runs is seen at once. DISC-TEMA requires that every unit NOT
+    // specified for test is powered off (ND-11.020.01 sec 5, item 16), and
+    // checks status bit 13 "by the selection of specified units and by reading
+    // from non-specified units" (item 14): a unit with no image reads NOT READY.
     bool diskUnitNotReady;
     bool onCylinder;
     bool diskIsWriteProtected;

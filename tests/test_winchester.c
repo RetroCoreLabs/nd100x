@@ -442,7 +442,6 @@ int main(void)
     /* --- 15. a powered-off unit reports a fault, never a hang ------------ */
     {
         disk_attached = 0;
-        data->regs.disks[0].unitAttachChecked = false;
 
         wr(dev, R_LOAD_CW, 0);
         (void)status(dev);
@@ -514,7 +513,6 @@ int main(void)
         /* An ACTIVATED operation must not leave the card ready mid-flight;
          * the interrupt belongs at completion, not at activation. */
         disk_attached = 1;
-        data->regs.disks[0].unitAttachChecked = false;
         wr(dev, R_LOAD_CW, CW_INT_NOT_ACTIVE);
         (void)status(dev);
         wr(dev, R_LOAD_MA, 0x0000);

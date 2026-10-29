@@ -83,12 +83,9 @@ typedef enum
  * the same shape. */
 typedef struct
 {
-    /* Is a disk pack mounted on this unit? A unit with no attached image is a
-     * powered-off drive: it must report not ready. Resolved lazily on first
-     * use (the image-size callback stats a file) and then cached. */
-    bool unitAttachChecked;
-    bool unitAttached;
-
+    /* Whether a pack is mounted is not kept here: the controller asks the
+     * machine's disk-info callback each time (device_winchester.c
+     * wd_unit_attached), so a late mount or a removal is seen at once. */
     bool diskUnitNotReady;
     bool onCylinder;
     bool diskIsWriteProtected;

@@ -102,8 +102,14 @@ static void wd_clear_flip_flops(WDControllerRegs *regs)
 
 /*
  * Is a disk pack mounted on this unit? A unit with no image is a powered-off
- * drive and must report not ready. The size callback stats a file, so the
- * answer is cached per unit - status is read very frequently.
+ * drive and must report not ready. The machine is asked every time: its
+ * disk-info callback reads the mounted-drive table (no file stat), and the
+ * per-unit cache that used to sit here made a pack mounted after the first
+ * look invisible for the rest of the session (see device_smd.c unit_attached
+ * and tests/test_smd_units.c). The geometry is set from the image length
+ * (SINTRAN disk layout table) whenever that length changes, so a pack swapped
+ * for one of another size gets the right layout; an empty unit keeps the
+ * default set at start.
  */
 static bool wd_unit_attached(Device *self, WDDiskInfo *disk)
 {
@@ -111,29 +117,22 @@ static bool wd_unit_attached(Device *self, WDDiskInfo *disk)
     {
         return false;
     }
-    if (!disk->unitAttachChecked)
+    size_t image_size = 0;
+    bool is_write_protected = false;
+    if (self->blockCallbacks.diskInfoFunc)
     {
-        size_t image_size = 0;
-        bool is_write_protected = false;
-        if (self->blockCallbacks.diskInfoFunc)
-        {
-            self->blockCallbacks.diskInfoFunc(self, &image_size, &is_write_protected, disk->unit);
-        }
-        disk->unitAttached = (image_size > 0);
-        disk->diskIsWriteProtected = is_write_protected;
-        disk->diskFileSize = image_size;
-        /* Geometry from the image length (SINTRAN disk layout table); an empty unit keeps
-         * the default set at start. */
-        if (image_size > 0)
-        {
-            WDDiskType dt = wd_disk_preset_get(disk->unit);
-            if (dt == WD_DISK_TYPE_UNKNOWN)
-                dt = wd_disk_type_for_size(image_size);
-            wd_disk_set_type(disk, dt);
-        }
-        disk->unitAttachChecked = true;
+        self->blockCallbacks.diskInfoFunc(self, &image_size, &is_write_protected, disk->unit);
     }
-    return disk->unitAttached;
+    disk->diskIsWriteProtected = is_write_protected;
+    if (image_size > 0 && (size_t)disk->diskFileSize != image_size)
+    {
+        WDDiskType dt = wd_disk_preset_get(disk->unit);
+        if (dt == WD_DISK_TYPE_UNKNOWN)
+            dt = wd_disk_type_for_size(image_size);
+        wd_disk_set_type(disk, dt);
+    }
+    disk->diskFileSize = image_size;
+    return image_size > 0;
 }
 
 /*

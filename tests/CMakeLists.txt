@@ -661,6 +661,35 @@ add_dependencies(test_smd cpu devices)
 
 add_test(NAME smd_tests COMMAND test_smd)
 
+# The SMD controller with several disk units: reads and writes through units
+# 0-3 land on the right unit's file, the per-unit seek-complete bits, an empty
+# unit, and a pack mounted after the controller first looked at the unit.
+# Backing files are temporary files; a real pack is used only when
+# ND100X_SMD_TEST_IMAGE names one (set below when the K pack is beside this
+# tree - it is not in the repository).
+add_executable(test_smd_units
+    test_smd_units.c
+    ${CMAKE_SOURCE_DIR}/src/devices/smd/disk_smd.c
+    ${CMAKE_SOURCE_DIR}/src/devices/device.c
+)
+
+target_include_directories(test_smd_units PRIVATE
+    ${CMAKE_SOURCE_DIR}/src/devices
+    ${CMAKE_SOURCE_DIR}/src/cpu
+    ${CMAKE_SOURCE_DIR}/src/machine
+    ${CMAKE_SOURCE_DIR}/src/ndlib
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(test_smd_units PRIVATE ${ND_LINK_GROUP_BEGIN} ndlib ${ND_LINK_GROUP_END} m)
+add_dependencies(test_smd_units cpu devices)
+
+add_test(NAME smd_units_tests COMMAND test_smd_units)
+if(EXISTS ${CMAKE_SOURCE_DIR}/BIGDISK0-K-100.IMG)
+    set_tests_properties(smd_units_tests PROPERTIES
+        ENVIRONMENT "ND100X_SMD_TEST_IMAGE=${CMAKE_SOURCE_DIR}/BIGDISK0-K-100.IMG")
+endif()
+
 # The MFbus bridge: the ND-100 / ND-5000 shared-memory join.
 #
 # Only when the ND-500 is built - the bridge compiles to nothing otherwise. Uses

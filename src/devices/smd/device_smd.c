@@ -1579,26 +1579,26 @@ static bool load_is_illegal(Device *self, SMDData *data)
 // DISC-TEMA reported "Status bit 15b became 0 (Unit ready) after selection"
 // (15b octal = b13) for each of them.
 //
-// The size callback stats the image file, so the answer is cached per unit -
-// the status register is read tens of thousands of times in one test run.
+// The machine is asked EVERY time. This used to be cached per unit on the
+// belief that the size callback stats the image file; it does not (machine.c
+// machine_block_disk_info reads the mounted-drive table, a few field reads),
+// and the cache made a pack mounted after the controller's first look at the
+// unit invisible for the rest of the session - the unit stayed NOT READY and
+// every GO against it was a hardware error (tests/test_smd_units.c, the late
+// mount case). The same holds for a pack taken away again.
 static bool unit_attached(Device *self, DiskInfo *disk)
 {
     if (!self || !disk)
     {
         return false;
     }
-    if (!disk->unitAttachChecked)
+    size_t image_size = 0;
+    bool is_write_protected = false;
+    if (self->blockCallbacks.diskInfoFunc)
     {
-        size_t image_size = 0;
-        bool is_write_protected = false;
-        if (self->blockCallbacks.diskInfoFunc)
-        {
-            self->blockCallbacks.diskInfoFunc(self, &image_size, &is_write_protected, disk->unit);
-        }
-        disk->unitAttached = (image_size > 0);
-        disk->unitAttachChecked = true;
+        self->blockCallbacks.diskInfoFunc(self, &image_size, &is_write_protected, disk->unit);
     }
-    return disk->unitAttached;
+    return image_size > 0;
 }
 
 // Terminate the current device operation on a path that does NOT reach the
