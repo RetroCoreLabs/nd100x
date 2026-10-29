@@ -63,6 +63,8 @@ static bool smd_timeout_end(Device *self, int drive);
 static void finish_operation(Device *self);
 static bool unit_attached(Device *self, DiskInfo *disk);
 static bool load_is_illegal(Device *self, SMDData *data);
+static bool smd_seek_end(Device *self, int drive);
+static bool smd_search_tick(Device *self, int drive);
 
 static const char *smd_op_name(DeviceOperation op)
 {
@@ -652,6 +654,13 @@ static void smd_write(Device *self, uint32_t address, uint16_t value)
 
             data->regs.selectedDisk->diskUnitNotReady = 0;
 
+            // Status bit 3 is "controller finished with a device operation"
+            // (ND-11.020.01 sec 2.5): it drops at GO and comes back when the
+            // operation ends (smd_read_end / finish_operation). SINTRAN's
+            // WSEEK (IP-P2-DISK-START.NPL) polls this bit after Initiate Seek
+            // before it gives the Seek Complete Search.
+            data->statusRegister.bits.readyForTransfer = false;
+
             execute_go(self);
         }
         else
@@ -1008,8 +1017,15 @@ static void execute_go(Device *self)
         convert_cylinder_head_sector_to_logical_block(&data->regs, cylinder, head, sector);
     int64_t position = lba * data->regs.selectedDisk->bytesPrSector;
 
-    // Clear seek complete bit for this drive
-    data->seekCondition.bits.seekComplete &= ~(1 << data->regs.selectedUnit);
+    // Only a transfer (M0-M3) consumes the unit's seek-complete condition: "the
+    // condition will last until a transfer command is given" (ND-11.020.01,
+    // seek-condition register). Clearing it on every GO, as this used to, made
+    // an M6 on a unit whose seek had already completed wipe the very bit it was
+    // about to search for. The matching seekIssuedMask clear is further down.
+    if (data->controlRegister.bits.deviceOperation <= DEVICE_OP_COMPARE_TRANSFER)
+    {
+        data->seekCondition.bits.seekComplete &= ~(1 << data->regs.selectedUnit);
+    }
 
     // Check for address mismatch
     int64_t max_position =
@@ -1314,14 +1330,23 @@ static void execute_go(Device *self)
         data->regs.selectedDisk->onCylinder = 0; // heads moving
         data->regs.seekIssuedMask |= (uint8_t)(1 << data->regs.selectedUnit);
 
-        // IODELAY_HDD_SMD, as RetroCore's NDBusDiscControllerSMD.cs does for
-        // Initiate Seek. With a 2000-tick seek the controller was still active
-        // when SINTRAN gave Seek Complete Search straight after Initiate Seek;
-        // that control word was refused as an illegal load and SINTRAN
-        // reported "Parallel seek disabled". Known cost: DISC-TEMA's check that
-        // on-cylinder (status b14) is 0 right after Initiate Seek likely fails.
-        dev_queue_io_delay(self, IODELAY_HDD_SMD, (IODelayedCallback)smd_read_end,
-                           data->regs.selectedDisk->unit, self->interruptLevel);
+        // Two things happen here, on two different timescales, and the old
+        // code tied them together:
+        //  - the CONTROLLER is finished with M4 as soon as the drive accepted
+        //    the cylinder: ND-11.020.01 on M4, "as soon as this function is
+        //    accepted by the disk, the operation will be completed". So the
+        //    operation ends NOW (not active, b3 set, interrupt if enabled);
+        //  - the DRIVE moves its heads on its own and raises the unit's
+        //    seek-complete pulse later (smd_seek_end, IODELAY_HDD_SMD ticks),
+        //    which is what a Seek Complete Search (M6) waits for.
+        // Keeping the controller active for the whole head movement made the
+        // M6 that SINTRAN's WSEEK gives right after its status poll an illegal
+        // load, and the driver then waited forever for the seek interrupt
+        // (@ENTER-DIRECTORY of a pack on unit 1 never returned, 2026-10-29;
+        // tests/test_smd_units.c "the SINTRAN driver's seek").
+        dev_queue_io_delay(self, IODELAY_HDD_SMD, (IODelayedCallback)smd_seek_end,
+                           data->regs.selectedDisk->unit, 0);
+        finish_operation(self);
         break;
 
     case DEVICE_OP_WRITE_FORMAT:
@@ -1379,17 +1404,18 @@ static void execute_go(Device *self)
         // whole search window and only then raises the timeout - dropping
         // active immediately fails "Status Bit 2b (active) becomes 0
         // immediately !!".
-        if (!(data->regs.seekIssuedMask & (1 << data->regs.selectedUnit)))
+        // "This function is independent of the unit select code in the control
+        // word" (ND-11.020.01 M6): the search ends when ANY unit with a seek
+        // outstanding raises its pulse, so the mask is tested as a whole.
+        if (data->regs.seekIssuedMask == 0)
         {
             dev_queue_io_delay(self, SMD_TIMEOUT_TICKS, (IODelayedCallback)smd_timeout_end,
                                data->regs.selectedDisk->unit, self->interruptLevel);
             break;
         }
-        regs->selectedDisk->onCylinder = true;
         data->seekCondition.bits.seekError = 0;
-        data->seekCondition.bits.seekComplete |= (uint16_t)(1 << regs->selectedUnit);
-
-        dev_queue_io_delay(self, IODELAY_HDD_SMD, (IODelayedCallback)smd_read_end,
+        data->searchTicks = 0;
+        dev_queue_io_delay(self, 2, (IODelayedCallback)smd_search_tick,
                            data->regs.selectedDisk->unit, self->interruptLevel);
         break;
 
@@ -1464,23 +1490,15 @@ static bool smd_read_end(Device *self, int drive)
 
     clear_flip_flops(&data->regs);
 
-    // Completion is operation-aware. Only a completed SEEK (M4/M6/M7) raises
-    // the unit's seek-complete bit and puts the heads back on cylinder; a
-    // completed TRANSFER must NOT set seek-complete (DISC-TEMA section 7 reads
-    // the seek condition "With no previous Initiate-Seek" after transfers and
-    // requires bits 0-7 zero). The control register still holds the operation
-    // of the GO this callback belongs to. |= not =: other units keep their
-    // pending seek-complete state.
+    // Completion is operation-aware. The seek-complete bit and on-cylinder of
+    // a unit are raised by the DRIVE's own callback (smd_seek_end) when its
+    // heads arrive, never here: a completed TRANSFER must NOT set seek-complete
+    // (DISC-TEMA section 7 reads the seek condition "With no previous
+    // Initiate-Seek" after transfers and requires bits 0-7 zero), and a
+    // completed Seek Complete Search found the bit already set. The control
+    // register still holds the operation of the GO this callback belongs to.
     switch (data->controlRegister.bits.deviceOperation)
     {
-    case DEVICE_OP_INITIATE_SEEK:
-    case DEVICE_OP_SEEK_COMPLETE_SEARCH:
-        data->seekCondition.bits.seekComplete |= (uint16_t)(1 << drive);
-        if (drive >= 0 && drive < data->regs.maxUnits)
-        {
-            data->regs.disks[drive].onCylinder = 1;
-        }
-        break;
     case DEVICE_OP_RETURN_TO_ZERO_SEEK:
         // RTZ puts the heads back on cylinder 0 but does NOT raise the
         // seek-complete condition: the manual ties that condition to "the
@@ -1508,6 +1526,49 @@ static bool smd_read_end(Device *self, int drive)
 // search window has elapsed with no seek-complete pulse. Raise timeout (b6,
 // with abnormal completion via HandleError) and terminate the operation the
 // same way SMDReadEnd does.
+// The drive's heads have arrived: the unit's seek-complete pulse. This is the
+// drive's event, not the controller's - the controller finished its Initiate
+// Seek when the drive accepted the cylinder. No interrupt by itself; a Seek
+// Complete Search (M6) is what turns the pulse into one.
+static bool smd_seek_end(Device *self, int drive)
+{
+    SMDData *data = (SMDData *)self->deviceData;
+    if (!data || drive < 0 || drive >= data->regs.maxUnits)
+    {
+        return false;
+    }
+    data->seekCondition.bits.seekComplete |= (uint16_t)(1 << drive);
+    data->regs.disks[drive].onCylinder = 1;
+    return false;
+}
+
+// One tick of a Seek Complete Search: the controller "goes into a waiting
+// state, until any unit has completed a seek" (ND-11.020.01 M6). The search
+// ends, with the interrupt the driver waits for, as soon as a unit with a seek
+// outstanding shows its pulse; with no pulse inside the window it is the
+// controller timeout (status b6, DISC-TEMA section 6).
+static bool smd_search_tick(Device *self, int drive)
+{
+    SMDData *data = (SMDData *)self->deviceData;
+    if (!data)
+    {
+        return false;
+    }
+    if (data->seekCondition.bits.seekComplete & data->regs.seekIssuedMask)
+    {
+        return smd_read_end(self, drive);
+    }
+    data->searchTicks += 2;
+    if (data->searchTicks >= SMD_TIMEOUT_TICKS)
+    {
+        return smd_timeout_end(self, drive);
+    }
+    // Two ticks, not one: dev_tick_io_delay walks the list it is firing from,
+    // so a one-tick entry queued here would fire again in the same pass.
+    dev_queue_io_delay(self, 2, (IODelayedCallback)smd_search_tick, drive, self->interruptLevel);
+    return false;
+}
+
 static bool smd_timeout_end(Device *self, int drive)
 {
     (void)drive;

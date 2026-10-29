@@ -429,6 +429,22 @@ static void run_checks(const char *what, const bool present[UNITS])
             CHECK((seekc & (1 << first)) != 0, "seek condition: first unit's bit is set");
             uint16_t st2 = seek_unit(second, cyl2);
             CHECK(st2 != 0xFFFF && !(st2 & ST_HW_ERROR), "seek on the second unit completes");
+            /* The search is "independent of the unit select code" and the
+             * first unit's pulse "will appear once per revolution" until a
+             * transfer consumes it (ND-11.020.01 sec 2.3, M6), so this search
+             * may well have ended on the FIRST unit's pulse while the second
+             * unit's heads are still moving. The driver (WSEEK) reads the seek
+             * condition to see which unit it was; here we wait for the second
+             * unit's own pulse, which must arrive within its seek time. */
+            {
+                int t;
+                for (t = 0; t < 10 * IODELAY_HDD_SMD; t++)
+                {
+                    if (rd(R_SEEK) & (1 << second))
+                        break;
+                    (void)dev_tick(s_card);
+                }
+            }
             seekc = rd(R_SEEK);
             CHECK((seekc & (1 << second)) != 0, "seek condition: second unit's bit is set");
             CHECK((seekc & (1 << first)) != 0,
@@ -456,6 +472,87 @@ static void run_checks(const char *what, const bool present[UNITS])
         {
             printf("  (fewer than two units present: the two-unit seek check is not run)\n");
         }
+    }
+
+    /* ---- the SINTRAN driver's seek, exactly as BSEEK issues it -----------
+     * (IP-P2-DISK-START.NPL:436-467 and WSEEK 055473-055526): Initiate Seek
+     * (M4, no interrupt), then
+     * WSEEK's poll of the status register until the controller is not busy
+     * and finished (at most 101 polls), then the control word 030005 |
+     * unit<<7 (M6 seek complete search, active, interrupt enable), then a
+     * wait for the level-11 interrupt. ND-11.020.01 on M4: "as soon as this
+     * function is accepted by the disk, the operation will be completed", so
+     * the poll ends long before the drive has moved its heads. */
+    {
+        int u = -1;
+        for (int k = UNITS - 1; k >= 0; k--)
+        {
+            if (present[k])
+            {
+                u = k;
+                break;
+            }
+        }
+        int cyl = 11;
+        wr(W_CONTROL, control_word(u, 0, 0));
+        wr(W_BLOCK, 0);
+        wr(W_CONTROL, control_word(u, 0, CW_MULTIPLEX));
+        wr(W_BLOCK, (uint16_t)cyl);
+        wr(W_CONTROL, control_word(u, DEVICE_OP_INITIATE_SEEK, CW_ACTIVE));
+        /* WSEEK: poll the status register until the controller is not busy
+         * (bit 2 clear) and finished (bit 3 set); the driver gives up after
+         * 101 polls. One tick per poll, as the CPU's instruction loop would. */
+        {
+            int polls;
+            uint16_t st_poll = 0;
+            for (polls = 0; polls < 101; polls++)
+            {
+                st_poll = rd(R_STATUS);
+                if (!(st_poll & ST_ACTIVE) && (st_poll & (1 << 3)))
+                    break;
+                (void)dev_tick(s_card);
+            }
+            CHECK(polls < 101, "WSEEK: the controller finishes M4 within the driver's 101 polls");
+            CHECK(!(st_poll & ST_HW_ERROR), "WSEEK: no error after M4");
+        }
+        wr(W_CONTROL, control_word(u, DEVICE_OP_SEEK_COMPLETE_SEARCH, CW_ACTIVE | CW_INT_NOT_ACTIVE));
+        uint16_t st = rd(R_STATUS);
+        CHECK(!(st & ST_ILLEGAL_LOAD), "the M6 after the WSEEK poll is not an illegal load");
+        int clocks = run_until_not_active(10000);
+        CHECK(clocks >= 0, "the seek complete search ends");
+        CHECK(s_card->interruptBits != 0, "the search's end raises the interrupt the driver waits for");
+        uint16_t seekc = rd(R_SEEK);
+        CHECK((seekc & (1 << u)) != 0, "seek condition: the unit's bit is set after its seek");
+        st = rd(R_STATUS);
+        CHECK((st & ST_ON_CYLINDER) != 0, "the unit is on cylinder after the seek");
+        CHECK(!(st & (1 << 6)), "no timeout");
+        uint32_t mem = 0x5000;
+        st = transfer(u, DEVICE_OP_READ_TRANSFER, cyl, 0, 2, mem, BLOCK / 2);
+        CHECK(st != 0xFFFF && !(st & ST_HW_ERROR), "the read after the driver's seek");
+        CHECK(mem_equals_file(u, lba_of(u, cyl, 0, 2), mem, 1),
+              "the read returns the block at the sought cylinder");
+        wr(W_CONTROL, control_word(u, 0, 0)); /* interrupt enable off */
+    }
+
+    /* ---- M6 with no seek outstanding: the search window, then timeout ---- */
+    {
+        int u = -1;
+        for (int k = 0; k < UNITS; k++)
+        {
+            if (present[k])
+            {
+                u = k;
+                break;
+            }
+        }
+        wr(W_CONTROL, control_word(u, DEVICE_OP_SEEK_COMPLETE_SEARCH, CW_ACTIVE));
+        uint16_t st = rd(R_STATUS);
+        CHECK((st & ST_ACTIVE) != 0, "the search is active while it looks for a pulse");
+        int clocks = run_until_not_active(20000);
+        CHECK(clocks > 100, "the search runs its window before giving up");
+        st = rd(R_STATUS);
+        CHECK((st & (1 << 6)) != 0, "a search with no seek outstanding ends in timeout (b6)");
+        device_clear();
     }
 
     /* ---- a write through unit N lands in unit N's file only ------------- */
@@ -517,6 +614,26 @@ static void run_checks(const char *what, const bool present[UNITS])
             CHECK(memcmp(&s_mem[0x7000], &s_mem[mem], BLOCK) == 0,
                   "read-back through the controller returns the written words");
         }
+    }
+
+    /* ---- a head past the last one is an address error -------------------
+     * The old code compared the HEAD against maxCylinders, so a head beyond
+     * the drive but below the cylinder count read some other block without a
+     * word of complaint. */
+    for (int u = 0; u < UNITS; u++)
+    {
+        if (!present[u])
+        {
+            continue;
+        }
+        SMDData *data = (SMDData *)s_card->deviceData;
+        int bad_head = data->regs.disks[u].headsPrCylinder;
+        uint16_t st = transfer(u, DEVICE_OP_READ_TRANSFER, 0, bad_head, 0, 0x100, BLOCK / 2);
+        CHECK(st != 0xFFFF && (st & ST_HW_ERROR),
+              "a head past the last one is an address error, not a silent read elsewhere");
+        CHECK(!(st & ST_ACTIVE), "the controller is not left active after the address error");
+        device_clear();
+        break;
     }
 
     /* ---- a GO against a unit with no pack ------------------------------- */

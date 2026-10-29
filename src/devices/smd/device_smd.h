@@ -295,6 +295,9 @@ typedef struct
 typedef struct
 {
     const char *smdName;
+    // Ticks spent in the current Seek Complete Search (M6) waiting for a
+    // unit's seek-complete pulse; the search gives up at SMD_TIMEOUT_TICKS.
+    int searchTicks;
     uint16_t dataBuffer[1024];
     int16_t loadDriveAddress;
     uint16_t sector;
