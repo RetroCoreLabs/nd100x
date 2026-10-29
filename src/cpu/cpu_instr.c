@@ -323,10 +323,22 @@ static struct VersnIdentity g_versn;
  * Index 15 is the placeholder that fixes the old out-of-range read; it is NOT
  * taken from any manual or EPROM dump.
  *
- * ND110 / ND110CE / ND110CX / ND110PCX: a VALID PROM image so GCPUNR succeeds
- * and the SINTRAN banner reflects the emulated machine.
+ * ND110 / ND110CE / ND110CX / ND110PCX / ND120CX: the identity fields filled in
+ * but WITHOUT the GCPUNR signature in bytes 6-7. Measured on 2026-10-29 with
+ * RetroCore, same packs, CPU ND120CX: a SINTRAN K pack (BIGDISK0-K-100) stops at
+ * "IOF; WAIT" before the banner when the signature is present - the K start-up
+ * code reads PROM bytes 6-7 on levels 6 and 7 and jumps to the stop stub on a
+ * match - and boots when it is absent. A SINTRAN L pack boots either way: with
+ * the signature GCPUNR copies the PROM into SYSNO / HWINFO(2), without it GCPUNR
+ * exits (OPPSTART.NPL:3562) and the pack keeps the CPU NUMBER / CPU TYPE its
+ * installation wrote to disk. So a blank signature boots every pack, and the
+ * PROM only overrides the pack once the user asks for it: versn_set_word() and
+ * the ND100X_LEGAL_USERS path switch the signature on when ND100X_CPU_NUMBER,
+ * ND100X_SYSTEM_TYPE or ND100X_LEGAL_USERS is set. Same rule as RetroCore's
+ * CpuND100.DefaultInstallationNumber since 2026-10-29.
  *
- * The concrete values below are CHOSEN DEFAULTS, not sourced PROM contents:
+ * The concrete values below for bytes 0-5 are CHOSEN DEFAULTS, not sourced PROM
+ * contents, and are only read once an identity variable has armed the signature:
  *  - SYSNO = 102 is a real OBSERVED value (SINTRAN-STRUCTURES.md:2036-2039),
  *    not a dump of any physical PROM. SYSNO is FUNCTIONAL (COSMOS local vs
  *    remote routing, MP-P2-1.NPL:232), so give each node its own.
@@ -366,8 +378,11 @@ static void versn_load_default_prom(void)
     g_versn.prom[VERSN_PROM_SYSTYPE_LO] = (unsigned char)(100 & 0xFF);
     g_versn.prom[VERSN_PROM_LEGAL_USERS] = VERSN_PROM_LEGAL_USERS_SKIP;
     g_versn.prom[VERSN_PROM_UNUSED] = 0x00;
-    g_versn.prom[VERSN_PROM_SIGNATURE_HI] = (unsigned char)(VERSN_PROM_SIGNATURE >> 8);
-    g_versn.prom[VERSN_PROM_SIGNATURE_LO] = (unsigned char)(VERSN_PROM_SIGNATURE & 0xFF);
+    /* bytes 6-7: NO signature (see the comment above). GCPUNR then exits, SINTRAN L
+     * keeps the pack's own CPU NUMBER / CPU TYPE, and SINTRAN K boots instead of
+     * stopping. versn_set_word() writes 0x55AA here when an identity variable is set. */
+    g_versn.prom[VERSN_PROM_SIGNATURE_HI] = 0x00;
+    g_versn.prom[VERSN_PROM_SIGNATURE_LO] = 0x00;
 }
 
 /*
