@@ -194,6 +194,7 @@
           <button class="toolbar-menu-item" id="menu-initial-commands">Initial Commands</button>
           <div class="toolbar-menu-separator"></div>
           <button class="toolbar-menu-item" id="menu-browse-disk">Browse Disk (NDFS)</button>
+          <button class="toolbar-menu-item" id="menu-cpu-identity">CPU Identity (disk)</button>
           <button class="toolbar-menu-item" id="menu-dump-memory">Dump Memory</button>
         </div>
       </div>
@@ -1619,6 +1620,29 @@
   </div>
 
   <!-- =========================================
+       CPU IDENTITY (DISK) WINDOW (hidden by default)
+       CPU number / type of the SINTRAN pack on SMD unit 0, read from the
+       disk image, with a form that changes it (js/sintran-cpu-identity.js)
+       ========================================= -->
+  <div id="cpu-identity-window" class="glass-window" style="display: none; width: 760px; height: 560px;">
+    <div class="glass-window-header" id="cpu-identity-header">
+      <span class="glass-window-title">CPU Identity (disk)</span>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <button class="sysinfo-refresh-btn" id="cpu-identity-refresh" title="Refresh">&#8635;</button>
+        <button class="glass-window-close" id="cpu-identity-close">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="2" y1="2" x2="10" y2="10"/><line x1="10" y1="2" x2="2" y2="10"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="glass-resize-handle" id="cpu-identity-resize">
+      <svg class="glass-resize-grip" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+        <line x1="11" y1="1" x2="1" y2="11"/><line x1="11" y1="5" x2="5" y2="11"/><line x1="11" y1="9" x2="9" y2="11"/>
+      </svg>
+    </div>
+    <div class="glass-window-body" id="cpu-identity-body" style="padding:0;overflow-y:auto;flex:1;"></div>
+  </div>
+
+  <!-- =========================================
        REENTRANT PROGRAMS WINDOW (hidden by default)
        ========================================= -->
   <div id="reentrant-window" class="glass-window" style="display: none;">
@@ -1788,6 +1812,7 @@
   <script src="js/sintran-segments.js"></script>
   <script src="js/smd-image-source.js"></script>
   <script src="js/sintran-initial-commands.js"></script>
+  <script src="js/sintran-cpu-identity.js"></script>
   <script src="js/sintran-reentrant.js"></script>
   <script src="js/segment-disassembler.js"></script>
   <script src="js/sintran-dev-names.js"></script>
