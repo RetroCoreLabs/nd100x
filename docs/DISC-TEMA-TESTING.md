@@ -464,14 +464,33 @@ SINTRAN uses for the Micropolis 1325.
   not move the memory address, BUGS.md W8) and 10 tracks with "Controller not active after
   activate" (every operation ended after a flat 10 ticks, BUGS.md W9).
 
-The answers that drove these runs: SET-PARAMETERS `yes 0 0 no no 3 1 no yes 1`; then
-`parity-check`, `DISC-74MB-1`, unit `0`.
+- `PARITY-CHECK` on unit 1 with both units on line: 0 errors.
+- `COMPARE` unit 0 against unit 1, two copies of the same pack: 0 errors. With one word changed
+  on the unit 1 copy (byte 10240200, LBA 10000 = cylinder 138, head 7, sector 1): exactly one
+  error, `Cylinder: 212b Surface: 7b`, status 062030b, "Compare error", for the 9-sector track
+  that holds it.
+- `FORMAT` on a throwaway copy, no pattern tests: 8177 Write Format operations (cylinders
+  0-1021, 8 heads, plus a first one on the last track), 0 errors; `PARITY-CHECK` straight after
+  in the same session: 0 errors.
+- `FORMAT` with the default 3 pattern tests: 8177 formats, 24264 writes (8088 tracks x 3
+  patterns) and 48528 compares, 0 errors, 461 s.
+
+The answers that drove these runs: SET-PARAMETERS `yes 0 0 no no 3 1 no yes 1` (item 6 is the
+number of FORMAT pattern tests, 0 for the run without them); then:
+
+- `parity-check`, `DISC-74MB-1`, unit;
+- `compare`, `DISC-74MB-1`, from unit `0`, `DISC-74MB-1`, to unit `1`;
+- `format`, `DISC-74MB-1`, unit `0`, `yes`, then `start-formatting` at the `Edit:` prompt (the
+  table of tracks to reallocate starts empty; `help` there lists Append, Delete, List-table,
+  Remove-table, Start-formatting).
 
 ### Left to test
 
-- `PARITY-CHECK` on unit 1, and with both units on line.
-- `COMPARE` between the two units (copies of the same pack), and against a changed copy.
-- `FORMAT` on a throwaway copy, then `PARITY-CHECK` and a SINTRAN boot on it.
+- FORMAT with a track in the reallocation table, then PARITY-CHECK and a read of that track by
+  SINTRAN (the bad track flag path, sec 2.3).
+- A SINTRAN boot on a formatted copy. nd100x keeps the data fields through a format (BUGS.md W2),
+  so a boot would succeed where a real formatted pack would not; it proves nothing until W2 is
+  settled.
 - The read-only commands of section 5 that accept this disc type.
 
 ## 12. What the harness needs before this can be automated
