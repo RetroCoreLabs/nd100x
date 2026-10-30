@@ -156,3 +156,29 @@ known, and so drawn as an assumption:
 - whether the CDC Finch types (DISC-14MB, DISC-21MB) have the same figures; they get them;
 - how long an operation takes that ends in an error found before any sector passes (empty unit,
   write protect, out of range): it ends after the old flat 10 ticks.
+
+### W10. Status bit 12 reads 1 on a real 3041, and nd100x never sets it
+
+**Shows up as:** `test_winchester_units`, the two "real 3041" checks after control word 100000.
+
+**What the hardware does:** a trace from a real 3041 card with a Micropolis 1325 (DISC-TEMA
+start-up for DISC-74MB-1, kept at the end of RetroCore's `NDBusDiscControllerWinchester.cs`):
+
+| write 505 | read 504 |
+|---|---|
+| 000011 (after power-on) | 060011 |
+| 100000 | 070010 |
+| 000000 | 070010 |
+
+Sec 3.5 calls bit 12 "0 (Not used)". On the real card it reads 1 once control word 100000
+has been given, and stays 1 after control word 0. What it is, and when it goes on and off, is
+NOT known. The same comment ends with a separate note, "LoadControlWord 177600, Read: 020010",
+that does not say where it was taken; if it is from the same card, bit 12 is not a copy of
+control bit 15 (177600 has bit 15 and gives no bit 12, but it also selects unit 1).
+
+**What nd100x does:** bit 12 is always 0. The first line of the trace matches; the next two
+miss bit 12 only.
+
+**What fixing it takes:** find what drives bit 12 on the 3041: the logic diagrams (sec 7) or
+another trace from the card, for example status read before and after each control word bit
+on its own.

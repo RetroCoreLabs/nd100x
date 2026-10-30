@@ -361,6 +361,33 @@ static void run_checks(void)
     make_synthetic_unit(1, 4 * 3 * 12);
     s_card = new_card();
 
+    /* ---- the real 3041 trace --------------------------------------------
+     * Taken on a real 3041 card with a Micropolis 1325 connected, DISC-TEMA
+     * device start-up for DISC-74MB-1 (kept at the end of RetroCore's
+     * NDBusDiscControllerWinchester.cs): after power-on,
+     *   write 505 = 000011  -> read 504 = 060011
+     *   write 505 = 100000  -> read 504 = 070010
+     *   write 505 = 000000  -> read 504 = 070010
+     * A measurement of the hardware, so the card must answer the same. The
+     * last two stay red until status bit 12 is understood (BUGS.md W10). */
+    {
+        s_card->Reset(s_card);
+        wr(W_CONTROL, 000011);
+        uint16_t st1 = rd(R_STATUS);
+        wr(W_CONTROL, 0100000);
+        uint16_t st2 = rd(R_STATUS);
+        wr(W_CONTROL, 0);
+        uint16_t st3 = rd(R_STATUS);
+        char msg[160];
+        snprintf(msg, sizeof(msg), "real 3041: control 000011 gives status 060011 (got %06o)", st1);
+        CHECK(st1 == 060011, msg);
+        snprintf(msg, sizeof(msg), "real 3041: control 100000 gives status 070010 (got %06o)", st2);
+        CHECK(st2 == 070010, msg);
+        snprintf(msg, sizeof(msg), "real 3041: control 000000 then gives status 070010 (got %06o)", st3);
+        CHECK(st3 == 070010, msg);
+        device_clear();
+    }
+
     /* ---- every unit reads its own file, at its own geometry ------------ */
     for (int u = 0; u < UNITS; u++)
     {
