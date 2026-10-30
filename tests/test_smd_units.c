@@ -695,6 +695,53 @@ static void run_checks(const char *what, const bool present[UNITS])
         break;
     }
 
+    /* ---- ECC control: one write, and the long bit ------------------------ */
+    for (int u = 0; u < UNITS; u++)
+    {
+        if (!present[u])
+        {
+            continue;
+        }
+        SMDData *data = (SMDData *)s_card->deviceData;
+
+        /* ND-11.020.01 sec 2.8: only the word count is "loaded by two successive
+         * instructions"; the MAR/WC flip-flop does not toggle on the ECC control
+         * register. One write loads it, and a word count loaded around it still
+         * takes its two halves in order. */
+        (void)rd(R_STATUS);
+        wr(W_CONTROL, control_word(u, 0, CW_MULTIPLEX));
+        wr(W_WC, 4);                                  /* ECC control: long */
+        CHECK(data->regs.eccControl == 4, "one write loads the whole ECC control register");
+        wr(W_CONTROL, control_word(u, 0, 0));
+        wr(W_WC, 0);
+        wr(W_WC, 01000);
+        CHECK(data->regs.wordCounterHI == 0 && data->regs.wordCounter == 01000,
+              "an ECC control load does not move the word count flip-flop");
+
+        /* A long read (BIGFUNC item 11: word count 1004B, ECC control bit 2):
+         * 512 data words, then 4 more (56-bit ECC and the end-of-record byte of
+         * eight ones), and data error, status bit 9. */
+        for (int i = 0; i < 520; i++)
+        {
+            s_mem[0x400 + i] = 0123456;
+        }
+        uint16_t st = transfer(u, DEVICE_OP_READ_TRANSFER, 0, 0, 2, 0x400, 01004);
+        CHECK(st != 0xFFFF && (st & (1 << 9)), "a long read ends with data error (status bit 9)");
+        CHECK(mem_equals_file(u, lba_of(u, 0, 0, 2), 0x400, 1),
+              "a long read delivers the sector's 512 data words first");
+        CHECK((s_mem[0x400 + 515] & 0377) == 0377,
+              "the last of the 4 extra words ends with the end-of-record byte 377");
+        CHECK(s_mem[0x400 + 516] == 0123456, "a long read of 1004B words writes no more than that");
+        device_clear();
+
+        /* With the long bit cleared, the same read is an ordinary one again. */
+        wr(W_CONTROL, control_word(u, 0, CW_MULTIPLEX));
+        wr(W_WC, 0);
+        st = transfer(u, DEVICE_OP_READ_TRANSFER, 0, 0, 2, 0x400, BLOCK / 2);
+        CHECK(st != 0xFFFF && !(st & (1 << 9)), "an ordinary read has no data error");
+        break;
+    }
+
     s_card->Destroy(s_card);
     s_card = NULL;
 }

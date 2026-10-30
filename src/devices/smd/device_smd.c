@@ -169,6 +169,184 @@ static uint16_t smd_test_pattern_word(uint32_t index)
     return (index & 1u) ? 0125252u : 0052525u;
 }
 
+// ADDRESS FIELDS (see SmdTrackFormat in disk_smd.h).
+
+static SmdTrackFormat *smd_find_track_format(DiskInfo *disk, int cylinder, int head)
+{
+    for (int i = 0; i < disk->formattedTrackCount; i++)
+    {
+        if (disk->formattedTracks[i].cylinder == cylinder && disk->formattedTracks[i].head == head)
+        {
+            return &disk->formattedTracks[i];
+        }
+    }
+    return NULL;
+}
+
+// Write Format of one track: keep its address fields if they are not the
+// natural ones, forget the track if they are.
+static void smd_store_track_format(DiskInfo *disk, int cylinder, int head, const uint16_t *words,
+                                   int sectors)
+{
+    bool natural = true;
+    for (int s = 0; s < sectors; s++)
+    {
+        if (words[2 * s] != (uint16_t)cylinder ||
+            words[2 * s + 1] != (uint16_t)((head << 8) | s))
+        {
+            natural = false;
+            break;
+        }
+    }
+    SmdTrackFormat *t = smd_find_track_format(disk, cylinder, head);
+    if (natural)
+    {
+        if (t)
+        {
+            *t = disk->formattedTracks[disk->formattedTrackCount - 1];
+            disk->formattedTrackCount--;
+        }
+        return;
+    }
+    if (!t)
+    {
+        if (disk->formattedTrackCount == disk->formattedTrackCapacity)
+        {
+            int cap = disk->formattedTrackCapacity ? disk->formattedTrackCapacity * 2 : 8;
+            SmdTrackFormat *n =
+                (SmdTrackFormat *)realloc(disk->formattedTracks, sizeof(SmdTrackFormat) * (size_t)cap);
+            if (!n)
+            {
+                return;
+            }
+            disk->formattedTracks = n;
+            disk->formattedTrackCapacity = cap;
+        }
+        t = &disk->formattedTracks[disk->formattedTrackCount++];
+        memset(t, 0, sizeof(*t));
+        t->cylinder = cylinder;
+        t->head = head;
+    }
+    for (int s = 0; s < sectors && s < SMD_MAX_SECTORS_PER_TRACK; s++)
+    {
+        t->field[s][0] = words[2 * s];
+        t->field[s][1] = words[2 * s + 1];
+    }
+}
+
+// Does every sector of a transfer find its address on the track? A transfer
+// runs over 'count' sectors from cylinder/head/sector, advancing the head at the
+// end of a track. On a track with the natural fields every address is there. On
+// a reformatted one the controller looks for a sector whose field holds the
+// wanted address and, finding none, ends with address mismatch (status b8).
+static bool smd_address_fields_found(DiskInfo *disk, int cylinder, int head, int sector, int count)
+{
+    if (disk->formattedTrackCount == 0)
+    {
+        return true;
+    }
+    for (int n = 0; n < count; n++)
+    {
+        SmdTrackFormat *t = smd_find_track_format(disk, cylinder, head);
+        if (t)
+        {
+            bool found = false;
+            for (int s = 0; s < disk->sectorsPrTrack && s < SMD_MAX_SECTORS_PER_TRACK; s++)
+            {
+                if (t->field[s][0] == (uint16_t)cylinder &&
+                    t->field[s][1] == (uint16_t)((head << 8) | sector))
+                {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found)
+            {
+                return false;
+            }
+        }
+        if (++sector >= disk->sectorsPrTrack)
+        {
+            sector = 0;
+            if (++head >= disk->headsPrCylinder)
+            {
+                head = 0;
+                cylinder++;
+            }
+        }
+    }
+    return true;
+}
+
+// LONG MODE (ECC control bit 2, ND-11.020.01 sec 2.8): "When a sector is read
+// or written, the data field of the sector is extended by 64 bits (The length
+// of the ECC pattern plus "End of Record" byte). The data and the extra bits
+// are read into or written from the memory of the CPU." A long sector is 516
+// words in memory: 512 data words, then the 56-bit ECC and the 8-bit end of
+// record (phase 7, "8 1's, indicating the end of the sector").
+#define SMD_LONG_SECTOR_WORDS 516u
+
+// The sector's ECC pattern: the data field divided by the ECC polynomial of
+// ND-11.020.01 sec 3.4.1,
+//   G(X) = X56+X55+X49+X45+X41+X39+X38+X37+X36+X31+X22+X19+X17+X16+X15+X14
+//          +X12+X11+X9+X5+X+1,
+// in a plain 56-bit shift register that starts at zero (sec 2.8 bit 0, "reset
+// to the zero initial state"). NOT VERIFIED (BUGS.md S2): the order the bits
+// enter (taken here as each word's bit 15 first), and whether the real network
+// of Fig. 5, with its three feed points X1/X2/X3, leaves the same 56 bits. Returns the 4 extra words: ECC bits 55..0, then the end-of-record
+// byte 377.
+static void smd_long_extra_words(Device *self, uint8_t *buffer, uint32_t sector_index,
+                                 uint16_t out[4])
+{
+    const uint64_t mask = (UINT64_C(1) << 56) - 1;
+    const uint64_t poly = (UINT64_C(1) << 55) | (UINT64_C(1) << 49) | (UINT64_C(1) << 45) |
+                          (UINT64_C(1) << 41) | (UINT64_C(1) << 39) | (UINT64_C(1) << 38) |
+                          (UINT64_C(1) << 37) | (UINT64_C(1) << 36) | (UINT64_C(1) << 31) |
+                          (UINT64_C(1) << 22) | (UINT64_C(1) << 19) | (UINT64_C(1) << 17) |
+                          (UINT64_C(1) << 16) | (UINT64_C(1) << 15) | (UINT64_C(1) << 14) |
+                          (UINT64_C(1) << 12) | (UINT64_C(1) << 11) | (UINT64_C(1) << 9) |
+                          (UINT64_C(1) << 5) | (UINT64_C(1) << 1) | UINT64_C(1);
+    uint64_t reg = 0;
+    for (uint32_t w = 0; w < 512u; w++)
+    {
+        uint16_t v = (uint16_t)dev_io_buffer_read_word(self, buffer, sector_index * 512u + w);
+        for (int b = 15; b >= 0; b--)
+        {
+            uint64_t fb = ((uint64_t)((v >> b) & 1u)) ^ ((reg >> 55) & 1u);
+            reg = (reg << 1) & mask;
+            if (fb)
+            {
+                reg ^= poly;
+            }
+        }
+    }
+    // 56 ECC bits + 8 end-of-record bits = 64 bits = 4 words, first bit first.
+    uint64_t all = (reg << 8) | 0xFFu;
+    out[0] = (uint16_t)(all >> 48);
+    out[1] = (uint16_t)(all >> 32);
+    out[2] = (uint16_t)(all >> 16);
+    out[3] = (uint16_t)all;
+}
+
+// Word i of what the disk delivers for a transfer: data words straight from the
+// sectors, or in long mode 516 words per sector with the 4 extra at the end.
+static uint16_t smd_stream_word(Device *self, uint8_t *buffer, uint32_t i, bool long_mode)
+{
+    if (!long_mode)
+    {
+        return (uint16_t)dev_io_buffer_read_word(self, buffer, i);
+    }
+    uint32_t sec = i / SMD_LONG_SECTOR_WORDS;
+    uint32_t off = i % SMD_LONG_SECTOR_WORDS;
+    if (off < 512u)
+    {
+        return (uint16_t)dev_io_buffer_read_word(self, buffer, sec * 512u + off);
+    }
+    uint16_t extra[4];
+    smd_long_extra_words(self, buffer, sec, extra);
+    return extra[off - 512u];
+}
+
 // Local forward declarations for internal helpers
 static void clear_flip_flops(ControllerRegs *regs);
 static void set_selected_unit(ControllerRegs *regs, uint8_t unit);
@@ -843,8 +1021,13 @@ static void smd_write(Device *self, uint32_t address, uint16_t value)
 
         if (data->controlRegister.bits.registerMultiplexBit)
         {
-            // Load ECC Control
-            if ((data->regs.wcEccwFlipFlop) || (!data->regs.hasFlipFlops))
+            // Load ECC Control: ONE write loads the whole register (bits 0-6,
+            // ND-11.020.01 sec 2.8). Only the word count is "loaded by two
+            // successive instructions", and the card's flip-flop does not toggle
+            // on the ECC control register (see marWcFlipFlop in device_smd.h).
+            // It used to take a flip-flop of its own, so the first write - the
+            // only one DISC-TEMA and SINTRAN make - went to an unused upper half
+            // and the long bit was never seen.
             {
                 data->regs.eccControl = value;
 
@@ -874,19 +1057,11 @@ static void smd_write(Device *self, uint32_t address, uint16_t value)
                     // The data and the extra bits are read into or written from the memory of the CPU. This function is used to diagnose the
                     // operation of the ECC circuits, and can be used with the following Device operations: M0, M1, M2, M3. This bit is "echoed" in ECR bit 14.
 
-                    // TODO: WHat does this mean
+                    // Done in the transfer, not here: smd_stream_word (516 words per
+                    // sector) and status b9 at the end of a long read.
                 }
 
                 // Bit 3-5 - Format A-D. Used when formatting the drive.
-
-                //
-                data->regs.wcEccwFlipFlop = false;
-            }
-            else
-            {
-                // The first loads the upper 8 bits
-                data->regs.eccControlHI = value & 0xFF;
-                data->regs.wcEccwFlipFlop = true;
             }
         }
         else
@@ -1204,8 +1379,38 @@ static void execute_go(Device *self)
         data->regs.seekIssuedMask &= (uint8_t)~(1 << data->regs.selectedUnit);
     }
 
+    // Every transfer checks the address field of each sector it touches
+    // (ND-11.020.01 sec 3.3.1 phase 2). DISC-TEMA FUNCTION test 5 formats a
+    // track with its sectors numbered 040-061 and requires the read of sector 0
+    // to end in "Status Bit 10b (address mismatch)".
+    if (data->controlRegister.bits.deviceOperation <= DEVICE_OP_COMPARE_TRANSFER &&
+        !data->controlRegister.bits.testMode &&
+        !smd_address_fields_found(data->regs.selectedDisk, cylinder, head, sector,
+                                  (int)((word_counter + 511u) / 512u)))
+    {
+        if (Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG))
+        {
+            log_write(LOG_CAT_SMD, LOG_DEBUG,
+                      "GO Unit=%d C/H/S=%d/%d/%d: no sector with that address field -> ADDRESS MISMATCH\n",
+                      data->regs.selectedUnit, cylinder, head, sector);
+        }
+        handle_error(self, DISK_ERR_ADDRESS_MISMATCH);
+        dev_queue_io_delay(self, transfer_ticks, (IODelayedCallback)smd_read_end,
+                           data->regs.selectedDisk->unit, self->interruptLevel);
+        return;
+    }
+
     // Number of blocks to transfer where each block is blockSizeBytes bytes  (typically 1024)
-    uint32_t block_counter = (word_counter * 2) / self->blockSizeBytes;
+    // Whole sectors: a word count that is not a whole number of sectors still
+    // reads (or writes) the last sector it starts. In long mode a sector is 516
+    // words in memory. (It was a floor division, so a 516-word long read read
+    // one sector and then four words past the end of the buffer.)
+    const bool long_mode = (data->regs.eccControl & (1u << 2)) != 0 &&
+                           data->controlRegister.bits.deviceOperation <= DEVICE_OP_COMPARE_TRANSFER &&
+                           !data->controlRegister.bits.testMode;
+    const uint32_t words_per_sector = long_mode ? SMD_LONG_SECTOR_WORDS
+                                                : (uint32_t)self->blockSizeBytes / 2u;
+    uint32_t block_counter = (word_counter + words_per_sector - 1u) / words_per_sector;
     uint32_t buffer_ptr = 0;
 
     uint8_t *buffer;
@@ -1234,7 +1439,7 @@ static void execute_go(Device *self)
                 word_counter = decrement_word_counter(regs);
             }
             data->statusRegister.bits.crcError = 1;
-            dev_queue_io_delay(self, transfer_ticks, (IODelayedCallback)smd_read_end,
+        dev_queue_io_delay(self, transfer_ticks, (IODelayedCallback)smd_read_end,
                                data->regs.selectedDisk->unit, self->interruptLevel);
             break;
         }
@@ -1262,7 +1467,7 @@ static void execute_go(Device *self)
         while (word_counter > 0)
         {
             // Read word from disk
-            uint32_t read_data = dev_io_buffer_read_word(self, buffer, buffer_ptr++);
+            uint32_t read_data = smd_stream_word(self, buffer, buffer_ptr++, long_mode);
 
             // Write to memory (DMA)
             dev_dma_write(core_address, (uint16_t)read_data);
@@ -1272,6 +1477,16 @@ static void execute_go(Device *self)
         }
 
         free(buffer);
+        // A long read ends with data error, status b9: ND-11.020.01 sec 5.4
+        // (BIGFUNC) item 11, "Status bit 9 is checked by reading with word count
+        // 1004B and bit 2 in ECC control loaded (long bit)". The extra 64 bits
+        // are read as part of the data field, so the field no longer divides by
+        // the polynomial. DISC-TEMA: "Read (parity error expected), Status
+        // Bit 11b".
+        if (long_mode)
+        {
+            data->statusRegister.bits.crcError = 1;
+        }
         dev_queue_io_delay(self, transfer_ticks, (IODelayedCallback)smd_read_end,
                            data->regs.selectedDisk->unit, self->interruptLevel);
         break;
@@ -1285,7 +1500,10 @@ static void execute_go(Device *self)
                       smd_op_name(DEVICE_OP_WRITE_TRANSFER), data->regs.selectedUnit, cylinder,
                       head, sector, lba, word_counter, core_address);
         }
-        buffer = (uint8_t *)malloc(block_counter * self->blockSizeBytes);
+        // Zeroed: ND-11.020.01 sec 2.8 says the word count is a whole number of
+        // sectors for M0-M3, so a shorter count is outside the manual; what the
+        // drive writes after the last word is not described and zero is used.
+        buffer = (uint8_t *)calloc(block_counter, self->blockSizeBytes);
         if (!buffer)
         {
             handle_error(self, DISK_ERR_READ_ERROR); // READ_ERROR
@@ -1308,7 +1526,21 @@ static void execute_go(Device *self)
                 return;
             }
             // Write word to disk buffer
-            if (dev_io_buffer_write_word(self, buffer, buffer_ptr++, (uint16_t)read_data) < 0)
+            // In long mode the 4 words after each 512 are the ECC and end of
+            // record the program supplies; the image file has nowhere to keep
+            // them (BUGS.md S3), so only the data is written.
+            uint32_t at = buffer_ptr++;
+            if (long_mode)
+            {
+                if (at % SMD_LONG_SECTOR_WORDS >= 512u)
+                {
+                    core_address = increment_core_address(regs);
+                    word_counter = decrement_word_counter(regs);
+                    continue;
+                }
+                at = (at / SMD_LONG_SECTOR_WORDS) * 512u + at % SMD_LONG_SECTOR_WORDS;
+            }
+            if (dev_io_buffer_write_word(self, buffer, at, (uint16_t)read_data) < 0)
             {
                 handle_error(self, DISK_ERR_READ_ERROR); // WRITE_ERROR
                 free(buffer);
@@ -1370,7 +1602,7 @@ static void execute_go(Device *self)
         while (word_counter > 0)
         {
             // Read word from disk
-            (void)dev_io_buffer_read_word(self, buffer, buffer_ptr++);
+            (void)smd_stream_word(self, buffer, buffer_ptr++, long_mode);
 
             //if (readData != WHAT??) then ERROR ?
 
@@ -1380,6 +1612,16 @@ static void execute_go(Device *self)
 
         free(buffer);
 
+        // A long read ends with data error, status b9: ND-11.020.01 sec 5.4
+        // (BIGFUNC) item 11, "Status bit 9 is checked by reading with word count
+        // 1004B and bit 2 in ECC control loaded (long bit)". The extra 64 bits
+        // are read as part of the data field, so the field no longer divides by
+        // the polynomial. DISC-TEMA: "Read (parity error expected), Status
+        // Bit 11b".
+        if (long_mode)
+        {
+            data->statusRegister.bits.crcError = 1;
+        }
         dev_queue_io_delay(self, transfer_ticks, (IODelayedCallback)smd_read_end,
                            data->regs.selectedDisk->unit, self->interruptLevel);
         break;
@@ -1411,7 +1653,7 @@ static void execute_go(Device *self)
                 word_counter = decrement_word_counter(regs);
             }
             data->statusRegister.bits.crcError = 1;
-            dev_queue_io_delay(self, transfer_ticks, (IODelayedCallback)smd_read_end,
+        dev_queue_io_delay(self, transfer_ticks, (IODelayedCallback)smd_read_end,
                                data->regs.selectedDisk->unit, self->interruptLevel);
             break;
         }
@@ -1438,7 +1680,7 @@ static void execute_go(Device *self)
         while (word_counter > 0)
         {
             // Read from disk
-            uint32_t disk_data = dev_io_buffer_read_word(self, buffer, buffer_ptr++);
+            uint32_t disk_data = smd_stream_word(self, buffer, buffer_ptr++, long_mode);
 
             // Read from memory (DMA)
             int32_t mem_data;
@@ -1459,6 +1701,16 @@ static void execute_go(Device *self)
         }
         free(buffer);
 
+        // A long read ends with data error, status b9: ND-11.020.01 sec 5.4
+        // (BIGFUNC) item 11, "Status bit 9 is checked by reading with word count
+        // 1004B and bit 2 in ECC control loaded (long bit)". The extra 64 bits
+        // are read as part of the data field, so the field no longer divides by
+        // the polynomial. DISC-TEMA: "Read (parity error expected), Status
+        // Bit 11b".
+        if (long_mode)
+        {
+            data->statusRegister.bits.crcError = 1;
+        }
         dev_queue_io_delay(self, transfer_ticks, (IODelayedCallback)smd_read_end,
                            data->regs.selectedDisk->unit, self->interruptLevel);
         break;
@@ -1558,11 +1810,50 @@ static void execute_go(Device *self)
 
         if (Log_IsEnabled(LOG_CAT_SMD, LOG_DEBUG))
         {
-            log_write(LOG_CAT_SMD, LOG_DEBUG, "GO Op=%s Unit=%d (media format not modelled)\n",
-                      smd_op_name(DEVICE_OP_WRITE_FORMAT), data->regs.selectedUnit);
+            log_write(LOG_CAT_SMD, LOG_DEBUG, "GO Op=%s Unit=%d C/H=%d/%d (address fields kept per track)\n",
+                      smd_op_name(DEVICE_OP_WRITE_FORMAT), data->regs.selectedUnit, cylinder, head);
         }
-        dev_queue_io_delay(self, IODELAY_HDD_SMD, (IODelayedCallback)smd_read_end,
-                           data->regs.selectedDisk->unit, self->interruptLevel);
+        {
+            // Each track gets the address fields the program supplied:
+            // two words per sector, track after track with head advance.
+            {
+                DiskInfo *disk = data->regs.selectedDisk;
+                int spt = disk->sectorsPrTrack;
+                int tracks = (int)(word_counter / (2u * (uint32_t)spt));
+                int c = cylinder, h = head;
+                uint32_t addr = core_address;
+                uint16_t words[2 * SMD_MAX_SECTORS_PER_TRACK];
+                for (int t = 0; t < tracks && spt <= SMD_MAX_SECTORS_PER_TRACK; t++)
+                {
+                    for (int w = 0; w < 2 * spt; w++)
+                    {
+                        int32_t v = dev_dma_read(addr++);
+                        words[w] = (uint16_t)(v < 0 ? 0 : v);
+                    }
+                    smd_store_track_format(disk, c, h, words, spt);
+                    if (++h >= disk->headsPrCylinder)
+                    {
+                        h = 0;
+                        c++;
+                    }
+                }
+            }
+        }
+        {
+            // Formatting starts at the index (sector 0) and writes whole
+            // revolutions: the implied seek, the wait for sector 0, then one
+            // revolution per track (ND-11.020.01 normal end of operation 3,
+            // "completion of formatting one track").
+            DiskInfo *disk = data->regs.selectedDisk;
+            uint32_t seek = smd_seek_ticks(disk, disk->armCylinder, cylinder);
+            disk->armCylinder = cylinder;
+            uint32_t rev = smd_sector_ticks(disk) * (uint32_t)disk->sectorsPrTrack;
+            uint32_t tracks = word_counter / (2u * (uint32_t)disk->sectorsPrTrack);
+            uint32_t ticks = seek + smd_rotation_wait(disk, g_instr_counter + seek, 0) + tracks * rev;
+            dev_queue_io_delay(self, ticks < IODELAY_HDD_SMD ? IODELAY_HDD_SMD : ticks,
+                               (IODelayedCallback)smd_read_end, data->regs.selectedDisk->unit,
+                               self->interruptLevel);
+        }
         break;
 
     case DEVICE_OP_SEEK_COMPLETE_SEARCH:
@@ -1907,7 +2198,6 @@ static void finish_operation(Device *self)
 
 static void clear_flip_flops(ControllerRegs *regs)
 {
-    regs->wcEccwFlipFlop = false;
     regs->marWcFlipFlop = false;
 }
 
@@ -2230,6 +2520,11 @@ static void smd_destroy(Device *dev)
         // Free disk array if it exists
         if (data->regs.disks)
         {
+            for (int u = 0; u < data->regs.maxUnits; u++)
+            {
+                free(data->regs.disks[u].formattedTracks);
+                data->regs.disks[u].formattedTracks = NULL;
+            }
             free(data->regs.disks);
             data->regs.disks = NULL;
         }

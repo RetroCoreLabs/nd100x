@@ -260,8 +260,6 @@ typedef struct
     // status read and the end of a transfer (clear_flip_flops).
     bool marWcFlipFlop;
 
-    bool wcEccwFlipFlop;
-
     // Controller registers
     uint8_t selectedUnit;
     uint16_t blockAddressI;
@@ -271,7 +269,6 @@ typedef struct
     uint16_t wordCounter;
     uint16_t wordCounterHI;
     uint16_t eccControl;
-    uint16_t eccControlHI;
     uint16_t eccPatternRegister;
     uint16_t eccCount;
 

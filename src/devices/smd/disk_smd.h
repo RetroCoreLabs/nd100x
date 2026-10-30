@@ -110,6 +110,24 @@ typedef enum
 
 // Disk structure
 // clang-format off
+// One track whose address fields, as last written by Write Format (M5), are not
+// the natural ones. Every sector carries an address field of two words, written
+// from the format data during M5 and checked on every transfer (ND-11.020.01
+// sec 3.3.1, phase 2: "During formatting, the block address is written onto the
+// disk pack. During read or write, the block address is checked."). Measured
+// from DISC-TEMA J02: word 0 is the cylinder, word 1 is head << 8 | sector.
+// The image file holds only data fields, so only tracks formatted differently
+// from that natural layout are kept here, in memory: they last until the
+// emulator stops, while the data on the image lasts for ever. A pack whose
+// address fields were changed on a real drive would keep them; this one forgets
+// them at the next start.
+#define SMD_MAX_SECTORS_PER_TRACK 64
+typedef struct {
+    int cylinder;
+    int head;
+    uint16_t field[SMD_MAX_SECTORS_PER_TRACK][2];
+} SmdTrackFormat;
+
 typedef struct {
     // Whether a disk pack is mounted on this unit is NOT kept here: the
     // controller asks the machine's disk-info callback each time it needs it
@@ -123,6 +141,10 @@ typedef struct {
     // Cylinder the arm is over, or moving to. Seek time follows the distance
     // from here (device_smd.c smd_seek_ticks). A drive powers up at cylinder 0.
     int armCylinder;
+    // Tracks formatted with address fields other than the natural ones.
+    SmdTrackFormat *formattedTracks;
+    int formattedTrackCount;
+    int formattedTrackCapacity;
     bool diskIsWriteProtected;
     int bytesPrSector;
     int headsPrCylinder;
