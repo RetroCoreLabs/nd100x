@@ -17,6 +17,8 @@ hardware-conformance code. All paths are relative to the repo root.
   entered by a different CPU id, SINTRAN refuses it. Fix: clear the
   entered-by mark with the ndfs tooling (set entered cpu to 0), do not
   rebuild or restore the image.
+  Step by step: [CPU-NUMBER-DISK-IMAGES.md](CPU-NUMBER-DISK-IMAGES.md)
+  (`ndtool --release`, or `ndtool --set-cpu`).
 - **Floppies do not boot like SMD/SCSI disks.** SMD/SCSI boot reads a boot
   sector; floppies carry a BPUN-format boot loader ("flomon"). The loader in
   src/ndlib/load_bpun.c (`LoadBPUNStream`) already parses FLOMON - a floppy

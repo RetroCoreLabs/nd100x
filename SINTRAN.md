@@ -1,5 +1,7 @@
 # SINTRAN DISK IMAGE
 
+Several machines that talk XMSG or COSMOS need one CPU number each: see [docs/CPU-NUMBER-DISK-IMAGES.md](docs/CPU-NUMBER-DISK-IMAGES.md).
+
 To boot SINTRAN you need a SMD disk with SINTRAN installed. 
 In the 'images' folder there is a compressed image of SMD0.IMG.
 

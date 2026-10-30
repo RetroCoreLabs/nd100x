@@ -286,6 +286,8 @@ build/bin/nd100x --boot=smd
 
 Read more about [how to boot sintran](SINTRAN.md)
 
+To give each copy of an image its own CPU number (needed for XMSG and COSMOS between machines), see [Making a disk image with its own CPU number](docs/CPU-NUMBER-DISK-IMAGES.md).
+
 ![Boot Animation](images/boot.gif)
 
 ## ND-500(0) support

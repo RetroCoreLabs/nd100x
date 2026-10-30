@@ -742,6 +742,7 @@ address:
   08:00:26:d2:00:00 (0xD2 = 210, its CPU number not checked on the
   console). Copies of one image therefore share a MAC; each machine needs
   an image whose SINTRAN has its own CPU number.
+  How to give a copy its own CPU number: [CPU-NUMBER-DISK-IMAGES.md](CPU-NUMBER-DISK-IMAGES.md).
 
 ---
 
