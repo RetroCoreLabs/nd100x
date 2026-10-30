@@ -133,3 +133,26 @@ dealt with, the failing one included, and a device clear leaves the register alo
 the SINTRAN driver, not from the manual: its error routine (WINCHESTER:NPL, IERR) gives a device
 clear, reads the register (RDAD) and takes "register - 1" as the failing sector. What a real card
 holds there after a good transfer, and whether the head or cylinder field ever moves, is not known.
+
+### W8. Read Parity moves the memory address and word count, inferred
+
+Sec 3.4.3: on M2 "No data transfer to the computer memory is performed." nd100x still runs the
+memory address and the word count through the sectors, as if the words had gone to memory, and
+ends with the address at start + word count and the count at 0. The manual does not say this.
+The evidence is DISC-TEMA J02 PARITY-CHECK, the card's checkout (sec 5.6): it reads the
+address back after every M2 and reports "Memory address Register not as expected" otherwise.
+The SINTRAN driver makes the same check after every transfer it starts (WINCHESTER:NPL,
+"MAR=OLDMAR+OLDWORDC ? >>> MEMER", "CORE ADDRESS REGISTER NOT AS EXPECTED"); whether it ever
+starts an M2 has not been checked. Not checked on a real card.
+
+### W9. Drive timing comes from the Micropolis 1320 series figures
+
+Every operation keeps the controller active for the drive's time: seeks from the maker's
+figures for the 1320 series (6 ms track-to-track, 28 ms average, 62 ms maximum, 3600 rpm), and
+transfers for the wait until the first sector comes round plus one sector time per sector. Not
+known, and so drawn as an assumption:
+
+- the shape of the seek curve between the three seek figures (two straight lines, as for the SMD);
+- whether the CDC Finch types (DISC-14MB, DISC-21MB) have the same figures; they get them;
+- how long an operation takes that ends in an error found before any sector passes (empty unit,
+  write protect, out of range): it ends after the old flat 10 ticks.

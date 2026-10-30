@@ -41,7 +41,8 @@
 #include "winchester/device_winchester.c"
 
 /* The device tick clock (the CPU counts executed instructions here). The
- * Winchester model does not read it; device.c links against it. */
+ * Winchester model reads it for the position of the turning disk, so every
+ * tick the test runs moves it on, as the CPU would. */
 uint64_t g_instr_counter = 0;
 
 /* ---- DMA memory -------------------------------------------------------- */
@@ -275,8 +276,24 @@ static uint16_t wait_done(void)
             return st;
         }
         (void)s_card->Tick(s_card);
+        g_instr_counter++;
     }
     return 0xFFFF;
+}
+
+/* Ticks the card stays active from now on (0xFFFFFFFF if it never ends). */
+static uint32_t ticks_active(void)
+{
+    for (uint32_t t = 0; t < 200000u; t++)
+    {
+        if (!(rd(R_STATUS) & ST_ACTIVE))
+        {
+            return t;
+        }
+        (void)s_card->Tick(s_card);
+        g_instr_counter++;
+    }
+    return 0xFFFFFFFFu;
 }
 
 static void device_clear(void)
@@ -537,6 +554,62 @@ static void run_checks(void)
         st = wait_done();
         CHECK(st == 063030, "one memory word changed: status 43030 (+ bit 13), compare error");
         device_clear();
+    }
+
+    /* ---- the drive's time, and Read Parity's counters ------------------ */
+    {
+        WinchesterData *wd = (WinchesterData *)s_card->deviceData;
+        int arm_before = disk_of(0)->cylinder; /* put back at the end */
+        device_clear();
+        (void)rtz(0);
+
+        /* M4, 3 cylinders out: sec 3.4.5 "completed when the heads are settled
+         * over the correct tracks" - active and NOT on cylinder meanwhile. */
+        wr(W_WC, 3);
+        wr(W_CONTROL, cw(0, WD_OP_SEEK, 0, (uint16_t)(CW_ACTIVE | CW_OUT)));
+        uint16_t st = rd(R_STATUS);
+        CHECK((st & ST_ACTIVE) && !(st & ST_ON_CYLINDER),
+              "M4: active and not on cylinder straight after the activate");
+        uint32_t t = ticks_active();
+        uint32_t want = wd_seek_ticks(disk_of(0), 3);
+        CHECK(t + 1u >= want && t <= want + 1u,
+              "M4 of 3 cylinders takes the seek time of the Micropolis curve");
+        CHECK(rd(R_STATUS) & ST_ON_CYLINDER, "M4: on cylinder again once the heads have settled");
+
+        /* M7 from cylinder 3 takes as long as a 3-cylinder seek. */
+        wr(W_CONTROL, cw(0, WD_OP_RETURN_TO_ZERO, 0, CW_ACTIVE));
+        CHECK(!(rd(R_STATUS) & ST_ON_CYLINDER), "M7: not on cylinder while moving");
+        t = ticks_active();
+        CHECK(t + 1u >= want && t <= want + 1u && disk_of(0)->cylinder == 0,
+              "M7 from cylinder 3 takes the 3-cylinder seek time and ends on cylinder 0");
+
+        /* A one-sector read lasts at least one sector time and at most a
+         * revolution plus one sector (the wait for it to come round). */
+        (void)rd(R_STATUS);
+        wr(W_MA, 0);
+        wr(W_MA, 0x100);
+        wr(W_BLOCK, (uint16_t)((0 << 5) | 4));
+        wr(W_WC, WORDS);
+        wr(W_CONTROL, cw(0, WD_OP_READ_TRANSFER, 0, CW_ACTIVE));
+        t = ticks_active();
+        CHECK(t >= wd_sector_ticks(disk_of(0)) && t <= WD_TICKS_PER_REV + wd_sector_ticks(disk_of(0)),
+              "a one-sector read keeps the card active for the disk's time, not 10 ticks");
+
+        /* M2, 2 sectors: no memory cycles, but the address and the word count
+         * run through (DISC-TEMA PARITY-CHECK and the SINTRAN driver both read
+         * the address back; BUGS.md W8). */
+        s_mem[0x400] = 0xBEEF;
+        s_mem[0x400 + 2 * WORDS - 1] = 0xCAFE;
+        st = transfer(0, WD_OP_READ_PARITY, 0, 2, 0, 0x400, (uint16_t)(2 * WORDS), 0);
+        CHECK(!(st & 0x0FF0) && s_mem[0x400] == 0xBEEF && s_mem[0x400 + 2 * WORDS - 1] == 0xCAFE,
+              "M2 moves no data to memory (sec 3.4.3)");
+        CHECK(wd->regs.memoryAddress == (uint16_t)(0x400 + 2 * WORDS) && wd->regs.wordCounter == 0,
+              "M2 leaves the memory address at start + word count and the word count at 0");
+        device_clear();
+        if (arm_before > 0)
+        {
+            (void)step(0, arm_before, true);
+        }
     }
 
     /* ---- a unit with no pack, and a pack mounted later ------------------ */

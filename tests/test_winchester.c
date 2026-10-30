@@ -40,6 +40,10 @@
 #include "device_winchester.h"
 #include "devices_protos.h"
 
+/* The device tick clock (cpu.c counts executed instructions here); the
+ * Winchester model reads it for the position of the turning disk. */
+uint64_t g_instr_counter = 0;
+
 /* ---------------- fake device infrastructure ---------------------------- */
 
 #define FAKE_MEM_WORDS 65536u

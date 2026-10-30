@@ -449,6 +449,31 @@ On top of it, still to do:
 Before any of it, set SET-PARAMETERS items 2, 3, 6 and 7 to NO/NO/0/0, or the
 results will not mean anything.
 
+## 11a. Testing the nd100x Winchester
+
+Manual ND-11.015.01 sec 5.6 names DISC-TEMA as the checkout for the Winchester controller too:
+"FORMAT, PARITY-CHECK and COMPARE". The disc name is `DISC-74MB-1` (entry 21), the same name
+SINTRAN uses for the Micropolis 1325.
+
+### Run so far (DISC-TEMA J02, unit 0, a copy of the SINTRAN M Winchester pack)
+
+- `FUNCTION`: answers `Not implemented for this disc type !` for `DISC-74MB-1`. That fits
+  sec 5.6, which does not list it.
+- `PARITY-CHECK`: 8088 tracks (cylinders 0-1010, 8 heads, 9 sectors), 0 errors. Before the
+  fixes of 2026-10-30 every track failed with "Memory address Register not as expected" (M2 did
+  not move the memory address, BUGS.md W8) and 10 tracks with "Controller not active after
+  activate" (every operation ended after a flat 10 ticks, BUGS.md W9).
+
+The answers that drove these runs: SET-PARAMETERS `yes 0 0 no no 3 1 no yes 1`; then
+`parity-check`, `DISC-74MB-1`, unit `0`.
+
+### Left to test
+
+- `PARITY-CHECK` on unit 1, and with both units on line.
+- `COMPARE` between the two units (copies of the same pack), and against a changed copy.
+- `FORMAT` on a throwaway copy, then `PARITY-CHECK` and a SINTRAN boot on it.
+- The read-only commands of section 5 that accept this disc type.
+
 ## 12. What the harness needs before this can be automated
 
 `tools/tpe_autorun.py` cannot drive DISC-TEMA as it stands. The gaps:

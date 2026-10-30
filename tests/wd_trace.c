@@ -58,6 +58,10 @@
 
 #include "wd_conformance_seq.h"
 
+/* The device tick clock (cpu.c counts executed instructions here); the
+ * Winchester model reads it for the position of the turning disk. */
+uint64_t g_instr_counter = 0;
+
 /* ---------------- fake machine hooks ------------------------------------ *
  * Same stubs as tests/test_winchester.c: this driver links the real
  * device_winchester.c + disk_winchester.c against a fake bus and a fake image,

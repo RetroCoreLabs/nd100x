@@ -431,7 +431,13 @@ static bool wd_transfer_end(Device *self, int drive)
         return false;
     }
 
-    (void)drive;
+    /* Sec 3.4.5: a seek "is completed when the heads are settled over the
+     * correct tracks", so the end of an operation is also the moment the arm
+     * of that unit is on cylinder again. */
+    if (data->regs.disks && drive >= 0 && drive < data->regs.maxUnits)
+    {
+        data->regs.disks[drive].onCylinder = true;
+    }
 
     data->statusRegister.bits.active = 0;
     data->statusRegister.bits.readyForTransfer = 1;
@@ -464,6 +470,99 @@ static void wd_end_later(Device *self)
     int unit = data->regs.selectedDisk ? data->regs.selectedDisk->unit : data->regs.selectedUnit;
     dev_queue_io_delay(self, IODELAY_HDD, (IODelayedCallback)wd_transfer_end, unit,
                        self->interruptLevel);
+}
+
+/*
+ * DRIVE TIMING. An operation keeps the controller ACTIVE for as long as the
+ * drive needs, counted in device ticks (one tick per executed instruction;
+ * TICKS_20MS in device_rtc.c gives 10550 ticks per 20 ms, so 527.5 ticks are
+ * one millisecond, the same clock the SMD model uses).
+ *
+ * The figures are the Micropolis 1320 series', which the maker gives once for
+ * every member, the 1325 (DISC-74MB) included: track-to-track seek 6 ms,
+ * average seek 28 ms "including settling time", maximum seek 62 ms, 3600 rpm
+ * (average latency 8.33 ms, so one revolution is 16.7 ms).
+ *
+ * NOT in the data sheet, and so an assumption (BUGS.md W9): the shape of the seek curve
+ * between those three points. It is drawn as two straight lines through
+ * (1 cylinder, 6 ms), (one third of the stroke, 28 ms) and (full stroke,
+ * 62 ms), as the SMD model does. Whether the other drive types the card
+ * accepts (the CDC Finch of DISC-14MB/21MB) share the figures is not known;
+ * they get the same ones.
+ *
+ * Why the timing has to be real (measured 2026-10-30, DISC-TEMA J02
+ * PARITY-CHECK on DISC-74MB-1): with every operation ending after a flat 10
+ * ticks, 10 of 8088 track reads failed with "Controller not active after
+ * activate" - the program reads the status right after the activate, and when
+ * the 20 ms clock interrupt came in between, the 10 ticks were already over.
+ * The SMD showed the same thing (device_smd.c).
+ */
+extern uint64_t g_instr_counter; /* cpu.c: instructions executed, the device tick clock */
+
+#define WD_TICKS_PER_MS_X10 5275u                        /* 527.5 ticks per ms */
+#define WD_MS_TO_TICKS(ms_x10) (((ms_x10) * WD_TICKS_PER_MS_X10) / 100u)
+#define WD_TICKS_PER_REV WD_MS_TO_TICKS(167u)           /* 3600 rpm: 16.7 ms */
+#define WD_SEEK_ONE_TRACK_TICKS WD_MS_TO_TICKS(60u)     /* 6 ms */
+#define WD_SEEK_AVERAGE_TICKS WD_MS_TO_TICKS(280u)      /* 28 ms */
+#define WD_SEEK_FULL_STROKE_TICKS WD_MS_TO_TICKS(620u)  /* 62 ms */
+
+/* Ticks a seek of `distance` cylinders takes, settling included. */
+static uint32_t wd_seek_ticks(const WDDiskInfo *disk, int distance)
+{
+    if (distance <= 0)
+    {
+        return 0;
+    }
+    int full = disk->maxCylinders - 1;
+    int third = full / 3;
+    if (full < 3 || third < 2)
+    {
+        return WD_SEEK_ONE_TRACK_TICKS;
+    }
+    if (distance <= third)
+    {
+        return WD_SEEK_ONE_TRACK_TICKS +
+               (uint32_t)(((uint64_t)(WD_SEEK_AVERAGE_TICKS - WD_SEEK_ONE_TRACK_TICKS) *
+                           (uint64_t)(distance - 1)) /
+                          (uint64_t)(third - 1));
+    }
+    if (distance > full)
+    {
+        distance = full;
+    }
+    return WD_SEEK_AVERAGE_TICKS +
+           (uint32_t)(((uint64_t)(WD_SEEK_FULL_STROKE_TICKS - WD_SEEK_AVERAGE_TICKS) *
+                       (uint64_t)(distance - third)) /
+                      (uint64_t)(full - third));
+}
+
+/* Ticks a sector takes to pass under the head. */
+static uint32_t wd_sector_ticks(const WDDiskInfo *disk)
+{
+    int spt = disk->sectorsPrTrack > 0 ? disk->sectorsPrTrack : 1;
+    return WD_TICKS_PER_REV / (uint32_t)spt;
+}
+
+/* Ticks from now until the start of `sector` is under the head. The disk turns
+ * all the time, so where it is follows from the instruction counter: sector 0
+ * passes the head at every multiple of a revolution. */
+static uint32_t wd_rotation_wait(const WDDiskInfo *disk, int sector)
+{
+    int spt = disk->sectorsPrTrack > 0 ? disk->sectorsPrTrack : 1;
+    uint32_t rev = wd_sector_ticks(disk) * (uint32_t)spt;
+    uint32_t phase = (uint32_t)(g_instr_counter % rev);
+    uint32_t start = (uint32_t)(sector % spt) * wd_sector_ticks(disk);
+    return (start + rev - phase) % rev;
+}
+
+/* How long a transfer of `sectors` sectors starting at `sector` keeps the
+ * controller active: the wait for the first sector to come round and one
+ * sector time per sector. The arm does not move; the driver seeks first
+ * (sec 2.2). Never shorter than the old flat delay. */
+static uint32_t wd_transfer_ticks(const WDDiskInfo *disk, int sector, uint32_t sectors)
+{
+    uint32_t ticks = wd_rotation_wait(disk, sector) + sectors * wd_sector_ticks(disk);
+    return ticks < IODELAY_HDD ? IODELAY_HDD : ticks;
 }
 
 /* ---- address fields (see WDTrackFormat in disk_winchester.h) ------------- */
@@ -730,6 +829,7 @@ static void wd_execute_go(Device *self)
         /* Sec 3.4.5: a RELATIVE step seek - "The heads will travel the number
          * of cylinders as specified in the word count register, and the
          * direction is specified in control word bit 14." */
+        int from_cylinder = disk->cylinder;
         if (regs->seekDirection == WD_SEEK_IN)
         {
             disk->cylinder -= (int32_t)regs->wordCounter;
@@ -750,7 +850,9 @@ static void wd_execute_go(Device *self)
                 disk->cylinder = disk->maxCylinders - 1;
             }
         }
-        disk->onCylinder = true;
+        /* Status bit 14 "On cylinder" reads 0 while the heads travel; the
+         * completion puts it back. */
+        disk->onCylinder = false;
         if (Log_IsEnabled(LOG_CAT_WD, LOG_DEBUG))
         {
             log_write(LOG_CAT_WD, LOG_DEBUG, "%s unit=%d dir=%s count=%d -> cylinder %d\n",
@@ -758,16 +860,26 @@ static void wd_execute_go(Device *self)
                       regs->seekDirection == WD_SEEK_IN ? "in" : "out", regs->wordCounter,
                       disk->cylinder);
         }
-        dev_queue_io_delay(self, IODELAY_HDD, (IODelayedCallback)wd_transfer_end, disk->unit,
-                           self->interruptLevel);
+        {
+            int moved = disk->cylinder - from_cylinder;
+            uint32_t ticks = wd_seek_ticks(disk, moved < 0 ? -moved : moved);
+            dev_queue_io_delay(self, ticks < IODELAY_HDD ? IODELAY_HDD : ticks,
+                               (IODelayedCallback)wd_transfer_end, disk->unit,
+                               self->interruptLevel);
+        }
         break;
 
     case WD_OP_RETURN_TO_ZERO:
+    {
+        /* Sec 3.4.8: the disc seeks to cylinder 0; it takes the seek time
+         * from where the arm is, and is not on cylinder until it has settled. */
+        uint32_t ticks = wd_seek_ticks(disk, disk->cylinder);
         disk->cylinder = 0;
-        disk->onCylinder = true;
-        dev_queue_io_delay(self, IODELAY_HDD, (IODelayedCallback)wd_transfer_end, disk->unit,
-                           self->interruptLevel);
+        disk->onCylinder = false;
+        dev_queue_io_delay(self, ticks < IODELAY_HDD ? IODELAY_HDD : ticks,
+                           (IODelayedCallback)wd_transfer_end, disk->unit, self->interruptLevel);
         break;
+    }
 
     case WD_OP_READ_TRANSFER:
     case WD_OP_WRITE_TRANSFER:
@@ -843,7 +955,9 @@ static void wd_execute_go(Device *self)
                           wd_op_name(regs->deviceOperation), regs->selectedUnit, disk->cylinder,
                           regs->head, sectors);
             }
-            dev_queue_io_delay(self, IODELAY_HDD, (IODelayedCallback)wd_transfer_end, disk->unit,
+            /* A format writes the whole track from sector 0 round. */
+            dev_queue_io_delay(self, wd_transfer_ticks(disk, 0, (uint32_t)disk->sectorsPrTrack),
+                               (IODelayedCallback)wd_transfer_end, disk->unit,
                                self->interruptLevel);
             break;
         }
@@ -865,7 +979,9 @@ static void wd_execute_go(Device *self)
                               regs->head, regs->sector, disk->cylinder);
                 }
                 data->statusRegister.bits.addressMismatch = 1;
-                wd_end_later(self);
+                dev_queue_io_delay(self, wd_transfer_ticks(disk, regs->sector, (uint32_t)found + 1u),
+                                   (IODelayedCallback)wd_transfer_end, disk->unit,
+                                   self->interruptLevel);
                 return;
             }
         }
@@ -979,6 +1095,19 @@ static void wd_execute_go(Device *self)
                     word_counter--;
                 }
             }
+            else if (regs->deviceOperation == WD_OP_READ_PARITY)
+            {
+                /* No memory cycles (sec 3.4.3), but the address and word
+                 * counters still run through the sectors as the data passes the
+                 * FIFO. Not stated in the manual (BUGS.md W8); DISC-TEMA J02
+                 * PARITY-CHECK, the card's checkout (sec 5.6), reads the memory
+                 * address back after every M2 and reports "Memory address
+                 * Register not as expected" when it has not moved ("Core address
+                 * register not as specified: a disk transfer did not finish",
+                 * ND-830005). The SMD model counts the same way. */
+                core_address += word_counter;
+                word_counter = 0;
+            }
         }
 
         free(buffer);
@@ -990,8 +1119,8 @@ static void wd_execute_go(Device *self)
         regs->wordCounter = (uint16_t)word_counter;
         wd_advance_block_address(regs, (int)block_counter);
 
-        dev_queue_io_delay(self, IODELAY_HDD, (IODelayedCallback)wd_transfer_end, disk->unit,
-                           self->interruptLevel);
+        dev_queue_io_delay(self, wd_transfer_ticks(disk, regs->sector, block_counter),
+                           (IODelayedCallback)wd_transfer_end, disk->unit, self->interruptLevel);
         break;
     }
 
