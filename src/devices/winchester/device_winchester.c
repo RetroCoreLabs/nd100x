@@ -135,31 +135,6 @@ static bool wd_unit_attached(Device *self, WDDiskInfo *disk)
     return image_size > 0;
 }
 
-/*
- * Terminate the current operation. Status bit 2 is set from control-word bit 2
- * and only a completion clears it, so every exit path - including the error
- * ones - has to come through here or the controller stays active forever.
- * Sec 3.5: bit 2 "Controller active", bit 3 "Controller finished with a device
- * operation"; an operation that ended in error has still finished.
- */
-static void wd_finish_operation(Device *self)
-{
-    WinchesterData *data = (WinchesterData *)self->deviceData;
-    if (!data)
-    {
-        return;
-    }
-
-    data->statusRegister.bits.active = 0;
-    data->statusRegister.bits.readyForTransfer = 1;
-    wd_clear_flip_flops(&data->regs);
-
-    if (data->statusRegister.bits.interruptEnabled)
-    {
-        dev_set_interrupt_status(self, true, self->interruptLevel);
-    }
-}
-
 static void wd_clear_errors(WinchesterData *data)
 {
     data->statusRegister.bits.inclusiveOrErrors = 0;
@@ -183,8 +158,13 @@ static void wd_device_clear(Device *self)
     data->regs.memoryAddress = 0;
     data->regs.memoryAddressHiBits = 0;
     data->regs.wordCounter = 0;
-    data->regs.blockAddress = 0;
     data->regs.sectorCounter = 0;
+    /* The block address is NOT cleared. The SINTRAN driver's error routine
+     * gives a device clear and then reads the block address register to find
+     * the failing sector (WINCHESTER:NPL, IERR: "IOXIN LCON % DEVICE CLEAR"
+     * ... "IOXIN RDAD % READ LAST DISK ADDRESS"); a register cleared by the
+     * device clear would always give it sector 0 of cylinder 0. Master clear
+     * (wd_reset) does clear it. */
 
     dev_set_interrupt_status(self, false, self->interruptLevel);
 }
@@ -436,7 +416,12 @@ static void wd_write(Device *self, uint32_t address, uint16_t value)
 
 /*
  * Completion callback: the operation has finished, so the controller goes not
- * active and raises the interrupt if enabled.
+ * active and raises the interrupt if enabled. Status bit 2 is set from control
+ * word bit 2 and only a completion clears it, so every activated operation -
+ * the ones that end in error too - is ended here, queued by wd_end_later or by
+ * the transfer itself, or the controller stays active for ever. Sec 3.5: bit 2
+ * "Controller active", bit 3 "Controller finished with a device operation";
+ * an operation that ended in error has still finished.
  */
 static bool wd_transfer_end(Device *self, int drive)
 {
@@ -461,6 +446,206 @@ static bool wd_transfer_end(Device *self, int drive)
     return data->statusRegister.bits.interruptEnabled ? true : false;
 }
 
+/*
+ * End an activated operation the way the card does: LATER, through the queued
+ * completion, never inside the IOX that activated it. The card goes active at
+ * activation and only finds out about an error while it works (the address
+ * compare of sec 4.4 phase 2 happens as the sectors pass under the head). The
+ * SINTRAN driver reads status straight after activating and takes "not
+ * active" as an error of its own (WINCHESTER:NPL, WDACT: "IF A NBIT ACTIV GO
+ * CNACT % ERROR, NOT BUSY", "CONTROLLER NOT ACTIVE AFTER ACTIVATE"); an error
+ * that ended the operation at once sent SINTRAN to ERRFATAL instead of into
+ * its retry and recalibrate path. The error bits are set by the caller and
+ * stay set; wd_transfer_end only ends the operation.
+ */
+static void wd_end_later(Device *self)
+{
+    WinchesterData *data = (WinchesterData *)self->deviceData;
+    int unit = data->regs.selectedDisk ? data->regs.selectedDisk->unit : data->regs.selectedUnit;
+    dev_queue_io_delay(self, IODELAY_HDD, (IODelayedCallback)wd_transfer_end, unit,
+                       self->interruptLevel);
+}
+
+/* ---- address fields (see WDTrackFormat in disk_winchester.h) ------------- */
+
+#define WD_FIELD_BAD_TRACK_FLAG (1u << 4) /* first word, bit 4 (sec 3.4.6) */
+
+static WDTrackFormat *wd_find_track_format(WDDiskInfo *disk, int cylinder, int head)
+{
+    for (int i = 0; i < disk->formattedTrackCount; i++)
+    {
+        if (disk->formattedTracks[i].cylinder == cylinder && disk->formattedTracks[i].head == head)
+        {
+            return &disk->formattedTracks[i];
+        }
+    }
+    return NULL;
+}
+
+/* The natural field of sector 'sector' on the track at cylinder/head. */
+static void wd_natural_field(int cylinder, int head, int sector, uint16_t out[2])
+{
+    out[0] = (uint16_t)(head & 0xF);
+    out[1] = (uint16_t)(((cylinder & 0x7FF) << 5) | (sector & 0x1F));
+}
+
+/* Write Format of the track under the arm on 'head': keep the fields when they
+ * are not the natural ones, forget the track when they are. */
+static void wd_store_track_format(WDDiskInfo *disk, int cylinder, int head, const uint16_t *words,
+                                  int sectors)
+{
+    bool natural = true;
+    for (int s = 0; s < sectors; s++)
+    {
+        uint16_t nat[2];
+        wd_natural_field(cylinder, head, s, nat);
+        if (words[2 * s] != nat[0] || words[2 * s + 1] != nat[1])
+        {
+            natural = false;
+            break;
+        }
+    }
+    WDTrackFormat *t = wd_find_track_format(disk, cylinder, head);
+    if (natural)
+    {
+        if (t)
+        {
+            *t = disk->formattedTracks[disk->formattedTrackCount - 1];
+            disk->formattedTrackCount--;
+        }
+        return;
+    }
+    if (!t)
+    {
+        if (disk->formattedTrackCount == disk->formattedTrackCapacity)
+        {
+            int cap = disk->formattedTrackCapacity ? disk->formattedTrackCapacity * 2 : 8;
+            WDTrackFormat *n =
+                (WDTrackFormat *)realloc(disk->formattedTracks, sizeof(WDTrackFormat) * (size_t)cap);
+            if (!n)
+            {
+                return;
+            }
+            disk->formattedTracks = n;
+            disk->formattedTrackCapacity = cap;
+        }
+        t = &disk->formattedTracks[disk->formattedTrackCount++];
+        t->cylinder = cylinder;
+        t->head = head;
+    }
+    for (int s = 0; s < WD_MAX_SECTORS_PER_TRACK; s++)
+    {
+        if (s < sectors)
+        {
+            t->field[s][0] = words[2 * s];
+            t->field[s][1] = words[2 * s + 1];
+        }
+        else
+        {
+            /* A slot M5 did not reach keeps no address the compare can match. */
+            t->field[s][0] = 0xFFFF;
+            t->field[s][1] = 0xFFFF;
+        }
+    }
+}
+
+/*
+ * Does the controller find the address of every sector of a transfer?
+ *
+ * Sec 4.4 phase 2: "read and compare address bit for bit". The heads read the
+ * address fields of the track UNDER THE ARM, so a block address with another
+ * cylinder finds nothing: sec 2.2, "The software driver must do a seek to the
+ * correct cylinder prior to a read or write operation", sec 5.5, "To read or
+ * write on other cylinders, a seek command must be carried out", and sec 10.3,
+ * illegal cylinders give address mismatch.
+ *
+ * A field carrying the bad track flag is a mismatch too, unless control word
+ * bit 15 is set (sec 2.3: "an error (status bit 8 = address mismatch) is given
+ * due to the flag bit in the address field. During the next attempt(s),
+ * accepting the flag bit, the first error free sector is read"; sec 3.4: "Bit
+ * 15, the bad track bit, must be used to read a reallocated track").
+ *
+ * A transfer of several sectors goes on to the next sector and, at the end of
+ * a track, to the next head (the same layout the image file has, see
+ * wd_disk_chs_to_lba). The manual does not say whether the card does that
+ * (BUGS.md W3); it cannot go on to the next cylinder without a seek, so a
+ * transfer that runs off the arm's cylinder ends in address mismatch.
+ */
+static bool wd_address_fields_found(WDDiskInfo *disk, int cylinder, int head, int sector, int count,
+                                    bool accept_bad_track_flag, int *found_count)
+{
+    *found_count = 0;
+    for (int n = 0; n < count; n++, (*found_count)++)
+    {
+        if (cylinder != disk->cylinder)
+        {
+            return false;
+        }
+        WDTrackFormat *t = wd_find_track_format(disk, cylinder, head);
+        if (t)
+        {
+            uint16_t want[2];
+            wd_natural_field(cylinder, head, sector, want);
+            bool found = false;
+            for (int s = 0; s < disk->sectorsPrTrack && s < WD_MAX_SECTORS_PER_TRACK; s++)
+            {
+                uint16_t w0 = t->field[s][0];
+                if ((uint16_t)(w0 & ~WD_FIELD_BAD_TRACK_FLAG) == want[0] && t->field[s][1] == want[1])
+                {
+                    if ((w0 & WD_FIELD_BAD_TRACK_FLAG) && !accept_bad_track_flag)
+                    {
+                        return false;
+                    }
+                    found = true;
+                    break;
+                }
+            }
+            if (!found)
+            {
+                return false;
+            }
+        }
+        if (++sector >= disk->sectorsPrTrack)
+        {
+            sector = 0;
+            if (++head >= disk->headsPrCylinder)
+            {
+                head = 0;
+                cylinder++;
+            }
+        }
+    }
+    return true;
+}
+
+/*
+ * The test mode pattern generator. Sec 5.4, "DMA Transfer In Test Mode": with
+ * control word 100254 "the disk drive need not be connected", the data comes
+ * "from a test pattern generator on the controller", and memory then holds
+ *     1000/052525  125252  052525 ... 1776/052525  1777/125252
+ * i.e. 052525 first, then the two words in turn.
+ */
+static uint16_t wd_test_pattern_word(uint32_t i)
+{
+    return (i & 1u) ? 0125252 : 0052525;
+}
+
+/*
+ * The block address register after an operation. INFERRED from the SINTRAN
+ * driver, not stated in ND-11.015.01 (BUGS.md W7): after an address mismatch
+ * the driver reads the register and takes "register - 1" as the failing
+ * sector (WINCHESTER:NPL, IERR: "A-1=:ADMIA % SAVE FAILING BLOCK ADDRESS");
+ * that is only right if the card has moved the register one sector past each
+ * sector it dealt with, the failing one included. The sector field (bits 4-0)
+ * is advanced; the cylinder field is left alone, as the head is in the
+ * control word and the driver never runs a transfer past the end of a track.
+ */
+static void wd_advance_block_address(WDControllerRegs *regs, int sectors)
+{
+    uint16_t sec = (uint16_t)((regs->blockAddress + (uint16_t)sectors) & 0x1F);
+    regs->blockAddress = (uint16_t)((regs->blockAddress & ~0x1Fu) | sec);
+}
+
 static void wd_execute_go(Device *self)
 {
     WinchesterData *data = (WinchesterData *)self->deviceData;
@@ -470,23 +655,65 @@ static void wd_execute_go(Device *self)
     {
         /* No such unit. Report a disk fault and terminate - never hang. */
         data->statusRegister.bits.diskFault = 1;
-        wd_finish_operation(self);
+        wd_end_later(self);
         return;
     }
 
     WDDiskInfo *disk = regs->selectedDisk;
 
-    /* M4 and M7 position the arm and need no image; every other operation
-     * needs a mounted pack. Sec 3.4: "For M4, only Word count (= step count)
-     * and unit number is necessary, and for M7, only unit number." */
-    bool positioning_only =
-        (regs->deviceOperation == WD_OP_SEEK || regs->deviceOperation == WD_OP_RETURN_TO_ZERO);
+    /* Test mode: the pattern generator, no drive (sec 5.4). */
+    if (regs->testMode && regs->deviceOperation <= WD_OP_COMPARE)
+    {
+        uint32_t core_address = ((uint32_t)regs->memoryAddressHiBits << 16) | regs->memoryAddress;
+        uint32_t word_counter = regs->wordCounter;
+        for (uint32_t i = 0; i < word_counter; i++)
+        {
+            uint16_t p = wd_test_pattern_word(i);
+            if (regs->deviceOperation == WD_OP_READ_TRANSFER)
+            {
+                dev_dma_write(core_address, p);
+            }
+            else if (regs->deviceOperation != WD_OP_READ_PARITY)
+            {
+                int32_t m = dev_dma_read(core_address);
+                if (m < 0)
+                {
+                    data->statusRegister.bits.dmaChannelError = 1;
+                    break;
+                }
+                /* Sec 5.4: "change one word in the memory data area. Status
+                 * should then change to 43030" - compare error, bit 10. The
+                 * write path (control word 114254 in the manual is M3) is
+                 * checked the same way. */
+                if (regs->deviceOperation == WD_OP_COMPARE && (uint16_t)m != p)
+                {
+                    data->statusRegister.bits.compareError = 1;
+                }
+            }
+            core_address++;
+        }
+        /* Sec 5.4: "The status register (in X) should be: 41030" - finished,
+         * error OR, CRC error (bit 9) and on cylinder. The generator's words
+         * carry no valid check word, so every test mode transfer ends with CRC
+         * error. (41030 has bit 13 clear; on a 3041 bit 13 always reads 1.) */
+        data->statusRegister.bits.crcError = 1;
+        regs->memoryAddress = (uint16_t)(core_address & 0xFFFF);
+        regs->memoryAddressHiBits = (uint8_t)((core_address >> 16) & 0xFF);
+        regs->wordCounter = 0;
+        dev_queue_io_delay(self, IODELAY_HDD, (IODelayedCallback)wd_transfer_end, disk->unit,
+                           self->interruptLevel);
+        return;
+    }
 
-    if (!wd_unit_attached(self, disk) && !positioning_only)
+    /* A unit with no pack is a drive that is switched off or not there: no
+     * ready, no clocks, no seek complete. Every operation, positioning ones
+     * too, ends with "Disk fault or missing clocks" (sec 3.5 bit 7). The manual
+     * does not name the bit for a seek on an absent drive (BUGS.md W4). */
+    if (!wd_unit_attached(self, disk))
     {
         disk->diskUnitNotReady = true;
         data->statusRegister.bits.diskFault = 1;
-        wd_finish_operation(self);
+        wd_end_later(self);
         return;
     }
 
@@ -513,10 +740,14 @@ static void wd_execute_go(Device *self)
         }
         else
         {
+            /* maxCylinders is the number of cylinders (sec 2.1 "Cylinders
+             * total"; the layout table's MAXCY+1), so the last one is
+             * maxCylinders - 1. What a real drive does when stepped past either
+             * end is not in the manual (BUGS.md W5); the arm stops there. */
             disk->cylinder += (int32_t)regs->wordCounter;
-            if (disk->cylinder > disk->maxCylinders)
+            if (disk->cylinder > disk->maxCylinders - 1)
             {
-                disk->cylinder = disk->maxCylinders;
+                disk->cylinder = disk->maxCylinders - 1;
             }
         }
         disk->onCylinder = true;
@@ -548,16 +779,20 @@ static void wd_execute_go(Device *self)
         if (lba < 0)
         {
             data->statusRegister.bits.addressMismatch = 1;
-            wd_finish_operation(self);
+            wd_end_later(self);
             return;
         }
 
-        /* Address bound check against the drive geometry. */
-        if (regs->cylinder > disk->maxCylinders || regs->head >= disk->headsPrCylinder ||
+        /* Address bound check against the drive geometry. maxCylinders is a
+         * count, so cylinder maxCylinders is already past the end (it used to
+         * be let through and read the block after the last one). No sector
+         * on the pack carries such an address, so the compare finds none:
+         * address mismatch. */
+        if (regs->cylinder >= disk->maxCylinders || regs->head >= disk->headsPrCylinder ||
             regs->sector >= disk->sectorsPrTrack)
         {
             data->statusRegister.bits.addressMismatch = 1;
-            wd_finish_operation(self);
+            wd_end_later(self);
             return;
         }
 
@@ -566,13 +801,82 @@ static void wd_execute_go(Device *self)
         {
             disk->diskUnitNotReady = true;
             data->statusRegister.bits.diskFault = 1;
-            wd_finish_operation(self);
+            wd_end_later(self);
             return;
+        }
+
+        /* Write Format: the address fields of one track on the arm's
+         * cylinder and the control word's head, two words per sector from
+         * memory (sec 3.4.6). Phase 5 of a formatted sector is "write dummy
+         * data"; what that data is, the manual does not say, so the image's
+         * data fields are left as they were (BUGS.md W2). */
+        if (regs->deviceOperation == WD_OP_WRITE_FORMAT)
+        {
+            uint32_t addr = ((uint32_t)regs->memoryAddressHiBits << 16) | regs->memoryAddress;
+            int spt = disk->sectorsPrTrack;
+            int sectors = (int)(regs->wordCounter / 2u);
+            if (sectors > spt)
+            {
+                /* More fields than the track has sectors: not described
+                 * (BUGS.md W2); the first track's worth is used. */
+                sectors = spt;
+            }
+            uint16_t words[2 * WD_MAX_SECTORS_PER_TRACK];
+            for (int w = 0; w < 2 * sectors; w++)
+            {
+                int32_t v = dev_dma_read(addr++);
+                if (v < 0)
+                {
+                    data->statusRegister.bits.dmaChannelError = 1;
+                    wd_end_later(self);
+                    return;
+                }
+                words[w] = (uint16_t)v;
+            }
+            wd_store_track_format(disk, disk->cylinder, regs->head, words, sectors);
+            regs->memoryAddress = (uint16_t)(addr & 0xFFFF);
+            regs->memoryAddressHiBits = (uint8_t)((addr >> 16) & 0xFF);
+            regs->wordCounter = (uint16_t)(regs->wordCounter - 2u * (uint32_t)sectors);
+            if (Log_IsEnabled(LOG_CAT_WD, LOG_DEBUG))
+            {
+                log_write(LOG_CAT_WD, LOG_DEBUG, "GO %s unit=%d C/H=%d/%d sectors=%d\n",
+                          wd_op_name(regs->deviceOperation), regs->selectedUnit, disk->cylinder,
+                          regs->head, sectors);
+            }
+            dev_queue_io_delay(self, IODELAY_HDD, (IODelayedCallback)wd_transfer_end, disk->unit,
+                               self->interruptLevel);
+            break;
+        }
+
+        /* Every sector's address field must be found on the arm's cylinder. */
+        {
+            uint32_t words_per_sector = (uint32_t)disk->bytesPrSector / 2u;
+            int count = (int)((regs->wordCounter + words_per_sector - 1u) / words_per_sector);
+            int found = 0;
+            if (!wd_address_fields_found(disk, regs->cylinder, regs->head, regs->sector, count,
+                                         regs->badTrack, &found))
+            {
+                wd_advance_block_address(regs, found + 1);
+                if (Log_IsEnabled(LOG_CAT_WD, LOG_DEBUG))
+                {
+                    log_write(LOG_CAT_WD, LOG_DEBUG,
+                              "GO %s unit=%d C/H/S=%d/%d/%d arm at %d: address not found -> ADDRESS MISMATCH\n",
+                              wd_op_name(regs->deviceOperation), regs->selectedUnit, regs->cylinder,
+                              regs->head, regs->sector, disk->cylinder);
+                }
+                data->statusRegister.bits.addressMismatch = 1;
+                wd_end_later(self);
+                return;
+            }
         }
 
         uint32_t word_counter = regs->wordCounter;
         uint32_t core_address = ((uint32_t)regs->memoryAddressHiBits << 16) | regs->memoryAddress;
-        uint32_t block_counter = (word_counter * 2) / (uint32_t)self->blockSizeBytes;
+        /* Whole sectors: a word count that ends inside a sector still reads the
+         * sector it ends in. (It was a floor division, so 100 words moved
+         * nothing and 600 words read 88 words past the end of the buffer.) */
+        uint32_t words_per_sector = (uint32_t)self->blockSizeBytes / 2u;
+        uint32_t block_counter = (word_counter + words_per_sector - 1u) / words_per_sector;
         uint32_t buffer_ptr = 0;
 
         if (Log_IsEnabled(LOG_CAT_WD, LOG_DEBUG))
@@ -591,22 +895,32 @@ static void wd_execute_go(Device *self)
             break;
         }
 
-        uint8_t *buffer = (uint8_t *)malloc(block_counter * self->blockSizeBytes);
+        /* Zeroed: what the card writes after the last word of a count that
+         * ends inside a sector is not in the manual (BUGS.md W6); zero is used. */
+        uint8_t *buffer = (uint8_t *)calloc(block_counter, (size_t)self->blockSizeBytes);
         if (!buffer)
         {
             data->statusRegister.bits.dmaChannelError = 1;
-            wd_finish_operation(self);
+            wd_end_later(self);
             return;
         }
 
-        if (regs->deviceOperation == WD_OP_WRITE_TRANSFER ||
-            regs->deviceOperation == WD_OP_WRITE_FORMAT)
+        if (regs->deviceOperation == WD_OP_WRITE_TRANSFER)
         {
             /* Pull the words out of ND memory, then commit whole blocks. */
             while (word_counter > 0)
             {
-                uint16_t w = dev_dma_read(core_address);
-                dev_io_buffer_write_word(self, buffer, buffer_ptr++, w);
+                /* A failed memory cycle is a DMA channel error (sec 3.5 bit 11).
+                 * It used to be cast to a word and written to the disk. */
+                int32_t w = dev_dma_read(core_address);
+                if (w < 0)
+                {
+                    data->statusRegister.bits.dmaChannelError = 1;
+                    free(buffer);
+                    wd_end_later(self);
+                    return;
+                }
+                dev_io_buffer_write_word(self, buffer, buffer_ptr++, (uint16_t)w);
                 core_address++;
                 word_counter--;
             }
@@ -616,7 +930,7 @@ static void wd_execute_go(Device *self)
             {
                 data->statusRegister.bits.diskFault = 1;
                 free(buffer);
-                wd_finish_operation(self);
+                wd_end_later(self);
                 return;
             }
         }
@@ -628,7 +942,7 @@ static void wd_execute_go(Device *self)
             {
                 data->statusRegister.bits.diskFault = 1;
                 free(buffer);
-                wd_finish_operation(self);
+                wd_end_later(self);
                 return;
             }
 
@@ -650,8 +964,13 @@ static void wd_execute_go(Device *self)
                 while (word_counter > 0)
                 {
                     uint32_t w = dev_io_buffer_read_word(self, buffer, buffer_ptr++);
-                    uint16_t m = dev_dma_read(core_address);
-                    if ((uint16_t)w != m)
+                    int32_t m = dev_dma_read(core_address);
+                    if (m < 0)
+                    {
+                        data->statusRegister.bits.dmaChannelError = 1;
+                        break;
+                    }
+                    if ((uint16_t)w != (uint16_t)m)
                     {
                         data->statusRegister.bits.compareError = 1;
                         break;
@@ -669,6 +988,7 @@ static void wd_execute_go(Device *self)
         regs->memoryAddress = (uint16_t)(core_address & 0xFFFF);
         regs->memoryAddressHiBits = (uint8_t)((core_address >> 16) & 0xFF);
         regs->wordCounter = (uint16_t)word_counter;
+        wd_advance_block_address(regs, (int)block_counter);
 
         dev_queue_io_delay(self, IODELAY_HDD, (IODelayedCallback)wd_transfer_end, disk->unit,
                            self->interruptLevel);
@@ -677,11 +997,11 @@ static void wd_execute_go(Device *self)
 
     case WD_OP_LOAD_CTRL_BITS:
         /* M6 is never activated; handled at the call site. */
-        wd_finish_operation(self);
+        wd_end_later(self);
         break;
 
     default:
-        wd_finish_operation(self);
+        wd_end_later(self);
         break;
     }
 }
@@ -747,6 +1067,17 @@ static void wd_reset(Device *self)
     data->regs.seekDirection = WD_SEEK_IN;
     data->regs.deviceOperation = WD_OP_READ_TRANSFER;
     data->regs.selectedDisk = data->regs.disks ? &data->regs.disks[0] : NULL;
+
+    /* Master clear returns every drive's heads to cylinder 0: sec 3.4.8,
+     * "Return to zero by pushing the master clear button", and sec 5.5,
+     * "Pushing Master Clear will position the heads to cylinder 0". With a
+     * transfer now needing the arm on its cylinder, this is the position a
+     * boot loader or a driver starts from. */
+    for (int u = 0; data->regs.disks && u < data->regs.maxUnits; u++)
+    {
+        data->regs.disks[u].cylinder = 0;
+        data->regs.disks[u].onCylinder = true;
+    }
 
     /* Master clear is one of the four flip-flop reset conditions (sec 3.2). */
     wd_clear_flip_flops(&data->regs);
@@ -864,6 +1195,10 @@ static void wd_destroy(Device *self)
     {
         if (data->regs.disks)
         {
+            for (int u = 0; u < data->regs.maxUnits; u++)
+            {
+                free(data->regs.disks[u].formattedTracks);
+            }
             free(data->regs.disks);
         }
         free(data);

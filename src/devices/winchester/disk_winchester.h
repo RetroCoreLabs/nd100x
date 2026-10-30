@@ -79,10 +79,33 @@ typedef enum
     WD_DISK_DT028  /* DISC-28MB: 3 heads,  9 sectors, 1022 cylinders */
 } WDDiskType;
 
+/* One track whose address fields, as last written by Write Format (M5), are not
+ * the natural ones. ND-11.015.01 sec 3.4.6: M5 writes the address field of each
+ * sector from two words in memory,
+ *     first word:  bits 15-5 zero, bit 4 bad track flag, bits 3-0 head
+ *     second word: bits 15-5 cylinder, bits 4-0 sector
+ * and sec 4.4 phase 2 compares that field "bit for bit" on every read and write.
+ * The image file holds only data fields, so only tracks formatted differently
+ * from the natural layout (no flag, the track's own cylinder and head, sector n
+ * in slot n) are kept, in memory: they last until the emulator stops
+ * (BUGS.md W2). */
+#define WD_MAX_SECTORS_PER_TRACK 32 /* the sector field is 5 bits (sec 3.3) */
+typedef struct
+{
+    int cylinder;
+    int head;
+    uint16_t field[WD_MAX_SECTORS_PER_TRACK][2];
+} WDTrackFormat;
+
 /* One drive. Mirrors DiskInfo in disk_smd.h so the two block controllers keep
  * the same shape. */
 typedef struct
 {
+    /* Tracks formatted with address fields other than the natural ones. */
+    WDTrackFormat *formattedTracks;
+    int formattedTrackCount;
+    int formattedTrackCapacity;
+
     /* Whether a pack is mounted is not kept here: the controller asks the
      * machine's disk-info callback each time (device_winchester.c
      * wd_unit_attached), so a late mount or a removal is seen at once. */

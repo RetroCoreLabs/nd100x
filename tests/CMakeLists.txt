@@ -378,6 +378,36 @@ add_dependencies(test_winchester devices)
 
 add_test(NAME winchester_tests COMMAND test_winchester)
 
+# The Winchester controller with both units: own files, own arms, own geometry,
+# seek before transfer, master clear, Write Format and the bad track flag, the
+# test mode loop of ND-11.015.01 sec 5.4, an empty unit and a late mount.
+# device_winchester.c is INCLUDED by the test so its per-unit state can be
+# checked. A real pack is used only when ND100X_WD_TEST_IMAGE names one (set
+# below when the SINTRAN M pack is beside this tree - it is not in the
+# repository, only its .bz2 is); the test reads a temporary copy of it.
+add_executable(test_winchester_units
+    test_winchester_units.c
+    ${CMAKE_SOURCE_DIR}/src/devices/winchester/disk_winchester.c
+    ${CMAKE_SOURCE_DIR}/src/devices/device.c
+)
+
+target_include_directories(test_winchester_units PRIVATE
+    ${CMAKE_SOURCE_DIR}/src/devices
+    ${CMAKE_SOURCE_DIR}/src/cpu
+    ${CMAKE_SOURCE_DIR}/src/machine
+    ${CMAKE_SOURCE_DIR}/src/ndlib
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(test_winchester_units PRIVATE ${ND_LINK_GROUP_BEGIN} ndlib ${ND_LINK_GROUP_END} m)
+add_dependencies(test_winchester_units cpu devices)
+
+add_test(NAME winchester_units_tests COMMAND test_winchester_units)
+if(EXISTS ${CMAKE_SOURCE_DIR}/WD0-SINTRAN-M.IMG)
+    set_tests_properties(winchester_units_tests PROPERTIES
+        ENVIRONMENT "ND100X_WD_TEST_IMAGE=${CMAKE_SOURCE_DIR}/WD0-SINTRAN-M.IMG")
+endif()
+
 # Floppy DMA controller (3112) test-mode unit tests
 #
 # device_floppy_dma.c is linked in DIRECTLY together with the fake Device_*

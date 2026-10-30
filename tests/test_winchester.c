@@ -417,7 +417,13 @@ int main(void)
         wr(dev, R_LOAD_WC, 512);
         wr(dev, R_LOAD_CW, CW_ACTIVATE | (WD_OP_READ_TRANSFER << CW_OP_SHIFT));
 
+        /* The card is active straight after activation even when the
+         * operation will fail: the SINTRAN driver reads status at once and
+         * takes "not active" as its own error (WINCHESTER:NPL, CNACT). */
         uint16_t st = status(dev);
+        CHECK((st & ST_ACTIVE) != 0, "address mismatch: still active right after activation");
+        dev_tick_io_delay(dev);
+        st = status(dev);
         CHECK((st & ST_ADDR_MISM) != 0, "out-of-range sector raises address mismatch");
         CHECK((st & ST_ACTIVE) == 0, "address mismatch still TERMINATES the operation");
     }
@@ -452,6 +458,9 @@ int main(void)
         wr(dev, R_LOAD_CW, CW_ACTIVATE | (WD_OP_READ_TRANSFER << CW_OP_SHIFT));
 
         uint16_t st = status(dev);
+        CHECK((st & ST_ACTIVE) != 0, "unattached unit: still active right after activation");
+        dev_tick_io_delay(dev);
+        st = status(dev);
         CHECK((st & ST_DISK_FAULT) != 0, "unattached unit raises a disk fault");
         CHECK((st & ST_ACTIVE) == 0, "unattached unit still terminates the operation");
         CHECK((st & ST_ON_CYLINDER) == 0, "unattached unit is not on cylinder");
