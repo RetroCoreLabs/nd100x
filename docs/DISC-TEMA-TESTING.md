@@ -392,10 +392,41 @@ drive, is at fault:
 
 ---
 
-## 11. Suggested order for testing the nd100x SMD
+## 11. Testing the nd100x SMD: what has been run, and what is left
 
-Nothing here has been run yet. This is the order the manual's own safety
-statements imply, cheapest and safest first.
+### Run so far (DISC-TEMA J02, unit 0 only, copies of a SINTRAN K pack)
+
+- `PARITY-CHECK`: three passes, 0 errors.
+- `FUNCTION`, loop count 1: all 7 tests run. Test 5 "Status Register bits
+  test" gives two errors, both marked `7)` by the program, "Read (overrun
+  expected)" and "Write (overrun expected), Status Bit 13b remains 0". That is
+  BUGS.md S1 (overrun cannot happen in nd100x). It stays red until the DMA is
+  modelled word by word.
+- SINTRAN K still boots from a copy, logs in and lists files.
+
+The answers that drove these runs: at "Disc name:" `DISC-75MB-1`;
+SET-PARAMETERS `yes 0 0 no no 3 1 no yes 1`; FUNCTION unit `0`, then `yes`.
+
+### Left to test, in this order
+
+The list below is the order the manual's own safety statements imply,
+cheapest and safest first. Items 3 and 8 have been run on one unit (above).
+On top of it, still to do:
+
+- `DUMP-FLAW-TABLE` answered `No alternative track table found` on unit 0.
+  Not yet checked whether a real pack of this kind has a table where
+  DISC-TEMA looks, or whether nd100x reads the wrong place.
+- `COPY` between two units.
+- `FUNCTION` with 2, 3 and 4 units at once (all `--smd0..3` copies), and with
+  a unit that is NOT listed left empty, as the program requires.
+- `FUNCTION` with a loop count above 1, so a pass must leave the controller in
+  a state the next pass accepts.
+- `FORMAT` on a throwaway copy, then `FUNCTION` and a SINTRAN boot on it.
+- The long-mode ECC words (BUGS.md S2): find a command or a SINTRAN path that
+  reads them and checks them.
+- After the tests: a drive timing setting, real (DISC-TEMA) or fast (SINTRAN,
+  the default); the port of every SMD change to the RetroCore C# controller;
+  the prompt-driven driver in `tools/` so a run is one command.
 
 1. `TRANSLATE` - no disc access at all. Confirms the program is alive and that
    the geometry it believes in matches section 3.
