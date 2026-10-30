@@ -120,6 +120,9 @@ typedef struct {
     // from non-specified units" (item 14): a unit with no image reads NOT READY.
     bool diskUnitNotReady;
     bool onCylinder;
+    // Cylinder the arm is over, or moving to. Seek time follows the distance
+    // from here (device_smd.c smd_seek_ticks). A drive powers up at cylinder 0.
+    int armCylinder;
     bool diskIsWriteProtected;
     int bytesPrSector;
     int headsPrCylinder;

@@ -38,6 +38,15 @@
 
 #include "smd/device_smd.c"
 
+/* The device tick clock: the CPU counts executed instructions here, and the
+ * drive model reads it to know where the turning pack is. */
+uint64_t g_instr_counter = 0;
+
+/* The longest single operation the drive model can take: a full-stroke seek,
+ * a whole revolution of waiting, and a few tracks of transfer. Every wait in
+ * this file uses it, so none of them depends on the model's exact figures. */
+#define OP_LIMIT (SMD_SEEK_FULL_STROKE_TICKS + 8u * SMD_TICKS_PER_REV)
+
 /* ---- DMA memory: the controller reads and writes physical memory through
  * these two. A real array, so a read transfer can be checked word by word. */
 #define TEST_MEM_WORDS 65536
@@ -264,6 +273,7 @@ static int run_until_not_active(int limit)
         {
             return t;
         }
+        g_instr_counter++;
         (void)dev_tick(s_card);
     }
     return -1;
@@ -291,12 +301,12 @@ static uint16_t seek_unit(int unit, int cylinder)
     wr(W_CONTROL, control_word(unit, 0, CW_MULTIPLEX));
     wr(W_BLOCK, (uint16_t)cylinder);                  /* block address II: cylinder */
     wr(W_CONTROL, control_word(unit, DEVICE_OP_INITIATE_SEEK, CW_ACTIVE));
-    if (run_until_not_active(1000) < 0)
+    if (run_until_not_active((int)OP_LIMIT) < 0)
     {
         return 0xFFFF;
     }
     wr(W_CONTROL, control_word(unit, DEVICE_OP_SEEK_COMPLETE_SEARCH, CW_ACTIVE));
-    if (run_until_not_active(SMD_TIMEOUT_TICKS + 10) < 0)
+    if (run_until_not_active((int)(SMD_TIMEOUT_TICKS + OP_LIMIT)) < 0)
     {
         return 0xFFFF;
     }
@@ -320,7 +330,7 @@ static uint16_t transfer(int unit, int op, int cylinder, int head, int sector, u
     wr(W_WC, (uint16_t)(words >> 16));
     wr(W_WC, (uint16_t)words);
     wr(W_CONTROL, control_word(unit, op, CW_ACTIVE));
-    if (run_until_not_active(1000) < 0)
+    if (run_until_not_active((int)OP_LIMIT) < 0)
     {
         return 0xFFFF;
     }
@@ -438,10 +448,11 @@ static void run_checks(const char *what, const bool present[UNITS])
              * unit's own pulse, which must arrive within its seek time. */
             {
                 int t;
-                for (t = 0; t < 10 * IODELAY_HDD_SMD; t++)
+                for (t = 0; t < (int)OP_LIMIT; t++)
                 {
                     if (rd(R_SEEK) & (1 << second))
                         break;
+                    g_instr_counter++;
                     (void)dev_tick(s_card);
                 }
             }
@@ -510,6 +521,7 @@ static void run_checks(const char *what, const bool present[UNITS])
                 st_poll = rd(R_STATUS);
                 if (!(st_poll & ST_ACTIVE) && (st_poll & (1 << 3)))
                     break;
+                g_instr_counter++;
                 (void)dev_tick(s_card);
             }
             CHECK(polls < 101, "WSEEK: the controller finishes M4 within the driver's 101 polls");
@@ -518,7 +530,7 @@ static void run_checks(const char *what, const bool present[UNITS])
         wr(W_CONTROL, control_word(u, DEVICE_OP_SEEK_COMPLETE_SEARCH, CW_ACTIVE | CW_INT_NOT_ACTIVE));
         uint16_t st = rd(R_STATUS);
         CHECK(!(st & ST_ILLEGAL_LOAD), "the M6 after the WSEEK poll is not an illegal load");
-        int clocks = run_until_not_active(10000);
+        int clocks = run_until_not_active((int)(SMD_TIMEOUT_TICKS + OP_LIMIT));
         CHECK(clocks >= 0, "the seek complete search ends");
         CHECK(s_card->interruptBits != 0, "the search's end raises the interrupt the driver waits for");
         uint16_t seekc = rd(R_SEEK);
@@ -548,7 +560,7 @@ static void run_checks(const char *what, const bool present[UNITS])
         wr(W_CONTROL, control_word(u, DEVICE_OP_SEEK_COMPLETE_SEARCH, CW_ACTIVE));
         uint16_t st = rd(R_STATUS);
         CHECK((st & ST_ACTIVE) != 0, "the search is active while it looks for a pulse");
-        int clocks = run_until_not_active(20000);
+        int clocks = run_until_not_active((int)(SMD_TIMEOUT_TICKS + OP_LIMIT));
         CHECK(clocks > 100, "the search runs its window before giving up");
         st = rd(R_STATUS);
         CHECK((st & (1 << 6)) != 0, "a search with no seek outstanding ends in timeout (b6)");

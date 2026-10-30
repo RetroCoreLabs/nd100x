@@ -370,7 +370,7 @@ uint16_t dev_ident(Device *, uint16_t);
  * @param param Parameter passed to the callback.
  * @param irqlevel Interrupt level to raise if the callback returns true (0 = none).
  */
-void dev_queue_io_delay(Device *dev, uint16_t ticks, IODelayedCallback cb, int param,
+void dev_queue_io_delay(Device *dev, uint32_t ticks, IODelayedCallback cb, int param,
                         uint8_t irqlevel);
 
 /**

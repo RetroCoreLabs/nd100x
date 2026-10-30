@@ -73,7 +73,7 @@ int32_t dev_dma_read(uint32_t core_address)
     return 0;
 }
 
-void dev_queue_io_delay(Device *dev, uint16_t ticks, IODelayedCallback cb, int param,
+void dev_queue_io_delay(Device *dev, uint32_t ticks, IODelayedCallback cb, int param,
                         uint8_t irqlevel)
 {
     (void)ticks;

@@ -234,7 +234,7 @@ void dev_irq_changed(void)
     __atomic_store_n(&g_dev_irq_dirty, true, __ATOMIC_RELEASE);
 }
 
-void dev_queue_io_delay(Device *dev, uint16_t ticks, IODelayedCallback cb, int param,
+void dev_queue_io_delay(Device *dev, uint32_t ticks, IODelayedCallback cb, int param,
                         uint8_t irqlevel)
 {
     if (!dev || !dev->ioDelays)
@@ -258,7 +258,7 @@ void dev_queue_io_delay(Device *dev, uint16_t ticks, IODelayedCallback cb, int p
 
     // Add new delay
     DelayedIoInfo *delay = &dev->ioDelays[dev->ioDelayCount++];
-    delay->delayTicks = ticks;
+    delay->delayTicks = (int)ticks;
     delay->callback = cb;
     delay->context = dev;
     delay->parameter = param;

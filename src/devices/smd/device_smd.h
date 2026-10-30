@@ -111,7 +111,7 @@ typedef union
         uint16_t timeOut : 1;               // Bit 6 (Timeout)
         uint16_t hardwareError2 : 1;        // Bit 7 (Hardware error - disk fault, etc.)
         uint16_t addressMismatch : 1;       // Bit 8 (Address mismatch)
-        uint16_t notUsed9 : 1;              // Bit 9 (Data error - reserved)
+        uint16_t crcError : 1;               // Bit 9 (CRC / data error; set by the test-mode generator)
         uint16_t comparerError : 1;         // Bit 10 (Compare error)
         uint16_t notUsed11 : 1;             // Bit 11 (DMA Channel error - reserved)
         uint16_t abnormalCompletion : 1;    // Bit 12 (Abnormal completion)

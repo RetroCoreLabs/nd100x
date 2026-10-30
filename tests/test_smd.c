@@ -39,6 +39,10 @@
 
 #include "smd/device_smd.c"
 
+/* The device tick clock: the CPU counts executed instructions here, and the
+ * drive model reads it to know where the turning pack is. */
+uint64_t g_instr_counter = 0;
+
 /* Stubs for what device.c's DMA helpers reference. Nothing here transfers
  * data, and linking the CPU in would mean a failure could come from anywhere. */
 int g_dma_access = 0;

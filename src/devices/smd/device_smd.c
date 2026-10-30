@@ -46,7 +46,128 @@ static void smd_destroy(Device *);
 // DISC-TEMA checks both that active holds during the search and that b6 comes
 // on afterwards ("Status Bit 2b (active) becomes 0 immediately !!" was the
 // failure when the timeout fired instantly).
-#define SMD_TIMEOUT_TICKS 5000
+// 500 ms at 527.5 ticks per ms (see SMD_TICKS_PER_MS_X10). It was 5000 ticks
+// (9.5 ms) while seeks took 10 ticks; with real seek times (up to 55 ms) a
+// Seek Complete Search must be able to outlast the longest seek.
+#define SMD_TIMEOUT_TICKS 263750u
+
+// THE DRIVE'S TIMING. One tick = one ND-100 instruction. The emulator runs at
+// 0.5275 MIPS in real time (TICKS_20MS in device_rtc.c: 10550 ticks per 20 ms),
+// so 527.5 ticks are one millisecond.
+//
+// The figures are the CDC SMD family's (DISC-75MB is a CDC 9762, norskdata-ndfs
+// DISK-GEOMETRY-AND-BOOT-FINDINGS.md), from the CDC 976x brochure of March 1977
+// (bitsavers cdc/discs/brochures), which gives them once for the 9760, 9762,
+// 9764 and 9766:
+//   spindle speed 3600 r/min -> one revolution 16.7 ms, average latency 8.3 ms
+//   accessing time: max one track 6 ms, average 30 ms, max full stroke 55 ms
+//
+// NOT in the brochure, and so an assumption: the shape of the seek curve
+// between those three points. It is drawn as two straight lines through
+// (1 cylinder, 6 ms), (one third of the stroke, 30 ms) and (full stroke, 55 ms);
+// "average seek" is conventionally the time for a third of the stroke. A seek to
+// the cylinder the arm is already on takes no time.
+//
+// Why the timing has to be real (measured 2026-10-29 with DISC-TEMA J02):
+// - with transfers taking a flat 10 ticks, PARITY-CHECK failed about three
+//   times per pass with "Controller not active after activate" (status b2): it
+//   reads the status right after the GO, and when the 20 ms clock interrupt
+//   came in between, the 10 ticks were already over;
+// - FUNCTION test 5 requires on-cylinder (b14) to be 0 after an Initiate Seek
+//   and after a Return To Zero Seek ends; a 10-tick seek was over before the
+//   program looked.
+extern uint64_t g_instr_counter; // cpu.c: instructions executed, the device tick clock
+
+#define SMD_TICKS_PER_MS_X10 5275u                         // 527.5 ticks per ms
+#define SMD_MS_TO_TICKS(ms_x10) (((ms_x10) * SMD_TICKS_PER_MS_X10) / 100u)
+#define SMD_TICKS_PER_REV SMD_MS_TO_TICKS(167u)             // 16.7 ms
+#define SMD_SEEK_ONE_TRACK_TICKS SMD_MS_TO_TICKS(60u)       // 6 ms
+#define SMD_SEEK_AVERAGE_TICKS SMD_MS_TO_TICKS(300u)        // 30 ms
+#define SMD_SEEK_FULL_STROKE_TICKS SMD_MS_TO_TICKS(550u)    // 55 ms
+
+static uint32_t smd_seek_ticks(const DiskInfo *disk, int from, int to)
+{
+    int distance = from > to ? from - to : to - from;
+    if (distance == 0)
+    {
+        return 0;
+    }
+    int full = disk->maxCylinders - 1;
+    int third = full / 3;
+    if (full < 3 || third < 2)
+    {
+        return SMD_SEEK_ONE_TRACK_TICKS;
+    }
+    if (distance <= third)
+    {
+        return SMD_SEEK_ONE_TRACK_TICKS +
+               (uint32_t)(((uint64_t)(SMD_SEEK_AVERAGE_TICKS - SMD_SEEK_ONE_TRACK_TICKS) *
+                           (uint64_t)(distance - 1)) /
+                          (uint64_t)(third - 1));
+    }
+    if (distance > full)
+    {
+        distance = full;
+    }
+    return SMD_SEEK_AVERAGE_TICKS +
+           (uint32_t)(((uint64_t)(SMD_SEEK_FULL_STROKE_TICKS - SMD_SEEK_AVERAGE_TICKS) *
+                       (uint64_t)(distance - third)) /
+                      (uint64_t)(full - third));
+}
+
+// Ticks a sector takes to pass under the head.
+static uint32_t smd_sector_ticks(const DiskInfo *disk)
+{
+    int spt = disk->sectorsPrTrack > 0 ? disk->sectorsPrTrack : 1;
+    return SMD_TICKS_PER_REV / (uint32_t)spt;
+}
+
+// Ticks from 'at' (an instruction count) until the start of 'sector' is under
+// the head. The pack turns all the time, so where it is at any moment follows
+// from the instruction counter: sector 0 passes the head at every multiple of a
+// revolution.
+static uint32_t smd_rotation_wait(const DiskInfo *disk, uint64_t at, int sector)
+{
+    uint32_t rev = smd_sector_ticks(disk) * (uint32_t)(disk->sectorsPrTrack > 0 ? disk->sectorsPrTrack : 1);
+    uint32_t phase = (uint32_t)(at % rev);
+    uint32_t start = (uint32_t)sector * smd_sector_ticks(disk);
+    return (start + rev - phase) % rev;
+}
+
+// How long a data transfer keeps the controller ACTIVE: the implied seek to the
+// block address's cylinder, the wait for the first sector to come round, and
+// one sector time per sector moved. The arm is left on the new cylinder.
+static uint32_t smd_transfer_ticks(DiskInfo *disk, int cylinder, int sector, uint32_t words)
+{
+    uint32_t seek = smd_seek_ticks(disk, disk->armCylinder, cylinder);
+    disk->armCylinder = cylinder;
+    uint32_t sectors = (words + 511u) / 512u;
+    uint32_t ticks = seek + smd_rotation_wait(disk, g_instr_counter + seek, sector) +
+                     sectors * smd_sector_ticks(disk);
+    return ticks < IODELAY_HDD_SMD ? IODELAY_HDD_SMD : ticks;
+}
+
+// TEST MODE (control word bit 3, ND-11.020.01 sec 4.4): the data does not come
+// from the disk. "Read Data from disk or test mode generator" - the controller
+// feeds itself from an internal oscillator. Sec 4.4 gives the result of a test
+// mode read: the memory buffer holds 125252, 052525, 125252 ... (octal), and
+// the status word is 041030 (on cylinder, CRC error b9, inclusive-OR b4,
+// finished b3) against 040010 for a good disk read - the generator's stream
+// carries no valid CRC, so every test-mode transfer ends with b9. Compare in
+// test mode (control word 014014) checks memory against the same stream and
+// "the result in the status register should also be the same".
+//
+// ORDER (measured with DISC-TEMA J02 FUNCTION, test 4): DISC-TEMA expects word 0
+// = 052525, word 1 = 125252. The manual's page-56 listing says "first
+// location 125252". The program is what has to pass, so 052525 comes first;
+// the two disagree and the manual's listing may be about another buffer.
+// NOT verified: whether the stream is fixed or follows the block address
+// registers (the test loop loads block address I = 125252, II = 052525, which
+// fits either reading).
+static uint16_t smd_test_pattern_word(uint32_t index)
+{
+    return (index & 1u) ? 0125252u : 0052525u;
+}
 
 // Local forward declarations for internal helpers
 static void clear_flip_flops(ControllerRegs *regs);
@@ -64,6 +185,7 @@ static void finish_operation(Device *self);
 static bool unit_attached(Device *self, DiskInfo *disk);
 static bool load_is_illegal(Device *self, SMDData *data);
 static bool smd_seek_end(Device *self, int drive);
+static bool smd_rtz_end(Device *self, int drive);
 static bool smd_search_tick(Device *self, int drive);
 
 static const char *smd_op_name(DeviceOperation op)
@@ -380,6 +502,7 @@ static uint16_t smd_read(Device *self, uint32_t address)
             data->statusRegister.bits.hardwareError =
                 data->statusRegister.bits.illegalLoad | data->statusRegister.bits.timeOut |
                 data->statusRegister.bits.hardwareError2 | data->statusRegister.bits.comparerError |
+                data->statusRegister.bits.crcError |
                 data->statusRegister.bits.addressMismatch | data->seekCondition.bits.seekError;
 
             if (data->regs.selectedDisk)
@@ -1064,6 +1187,13 @@ static void execute_go(Device *self)
 
     uint32_t word_counter = (uint32_t)(data->regs.wordCounterHI << 16 | data->regs.wordCounter);
     uint32_t core_address = (uint32_t)(data->regs.coreAddressHiBits << 16 | data->regs.coreAddress);
+    // Taken now: the loops below count word_counter down to zero. Only a
+    // transfer (M0-M3) moves the arm here; the seeks do it themselves.
+    const uint32_t transfer_ticks =
+        (data->controlRegister.bits.deviceOperation <= DEVICE_OP_COMPARE_TRANSFER &&
+         !data->controlRegister.bits.testMode)
+            ? smd_transfer_ticks(data->regs.selectedDisk, cylinder, sector, word_counter)
+            : IODELAY_HDD_SMD;
 
     // A transfer operation CONSUMES any outstanding seek: the seek-complete
     // condition "will last until a transfer command is given" (ND-11.020.01,
@@ -1092,6 +1222,21 @@ static void execute_go(Device *self)
                       "GO Op=%s Unit=%d C/H/S=%d/%d/%d LBA=%" PRId64 " WC=%d CoreAddr=%o\n",
                       smd_op_name(DEVICE_OP_READ_TRANSFER), data->regs.selectedUnit, cylinder, head,
                       sector, lba, word_counter, core_address);
+        }
+
+        if (data->controlRegister.bits.testMode)
+        {
+            // Test-mode generator instead of the disk (see smd_test_pattern_word).
+            for (uint32_t i = 0; word_counter > 0; i++)
+            {
+                dev_dma_write(core_address, smd_test_pattern_word(i));
+                core_address = increment_core_address(regs);
+                word_counter = decrement_word_counter(regs);
+            }
+            data->statusRegister.bits.crcError = 1;
+            dev_queue_io_delay(self, transfer_ticks, (IODelayedCallback)smd_read_end,
+                               data->regs.selectedDisk->unit, self->interruptLevel);
+            break;
         }
 
         buffer = (uint8_t *)malloc(block_counter * self->blockSizeBytes);
@@ -1127,7 +1272,7 @@ static void execute_go(Device *self)
         }
 
         free(buffer);
-        dev_queue_io_delay(self, IODELAY_HDD_SMD, (IODelayedCallback)smd_read_end,
+        dev_queue_io_delay(self, transfer_ticks, (IODelayedCallback)smd_read_end,
                            data->regs.selectedDisk->unit, self->interruptLevel);
         break;
 
@@ -1189,7 +1334,7 @@ static void execute_go(Device *self)
 
         free(buffer);
 
-        dev_queue_io_delay(self, IODELAY_HDD_SMD, (IODelayedCallback)smd_read_end,
+        dev_queue_io_delay(self, transfer_ticks, (IODelayedCallback)smd_read_end,
                            data->regs.selectedDisk->unit, self->interruptLevel);
         break;
 
@@ -1235,7 +1380,7 @@ static void execute_go(Device *self)
 
         free(buffer);
 
-        dev_queue_io_delay(self, IODELAY_HDD_SMD, (IODelayedCallback)smd_read_end,
+        dev_queue_io_delay(self, transfer_ticks, (IODelayedCallback)smd_read_end,
                            data->regs.selectedDisk->unit, self->interruptLevel);
         break;
 
@@ -1247,6 +1392,28 @@ static void execute_go(Device *self)
                       "GO Op=%s Unit=%d C/H/S=%d/%d/%d LBA=%" PRId64 " WC=%d CoreAddr=%o\n",
                       smd_op_name(DEVICE_OP_COMPARE_TRANSFER), data->regs.selectedUnit, cylinder,
                       head, sector, lba, word_counter, core_address);
+        }
+
+        if (data->controlRegister.bits.testMode)
+        {
+            // Compare memory against the test-mode generator stream.
+            for (uint32_t i = 0; word_counter > 0; i++)
+            {
+                int32_t mem_word = dev_dma_read(core_address);
+                if (mem_word < 0 || (uint16_t)mem_word != smd_test_pattern_word(i))
+                {
+                    handle_error(self, DISK_ERR_COMPARER_ERROR);
+                    data->statusRegister.bits.crcError = 1;
+                    finish_operation(self);
+                    return;
+                }
+                core_address = increment_core_address(regs);
+                word_counter = decrement_word_counter(regs);
+            }
+            data->statusRegister.bits.crcError = 1;
+            dev_queue_io_delay(self, transfer_ticks, (IODelayedCallback)smd_read_end,
+                               data->regs.selectedDisk->unit, self->interruptLevel);
+            break;
         }
 
         buffer = (uint8_t *)malloc(block_counter * self->blockSizeBytes);
@@ -1292,7 +1459,7 @@ static void execute_go(Device *self)
         }
         free(buffer);
 
-        dev_queue_io_delay(self, IODELAY_HDD_SMD, (IODelayedCallback)smd_read_end,
+        dev_queue_io_delay(self, transfer_ticks, (IODelayedCallback)smd_read_end,
                            data->regs.selectedDisk->unit, self->interruptLevel);
         break;
 
@@ -1337,15 +1504,24 @@ static void execute_go(Device *self)
         //    accepted by the disk, the operation will be completed". So the
         //    operation ends NOW (not active, b3 set, interrupt if enabled);
         //  - the DRIVE moves its heads on its own and raises the unit's
-        //    seek-complete pulse later (smd_seek_end, IODELAY_HDD_SMD ticks),
+        //    seek-complete pulse later (smd_seek_end, after the drive's seek
+        //    time, smd_seek_ticks),
         //    which is what a Seek Complete Search (M6) waits for.
         // Keeping the controller active for the whole head movement made the
         // M6 that SINTRAN's WSEEK gives right after its status poll an illegal
         // load, and the driver then waited forever for the seek interrupt
         // (@ENTER-DIRECTORY of a pack on unit 1 never returned, 2026-10-29;
         // tests/test_smd_units.c "the SINTRAN driver's seek").
-        dev_queue_io_delay(self, IODELAY_HDD_SMD, (IODelayedCallback)smd_seek_end,
-                           data->regs.selectedDisk->unit, 0);
+        {
+            // NOT verified: what the drive does for a seek to the cylinder it
+            // is on; it is given the old 10 ticks so on-cylinder still drops
+            // and the seek-complete pulse still comes.
+            uint32_t seek = smd_seek_ticks(data->regs.selectedDisk,
+                                           data->regs.selectedDisk->armCylinder, cylinder);
+            data->regs.selectedDisk->armCylinder = cylinder;
+            dev_queue_io_delay(self, seek ? seek : IODELAY_HDD_SMD,
+                               (IODelayedCallback)smd_seek_end, data->regs.selectedDisk->unit, 0);
+        }
         finish_operation(self);
         break;
 
@@ -1433,9 +1609,21 @@ static void execute_go(Device *self)
         regs->selectedDisk->onCylinder = 0;
         data->regs.seekIssuedMask |= (uint8_t)(1 << data->regs.selectedUnit);
 
-        // IODELAY_HDD_SMD as in RetroCore; see the Initiate Seek case.
-        dev_queue_io_delay(self, IODELAY_HDD_SMD, (IODelayedCallback)smd_read_end,
-                           data->regs.selectedDisk->unit, self->interruptLevel);
+        // The OPERATION ends now: ND-11.020.01's fourth "normal end of
+        // operation" is RTZ * (not ON cyl), the moment the drive drops
+        // on-cylinder - the same rule as Initiate Seek. The ARM then takes the
+        // seek time back to cylinder 0, and on-cylinder returns when it is
+        // there (smd_rtz_end). DISC-TEMA FUNCTION test 5 reads b14 after the
+        // operation has ended and requires 0 ("Error after Return-To-Zero
+        // Seek, Bit 16b (on cylinder) remained 1 !").
+        {
+            uint32_t seek = smd_seek_ticks(data->regs.selectedDisk,
+                                           data->regs.selectedDisk->armCylinder, 0);
+            data->regs.selectedDisk->armCylinder = 0;
+            dev_queue_io_delay(self, seek ? seek : IODELAY_HDD_SMD,
+                               (IODelayedCallback)smd_rtz_end, data->regs.selectedDisk->unit, 0);
+        }
+        finish_operation(self);
         break;
 
     case DEVICE_OP_RUN_ECC_OPERATION:
@@ -1542,6 +1730,22 @@ static bool smd_seek_end(Device *self, int drive)
     return false;
 }
 
+// The arm is back on cylinder 0 after a Return To Zero Seek. On cylinder again,
+// and no seek-complete pulse: the manual ties that condition to "the initiate
+// seek commands", and DISC-TEMA section 7 reads the seek condition after an RTZ
+// "With no previous Initiate-Seek" expecting bits 0-7 zero. (Inferred from
+// that check; the manuals do not state the RTZ case.)
+static bool smd_rtz_end(Device *self, int drive)
+{
+    SMDData *data = (SMDData *)self->deviceData;
+    if (!data || drive < 0 || drive >= data->regs.maxUnits)
+    {
+        return false;
+    }
+    data->regs.disks[drive].onCylinder = 1;
+    return false;
+}
+
 // One tick of a Seek Complete Search: the controller "goes into a waiting
 // state, until any unit has completed a seek" (ND-11.020.01 M6). The search
 // ends, with the interrupt the driver waits for, as soon as a unit with a seek
@@ -1559,7 +1763,7 @@ static bool smd_search_tick(Device *self, int drive)
         return smd_read_end(self, drive);
     }
     data->searchTicks += 2;
-    if (data->searchTicks >= SMD_TIMEOUT_TICKS)
+    if ((uint32_t)data->searchTicks >= SMD_TIMEOUT_TICKS)
     {
         return smd_timeout_end(self, drive);
     }
@@ -1741,6 +1945,7 @@ static void clear_errors(Device *self)
     data->statusRegister.bits.illegalLoad = 0;
     data->statusRegister.bits.timeOut = 0;
     data->statusRegister.bits.comparerError = 0;
+    data->statusRegister.bits.crcError = 0;
     data->statusRegister.bits.addressMismatch = 0;
     data->statusRegister.bits.abnormalCompletion = 0;
     data->seekCondition.bits.seekError = 0;

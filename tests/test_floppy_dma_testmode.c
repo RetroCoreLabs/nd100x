@@ -80,7 +80,7 @@ int32_t dev_io_buffer_write_word(Device *dev, uint8_t *buf, int32_t word_offset,
     return 0;
 }
 
-void dev_queue_io_delay(Device *dev, uint16_t ticks, IODelayedCallback cb, int param,
+void dev_queue_io_delay(Device *dev, uint32_t ticks, IODelayedCallback cb, int param,
                         uint8_t irqlevel)
 {
     (void)ticks;
