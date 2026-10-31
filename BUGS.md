@@ -619,71 +619,45 @@ Found by running the Norsk Data SCSI test programs from the TPE floppy 210523G02
 (SCSI-TV-B00 and DISK-MM-B00, under TPE-MON-100-B00), on copies of `SCSI0.IMG` at SCSI IDs 0, 1
 and 2. The manual is ND-210523G (Test Programs for ND-100/110/120), the SCSI-TV and DISK-MM
 chapters. What passes: adapter tests 1 to 6; device tests 1 to 14 on ID 0, and 4 and 5 on ID 1
-as well; DISK-MM SELECT-DEVICE, LIST-DISK-INFORMATION, LIST-REASSIGN-TABLE, LIST-REFRESH-TABLE
-and VERIFY.
+as well; DISK-MM SELECT-DEVICE, LIST-DISK-INFORMATION, LIST-REASSIGN-TABLE, LIST-REFRESH-TABLE,
+VERIFY and FORMAT-INITIALIZE.
 
-### C5. FORMAT UNIT does nothing, so DISK-MM FORMAT-INITIALIZE gives up
+### C5. Mode pages and FORMAT UNIT: what still differs from the drive
 
-**Found by:** DISK-MM FORMAT-INITIALIZE on a copy at ID 3, with `--scsi-debug`.
+**Found by:** DISK-MM FORMAT-INITIALIZE on a copy at ID 3, with `--scsi-debug`. It used to stop
+with "(DF) Must be formatted", and after that was fixed with "(CS) Error in consistency of
+partition block". Both are fixed (2026-10-31): the target now keeps current and saved values of
+mode pages 1 to 4, takes MODE SELECT, keeps the current values as the saved ones on FORMAT UNIT,
+loads the saved ones on reset, and answers MODE SENSE page 3Fh with the 1370's four pages in
+ascending order. FORMAT-INITIALIZE ends with "-Ok- Directory size 125 Mb" and writes a partition
+block with entry 7 at 129107, size 162 = (8 heads + 1) x 18 sectors per track. How DISK-MM checks
+a format, with the trace addresses, is in the comments at `scsihdd_command_mode_sense` and
+`SC_FORMAT_UNIT` in `scsi_hdd.c`, and in the NDInsight SCSI storage chapter. Tests:
+`tests/test_scsi_hdd.c`, `test_mode_pages`.
 
-**Shows up as:**
+**What is still not as the drive:**
 
-```
-All information in all partitions will be lost,
-do you want to continue (Yes or No): Yes
-*** Info ***
-    (DF) Must be formatted
-```
-
-The disk then shows "No directory area allocated (Not initialized ?)", and the image file is
-byte for byte unchanged.
-
-**What DISK-MM sends:** READ(6) of block 129311 (the control block), then MODE SENSE of page 3
-with page control 2 (default values, CDB byte 2 = 83h), MODE SELECT of 37 bytes, the same for
-page 4, then FORMAT UNIT with CDB byte 1 = 10h (FmtData = 1, so a defect list header follows in
-a DATA OUT phase), then MODE SENSE of pages 3 and 4 with page control 2 (83h, 84h) and 3 (saved
-values, C3h, C4h). nd100x answers every page control with the same page, ignores what MODE
-SELECT sets, and ends FORMAT UNIT with GOOD without taking the defect list (see the comment at
-`SC_FORMAT_UNIT`).
-
-**The check that fails, traced 2026-10-31.** Run under the DAP server with a read watchpoint on
-the message text and the CPU trace ring. DISK-MM is loaded at file word + 065400 (the message
-"(DF) Must be formatted" is file word 053750, physical 141350, read back from memory to
-confirm). Read with nd100-dis:
-
-- 124516-124565 decides. It checks page 3 and page 4, and returns NOT (page 3 good AND page 4
-  good). A result of 1 sends message code 050266 to the report at 125040, which prints the
-  message.
-- 124175-124235 is the check for one page. It reads the page twice with MODE SENSE, page control
-  2 into one buffer and page control 3 into another, then compares them at 124236.
-- Page 3 is good only when these all hold for the saved page:
-  - cylinder skew (word 017 of the buffer, page bytes 18-19) equals ceil(sectors per track / 3),
-    worked out by 124077;
-  - track skew (word 016) is 0 (124130 returns a constant 0);
-  - the alternate sectors per zone, alternate tracks per zone, alternate tracks per volume,
-    sectors per track and bytes per physical sector are the same in the default and the saved
-    page.
-- Page 4 is good when cylinders (3 bytes) and heads are the same in the default and the saved
-  page.
-
-In the traced run, page 4 was good and page 3 was not: sectors per track is 18, so DISK-MM wants
-a cylinder skew of 6, and nd100x has 0 there.
-
-**What is still missing before this can be fixed:**
-
-- The 37 bytes DISK-MM sends in MODE SELECT are not logged yet. Inferred from the check, not
-  read: they set cylinder skew to ceil(sectors per track / 3) and track skew to 0.
-- What a Micropolis 1370-series drive keeps. Its product description (101689 rev D, Appendix B)
-  gives the defaults and which fields can be changed: track skew and cylinder skew can, and the
-  default cylinder skew is 12. That the drive formats with the current values and keeps them as
-  the saved values is NOT in that document. It refers to the Micropolis SCSI Implementation
-  document 110011 for MODE SENSE and MODE SELECT, which is not on this machine.
-- The saved values outlive power-off on a real drive. nd100x has nowhere to keep them across
-  runs with the image file as it is.
-- nd100x's page 3 and page 4 do not follow Appendix B. Byte 0 carries the PS bit where Appendix B
-  shows it reserved. Page 4's length is 16h where the drive gives 12h. In page 3, tracks per zone
-  is cylinders x heads (the drive: 1), alternate sectors per zone is 0 (1), alternate tracks per
-  volume is 0 (3 x data heads), and cylinder skew is 0 (12).
+- FORMAT UNIT keeps the current mode values as the saved ones. That the 1370 does this is
+  inferred from DISK-MM's check; Micropolis document 110011 (SCSI implementation), which would say,
+  has not been found.
+- FORMAT UNIT does not touch the image. A real format leaves every block empty; here the old data
+  stays. The defect descriptors after the 4-byte defect list header are not taken (an error is
+  logged when the header says there are some).
+- The saved values are kept in memory only, by choice: every run starts with the defaults. On a
+  real drive they outlive power-off. Whether DISK-MM or SINTRAN looks at the saved values outside
+  FORMAT-INITIALIZE has not been checked.
+- MODE SELECT refuses nothing. The drive would refuse a field that cannot be changed set to a
+  different value, and a skew larger than the sectors per track (Appendix B). The block descriptor
+  is not taken: the block length stays at the image's 1024.
+- Page 3 and page 4 default values follow the image, not Appendix B. Sectors per track, bytes per
+  sector, cylinders and heads describe the image (18 x 1024, 898 cylinders, 8 heads), where the
+  drive's defaults are 36 x 512 and 1024 cylinders. Tracks per zone is cylinders x heads (the drive:
+  1), alternate sectors per zone 0 (1), alternate tracks per volume 0 (3 x data heads), interleave
+  0 (1), cylinder skew 0 (12), and the HSEC bit in byte 20 is 0 (1). The original `SCSI0.IMG`
+  partition block has entry 7 sized 171 = 9 x 19, which fits a drive formatted with 19 sectors per
+  track, the Appendix A example; the image itself is 18 sectors per track.
+- The mode data length (byte 0 of the MODE SENSE reply) counts itself, as the RetroCore C# sets
+  it. What the 1370 sends there has not been checked against a document.
 
 ### C6. SCSI tape and CD-ROM targets are not implemented
 

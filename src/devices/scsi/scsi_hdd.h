@@ -79,6 +79,24 @@
  * and 8.2.17.1, the CCS modes the 1370 series answers to). */
 #define SCSI_HDD_BUFFER_HEADER_BYTES 4
 
+/* The four mode pages of the drive, as MODE SENSE sends them: page code, page
+ * length, then the fields. Micropolis 1370 Series product description,
+ * document 101689 rev D, Appendix B: "The 1370 Series supports four pages":
+ *   page 1 error recovery         length 06h (8 bytes in all)
+ *   page 2 disconnect/reconnect   length 0Ah (12 bytes)
+ *   page 3 format parameters      length 16h (24 bytes)
+ *   page 4 drive geometry         length 12h (20 bytes)
+ * SCSI_HDD_MODE_PAGE_BYTES is room for the longest one. */
+#define SCSI_HDD_MODE_PAGE_BYTES 24
+#define SCSI_HDD_MODE_PAGES      4 /* index = page code - 1 */
+
+/* MODE SELECT(6) parameter list length is one CDB byte, so at most 255. */
+#define SCSI_HDD_MODE_SELECT_MAX 255
+
+/* FORMAT UNIT with FmtData = 1: the defect list header that comes first in
+ * the DATA OUT phase (SCSI-2 section 8.2.1.1). */
+#define SCSI_HDD_DEFECT_HEADER_BYTES 4
+
 // clang-format off
 typedef struct {
     SCSITarget target;      /* must be first - SCSITarget.impl points back here */
@@ -100,6 +118,24 @@ typedef struct {
     /* WRITE BUFFER / READ BUFFER memory (see SCSI_HDD_DATA_BUFFER_BYTES).
      * Never touches the medium. */
     uint8_t dataBuffer[SCSI_HDD_DATA_BUFFER_BYTES];
+
+    /* Mode pages 1 to 4, current and saved values. MODE SELECT changes the
+     * current values of the fields the drive lets the host change; FORMAT
+     * UNIT keeps the current values as the saved ones; a reset puts the saved
+     * values back into the current ones. Kept in memory only: they start as
+     * the default values each time the emulator starts, and the disk image
+     * never holds them. The image layout does not depend on them - a block
+     * number maps to a file offset the same way whatever they say. */
+    uint8_t modeCurrent[SCSI_HDD_MODE_PAGES][SCSI_HDD_MODE_PAGE_BYTES];
+    uint8_t modeSaved[SCSI_HDD_MODE_PAGES][SCSI_HDD_MODE_PAGE_BYTES];
+
+    /* MODE SELECT parameter list, filled by the DATA OUT phase and applied
+     * when its last byte arrives. */
+    uint8_t modeSelectData[SCSI_HDD_MODE_SELECT_MAX];
+    int     modeSelectLength;
+
+    /* FORMAT UNIT defect list header (FmtData = 1). */
+    uint8_t defectHeader[SCSI_HDD_DEFECT_HEADER_BYTES];
 
     uint8_t inquiry_data[SCSI_HDD_INQUIRY_SIZE];
 } SCSIHDDDevice;
