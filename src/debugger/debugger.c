@@ -5088,6 +5088,110 @@ static int cmd_symbol_list(DAPServer *server)
     return 0;
 }
 
+/* ------------------------------------------------------------------ */
+/* CPU trace ring (custom DAP commands setCpuTracing / getCpuTraceRing,  */
+/* shared with RetroCore). The ring itself is the one --ring-dump uses   */
+/* (cpu.c); these only switch its recording and read it.               */
+/* ------------------------------------------------------------------ */
+
+/// @brief setCpuTracing: switch ring recording and the single-PC filter.
+///
+/// The ring has a fixed size (CPU_RING_CAPACITY), so a requested ringCapacity
+/// other than 0 cannot resize it; the reply carries the real capacity. A
+/// ringCapacity of 0 turns recording off, as the protocol defines. A request
+/// without pcFilter clears the filter (dap_server.h, SetCpuTracingContext).
+static int cmd_set_cpu_tracing(DAPServer *server)
+{
+    if (!server)
+    {
+        return -1;
+    }
+    SetCpuTracingContext *ctx = &server->current_command.context.set_cpu_tracing;
+
+    bool enabled = cpu_ring_tracing_enabled();
+    if (ctx->has_enabled)
+    {
+        enabled = ctx->enabled;
+    }
+    if (ctx->has_ring_capacity && ctx->ring_capacity == 0)
+    {
+        enabled = false;
+    }
+    cpu_ring_set_tracing(enabled, ctx->has_pc_filter, (uint16_t)ctx->pc_filter);
+
+    uint16_t filter = 0;
+    ctx->resp_enabled = enabled;
+    ctx->resp_ring_enabled = enabled;
+    ctx->resp_ring_capacity = enabled ? CPU_RING_CAPACITY : 0;
+    ctx->resp_has_pc_filter = cpu_ring_pc_filter(&filter);
+    ctx->resp_pc_filter = filter;
+    return 0;
+}
+
+/// @brief getCpuTraceRing: the most recent retired instructions, oldest first.
+///
+/// Each entry's text is the same row --ring-dump prints: level, PC, opcode,
+/// disassembly, then A, STS, PID, PIE, IID, IIE and the device interrupt bits
+/// as they were right after the instruction. Exact while the CPU is paused
+/// (see cpu_ring_snapshot).
+static int cmd_get_cpu_trace_ring(DAPServer *server)
+{
+    if (!server)
+    {
+        return -1;
+    }
+    GetCpuTraceRingContext *ctx = &server->current_command.context.get_cpu_trace_ring;
+
+    int want = ctx->max_entries > 0 && ctx->max_entries < CPU_RING_CAPACITY ? ctx->max_entries
+                                                                            : CPU_RING_CAPACITY;
+    CpuRingEntry *raw = malloc((size_t)want * sizeof(CpuRingEntry));
+    if (!raw)
+    {
+        return -1;
+    }
+    int n = cpu_ring_snapshot(raw, want);
+
+    ctx->header = strdup("PIL     PC  OPCODE  DISASM                        A   STS   PID   PIE   "
+                         "IID   IIE DEVBITS");
+    ctx->ring_capacity = CPU_RING_CAPACITY;
+    ctx->total_instructions_executed = g_instr_counter;
+    ctx->entries = n > 0 ? calloc((size_t)n, sizeof(DAPTraceEntry)) : NULL;
+    if (n > 0 && !ctx->entries)
+    {
+        free(raw);
+        return -1;
+    }
+
+    for (int i = 0; i < n; i++)
+    {
+        const CpuRingEntry *e = &raw[i];
+        char disasm[128];
+        char text[256];
+        disasm_op_to_str(disasm, sizeof(disasm), e->opcode);
+        snprintf(text, sizeof(text), "%2d %06o %06o %-24s %06o %04x %04x %04x %04x %04x %04x",
+                 e->pil, e->pc, e->opcode, disasm, e->a_reg, e->sts, e->pid, e->pie, e->iid,
+                 e->iie, e->devbits);
+
+        /* The mnemonic is the first word of the disassembly. */
+        size_t len = strcspn(disasm, " \t");
+        char *name = malloc(len + 1);
+        if (name)
+        {
+            memcpy(name, disasm, len);
+            name[len] = '\0';
+        }
+
+        ctx->entries[i].pc = e->pc;
+        ctx->entries[i].opcode = e->opcode;
+        ctx->entries[i].op_code_name = name;
+        ctx->entries[i].text = strdup(text);
+    }
+    ctx->entry_count = n;
+
+    free(raw);
+    return 0;
+}
+
 /// @brief Initialize the DAP server
 /// @param port The port to listen on
 /// @return 0 if successful, -1 if error
@@ -5195,6 +5299,12 @@ int debugger_ndx_server_init(int port)
 
     // Symbol listing
     dap_server_register_command_callback(g_dap_server, DAP_CMD_SYMBOL_LIST, cmd_symbol_list);
+
+    // CPU trace ring (custom, shared with RetroCore)
+    dap_server_register_command_callback(g_dap_server, DAP_CMD_SET_CPU_TRACING,
+                                         cmd_set_cpu_tracing);
+    dap_server_register_command_callback(g_dap_server, DAP_CMD_GET_CPU_TRACE_RING,
+                                         cmd_get_cpu_trace_ring);
 
     // Configure which capabilities are supported
     set_default_dap_capabilities(g_dap_server);

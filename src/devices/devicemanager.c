@@ -692,7 +692,11 @@ int devmgr_ident(uint16_t level)
     // interrupt(14,1<<7); /* IOX error lvl14 */
     LOG(LOG_CAT_DEVICE, LOG_DEBUG, "No device found for IDENT level: %d\n", level);
 
-    return 0;
+    /* No answer is -1, never 0: do_ident() tells "no device" from a code by
+     * the sign, and raises the IOX error itself. Returning 0 here made every
+     * unanswered IDENT look like a device with ident code 0: A was set to 0
+     * and the IOX error never happened (SCSI-TV adapter test 4, the former BUGS.md C2). */
+    return -1;
 }
 
 /* Called after every ND-100 instruction. Returns the OR of every device's

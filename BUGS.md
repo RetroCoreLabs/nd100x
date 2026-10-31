@@ -618,25 +618,9 @@ and 1023 through.
 Found by running the Norsk Data SCSI test programs from the TPE floppy 210523G02-XX-02D
 (SCSI-TV-B00 and DISK-MM-B00, under TPE-MON-100-B00), on copies of `SCSI0.IMG` at SCSI IDs 0, 1
 and 2. The manual is ND-210523G (Test Programs for ND-100/110/120), the SCSI-TV and DISK-MM
-chapters. What passes: adapter tests 1, 2, 3, 5 and 6; device tests 1 to 14 on ID 0, and 4
-and 5 on ID 1 as well; DISK-MM SELECT-DEVICE, LIST-DISK-INFORMATION, LIST-REASSIGN-TABLE,
-LIST-REFRESH-TABLE and VERIFY.
-
-### C2. Adapter test 4 finds a constant interrupt on level 11 with ident 0
-
-**Found by:** SCSI-TV RUN-ADAPTOR-TESTS 4.
-
-**Shows up as:**
-
-```
-   4. Interrupts at level 11
-***** Fatal error: Constant interrupt source on level 11. Ident code = 000000B
-```
-
-**What is known:** the test enables and clears the card's interrupt and checks that level 11
-answers IDENT with the card's ident code (LIST-DEVICES shows 140440B). nd100x either keeps
-level 11 raised when it should be cleared, or does not answer IDENT for it. Not traced yet. The
-fatal error stops the run, so tests 5 and 6 must be run on their own.
+chapters. What passes: adapter tests 1 to 6; device tests 1 to 14 on ID 0, and 4 and 5 on ID 1
+as well; DISK-MM SELECT-DEVICE, LIST-DISK-INFORMATION, LIST-REASSIGN-TABLE, LIST-REFRESH-TABLE
+and VERIFY.
 
 ### C5. FORMAT UNIT does nothing, so DISK-MM FORMAT-INITIALIZE gives up
 
@@ -654,16 +638,90 @@ do you want to continue (Yes or No): Yes
 The disk then shows "No directory area allocated (Not initialized ?)", and the image file is
 byte for byte unchanged.
 
-**What DISK-MM sends:** READ(6) of block 129311 (the control block), then MODE SENSE and MODE
-SELECT of page 3 (format) and page 4 (geometry), then FORMAT UNIT, then MODE SENSE of pages 3
-and 4 again, then it stops. nd100x ignores what MODE SELECT sets and FORMAT UNIT only answers
-GOOD (see the comment at `SC_FORMAT_UNIT`). Which check makes DISK-MM decide the disk "must be
-formatted" is not known yet; my reading is that it compares the pages after the format with
-what it selected, and that is not verified. The real mechanism (what a Micropolis 1375 does on
-FORMAT UNIT, and which MODE SELECT values it keeps) is needed before this can be fixed.
+**What DISK-MM sends:** READ(6) of block 129311 (the control block), then MODE SENSE of page 3
+with page control 2 (default values, CDB byte 2 = 83h), MODE SELECT of 37 bytes, the same for
+page 4, then FORMAT UNIT with CDB byte 1 = 10h (FmtData = 1, so a defect list header follows in
+a DATA OUT phase), then MODE SENSE of pages 3 and 4 with page control 2 (83h, 84h) and 3 (saved
+values, C3h, C4h). nd100x answers every page control with the same page, ignores what MODE
+SELECT sets, and ends FORMAT UNIT with GOOD without taking the defect list (see the comment at
+`SC_FORMAT_UNIT`).
+
+**The check that fails, traced 2026-10-31.** Run under the DAP server with a read watchpoint on
+the message text and the CPU trace ring. DISK-MM is loaded at file word + 065400 (the message
+"(DF) Must be formatted" is file word 053750, physical 141350, read back from memory to
+confirm). Read with nd100-dis:
+
+- 124516-124565 decides. It checks page 3 and page 4, and returns NOT (page 3 good AND page 4
+  good). A result of 1 sends message code 050266 to the report at 125040, which prints the
+  message.
+- 124175-124235 is the check for one page. It reads the page twice with MODE SENSE, page control
+  2 into one buffer and page control 3 into another, then compares them at 124236.
+- Page 3 is good only when these all hold for the saved page:
+  - cylinder skew (word 017 of the buffer, page bytes 18-19) equals ceil(sectors per track / 3),
+    worked out by 124077;
+  - track skew (word 016) is 0 (124130 returns a constant 0);
+  - the alternate sectors per zone, alternate tracks per zone, alternate tracks per volume,
+    sectors per track and bytes per physical sector are the same in the default and the saved
+    page.
+- Page 4 is good when cylinders (3 bytes) and heads are the same in the default and the saved
+  page.
+
+In the traced run, page 4 was good and page 3 was not: sectors per track is 18, so DISK-MM wants
+a cylinder skew of 6, and nd100x has 0 there.
+
+**What is still missing before this can be fixed:**
+
+- The 37 bytes DISK-MM sends in MODE SELECT are not logged yet. Inferred from the check, not
+  read: they set cylinder skew to ceil(sectors per track / 3) and track skew to 0.
+- What a Micropolis 1370-series drive keeps. Its product description (101689 rev D, Appendix B)
+  gives the defaults and which fields can be changed: track skew and cylinder skew can, and the
+  default cylinder skew is 12. That the drive formats with the current values and keeps them as
+  the saved values is NOT in that document. It refers to the Micropolis SCSI Implementation
+  document 110011 for MODE SENSE and MODE SELECT, which is not on this machine.
+- The saved values outlive power-off on a real drive. nd100x has nowhere to keep them across
+  runs with the image file as it is.
+- nd100x's page 3 and page 4 do not follow Appendix B. Byte 0 carries the PS bit where Appendix B
+  shows it reserved. Page 4's length is 16h where the drive gives 12h. In page 3, tracks per zone
+  is cylinders x heads (the drive: 1), alternate sectors per zone is 0 (1), alternate tracks per
+  volume is 0 (3 x data heads), and cylinder skew is 0 (12).
 
 ### C6. SCSI tape and CD-ROM targets are not implemented
 
 `--scsiN=tape:FILE` and `--scsiN=cdrom:FILE` are parsed, but only the hard disk exists
 (`--help` says "not implemented yet"). SCSI-TV has tests for magtape (20 to 23) and streamer
 (30 to 32); none of the SCSI-TV versions lists a CD-ROM.
+
+## Console terminal (`src/devices/terminal/device_terminal.c`)
+
+### T1. SINTRAN never sees a key typed at the console under `--pipe`
+
+**Found by:** booting `SMD0.IMG` (`--boot=smd`) and `SCSI0.IMG` (`--boot=scsi0`) from copies with
+`--pipe`, with stdin a pty in raw mode, and sending ESC every 15 seconds for 300 seconds after
+"SINTRAN III RUNNING" / "SYSTEM IS AVAILABLE". SINTRAN never answers with "ENTER". The build of
+b12ecdb does exactly the same, so it is older than the IDENT change.
+
+**What is known:** with `--log=term:trace`, the console input status (IOX 302) reads 5 every time
+(interrupt enabled, device activated) and never has bit 3 (ready for transfer). After the boot
+messages SINTRAN does not touch the console registers again, so level 12 was never raised for
+the key. TPE-MON on the same front end reads typed lines (it polls the console instead of waiting
+for the interrupt), so the bytes reach `kbd_read_key_event`. `terminal_tick` hands a queued key to
+the UART only while the OUTPUT side is ready for transfer; SINTRAN's last write to the output
+control register (IOX 307) was 0. Whether that condition holds the key back, and whether the same
+happens without `--pipe`, is not traced.
+
+## DAP debugger (`src/debugger/`, `external/libdap`)
+
+### D1. The debugger serves only the first client for the life of the process
+
+**Found by:** connecting a second time to one `--debugger --port=4790` run, 2026-10-31.
+
+**Shows up as:** after the first client disconnects (MCP `debug_disconnect` with
+`terminate=false`), a new client's `initialize` gets no answer at all and times out, from both
+the MCP tool and a plain socket client. `ss -tnp` then shows the emulator still holding the first
+client's socket in `CLOSE-WAIT` (its fd 5), and every later connection sits in the listen
+queue, never read.
+
+**What is known:** the server does not notice that its client has gone, so it never closes that
+socket or accepts the next one. Whether this is in nd100x's debugger thread
+(`debugger_thread`, `dap_server_run`) or in libdap's TCP transport is not traced yet. Until it
+is fixed, one debugging session has to do everything over a single connection.

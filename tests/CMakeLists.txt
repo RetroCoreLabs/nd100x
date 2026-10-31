@@ -826,3 +826,44 @@ target_link_libraries(test_nd110_vectors PRIVATE
 add_dependencies(test_nd110_vectors cpu devices)
 
 add_test(NAME nd110_vector_tests COMMAND test_nd110_vectors)
+
+# The CPU trace ring as the debugger reads it (DAP setCpuTracing / getCpuTraceRing):
+# a short loop through the real cpu_run(), read back with cpu_ring_snapshot().
+add_executable(test_cpu_ring
+    test_cpu_ring.c
+)
+
+target_include_directories(test_cpu_ring PRIVATE
+    /src
+    /src/cpu
+    /src/machine
+    /src/devices
+    /src/ndlib
+)
+
+target_link_libraries(test_cpu_ring PRIVATE
+     cpu machine devices debugger ndlib  m)
+
+add_dependencies(test_cpu_ring cpu devices)
+
+add_test(NAME cpu_ring_tests COMMAND test_cpu_ring)
+
+# IDENT with no device: A unchanged and the IOX error raised (ND-06.015.02 6.7.4).
+add_executable(test_ident
+    test_ident.c
+)
+
+target_include_directories(test_ident PRIVATE
+    /src
+    /src/cpu
+    /src/machine
+    /src/devices
+    /src/ndlib
+)
+
+target_link_libraries(test_ident PRIVATE
+     cpu machine devices debugger ndlib  m)
+
+add_dependencies(test_ident cpu devices)
+
+add_test(NAME ident_tests COMMAND test_ident)

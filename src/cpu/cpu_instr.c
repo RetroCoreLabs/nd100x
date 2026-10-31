@@ -1883,18 +1883,27 @@ static void do_ident(uint16_t priolevel)
     // reached RUNNING - both boot correctly without it. The TSS LEV12 problem must
     // be solved without breaking IDENT for everyone else.
 
+    /* ND-06.015.02 section 6.7.4 (The Ident Instruction): "If the IDENT
+     * instruction is executed, but there is no device to serve, the A register
+     * is unchanged. An IOX error interrupt to level 14 will occur if enabled."
+     * ND-06.029.1 (ND-110 Instruction Set, IDENT) says the same about A, and
+     * ND-06.014 lists "no device answering to an IDENT instruction" as a cause
+     * of the IOX error interrupt. cpu_interrupt() sets IID bit 7 and raises
+     * level 14 only if IIE enables it.
+     *
+     * This branch never ran before 2026-10-31: devmgr_ident() answered "no
+     * device" with 0, so A was cleared and no IOX error was raised. That is
+     * what SCSI-TV-B00 adapter test 4 reported as a "constant interrupt source
+     * on level 11, ident code 0". An exception for level 13 ("ignore RTC")
+     * that sat here, and so had never run either, is gone: the manual makes no
+     * exception for any level. */
     if (id >= 0)
     {
         gA = id & 0xFFFF;
     }
     else
     {
-        gA = 0;
-
-        if (priolevel != 13) // ignore RTC
-        {
-            cpu_interrupt(14, 1 << 7); /* IOX Error if no IDENT code found */
-        }
+        cpu_interrupt(14, 1 << 7); /* IOX error: no device answered the IDENT */
     }
     return;
 }

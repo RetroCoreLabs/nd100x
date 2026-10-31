@@ -1028,6 +1028,60 @@ bool cpu_instruction_is_jump(void);
  */
 void cpu_ring_dump(void);
 
+/** Number of instructions the CPU trace ring holds. */
+#define CPU_RING_CAPACITY 65536
+
+/**
+ * @brief One retired instruction in the CPU trace ring, with the machine state
+ * right after it.
+ */
+typedef struct
+{
+    unsigned short pc;      /**< Logical PC the instruction was fetched from */
+    unsigned short opcode;  /**< The instruction word */
+    unsigned char pil;      /**< Interrupt level it ran on */
+    unsigned short a_reg;   /**< A register after it */
+    unsigned short sts;     /**< STS after it */
+    unsigned short pid;     /**< PID after it */
+    unsigned short pie;     /**< PIE after it */
+    unsigned short iid;     /**< IID after it */
+    unsigned short iie;     /**< IIE after it */
+    unsigned short devbits; /**< Device interrupt bits from the last IO_Tick */
+} CpuRingEntry;
+
+/**
+ * @brief Turn ring recording for the debugger on or off, and set or clear a
+ * single-PC filter. Recording also runs while g_cpu_ring_dump_size is positive
+ * (--ring-dump), whatever this says.
+ * @param enabled True to record every retired instruction.
+ * @param pc_filter_on True to record only instructions fetched at pc_filter.
+ * @param pc_filter The one PC kept while pc_filter_on is true.
+ */
+void cpu_ring_set_tracing(bool enabled, bool pc_filter_on, uint16_t pc_filter);
+
+/** @brief True while ring recording for the debugger is on. */
+bool cpu_ring_tracing_enabled(void);
+
+/**
+ * @brief Report the PC filter in effect.
+ * @param pc_filter Receives the filter PC when one is set (may be NULL).
+ * @return True if a PC filter is set.
+ */
+bool cpu_ring_pc_filter(uint16_t *pc_filter);
+
+/**
+ * @brief Copy the most recent recorded instructions out of the ring, oldest first.
+ *
+ * Runs on whatever thread calls it, without a lock, like the debugger's other
+ * reads of CPU state: the copy is exact while the CPU is paused; while it runs,
+ * the newest entries can be in the middle of being written.
+ * @param out Array of at least max_entries entries.
+ * @param max_entries The most entries wanted.
+ * @return Number of entries copied: the smaller of max_entries and the number
+ * recorded so far (at most CPU_RING_CAPACITY).
+ */
+int cpu_ring_snapshot(CpuRingEntry *out, int max_entries);
+
 /**
  * @brief Run the CPU instruction loop for a given number of ticks, handling runlevel
  * switches, the fault longjmp() target (MPV/PF/illegal instruction), device I/O ticks
@@ -1132,7 +1186,7 @@ CpuStopReason cpu_get_stop_reason(void);
 void cpu_set_run_mode(CPURunMode);
 
 /**
- * @brief Read the current CPU run mode set by set_cpu_run_mode().
+ * @brief Read the current CPU run mode set by cpu_set_run_mode().
  * @return The current CPURunMode value.
  */
 CPURunMode cpu_get_run_mode(void);

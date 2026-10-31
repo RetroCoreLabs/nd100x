@@ -712,7 +712,8 @@ void devmgr_write(uint32_t, uint16_t);
  *        it, clearing its request bit.
  * @param level Interrupt level being identified.
  * @return The IDENT code from the highest-priority pending device on that
- *         level, or 0 if none is pending.
+ *         level, or -1 if no device answers (the caller then raises the IOX
+ *         error; ND-06.015.02 section 6.7.4).
  */
 int devmgr_ident(uint16_t);
 

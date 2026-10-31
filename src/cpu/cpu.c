@@ -969,25 +969,28 @@ bool cpu_instruction_is_jump(void)
 /// @brief run the CPU for a number of ticks.
 /// @details This function runs the CPU for a number of ticks. It handles interrupts and checks for level switches.
 /* Ring buffer for last N instructions before exit */
-#define RING_SIZE 65536
-static struct
-{
-    unsigned short pc;
-    unsigned short opcode;
-    unsigned char pil;
-    unsigned short a_reg;
-    unsigned short sts;
-    unsigned short pid;
-    unsigned short pie;
-    unsigned short iid;
-    unsigned short iie;
-    unsigned short devbits; /* device interrupt bits from last IO_Tick */
-} ring_buf[RING_SIZE];
+#define RING_SIZE CPU_RING_CAPACITY
+static CpuRingEntry ring_buf[RING_SIZE];
 static int ring_idx = 0;
+/* How many ring slots hold a recorded instruction (up to RING_SIZE), so a
+ * snapshot never hands out empty slots as instructions. */
+static int ring_count = 0;
+
+/* Recording for the debugger (DAP setCpuTracing), separate from the exit dump
+ * so a debugger can read the ring without asking for a dump at exit. The ring
+ * records when either this or g_cpu_ring_dump_size is on. */
+static bool s_ring_trace_enabled = false;
+static bool s_ring_pc_filter_on = false;
+static uint16_t s_ring_pc_filter = 0;
 
 static void ring_record(unsigned short pc, unsigned char pil, unsigned short opcode)
 {
-    if (g_cpu_ring_dump_size <= 0)
+    if (g_cpu_ring_dump_size <= 0 && !s_ring_trace_enabled)
+    {
+        return;
+    }
+    /* A PC filter keeps only the instructions fetched at that one address. */
+    if (s_ring_pc_filter_on && pc != s_ring_pc_filter)
     {
         return;
     }
@@ -1002,6 +1005,46 @@ static void ring_record(unsigned short pc, unsigned char pil, unsigned short opc
     ring_buf[ring_idx].iie = gIIE;
     ring_buf[ring_idx].devbits = last_device_irq_bits;
     ring_idx = (ring_idx + 1) % RING_SIZE;
+    if (ring_count < RING_SIZE)
+    {
+        ring_count++;
+    }
+}
+
+void cpu_ring_set_tracing(bool enabled, bool pc_filter_on, uint16_t pc_filter)
+{
+    s_ring_trace_enabled = enabled;
+    s_ring_pc_filter_on = pc_filter_on;
+    s_ring_pc_filter = pc_filter;
+}
+
+bool cpu_ring_tracing_enabled(void)
+{
+    return s_ring_trace_enabled;
+}
+
+bool cpu_ring_pc_filter(uint16_t *pc_filter)
+{
+    if (s_ring_pc_filter_on && pc_filter)
+    {
+        *pc_filter = s_ring_pc_filter;
+    }
+    return s_ring_pc_filter_on;
+}
+
+int cpu_ring_snapshot(CpuRingEntry *out, int max_entries)
+{
+    if (!out || max_entries <= 0)
+    {
+        return 0;
+    }
+    int count = ring_count < max_entries ? ring_count : max_entries;
+    /* The most recent `count` entries, oldest first, as cpu_ring_dump walks. */
+    for (int i = 0; i < count; i++)
+    {
+        out[i] = ring_buf[(ring_idx - count + i + RING_SIZE) % RING_SIZE];
+    }
+    return count;
 }
 
 void cpu_ring_dump(void)
