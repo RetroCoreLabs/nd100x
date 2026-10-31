@@ -175,6 +175,10 @@ starve it. That is note 7.
 
 ## Building it in nd100x: the time base
 
+**Decision: not built.** The only thing the model would change is this one DISC-TEMA item,
+and it needs a new time base that all device timing would depend on. BUGS.md S1 and W1
+stay open. The rest of this section is kept as the starting point if that changes.
+
 What nd100x has today:
 - The device clock is the instruction counter (`g_instr_counter`), with one tick per
   instruction. `device_smd.c` calibrates it at 0.5275 MIPS (10550 ticks per 20 ms RTC

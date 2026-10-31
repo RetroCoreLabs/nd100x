@@ -85,6 +85,26 @@ for IOX and for a DMA cycle, and the answer to the note 7 question for the machi
 
 
 
+**Measured:** see `docs/DISC-FIFO-OVERRUN.md`. The DISC-TEMA item runs the controller in test mode
+
+(control words 000014 and 004014, the card's own ring oscillator of about 15 MHz), and its loop does
+
+20 IOX to device address 0, where nothing answers. On real hardware each of those holds the bus for
+
+the 10-15 us IOX timeout. The fix also needs a CPU time per instruction, which no manual gives in
+
+full; the document lists the figures that are known and where they come from.
+
+
+
+**Decision:** left open. The fix needs a new time base in the CPU loop that all device timing would
+
+depend on, and it changes nothing but this one diagnostic item. It stays red until that trade is
+
+made differently.
+
+
+
 ### S2. Long mode: the ECC words may not match the real circuit
 
 
@@ -313,6 +333,10 @@ a FIFO of the real size, with the bus taken by the CPU's own I/O cycles. Sec 5.6
 the checkout for this controller too; it has NOT been run against the Winchester yet, so whether
 
 it tests overrun here is not known.
+
+
+
+Measured cause and decision as in S1: see `docs/DISC-FIFO-OVERRUN.md`. Left open.
 
 
 
