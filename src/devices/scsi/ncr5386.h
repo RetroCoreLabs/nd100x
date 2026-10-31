@@ -83,6 +83,11 @@ typedef enum {
 #define NCR_CMD_FLAG_RESERVED      (1 << 5)
 #define NCR_CMD_FLAG_SINGLE_BYTE   (1 << 6)
 #define NCR_CMD_FLAG_DMA_MODE      (1 << 7)
+/* The Diagnostic (Data Turnaround) command uses bit 6 for something else:
+ * "good parity is generated if bit 6 of the command is off (0); bad parity is
+ * generated if bit 6 is on (1)" (NCR 5385E data sheet MC-704, May 1985,
+ * section 5.5.10; the 5386 sheet refers to it for the Diagnostic command). */
+#define NCR_CMD_FLAG_DIAG_BAD_PARITY NCR_CMD_FLAG_SINGLE_BYTE
 
 /* Control Register #2 (ControlRegisterFlags) */
 #define NCR_CTRL_SELECT_ENABLE     (1 << 0)
@@ -130,7 +135,9 @@ typedef enum {
 #define NCR_DIAG_INITIAL_CMD_BITS_BAD      4
 #define NCR_DIAG_FLAG_FAILED               5
 #define NCR_DIAG_DATA_TURNAROUND_FAILED    6
-#define NCR_DIAG_COMMAND_STATUS_MASK       (0x07 << 3)
+/* Bits 6-3 hold the result of the last Diagnostic command ("BIT 6543",
+ * MC-704 section 5.5.10); bits 7 and 2-0 are not touched by it (section 4.9). */
+#define NCR_DIAG_COMMAND_STATUS_MASK       (0x0F << 3)
 #define NCR_DIAG_TURNAROUND_MISCOMPARE_INITIAL (1 << 3)
 #define NCR_DIAG_TURNAROUND_MISCOMPARE_FINAL   (2 << 3)
 #define NCR_DIAG_TURNAROUND_GOOD_PARITY        (3 << 3)

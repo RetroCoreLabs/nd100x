@@ -51,6 +51,7 @@
 #define SC_READ_10                     0x28
 #define SC_WRITE_10                    0x2A
 #define SC_VERIFY_10                   0x2F
+#define SC_WRITE_BUFFER                0x3B
 #define SC_READ_BUFFER                 0x3C
 // clang-format on
 
@@ -64,6 +65,19 @@
 
 #define SCSI_HDD_MAX_SECTOR_BYTES 1024
 #define SCSI_HDD_INQUIRY_SIZE     56
+
+/* The drive's data buffer, the one WRITE BUFFER fills and READ BUFFER returns.
+ * Micropolis 1370 Series product description, document 101689 rev D, section
+ * 1.1: "16-kilobyte dual-ported data buffer with parity". The READ BUFFER
+ * header reports this as the buffer capacity. Whether the real drive reports
+ * the whole 16384 bytes or keeps part of it back is not known: the command
+ * details are in Micropolis document 110011, which has not been found. */
+#define SCSI_HDD_DATA_BUFFER_BYTES 16384
+
+/* READ BUFFER / WRITE BUFFER combined header and data mode (000b): a four-byte
+ * header comes before the buffer data (SCSI-2 X3T9.2/86-109 sections 8.2.12.1
+ * and 8.2.17.1, the CCS modes the 1370 series answers to). */
+#define SCSI_HDD_BUFFER_HEADER_BYTES 4
 
 // clang-format off
 typedef struct {
@@ -82,6 +96,10 @@ typedef struct {
 
     uint8_t sectorData[SCSI_HDD_MAX_SECTOR_BYTES];
     bool    sectorDataValid;
+
+    /* WRITE BUFFER / READ BUFFER memory (see SCSI_HDD_DATA_BUFFER_BYTES).
+     * Never touches the medium. */
+    uint8_t dataBuffer[SCSI_HDD_DATA_BUFFER_BYTES];
 
     uint8_t inquiry_data[SCSI_HDD_INQUIRY_SIZE];
 } SCSIHDDDevice;

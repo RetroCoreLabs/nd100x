@@ -512,9 +512,33 @@ static uint16_t scsi_read(Device *self, uint32_t address)
          * read to "FORCE LAST BYTE TO MEMORY", then the MAR check expects the
          * incremented value); without it an odd-byte data-in stop fails the
          * MAR check -> MARER -> SCSI bus reset. Dormant with 1024-byte
-         * sectors (all transfers even-length), but matches the hardware. */
+         * sectors (all transfers even-length), but matches the hardware.
+         *
+         * The memory cycle of test mode belongs to this read too, not to the
+         * control-word write: "In test mode, reading RLMAR (IOX+0) causes the
+         * MAR to auto-increment, and if DMA Enable is also set, a memory read
+         * or write occurs" (NDInsight nd-scsi-3201.md, "WCONT Bit 3: Test
+         * Mode"). The cycle uses the MAR as it is BEFORE the increment.
+         *
+         * SCSI-TV-B00 adapter test 3 "DMA in test mode" (TPE floppy
+         * 210523G02-XX-02D) checks exactly this order: control word 150B,
+         * WLMAR, WHMAR, WRDAT, then an RLMAR read must have written the data
+         * register to memory; with control word 50B it sets the MAR to word 0
+         * of each page, reads RLMAR, and expects REDAT to hold that word. */
         if (data->testMode)
         {
+            if (data->dmaEnable)
+            {
+                uint32_t dma_address = scsi_get_mar(data);
+                if (data->writeNDMemory)
+                {
+                    dev_dma_write(dma_address, data->readWriteData);
+                }
+                else
+                {
+                    data->readWriteData = (uint16_t)dev_dma_read(dma_address);
+                }
+            }
             scsi_increment_mar(data);
         }
         break;
@@ -576,7 +600,7 @@ static uint16_t scsi_read(Device *self, uint32_t address)
 }
 
 
-/* WCONT: load the control word - enable bits, test-mode PIO word, clear
+/* WCONT: load the control word - enable bits, test mode, clear
  * device, SCSI bus reset, and activate / interrupt-when-ready. */
 static void scsi_write_control(Device *self, SCSIData *data, uint16_t value)
 {
@@ -607,19 +631,11 @@ static void scsi_write_control(Device *self, SCSIData *data, uint16_t value)
      * TPE test, on the same generic TPE routine that produces that message. */
     data->readyForTransfer = true;
 
-    /* Test mode does a single PIO word through the DMA path. */
-    if (data->testMode)
-    {
-        uint32_t dma_address = scsi_get_mar(data);
-        if (data->writeNDMemory)
-        {
-            dev_dma_write(dma_address, data->readWriteData);
-        }
-        else
-        {
-            data->readWriteData = (uint16_t)dev_dma_read(dma_address);
-        }
-    }
+    /* Setting test mode does NOT itself move a word: the memory cycle happens
+     * on each RLMAR read while test mode and DMA enable are set (see
+     * SCSI_REG_RLMAR in scsi_read). Doing it here used the MAR left over from
+     * before the program had loaded the address and data, and SCSI-TV adapter
+     * test 3 then reported "No DMA write occured in test mode". */
 
     /* Clear device: zeroes the MAR and buffer pointers, resets the NCR and
      * sets ready-for-transfer. The SCSI bus RST signal is NOT affected. */

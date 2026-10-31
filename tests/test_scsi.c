@@ -17,6 +17,10 @@
  *          PARITY chooses the high or low half of the ND word. A stale odd
  *          count makes the next transfer's first byte land in the low half.
  *
+ * And test mode (bit 3): the memory cycle happens on the RLMAR read, at the
+ * MAR before it moves on, and only with DMA enable (bit 5) set. Found by
+ * SCSI-TV-B00 adapter test 3, the former BUGS.md C1.
+ *
  * device_scsi.c is INCLUDED rather than linked: dma_bytes_read and
  * dma_bytes_written live in SCSIData, which is file-local, and the parity bug
  * is not observable from outside the card without a full NCR transfer. Reading
@@ -176,6 +180,107 @@ int main(void)
     scsi_write_ctrl(card, SCSI_CTRL_ENABLE_INTERRUPT);
     CHECK(data->dma_bytes_read == 5 && data->dma_bytes_written == 5,
           "a control word without activate does not touch the counters");
+
+    /* ---- Test mode: the memory cycle happens on the RLMAR read ----
+     *
+     * NDInsight nd-scsi-3201.md "WCONT Bit 3: Test Mode": reading RLMAR in
+     * test mode increments the MAR, and with DMA enable set a memory read or
+     * write occurs. The sequences are the ones SCSI-TV-B00 adapter test 3
+     * "DMA in test mode" sends (traced with --scsi-debug): control word first,
+     * then WLMAR, WHMAR, WRDAT, then the RLMAR read. */
+
+    /* Write direction, control word 150B (test + DMA enable + write memory). */
+    scsi_reset(card);
+    s_mem[0100] = 0177777;
+    s_mem[0101] = 0177777;
+    scsi_write_ctrl(card, (uint16_t)(SCSI_CTRL_TEST_MODE | SCSI_CTRL_DMA_ENABLE |
+                                     SCSI_CTRL_WRITE_ND_MEMORY));
+    card->Write(card, (int)(card->startAddress + SCSI_REG_WLMAR), 0100);
+    card->Write(card, (int)(card->startAddress + SCSI_REG_WHMAR), 0);
+    card->Write(card, (int)(card->startAddress + SCSI_REG_WRDAT), 012345);
+    CHECK(s_mem[0100] == 0177777, "test mode: loading MAR and data moves no word yet");
+    CHECK(card->Read(card, (int)(card->startAddress + SCSI_REG_RLMAR)) == 0100,
+          "test mode: RLMAR returns the address before the increment");
+    CHECK(s_mem[0100] == 012345, "test mode write: the RLMAR read writes the data register");
+    CHECK(s_mem[0101] == 0177777, "test mode write: at the old MAR, not the new one");
+    CHECK(data->memoryAddressLSB == 0101, "test mode: the RLMAR read moves the MAR on");
+
+    /* Setting the control word alone must not touch memory, whatever the MAR. */
+    s_mem[0101] = 0177777;
+    scsi_write_ctrl(card, (uint16_t)(SCSI_CTRL_TEST_MODE | SCSI_CTRL_DMA_ENABLE |
+                                     SCSI_CTRL_WRITE_ND_MEMORY));
+    CHECK(s_mem[0101] == 0177777, "test mode: the control-word write does no memory cycle");
+
+    /* Read direction, control word 50B: memory to the data register. */
+    s_mem[0200] = 0100;
+    scsi_write_ctrl(card, (uint16_t)(SCSI_CTRL_TEST_MODE | SCSI_CTRL_DMA_ENABLE));
+    card->Write(card, (int)(card->startAddress + SCSI_REG_WLMAR), 0200);
+    card->Write(card, (int)(card->startAddress + SCSI_REG_WHMAR), 0);
+    card->Write(card, (int)(card->startAddress + SCSI_REG_WRDAT), 0);
+    card->Read(card, (int)(card->startAddress + SCSI_REG_RLMAR));
+    CHECK(card->Read(card, (int)(card->startAddress + SCSI_REG_REDAT)) == 0100,
+          "test mode read: the RLMAR read loads the word at the MAR into REDAT");
+    CHECK(data->memoryAddressLSB == 0201, "test mode read: and moves the MAR on");
+
+    /* Test mode without DMA enable (control word 10B): the MAR still moves,
+     * but no memory cycle happens in either direction. */
+    s_mem[0300] = 0177777;
+    scsi_write_ctrl(card, SCSI_CTRL_TEST_MODE);
+    card->Write(card, (int)(card->startAddress + SCSI_REG_WLMAR), 0300);
+    card->Write(card, (int)(card->startAddress + SCSI_REG_WRDAT), 054321);
+    card->Read(card, (int)(card->startAddress + SCSI_REG_RLMAR));
+    CHECK(s_mem[0300] == 0177777, "test mode without DMA enable: memory untouched");
+    CHECK(card->Read(card, (int)(card->startAddress + SCSI_REG_REDAT)) == 054321,
+          "test mode without DMA enable: REDAT keeps what WRDAT wrote");
+    CHECK(data->memoryAddressLSB == 0301, "test mode without DMA enable: the MAR still moves");
+
+    /* Outside test mode an RLMAR read is only a read. */
+    scsi_write_ctrl(card, 0);
+    card->Write(card, (int)(card->startAddress + SCSI_REG_WLMAR), 0400);
+    card->Read(card, (int)(card->startAddress + SCSI_REG_RLMAR));
+    CHECK(data->memoryAddressLSB == 0400, "outside test mode an RLMAR read does not move the MAR");
+    CHECK(s_mem_out_of_range == 0, "test mode touches nothing outside ND 0-7777");
+
+    /* ---- NCR 5386 Diagnostic (Data Turnaround) ----
+     *
+     * NCR 5385E data sheet MC-704 section 5.5.10: the result in Diagnostic
+     * Status bits 6-3 is 0011 (good parity) when command bit 6 is off and
+     * 0100 (bad parity) when it is on, whatever the data byte; Data Register
+     * Full is on afterwards and the byte reads back. Section 4.5: loading the
+     * command resets Data Register Full and Paused only, so Transfer Counter
+     * Zero stays on while the counter is 0.
+     *
+     * The register sequence is the one SCSI-TV-B00 adapter test 5 sends
+     * (traced with --scsi-debug): clear device, control register 4, command
+     * 013B, one data byte, then the interrupt, aux and diagnostic registers.
+     * It used to give 0000 for the even-parity bytes 0, 3 and 5 and aux 200B
+     * (the former BUGS.md C3). Each byte 0-7 is tried so both parities are covered. */
+    scsi_reset(card);
+    scsi_write_ctrl(card, SCSI_CTRL_CLEAR_DEVICE);
+    card->Read(card, (int)(card->startAddress + SCSI_REG_RITRG));
+    card->Write(card, (int)(card->startAddress + SCSI_REG_WNCNT), 4);
+    for (uint16_t b = 0; b < 8; b++)
+    {
+        card->Write(card, (int)(card->startAddress + SCSI_REG_WNCOM), 013);
+        card->Write(card, (int)(card->startAddress + SCSI_REG_WNDAT), b);
+        uint16_t irq = card->Read(card, (int)(card->startAddress + SCSI_REG_RITRG));
+        uint16_t aux = card->Read(card, (int)(card->startAddress + SCSI_REG_RAUXS));
+        uint16_t dst = card->Read(card, (int)(card->startAddress + SCSI_REG_RDIST));
+        uint16_t dat = card->Read(card, (int)(card->startAddress + SCSI_REG_RNDAT));
+        CHECK(irq == NCR_INT_FUNCTION_COMPLETE, "turnaround raises Function Complete");
+        CHECK(aux == 0202, "turnaround, good parity: aux 202B (data full, counter zero)");
+        CHECK(dst == 0230, "turnaround, good parity: diagnostic status 230B, for any byte");
+        CHECK(dat == b, "turnaround: the byte reads back from the data register");
+    }
+
+    /* Command bit 6 on (113B): bad parity, still no aux parity error bit. */
+    card->Write(card, (int)(card->startAddress + SCSI_REG_WNCOM), 0113);
+    card->Write(card, (int)(card->startAddress + SCSI_REG_WNDAT), 1);
+    card->Read(card, (int)(card->startAddress + SCSI_REG_RITRG));
+    CHECK(card->Read(card, (int)(card->startAddress + SCSI_REG_RDIST)) == 0240,
+          "turnaround, command bit 6 on: diagnostic status 240B (bad parity)");
+    CHECK(card->Read(card, (int)(card->startAddress + SCSI_REG_RAUXS)) == 0202,
+          "turnaround, bad parity: the aux parity error bit stays off");
 
     /* ---- Boot: the card's autoload plants the ROM's ND-100 SCSI driver ----
      *

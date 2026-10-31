@@ -667,6 +667,31 @@ add_dependencies(test_scsi cpu devices)
 
 add_test(NAME scsi_tests COMMAND test_scsi)
 
+# The SCSI hard disk target's READ BUFFER and WRITE BUFFER (the former BUGS.md C4).
+#
+# scsi_hdd.c is INCLUDED by the test so its static command decoder can be
+# called directly; it is therefore NOT listed here, or every function in it
+# would be defined twice.
+add_executable(test_scsi_hdd
+    test_scsi_hdd.c
+    ${CMAKE_SOURCE_DIR}/src/devices/scsi/scsi_bus.c
+    ${CMAKE_SOURCE_DIR}/src/devices/scsi/scsi_device.c
+    ${CMAKE_SOURCE_DIR}/src/devices/scsi/disk_scsi.c
+)
+
+target_include_directories(test_scsi_hdd PRIVATE
+    ${CMAKE_SOURCE_DIR}/src/devices
+    ${CMAKE_SOURCE_DIR}/src/cpu
+    ${CMAKE_SOURCE_DIR}/src/machine
+    ${CMAKE_SOURCE_DIR}/src/ndlib
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(test_scsi_hdd PRIVATE ${ND_LINK_GROUP_BEGIN} ndlib ${ND_LINK_GROUP_END} m)
+add_dependencies(test_scsi_hdd cpu devices)
+
+add_test(NAME scsi_hdd_tests COMMAND test_scsi_hdd)
+
 # The SMD controller's memory address and word count registers: the 10/15 MHz
 # card's shared flip-flop and the ND-120 mass storage load's single +7 write.
 #

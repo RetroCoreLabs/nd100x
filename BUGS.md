@@ -618,29 +618,9 @@ and 1023 through.
 Found by running the Norsk Data SCSI test programs from the TPE floppy 210523G02-XX-02D
 (SCSI-TV-B00 and DISK-MM-B00, under TPE-MON-100-B00), on copies of `SCSI0.IMG` at SCSI IDs 0, 1
 and 2. The manual is ND-210523G (Test Programs for ND-100/110/120), the SCSI-TV and DISK-MM
-chapters. What passes: adapter tests 1, 2 and 6; device tests 1, 2, 3 and 10 to 14 on all three
-IDs; DISK-MM SELECT-DEVICE, LIST-DISK-INFORMATION, LIST-REASSIGN-TABLE, LIST-REFRESH-TABLE and
-VERIFY.
-
-### C1. Adapter test 3, "DMA in test mode", sees no DMA
-
-**Found by:** SCSI-TV RUN-ADAPTOR-TESTS 3.
-
-**Shows up as:**
-
-```
-   3. DMA in test mode
-*** ERROR *** In test  3.
-No DMA write occured in test mode with ND-100 DMA enabled for write
-Control word : bit 3 + bit 5 + bit 6
-Wrong DMA memory page number addressed:
-Expected, found = 000100B  000000B
-```
-
-**What is known:** the card has a DMA test mode, selected by the control word bits the program
-names. nd100x does not model it, so no DMA cycle happens and the page register reads 0. The
-manual describes what the test does but not the logic of the test mode itself; the card's
-schematic or a register description is needed.
+chapters. What passes: adapter tests 1, 2, 3, 5 and 6; device tests 1 to 14 on ID 0, and 4
+and 5 on ID 1 as well; DISK-MM SELECT-DEVICE, LIST-DISK-INFORMATION, LIST-REASSIGN-TABLE,
+LIST-REFRESH-TABLE and VERIFY.
 
 ### C2. Adapter test 4 finds a constant interrupt on level 11 with ident 0
 
@@ -657,43 +637,6 @@ schematic or a register description is needed.
 answers IDENT with the card's ident code (LIST-DEVICES shows 140440B). nd100x either keeps
 level 11 raised when it should be cleared, or does not answer IDENT for it. Not traced yet. The
 fatal error stops the run, so tests 5 and 6 must be run on their own.
-
-### C3. Adapter test 5, NCR chip self diagnostic: the turnaround status bits are wrong
-
-**Found by:** SCSI-TV RUN-ADAPTOR-TESTS 5.
-
-**Shows up as** (the bit lines joined onto one line each):
-
-```
-Wrong "auxiliary status" after data turnaround test:
---- Expected = 000202B, 0082H : Bit 1D = Transfer counter zero, Bit 7D = Data register 1 full
---- Found    = 000200B, 0080H : Bit 7D = Data register 1 full
-Wrong "diagnostic status" after data turnaround test
---- Expected = 000230B, 0098H : Successful completion, Turnaround good parity, Self diagnostic complete
---- Found    = 000200B, 0080H : Successful completion, Code not used, Self diagnostic complete
-```
-
-**What is known:** after the NCR 5386 Diagnostic command's data turnaround, the chip must set
-"transfer counter zero" in the auxiliary status and "turnaround good parity" (bits 3-6 = 3) in
-the diagnostic status. `ncr5386.c` sets neither. The NCR 5386 data sheet defines both.
-
-### C4. READ BUFFER (3Ch) is not implemented, so device tests 4 and 5 fail
-
-**Found by:** SCSI-TV RUN-DEVICE-TESTS 4 and 5 on every ID.
-
-**Shows up as:**
-
-```
-   4. SCSI bus data transport
-*** ERROR *** In test  4.
-    SCSI command ........(3CH): Read-Data-Buffer
-    Sense Key ...........(05H): Illegal Request
-```
-
-**What is known:** `scsi_hdd.c` answers READ BUFFER with "bad command", and has no WRITE BUFFER
-(3Bh) case. The test finds the drive buffer length, then writes and reads it back with seven
-patterns. The Micropolis 1375 buffer size and the READ BUFFER descriptor format must come from
-the drive's SCSI manual, not be made up.
 
 ### C5. FORMAT UNIT does nothing, so DISK-MM FORMAT-INITIALIZE gives up
 

@@ -875,36 +875,39 @@ static void NCR_WriteDataRegister(NCR5386 *ncr, uint8_t value)
             NCR_AdjustTimer(ncr, 0);
     }
 
-    /* A data write also terminates the Diagnostic state. */
+    /* A data write also terminates the Diagnostic state.
+     *
+     * NCR 5385E data sheet MC-704 section 5.5.10, Diagnostic (Data Turnaround):
+     * the chip moves the byte to a second register and compares it with the
+     * Data Register, moves it to the SCSI output register generating good
+     * parity if command bit 6 is off and bad parity if it is on, moves it back
+     * into the Data Register and compares again. The result goes into bits 6-3
+     * of the Diagnostic Status Register, then Function Complete is raised and
+     * Data Register Full is on so the byte can be read back.
+     *
+     * The emulated internal paths hold the byte unchanged, so neither compare
+     * can fail and the result is decided by the parity the chip generated:
+     * 0011 good parity, or 0100 bad parity. Bits 7 and 2-0 are not touched
+     * (section 4.9).
+     *
+     * Before SCSI-TV-B00 adapter test 5 found it (the former BUGS.md C3) the result was
+     * picked from command bits 3-5, which are part of the command CODE (01011),
+     * so a byte with even parity reported 0000 instead of good parity.
+     *
+     * Not done here, on purpose: setting the Auxiliary Status Parity Error
+     * bit. Section 4.5 says that bit is set only for a byte received across
+     * the SCSI bus during a Receive or an input Transfer Info command; the
+     * turnaround reports its parity in the Diagnostic Status Register. That
+     * is a reading of the sheet; no part was measured. */
     if (ncr->currentState == NCR_STATE_DIAGNOSTIC)
     {
         ncr->m_dat = value;
-        uint8_t diag_command = ncr->command_reg_flags & NCR_DIAG_COMMAND_STATUS_MASK;
+        ncr->aux_status_reg |= NCR_AUX_DATA_REGISTER_FULL;
 
-        switch (diag_command)
-        {
-        case NCR_DIAG_TURNAROUND_MISCOMPARE_INITIAL:
-            ncr->aux_status_reg |= NCR_AUX_DATA_REGISTER_FULL;
-            ncr->diag_status_reg = NCR_DIAG_SELF_DIAGNOSTIC_COMPLETE;
-            if (SCSI_IsOddParity(value))
-                ncr->diag_status_reg |= NCR_DIAG_TURNAROUND_GOOD_PARITY;
-            break;
-        case NCR_DIAG_TURNAROUND_MISCOMPARE_FINAL:
-            ncr->diag_status_reg = NCR_DIAG_SELF_DIAGNOSTIC_COMPLETE;
-            ncr->aux_status_reg |= NCR_AUX_DATA_REGISTER_FULL;
-            break;
-        case NCR_DIAG_TURNAROUND_GOOD_PARITY:
-            ncr->aux_status_reg &= ~NCR_AUX_PARITY_ERROR;
-            ncr->aux_status_reg |= NCR_AUX_DATA_REGISTER_FULL;
-            ncr->diag_status_reg = NCR_DIAG_SELF_DIAGNOSTIC_COMPLETE | NCR_DIAG_TURNAROUND_GOOD_PARITY;
-            break;
-        case NCR_DIAG_TURNAROUND_BAD_PARITY:
-            ncr->aux_status_reg |= NCR_AUX_PARITY_ERROR | NCR_AUX_DATA_REGISTER_FULL;
-            ncr->diag_status_reg = NCR_DIAG_SELF_DIAGNOSTIC_COMPLETE | NCR_DIAG_TURNAROUND_BAD_PARITY;
-            break;
-        default:
-            break;
-        }
+        uint8_t result = (ncr->command_reg_flags & NCR_CMD_FLAG_DIAG_BAD_PARITY)
+                             ? NCR_DIAG_TURNAROUND_BAD_PARITY
+                             : NCR_DIAG_TURNAROUND_GOOD_PARITY;
+        ncr->diag_status_reg = (uint8_t)((ncr->diag_status_reg & ~NCR_DIAG_COMMAND_STATUS_MASK) | result);
 
         ncr->currentState = NCR_STATE_IDLE;
         ncr->int_reg |= NCR_INT_FUNCTION_COMPLETE;
@@ -920,11 +923,23 @@ static void NCR_WriteCommandRegister(NCR5386 *ncr, uint8_t value)
 
     if (ncr->command_code >= NCR_CMD_SELECT_WITH_ATN)
     {
-        /* NOTE: this is "&= Paused", NOT "&= ~Paused" - it masks the aux status
-         * down to ONLY the Paused bit, clearing everything else. Copied
-         * verbatim from WriteCommandRegister() in NCR5386SCSI.cs. */
-        ncr->aux_status_reg &= NCR_AUX_PAUSED;
-        ncr->aux_status_reg &= ~NCR_AUX_DATA_REGISTER_FULL;
+        /* Loading an interrupting command changes exactly two Auxiliary Status
+         * bits (NCR 5385E data sheet MC-704 section 4.5):
+         *   bit 7 Data Register Full "is always reset (to 0) at the time an
+         *         interrupting type command is loaded";
+         *   bit 2 Paused "is turned off when the interrupting type command
+         *         code is loaded".
+         * The others keep their meaning: bit 1 Transfer Counter Zero shows
+         * the counter, bits 3-5 show the SCSI I/O, C/D and MSG signals "at all
+         * times", and bit 6 Parity Error is reset by reading the Interrupt
+         * Register.
+         *
+         * This used to be "&= Paused", copied from WriteCommandRegister() in
+         * RetroCore NCR5386SCSI.cs: it kept ONLY Paused and cleared the rest,
+         * so Transfer Counter Zero went off with the counter still 0 and
+         * SCSI-TV-B00 adapter test 5 found aux status 200B where the chip
+         * gives 202B after a data turnaround (the former BUGS.md C3). */
+        ncr->aux_status_reg &= (uint8_t)~(NCR_AUX_DATA_REGISTER_FULL | NCR_AUX_PAUSED);
     }
 
     /* Immediate commands (code < 8) complete within ~3 clocks of the write.

@@ -137,13 +137,32 @@ static uint8_t scsihdd_get_data(SCSITarget *t, SBUF id, int pos)
     SCSIHDDDevice *hdd = (SCSIHDDDevice *)t->impl;
 
     /* Micropolis vendor 0x10 READ SECTOR BUFFER reads the raw sector buffer. */
-    if (t->scsi_cmdbuf[0] == SC_READ_SECTOR_BUFFER)
+    /* As in scsihdd_put_data: the command-specific sources are for the DATA IN
+     * phase (SBUF_DATA) only. */
+    if (id == SBUF_DATA && t->scsi_cmdbuf[0] == SC_READ_SECTOR_BUFFER)
     {
         if (pos < 0 || pos >= SCSI_HDD_MAX_SECTOR_BYTES)
         {
             return 0;
         }
         return hdd->sectorData[pos];
+    }
+
+    /* READ BUFFER, combined header and data mode: the four-byte header is a
+     * reserved byte and the 24-bit buffer capacity, then the buffer itself
+     * (SCSI-2 section 8.2.12.1, table 60). The drive buffer is not the medium,
+     * so this needs no disk. */
+    if (id == SBUF_DATA && t->scsi_cmdbuf[0] == SC_READ_BUFFER)
+    {
+        if (pos < SCSI_HDD_BUFFER_HEADER_BYTES)
+        {
+            static const uint8_t header[SCSI_HDD_BUFFER_HEADER_BYTES] = {
+                0x00, (uint8_t)(SCSI_HDD_DATA_BUFFER_BYTES >> 16),
+                (uint8_t)(SCSI_HDD_DATA_BUFFER_BYTES >> 8), (uint8_t)SCSI_HDD_DATA_BUFFER_BYTES};
+            return pos < 0 ? 0 : header[pos];
+        }
+        int at = pos - SCSI_HDD_BUFFER_HEADER_BYTES;
+        return at < SCSI_HDD_DATA_BUFFER_BYTES ? hdd->dataBuffer[at] : 0;
     }
 
     if (!scsihdd_has_media(hdd))
@@ -185,7 +204,15 @@ static void scsihdd_put_data(SCSITarget *t, SBUF id, int pos, uint8_t data)
     SCSIHDDDevice *hdd = (SCSIHDDDevice *)t->impl;
     uint8_t cmd = t->scsi_cmdbuf[0];
 
-    switch (cmd)
+    /* The command-specific stores below are for the DATA OUT phase only
+     * (every one of those commands queues its data phase on SBUF_DATA). The
+     * COMMAND phase stores the CDB through this same hook into SBUF_MAIN,
+     * and from the first byte on scsi_cmdbuf[0] already holds the new opcode:
+     * without this test, bytes 1-9 of a WRITE BUFFER CDB went into the drive
+     * buffer, the CDB kept the previous command's length bytes, and SCSI-TV
+     * device test 4 sent 16388 bytes against a parameter list length of 4.
+     * The vendor cases 0Ch, 0Eh and 0Fh lost their CDB bytes 1-5 the same way. */
+    switch (id == SBUF_DATA ? cmd : -1)
     {
     case SC_INIT_DRIVE_PARAMS: /* 0x0C */
         if (pos >= 0 && pos < 8)
@@ -201,6 +228,17 @@ static void scsihdd_put_data(SCSITarget *t, SBUF id, int pos, uint8_t data)
             hdd->sectorData[pos] = data;
         }
         return;
+    case SC_WRITE_BUFFER: /* 0x3B, combined header and data mode */
+    {
+        /* The four header bytes are all reserved (SCSI-2 section 8.2.17.1);
+         * the data after them goes into the drive buffer, never the medium. */
+        int at = pos - SCSI_HDD_BUFFER_HEADER_BYTES;
+        if (at >= 0 && at < SCSI_HDD_DATA_BUFFER_BYTES)
+        {
+            hdd->dataBuffer[at] = data;
+        }
+        return;
+    }
     default:
         break;
     }
@@ -546,9 +584,18 @@ static void scsihdd_command(SCSITarget *t)
 
     if (Log_IsEnabled(LOG_CAT_SCSI, LOG_DEBUG))
     {
-        scsihdd_log(hdd, "CDB op=0x%02X cdb=%02X,%02X,%02X,%02X,%02X lun=%d", cmd,
-                    t->scsi_cmdbuf[1], t->scsi_cmdbuf[2], t->scsi_cmdbuf[3], t->scsi_cmdbuf[4],
-                    t->scsi_cmdbuf[5], lun);
+        /* Every byte the target took in COMMAND phase (6, 10, 12 or 16 by the
+         * command group), so the length fields of the long CDBs show too. */
+        char bytes[3 * 16 + 1];
+        int n = t->scsi_cmdsize < 16 ? t->scsi_cmdsize : 16;
+        int w = 0;
+        for (int i = 1; i < n; i++)
+        {
+            w += snprintf(bytes + w, sizeof(bytes) - (size_t)w, i == 1 ? "%02X" : ",%02X",
+                          t->scsi_cmdbuf[i]);
+        }
+        bytes[w] = '\0';
+        scsihdd_log(hdd, "CDB op=0x%02X cdb=%s lun=%d", cmd, bytes, lun);
     }
 
     /* LUNs other than 0 are rejected, except for the three commands that must
@@ -778,9 +825,62 @@ static void scsihdd_command(SCSITarget *t)
         break;
     }
 
+    /*
+     * READ BUFFER (3Ch) and WRITE BUFFER (3Bh): the drive's data buffer as a
+     * diagnostic of drive memory and SCSI bus integrity. They never touch the
+     * medium. The Micropolis 1370 series lists both (product description
+     * 101689 rev D, table 2-4) and refers to the ANSI SCSI standard and the
+     * Common Command Set for their format; the CCS modes are defined in SCSI-2
+     * X3T9.2/86-109 sections 8.2.12 and 8.2.17. Only mode 000b, combined
+     * header and data, is done: SCSI-2 notes 81 and 93 say modes 000b and 001b
+     * are the ones kept for CCS-era products, and 001b is vendor-specific with
+     * no description to hand. Any other mode is refused with ILLEGAL REQUEST,
+     * INVALID FIELD IN CDB, so a program that uses one fails visibly.
+     *
+     * Found missing by SCSI-TV-B00 device tests 4 "SCSI bus data transport"
+     * and 5 "SCSI bus stress", which send READ BUFFER mode 000b to find the
+     * buffer length and then write and read back test patterns (the former BUGS.md C4).
+     */
     case SC_READ_BUFFER:
-        scsi_device_report_bad_cmd(t, cmd);
+    case SC_WRITE_BUFFER:
+    {
+        int mode = t->scsi_cmdbuf[1] & 0x07;
+        uint32_t length = scsi_device_scsi_get_u24_be(&t->scsi_cmdbuf[6]);
+        const uint32_t whole = SCSI_HDD_BUFFER_HEADER_BYTES + SCSI_HDD_DATA_BUFFER_BYTES;
+
+        scsihdd_log(hdd, "command %s mode=%d length=%u", cmd == SC_READ_BUFFER ? "READ BUFFER" : "WRITE BUFFER",
+                    mode, length);
+
+        if (mode != 0)
+        {
+            scsi_device_status_complete(t, SS_CHECK_CONDITION);
+            scsi_device_sense(t, false, SK_ILLEGAL_REQUEST, 0x24, 0x00);
+            break;
+        }
+
+        if (cmd == SC_READ_BUFFER)
+        {
+            /* 8.2.12.1: the transfer ends at the allocation length or at the end
+             * of header plus buffer, whichever is less. */
+            scsi_device_data_in(t, SBUF_DATA, (int)(length < whole ? length : whole));
+            scsi_device_status_complete(t, SS_GOOD);
+        }
+        else if (length > whole)
+        {
+            /* 8.2.17.1: a parameter list longer than four plus the buffer
+             * capacity is CHECK CONDITION, ILLEGAL REQUEST. The standard names
+             * only the sense key for this mode; INVALID FIELD IN CDB is the
+             * code it gives for the same fault in data mode (8.2.17.3). */
+            scsi_device_status_complete(t, SS_CHECK_CONDITION);
+            scsi_device_sense(t, false, SK_ILLEGAL_REQUEST, 0x24, 0x00);
+        }
+        else
+        {
+            scsi_device_data_out(t, SBUF_DATA, (int)length);
+            scsi_device_status_complete(t, SS_GOOD);
+        }
         break;
+    }
 
     default:
         scsihdd_log(hdd, "command 0x%02X *** UNKNOWN ***", cmd);
