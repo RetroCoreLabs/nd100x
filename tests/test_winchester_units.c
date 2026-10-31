@@ -663,7 +663,7 @@ static void run_checks(void)
               "a pack mounted on unit 1 later is read, at the geometry of its size");
     }
 
-    s_card->Destroy(s_card);
+    dev_destroy(s_card); /* as devmgr_destroy: the card's data and I/O delays, then the Device */
     free(s_card);
     s_card = NULL;
     close_units();
@@ -718,7 +718,7 @@ static void run_real_pack(const char *image)
         }
     }
     CHECK(all, "real pack on unit 1: the last sector of three cylinders matches the file");
-    s_card->Destroy(s_card);
+    dev_destroy(s_card); /* as devmgr_destroy: the card's data and I/O delays, then the Device */
     free(s_card);
     s_card = NULL;
     close_units();

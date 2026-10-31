@@ -826,6 +826,7 @@ static void wd_execute_go(Device *self)
     switch (regs->deviceOperation)
     {
     case WD_OP_SEEK:
+    {
         /* Sec 3.4.5: a RELATIVE step seek - "The heads will travel the number
          * of cylinders as specified in the word count register, and the
          * direction is specified in control word bit 14." */
@@ -868,6 +869,7 @@ static void wd_execute_go(Device *self)
                                self->interruptLevel);
         }
         break;
+    }
 
     case WD_OP_RETURN_TO_ZERO:
     {

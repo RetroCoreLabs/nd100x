@@ -742,7 +742,8 @@ static void run_checks(const char *what, const bool present[UNITS])
         break;
     }
 
-    s_card->Destroy(s_card);
+    dev_destroy(s_card); /* as devmgr_destroy: the card's data and I/O delays, then the Device */
+    free(s_card);
     s_card = NULL;
 }
 
