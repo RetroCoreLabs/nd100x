@@ -611,3 +611,116 @@ reads the old address.
 (`disk_winchester.h`), but the drive entry has 1024, so the range check lets cylinders 1022
 
 and 1023 through.
+
+
+## SCSI controller (`src/devices/scsi/`)
+
+Found by running the Norsk Data SCSI test programs from the TPE floppy 210523G02-XX-02D
+(SCSI-TV-B00 and DISK-MM-B00, under TPE-MON-100-B00), on copies of `SCSI0.IMG` at SCSI IDs 0, 1
+and 2. The manual is ND-210523G (Test Programs for ND-100/110/120), the SCSI-TV and DISK-MM
+chapters. What passes: adapter tests 1, 2 and 6; device tests 1, 2, 3 and 10 to 14 on all three
+IDs; DISK-MM SELECT-DEVICE, LIST-DISK-INFORMATION, LIST-REASSIGN-TABLE, LIST-REFRESH-TABLE and
+VERIFY.
+
+### C1. Adapter test 3, "DMA in test mode", sees no DMA
+
+**Found by:** SCSI-TV RUN-ADAPTOR-TESTS 3.
+
+**Shows up as:**
+
+```
+   3. DMA in test mode
+*** ERROR *** In test  3.
+No DMA write occured in test mode with ND-100 DMA enabled for write
+Control word : bit 3 + bit 5 + bit 6
+Wrong DMA memory page number addressed:
+Expected, found = 000100B  000000B
+```
+
+**What is known:** the card has a DMA test mode, selected by the control word bits the program
+names. nd100x does not model it, so no DMA cycle happens and the page register reads 0. The
+manual describes what the test does but not the logic of the test mode itself; the card's
+schematic or a register description is needed.
+
+### C2. Adapter test 4 finds a constant interrupt on level 11 with ident 0
+
+**Found by:** SCSI-TV RUN-ADAPTOR-TESTS 4.
+
+**Shows up as:**
+
+```
+   4. Interrupts at level 11
+***** Fatal error: Constant interrupt source on level 11. Ident code = 000000B
+```
+
+**What is known:** the test enables and clears the card's interrupt and checks that level 11
+answers IDENT with the card's ident code (LIST-DEVICES shows 140440B). nd100x either keeps
+level 11 raised when it should be cleared, or does not answer IDENT for it. Not traced yet. The
+fatal error stops the run, so tests 5 and 6 must be run on their own.
+
+### C3. Adapter test 5, NCR chip self diagnostic: the turnaround status bits are wrong
+
+**Found by:** SCSI-TV RUN-ADAPTOR-TESTS 5.
+
+**Shows up as** (the bit lines joined onto one line each):
+
+```
+Wrong "auxiliary status" after data turnaround test:
+--- Expected = 000202B, 0082H : Bit 1D = Transfer counter zero, Bit 7D = Data register 1 full
+--- Found    = 000200B, 0080H : Bit 7D = Data register 1 full
+Wrong "diagnostic status" after data turnaround test
+--- Expected = 000230B, 0098H : Successful completion, Turnaround good parity, Self diagnostic complete
+--- Found    = 000200B, 0080H : Successful completion, Code not used, Self diagnostic complete
+```
+
+**What is known:** after the NCR 5386 Diagnostic command's data turnaround, the chip must set
+"transfer counter zero" in the auxiliary status and "turnaround good parity" (bits 3-6 = 3) in
+the diagnostic status. `ncr5386.c` sets neither. The NCR 5386 data sheet defines both.
+
+### C4. READ BUFFER (3Ch) is not implemented, so device tests 4 and 5 fail
+
+**Found by:** SCSI-TV RUN-DEVICE-TESTS 4 and 5 on every ID.
+
+**Shows up as:**
+
+```
+   4. SCSI bus data transport
+*** ERROR *** In test  4.
+    SCSI command ........(3CH): Read-Data-Buffer
+    Sense Key ...........(05H): Illegal Request
+```
+
+**What is known:** `scsi_hdd.c` answers READ BUFFER with "bad command", and has no WRITE BUFFER
+(3Bh) case. The test finds the drive buffer length, then writes and reads it back with seven
+patterns. The Micropolis 1375 buffer size and the READ BUFFER descriptor format must come from
+the drive's SCSI manual, not be made up.
+
+### C5. FORMAT UNIT does nothing, so DISK-MM FORMAT-INITIALIZE gives up
+
+**Found by:** DISK-MM FORMAT-INITIALIZE on a copy at ID 3, with `--scsi-debug`.
+
+**Shows up as:**
+
+```
+All information in all partitions will be lost,
+do you want to continue (Yes or No): Yes
+*** Info ***
+    (DF) Must be formatted
+```
+
+The disk then shows "No directory area allocated (Not initialized ?)", and the image file is
+byte for byte unchanged.
+
+**What DISK-MM sends:** READ(6) of block 129311 (the control block), then MODE SENSE and MODE
+SELECT of page 3 (format) and page 4 (geometry), then FORMAT UNIT, then MODE SENSE of pages 3
+and 4 again, then it stops. nd100x ignores what MODE SELECT sets and FORMAT UNIT only answers
+GOOD (see the comment at `SC_FORMAT_UNIT`). Which check makes DISK-MM decide the disk "must be
+formatted" is not known yet; my reading is that it compares the pages after the format with
+what it selected, and that is not verified. The real mechanism (what a Micropolis 1375 does on
+FORMAT UNIT, and which MODE SELECT values it keeps) is needed before this can be fixed.
+
+### C6. SCSI tape and CD-ROM targets are not implemented
+
+`--scsiN=tape:FILE` and `--scsiN=cdrom:FILE` are parsed, but only the hard disk exists
+(`--help` says "not implemented yet"). SCSI-TV has tests for magtape (20 to 23) and streamer
+(30 to 32); none of the SCSI-TV versions lists a CD-ROM.
