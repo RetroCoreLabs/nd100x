@@ -173,6 +173,43 @@ starve it. That is note 7.
    BDRY or its timeout.
 5. Bit 11 set when the disc writes into a full FIFO or reads from an empty one.
 
+## Building it in nd100x: the time base
+
+What nd100x has today:
+- The device clock is the instruction counter (`g_instr_counter`), with one tick per
+  instruction. `device_smd.c` calibrates it at 0.5275 MIPS (10550 ticks per 20 ms RTC
+  period), so one tick is about 1.9 us. All seek, rotation and transfer timing counts
+  these ticks.
+- An IOX that nothing answers already raises IOX ERROR on level 14 (`devmgr_read` and
+  `devmgr_write`). It takes no time.
+- Memory goes through `mms_read_physical_memory` and `mms_write_physical_memory`, and
+  device DMA through `dev_dma_read` and `dev_dma_write`. So every bus reference the
+  emulator makes passes one of four places, and each can be charged its bus time.
+
+Figures the bus clock can use, with their sources:
+
+| What | Figure | Source |
+|---|---|---|
+| Memory read, BADR to BDRY | 320 ns, 40 ns more on a corrected error | ND-06.015.02 p.149 |
+| Memory write, BAPR to BDRY | 200 ns | ND-06.015.02 p.149 |
+| CPU memory reference | "typically 450 ns" | ND-06.015.02 p.122 |
+| DMA transfer | "typically 550 ns" | ND-06.015.02 p.122 |
+| DMA channel, all controllers together | 1.8 M words/s | ND-06.015.02 p.196 |
+| Refresh | one cycle every 13 us | ND-06.015.02 p.168 |
+| IOX with no answer | 10 us (ND-100), 15 us (ND-110) | ND-06.015.02 sec 6.6.2, ND-06.026 |
+| Any bus cycle | aborted at 15 us | ND-06.015.02 sec 6.2.3 |
+| Whole instruction, sample | e.g. IOX 302 5.02 us, SAA 0.73 us | ND-06.014.2A appendix A.2 |
+
+**NOT FOUND:** the time of every instruction. A.2 lists about 70 instructions, and the
+ND-110 book (ND-06.029.1 sec 3.1.4) gives only the microcycle (6 x 26 ns; 4 x 26 ns on
+the ND-110/CX). A bus clock that counts only bus cycles leaves out the CPU's own
+microcycles between them, so the disc would turn too slowly against the program.
+Two sources could give the real figure per instruction:
+- the nd-120 Verilog, which runs the real microcode with real cycle lengths, measured
+  per instruction in the simulator;
+- NDMicroCpu, which runs the same microcode but does not yet model slow or delayed
+  microcycles (`Cpu.cs`, the `SLOW` command is marked TODO).
+
 ## Open questions
 
 1. Whether an IOX that times out holds the bus for the whole timeout, and whether the
