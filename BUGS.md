@@ -203,7 +203,7 @@ interrupt only when bit 0 (`interruptEnabled`) is set. An illegal load sets b5 a
 
 **Shows up as:** DISC-TEMA COMPARE, unit 0 against a copy on unit 1 with one word changed
 
-(docs/DISC-TEMA-TESTING.md section 2.9). The word is found at the right track, but the report
+(docs/DISC-TEMA-TESTING.md section 4.9). The word is found at the right track, but the report
 
 has bit 12 and a second line the Winchester report of the same change does not have:
 

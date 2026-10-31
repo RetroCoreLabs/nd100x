@@ -1,6 +1,51 @@
 # Testing the SMD and Winchester controllers with DISC-TEMA
 
-## What this is
+How the two nd100x disk controllers, the SMD and the Winchester, are tested
+with DISC-TEMA, the disk test program Norsk Data shipped on the TPE floppy:
+what it is, the results and known failures, a walkthrough with every screen,
+and a reference for the program.
+
+## Contents
+
+- **Start here**
+  - [1. What DISC-TEMA is, and why we run it](#1-what-disc-tema-is-and-why-we-run-it)
+  - [2. Results and known failures](#2-results-and-known-failures)
+  - [3. The rule: only ever run it on a copy](#3-the-rule-only-ever-run-it-on-a-copy)
+- **Walkthrough**
+  - [4. Walkthrough: the same session on the SMD and on the Winchester](#4-walkthrough-the-same-session-on-the-smd-and-on-the-winchester)
+    - [4.1 What you need](#41-what-you-need)
+    - [4.2 Boot TPE and load DISC-TEMA](#42-boot-tpe-and-load-disc-tema)
+    - [4.3 List the commands](#43-list-the-commands)
+    - [4.4 SET-PARAMETERS: turn off everything that hides errors](#44-set-parameters-turn-off-everything-that-hides-errors)
+    - [4.5 TRANSLATE: how DISC-TEMA reads a status word](#45-translate-how-disc-tema-reads-a-status-word)
+    - [4.6 DUMP-FLAW-TABLE](#46-dump-flaw-table)
+    - [4.7 PARITY-CHECK: read the whole unit](#47-parity-check-read-the-whole-unit)
+    - [4.8 COMPARE two identical units](#48-compare-two-identical-units)
+    - [4.9 COMPARE with one word changed: how the two controllers report it](#49-compare-with-one-word-changed-how-the-two-controllers-report-it)
+    - [4.10 FUNCTION](#410-function)
+    - [4.11 How these screens were made](#411-how-these-screens-were-made)
+- **Reference: using DISC-TEMA**
+  - [5. Why the generic TPE recipe does not work here](#5-why-the-generic-tpe-recipe-does-not-work-here)
+  - [6. Starting it, and the disc type](#6-starting-it-and-the-disc-type)
+  - [7. What DISC-TEMA never asks for](#7-what-disc-tema-never-asks-for)
+  - [8. The 23 commands, by whether they write](#8-the-23-commands-by-whether-they-write)
+  - [9. SET-PARAMETERS, and the settings a real test needs](#9-set-parameters-and-the-settings-a-real-test-needs)
+  - [10. FUNCTION - the closest thing to an automated test](#10-function---the-closest-thing-to-an-automated-test)
+  - [11. RANDOM - a media and servo stress test](#11-random---a-media-and-servo-stress-test)
+  - [12. Error messages](#12-error-messages)
+  - [13. Preconditions](#13-preconditions)
+- **Test status**
+  - [14. Testing the nd100x SMD: what has been run, and what is left](#14-testing-the-nd100x-smd-what-has-been-run-and-what-is-left)
+  - [15. Testing the nd100x Winchester](#15-testing-the-nd100x-winchester)
+  - [16. What the harness needs before this can be automated](#16-what-the-harness-needs-before-this-can-be-automated)
+- **Sources**
+  - [17. Sources](#17-sources)
+
+---
+
+## 1. What DISC-TEMA is, and why we run it
+
+### What it is
 
 DISC-TEMA is the Norsk Data service program for testing disks and disk
 controllers: the program a service engineer ran on a real machine to check a
@@ -10,7 +55,7 @@ TPE monitor, like the other test programs in `docs/TPE-AUTORUN.md`. The
 Winchester manual, ND-11.015.01 sec 5.6, names it as the checkout for that
 card.
 
-## Why we run it
+### Why we run it
 
 nd100x emulates two disk controllers, the SMD card and the Winchester (3041)
 card. SINTRAN uses only the parts of a card it needs to boot and run. DISC-TEMA
@@ -24,9 +69,13 @@ that nd100x passes the tests ND chose to write. The manuals stay the authority
 for what the card does. A DISC-TEMA error, on the other hand, always points at
 something to look at.
 
-## What it shows
+---
 
-Section 2 runs the same session on both controllers and shows every screen.
+## 2. Results and known failures
+
+### What it shows
+
+Section 4 runs the same session on both controllers and shows every screen.
 In short:
 
 | Step | SMD (`DISC-75MB-1`) | Winchester (`DISC-74MB-1`) |
@@ -36,93 +85,36 @@ In short:
 | COMPARE, one word changed | found at the right track, with extra bits (failure 2 below) | found at the right track |
 | FUNCTION | 6 of 7 tests pass (failure 1 below) | not offered for this disc type |
 | DUMP-FLAW-TABLE | No alternative track table found | No alternative track table found |
+| TRANSLATE 070010 | finished, abnormal completion, unit not ready | finished |
 
-Earlier runs, in section 12a, also passed FORMAT on the Winchester (with and
+Earlier runs, in section 15, also passed FORMAT on the Winchester (with and
 without the pattern tests) and COMPARE between two Winchester units.
 
-## Known failures, and why
+### Known failures, and why
 
 | # | Where | What DISC-TEMA reports | Why | State |
 |---|---|---|---|---|
 | 1 | SMD, FUNCTION test 5 "Status Register bits test" | two errors, "Error after Read/Write (overrun expected), Status Bit 13b remains 0", status 041030b | DISC-TEMA puts the card in test mode and expects its data buffer (FIFO) to overrun. nd100x moves data a whole block at a time, never at the drive's speed, so an overrun cannot happen. BUGS.md S1; `docs/DISC-FIFO-OVERRUN.md` measures it. | Left red on purpose: making it pass needs word-by-word timing for one diagnostic test. |
 | 2 | SMD, COMPARE when the data differs | status 052031b with bit 12 "Abnormal completion", and "Controller not active after activate" | nd100x stops the transfer at the first differing word and sets bit 12. The manual does not list a compare error as an abnormal end. BUGS.md S7. Whether the "not active" line has the same cause has not been established. | Open defect. Shows only when the data really differs; identical units compare clean. |
 
-Not failures, but not explained yet:
+### Not failures, but not explained yet
 
 - **DUMP-FLAW-TABLE** answers "No alternative track table found" on both
   controllers. Nobody has checked whether these packs ever had a table where
   DISC-TEMA looks, so this may be right.
 - **TRANSLATE** decodes status bits 12 and 13 for the SMD but names neither for
-  the Winchester (section 2.5). That is how DISC-TEMA reads the word, not a
+  the Winchester (section 4.5). That is how DISC-TEMA reads the word, not a
   defect in nd100x.
 - **The SMD image size**: the pack file is 2,730 sectors longer than the
-  75 MB layout (section 4). Commands near the end of the disc are not to be
+  75 MB layout (section 6). Commands near the end of the disc are not to be
   trusted until that is explained.
 
 Winchester FUNCTION answering "Not implemented for this disc type" is not a
 failure: DISC-TEMA has no FUNCTION test for `DISC-74MB-1`.
 
-## Contents
-
-- [What this is](#what-this-is)
-- [Why we run it](#why-we-run-it)
-- [What it shows](#what-it-shows)
-- [Known failures, and why](#known-failures-and-why)
-- [Sources](#sources)
-- [1. The rule that comes before everything else](#1-the-rule-that-comes-before-everything-else)
-- [2. Walkthrough: the same session on the SMD and on the Winchester](#2-walkthrough-the-same-session-on-the-smd-and-on-the-winchester)
-  - [2.1 What you need](#21-what-you-need)
-  - [2.2 Boot TPE and load DISC-TEMA](#22-boot-tpe-and-load-disc-tema)
-  - [2.3 List the commands](#23-list-the-commands)
-  - [2.4 SET-PARAMETERS: turn off everything that hides errors](#24-set-parameters-turn-off-everything-that-hides-errors)
-  - [2.5 TRANSLATE: how DISC-TEMA reads a status word](#25-translate-how-disc-tema-reads-a-status-word)
-  - [2.6 DUMP-FLAW-TABLE](#26-dump-flaw-table)
-  - [2.7 PARITY-CHECK: read the whole unit](#27-parity-check-read-the-whole-unit)
-  - [2.8 COMPARE two identical units](#28-compare-two-identical-units)
-  - [2.9 COMPARE with one word changed: how the two controllers report it](#29-compare-with-one-word-changed-how-the-two-controllers-report-it)
-  - [2.10 FUNCTION](#210-function)
-  - [2.11 How the two controllers react, side by side](#211-how-the-two-controllers-react-side-by-side)
-  - [2.12 How these screens were made](#212-how-these-screens-were-made)
-- [3. Why the generic TPE recipe does not work here](#3-why-the-generic-tpe-recipe-does-not-work-here)
-- [4. Starting it, and the disc type](#4-starting-it-and-the-disc-type)
-- [5. What DISC-TEMA never asks for](#5-what-disc-tema-never-asks-for)
-- [6. The 23 commands, by whether they write](#6-the-23-commands-by-whether-they-write)
-- [7. SET-PARAMETERS, and the settings a real test needs](#7-set-parameters-and-the-settings-a-real-test-needs)
-- [8. FUNCTION - the closest thing to an automated test](#8-function---the-closest-thing-to-an-automated-test)
-- [9. RANDOM - a media and servo stress test](#9-random---a-media-and-servo-stress-test)
-- [10. Error messages](#10-error-messages)
-- [11. Preconditions](#11-preconditions)
-- [12. Testing the nd100x SMD: what has been run, and what is left](#12-testing-the-nd100x-smd-what-has-been-run-and-what-is-left)
-- [12a. Testing the nd100x Winchester](#12a-testing-the-nd100x-winchester)
-- [13. What the harness needs before this can be automated](#13-what-the-harness-needs-before-this-can-be-automated)
-
-## Sources
-
-The TPE test program manuals are transcribed in the NDInsight documentation
-collection ([github.com/RetroCoreLabs/NDInsight](https://github.com/RetroCoreLabs/NDInsight)),
-and readable on its site:
-
-- [ND-830005.3 Test Program Description for ND-100/110](https://retrocorelabs.github.io/NDInsight/Reference-Manuals/ND-830005.3%20EN%20Test%20Program%20Description%20for%20ND-100-110/),
-  [chapter 5, DISC-TEMA](https://retrocorelabs.github.io/NDInsight/Reference-Manuals/ND-830005.3%20EN%20Test%20Program%20Description%20for%20ND-100-110/#chapter-5-disc-tema)
-  (the III version, 94 disc types; lines 2608-3870 of the transcription).
-  This is the source for the manual's side of everything below unless stated
-  otherwise.
-- [ND-210523G Test Programs for ND-100/110/120](https://retrocorelabs.github.io/NDInsight/Reference-Manuals/ND-210523G_Test_Programs_for_ND-100_110_120__ND_Software_Library/),
-  the software library list of the test programs on the TPE floppy.
-- [ND-899159 Test Program Description for ND-100/ND-110, Addendum December 1998](https://retrocorelabs.github.io/NDInsight/Reference-Manuals/ND-899159-1-EN_Test_Program_Description_for_ND-100_ND-110_-_Addendum_December_1998/).
-  It does not mention DISC-TEMA.
-- [ND-10324E](https://retrocorelabs.github.io/NDInsight/Installation/Installation-Description/ND-10324E/)
-  and its [DISC-TEMA version D notes](https://retrocorelabs.github.io/NDInsight/Installation/Installation-Description/ND-10324E_Disc-Tema_version_D_info_NO/)
-  (in Norwegian).
-
-What the manuals say and what J02 did under nd100x are kept apart: section 2
-and the "run so far" parts of section 12 are measured; the rest is the
-manuals. Where the manual contradicts itself, both readings are given rather
-than one being picked.
-
 ---
 
-## 1. The rule that comes before everything else
+## 3. The rule: only ever run it on a copy
 
 **DISC-TEMA writes to the pack. Run it only against a throwaway copy.**
 
@@ -138,12 +130,12 @@ build/bin/nd100x --boot=floppy --image=FLOPPY.IMG --smd0="$SCRATCH/dt.img" --pip
 This is not the ordinary "booting writes to the pack" drift. `FORMAT` destroys
 the pack outright, `FUNCTION` destroys a cylinder every time it runs, and
 `COPY` overwrites the destination disk completely. The command table in
-section 6 marks every command READS or WRITES; check it before typing
+section 8 marks every command READS or WRITES; check it before typing
 anything.
 
 ---
 
-## 2. Walkthrough: the same session on the SMD and on the Winchester
+## 4. Walkthrough: the same session on the SMD and on the Winchester
 
 This section shows one DISC-TEMA session from boot to the last command, run
 once against the SMD and once against the Winchester, so the two controllers
@@ -152,7 +144,7 @@ character for character, from a run of nd100x at commit `aad10c1`. Nothing
 has been typed in by hand or shortened. Where the two screens are the same,
 it is shown once.
 
-### 2.1 What you need
+### 4.1 What you need
 
 Everything comes from this repository:
 
@@ -163,21 +155,39 @@ Everything comes from this repository:
   Micropolis 1325, `DISC-74MB-1`).
 
 What is connected to what. One run uses one of the two controllers, with
-two units on it:
+two units on it.
+
+The colours mean the same in every diagram here: blue is the SMD, purple the
+Winchester, indigo the programs, teal disc data, amber a decision or a
+warning, green a pass and red a write or a failure. Every box also says in
+words what it is. Inside the diagrams names are written without hyphens
+(`DISC 75MB 1` for `DISC-75MB-1`), as the NDInsight Mermaid rules ask, so
+they draw in older Mermaid versions too.
 
 ```mermaid
 flowchart LR
-  F["TPE floppy copy<br/>Nd-210523I01-XX-01D.img"] --> TPE["TPE monitor B01"]
-  TPE --> DT["DISC-TEMA J02"]
-  DT -- "IOX 1540-1547<br/>ident 17, level 11" --> SMD["SMD controller<br/>disc name DISC-75MB-1"]
-  DT -- "IOX 500-507<br/>ident 1, level 11" --> WD["Winchester controller, 3041<br/>disc name DISC-74MB-1"]
-  SMD --> S0["unit 0: copy of images/SMD0.IMG.bz2"]
-  SMD --> S1["unit 1: copy of images/SMD0.IMG.bz2"]
-  WD --> W0["unit 0: copy of images/WD0-SINTRAN-M.IMG.bz2"]
-  WD --> W1["unit 1: copy of images/WD0-SINTRAN-M.IMG.bz2"]
+  F["TPE floppy, a copy of Nd 210523I01 XX 01D"] --> TPE["TPE monitor B01"]
+  TPE --> DT["DISC TEMA J02"]
+  DT -->|"IOX 1540 to 1547, ident 17, level 11"| SMD["SMD controller, disc name DISC 75MB 1"]
+  DT -->|"IOX 500 to 507, ident 1, level 11"| WD["Winchester controller 3041, disc name DISC 74MB 1"]
+  SMD --> S0["Unit 0, a copy of the SMD0 pack"]
+  SMD --> S1["Unit 1, a copy of the SMD0 pack"]
+  WD --> W0["Unit 0, a copy of the WD0 SINTRAN M pack"]
+  WD --> W1["Unit 1, a copy of the WD0 SINTRAN M pack"]
+  classDef program fill:#3F51B5,stroke:#283593,stroke-width:2px,color:#fff
+  classDef smd fill:#2196F3,stroke:#1565C0,stroke-width:2px,color:#fff
+  classDef wd fill:#9C27B0,stroke:#7B1FA2,stroke-width:2px,color:#fff
+  classDef data fill:#009688,stroke:#00695C,stroke-width:2px,color:#fff
+  classDef decide fill:#FFA726,stroke:#F57C00,stroke-width:2px,color:#000
+  classDef pass fill:#4CAF50,stroke:#2E7D32,stroke-width:2px,color:#fff
+  classDef fail fill:#F44336,stroke:#C62828,stroke-width:2px,color:#fff
+  class F,TPE,DT program
+  class SMD smd
+  class WD wd
+  class S0,S1,W0,W1 data
 ```
 
-Unpack each pack into a scratch directory and use **copies** (section 1).
+Unpack each pack into a scratch directory and use **copies** (section 3).
 COMPARE needs a second unit, so make two copies of each pack:
 
 ```sh
@@ -202,9 +212,9 @@ build/bin/nd100x --boot=floppy --image="$SCRATCH/tpe.img" \
 ```
 
 The runs shown here added `--pipe` and were typed by a script that waits for
-each prompt before it answers (section 2.12).
+each prompt before it answers (section 4.11).
 
-### 2.2 Boot TPE and load DISC-TEMA
+### 4.2 Boot TPE and load DISC-TEMA
 
 In the screens from here on, **bold** is what was typed. Each typed line ends
 with RETURN.
@@ -214,37 +224,47 @@ only read, to the one step that writes:
 
 ```mermaid
 flowchart TD
-  A["Boot TPE from the floppy"] --> B["LOAD DISC-TEMA"]
-  B --> C["HELP, ALL-COMMANDS<br/>list the commands"]
-  C --> D["SET-PARAMETERS<br/>no retries, no ECC, no marginal recovery"]
-  D --> E["TRANSLATE<br/>no disc access"]
-  E --> G["DUMP-FLAW-TABLE<br/>reads one track"]
-  G --> H["PARITY-CHECK<br/>reads the whole unit"]
-  H --> I["COMPARE<br/>reads unit 0 and unit 1"]
-  I --> J["FUNCTION<br/>WRITES: last cylinder of the spare track pool"]
+  A["Boot TPE from the floppy"] --> B["LOAD DISC TEMA"]
+  B --> C["HELP and ALL COMMANDS, list the commands"]
+  C --> D["SET PARAMETERS, no retries, no ECC, no marginal recovery"]
+  D --> E["TRANSLATE, no disc access"]
+  E --> G["DUMP FLAW TABLE, reads one track"]
+  G --> H["PARITY CHECK, reads the whole unit"]
+  H --> I["COMPARE, reads unit 0 and unit 1"]
+  I --> J["FUNCTION, WRITES the last cylinder of the spare track pool"]
+  classDef program fill:#3F51B5,stroke:#283593,stroke-width:2px,color:#fff
+  classDef smd fill:#2196F3,stroke:#1565C0,stroke-width:2px,color:#fff
+  classDef wd fill:#9C27B0,stroke:#7B1FA2,stroke-width:2px,color:#fff
+  classDef data fill:#009688,stroke:#00695C,stroke-width:2px,color:#fff
+  classDef decide fill:#FFA726,stroke:#F57C00,stroke-width:2px,color:#000
+  classDef pass fill:#4CAF50,stroke:#2E7D32,stroke-width:2px,color:#fff
+  classDef fail fill:#F44336,stroke:#C62828,stroke-width:2px,color:#fff
+  class A,B,C,D,E program
+  class G,H,I data
+  class J fail
 ```
 
 Same on both controllers. Press RETURN once to get the first prompt.
 
 <pre>
     TPE Monitor, ND-100 series - Version: B01 - 1988-10-07
-
-
+&nbsp;
+&nbsp;
 The command HELP gives you the full list of available commands
-
+&nbsp;
 TPE&gt;<b>LOAD DISC-TEMA</b>
-
-
+&nbsp;
+&nbsp;
     DISC-TEMA - VERSION: J02 - 1990-04-02
-
-
+&nbsp;
+&nbsp;
 TPE&gt;
 </pre>
 
 J02 does **not** ask for a disc type when it loads. Every command that
-touches a disc asks `Disc name:` itself (section 4).
+touches a disc asks `Disc name:` itself (section 6).
 
-### 2.3 List the commands
+### 4.3 List the commands
 
 Same on both controllers. `HELP` answers with a `Command:` prompt; type
 `ALL-COMMANDS` there. A blank line at `Command:` printed `All-commands` and
@@ -253,7 +273,7 @@ then nothing more for 150 seconds, so give the word.
 <pre>
 TPE&gt;<b>HELP</b>
 Command: <b>ALL-COMMANDS</b>
-
+&nbsp;
 Monitor commands
 ****************
 &gt; MODE &lt;input file name&gt; &lt;output&gt;
@@ -278,7 +298,7 @@ Monitor commands
 &gt; SET-TERMINAL-TYPE &lt;type&gt;
 &gt; TERMINAL-MODE &lt;full page stop&gt;
 &gt; UPDAT &lt;minute&gt; &lt;hour&gt; &lt;day&gt; &lt;month&gt; &lt;year&gt;
-
+&nbsp;
 Program commands
 ****************
 &gt; ALIGN
@@ -302,19 +322,19 @@ Program commands
 &gt; SET-PARAMETERS
 &gt; TRANSLATE
 &gt; VERIFY
-
+&nbsp;
 TPE&gt;
 </pre>
 
-J02 lists 21 program commands. The manual's 23 (section 6) also have
+J02 lists 21 program commands. The manual's 23 (section 8) also have
 `SET-DISC-TYPE` and `SCOPE-LOOP`, which J02 does not list, and the manual's
 `RANDOM` is `RANDOM-TEST` here.
 
-### 2.4 SET-PARAMETERS: turn off everything that hides errors
+### 4.4 SET-PARAMETERS: turn off everything that hides errors
 
 Same on both controllers. These answers switch off retries, marginal recovery
 and ECC correction, so an error in the emulated controller shows instead of
-being repaired (section 7), and run FUNCTION once.
+being repaired (section 9), and run FUNCTION once.
 
 <pre>
 TPE&gt;<b>SET-PARAMETERS</b>
@@ -328,14 +348,14 @@ Max ECC error length to tolerate    (1 to 11 dec): <b>1</b>
 Release units after operations        (YES or NO): <b>no</b>
 Include all tests in FUNCTION         (YES or NO): <b>yes</b>
 No. of times to run tests        (1 to 65535 dec): <b>1</b>
-
+&nbsp;
 TPE&gt;
 </pre>
 
 J02 asks ten questions, in this order and with this wording. The manual's
-table in section 7 has twelve, in another order.
+table in section 9 has twelve, in another order.
 
-### 2.5 TRANSLATE: how DISC-TEMA reads a status word
+### 4.5 TRANSLATE: how DISC-TEMA reads a status word
 
 No disc access. The disc name decides how the status word is read, so the
 same two numbers give different answers. 070010 and 060011 are the two
@@ -343,9 +363,20 @@ values a real 3041 Winchester card returned (BUGS.md W10).
 
 ```mermaid
 flowchart LR
-  W["Status 070010<br/>bits 14, 13, 12 and 3 set"] --> N{"Disc name"}
-  N -- "DISC-75MB-1" --> A["b3 Controller finished<br/>b12 Abnormal completion<br/>b13 Disc unit not ready<br/>b14 no text"]
-  N -- "DISC-74MB-1" --> B["b3 Controller finished<br/>b12, b13, b14 no text"]
+  W["Status 070010, bits 14, 13, 12 and 3 set"] --> N{"Disc name"}
+  N -->|"DISC 75MB 1, the SMD"| A["Bit 3 Controller finished, bit 12 Abnormal completion, bit 13 Disc unit not ready, bit 14 no text"]
+  N -->|"DISC 74MB 1, the Winchester"| B["Bit 3 Controller finished, bits 12, 13 and 14 no text"]
+  classDef program fill:#3F51B5,stroke:#283593,stroke-width:2px,color:#fff
+  classDef smd fill:#2196F3,stroke:#1565C0,stroke-width:2px,color:#fff
+  classDef wd fill:#9C27B0,stroke:#7B1FA2,stroke-width:2px,color:#fff
+  classDef data fill:#009688,stroke:#00695C,stroke-width:2px,color:#fff
+  classDef decide fill:#FFA726,stroke:#F57C00,stroke-width:2px,color:#000
+  classDef pass fill:#4CAF50,stroke:#2E7D32,stroke-width:2px,color:#fff
+  classDef fail fill:#F44336,stroke:#C62828,stroke-width:2px,color:#fff
+  class W data
+  class N decide
+  class A smd
+  class B wd
 ```
 
 SMD (`DISC-75MB-1`):
@@ -355,21 +386,21 @@ TPE&gt;<b>TRANSLATE</b>
 Disc name: <b>DISC-75MB-1</b>
 Address type: <b>STATUS</b>
 Status (0 to 177777 oct): <b>070010</b>
-
+&nbsp;
    Status 070010b
    - Controller finished
    - Abnormal completion
    - Disc unit not ready
-
+&nbsp;
 Address type: <b>STATUS</b>
 Status (0 to 177777 oct): <b>060011</b>
-
+&nbsp;
    Status 060011b
    - Controller finished
    - Disc unit not ready
-
+&nbsp;
 Address type: <b>EXIT</b>
-
+&nbsp;
 TPE&gt;
 </pre>
 
@@ -380,18 +411,18 @@ TPE&gt;<b>TRANSLATE</b>
 Disc name: <b>DISC-74MB-1</b>
 Address type: <b>STATUS</b>
 Status (0 to 177777 oct): <b>070010</b>
-
+&nbsp;
    Status 070010b
    - Controller finished
-
+&nbsp;
 Address type: <b>STATUS</b>
 Status (0 to 177777 oct): <b>060011</b>
-
+&nbsp;
    Status 060011b
    - Controller finished
-
+&nbsp;
 Address type: <b>EXIT</b>
-
+&nbsp;
 TPE&gt;
 </pre>
 
@@ -400,7 +431,7 @@ For the SMD, DISC-TEMA reads bit 12 as "Abnormal completion" and bit 13 as
 and 14 get no text at all. `HELP` at `Address type:` lists the other types:
 Physical, Logical, Page, Status and Exit.
 
-### 2.6 DUMP-FLAW-TABLE
+### 4.6 DUMP-FLAW-TABLE
 
 Reads one track. Both controllers give the same answer; the unit prompt is
 the only difference (the SMD card takes four units, the Winchester card two).
@@ -411,9 +442,9 @@ SMD:
 TPE&gt;<b>DUMP-FLAW-TABLE</b>
 Disc name: <b>DISC-75MB-1</b>
 Unit (0 to 3 oct): <b>0</b>
-
+&nbsp;
 No alternative track table found.
-
+&nbsp;
 TPE&gt;
 </pre>
 
@@ -423,16 +454,16 @@ Winchester:
 TPE&gt;<b>DUMP-FLAW-TABLE</b>
 Disc name: <b>DISC-74MB-1</b>
 Unit (0 to 1 oct): <b>0</b>
-
+&nbsp;
 No alternative track table found.
-
+&nbsp;
 TPE&gt;
 </pre>
 
 Whether these packs ever had a table where DISC-TEMA looks has not been
-checked (section 12).
+checked (section 14).
 
-### 2.7 PARITY-CHECK: read the whole unit
+### 4.7 PARITY-CHECK: read the whole unit
 
 Reads every track without moving the data to memory. Both controllers read
 the whole unit with no errors:
@@ -443,9 +474,9 @@ SMD:
 TPE&gt;<b>PARITY-CHECK</b>
 Disc name: <b>DISC-75MB-1</b>
 Unit (0 to 3 oct): <b>0</b>
-
+&nbsp;
 ================
-
+&nbsp;
 TPE&gt;
 </pre>
 
@@ -455,9 +486,9 @@ Winchester:
 TPE&gt;<b>PARITY-CHECK</b>
 Disc name: <b>DISC-74MB-1</b>
 Unit (0 to 1 oct): <b>0</b>
-
+&nbsp;
 ================
-
+&nbsp;
 TPE&gt;
 </pre>
 
@@ -466,12 +497,12 @@ goes back to the start of the line, and writes one `=` over a dash for each
 sixteenth of the disc it has done, with a `>` marking how far it has got. A
 full line of `=` means the whole unit was read. A bell sounds at the end. An
 error is printed under the bar where it happens, and the bar goes on
-(section 2.9).
+(section 4.9).
 
-### 2.8 COMPARE two identical units
+### 4.8 COMPARE two identical units
 
 Unit 0 against unit 1, two copies of the same pack. COMPARE uses the
-compare built into the card (section 6). No errors on either controller:
+compare built into the card (section 8). No errors on either controller:
 
 SMD:
 
@@ -481,9 +512,9 @@ From disc name: <b>DISC-75MB-1</b>
 Unit (0 to 3 oct): <b>0</b>
 To   disc name: <b>DISC-75MB-1</b>
 Unit (0 to 3 oct): <b>1</b>
-
+&nbsp;
 ================
-
+&nbsp;
 TPE&gt;
 </pre>
 
@@ -495,13 +526,13 @@ From disc name: <b>DISC-74MB-1</b>
 Unit (0 to 1 oct): <b>0</b>
 To   disc name: <b>DISC-74MB-1</b>
 Unit (0 to 1 oct): <b>1</b>
-
+&nbsp;
 ================
-
+&nbsp;
 TPE&gt;
 </pre>
 
-### 2.9 COMPARE with one word changed: how the two controllers report it
+### 4.9 COMPARE with one word changed: how the two controllers report it
 
 The same run, but one word on the unit 1 copy is changed first: byte offset
 10240200 in the image, which is block (LBA) 10000, word 100. The word was
@@ -520,7 +551,7 @@ From disc name: <b>DISC-75MB-1</b>
 Unit (0 to 3 oct): <b>0</b>
 To   disc name: <b>DISC-75MB-1</b>
 Unit (0 to 3 oct): <b>1</b>
-
+&nbsp;
 ==&gt;-------------
 ***ERROR*** 1996.10.31 16:19:09  DISC-75MB-1 Unit 1
             Requested transfer address:
@@ -533,9 +564,9 @@ Unit (0 to 3 oct): <b>1</b>
             Controller not active after activate
             Operation was: Compare
             Block size was: 22b
-
+&nbsp;
 ================
-
+&nbsp;
 TPE&gt;
 </pre>
 
@@ -547,7 +578,7 @@ From disc name: <b>DISC-74MB-1</b>
 Unit (0 to 1 oct): <b>0</b>
 To   disc name: <b>DISC-74MB-1</b>
 Unit (0 to 1 oct): <b>1</b>
-
+&nbsp;
 ==&gt;-------------
 ***ERROR*** 1996.10.31 16:19:11  DISC-74MB-1 Unit 1
             Requested transfer address:
@@ -557,9 +588,9 @@ Unit (0 to 1 oct): <b>1</b>
             Compare error
             Operation was: Compare
             Block size was: 11b
-
+&nbsp;
 ================
-
+&nbsp;
 TPE&gt;
 </pre>
 
@@ -570,12 +601,24 @@ drives have different layouts:
 
 ```mermaid
 flowchart TD
-  B["Changed word: byte 10240200<br/>= block 10000, word 100"] --> S["SMD: 5 x 18 = 90 blocks per cylinder<br/>10000 = 111 x 90 + 10"]
-  B --> W["Winchester: 8 x 9 = 72 blocks per cylinder<br/>10000 = 138 x 72 + 64, and 64 = 7 x 9 + 1"]
-  S --> S2["cylinder 111 = 157b, surface 0, sector 10<br/>its track: 18 sectors = 22b"]
-  W --> W2["cylinder 138 = 212b, surface 7, sector 1<br/>its track: 9 sectors = 11b"]
-  S2 --> SR["reported 052031b: compare error<br/>+ abnormal completion, bit 12<br/>+ Controller not active after activate"]
-  W2 --> WR["reported 062030b: compare error"]
+  B["Changed word at byte 10240200, block 10000, word 100"] --> S["SMD, 5 x 18 = 90 blocks per cylinder, 10000 = 111 x 90 + 10"]
+  B --> W["Winchester, 8 x 9 = 72 blocks per cylinder, 10000 = 138 x 72 + 64, and 64 = 7 x 9 + 1"]
+  S --> S2["Cylinder 111 = 157b, surface 0, sector 10, its track has 18 sectors = 22b"]
+  W --> W2["Cylinder 138 = 212b, surface 7, sector 1, its track has 9 sectors = 11b"]
+  S2 --> SR["FAULT, reported 052031b, compare error plus abnormal completion bit 12 plus Controller not active after activate, BUGS.md S7"]
+  W2 --> WR["OK, reported 062030b, compare error only"]
+  classDef program fill:#3F51B5,stroke:#283593,stroke-width:2px,color:#fff
+  classDef smd fill:#2196F3,stroke:#1565C0,stroke-width:2px,color:#fff
+  classDef wd fill:#9C27B0,stroke:#7B1FA2,stroke-width:2px,color:#fff
+  classDef data fill:#009688,stroke:#00695C,stroke-width:2px,color:#fff
+  classDef decide fill:#FFA726,stroke:#F57C00,stroke-width:2px,color:#000
+  classDef pass fill:#4CAF50,stroke:#2E7D32,stroke-width:2px,color:#fff
+  classDef fail fill:#F44336,stroke:#C62828,stroke-width:2px,color:#fff
+  class B decide
+  class S,S2 smd
+  class W,W2 wd
+  class SR fail
+  class WR pass
 ```
 
 | | SMD | Winchester |
@@ -600,16 +643,28 @@ Where they differ:
 - DISC-TEMA prints the date and time on each error line. The time matched the
   host clock; where the year 1996 comes from has not been looked into.
 
-### 2.10 FUNCTION
+### 4.10 FUNCTION
 
 ```mermaid
 flowchart TD
   F["FUNCTION"] --> D{"Disc name"}
-  D -- "DISC-74MB-1" --> NI["Not implemented for this disc type"]
-  D -- "DISC-75MB-1" --> Q["Warns that the last cylinder of the spare track pool<br/>and the alternative track table are destroyed<br/>asks YES or NO"]
-  Q -- "yes" --> T1["Tests 1-4 pass"]
-  T1 --> T5["Test 5, Status Register bits:<br/>2 errors, overrun expected (BUGS.md S1)"]
-  T5 --> T6["Tests 6-7 pass"]
+  D -->|"DISC 74MB 1"| NI["Not implemented for this disc type"]
+  D -->|"DISC 75MB 1"| Q["Warns that the last cylinder of the spare track pool and the alternative track table are destroyed, asks YES or NO"]
+  Q -->|"yes"| T1["PASS, tests 1 to 4"]
+  T1 --> T5["FAIL, test 5 Status Register bits, 2 errors, overrun expected, BUGS.md S1"]
+  T5 --> T6["PASS, tests 6 and 7"]
+  classDef program fill:#3F51B5,stroke:#283593,stroke-width:2px,color:#fff
+  classDef smd fill:#2196F3,stroke:#1565C0,stroke-width:2px,color:#fff
+  classDef wd fill:#9C27B0,stroke:#7B1FA2,stroke-width:2px,color:#fff
+  classDef data fill:#009688,stroke:#00695C,stroke-width:2px,color:#fff
+  classDef decide fill:#FFA726,stroke:#F57C00,stroke-width:2px,color:#000
+  classDef pass fill:#4CAF50,stroke:#2E7D32,stroke-width:2px,color:#fff
+  classDef fail fill:#F44336,stroke:#C62828,stroke-width:2px,color:#fff
+  class F program
+  class D,Q decide
+  class NI wd
+  class T1,T6 pass
+  class T5 fail
 ```
 
 SMD. **FUNCTION writes:** it destroys the last cylinder of the spare track
@@ -622,9 +677,9 @@ Unit (0 to 3 oct): <b>0</b>
 On this Disc type, Function will destroy data in the last
 cylinder in the spare track buffer pool !
 (Including the Alternative Track Table.)
-
+&nbsp;
 Do you still want to continue (YES or NO): <b>yes</b>
-
+&nbsp;
   1. Data way to controller test  === End of test ===
   2. Memory Address Register test === End of test ===
   3. Block Address Register test  === End of test ===
@@ -634,24 +689,24 @@ Error after Read (overrun expected), Status Bit 13b remains 0 !        7)
    Status 041030b, Unit 0
    - Controller finished
    - Data error
-
-
+&nbsp;
+&nbsp;
 Error after Write (overrun expected), Status Bit 13b remains 0 !        7)
    Status 041030b, Unit 0
    - Controller finished
    - Data error
-
+&nbsp;
 === End of test ===
   6. Operation test               === End of test ===
   7. Read-Seek-Condition test     === End of test ===
-
+&nbsp;
 TPE&gt;
 </pre>
 
 Six of the seven tests pass. Test 5 expects an overrun (status bit 11, "FIFO
 over/underrun") that nd100x can never produce; that is BUGS.md S1, and
 `docs/DISC-FIFO-OVERRUN.md` explains why it is left red. Print note `7)` is
-explained in section 10.
+explained in section 12.
 
 Winchester:
 
@@ -659,28 +714,16 @@ Winchester:
 TPE&gt;<b>FUNCTION</b>
 Disc name: <b>DISC-74MB-1</b>
 Unit (0 to 1 oct): <b>0</b>
-
+&nbsp;
 Not implemented for this disc type !
-
+&nbsp;
 TPE&gt;
 </pre>
 
 DISC-TEMA has no FUNCTION test for `DISC-74MB-1`. ND-11.015.01 sec 5.6 lists
-FORMAT, PARITY-CHECK and COMPARE as the checkout for this card (section 12a).
+FORMAT, PARITY-CHECK and COMPARE as the checkout for this card (section 15).
 
-### 2.11 How the two controllers react, side by side
-
-| Step | SMD (`DISC-75MB-1`) | Winchester (`DISC-74MB-1`) |
-|---|---|---|
-| Unit prompt | `(0 to 3 oct)` | `(0 to 1 oct)` |
-| TRANSLATE 070010 | finished, abnormal completion, unit not ready | finished |
-| DUMP-FLAW-TABLE | No alternative track table found | No alternative track table found |
-| PARITY-CHECK, whole unit | no errors | no errors |
-| COMPARE, identical units | no errors | no errors |
-| COMPARE, one word changed | found; also bit 12 and "Controller not active after activate" (S7) | found; compare error only |
-| FUNCTION | 6 of 7 tests pass; test 5 overrun (S1) | Not implemented for this disc type |
-
-### 2.12 How these screens were made
+### 4.11 How these screens were made
 
 Each session was one run of nd100x with `--pipe`, from fresh copies of the
 packs in `images/`, typed by a script that waits for the prompt (`TPE>`, or a
@@ -702,14 +745,14 @@ The answers typed, in order:
 - Winchester, two units: as the SMD with `DISC-74MB-1`, then
   `COMPARE DISC-74MB-1 0 DISC-74MB-1 1` and `FUNCTION DISC-74MB-1 0`.
 
-That script is not in this repository yet; section 13 lists what a driver in
+That script is not in this repository yet; section 16 lists what a driver in
 `tools/` needs.
 
 ---
 
-## 3. Why the generic TPE recipe does not work here
+## 5. Why the generic TPE recipe does not work here
 
-`docs/TPE-AUTORUN.md` section 2 documents the pattern
+`docs/TPE-AUTORUN.md` section 4 documents the pattern
 used by `INSTRUCTION-C03`, `MEMORY-D04` and `PAGING-C02`:
 
 ```
@@ -748,14 +791,14 @@ commands, most of which then ask a series of questions.
   does not print a list; it asks what to filter the listing by. The manual
   says a blank line or a filter string gets the listing. In J02 under nd100x,
   a blank line printed `All-commands` and then nothing; typing `ALL-COMMANDS`
-  gives the full list (section 2.3).
+  gives the full list (section 4.3).
 - **A comma supplies one blank parameter inline**, so a command never has to
   prompt. `HELP,,,` is HELP with three blank parameters. The number of commas
   must match the number of parameters the command takes.
 
 ---
 
-## 4. Starting it, and the disc type
+## 6. Starting it, and the disc type
 
 ```
 TPE>LOAD DISC-TEMA <CR>
@@ -765,7 +808,7 @@ The manual says it then asks for a **DISC TYPE** before accepting any
 command, and that a bare `<CR>` takes the default, entry 23, `DISC-75MB-1`.
 There are 94 types. **J02 does not do that:** it loads straight to `TPE>`, and
 each command that touches a disc asks `Disc name:` (or `From disc name:` and
-`To   disc name:`) itself (section 2). The names used for nd100x are
+`To   disc name:`) itself (section 4). The names used for nd100x are
 `DISC-75MB-1` for the SMD and `DISC-74MB-1` for the Winchester.
 
 In the manual's description, the type answers both the "FROM" and the "TO" disc. `SET-DISC-TYPE` changes
@@ -794,7 +837,7 @@ trusted near the end of the disc.
 
 ---
 
-## 5. What DISC-TEMA never asks for
+## 7. What DISC-TEMA never asks for
 
 There is **no controller-address or device-number prompt anywhere in the
 chapter.** The disc *type* implies the controller. So the earlier assumption
@@ -822,7 +865,7 @@ default. Commands may be abbreviated and typed in lower case.
 
 ---
 
-## 6. The 23 commands, by whether they write
+## 8. The 23 commands, by whether they write
 
 ### Safe - read only
 
@@ -838,7 +881,7 @@ default. Commands may be abbreviated and typed in lower case.
 | `DUMP-FLAW-TABLE` | Prints the bad-track/alternative-track table from the last track of the disc. | `Unit (0 to 3 oct):` |
 | `TRANSLATE` | Converts between physical, logical and page addresses, and decodes a status word to text. No disc access. | `ADDRESS TYPE:` then cylinder/surface/sector |
 | `SET-DISC-TYPE` | Sets the FROM and TO disc types. | `SET NEW "FROM" DISC NAME:`, `SET NEW "TO" DISC NAME:` |
-| `SET-PARAMETERS` | The mode settings, section 7. | 12 prompts in the manual, 10 in J02 (section 2.4) |
+| `SET-PARAMETERS` | The mode settings, section 9. | 12 prompts in the manual, 10 in J02 (section 4.4) |
 | `CLEAR-COUNTERS` | Clears the ECC, retry, marginal-recovery and transfer counters. | five `CLEAR ... (YES/NO):` questions |
 | `PRIORITY-SELECT` | Dual-port option only; holds a drive until the next command finishes. Not executable under SINTRAN. | not stated |
 | `ALIGN` | Head alignment. Needs a removable pack and a special ALIGN pack; errors with `No align cylinder for this disk.` otherwise. | `Unit (0-3 Oct):`, `CYLINDER`, `HEAD`, then single-key sub-commands |
@@ -850,11 +893,11 @@ default. Commands may be abbreviated and typed in lower case.
 |---|---|
 | `FORMAT` | **The whole pack.** "This command will destroy the existing data on the disk." Asks `Do you still want to continue (Yes/No):` and then runs a table editor with `APPEND`, `DELETE`, `LIST-TABLE`, `REMOVE-TABLE`, `START-FORMATTING`. |
 | `COPY` | **The destination disk.** "This command will 'destroy' the data on the destination disk." Cannot run under SINTRAN. |
-| `FUNCTION` | **One cylinder, every run.** See section 8. |
+| `FUNCTION` | **One cylinder, every run.** See section 10. |
 | `SET-DISC-CONTENT` | Writes a generated pattern over the sectors given. |
 | `CHANGE` | Inspects and changes single words on the disc. The manual gives no example and no prompts. |
 | `REFRESH` | Reformats one track and writes the data back. Phoenix discs cannot be refreshed in the III version. Warns if the track was already reallocated, and the manual says do not continue in that case. |
-| `RANDOM` | Only when `TEST-TYPE` is set to `write-compare`. See section 9. |
+| `RANDOM` | Only when `TEST-TYPE` is set to `write-compare`. See section 11. |
 
 ### Unclassified
 
@@ -864,10 +907,10 @@ statement of whether it writes. Treat it as unknown, not as safe.
 
 ---
 
-## 7. SET-PARAMETERS, and the settings a real test needs
+## 9. SET-PARAMETERS, and the settings a real test needs
 
 This table is the manual's. **J02 asks ten questions, not twelve, in another
-order and with other wording**; section 2.4 has the exact J02 screen with the
+order and with other wording**; section 4.4 has the exact J02 screen with the
 answers used for the nd100x runs. Defaults are in angle brackets, as the
 manual prints them.
 
@@ -894,7 +937,7 @@ to mean anything about the SMD implementation.
 
 ---
 
-## 8. FUNCTION - the closest thing to an automated test
+## 10. FUNCTION - the closest thing to an automated test
 
 This is the command that most resembles `run` in the other TPE programs, and
 it is **destructive**, though in a bounded way.
@@ -902,7 +945,7 @@ it is **destructive**, though in a bounded way.
 The example below is the manual's. **J02 differs:** it asks `Disc name:` and
 a single `Unit (0 to 3 oct):`, warns that the alternative track table is
 destroyed too, then names its seven tests and prints `=== End of test ===`
-after each one. Section 2.10 has the exact J02 screens for both controllers.
+after each one. Section 4.10 has the exact J02 screens for both controllers.
 
 ```
 TPE>function <CR>
@@ -932,8 +975,8 @@ Points that decide whether it can be automated:
   subtests are never named in the manual.
 - **What a pass looks like:** in the manual's example it simply returns to
   `TPE>` with no output. J02 prints each test's name and `=== End of test ===`
-  (section 2.10), and a failure shows up as an error report inside the test,
-  with the messages of section 10.
+  (section 4.10), and a failure shows up as an error report inside the test,
+  with the messages of section 12.
 - **This breaks the usual harness classification.** `tools/tpe_autorun.py`
   decides PASS/FAIL/INCONCLUSIVE by scanning for markers. FUNCTION has none,
   so silence is success and any error text is failure - the inverse of how the
@@ -948,7 +991,7 @@ Points that decide whether it can be automated:
 
 ---
 
-## 9. RANDOM - a media and servo stress test
+## 11. RANDOM - a media and servo stress test
 
 `RANDOM` enters its own sub-prompt, `RND:`, with commands `RUN-TEST`,
 `ADDRESS-MODE`, `TEST-TYPE`, `LIMIT-ADDRESSES`, `AMOUNT-SET`, `WRITE-PROTECT`,
@@ -985,7 +1028,7 @@ established by experiment before it is automated.
 
 ---
 
-## 10. Error messages
+## 12. Error messages
 
 An error report is three parts: the message text, a numbered print note, and a
 16-bit controller status code that `TRANSLATE` decodes.
@@ -1013,7 +1056,7 @@ An error report is three parts: the message text, a numbered print note, and a
 
 The manual says "Abnormal completion" decodes bit 12, while the table gives
 bit 12 as 0. One of the two is wrong and it is not clear which. What J02 itself
-does is measured (section 2.5): `TRANSLATE` with `DISC-75MB-1` decodes bit 12
+does is measured (section 4.5): `TRANSLATE` with `DISC-75MB-1` decodes bit 12
 as "Abnormal completion" and bit 13 as "Disc unit not ready"; with
 `DISC-74MB-1` it names neither. That shows how DISC-TEMA reads the word, not
 what the hardware sets.
@@ -1040,7 +1083,7 @@ drive, is at fault:
   active." Directly a controller state-machine issue.
 - `Log. block address out of range.` - "Disc-Tema tried to access an address
   outside the disk's area." Relevant given the open geometry question in
-  section 4.
+  section 6.
 - `Address mismatch` - status bit 8; any error in a track's address field.
 - `CRC error` - status bit 9, in the data field.
 - `Compare error` - status bit 10; memory and disc data differ.
@@ -1059,7 +1102,7 @@ drive, is at fault:
 
 ---
 
-## 11. Preconditions
+## 13. Preconditions
 
 - **Version D only:** disk unit 0 must always be spinning. From
   `ND-10324E_Disc-Tema_version_D_info_NO.md`: "Ved bruk av DISC-TEMA, versjon D,
@@ -1074,7 +1117,7 @@ drive, is at fault:
 
 ---
 
-## 12. Testing the nd100x SMD: what has been run, and what is left
+## 14. Testing the nd100x SMD: what has been run, and what is left
 
 ### Run so far (DISC-TEMA J02, unit 0 only, copies of a SINTRAN K pack)
 
@@ -1111,7 +1154,7 @@ On top of it, still to do:
   the prompt-driven driver in `tools/` so a run is one command.
 
 1. `TRANSLATE` - no disc access at all. Confirms the program is alive and that
-   the geometry it believes in matches section 4.
+   the geometry it believes in matches section 6.
 2. `DUMP-FLAW-TABLE` - reads one track. Tells us whether nd100x presents a
    readable flaw table, or answers `No alternative track table found`.
 3. `PARITY-CHECK` - reads an area with no memory transfer. First real exercise
@@ -1131,7 +1174,9 @@ On top of it, still to do:
 Before any of it, set SET-PARAMETERS items 2, 3, 6 and 7 to NO/NO/0/0, or the
 results will not mean anything.
 
-## 12a. Testing the nd100x Winchester
+---
+
+## 15. Testing the nd100x Winchester
 
 Manual ND-11.015.01 sec 5.6 names DISC-TEMA as the checkout for the Winchester controller too:
 "FORMAT, PARITY-CHECK and COMPARE". The disc name is `DISC-74MB-1` (entry 21), the same name
@@ -1173,9 +1218,11 @@ number of FORMAT pattern tests, 0 for the run without them); then:
 - A SINTRAN boot on a formatted copy. nd100x keeps the data fields through a format (BUGS.md W2),
   so a boot would succeed where a real formatted pack would not; it proves nothing until W2 is
   settled.
-- The read-only commands of section 6 that accept this disc type.
+- The read-only commands of section 8 that accept this disc type.
 
-## 13. What the harness needs before this can be automated
+---
+
+## 16. What the harness needs before this can be automated
 
 `tools/tpe_autorun.py` cannot drive DISC-TEMA as it stands. The gaps:
 
@@ -1184,9 +1231,35 @@ number of FORMAT pattern tests, 0 for the run without them); then:
 - Answer the disc-type question that arrives before any command.
 - Drive a command vocabulary instead of `run`, including nested sub-prompts
   (`RND:`, `Buffalo:`, `*:`, `ADDRESS TYPE:`, and ALIGN's single-key `Press:`).
-- Match six different spellings of the unit prompt (section 5).
+- Match six different spellings of the unit prompt (section 7).
 - Send ESCAPE, which `SEEK` requires and `FUNCTION` and `RANDOM` accept.
 - Treat silence as success for FUNCTION, which inverts the existing marker
   logic.
 - Know which commands write, and refuse to run them against anything but a
   scratch copy.
+
+---
+
+## 17. Sources
+
+The TPE test program manuals are transcribed in the NDInsight documentation
+collection ([github.com/RetroCoreLabs/NDInsight](https://github.com/RetroCoreLabs/NDInsight)),
+and readable on its site:
+
+- [ND-830005.3 Test Program Description for ND-100/110](https://retrocorelabs.github.io/NDInsight/Reference-Manuals/ND-830005.3%20EN%20Test%20Program%20Description%20for%20ND-100-110/),
+  [chapter 5, DISC-TEMA](https://retrocorelabs.github.io/NDInsight/Reference-Manuals/ND-830005.3%20EN%20Test%20Program%20Description%20for%20ND-100-110/#chapter-5-disc-tema)
+  (the III version, 94 disc types; lines 2608-3870 of the transcription).
+  This is the source for the manual's side of everything below unless stated
+  otherwise.
+- [ND-210523G Test Programs for ND-100/110/120](https://retrocorelabs.github.io/NDInsight/Reference-Manuals/ND-210523G_Test_Programs_for_ND-100_110_120__ND_Software_Library/),
+  the software library list of the test programs on the TPE floppy.
+- [ND-899159 Test Program Description for ND-100/ND-110, Addendum December 1998](https://retrocorelabs.github.io/NDInsight/Reference-Manuals/ND-899159-1-EN_Test_Program_Description_for_ND-100_ND-110_-_Addendum_December_1998/).
+  It does not mention DISC-TEMA.
+- [ND-10324E](https://retrocorelabs.github.io/NDInsight/Installation/Installation-Description/ND-10324E/)
+  and its [DISC-TEMA version D notes](https://retrocorelabs.github.io/NDInsight/Installation/Installation-Description/ND-10324E_Disc-Tema_version_D_info_NO/)
+  (in Norwegian).
+
+What the manuals say and what J02 did under nd100x are kept apart: section 4
+and the "run so far" parts of section 14 are measured; the rest is the
+manuals. Where the manual contradicts itself, both readings are given rather
+than one being picked.
