@@ -137,7 +137,7 @@ typedef union {
         uint16_t crcError : 1;              /* b9  CRC error */
         uint16_t compareError : 1;          /* b10 compare error */
         uint16_t dmaChannelError : 1;       /* b11 FIFO over/under-run or DMA channel error */
-        uint16_t notUsed12 : 1;             /* b12 always 0 */
+        uint16_t track0 : 1;                /* b12 3041: drive's Track 000 line (TR00); 3038: see wd_read_status */
         uint16_t controllerId : 1;          /* b13 3041: always 1; 3038: r/w gate active */
         uint16_t onCylinder : 1;            /* b14 on cylinder */
         uint16_t notUsed15 : 1;             /* b15 always 0, distinguishes from the 10 Mb controller */

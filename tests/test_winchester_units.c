@@ -368,8 +368,10 @@ static void run_checks(void)
      *   write 505 = 000011  -> read 504 = 060011
      *   write 505 = 100000  -> read 504 = 070010
      *   write 505 = 000000  -> read 504 = 070010
-     * A measurement of the hardware, so the card must answer the same. The
-     * last two stay red until status bit 12 is understood (BUGS.md W10). */
+     * A measurement of the hardware, so the card must answer the same.
+     * Bit 12 is TR00 from the selected drive (wd_read_status): 000011 sets
+     * test mode (bit 3), which selects no drive, so it reads 0; the next two
+     * select unit 0, whose heads are on cylinder 0 after power-on, so 1. */
     {
         s_card->Reset(s_card);
         wr(W_CONTROL, 000011);

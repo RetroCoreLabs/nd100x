@@ -196,9 +196,43 @@ static uint16_t wd_read_status(Device *self)
      * software tells a 3041 from a 3038 (sec 3.5). */
     st.bits.controllerId = (data->controllerType == WD_CONTR_3041) ? 1 : 0;
 
+    /* Bit 12. Sec 3.5 calls it "0 (Not used)", but the logic diagrams say
+     * otherwise, and a real 3041 reads it as 1 (the real-card trace in
+     * tests/test_winchester_units.c).
+     *
+     * 3041 (ST506), sec 7.11: the status bus driver 11F (74LS244) takes TR00
+     * on pin 13 and drives DB12 on pin 7; the bit-12 latch in 11E is not
+     * wired. Sec 7.9: TR00 is the drive's Track 000 line from cable pin Ra5
+     * through receiver 25A. The drive only answers on the cable when it is
+     * selected, and the select lines are US0 = NOT CR9 AND TEST0 and
+     * US1 = CR9 AND TEST0 (sec 7.9, 24A): control bit 9 picks the unit, and
+     * test mode (control bit 3) selects no drive at all. So bit 12 is 1 when
+     * the selected unit is out of test mode, attached, and has its heads on
+     * cylinder 0.
+     *
+     * The heads reach cylinder 0 only when a seek towards it ends, but
+     * nd100x sets disk->cylinder to the target when the seek starts, so the
+     * arrival is taken as onCylinder coming back. Leaving cylinder 0 drops
+     * TR00 at the first step, and that matches cylinder changing at once.
+     *
+     * 3038 (8 inch), sec 7.4: bit 12 there comes from an SB12 latch in 11E
+     * whose set signal is on another sheet and has NOT been traced, so it
+     * stays 0 for that card. */
+    if (data->controllerType == WD_CONTR_3041 && !data->regs.testMode && data->regs.selectedDisk &&
+        wd_unit_attached(self, data->regs.selectedDisk))
+    {
+        st.bits.track0 = (data->regs.selectedDisk->cylinder == 0 &&
+                          data->regs.selectedDisk->onCylinder)
+                             ? 1
+                             : 0;
+    }
+    else
+    {
+        st.bits.track0 = 0;
+    }
+
     /* Bit 15 always 0 - distinguishes this card from the 10 Mb controller. */
     st.bits.notUsed15 = 0;
-    st.bits.notUsed12 = 0;
 
     /* A status read is one of the four flip-flop reset conditions. */
     wd_clear_flip_flops(&data->regs);
