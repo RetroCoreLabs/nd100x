@@ -445,6 +445,10 @@ build/bin/nd100x --boot=floppy
 
 Now you have access to test programs like CONFIG, PAGING, INSTRUCTION and more.
 
+To test the disk controllers with DISC-TEMA, the disk test program on the same floppy, see
+[Testing the SMD and Winchester controllers with DISC-TEMA](docs/DISC-TEMA-TESTING.md). It walks
+through one session on each controller with the exact screens, and shows how the two react.
+
 ## I/O Devices
 
 ### Paper Tape Reader (I/O 0400-0403)

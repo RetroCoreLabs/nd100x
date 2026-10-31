@@ -197,7 +197,37 @@ interrupt only when bit 0 (`interruptEnabled`) is set. An illegal load sets b5 a
 
 
 
-**Found by:** code reading (NDDeviceCore port). Not yet shown by a run.
+**Found by:** code reading (NDDeviceCore port).
+
+
+
+**Shows up as:** DISC-TEMA COMPARE, unit 0 against a copy on unit 1 with one word changed
+
+(docs/DISC-TEMA-TESTING.md section 2.9). The word is found at the right track, but the report
+
+has bit 12 and a second line the Winchester report of the same change does not have:
+
+
+
+```
+
+            Hardware Status: 052031b
+
+            Controller finished
+
+            Compare error
+
+            Abnormal completion
+
+            Additional Status: 100000b
+
+            Controller not active after activate
+
+```
+
+
+
+Whether "Controller not active after activate" comes from this defect has not been established.
 
 
 
