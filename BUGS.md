@@ -659,11 +659,36 @@ a format, with the trace addresses, is in the comments at `scsihdd_command_mode_
 - The mode data length (byte 0 of the MODE SENSE reply) counts itself, as the RetroCore C# sets
   it. What the 1370 sends there has not been checked against a document.
 
-### C6. SCSI tape and CD-ROM targets are not implemented
+### C6. SCSI tape: what is not as the drive, and the CD-ROM target
 
-`--scsiN=tape:FILE` and `--scsiN=cdrom:FILE` are parsed, but only the hard disk exists
-(`--help` says "not implemented yet"). SCSI-TV has tests for magtape (20 to 23) and streamer
-(30 to 32); none of the SCSI-TV versions lists a CD-ROM.
+The streamer exists since 2026-11-01: `--scsiN=tape:FILE` is a Tandberg TDC 3600 on a SIMH
+`.tap` image (`src/devices/scsi/scsi_tape.c`, `tape_image.c`), built from the Tandberg TDC
+3620/40/60 Reference Manual. Tests: `tests/test_scsi_tape.c`. SCSI-TV on a blank tape at ID 1
+passes device tests 1, 2, 4, 5, 30, 31 and 32 with 0 errors.
+
+**Still red:**
+
+- **SCSI-TV device test 3 (Extended drive self test) ends with 1 error.** SCSI-TV sends SEND
+  DIAGNOSTIC `1D 07 00 00 00 00`: self test with DevOfl and UniOfl both set. The Tandberg manual
+  (9.3.18) calls that Selftest 2, an acceptance test that writes and reads the tape. The target
+  refuses it with ILLEGAL REQUEST and an error in the log, because the test itself (what it
+  writes, where, and what it reports) is not described in the manual. The two sources disagree on
+  what should happen: ND-210523G, "3.5 Known but not Corrected Errors", says "Device test 3
+  (Extended drive self test) executed on TANDBERG TDC 3600 will perform no operation". Which of
+  the two a real drive does with SCSI-TV has not been measured.
+- **COPY (18h) and linked commands** are refused with ILLEGAL REQUEST and an error in the log.
+  Nothing on the ND side has been seen to send them.
+- **Filemarks count as blocks** for READ POSITION / LOCATE block addresses. The manual does not
+  say; it is marked as an assumption at `tape_image_block_address`.
+- **Two Unit Attention assumptions** (comment in `tdc_command`): after power-on, reset or a new
+  cartridge the tape is taken to be back at the start (the manual says "logically unloaded"), and
+  a REQUEST SENSE as the first command returns the Unit Attention sense and clears it (the manual
+  does not say).
+- **Magtape is not there.** SCSI-TV device tests 20 to 23 are for the HP 88780 / NDSTK 2925
+  magtape; `--scsiN=tape:` is always the streamer.
+
+**CD-ROM:** `--scsiN=cdrom:FILE` is parsed but not implemented (`--help` says so). No ND CD-ROM
+product has been found, and none of the SCSI-TV versions lists one.
 
 ## Console terminal (`src/devices/terminal/device_terminal.c`)
 

@@ -650,6 +650,8 @@ add_executable(test_scsi
     ${CMAKE_SOURCE_DIR}/src/devices/scsi/scsi_bus.c
     ${CMAKE_SOURCE_DIR}/src/devices/scsi/scsi_device.c
     ${CMAKE_SOURCE_DIR}/src/devices/scsi/scsi_hdd.c
+    ${CMAKE_SOURCE_DIR}/src/devices/scsi/scsi_tape.c
+    ${CMAKE_SOURCE_DIR}/src/devices/scsi/tape_image.c
     ${CMAKE_SOURCE_DIR}/src/devices/scsi/disk_scsi.c
     ${CMAKE_SOURCE_DIR}/src/devices/device.c
 )
@@ -691,6 +693,30 @@ target_link_libraries(test_scsi_hdd PRIVATE ${ND_LINK_GROUP_BEGIN} ndlib ${ND_LI
 add_dependencies(test_scsi_hdd cpu devices)
 
 add_test(NAME scsi_hdd_tests COMMAND test_scsi_hdd)
+
+# The SCSI streamer target (Tandberg TDC 3600) and its SIMH .tap layer.
+#
+# scsi_tape.c and tape_image.c are INCLUDED by the test so the static command
+# decoder and data hooks can be called directly; they are therefore NOT listed
+# here.
+add_executable(test_scsi_tape
+    test_scsi_tape.c
+    ${CMAKE_SOURCE_DIR}/src/devices/scsi/scsi_bus.c
+    ${CMAKE_SOURCE_DIR}/src/devices/scsi/scsi_device.c
+)
+
+target_include_directories(test_scsi_tape PRIVATE
+    ${CMAKE_SOURCE_DIR}/src/devices
+    ${CMAKE_SOURCE_DIR}/src/cpu
+    ${CMAKE_SOURCE_DIR}/src/machine
+    ${CMAKE_SOURCE_DIR}/src/ndlib
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(test_scsi_tape PRIVATE ${ND_LINK_GROUP_BEGIN} ndlib ${ND_LINK_GROUP_END} m)
+add_dependencies(test_scsi_tape cpu devices)
+
+add_test(NAME scsi_tape_tests COMMAND test_scsi_tape)
 
 # The SMD controller's memory address and word count registers: the 10/15 MHz
 # card's shared flip-flop and the ND-120 mass storage load's single +7 write.

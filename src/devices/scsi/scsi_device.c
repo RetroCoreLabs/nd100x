@@ -232,6 +232,22 @@ void scsi_device_data_out(SCSITarget *t, SBUF buf, int size)
 }
 
 
+void scsi_device_end_data_phase(SCSITarget *t)
+{
+    uint16_t main_state = t->scsi_state & SCSI_STATE_MASK;
+    if (main_state != TS_TARGET_WAIT_DATA_IN_BYTE && main_state != TS_TARGET_WAIT_DATA_OUT_BYTE)
+    {
+        return;
+    }
+    /* Keep the byte-handshake substate: the byte now on the bus finishes its
+     * REQ/ACK, and then the state machine pops the next queued phase instead
+     * of asking for another data byte. */
+    t->scsi_state = (uint16_t)((t->scsi_state & SCSI_SUB_MASK) | TS_TARGET_NEXT_CONTROL);
+    scsi_target_log(t, "data phase ended early at byte %d of %d", t->data_buffer_pos,
+                    t->data_buffer_size);
+}
+
+
 /* Queue STATUS + COMMAND COMPLETE message + BUS FREE. */
 void scsi_device_status_complete(SCSITarget *t, uint8_t status)
 {
@@ -421,6 +437,10 @@ static void scsi_target_step(SCSITarget *t, bool timeout)
     {
         scsi_target_log(t, "scsi bus reset");
         scsi_device_device_reset(t);
+        if (t->scsi_bus_reset)
+        {
+            t->scsi_bus_reset(t);
+        }
         return;
     }
 

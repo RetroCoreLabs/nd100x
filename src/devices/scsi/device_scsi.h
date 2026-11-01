@@ -44,17 +44,15 @@
  *   --scsi0=hdd:/path/to/image
  * and handed to the controller via DeviceManager_AddSCSIDevice_WithConfig().
  *
- * Only SCSI_UNIT_HDD is implemented today. The others are accepted by the
- * command line and reserved here so the target vtable and the CLI grammar do
- * not have to change when they land. RetroCore's ND path only ever
- * instantiates SCSIHDDMicropolis, so there is no validated ND-100 reference
- * behaviour for the other classes yet.
+ * SCSI_UNIT_HDD (scsi_hdd.c) and SCSI_UNIT_TAPE (scsi_tape.c, a Tandberg TDC
+ * 3600 streamer with a SIMH .tap image) are implemented. The others are
+ * accepted by the command line and refused by scsi_set_unit_type.
  */
 // clang-format off
 typedef enum {
     SCSI_UNIT_NONE = 0,  /* no target at this SCSI ID */
     SCSI_UNIT_HDD,       /* Micropolis 1375-ND hard disk (implemented) */
-    SCSI_UNIT_TAPE,      /* streamer tape (not implemented) */
+    SCSI_UNIT_TAPE,      /* Tandberg TDC 3600 streamer (implemented) */
     SCSI_UNIT_CDROM,     /* CD-ROM (not implemented) */
     SCSI_UNIT_FLOPPY     /* SCSI floppy (not implemented) */
 } SCSIUnitType;

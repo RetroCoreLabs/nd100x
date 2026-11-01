@@ -782,6 +782,8 @@ int devmgr_boot_from(DeviceType, int);
 #include "./scsi/scsi_device.h"
 #include "./scsi/disk_scsi.h"
 #include "./scsi/scsi_hdd.h"
+#include "./scsi/tape_image.h"
+#include "./scsi/scsi_tape.h"
 #include "./scsi/device_scsi.h"
 #include "./drum/device_drum.h"
 #include "./cdc/device_cdc.h"

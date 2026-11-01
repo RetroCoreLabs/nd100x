@@ -40,7 +40,7 @@ Options:
            --scsi6=[TYPE:]FILE  SCSI ID 6 target image
                           TYPE is one of:
                             hdd     Micropolis 1375-ND hard disk (default)
-                            tape    streamer tape           (not implemented yet)
+                            tape    Tandberg TDC 3600 streamer, SIMH .tap image
                             cdrom   CD-ROM                  (not implemented yet)
                             floppy  SCSI floppy             (not implemented yet)
                           SCSI ID 7 is the controller itself and cannot be a target.

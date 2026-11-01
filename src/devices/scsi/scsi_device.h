@@ -174,6 +174,10 @@ typedef struct SCSITarget {
      * which case the default cmdbuf/sense-buffer behaviour is used. */
     uint8_t (*scsi_get_data)(struct SCSITarget *self, SBUF id, int pos);
     void    (*scsi_put_data)(struct SCSITarget *self, SBUF id, int pos, uint8_t data);
+    /* Called after the base state is reset by a SCSI bus RST condition, so
+     * the concrete target can post its own reset behaviour (UNIT ATTENTION,
+     * tape position). May be NULL. */
+    void    (*scsi_bus_reset)(struct SCSITarget *self);
 
     void *impl;   /* concrete target state (SCSIHDDData) */
 } SCSITarget;
@@ -218,6 +222,19 @@ void scsi_device_data_out(SCSITarget *t, SBUF buf, int size);
  * @param status SCSI status byte to report.
  */
 void scsi_device_status_complete(SCSITarget *t, uint8_t status);
+
+/**
+ * @brief End the DATA IN or DATA OUT phase now in progress after the byte
+ *        being moved, before the queued size is reached.
+ *
+ * A target calls this from its scsi_get_data / scsi_put_data hook when the
+ * transfer has to stop early - a tape read that meets a filemark, a tape write
+ * that reaches the end of the tape. The target then moves to the next queued
+ * phase, which the hook queues itself (normally STATUS). The initiator sees
+ * the phase change and stops the transfer, as on a real bus.
+ * @param t Target whose data phase ends.
+ */
+void scsi_device_end_data_phase(SCSITarget *t);
 
 /* Sense handling. */
 /**

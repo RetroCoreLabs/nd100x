@@ -82,7 +82,7 @@ each device's `Ident` implementation, not invented:
   mount table has a single 2-slot pool, so config exposes wheel 0 only.
 - **scsi** — wheel 0-3, IOX bases `{0144300,0144400,0144500,0144600}`
   (`devicemanager.c:147`), disc, 7 slots (IDs 0-6; ID 7 = controller),
-  media hdd/cdrom/tape/floppy (only hdd implemented), bootable.
+  media hdd/cdrom/tape/floppy (hdd and tape implemented), bootable.
 - **hdlc** — wheel 1-4, IOX bases `{01640,01660,01700,01720}`
   (`devicemanager.c:169`), not a disc (network), not bootable.
 - **rtc / console** — the ONLY permanent devices besides the CPU. Always added,

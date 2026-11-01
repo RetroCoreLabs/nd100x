@@ -1357,7 +1357,7 @@ void config_print_help(const char *prog_name)
     printf("           --scsi6=[TYPE:]FILE  SCSI ID 6 target image\n");
     printf("                          TYPE is one of:\n");
     printf("                            hdd     Micropolis 1375-ND hard disk (default)\n");
-    printf("                            tape    streamer tape           (not implemented yet)\n");
+    printf("                            tape    Tandberg TDC 3600 streamer, SIMH .tap image\n");
     printf("                            cdrom   CD-ROM                  (not implemented yet)\n");
     printf("                            floppy  SCSI floppy             (not implemented yet)\n");
     printf(

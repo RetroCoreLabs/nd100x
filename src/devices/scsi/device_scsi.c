@@ -49,6 +49,11 @@ typedef struct
     NCR5386 ncr;
     SCSIHDDDevice disks[SCSI_MAX_UNITS];
     bool diskPresent[SCSI_MAX_UNITS];
+    /* Streamers are allocated when a unit is set to 'tape': each one holds
+     * the drive's 64 KB data buffer, too much to keep for every SCSI id. */
+    SCSITapeDevice *tapes[SCSI_MAX_UNITS];
+    /* Every attached target whatever its class, for the clock check. */
+    SCSITarget *targets[SCSI_MAX_UNITS];
 
     /* ---- ND card registers ---- */
     uint16_t memoryAddressLSB;  /* MAR bits 0-15 */
@@ -168,17 +173,26 @@ bool scsi_set_unit_type(Device *dev, int unit, SCSIUnitType type)
         return false;
     }
 
-    /* Only the hard disk target is implemented. Reject the rest loudly rather
-     * than silently mounting an image that nothing will ever answer for. */
-    if (type != SCSI_UNIT_HDD && type != SCSI_UNIT_NONE)
+    /* The disk and the streamer are implemented. Reject the rest loudly
+     * rather than silently mounting an image that nothing will ever answer
+     * for. */
+    if (type != SCSI_UNIT_HDD && type != SCSI_UNIT_TAPE && type != SCSI_UNIT_NONE)
     {
         LOG(LOG_CAT_SCSI, LOG_ERROR,
-            "SCSI: unit %d type '%s' is not implemented yet (only 'hdd')\n", unit,
+            "SCSI: unit %d type '%s' is not implemented yet (only 'hdd' and 'tape')\n", unit,
             scsi_unit_type_name(type));
         return false;
     }
 
     SCSIData *data = (SCSIData *)dev->deviceData;
+    if (data->targets[unit] && data->unitType[unit] != type)
+    {
+        /* A target is on the bus at this id already; a second one would
+         * answer the same selection. */
+        LOG(LOG_CAT_SCSI, LOG_ERROR, "SCSI: unit %d is already attached as '%s'\n", unit,
+            scsi_unit_type_name(data->unitType[unit]));
+        return false;
+    }
     data->unitType[unit] = type;
 
     if (type == SCSI_UNIT_HDD && !data->diskPresent[unit])
@@ -186,7 +200,23 @@ bool scsi_set_unit_type(Device *dev, int unit, SCSIUnitType type)
         scsi_hdd_init(&data->disks[unit], &data->bus, (uint8_t)unit, dev, unit,
                       SCSI_DISK_MICROPOLIS_1375_ND);
         data->diskPresent[unit] = true;
+        data->targets[unit] = &data->disks[unit].target;
         scsi_log("unit %d attached as hdd (Micropolis 1375-ND)", unit);
+    }
+
+    if (type == SCSI_UNIT_TAPE && !data->tapes[unit])
+    {
+        SCSITapeDevice *tape = (SCSITapeDevice *)malloc(sizeof(SCSITapeDevice));
+        if (!tape)
+        {
+            LOG(LOG_CAT_SCSI, LOG_ERROR, "SCSI: unit %d: out of memory for the tape drive\n",
+                unit);
+            return false;
+        }
+        scsi_tape_init(tape, &data->bus, (uint8_t)unit, dev, unit);
+        data->tapes[unit] = tape;
+        data->targets[unit] = &tape->target;
+        scsi_log("unit %d attached as tape (Tandberg TDC 3600)", unit);
     }
 
     return true;
@@ -806,7 +836,7 @@ static bool scsi_tick_needed(Device *self)
     }
     for (int u = 0; u < SCSI_MAX_UNITS; u++)
     {
-        if (data->diskPresent[u] && data->disks[u].target.timerEnabled)
+        if (data->targets[u] && data->targets[u]->timerEnabled)
         {
             return true;
         }
@@ -954,8 +984,24 @@ static void scsi_destroy(Device *dev)
         return;
     }
 
-    /* The bus, chip and targets are all embedded in SCSIData - nothing to free
-     * beyond deviceData itself, which the generic teardown handles. */
+    /* The bus, chip and disk targets are embedded in SCSIData, which the
+     * generic teardown frees. Tape drives are allocated: write back what
+     * their image cache holds, then free them. */
+    SCSIData *data = (SCSIData *)dev->deviceData;
+    if (!data)
+    {
+        return;
+    }
+    for (int u = 0; u < SCSI_MAX_UNITS; u++)
+    {
+        if (data->tapes[u])
+        {
+            scsi_tape_flush(data->tapes[u]);
+            free(data->tapes[u]);
+            data->tapes[u] = NULL;
+            data->targets[u] = NULL;
+        }
+    }
 }
 
 

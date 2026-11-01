@@ -92,6 +92,7 @@ This project continues from nd100em version 0.2.4 and includes significant enhan
   * SMD Hard Disk (75MB, 4 units)
   * Winchester Hard Disk (ST506/8" controller, cards 3041/3038, IOX 500-507, 2 units)
   * SCSI Hard Disk (ND-3201/3204 controller with NCR-5386 chip, Micropolis 1375-ND disks, SCSI IDs 0-6)
+  * SCSI Streamer (Tandberg TDC 3600, 512-byte blocks, SIMH .tap tape images)
   * Paper Tape Reader (buffer-based, BPUN file loading via CLI or Glass UI upload)
   * Paper Tape Punch (output to file and Glass UI hex/ASCII display with download)
   * Line Printer (CDC 9380, output to file and Glass UI window)
@@ -114,7 +115,7 @@ This project continues from nd100em version 0.2.4 and includes significant enhan
   * DAP debugger integration for step-by-step debugging
 * Planned
   * Ethernet device emulation
-  * SCSI tape, CD-ROM and floppy targets (the SCSI hard disk is implemented)
+  * SCSI CD-ROM and floppy targets (the SCSI hard disk and streamer are implemented)
 
 ## Project Structure
 
@@ -273,6 +274,19 @@ when at least one `--scsi0` through `--scsi6` target is given, so existing SMD
 machine configurations are unaffected. Both controllers can be enabled at the
 same time with their own disks, and the `--boot` selector picks which one to
 boot from.
+
+A SCSI target can also be a streamer: `--scsi1=tape:TAPE.IMG` puts a Tandberg
+TDC 3600 at SCSI ID 1. The image is a SIMH `.tap` file, and its size is the
+length of the tape. A blank 125 MB cartridge is a file of that size filled with
+FF bytes (FFFFFFFF is the SIMH end-of-data marker):
+
+```bash
+head -c 131072000 /dev/zero | tr '\0' '\377' > TAPE.IMG
+build/bin/nd100x --boot=smd --scsi1=tape:TAPE.IMG
+```
+
+The drive is built from the Tandberg TDC 3620/40/60 Reference Manual. What still
+differs from the real drive is listed in [BUGS.md](BUGS.md), entry C6.
 
 ## Running SINTRAN in the Emulator
 
