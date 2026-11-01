@@ -663,19 +663,32 @@ a format, with the trace addresses, is in the comments at `scsihdd_command_mode_
 
 The streamer exists since 2026-11-01: `--scsiN=tape:FILE` is a Tandberg TDC 3600 on a SIMH
 `.tap` image (`src/devices/scsi/scsi_tape.c`, `tape_image.c`), built from the Tandberg TDC
-3620/40/60 Reference Manual. Tests: `tests/test_scsi_tape.c`. SCSI-TV on a blank tape at ID 1
-passes device tests 1, 2, 4, 5, 30, 31 and 32 with 0 errors.
+3620/40/60 Reference Manual. Tests: `tests/test_scsi_tape.c`. On a blank tape at ID 1, both
+SCSI-TV B00 (floppy 210523G02-XX-02D) and SCSI-TV C04 (floppy 210523I01-XX-02D) pass device tests
+1, 2, 4, 5, 30, 31 and 32 with 0 errors (`RUN-DEVICE-TESTS ALL-TESTS`, 2026-11-01). C04 also
+runs LIST-PRESENT-DEVICES (it shows "Seq Rem TANDBERG TDC 3600", block size 512),
+PRINT-TAPE-STATISTICS, TAPE-SERVICES REWIND / UNLOAD / LOAD, DUMP-SENSE-DATA and CLEAR-DEVICE
+without an error.
+
+READ BUFFER and WRITE BUFFER are the standard SCSI commands (WRITE BUFFER 3Bh, READ BUFFER 3Ch,
+T10 operation code list). The scanned Tandberg manual prints them the other way round. Until
+2026-11-01 the target followed the manual: C04 device test 4 then failed, and B00 test 4 passed
+without moving any data, because it read no buffer header and so wrote 0 bytes. With the standard
+codes both versions move real data (C04 24 x 48 KB, B00 24 x 65531 bytes).
+
+SCSI-TV device test 3 (Extended drive self test) sends SEND DIAGNOSTIC `1D 07 00 00 00 00`,
+Selftest 2. Since 2026-11-01 the target answers GOOD with no operation and no tape motion, as
+ND-210523G, "3.5 Known but not Corrected Errors", says the TDC 3600 does ("Device test 3 ...
+executed on TANDBERG TDC 3600 will perform no operation"). Ronny chose that. C04 test 3 now ends
+with no error. The Tandberg manual (9.3.18) calls Selftest 2 an acceptance test that writes and
+reads the tape, without describing it. **Open:** what a real drive answers has not been measured.
+
+Under SINTRAN L the streamer also does a full BACKUP-SYSTEM DEVICE-COPY of a 36945-page disk to
+tape and back, both "- OK", and the restored disk is identical to the tape data (NDInsight
+`SINTRAN/Devices/SCSI/SCSI-STORAGE-UNDER-SINTRAN.md` sections 9.0 and 10).
 
 **Still red:**
 
-- **SCSI-TV device test 3 (Extended drive self test) ends with 1 error.** SCSI-TV sends SEND
-  DIAGNOSTIC `1D 07 00 00 00 00`: self test with DevOfl and UniOfl both set. The Tandberg manual
-  (9.3.18) calls that Selftest 2, an acceptance test that writes and reads the tape. The target
-  refuses it with ILLEGAL REQUEST and an error in the log, because the test itself (what it
-  writes, where, and what it reports) is not described in the manual. The two sources disagree on
-  what should happen: ND-210523G, "3.5 Known but not Corrected Errors", says "Device test 3
-  (Extended drive self test) executed on TANDBERG TDC 3600 will perform no operation". Which of
-  the two a real drive does with SCSI-TV has not been measured.
 - **COPY (18h) and linked commands** are refused with ILLEGAL REQUEST and an error in the log.
   Nothing on the ND side has been seen to send them.
 - **Filemarks count as blocks** for READ POSITION / LOCATE block addresses. The manual does not
@@ -690,23 +703,28 @@ passes device tests 1, 2, 4, 5, 30, 31 and 32 with 0 errors.
 **CD-ROM:** `--scsiN=cdrom:FILE` is parsed but not implemented (`--help` says so). No ND CD-ROM
 product has been found, and none of the SCSI-TV versions lists one.
 
-## Console terminal (`src/devices/terminal/device_terminal.c`)
+## Interrupt system
 
-### T1. SINTRAN never sees a key typed at the console under `--pipe`
+### I1. TPE-MON cannot clear IDENT on levels 8 to 11 at start-up
 
-**Found by:** booting `SMD0.IMG` (`--boot=smd`) and `SCSI0.IMG` (`--boot=scsi0`) from copies with
-`--pipe`, with stdin a pty in raw mode, and sending ESC every 15 seconds for 300 seconds after
-"SINTRAN III RUNNING" / "SYSTEM IS AVAILABLE". SINTRAN never answers with "ENTER". The build of
-b12ecdb does exactly the same, so it is older than the IDENT change.
+**Found by:** every TPE-MON start in the SCSI-TV runs of 2026-11-01, booting copies of the TPE
+floppies 210523G02-XX-02D (TPE-MON-100-B00) and 210523I01-XX-02D (TPE-MON-100-B01) with
+`--boot=floppy --pipe`. It shows the same with no SCSI controller, with a SCSI disk, and with the
+SCSI streamer, so no SCSI target causes it.
 
-**What is known:** with `--log=term:trace`, the console input status (IOX 302) reads 5 every time
-(interrupt enabled, device activated) and never has bit 3 (ready for transfer). After the boot
-messages SINTRAN does not touch the console registers again, so level 12 was never raised for
-the key. TPE-MON on the same front end reads typed lines (it polls the console instead of waiting
-for the interrupt), so the bytes reach `kbd_read_key_event`. `terminal_tick` hands a queued key to
-the UART only while the OUTPUT side is ready for transfer; SINTRAN's last write to the output
-control register (IOX 307) was 0. Whether that condition holds the key back, and whether the same
-happens without `--pipe`, is not traced.
+**Shows up as:** before the TPE banner, four times:
+
+```
+*** TPE initialization error ***
+Impossible to clear IDENT on level  8
+```
+
+for levels 8, 9, 10 and 11. The monitor then starts and the test programs run.
+
+**What is known:** inferred from the message only (not traced): TPE-MON reads IDENT on each level
+until no device answers, and on these four levels some device keeps answering. Which device, and which IOX sequence TPE-MON uses
+to clear it, is not traced. The ND manual for TPE-MON (ND-30.005) has not been checked for what
+the test expects.
 
 ## DAP debugger (`src/debugger/`, `external/libdap`)
 

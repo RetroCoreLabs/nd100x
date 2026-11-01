@@ -62,11 +62,17 @@
 #define TDC_LOAD_UNLOAD          0x1B
 #define TDC_SEND_DIAGNOSTIC      0x1D
 #define TDC_PREVENT_ALLOW        0x1E
-/* Section 9.3.10 and 9.3.23: on this drive READ DATA BUFFER is 3Bh and WRITE
- * DATA BUFFER is 3Ch - the other way round from SCSI-2 (where WRITE BUFFER is
- * 3Bh). Both the headings and the CDB bit patterns in the manual say so. */
-#define TDC_READ_DATA_BUFFER     0x3B
-#define TDC_WRITE_DATA_BUFFER    0x3C
+/* READ BUFFER and WRITE BUFFER are the standard SCSI commands: WRITE BUFFER is
+ * 3Bh and READ BUFFER is 3Ch (T10 operation code list; SCSI-2 sections
+ * 7.2.17 and 7.2.12). The scanned Tandberg manual prints the two the other way
+ * round (sections 9.3.10 "Read Data Buffer (3BH)" and 9.3.23 "Write Data
+ * Buffer (3CH)", and its command table). ND's SCSI-TV, written for this drive
+ * (B00 and C04, device test 4), sends 3Ch with an allocation length of 4 to
+ * read the header first, then 3Bh to write and 3Ch to read the data back -
+ * the standard meaning. With the manual's meaning that sequence reads before
+ * it writes, and test 4 fails on C04. The standard is followed here. */
+#define TDC_WRITE_DATA_BUFFER    0x3B
+#define TDC_READ_DATA_BUFFER     0x3C
 // clang-format on
 
 /* The only block length the drive has (section 9.3.9: "Since the block length

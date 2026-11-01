@@ -720,6 +720,33 @@ static void test_load_unload(void)
     CHECK(s.key == SK_UNIT_ATTENTION, "cartridge in: UNIT ATTENTION");
 }
 
+/* Section 9.3.18: SEND DIAGNOSTIC. Selftest 2 (STest + both offline bits) is
+ * "no operation" on the TDC 3600 per ND-210523G 3.5; that is what SCSI-TV
+ * device test 3 sends (1D 07 00 00 00 00). It must not move the tape. */
+static void test_send_diagnostic(void)
+{
+    printf("send diagnostic\n");
+    fresh(64 * 1024);
+    cdb6(TDC_SEND_DIAGNOSTIC, 0x04, 0, 0, 0, 0);
+    CHECK(status_of() == SS_GOOD, "Selftest 1: GOOD");
+
+    /* Move off the start so a hidden rewind would show. */
+    cdb6(TDC_WRITE_FILEMARK, 0, 0, 0, 1, 0);
+    cdb6(TDC_SEND_DIAGNOSTIC, 0x07, 0, 0, 0, 0);
+    CHECK(status_of() == SS_GOOD, "Selftest 2 (SCSI-TV test 3, 1D 07): GOOD, no operation");
+    cdb6(TDC_WRITE_FILEMARK, 0, 0, 0, 1, 0);
+    cdb6(TDC_REWIND, 0, 0, 0, 0, 0);
+    cdb6(TDC_SPACE, 0x01, 0, 0, 2, 0);
+    CHECK(status_of() == SS_GOOD, "two filemarks after Selftest 2: tape did not move");
+
+    cdb6(TDC_SEND_DIAGNOSTIC, 0x05, 0, 0, 0, 0);
+    CHECK(status_of() == SS_GOOD, "Selftest 1 with one offline bit: GOOD");
+    cdb6(TDC_SEND_DIAGNOSTIC, 0x04, 0, 0, 8, 0);
+    CHECK(sense().key == SK_ILLEGAL_REQUEST, "self test with a parameter list: ILLEGAL");
+    cdb6(TDC_SEND_DIAGNOSTIC, 0x00, 0, 0, 0, 0);
+    CHECK(sense().key == SK_ILLEGAL_REQUEST, "no STest and no offline bits: ILLEGAL");
+}
+
 /* Section 9.3.21: Verify with byte compare. */
 static void test_verify(void)
 {
@@ -751,11 +778,41 @@ static void test_verify(void)
     CHECK(s.key == SK_BLANK_CHECK && s.info == 1, "VERIFY 3 without BC: end of data, residue 1");
 }
 
-/* Sections 9.3.10 and 9.3.23: Read Data Buffer 3Bh, Write Data Buffer 3Ch. */
+/* A ten-byte CDB with byte 1 (mode) and the three-byte length in bytes 6-8,
+ * the SCSI-2 READ BUFFER / WRITE BUFFER layout. */
+static void cdb10_buffer(uint8_t op, uint8_t mode, uint32_t len)
+{
+    SCSITarget *t = &s_tape.target;
+    uint8_t cdb[10] = {op, mode, 0, 0, 0, 0, (uint8_t)(len >> 16), (uint8_t)(len >> 8), (uint8_t)len, 0};
+    for (int i = 0; i < 10; i++)
+    {
+        tdc_put_data(t, SBUF_MAIN, i, cdb[i]);
+    }
+    t->scsi_cmdsize = 10;
+    t->buf_control_rpos = 0;
+    t->buf_control_wpos = 0;
+    tdc_command(t);
+}
+
+/* READ BUFFER 3Ch and WRITE BUFFER 3Bh, the standard SCSI commands (T10 list,
+ * SCSI-2 7.2.12 / 7.2.17), with the data layout of Tandberg sections 9.3.10
+ * and 9.3.23. */
 static void test_data_buffer(void)
 {
     printf("read and write data buffer\n");
     fresh(64 * 1024);
+
+    CHECK(TDC_WRITE_DATA_BUFFER == 0x3B && TDC_READ_DATA_BUFFER == 0x3C,
+          "standard opcodes: WRITE BUFFER 3Bh, READ BUFFER 3Ch");
+
+    /* SCSI-TV device test 4 asks for the four-byte header first. */
+    uint8_t hdr[4];
+    cdb10(TDC_READ_DATA_BUFFER, 4);
+    CHECK(phase_size(BC_DATA_IN) == 4, "READ BUFFER 4: a DATA IN of 4 bytes");
+    CHECK(data_in(hdr, 4) == 4 && hdr[0] == 0 && hdr[1] == 0 && hdr[2] == 0xFF && hdr[3] == 0xFB,
+          "header: available length 65531");
+    CHECK(status_of() == SS_GOOD, "GOOD");
+
     uint8_t out[4 + 100];
     memset(out, 0, 4);
     for (int i = 0; i < 100; i++)
@@ -778,6 +835,21 @@ static void test_data_buffer(void)
      * 65531, so it is taken. */
     cdb10(TDC_WRITE_DATA_BUFFER, 0xFFFF);
     CHECK(phase_size(BC_DATA_OUT) == 0xFFFF, "WRITE DATA BUFFER FFFFh: all of it taken");
+
+    /* The length has three bytes; 10000h is more than header + 65531. */
+    cdb10_buffer(TDC_WRITE_DATA_BUFFER, 0, 0x10000);
+    CHECK(status_of() == SS_CHECK_CONDITION && sense().key == SK_ILLEGAL_REQUEST,
+          "WRITE BUFFER 10000h: ILLEGAL REQUEST");
+    cdb10_buffer(TDC_READ_DATA_BUFFER, 0, 0x10000);
+    CHECK(phase_size(BC_DATA_IN) == 4 + 65531, "READ BUFFER 10000h: cut to header + 65531");
+
+    /* Only mode 000b (header and data) is known for this drive. */
+    cdb10_buffer(TDC_WRITE_DATA_BUFFER, 0x05, 4);
+    CHECK(status_of() == SS_CHECK_CONDITION && sense().key == SK_ILLEGAL_REQUEST,
+          "WRITE BUFFER mode 5 (download microcode): ILLEGAL REQUEST");
+    cdb10_buffer(TDC_READ_DATA_BUFFER, 0x02, 4);
+    CHECK(status_of() == SS_CHECK_CONDITION && sense().key == SK_ILLEGAL_REQUEST,
+          "READ BUFFER mode 2 (data only): ILLEGAL REQUEST");
 }
 
 /* scsi_device_end_data_phase: ends the data phase after the byte on the bus,
@@ -814,6 +886,7 @@ int main(void)
     test_erase();
     test_mode_select_sense();
     test_load_unload();
+    test_send_diagnostic();
     test_verify();
     test_data_buffer();
     test_end_data_phase();

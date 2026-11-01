@@ -1261,9 +1261,14 @@ static void tdc_command_erase(SCSITapeDevice *tape)
  *   STest = 0: both offline bits must be set; list length 0 is "no operation",
  *              8 is a Selftest 2 parameter block.
  * Selftest 1 checks the drive's own hardware, which has nothing that can fail
- * here, so it passes. Selftest 2 writes a test pattern over the cartridge
- * whose layout (section 10.1.2) is not modelled; it is refused with an error
- * log rather than passed without doing it. nd100x BUGS.md names it.
+ * here, so it passes. Selftest 2 is answered GOOD with no tape motion and
+ * nothing written. That follows ND, not Tandberg: ND-210523G, "3.5 Known but
+ * not Corrected Errors", says SCSI-TV device test 3 (which sends Selftest 2,
+ * 1D 07) "executed on TANDBERG TDC 3600 will perform no operation". The
+ * Tandberg manual calls Selftest 2 an acceptance test that writes and reads
+ * the cartridge, but does not say what it writes or reports (section
+ * 10.1.2). Chosen by Ronny, 2026-11-01. nd100x BUGS.md C6 keeps the open
+ * question of what a real drive answers.
  */
 static void tdc_command_send_diagnostic(SCSITapeDevice *tape)
 {
@@ -1302,9 +1307,8 @@ static void tdc_command_send_diagnostic(SCSITapeDevice *tape)
         }
     }
 
-    LOG(LOG_CAT_SCSI, LOG_ERROR,
-        "TAPE%d: SEND DIAGNOSTIC Selftest 2 (acceptance test) is not modelled\n", tape->unit);
-    tdc_illegal(tape, TDC_X_INAP);
+    tdc_log(tape, "SEND DIAGNOSTIC Selftest 2: no operation (ND-210523G 3.5)");
+    tdc_good(tape);
 }
 
 
@@ -1532,9 +1536,20 @@ static void tdc_command(SCSITarget *t)
 
     case TDC_READ_DATA_BUFFER:
     {
-        /* Section 9.3.10: allocation length in bytes 7-8; 0 is no data and
-         * not an error; never more than header + available length. */
-        int alloc = scsi_device_scsi_get_u16_be(&t->scsi_cmdbuf[7]);
+        /* SCSI-2 READ BUFFER: mode in byte 1 bits 0-2, allocation length in
+         * bytes 6-8. Only mode 000b (header and data) is known for this drive:
+         * the Tandberg manual describes exactly that layout (section 9.3.10:
+         * four-byte header, then the buffer data). Any other mode is refused
+         * loudly. Length 0 is no data and not an error; never more than
+         * header + available length. */
+        if ((t->scsi_cmdbuf[1] & 0x07) != 0)
+        {
+            LOG(LOG_CAT_SCSI, LOG_ERROR, "TAPE%d: READ BUFFER mode %d is not supported\n",
+                tape->unit, t->scsi_cmdbuf[1] & 0x07);
+            tdc_illegal(tape, TDC_X_BADC);
+            break;
+        }
+        int alloc = ((int)t->scsi_cmdbuf[6] << 16) | scsi_device_scsi_get_u16_be(&t->scsi_cmdbuf[7]);
         int max = TDC_DATA_BUFFER_HEADER + TDC_DATA_BUFFER_AVAILABLE;
         if (alloc > max)
         {
@@ -1550,9 +1565,19 @@ static void tdc_command(SCSITarget *t)
 
     case TDC_WRITE_DATA_BUFFER:
     {
-        /* Section 9.3.23: a length above header + available length is
-         * ILLEGAL REQUEST and no data is taken. */
-        int len = scsi_device_scsi_get_u16_be(&t->scsi_cmdbuf[7]);
+        /* SCSI-2 WRITE BUFFER: mode in byte 1 bits 0-2, transfer length in
+         * bytes 6-8. Only mode 000b (header and data, section 9.3.23 of the
+         * Tandberg manual) is known; other modes, among them download
+         * microcode, are refused loudly. A length above header + available
+         * length is ILLEGAL REQUEST and no data is taken (section 9.3.23). */
+        if ((t->scsi_cmdbuf[1] & 0x07) != 0)
+        {
+            LOG(LOG_CAT_SCSI, LOG_ERROR, "TAPE%d: WRITE BUFFER mode %d is not supported\n",
+                tape->unit, t->scsi_cmdbuf[1] & 0x07);
+            tdc_illegal(tape, TDC_X_BADC);
+            break;
+        }
+        int len = ((int)t->scsi_cmdbuf[6] << 16) | scsi_device_scsi_get_u16_be(&t->scsi_cmdbuf[7]);
         if (len > TDC_DATA_BUFFER_HEADER + TDC_DATA_BUFFER_AVAILABLE)
         {
             tdc_illegal(tape, TDC_X_BADC);
