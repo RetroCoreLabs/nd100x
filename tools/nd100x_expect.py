@@ -235,6 +235,60 @@ class FloppyCatalog:
         return CATALOG_ARCHIVE_BASE + urllib.parse.quote(entry["image_path"])
 
 
+def _md5_of_file(path):
+    import hashlib
+    h = hashlib.md5()
+    with open(path, "rb") as f:
+        while True:
+            block = f.read(1 << 20)
+            if not block:
+                return h.hexdigest()
+            h.update(block)
+
+
+def fetch_image(url, md5, dest_dir=None, timeout=180):
+    """Download one archive image to dest_dir/<md5>.img and return that path.
+
+    The archive stores .img.gz; a .gz URL is unpacked. The unpacked bytes must have
+    the md5 the catalog names, or ValueError is raised and nothing is kept. A file
+    already in dest_dir is used only if its md5 is right (a wrong one is fetched
+    again). The download is written under a temporary name and renamed when
+    complete, so a stopped run never leaves a half file that looks finished."""
+    import gzip, tempfile, urllib.request
+    md5 = md5.lower()
+    dest_dir = dest_dir or tempfile.gettempdir()
+    os.makedirs(dest_dir, exist_ok=True)
+    dest = os.path.join(dest_dir, md5 + ".img")
+    if os.path.isfile(dest) and _md5_of_file(dest) == md5:
+        return dest
+    sys.stderr.write("[catalog] downloading %s -> %s\n" % (url, dest))
+    req = urllib.request.Request(url, headers={"User-Agent": CATALOG_USER_AGENT})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        data = r.read()
+    if url.endswith(".gz"):
+        data = gzip.decompress(data)
+    import hashlib
+    got = hashlib.md5(data).hexdigest()
+    if got != md5:
+        raise ValueError("catalog: %s has md5 %s, the catalog says %s" % (url, got, md5))
+    part = dest + ".part"
+    with open(part, "wb") as f:
+        f.write(data)
+    os.replace(part, dest)
+    return dest
+
+
+def fetch_catalog_image(md5, dest_dir=None):
+    """Look `md5` up in the floppy catalog, download it (checked) and return the path.
+    For a floppy that must be in the machine INI before boot; after boot use
+    Nd100x.mount_catalog()."""
+    cat = FloppyCatalog.load()
+    entry = cat.find_md5(md5)
+    if entry is None:
+        raise LookupError("catalog: no disk with md5 %s" % md5)
+    return fetch_image(cat.image_url(entry), entry["md5"], dest_dir)
+
+
 class Nd100x:
     """A running nd100x subprocess you can expect()/send() against."""
 
@@ -462,6 +516,46 @@ class Nd100x:
         self.note("wait %g s" % seconds)
         time.sleep(seconds)
 
+    def settle(self, quiet=3.0, timeout=600, abort=None):
+        """Wait until the machine has printed nothing for `quiet` seconds and return
+        the output since the previous expect()/settle(); the next expect() starts
+        after it. Use it to stop at a question whose last character is not known
+        in advance (ND installers end questions with ':', '?', or 'type "CR"').
+        A long silent step ("Wait....") also settles, so the caller decides from
+        the returned text whether it is a question or a pause and calls settle()
+        again for a pause. Raises ExpectAbort when `abort` appears, ExpectTimeout
+        when the output never goes quiet within `timeout`."""
+        aborts = [] if abort is None else ([abort] if isinstance(abort, (str, bytes, Regex)) else list(abort))
+        abort_re = [_compile_pattern(p) for p in aborts]
+        start = self._raw_since_match
+        deadline = time.time() + timeout
+        with self._lock:
+            seen = len(self._buf)
+        changed = time.time()
+        while True:
+            time.sleep(0.1)
+            with self._lock:
+                n = len(self._buf)
+                window = bytes(self._buf[start:n])
+            for rx in abort_re:
+                m = rx.search(window)
+                if m:
+                    self._raw_since_match = start + m.end()
+                    raise ExpectAbort("abort pattern %r matched: ...%s" %
+                                      (rx.pattern.decode(errors="replace"),
+                                       window[max(0, m.start()-40):m.end()+10].decode(errors="replace")))
+            now = time.time()
+            if n != seen:
+                seen, changed = n, now
+            elif now - changed >= quiet:
+                self._raw_since_match = n
+                return window.decode("latin-1")
+            if self._proc.poll() is not None:
+                raise ExpectTimeout("nd100x exited while waiting for output to settle")
+            if now > deadline:
+                raise ExpectTimeout("output did not settle within %ss; last output:\n%s"
+                                    % (timeout, window[-200:].decode(errors="replace")))
+
     # -- floppy hot-swap (--pipe control channel) --------------------------
     def _control(self, cmd):
         """Send a 0xFF-framed control line (intercepted by nd100x, not the terminal)."""
@@ -550,7 +644,6 @@ class Nd100x:
 
         Raises LookupError if nothing matches, and the usual ExpectAbort/ExpectTimeout
         from the mount confirmation."""
-        import urllib.request, tempfile
         matches = self.catalog_matches(md5=md5, directory=directory)
         if not matches:
             raise LookupError("catalog: no disk for md5=%r directory=%r" % (md5, directory))
@@ -562,19 +655,7 @@ class Nd100x:
                                  % (e["name"], e["directory_name"], e["pages"], e["md5"]))
             sys.stderr.write("    (pin one with md5=...)\n")
         entry = matches[0]
-        url = self._catalog().image_url(entry)
-        dest_dir = dest_dir or tempfile.gettempdir()
-        dest = os.path.join(dest_dir, entry["md5"] + ".img")
-        if not os.path.isfile(dest):                       # simple content-addressed cache
-            sys.stderr.write("[catalog] downloading %s -> %s\n" % (url, dest))
-            _req = urllib.request.Request(url, headers={"User-Agent": CATALOG_USER_AGENT})
-            with urllib.request.urlopen(_req, timeout=180) as _r:
-                _data = _r.read()
-            if url.endswith(".gz"):                        # the archive stores .img.gz
-                import gzip
-                _data = gzip.decompress(_data)
-            with open(dest, "wb") as _f:
-                _f.write(_data)
+        dest = fetch_image(self._catalog().image_url(entry), entry["md5"], dest_dir)
         self.mount(unit, os.path.abspath(dest), confirm=confirm, timeout=timeout)
         return dest
 

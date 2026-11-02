@@ -109,6 +109,11 @@ with Nd100x(config="config/ND5000.ini", boot="smd", smd0="ND5000.IMG",
 - **`vm.answer(text)`** — type an answer and wait for the next SINTRAN prompt: `@`, `ENTER` or a
   question ending in `:`.
 - **`vm.wait_quiet(seconds)`** — let the machine run without typing.
+- **`vm.settle(quiet=3, timeout=600, abort=None)`** — wait until nothing has been printed for
+  `quiet` seconds and return the output since the last wait. For installers whose questions
+  do not end in a fixed character (ND's end in `:`, `?` or `type "CR"`): settle, look at the
+  end of the text, answer or settle again. A silent "Wait...." also settles, so the caller
+  decides whether the text is a question.
 - **`vm.note(text)`** — write a step line into the transcript.
 - **`vm.pid`**, **`vm.copies`**, **`vm.log_lines()`** — the emulator's process id, the image
   copies made, the log lines kept.
@@ -186,6 +191,19 @@ with Nd100x(boot="smd", smd0="SMD0.IMG", cputype="ND120CX") as vm:
         vm.mount_catalog(0, directory="N-10-102-I")
 
     vm.sendline()                                 # press RETURN to continue
+```
+
+Every download is checked: the unpacked image must have the md5 the catalog names, or
+`ValueError` is raised and nothing is kept. The file is stored as `<md5>.img` and written
+under a temporary name first, so a stopped download never looks finished; a cached file is
+used only if its md5 is right. For a floppy that must be in the machine INI **before** boot,
+use the module functions instead of a running machine:
+
+```python
+import os
+from nd100x_expect import fetch_catalog_image, fetch_image
+path = fetch_catalog_image("395982991324b9425ecceaf71552f266",
+                           os.path.expanduser("~/.cache/nd100x/images"))
 ```
 
 A ready-to-run example is `tools/examples/mount_catalog_demo.py` (boots TPE, mounts a

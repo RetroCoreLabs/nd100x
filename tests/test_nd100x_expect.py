@@ -58,6 +58,46 @@ class ControlFrame(unittest.TestCase):
         self.assertEqual(m.group(1), "ok")
 
 
+class FetchImage(unittest.TestCase):
+    """fetch_image() against a local file:// URL - no network."""
+
+    def setUp(self):
+        import gzip, hashlib
+        self.dir = tempfile.mkdtemp(prefix="ndx-fetch-test-")
+        self.data = bytes(range(256)) * 40
+        self.md5 = hashlib.md5(self.data).hexdigest()
+        src = os.path.join(self.dir, "disk.img.gz")
+        with open(src, "wb") as f:
+            f.write(gzip.compress(self.data))
+        self.url = "file://" + src
+        self.out = os.path.join(self.dir, "out")
+
+    def tearDown(self):
+        shutil.rmtree(self.dir, ignore_errors=True)
+
+    def read(self, p):
+        with open(p, "rb") as f:
+            return f.read()
+
+    def test_downloads_unpacks_and_names_by_md5(self):
+        p = ne.fetch_image(self.url, self.md5, self.out)
+        self.assertEqual(os.path.basename(p), self.md5 + ".img")
+        self.assertEqual(self.read(p), self.data)
+        self.assertFalse(os.path.exists(p + ".part"))
+
+    def test_wrong_md5_raises_and_keeps_nothing(self):
+        with self.assertRaises(ValueError):
+            ne.fetch_image(self.url, "0" * 32, self.out)
+        self.assertEqual(os.listdir(self.out), [])
+
+    def test_damaged_cached_file_is_fetched_again(self):
+        os.makedirs(self.out)
+        bad = os.path.join(self.out, self.md5 + ".img")
+        with open(bad, "wb") as f:
+            f.write(b"half a file")
+        self.assertEqual(self.read(ne.fetch_image(self.url, self.md5, self.out)), self.data)
+
+
 class Session(unittest.TestCase):
     def setUp(self):
         self.dir = tempfile.mkdtemp(prefix="ndx-expect-test-")
@@ -147,6 +187,26 @@ class Session(unittest.TestCase):
             vm.escape(timeout=10)
             out = vm.answer("SYSTEM", timeout=10)
             self.assertIn("PASSWORD:", out)
+
+    def test_settle_returns_output_once_quiet(self):
+        with self.vm() as vm:
+            vm.expect("RUNNING", timeout=10)
+            vm.escape(timeout=10)
+            vm.login("SYSTEM")
+            vm.sendline("LIST-USERS")
+            out = vm.settle(quiet=0.5, timeout=10)
+            self.assertIn("OK LIST-USERS", out)
+            self.assertTrue(out.rstrip().endswith("@"))
+            self.assertEqual(vm.settle(quiet=0.3, timeout=10), "")  # nothing new since
+
+    def test_settle_abort(self):
+        with self.vm() as vm:
+            vm.expect("RUNNING", timeout=10)
+            vm.escape(timeout=10)
+            vm.login("SYSTEM")
+            vm.sendline("BAD THING")
+            with self.assertRaises(ne.ExpectAbort):
+                vm.settle(quiet=0.5, timeout=10, abort="BAD")
 
     def test_send_refuses_0xff(self):
         with self.vm() as vm:
