@@ -726,6 +726,114 @@ until no device answers, and on these four levels some device keeps answering. W
 to clear it, is not traced. The ND manual for TPE-MON (ND-30.005) has not been checked for what
 the test expects.
 
+## ND product installers (`tools/installs/`)
+
+### P1. Backup Manager B02 reinstall: "Filename syntax error" joining BM-OPERATOR
+
+**Found by:** running ND's Backup Manager installer `(211226B02-XX-01D:FLOPPY-USER)IN-BCKMAN-XX-B02:PROG`
+a second and a third time on a pack where it was already installed, answering N to
+"delete previous version" and "delete current version", 2026-11-02.
+
+**Shows up as:** on floppy 211226B02-XX-04D, after the box "Add the file
+(211226B02-XX-04D:FLOPPY-USER)BM-OPERATOR-B02:DO02 to the file (BACKUP-MANAGER)BM-OPERATOR-B02:DOM.":
+
+```
+Filename syntax error
+1.1594 ^FILE_COPY HE_BUF,SPE_TO_FILE_1
+```
+
+The installer goes on and ends "INSTALLATION - FINISHED". The first run on the same pack, with
+no Backup Manager on it yet, printed the same box and no error.
+
+**What is known:** the join is the routine `SPE_COPY` in the installer program
+`IN-BCKMAN-XX-B02:PROG`: `HE_BUF` is the full name of the floppy file, `SPE_TO_FILE_1` is
+`BM-OPERATOR-B02:DOM` (from `IN-BCKMAN-XX-B02:INIT`). Another routine, `COP_SPE_SET`, changes the
+type of a target that already exists to `:NEW`, which is the only path that differs on a
+reinstall. Not traced: the value of `SPE_TO_FILE_1` when `^FILE_COPY` runs, and which
+SINTRAN call returns the error. So it is not known yet whether this is the installer itself
+(it would fail the same on a real ND-500) or something nd100x does differently.
+`tools/installs/backup-manager-b02/install.py` installs on a pack without the Backup
+Manager, which does not take this path, and stops if "Filename syntax error" appears.
+
+### P2. Backup Manager B02 COPY to the streamer: "Error 101025 (octal)", no files copied
+
+**Found by:** running BM-OPERATOR on a pack made by the `tools/installs/` chain (BACKUP-SYSTEM
+I05, ND-500 monitor J04, LINKAGE-LOADER H02, LINKER B01, Backup Manager B02), with the SCSI
+streamer set to 1.1 in S3-CONFIG, `SET-PERIPHERAL-FILE "STREAMER-1" 2226B`, and a tape loaded and
+rewound, 2026-11-02.
+
+**Shows up as:** the line-mode COPY of user area `RONNY` (one file, `TEST:SYMB`) from
+`PACK-ONE` to volume `BMTEST-1` on `STREAMER-1`, unit 0, mode OV, `STOP-ON-ERROR`. The first COPY
+in each BM-OPERATOR run prints only `No files copied`. The second one lists the file and then:
+
+```
+ 007707B: Error 101025 (octal). No message available.
+ No files copied
+```
+
+The message files `UE-ERMSG-EN-D05` and `-D06` have no text for 101025.
+
+**What is known (each item measured or read in an ND manual):**
+
+- 101025B is `nke_NOTINITIALISED`, "Nucleus not started" (ND-820026, DOMINO and NUCLEUS
+  Software Guide, Appendix C). The SINTRAN symbol lists carry the same value as `NNOTI`. So the
+  Backup Manager needs the NUCLEUS message system, and it is not running.
+- NUCLEUS is generated into this SINTRAN. S3-CONFIG's NUCLEUS menu shows 168 pages of message
+  buffer for system processes, 320 descriptors, and so on. `LIST-SERVERS` lists `NKSERV C02`,
+  `NKNAME C02`, `PROMAN C02`, `EVMESG`, `BOPCOM C02` and `MTSERV B03`.
+- ND starts those servers with `@START-SERVERS`, normally from `(SYSTEM)LOAD-MODE` (ND-830147,
+  ND-5000 ES System Administrator Guide, 4.11.7). This pack has no LOAD-MODE.
+- `@START-SERVERS` by hand, before XMSG is started: MTSERV and PROMAN fail with "No LAMU area
+  big enough", and BOPCOM fails with "XMSG not started?". After `START-XMSG` in
+  SINTRAN-SERVICE-PROGRAM, BOPCOM stops complaining, but MTSERV and PROMAN still fail on the
+  LAMU error, and PROMAN also reports "Not read, write and common access" and "Unable to log
+  events to ring buffer file".
+- `LIST-RT-DESCRIPTION NKSERV`: segment 105B (the "Image of NUCLEUS server" segment), started by
+  `START-SERVERS`, now passive, 0 CPU time units. No "Nucleus server started" line (101101B)
+  appeared on the console. NKNAME never ran.
+- `*LAMU-AREAS` in SINTRAN-SERVICE-PROGRAM lists nothing: no memory has been given to the LAMU
+  system. `*LIST-LAMU-CONSTANTS`: 2 LAMUs per RT program, 40B in total, 100B system LAMUs.
+  `*PAGES-TO-LAMU` with first physical page -1 (the multiport memory, SINTRAN L release notes
+  4.2.3) answers `AREA OCCUPIED IN MEMORY`.
+- None of the real disk images on hand has a mode file with `PAGES-TO-LAMU`,
+  `CREATE-SYSTEM-LAMU` or `START-SERVERS`, so there is no working example to copy.
+
+**The LAMU errors were the start order, not a defect (measured 2026-11-02).** The runs above
+started the ND-5000 (`START-SWAPPER`) before `@START-SERVERS`. The swapper takes the multiport
+memory ("Allocating memory - 7342B pages"), so nothing is left for the NUCLEUS LAMUs. ND's order
+is XMSG, then `@START-SERVERS`, then the ND-5000 (ND-895061-1A, the LOAD-MODE step: "after
+starting the XMSG ... and before starting the ND-5000"). In that order, on a copy of the pack:
+`@START-SERVERS` prints nothing at all, `*LAMU-INFORMATION` shows two system LAMUs of 40B pages
+at physical pages 4100B and 4140B (the first multiport pages), and the swapper then takes
+7242B pages, 100B fewer. Scripts must start the ND-5000 after the servers.
+
+**What is still wrong, in that order (measured 2026-11-02):** BM-OPERATOR COPY still ends
+"No files copied", and PROMAN now prints `Nucleus not started` (1010B:25B) and FATAL
+`Error in Nucleus initialisation`. So the ND-100 half of NUCLEUS never comes up:
+
+- NKSERV runs (`LIST-RT-DESCRIPTION`: segment 105B, actual APIT 11B) and goes passive with
+  P=106034, L=153000. Disassembly of segment 105B (words byte-swapped, base 030000B): 106033 is
+  `EXR SL`, and 153000 is `MON 0`, the normal program end. NKSERV stops on purpose, with no
+  message.
+- MON 347B answers "not started" when the alive flag in the NUCLEUS server data field (125153B,
+  word +1) is 0 (NDInsight
+  `tools/sintran-segment-carver/versions/L-VSX-500/re/domino-nucleus-io/NUCLEUS-PRIMITIVES-CARVE.md`
+  section 6). Server start-up (NKINI, section 5.8 there) checks the master block's version word
+  (master+25, mismatch = fatal) and registers its kick entry on the octobus (CONKI). Which check
+  makes NKSERV stop is **not measured**. Next step: a debugger run on NKSERV from its start
+  address 30020B to the MON 0 at 106033.
+
+**Second blocker, on the ND-5000 side (measured 2026-11-02):** nd500x has none of the four
+NUCLEUS instructions that ND microcoded on the ND-5000 (`SEND`, `RECVE`, `GETINF` and the hole
+move, entry points 0o1063-0o1071 in the B30 control store; NDInsight
+`SINTRAN/ND5000/NUCLEUS-OCTOBUS-ND5000-COMPLETE-REFERENCE-2026-08-24.md` section 6). They are
+not in `external/nd500x/src/cpu/instructions.json`. The Backup Manager runs on the ND-5000 and
+calls nkSend/nkReceive, so it cannot work on nd100x until nd500x runs them as the microcode
+does, even after the ND-100 half starts.
+
+**Not known:** why NKSERV stops; why the first COPY in a run copies nothing without an error;
+what `Error 33626 (octal)` on `(SYSTEM)SWAP-FILE-0:SWAP` at BM-OPERATOR start means.
+
 ## DAP debugger (`src/debugger/`, `external/libdap`)
 
 ### D1. The debugger serves only the first client for the life of the process
