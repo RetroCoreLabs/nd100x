@@ -48,10 +48,17 @@ with Nd100x(cputype="ND120CX", boot="smd", smd0="SMD0.IMG") as vm:
 
 | arg | meaning |
 |---|---|
-| `exe` | path to the binary (default `../build/bin/nd100x[.exe]`) |
-| `boot` | `smd` \| `floppy` \| `bpun` \| `aout` \| `bp` |
+| `exe` | path to the binary (default `../build/bin/nd100x[.exe]`), or a list used as a command prefix |
+| `boot` | `smd` \| `floppy` \| `scsi0` \| `bpun` \| `aout` \| `bp` |
+| `config` | machine INI (`--config`), e.g. `config/ND5000.ini` |
 | `image` | image file (floppy/aout/bpun) |
 | `smd0` | SMD unit-0 disk image |
+| `scsi` | `{scsi_id: "hdd:PATH" or "tape:PATH"}`, e.g. `{1: "tape:blank.tap"}` |
+| `work_dir` | when given, `image`, `smd0` and every `scsi` image are **copied** here first and nd100x only opens the copies; `close()` deletes them |
+| `keep_copies` | keep the copies after `close()` (to look at the disc or tape afterwards) |
+| `log_file` | keep the emulator log (stderr) **out of the screen output** and write it here |
+| `log_keep` | regex: only log lines that match are written (`[pipe-control]` replies always are). Use with `--scsi-debug`, which logged 5.1 GB in one backup run |
+| `transcript` | file that receives the screen output plus one `>>>` line per step |
 | `cputype` | `ND100CX` … `ND110CX` … `ND120CX` |
 | `cpu_number` | SYSNO override (banner CPU NUMBER) |
 | `max_instr` | stop after N instructions (safety cap) |
@@ -60,6 +67,22 @@ with Nd100x(cputype="ND120CX", boot="smd", smd0="SMD0.IMG") as vm:
 
 Any CPU-identity flag works via `extra_args`, e.g.
 `extra_args=["--microcode-version=L", "--system-type=100"]`.
+
+A SINTRAN session on copies of the images, with a small log and a transcript:
+
+```python
+from nd100x_expect import Nd100x
+
+with Nd100x(config="config/ND5000.ini", boot="smd", smd0="ND5000.IMG",
+            scsi={1: "tape:blank-tape.img"}, work_dir="/tmp/run1",
+            log_file="/tmp/run1/emulator.log", log_keep=r"TAPE|ERROR",
+            transcript="/tmp/run1/console.log", echo=False,
+            extra_args=["--scsi-debug"]) as vm:
+    vm.expect("RUNNING", timeout=300)
+    vm.escape()                              # ESC until SINTRAN answers ENTER
+    vm.login("SYSTEM")                       # name + password in one write
+    print(vm.command("LIST-USERS"))          # type it, wait for the @ prompt
+```
 
 ### Methods
 
@@ -75,8 +98,29 @@ Any CPU-identity flag works via `extra_args`, e.g.
   floppy `unit` (0-2) and mount `path`. This is the "operator inserts the next install disk" step.
   Use an **absolute path**. `confirm=True` waits for the emulator ack and raises if the file was not
   found / the unit is bad. The guest sees the new disk on its next floppy read.
+  `copy=True` mounts a copy made in `work_dir`. Returns the path that was mounted.
 - **`vm.eject(unit)`** — eject a floppy while running.
+- **`vm.escape(answer=ENTER, every=15, timeout=300)`** — send ESC every `every` seconds until
+  SINTRAN answers `ENTER`. SINTRAN ignores ESC while it is still starting, so one ESC is not enough.
+- **`vm.login(user="SYSTEM", password="")`** — name, CR, password, CR in **one** write (split sends
+  bounce back to a fresh ENTER prompt), then wait for `@`.
+- **`vm.command(text, until=@-prompt, timeout=120, abort=None)`** — type a line and wait for the
+  `@` prompt (or `until`); returns the output the command produced.
+- **`vm.answer(text)`** — type an answer and wait for the next SINTRAN prompt: `@`, `ENTER` or a
+  question ending in `:`.
+- **`vm.wait_quiet(seconds)`** — let the machine run without typing.
+- **`vm.note(text)`** — write a step line into the transcript.
+- **`vm.pid`**, **`vm.copies`**, **`vm.log_lines()`** — the emulator's process id, the image
+  copies made, the log lines kept.
 - **`vm.before()`** — everything captured so far (for logging / assertions).
+
+`send()` refuses a `0xFF` byte, and `control_frame()` refuses a control command with a line
+break, `0xFF` or a non-ASCII character: either would split the frame and type the rest at the
+console. **Never write the `0xFF` byte yourself; use `mount()` / `eject()`.**
+
+The unit tests are `tests/test_nd100x_expect.py` (CTest `nd100x_expect_unit`). They run the
+driver against `tests/fake_nd100x_pipe.py`, a stand-in that answers like `nd100x --pipe`, so no
+emulator or disc image is needed.
 
 ### Floppy hot-swap control channel
 

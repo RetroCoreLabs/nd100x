@@ -69,6 +69,24 @@ if(NOT PLATFORM_WASM AND NOT PLATFORM_RISCV)
     endif()
 endif()
 
+# tools/nd100x_expect.py unit tests: the --pipe control frame byte for byte, and the
+# whole driver (typing, waiting, SINTRAN login, floppy swap, image copies, log
+# filter, transcript, shutdown) against tests/fake_nd100x_pipe.py. No emulator and
+# no disc image needed, so it runs on every desktop build.
+if(NOT PLATFORM_WASM AND NOT PLATFORM_RISCV)
+    find_program(PYTHON_EXECUTABLE NAMES python3 python)
+    if(PYTHON_EXECUTABLE)
+        add_test(
+            NAME nd100x_expect_unit
+            COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_nd100x_expect.py
+        )
+        set_tests_properties(nd100x_expect_unit PROPERTIES
+            TIMEOUT 120
+            LABELS "unit;pipe"
+        )
+    endif()
+endif()
+
 # 32-bit FPP instruction-level test (handoff item 6.8)
 #
 # Generates a tiny BPUN on the fly, boots it in the REAL emulator with --trace
