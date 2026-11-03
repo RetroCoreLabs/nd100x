@@ -2229,6 +2229,74 @@ static int mfbus_mon_call(void *ctx, uint32_t mon_number, uint32_t arg_count,
                 c->name, (unsigned)w[0], (unsigned)w[1], name,
                 ok ? "" : " (descriptor not readable)");
         }
+
+        /* THE CODE AROUND THE CALL, AS THE CPU SEES IT. MFBUS_CODE_AT_MON=<octal MON
+         * number> prints 96 bytes before and 64 after the return address of every
+         * such call, read through the PROGRAM side of the MMU (nd500_mmu_peek_space,
+         * is_instruction=1). The data side resolves a different physical segment for
+         * a code address and returns bytes the CPU never fetched (nd500_mmu.h). Made
+         * for Backup Manager's nkOpenPort (MON 347B): the DOM file's bytes at its
+         * return address do not decode as code, and only the live bytes say whether
+         * the file layout or the reading of it is wrong. Diagnostic, non-faulting. */
+        const char *code_at = getenv("MFBUS_CODE_AT_MON");
+        if (code_at != NULL && strtoul(code_at, NULL, 8) == (unsigned long)mon_number)
+        {
+            for (uint32_t row = 0; row < 10u; row++)
+            {
+                uint32_t at = resume - 96u + row * 16u;
+                char hex[16u * 3u + 1u];
+                hex[0] = '\0';
+                for (uint32_t j = 0; j < 16u; j++)
+                {
+                    uint32_t pa = nd500_mmu_peek_space(&c->cpu, at + j, (uint8_t)c->cpu.CED, 1);
+                    if (pa == 0xFFFFFFFFu)
+                    {
+                        (void)snprintf(hex + j * 3u, sizeof hex - j * 3u, "?? ");
+                    }
+                    else
+                    {
+                        (void)snprintf(hex + j * 3u, sizeof hex - j * 3u, "%02X ",
+                                       (unsigned)ndbus_pool_read8(&s_pool, pa));
+                    }
+                }
+                LOG(LOG_CAT_MMS, LOG_INFO, "MFbus: %s   CODE %08X: %s%s\n",
+                    c->name, (unsigned)at, hex, (at <= resume && resume < at + 16u) ? "<- resume" : "");
+            }
+            /* AND WHO CALLED IT: the frame chain. ENTS writes the previous B at B+0
+             * and the return address at B+4 (nd500x CALL/Ents.c, ND-05.009.4 13.10),
+             * so walking B+0 gives every caller's return address. Data side. */
+            char chain[256];
+            size_t cused = 0;
+            chain[0] = '\0';
+            uint32_t b = c->cpu.B;
+            for (uint32_t depth = 0; depth < 8u && b != 0u; depth++)
+            {
+                uint32_t w[2] = { 0u, 0u };
+                bool ok = true;
+                for (uint32_t j = 0; j < 8u && ok; j++)
+                {
+                    uint32_t pa = nd500_mmu_peek(&c->cpu, b + j);
+                    ok = (pa != 0xFFFFFFFFu);
+                    if (ok)
+                    {
+                        w[j / 4u] = (w[j / 4u] << 8) | ndbus_pool_read8(&s_pool, pa);
+                    }
+                }
+                int n = snprintf(chain + cused, sizeof chain - cused, ok ? " B=%08X ret=%08X" : " B=%08X ret=??",
+                                 (unsigned)b, (unsigned)w[1]);
+                if (n <= 0 || (size_t)n >= sizeof chain - cused)
+                {
+                    break;
+                }
+                cused += (size_t)n;
+                if (!ok)
+                {
+                    break;
+                }
+                b = w[0];
+            }
+            LOG(LOG_CAT_MMS, LOG_INFO, "MFbus: %s   FRAMES%s\n", c->name, chain);
+        }
     }
 
     /* WHAT THE SWAPPER ACTUALLY ASKED FOR.

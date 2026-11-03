@@ -850,10 +850,41 @@ these runs (all traps are page faults), so they are not reached yet.
   printed) went the same way: two XMSG exchanges (MON 512B-514B), the NUCLEUS calls (MON 347B),
   `DP-NAME-SERVER` answered 101012B, "No files copied".
 
-**Next:** read what Backup Manager does with the `nkOpenPort` answer. The call returns to
-0x1007DC4D in `BM-OPERATOR-B02:DOM` (the `DP-NAME-SERVER` string is in that file and in
-`BM-FILERE-B02:DOM`). `nd500x --dom ... --disasm` at that address prints data, not code, so the
-DOM's segment placement has to be worked out first, or the code read from the live process.
+**Read from Backup Manager's code, 2026-11-03** (`MFBUS_CODE_AT_MON=347` logs the code round
+the resume address and the ENTS frame chain - B+0 previous B, B+4 return address; the DOM was
+re-extracted WITHOUT `ndtool -p`, which strips bit 7 and had turned the code into rubbish):
+
+- Call path of the failing open: main COPY routine -> 0x10075C28 (DOMINO set-up) -> 0x10075DC4
+  -> 0x10076023 -> the `nkOpenPort` wrapper 0x1007DBB8 (call site 0x100760C8) -> MON 347B.
+- After the open (0x100760D7-0x100760E8): the status is compared with 0x820C = 101014B
+  `nke_NOACCESS`. 101014B is turned into "no error, no send reference" and the set-up goes on;
+  0 goes on with the send reference; ANY other status is returned up. The main routine
+  (0x10071D60-0x10071D9C) then calls the error reporter with 0x3741 and returns: the COPY is
+  over. So Backup Manager B02 accepts "no access" but not "name not defined".
+- 101012B is SINTRAN's own answer, not the emulator's: no code in nd100x or nd500x makes it.
+  In the NUCLEUS name server (segment 107 S3INKNA, L-VSX-500 carve) the function-3 branch at
+  034767 calls the name-table lookup; when it finds nothing (A = 0 at 035004) it loads the
+  double word {0, 101012B} from 035077 and stores it as the status (035026 `STD ,X 32`).
+  ND-820026 lists both NAMENOTFOUND and NOACCESS as answers of nkOpenPort.
+- Nothing on this machine REGISTERS `DP-NAME-SERVER`. Every disc image and DOM on D: and E:\Dev
+  and the RetroCoreLabs software archive catalogue were searched (plain and with bit 7 set):
+  the name is only in its USERS - BM-OPERATOR-B02, BM-FILERE-B02, and the ND-100 test program
+  SCSI-TV (`Nd-210523I01-XX-02D`). The DOMINO/SCSI software package (211478A) is not here, and
+  the only Backup Manager here is B02 (ND-211226 floppies 01D-04D, all B02).
+- ND-895076-2A (SCSI-TV-C04) lists the same fault as fixed in that program: "(101012) Device not
+  available, Name not in name table" when selecting a device on a system without DOMINO SCSI
+  but with NUCLEUS running. ND-895055-1A says B04 corrects "all errors reported for B02"
+  without naming this one.
+
+**Not known:** what a real SINTRAN L / ND-5000 without DOMINO answered here. If it is 101012B
+as the carved code says, B02 cannot copy to tape on such a machine and the fault is in B02;
+if it is 101014B, something before the name lookup (segment 105 access check, the caller's
+owner from the ND-500 side) differs in our run. That has not been traced live yet.
+
+Also found and fixed: `nd500x --dom ... --disasm` printed `00 ???` after
+`1A CF 64 70 64 76 C5 40` (`w move #...,IND(b.64)`) at 0x100760EA. The listing used the
+execution decode, whose IND pointer read raised a sticky trap, after which every fetch read 0.
+Listings now decode through the trap-free MMU peek (nd500x 6469a3c, test `listing_decode`).
 
 ## DAP debugger (`src/debugger/`, `external/libdap`)
 
