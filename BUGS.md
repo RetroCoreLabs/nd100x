@@ -770,7 +770,9 @@ LINKAGE-LOADER H02, LINKER B01, Backup Manager B02), machine `ND120CX` with `fpp
   TEST:SYMB` -> "File(s) copied: 1"; the restored file is byte-identical to the original
   (`cmp`) and keeps its date 1998-09-22 22:04:39.
 
-The earlier "No files copied" was the set-up, not the emulator. What a run needs, in this order:
+The earlier "No files copied" was the set-up, not the emulator. What the working runs did, in
+this order (2, 3 and 5 each found by a run that failed without it; 1 by earlier runs; 4 replaced
+the name *XM-FIDO and was not tried without since):
 
 1. XMSG (`START-XMSG` in SINTRAN-SERVICE-PROGRAM), then `@START-SERVERS`, then the ND-5000
    (ND-895061-1A, the LOAD-MODE step). In another order the swapper takes the multiport memory
@@ -804,8 +806,8 @@ the repository; a `tools/installs`-style script is not written yet.
   "File(s) copied: 1". Its meaning is **not known**: Backup Manager opens
   `UE-ERMSG-EN-D` (the pack has `(SYSTEM)UE-ERMSG-EN-D06:ERR`), reads it, and finds no text
   for any of its own 337xx codes ("No message available"). Eighteen places in BM-OPERATOR
-  raise 0x3744 and the ones with a routine label pass an empty one, so the place is not known
-  either. The restored file is correct; what the error is about was not traced.
+  load 0x3744; the four that were checked pass an empty routine label, so the place is not
+  known either. The restored file is correct; what the error is about was not traced.
 - **Error 33626 (octal)** on `(SYSTEM)SWAP-FILE-0:SWAP` at BM-OPERATOR start: the
   `IMAGE-NO-COMPARE-FILE` line in BM-PARAMETER names a file this pack does not have.
 - **A second COPY in the same BM-OPERATOR run** after a FAILED one took "COPY" and every answer
