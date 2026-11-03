@@ -803,11 +803,25 @@ the repository; a `tools/installs`-style script is not written yet.
 **Still open:**
 
 - **Error 33504 (octal) during the restore**, printed after the file list and before
-  "File(s) copied: 1". Its meaning is **not known**: Backup Manager opens
-  `UE-ERMSG-EN-D` (the pack has `(SYSTEM)UE-ERMSG-EN-D06:ERR`), reads it, and finds no text
-  for any of its own 337xx codes ("No message available"). Eighteen places in BM-OPERATOR
-  load 0x3744; the four that were checked pass an empty routine label, so the place is not
-  known either. The restored file is correct; what the error is about was not traced.
+  "File(s) copied: 1". Traced 2026-11-03; it is **Backup Manager's own "reached blank tape"
+  report, not an emulator fault**:
+  - The restore's tape traffic (`--scsi-debug`, MON 144B logged): READ 2 blocks `MEDH`, READ 2
+    `VOLH`, READ 2 the `OBJH` header, READ 12 the file's data (blocks 6-17), then READ 12 ->
+    filemark at once (residue 12), READ 2 -> the second filemark (residue 2), READ 2 -> BLANK
+    CHECK. SINTRAN answers those three reads 3B, 3B and 143B. The tape (SIMH walk) holds exactly
+    what the backup wrote: those records, two tape marks, nothing more. The drive answers are
+    the ones the SCSI sequential-access rules and the TDC 3600 manual give (`scsi_tape.c`).
+  - BM-OPERATOR turns the read status into its own code at 0x100636C9: 3B -> 33505, 143B ->
+    33504 when bit 10 of the device's flag bits is set, 100B/146B -> 33503. It stores the code
+    in its status word (data 0x08012DFA). The tape routine 0x1000E2C3 sees 33504 there
+    (0x1000E762), sets its error flag, and the status-line routine 0x1001CC14 prints 33504
+    instead of its progress text; then "Rewinding".
+  - So with `INCLUDE`, BM goes on searching for more matching files after the volume, reads
+    past both tape marks into blank tape, and reports that. The text is missing because
+    `UE-ERMSG-EN-D06` has no texts for BM's 337xx codes. `REEL-END` is not a missing trailer:
+    it belongs to `HandleEOT`, the end-of-tape handling for a backup over several tapes.
+  - Not verified: that a real machine prints the same line. The same SINTRAN status would come
+    back from a real drive at the end of recorded data, so it is expected to.
 - **Error 33626 (octal)** on `(SYSTEM)SWAP-FILE-0:SWAP` at BM-OPERATOR start: the
   `IMAGE-NO-COMPARE-FILE` line in BM-PARAMETER names a file this pack does not have.
 - **A second COPY in the same BM-OPERATOR run** after a FAILED one took "COPY" and every answer
