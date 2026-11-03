@@ -755,136 +755,76 @@ SINTRAN call returns the error. So it is not known yet whether this is the insta
 `tools/installs/backup-manager-b02/install.py` installs on a pack without the Backup
 Manager, which does not take this path, and stops if "Filename syntax error" appears.
 
-### P2. Backup Manager B02 COPY to the streamer: "No files copied", nothing reaches the tape
+### P2. Backup Manager B02 file copy to and from the streamer: three open points
 
-**Found by:** running BM-OPERATOR on a pack made by the `tools/installs/` chain (BACKUP-SYSTEM
-I05, ND-500 monitor J04, LINKAGE-LOADER H02, LINKER B01, Backup Manager B02), with the SCSI
-streamer set to 1.1 in S3-CONFIG, `SET-PERIPHERAL-FILE "STREAMER-1" 2226B`, and a tape loaded and
-rewound, 2026-11-02.
+**State 2026-11-03: single-file backup AND restore on `STREAMER-1` work.** Measured on copies
+of a pack made by the `tools/installs/` chain (BACKUP-SYSTEM I05, ND-500 monitor J04,
+LINKAGE-LOADER H02, LINKER B01, Backup Manager B02), machine `ND120CX` with `fpp = 32`:
 
-**Shows up as:** the line-mode COPY of user area `RONNY` (one file, `TEST:SYMB`) from
-`PACK-ONE` to volume `BMTEST-1` on `STREAMER-1`, unit 0, mode OV, `STOP-ON-ERROR`, ends with
-`No files copied` and no SCSI command reaches the drive. A COPY of the same user area to another
-directory on `PACK-ONE` works ("File(s) copied: 1").
+- Backup: BM-OPERATOR `COPY` of `(PACK-ONE:RONNY)TEST:SYMB` to volume `BMTEST-1` on
+  `STREAMER-1` unit 0, mode OV -> "File(s) copied: 1". The tape holds a Backup Manager volume
+  (`MEDH` header, `BMTEST-1`, `PACK-ONE`, `RONNY`) and the start, middle and end of the
+  5340-byte file.
+- Restore: a fresh copy of the pack with `(RONNY)TEST:SYMB` deleted (`ndtool --rm`), the same
+  tape, `COPY` from `VOLUME BMTEST-1 STREAMER-1 0` to `DIRECTORY PACK-ONE RONNY`, `INCLUDE
+  TEST:SYMB` -> "File(s) copied: 1"; the restored file is byte-identical to the original
+  (`cmp`) and keeps its date 1998-09-22 22:04:39.
 
-**How to run it:** machine `ND120CX` with `fpp = 32`; XMSG first (`START-XMSG` in
-SINTRAN-SERVICE-PROGRAM), then `@START-SERVERS`, then the ND-5000. In any other order the
-swapper takes the multiport memory and the NUCLEUS servers find no room for their LAMUs. ND
-gives the same order (ND-895061-1A, the LOAD-MODE step). `--log=mms:info` logs every ND-5000
-monitor call with its answer.
+The earlier "No files copied" was the set-up, not the emulator. What a run needs, in this order:
 
-**Fixed on the way (2026-11-02 and 2026-11-03):**
+1. XMSG (`START-XMSG` in SINTRAN-SERVICE-PROGRAM), then `@START-SERVERS`, then the ND-5000
+   (ND-895061-1A, the LOAD-MODE step). In another order the swapper takes the multiport memory
+   and the NUCLEUS servers find no room for their LAMUs.
+2. `@DEFINE-MASS-STORAGE-UNIT STREAMER-1 0`. With the "Computer name" field blank, B02 looks a
+   device up ONLY in SINTRAN's directory and device-name tables (MON 244B GetDirEntry for
+   entries 0-45, MON 245B GetNameEntry) - routine `GetS3Device`, 0x10070D39 in
+   BM-OPERATOR-B02:DOM. Without the mass-storage unit it finds nothing and prints error 33575
+   `D100.STREAMER-1,0`. The peripheral file `(SYSTEM)STREAMER-1` (2226B) is needed as well, for
+   `@DEVICE-FUNCTION`.
+3. `DOMINO-MODE = OFF` in `(ND-OPERATIONS)BM-PARAMETER-B02:DATA` (ND's own switch, "Search for
+   DOMINO sequential devices"). With ON, every COPY opens the DOMINO name server
+   `DP-NAME-SERVER` through NUCLEUS; on a machine without DOMINO that answers 101012B
+   `nke_NAMENOTFOUND` (correct: nothing registers the name), and B02 accepts only 101014B there
+   (0x100760D7-0x100760E8), so the COPY ends.
+4. A local system name in XMSG: `@XMSG-COMMAND`, `DEFINE-REMOTE-NAME,,D100,100`, `EXIT`. Backup
+   Manager asks XMSG for it (XROUT XSGNI) and puts it in front of every directory name
+   (`D100.PACK-ONE`); without one it got `*XM-FIDO`. XMSG forgets it when XMSG is stopped.
+5. Leave the "Computer name" fields EMPTY for local devices. With `D100` typed, B02 takes its
+   tape path, opens `D100.STREAMER-1'` through MON 50B, and SINTRAN answers 260B
+   "File-access reentrant segments are not loaded": remote file access (COSMOS FAU), which this
+   pack does not have.
 
-- CNREK cleared the page-table slots of the wrong logical pages, so the ND-500 monitor never
-  answered on any ND-110/ND-120 model (`src/cpu/cpu_instr.c`, vector `CNREK/bit_0_logad_100`).
-- NKSERV needs CPU type 5 (ND120CX with `fpp = 32`); with it NUCLEUS starts and error 101025B
-  "Nucleus not started" is gone.
-- The 3RMICV reply (nd500x `ndbus_servicer`) carried CPU parameter 0x03E1 (001741B). The B30
-  microcode puts the ACCP's model answer in that cell, 0x0038 on an ND-5800 (CPU_READ @017137;
-  001741B is the CPUMOD08 constant, which goes to a different cell). The NUCLEUS server reads
-  bits 0-3 as the ND-5000 model and refused model 1 with 101035B "Not correct hardware
-  configuration" on the first NUCLEUS call of every COPY. Fixed in nd500x; now the first three
-  NUCLEUS calls answer 0.
-- The answer data of a 26B (3WMONCO) restart was dropped when its page was not in memory, so
-  the first COPY of every run lost the 42 bytes of a GetDirEntry answer and copied nothing.
-  The bridge now writes the block through the process's MMU, as the microcode's `MSG_CONWR`
-  (@015752-016004) does; a missing page is reported to SINTRAN as page fault 46B on the
-  process's message, and SINTRAN pages it in and sends the same 26B again (MP-P2-N500.NPL
-  135641). That needed nd500x to leave MICFU at 26B when the copy faults: the microcode writes
-  23B only at `MSG_CON10` (@015715-015716), after the copy. Measured: fault at 0x0805F39C,
-  swapper call, resend, "42 byte(s) ... all written", Backup Manager goes on.
+`@RT DMASRV` was typed before BM-OPERATOR in the measured runs; whether a file copy needs it was
+not tried. The run scripts (`nuc4.py`, `run5.sh` backup, `run6.sh` restore) are probes outside
+the repository; a `tools/installs`-style script is not written yet.
 
-**What still goes wrong (measured 2026-11-03, every ND-5000 monitor call logged):**
+**Still open:**
 
-- Every COPY (since the 26B fix, the first one too) reads the user and the file (GetUserEntry,
-  GetFileIndexes, GetObjectEntry), walks the directory entries, reads GetSystemInfo, makes six
-  XMSG calls, then four NUCLEUS calls. The fourth is `nkOpenPort` of a name that starts with
-  "DP-NAM" - `DP-NAME-SERVER`, the DOMINO SCSI name server (the string is in
-  `BM-FILERE-B02:DOM` next to `DP-100-SERVER`). It answers 101012B `nke_NAMENOTFOUND`
-  (ND-820026 Appendix C). BM-OPERATOR then prints `No files copied` and makes no further call.
-- There is no DOMINO SCSI on this machine, so the name not being there is correct. BM-INST
-  (ND-895055-1A, section 8) says Backup Manager recognises an ND-100 tape drive by its
-  peripheral file (`Streamer-1` = 2226B), and needs no peripheral file for a DOMINO device. So
-  Backup Manager did not take `STREAMER-1` as an ND-100 drive, although `(SYSTEM)STREAMER-1`
-  exists. Why not is **not known**. No monitor call in the sequence names the peripheral file.
-- After that failure, a SECOND COPY in the same BM-OPERATOR run does not start: Backup Manager
-  reads "COPY" and each answer after it as a new command and prints `BmOp:` after every one
-  (measured 2026-11-03). No monitor call is made between reading the line and the prompt, so
-  Backup Manager decides this itself. Why is **not known**; it comes after the
-  `DP-NAME-SERVER` failure, so it may go away with it.
-- `Error 33626 (octal)` on `(SYSTEM)SWAP-FILE-0:SWAP` at BM-OPERATOR start comes from the
-  `IMAGE-NO-COMPARE-FILE` line in `BM-PARAMETER-B02:DATA`; the file does not exist on this pack.
-- PROMAN still reports "No domino controllers found in system" (correct), "Not read, write and
-  common access" and "Unable to log events to ring buffer file" at `@START-SERVERS`. MTSERV
-  reports "MTAD server initiated and started".
+- **Error 33504 (octal) during the restore**, printed after the file list and before
+  "File(s) copied: 1". Its meaning is **not known**: Backup Manager opens
+  `UE-ERMSG-EN-D` (the pack has `(SYSTEM)UE-ERMSG-EN-D06:ERR`), reads it, and finds no text
+  for any of its own 337xx codes ("No message available"). Eighteen places in BM-OPERATOR
+  raise 0x3744 and the ones with a routine label pass an empty one, so the place is not known
+  either. The restored file is correct; what the error is about was not traced.
+- **Error 33626 (octal)** on `(SYSTEM)SWAP-FILE-0:SWAP` at BM-OPERATOR start: the
+  `IMAGE-NO-COMPARE-FILE` line in BM-PARAMETER names a file this pack does not have.
+- **A second COPY in the same BM-OPERATOR run** after a FAILED one took "COPY" and every answer
+  after it as new commands (measured 2026-11-03, before the set-up above). Not tried again
+  after a successful COPY.
 
-**Measured 2026-11-03 with the file names and answer bytes logged** (`--log=mms:info`; the
-bridge now prints the first 32 bytes of every 26B answer block, the text of name arguments, and
-the file name of every MON 50B OPEN):
+**Fixed in the emulator on the way (2026-11-02 and 2026-11-03):** CNREK cleared the wrong
+page-table slots, so the ND-500 monitor never answered on ND-110/ND-120 (`src/cpu/cpu_instr.c`);
+the 3RMICV CPU parameter is 0x0038, the ACCP model answer, not 0x03E1 (nd500x); the 26B
+(3WMONCO) answer copy goes through the process's MMU and a missing page is reported as page
+fault 46B and the 26B resent (MP-P2-N500.NPL 135641), with MICFU left at 26B until the copy is
+done (`MSG_CON10` @015715-015716). nd500x listings decode through the trap-free MMU peek
+(6469a3c, test `listing_decode`). `MFBUS_CODE_AT_MON=nnn` logs the code round a monitor call's
+resume address and the ENTS frame chain; `--log=mms:info` logs every ND-5000 monitor call, its
+answer bytes and every MON 50B file name.
 
-- Backup Manager never opens `STREAMER-1`. The four OPENs of a run are `DDBTABLES-G...`,
-  `(ND-OPERATIONS)BM-PARAMETER...` and an error-message file twice.
-- When the device name is typed, no monitor call follows - only page faults - so the name is
-  checked inside the program.
-- The COPY itself, in order: TIME; find directory `PACK-ONE` and read its entry; read user
-  `RONNY`; find the object `TEST:SYMB`; get the device name `DISC-75MB-1`; read directory
-  entries 1 to 0x2D (all empty); get system info (24 bytes starting `00 64`, system 100); one
-  XMSG XROUT name lookup (XSGNI) that returns machine 100 port 0x01B9 `*XM-FIDO`; get the
-  terminal name `(SYSTEM)TERMINAL-1`; four NUCLEUS calls, the last `nkOpenPort` of
-  `DP-NAME-SERVER` -> FUNCV 0xFFFF820A, K=1; then `No files copied`.
-- FUNCV is the two halfwords exactly as SINTRAN wrote them into the message; nothing in the
-  bridge or the servicer changes it.
-
-**Ruled out:** the four NUCLEUS instructions that ND microcoded on the ND-5000 (`SEND`,
-`RECVE`, `GETINF`, hole move) are not in nd500x, but no illegal-instruction trap happens in
-these runs (all traps are page faults), so they are not reached yet.
-
-**Ruled out 2026-11-03, from ND's papers and one run:**
-
-- The peripheral file. The Backup Manager install paper (ND-895055, "Information and hints")
-  says Backup Manager finds an ND-100 drive through its peripheral file, `Streamer-1` with
-  device number 2226B. The test pack has `(SYSTEM)STREAMER-1` with device number 1174 =
-  2226B (`ndtool --stat`). The paper names DOMINO as optional and documents nothing about
-  `DP-NAME-SERVER` or "No files copied".
-- The DMA server. A run with `@RT DMASRV` typed before BM-OPERATOR (`*I* ... DMA-SERVER`
-  printed) went the same way: two XMSG exchanges (MON 512B-514B), the NUCLEUS calls (MON 347B),
-  `DP-NAME-SERVER` answered 101012B, "No files copied".
-
-**Read from Backup Manager's code, 2026-11-03** (`MFBUS_CODE_AT_MON=347` logs the code round
-the resume address and the ENTS frame chain - B+0 previous B, B+4 return address; the DOM was
-re-extracted WITHOUT `ndtool -p`, which strips bit 7 and had turned the code into rubbish):
-
-- Call path of the failing open: main COPY routine -> 0x10075C28 (DOMINO set-up) -> 0x10075DC4
-  -> 0x10076023 -> the `nkOpenPort` wrapper 0x1007DBB8 (call site 0x100760C8) -> MON 347B.
-- After the open (0x100760D7-0x100760E8): the status is compared with 0x820C = 101014B
-  `nke_NOACCESS`. 101014B is turned into "no error, no send reference" and the set-up goes on;
-  0 goes on with the send reference; ANY other status is returned up. The main routine
-  (0x10071D60-0x10071D9C) then calls the error reporter with 0x3741 and returns: the COPY is
-  over. So Backup Manager B02 accepts "no access" but not "name not defined".
-- 101012B is SINTRAN's own answer, not the emulator's: no code in nd100x or nd500x makes it.
-  In the NUCLEUS name server (segment 107 S3INKNA, L-VSX-500 carve) the function-3 branch at
-  034767 calls the name-table lookup; when it finds nothing (A = 0 at 035004) it loads the
-  double word {0, 101012B} from 035077 and stores it as the status (035026 `STD ,X 32`).
-  ND-820026 lists both NAMENOTFOUND and NOACCESS as answers of nkOpenPort.
-- Nothing on this machine REGISTERS `DP-NAME-SERVER`. Every disc image and DOM on D: and E:\Dev
-  and the RetroCoreLabs software archive catalogue were searched (plain and with bit 7 set):
-  the name is only in its USERS - BM-OPERATOR-B02, BM-FILERE-B02, and the ND-100 test program
-  SCSI-TV (`Nd-210523I01-XX-02D`). The DOMINO/SCSI software package (211478A) is not here, and
-  the only Backup Manager here is B02 (ND-211226 floppies 01D-04D, all B02).
-- ND-895076-2A (SCSI-TV-C04) lists the same fault as fixed in that program: "(101012) Device not
-  available, Name not in name table" when selecting a device on a system without DOMINO SCSI
-  but with NUCLEUS running. ND-895055-1A says B04 corrects "all errors reported for B02"
-  without naming this one.
-
-**Not known:** what a real SINTRAN L / ND-5000 without DOMINO answered here. If it is 101012B
-as the carved code says, B02 cannot copy to tape on such a machine and the fault is in B02;
-if it is 101014B, something before the name lookup (segment 105 access check, the caller's
-owner from the ND-500 side) differs in our run. That has not been traced live yet.
-
-Also found and fixed: `nd500x --dom ... --disasm` printed `00 ???` after
-`1A CF 64 70 64 76 C5 40` (`w move #...,IND(b.64)`) at 0x100760EA. The listing used the
-execution decode, whose IND pointer read raised a sticky trap, after which every fetch read 0.
-Listings now decode through the trap-free MMU peek (nd500x 6469a3c, test `listing_decode`).
+**Ruled out:** the four NUCLEUS instructions that ND microcoded on the ND-5000 (`SEND`, `RECVE`,
+`GETINF`, hole move) are not in nd500x, but no illegal-instruction trap happened in the backup
+or the restore, so a file copy to the streamer does not use them.
 
 ## DAP debugger (`src/debugger/`, `external/libdap`)
 
