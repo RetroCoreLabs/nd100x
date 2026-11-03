@@ -785,10 +785,18 @@ monitor call with its answer.
   bits 0-3 as the ND-5000 model and refused model 1 with 101035B "Not correct hardware
   configuration" on the first NUCLEUS call of every COPY. Fixed in nd500x; now the first three
   NUCLEUS calls answer 0.
+- The answer data of a 26B (3WMONCO) restart was dropped when its page was not in memory, so
+  the first COPY of every run lost the 42 bytes of a GetDirEntry answer and copied nothing.
+  The bridge now writes the block through the process's MMU, as the microcode's `MSG_CONWR`
+  (@015752-016004) does; a missing page is reported to SINTRAN as page fault 46B on the
+  process's message, and SINTRAN pages it in and sends the same 26B again (MP-P2-N500.NPL
+  135641). That needed nd500x to leave MICFU at 26B when the copy faults: the microcode writes
+  23B only at `MSG_CON10` (@015715-015716), after the copy. Measured: fault at 0x0805F39C,
+  swapper call, resend, "42 byte(s) ... all written", Backup Manager goes on.
 
 **What still goes wrong (measured 2026-11-03, every ND-5000 monitor call logged):**
 
-- The second COPY in a BM-OPERATOR run reads the user and the file (GetUserEntry,
+- Every COPY (since the 26B fix, the first one too) reads the user and the file (GetUserEntry,
   GetFileIndexes, GetObjectEntry), walks the directory entries, reads GetSystemInfo, makes six
   XMSG calls, then four NUCLEUS calls. The fourth is `nkOpenPort` of a name that starts with
   "DP-NAM" - `DP-NAME-SERVER`, the DOMINO SCSI name server (the string is in
@@ -799,11 +807,11 @@ monitor call with its answer.
   peripheral file (`Streamer-1` = 2226B), and needs no peripheral file for a DOMINO device. So
   Backup Manager did not take `STREAMER-1` as an ND-100 drive, although `(SYSTEM)STREAMER-1`
   exists. Why not is **not known**. No monitor call in the sequence names the peripheral file.
-- The FIRST COPY in every BM-OPERATOR run stops much earlier: GetDirNameIndex, one GetDirEntry,
-  then `No files copied`. Cause found: the 42 bytes of directory entry that GetDirEntry returns
-  were thrown away by the bridge because that page of the process was not in memory - see P3.
-  The second COPY makes the same call when the page is present and goes on. Since P3 now stops
-  the process instead, a run hangs at the first COPY until P3 is fixed.
+- After that failure, a SECOND COPY in the same BM-OPERATOR run does not start: Backup Manager
+  reads "COPY" and each answer after it as a new command and prints `BmOp:` after every one
+  (measured 2026-11-03). No monitor call is made between reading the line and the prompt, so
+  Backup Manager decides this itself. Why is **not known**; it comes after the
+  `DP-NAME-SERVER` failure, so it may go away with it.
 - `Error 33626 (octal)` on `(SYSTEM)SWAP-FILE-0:SWAP` at BM-OPERATOR start comes from the
   `IMAGE-NO-COMPARE-FILE` line in `BM-PARAMETER-B02:DATA`; the file does not exist on this pack.
 - PROMAN still reports "No domino controllers found in system" (correct), "Not read, write and
@@ -816,32 +824,6 @@ these runs (281 traps, all page faults), so they are not reached yet.
 
 **Next:** find what Backup Manager checks to decide that `STREAMER-1` is an ND-100 drive -
 decode the six XMSG calls before the NUCLEUS calls.
-
-### P3. ND-5000 monitor-call answer data is dropped when the target page is not in memory
-
-**Found by:** the full ND-5000 monitor-call log of a BM-OPERATOR COPY (P2), 2026-11-03.
-
-**Shows up as:** `MFbus: ND-5000 at 70 3WMONCO answer data: 42 byte(s) from pool 0x0E4800 ->
-logical 0x0805F39C, 0 written, 42 skipped as unmapped`. The call (MON 244B GetDirEntry) answers
-FUNCV 0 with no error, so the program goes on with a buffer SINTRAN never filled. Backup Manager
-then copies nothing and says only `No files copied` (P2, the first COPY of every run). One drop in
-a run of 298 answer-data copies; which one depends on what the swapper has paged out.
-
-**Where:** `src/machine/mfbus_bridge.c`, the 26B answer-data block copy after a 3WMONCO
-restart. Until 2026-11-03 it wrote each byte through `nd500_mmu_peek()` and skipped any byte
-whose page was not present. Since then it checks every byte first and, when a page is missing,
-writes nothing, logs `ERROR ... 3WMONCO answer data: N of M byte(s) ... land on a page that is
-not in memory ... (BUGS.md P3) - the process stays parked` and does not resume the process. So
-the failure now shows: Backup Manager's first COPY hangs with that line in the log (measured).
-
-**What the hardware does:** the B30 microcode copies this block in `MSG_CONWR`
-(@015752-016004) with ordinary `RD,POF` / `WRITE` accesses through the process's own address
-space (ND5000UC `docs/ND5000-DOM-LOAD-MONCALL-MICROCODE-REFERENCE-2026-08-20.md` section 3.4). A
-missing page is therefore a normal ND-5000 page fault. **Not known:** what the microcode does
-with a page fault inside `MSG_CONWR` - which trap it raises, what it reports to the swapper,
-and how the copy and the restart continue once the page is in. That has to be read out of the
-microcode (the WRITE fault path from @016000/@016004) before this can be fixed; skipping the
-bytes is not what the machine does.
 
 ## DAP debugger (`src/debugger/`, `external/libdap`)
 

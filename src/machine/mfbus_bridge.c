@@ -2928,6 +2928,120 @@ static bool mfbus_defer_message(MfbusCpuSlot *c, uint32_t msg_byte, uint16_t mic
     return true;
 }
 
+
+/*
+ * A FAULT IN THE 26B ANSWER COPY, REPORTED THE WAY THE MICROCODE REPORTS IT.
+ *
+ * The copy runs inside the restart (MSG_CONWR, after NEWCNTXT and the 24B answer
+ * fetch), and its WRITE goes through the process's MMU, so a missing page raises
+ * an ordinary page fault: the trap entry writes the stop record into the
+ * process's own message and asks the swapper for the page (TRAP_PGF @013446,
+ * TRAP_GEN4 then TRAP_SWAP @024734). MSG_CON10 - which would write 23B into
+ * MICFU - is never reached, so the message still says 26B.
+ *
+ * What SINTRAN does with it (MP-P2-N500.NPL): DECOERRMESS / TRAPDECODER take a
+ * 46B with MICFU 3WMONCO to ITRAPDECODER and the swapper (135245-135367); after
+ * the swap SWPDECODER sees MICFU 3WMONCO, restores 26NRB from SM26N and 26ADD
+ * from SM26A - the trap record overwrote both (they share 0o15-0o17 with it) -
+ * and sends the same 3WMONCO again (135641-135670). The copy then runs again
+ * from the first byte.
+ *
+ * P is NOT moved. A monitor call's P is set past the CALLG when the call is made
+ * (@004012), and the restart resumes from it; the faulting access is the copy,
+ * not an instruction, so there is no instruction to back up to.
+ *
+ * FUNCV, K and the write-backs of this restart were applied before the copy, as
+ * in the microcode (MSG_CONMC_0 runs before MSG_CONWR_1). The trap record then
+ * covers their slots, so the next restart finds this process parked on a TRAP
+ * and leaves them as they are - see ndbus_servicer_stop_was_monitor_call above.
+ * NOT VERIFIED: whether the microcode skips its own second fetch of them. The
+ * likely switch is MSG_CONMC_0's TESTOBJ 38 jump (@015720 -> MSG_CONMC_33), whose
+ * meaning in this place is not known.
+ *
+ * Returns true when SINTRAN has been told - the restart is TAKEN, parked on the
+ * trap - and false when it could not be, with the reason logged.
+ */
+static bool mfbus_park_on_answer_copy_fault(NdbusNd5000 *nd, MfbusCpuSlot *c, uint16_t micfu,
+                                            uint32_t fault_addr, uint32_t written,
+                                            uint32_t count)
+{
+    /* The walk raised a non-ignorable trap. If the sink did not see it, a local
+     * trap handler in the process took it and the CPU state is now that
+     * handler's - not something the microcode's message path can lead to,
+     * because its trap entry does not dispatch to a domain handler here. Say so
+     * and leave the process parked rather than guess. */
+    if (!c->trap_captured)
+    {
+        LOG(LOG_CAT_MMS, LOG_ERROR,
+            "MFbus: %s MICFU %oB answer copy faulted at logical 0x%08X (%u of %u byte(s) "
+            "written) but the trap was not offered to SINTRAN - the process stays parked\n",
+            c->name, (unsigned)micfu, (unsigned)fault_addr, (unsigned)written,
+            (unsigned)count);
+        c->parked = true;
+        nd500_trap_clear();
+        c->cpu.instr_aborted = 0;
+        return false;
+    }
+
+    uint16_t trap_number = c->trap_number_at_raise;
+
+    /* The MMS status word, composed as the instruction path composes it - see
+     * mfbus_cpu_step_inner: access class in bits 31-29 (101 = write), the walk's
+     * fault-location code in the low byte, read from trap_saved_info because
+     * raise_trap clears the live field. */
+    uint32_t mms = (c->cpu.trap_saved_is_write ? 0xA0000000u : 0x80000000u)
+                   | (c->cpu.trap_saved_info & 0xFFu);
+    uint32_t restart_p = c->cpu.PC;
+
+    /* The block is written back for the same reason as on an instruction fault:
+     * SINTRAN runs the swapper next, and the switch back to this process reads
+     * the block again. */
+    if (!mfbus_save_context(c))
+    {
+        LOG(LOG_CAT_MMS, LOG_WARN,
+            "MFbus: %s answer-copy park could not save the context block - a switch back "
+            "to this process would resume it from a stale P\n",
+            c->name);
+    }
+
+    /* Park before the answer goes out, under the engine lock - the same order as
+     * the instruction path, for the same reason. No runner is going, so there is
+     * no leaving mark to set. */
+    ndbus_engine_lock();
+    c->parked = true;
+    mfbus_write_x5pro(mfbus_slot_index(c), -1);
+    bool answered =
+        ndbus_servicer_answer_trap_stop(&nd->servicer, (uint16_t)c->loaded_x5cpu, trap_number,
+                                        restart_p, fault_addr, mms,
+                                        (uint16_t)c->cpu.trap_saved_psn);
+    ndbus_engine_unlock();
+
+    /* Consume the trap whether or not it was delivered: nothing below this will
+     * step the CPU before the next restart, and a pending state left here would
+     * be reported a second time by the first step after it. */
+    nd500_trap_clear();
+    c->trap_captured = false;
+    c->cpu.instr_aborted = 0;
+
+    if (!answered)
+    {
+        LOG(LOG_CAT_MMS, LOG_ERROR,
+            "MFbus: %s answer-copy trap %oB at logical 0x%08X was refused by the servicer - "
+            "the process stays parked\n",
+            c->name, (unsigned)trap_number, (unsigned)fault_addr);
+        return false;
+    }
+
+    c->parked_faults++;
+    LOG(LOG_CAT_MMS, LOG_INFO,
+        "MFbus: %s MICFU %oB answer copy parked on trap %oB at logical 0x%08X (%u of %u "
+        "byte(s) written) psn=%u mms=0x%08X P=0x%X - reported to SINTRAN\n",
+        c->name, (unsigned)micfu, (unsigned)trap_number, (unsigned)fault_addr,
+        (unsigned)written, (unsigned)count, (unsigned)c->cpu.trap_saved_psn, (unsigned)mms,
+        (unsigned)restart_p);
+    return true;
+}
+
 static bool mfbus_start_process(void *ctx, uint32_t msg_byte, uint16_t micfu, uint32_t ctx_byte)
 {
     NdbusNd5000 *nd = (NdbusNd5000 *)ctx;
@@ -3208,51 +3322,45 @@ static bool mfbus_start_process(void *ctx, uint32_t msg_byte, uint16_t micfu, ui
          * here, so there is only ever one copy of the rule that the even byte is
          * the high half.
          *
-         * Written through the MMU's NON-FAULTING peek rather than a store: a
-         * fault raised here would be reported as the process's own and sent to
-         * SINTRAN as a page fault it never took.
+         * WRITTEN THROUGH THE PROCESS'S OWN MMU, as a real store. The microcode
+         * copies this block in MSG_CONWR (@015752-016004): RD,POF from the
+         * message and WRITE through EA3, the process address space - so a page
+         * that is not in memory is an ordinary page fault (46B), and a page the
+         * process may not write is a protect violation (44B). Bytes one at a
+         * time here; the microcode moves aligned words at MSG_CONWR_W and the
+         * rest at MSG_CONWR_B. The fault lands on the same address either way,
+         * because a page always starts on a word boundary.
          *
-         * A PAGE THAT IS NOT IN MEMORY STOPS THE PROCESS - BUGS.md P3. The real
-         * microcode copies this block in MSG_CONWR (@015752-016004) with ordinary
-         * RD,POF / WRITE accesses, so a missing page is a normal ND-5000 page
-         * fault there; how the copy and the restart carry on after that fault is
-         * not known yet. Until 2026-11-03 this loop skipped the missing bytes and
-         * resumed, so the program ran on with a buffer SINTRAN never filled -
-         * measured: Backup Manager's first COPY lost a 42-byte GetDirEntry answer
-         * and quietly copied nothing. Now every byte is checked first, nothing is
-         * written when any page is missing, and the process stays parked with an
-         * ERROR, so the failure shows instead of a wrong result. */
+         * A FAULT STOPS THE PROCESS AND IS REPORTED - see
+         * mfbus_park_on_answer_copy_fault. SINTRAN pages the page in and sends
+         * the same 26B again, and the whole restart is redone.
+         *
+         * Until 2026-11-03 this went through the non-faulting peek and skipped
+         * the bytes whose page was missing, so the program ran on with a buffer
+         * SINTRAN never filled - measured: Backup Manager's first COPY lost a
+         * 42-byte GetDirEntry answer and quietly copied nothing. */
         if (have_wblock && wblock.count > 0u)
         {
-            uint32_t unmapped = 0u, first_missing = 0u;
-            for (uint32_t i = 0; i < wblock.count; i++)
+            /* A fresh access: instr_aborted is how a non-ignorable trap raised by
+             * the walk says so (and while it is set the MMU raises nothing). */
+            c->cpu.instr_aborted = 0;
+            c->trap_captured = false;
+            uint32_t written = 0u;
+            for (; written < wblock.count; written++)
             {
-                if (nd500_mmu_peek(&c->cpu, wblock.dest + i) == 0xFFFFFFFFu)
+                uint32_t pa = nd500_mmu_translate(&c->cpu, wblock.dest + written,
+                                                  1 /* write */, 0 /* data */);
+                if (c->cpu.instr_aborted)
                 {
-                    if (unmapped == 0u)
-                    {
-                        first_missing = wblock.dest + i;
-                    }
-                    unmapped++;
+                    break;
                 }
-            }
-            if (unmapped != 0u)
-            {
-                LOG(LOG_CAT_MMS, LOG_ERROR,
-                    "MFbus: %s 3WMONCO answer data: %u of %u byte(s) for logical 0x%08X land on "
-                    "a page that is not in memory (first 0x%08X). The page-fault path of the "
-                    "microcode's answer copy is not emulated (BUGS.md P3) - the process stays "
-                    "parked\n",
-                    c->name, (unsigned)unmapped, (unsigned)wblock.count,
-                    (unsigned)wblock.dest, (unsigned)first_missing);
-                c->parked = true;
-                return false;
-            }
-            for (uint32_t i = 0; i < wblock.count; i++)
-            {
-                uint32_t pa = nd500_mmu_peek(&c->cpu, wblock.dest + i);
                 (void)ndbus_pool_write8(&s_pool, pa,
-                    ndbus_servicer_read_nd100_byte(&nd->servicer, wblock.src_byte + i));
+                    ndbus_servicer_read_nd100_byte(&nd->servicer, wblock.src_byte + written));
+            }
+            if (written < wblock.count)
+            {
+                return mfbus_park_on_answer_copy_fault(nd, c, micfu, wblock.dest + written,
+                                                       written, wblock.count);
             }
             LOG(LOG_CAT_MMS, LOG_INFO,
                 "MFbus: %s 3WMONCO answer data: %u byte(s) from pool 0x%06X -> logical "
