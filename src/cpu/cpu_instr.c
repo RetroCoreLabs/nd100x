@@ -5916,8 +5916,20 @@ static void opcode_cnrek_clear_non_reentrant_pages_sintran_k(uint16_t operand)
     stbnk = (uint32_t)(gSTBNK & 0xFF) << 16;
     tseg = (uint32_t)(t_reg & 0xFF) << 16;
 
-    /* 004530-004531: examine the descriptor at STBNK[A+2] (value unused in this path). */
-    (void)mms_read_physical_memory((int)(stbnk | (uint32_t)((a_reg + 2) & 0xFFFF)), true);
+    /*
+     * 004530-004532: examine the segment's logical address word at STBNK[A+2] into Q.
+     * It is NOT unused: 004533 makes R7 := (Q AND 1700) shifted left one (ALUD,SLB) and
+     * 004534 adds it to 0174000, so the walk starts at the page-table slot of the
+     * segment's first page - the same PTBLE that SINTRAN's software version (SP06L in
+     * IP-P2-SEGADM.NPL, "A/\1700 SH 1+174000") computes, and the
+     * "((Q AND 1700)*2) + 174000" of ND-06.029.1 Appendix B. Measured on the micro code
+     * (NDMicroCpu vector CNREK/bit_0_logad_100, LOGAD 000100): the write goes to 174200.
+     * With the base fixed at 174000, SINTRAN L cleared the wrong page-table entries for a
+     * reentrant segment that does not start at page 0 (the ND-500 monitor's, LOGAD 100),
+     * its first page faulted forever and every fault took another physical page.
+     */
+    uint16_t logad =
+        (uint16_t)mms_read_physical_memory((int)(stbnk | (uint32_t)((a_reg + 2) & 0xFFFF)), true);
 
     /* 004532: A+2 == 0 -> no-op.  004536/004540: X == 0 -> no-op. */
     if ((uint16_t)(a_reg + 2) == 0)
@@ -5929,7 +5941,8 @@ static void opcode_cnrek_clear_non_reentrant_pages_sintran_k(uint16_t operand)
         return;
     }
 
-    r1 = 0xF800;                /* 0174000 octal - page-table clear base (APT) */
+    /* 004533-004534: R1 := ((Q AND 1700) << 1) + 0174000 - page-table slot of the segment's first page (APT) */
+    r1 = (uint16_t)(((logad & 0x03C0) << 1) + 0xF800);
     r2 = x_reg;                 /* first bitmap word */
     r3 = (uint16_t)(x_reg + 8); /* bound = X + 010 octal (8 words) */
 
