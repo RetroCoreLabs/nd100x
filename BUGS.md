@@ -802,7 +802,8 @@ monitor call with its answer.
 - The FIRST COPY in every BM-OPERATOR run stops much earlier: GetDirNameIndex, one GetDirEntry,
   then `No files copied`. Cause found: the 42 bytes of directory entry that GetDirEntry returns
   were thrown away by the bridge because that page of the process was not in memory - see P3.
-  The second COPY makes the same call when the page is present and goes on.
+  The second COPY makes the same call when the page is present and goes on. Since P3 now stops
+  the process instead, a run hangs at the first COPY until P3 is fixed.
 - `Error 33626 (octal)` on `(SYSTEM)SWAP-FILE-0:SWAP` at BM-OPERATOR start comes from the
   `IMAGE-NO-COMPARE-FILE` line in `BM-PARAMETER-B02:DATA`; the file does not exist on this pack.
 - PROMAN still reports "No domino controllers found in system" (correct), "Not read, write and
@@ -827,8 +828,11 @@ then copies nothing and says only `No files copied` (P2, the first COPY of every
 a run of 298 answer-data copies; which one depends on what the swapper has paged out.
 
 **Where:** `src/machine/mfbus_bridge.c`, the 26B answer-data block copy after a 3WMONCO
-restart. It writes each byte through `nd500_mmu_peek()` and skips any byte whose page is not
-present, by design (the comment says a fault there would be reported as the process's own).
+restart. Until 2026-11-03 it wrote each byte through `nd500_mmu_peek()` and skipped any byte
+whose page was not present. Since then it checks every byte first and, when a page is missing,
+writes nothing, logs `ERROR ... 3WMONCO answer data: N of M byte(s) ... land on a page that is
+not in memory ... (BUGS.md P3) - the process stays parked` and does not resume the process. So
+the failure now shows: Backup Manager's first COPY hangs with that line in the log (measured).
 
 **What the hardware does:** the B30 microcode copies this block in `MSG_CONWR`
 (@015752-016004) with ordinary `RD,POF` / `WRITE` accesses through the process's own address

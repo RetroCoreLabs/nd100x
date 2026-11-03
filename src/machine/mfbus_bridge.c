@@ -3208,31 +3208,57 @@ static bool mfbus_start_process(void *ctx, uint32_t msg_byte, uint16_t micfu, ui
          * here, so there is only ever one copy of the rule that the even byte is
          * the high half.
          *
-         * Written through the MMU's NON-FAULTING peek rather than a store,
-         * because the destination can straddle a page and an unmapped page must
-         * be skipped and SAID, not faulted on: a fault raised while delivering an
-         * answer would be reported as the process's own and sent to SINTRAN as a
-         * page fault it never took. */
+         * Written through the MMU's NON-FAULTING peek rather than a store: a
+         * fault raised here would be reported as the process's own and sent to
+         * SINTRAN as a page fault it never took.
+         *
+         * A PAGE THAT IS NOT IN MEMORY STOPS THE PROCESS - BUGS.md P3. The real
+         * microcode copies this block in MSG_CONWR (@015752-016004) with ordinary
+         * RD,POF / WRITE accesses, so a missing page is a normal ND-5000 page
+         * fault there; how the copy and the restart carry on after that fault is
+         * not known yet. Until 2026-11-03 this loop skipped the missing bytes and
+         * resumed, so the program ran on with a buffer SINTRAN never filled -
+         * measured: Backup Manager's first COPY lost a 42-byte GetDirEntry answer
+         * and quietly copied nothing. Now every byte is checked first, nothing is
+         * written when any page is missing, and the process stays parked with an
+         * ERROR, so the failure shows instead of a wrong result. */
         if (have_wblock && wblock.count > 0u)
         {
-            uint32_t written = 0u, unmapped = 0u;
+            uint32_t unmapped = 0u, first_missing = 0u;
+            for (uint32_t i = 0; i < wblock.count; i++)
+            {
+                if (nd500_mmu_peek(&c->cpu, wblock.dest + i) == 0xFFFFFFFFu)
+                {
+                    if (unmapped == 0u)
+                    {
+                        first_missing = wblock.dest + i;
+                    }
+                    unmapped++;
+                }
+            }
+            if (unmapped != 0u)
+            {
+                LOG(LOG_CAT_MMS, LOG_ERROR,
+                    "MFbus: %s 3WMONCO answer data: %u of %u byte(s) for logical 0x%08X land on "
+                    "a page that is not in memory (first 0x%08X). The page-fault path of the "
+                    "microcode's answer copy is not emulated (BUGS.md P3) - the process stays "
+                    "parked\n",
+                    c->name, (unsigned)unmapped, (unsigned)wblock.count,
+                    (unsigned)wblock.dest, (unsigned)first_missing);
+                c->parked = true;
+                return false;
+            }
             for (uint32_t i = 0; i < wblock.count; i++)
             {
                 uint32_t pa = nd500_mmu_peek(&c->cpu, wblock.dest + i);
-                if (pa == 0xFFFFFFFFu)
-                {
-                    unmapped++;
-                    continue;
-                }
                 (void)ndbus_pool_write8(&s_pool, pa,
                     ndbus_servicer_read_nd100_byte(&nd->servicer, wblock.src_byte + i));
-                written++;
             }
             LOG(LOG_CAT_MMS, LOG_INFO,
                 "MFbus: %s 3WMONCO answer data: %u byte(s) from pool 0x%06X -> logical "
-                "0x%08X, %u written, %u skipped as unmapped\n",
+                "0x%08X, all written\n",
                 c->name, (unsigned)wblock.count, (unsigned)wblock.src_byte,
-                (unsigned)wblock.dest, (unsigned)written, (unsigned)unmapped);
+                (unsigned)wblock.dest);
         }
         else if (have_wblock && wblock.oversize)
         {
