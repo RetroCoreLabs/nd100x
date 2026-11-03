@@ -818,12 +818,31 @@ monitor call with its answer.
   common access" and "Unable to log events to ring buffer file" at `@START-SERVERS`. MTSERV
   reports "MTAD server initiated and started".
 
+**Measured 2026-11-03 with the file names and answer bytes logged** (`--log=mms:info`; the
+bridge now prints the first 32 bytes of every 26B answer block, the text of name arguments, and
+the file name of every MON 50B OPEN):
+
+- Backup Manager never opens `STREAMER-1`. The four OPENs of a run are `DDBTABLES-G...`,
+  `(ND-OPERATIONS)BM-PARAMETER...` and an error-message file twice.
+- When the device name is typed, no monitor call follows - only page faults - so the name is
+  checked inside the program.
+- The COPY itself, in order: TIME; find directory `PACK-ONE` and read its entry; read user
+  `RONNY`; find the object `TEST:SYMB`; get the device name `DISC-75MB-1`; read directory
+  entries 1 to 0x2D (all empty); get system info (24 bytes starting `00 64`, system 100); one
+  XMSG XROUT name lookup (XSGNI) that returns machine 100 port 0x01B9 `*XM-FIDO`; get the
+  terminal name `(SYSTEM)TERMINAL-1`; four NUCLEUS calls, the last `nkOpenPort` of
+  `DP-NAME-SERVER` -> FUNCV 0xFFFF820A, K=1; then `No files copied`.
+- FUNCV is the two halfwords exactly as SINTRAN wrote them into the message; nothing in the
+  bridge or the servicer changes it.
+
 **Ruled out:** the four NUCLEUS instructions that ND microcoded on the ND-5000 (`SEND`,
 `RECVE`, `GETINF`, hole move) are not in nd500x, but no illegal-instruction trap happens in
-these runs (281 traps, all page faults), so they are not reached yet.
+these runs (all traps are page faults), so they are not reached yet.
 
-**Next:** find what Backup Manager checks to decide that `STREAMER-1` is an ND-100 drive -
-decode the six XMSG calls before the NUCLEUS calls.
+**Next:** read what Backup Manager does with the `nkOpenPort` answer. The call returns to
+0x1007DC4D in `BM-OPERATOR-B02:DOM` (the `DP-NAME-SERVER` string is in that file and in
+`BM-FILERE-B02:DOM`). `nd500x --dom ... --disasm` at that address prints data, not code, so the
+DOM's segment placement has to be worked out first, or the code read from the live process.
 
 ## DAP debugger (`src/debugger/`, `external/libdap`)
 

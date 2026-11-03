@@ -2149,9 +2149,86 @@ static int mfbus_mon_call(void *ctx, uint32_t mon_number, uint32_t arg_count,
             }
             used += (size_t)n;
         }
-        LOG(LOG_CAT_MMS, LOG_INFO, "MFbus: %s MON %oB X5CPU=%d argc=%u resume=0x%X args:%s\n",
+        /* AND ANY ARGUMENT THAT IS TEXT. A file or port name is passed as the address
+         * of the characters, so its "value" above is only the first four of them
+         * (0x535953D4 is "SYST" with the parity bit on the T). Up to 24 characters
+         * of each of the first six arguments, parity stripped, when at least three
+         * in a row are printable. Read through the NON-FAULTING peek: this is a
+         * diagnostic and must not page anything in. */
+        char names_text[200];
+        size_t nused = 0;
+        names_text[0] = '\0';
+        for (uint32_t k = 0; arg_addresses != NULL && k < count && k < 6u; k++)
+        {
+            char word[25];
+            uint32_t len = 0;
+            while (len < 24u)
+            {
+                uint32_t pa = nd500_mmu_peek(&c->cpu, arg_addresses[k] + len);
+                if (pa == 0xFFFFFFFFu)
+                {
+                    break;
+                }
+                uint8_t ch = (uint8_t)(ndbus_pool_read8(&s_pool, pa) & 0x7Fu);
+                if (ch < 0x20u || ch > 0x7Eu)
+                {
+                    break;
+                }
+                word[len++] = (char)ch;
+            }
+            word[len] = '\0';
+            if (len >= 3u && nused + len + 8u < sizeof names_text)
+            {
+                int n = snprintf(names_text + nused, sizeof names_text - nused, " [%u]'%s'",
+                                 (unsigned)k, word);
+                if (n > 0)
+                {
+                    nused += (size_t)n;
+                }
+            }
+        }
+        LOG(LOG_CAT_MMS, LOG_INFO, "MFbus: %s MON %oB X5CPU=%d argc=%u resume=0x%X args:%s%s\n",
             c->name, (unsigned)mon_number, c->loaded_x5cpu, (unsigned)count, (unsigned)resume,
-            args_text);
+            args_text, names_text);
+
+        /* MON 50B OPEN: THE FILE NAME. It is passed as a two-word descriptor at
+         * argument 2 - the length, then the address of the characters - so the
+         * plain text scan above never sees it (measured: length 0x11 at 0x08000464,
+         * address 0x08000474, text "DDBTABLES-G..."). Diagnostic, non-faulting
+         * peek; at most 64 characters. */
+        if (mon_number == 050u && arg_addresses != NULL && count >= 3u)
+        {
+            uint32_t d = arg_addresses[2];
+            uint32_t w[2] = { 0u, 0u };
+            bool ok = true;
+            for (uint32_t j = 0; j < 8u && ok; j++)
+            {
+                uint32_t pa = nd500_mmu_peek(&c->cpu, d + j);
+                ok = (pa != 0xFFFFFFFFu);
+                if (ok)
+                {
+                    w[j / 4u] = (w[j / 4u] << 8) | ndbus_pool_read8(&s_pool, pa);
+                }
+            }
+            char name[65];
+            uint32_t len = 0;
+            uint32_t want = (ok && w[0] < 64u) ? w[0] : 0u;
+            while (len < want)
+            {
+                uint32_t pa = nd500_mmu_peek(&c->cpu, w[1] + len);
+                if (pa == 0xFFFFFFFFu)
+                {
+                    break;
+                }
+                uint8_t ch = (uint8_t)(ndbus_pool_read8(&s_pool, pa) & 0x7Fu);
+                name[len++] = (ch >= 0x20u && ch <= 0x7Eu) ? (char)ch : '.';
+            }
+            name[len] = '\0';
+            LOG(LOG_CAT_MMS, LOG_INFO,
+                "MFbus: %s   MON 50B file name: length %u at 0x%08X: '%s'%s\n",
+                c->name, (unsigned)w[0], (unsigned)w[1], name,
+                ok ? "" : " (descriptor not readable)");
+        }
     }
 
     /* WHAT THE SWAPPER ACTUALLY ASKED FOR.
@@ -3362,11 +3439,22 @@ static bool mfbus_start_process(void *ctx, uint32_t msg_byte, uint16_t micfu, ui
                 return mfbus_park_on_answer_copy_fault(nd, c, micfu, wblock.dest + written,
                                                        written, wblock.count);
             }
+            /* THE BYTES THEMSELVES, the first 32. A count says the copy happened; only
+             * the content says what SINTRAN answered - a directory entry, an XMSG
+             * reply, a name - and that is what a program decides on next. */
+            char hex[32u * 3u + 1u];
+            hex[0] = '\0';
+            uint32_t shown = wblock.count < 32u ? wblock.count : 32u;
+            for (uint32_t k = 0; k < shown; k++)
+            {
+                (void)snprintf(hex + k * 3u, sizeof hex - k * 3u, "%02X ",
+                    (unsigned)ndbus_servicer_read_nd100_byte(&nd->servicer, wblock.src_byte + k));
+            }
             LOG(LOG_CAT_MMS, LOG_INFO,
                 "MFbus: %s 3WMONCO answer data: %u byte(s) from pool 0x%06X -> logical "
-                "0x%08X, all written\n",
+                "0x%08X, all written: %s%s\n",
                 c->name, (unsigned)wblock.count, (unsigned)wblock.src_byte,
-                (unsigned)wblock.dest);
+                (unsigned)wblock.dest, hex, wblock.count > shown ? "..." : "");
         }
         else if (have_wblock && wblock.oversize)
         {
