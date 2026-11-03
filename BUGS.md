@@ -839,6 +839,17 @@ the file name of every MON 50B OPEN):
 `RECVE`, `GETINF`, hole move) are not in nd500x, but no illegal-instruction trap happens in
 these runs (all traps are page faults), so they are not reached yet.
 
+**Ruled out 2026-11-03, from ND's papers and one run:**
+
+- The peripheral file. The Backup Manager install paper (ND-895055, "Information and hints")
+  says Backup Manager finds an ND-100 drive through its peripheral file, `Streamer-1` with
+  device number 2226B. The test pack has `(SYSTEM)STREAMER-1` with device number 1174 =
+  2226B (`ndtool --stat`). The paper names DOMINO as optional and documents nothing about
+  `DP-NAME-SERVER` or "No files copied".
+- The DMA server. A run with `@RT DMASRV` typed before BM-OPERATOR (`*I* ... DMA-SERVER`
+  printed) went the same way: two XMSG exchanges (MON 512B-514B), the NUCLEUS calls (MON 347B),
+  `DP-NAME-SERVER` answered 101012B, "No files copied".
+
 **Next:** read what Backup Manager does with the `nkOpenPort` answer. The call returns to
 0x1007DC4D in `BM-OPERATOR-B02:DOM` (the `DP-NAME-SERVER` string is in that file and in
 `BM-FILERE-B02:DOM`). `nd500x --dom ... --disasm` at that address prints data, not code, so the
