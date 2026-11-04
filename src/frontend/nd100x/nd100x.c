@@ -1739,6 +1739,7 @@ int main(int argc, char *argv[])
                     .inputFunc = terminal_queue_key_code,
                     .origOutput = dev->charCallbacks.outputFunc,
                     .carrierFunc = set_terminal_carrier,
+                    .inputRoomFunc = terminal_input_room,
                 };
                 telnet_register_terminal(telnet_server, &info);
 
@@ -1855,8 +1856,17 @@ int main(int argc, char *argv[])
             }
         }
 
-        // Handle keyboard input
-        if (run_mode != CPU_SHUTDOWN)
+        // Handle keyboard input. While the active terminal's input queue is full,
+        // no key is taken from the keyboard or the --pipe stream: the rest of a long
+        // paste waits there, as on a real terminal that sends no faster than the line
+        // carries it (terminal_tick paces the line; BUGS.md T1). One key event can
+        // hold up to 32 bytes, so that much room is wanted.
+        bool input_full = (run_mode != CPU_PAUSED) && (run_mode != CPU_BREAKPOINT) &&
+                          !menu_is_active(&menu_state) && screens[active_screen].device &&
+                          screens[active_screen].isInputCapable &&
+                          screens[active_screen].localActive &&
+                          terminal_input_room(screens[active_screen].device) < 32;
+        if (run_mode != CPU_SHUTDOWN && !input_full)
         {
             KeyEvent key = kbd_read_key_event();
 

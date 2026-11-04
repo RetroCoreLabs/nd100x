@@ -25,6 +25,7 @@
 #ifndef TELNETSERVER_H
 #define TELNETSERVER_H
 
+#include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -40,6 +41,9 @@ typedef enum
 typedef void (*TelnetInputFunc)(struct Device *device, uint8_t keycode);
 typedef void (*TelnetOutputFunc)(struct Device *device, char c);
 typedef void (*CarrierFunc)(struct Device *device, bool missing);
+// Free places in the terminal's input queue; the client thread reads no more than this
+// from the socket, so a long paste waits in TCP instead of being dropped (BUGS.md T1).
+typedef size_t (*InputRoomFunc)(struct Device *device);
 
 // Terminal registration info
 typedef struct
@@ -51,6 +55,7 @@ typedef struct
     TelnetInputFunc inputFunc;
     TelnetOutputFunc origOutput; // Original VScreen handler (for chaining)
     CarrierFunc carrierFunc;
+    InputRoomFunc inputRoomFunc; // NULL: no limit
 } TelnetTerminalInfo;
 
 // Server configuration

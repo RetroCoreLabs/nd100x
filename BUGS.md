@@ -705,7 +705,7 @@ product has been found, and none of the SCSI-TV versions lists one.
 
 ## Terminal (`src/devices/terminal/device_terminal.c`)
 
-### T1. Typed keys reach SINTRAN about ten times faster than a real line carries them
+### T1. Typed keys reached SINTRAN about ten times faster than a real line carries them (input fixed)
 
 **Found by:** `tools/installs/backup-manager-b02/install.py`, 2026-11-04. The line
 `COPY-FILE "(SYSTEM)UE-ERMSG-EN-D05:ERR",(211075C03-EN-01D:FLOPPY-USER)UE-ERMSG-EN-D05:ERR`
@@ -731,11 +731,30 @@ nothing, and lines of up to 120 characters typed at a quiet `@` arrived whole.
   take, and a command reader that is busy for a moment falls behind where on a real line it
   would not.
 
-**Not known:** the instruction rate of the emulated ND-110/ND-120 in emulated time, so the real
-line time in instructions; and where the terminal's baud rate comes from on the ND-100
-terminal interface (`TSPEED` in DTxxR is SINTRAN's; whether the card takes it, or has
-switches, is not checked). Not decided: pace input in the emulator at the line rate, or have
-`tools/nd100x_expect.py` type no faster than a real line.
+**Input fixed 2026-11-04.** A key now reaches the UART when its line time has passed: start
+bit, data bits, parity bit and stop bits as the input control word sets them (IOX 303 bits
+11-14, ND-06.016.01 B.1), at the line speed, in instructions at the emulator's real-time rate
+(`cpu_throttle_get_mhz`, 0.5275 MHz unless `--throttle` sets it, the rate the 20 ms clock is
+built on). 8 data bits and 2 stop bits at 9600 baud are 604 instructions. The line speed is
+`[terminals] baud` (default 9600, speed switch setting 7; ND-06.016.01 Appendix C.1.2 for the
+console, C.2.3 for the 3010 terminal module). The keyboard / `--pipe` reader and the telnet
+reader take no more keys than the queue has room for, so a long paste waits at its source and
+is not dropped. Tests: `devmgr_tick_tests` (line times for 8N2, 7E1, 5 bits with 1.5 stop bits
+and 19200 baud; a 300-key burst arrives whole and in order), `machine_config_tests`. On the
+machine: single lines of 40, 89 and 120 characters and three pastes of 426 characters in one
+write each reached SINTRAN whole.
+
+**Still not as the hardware:**
+
+- **Output** still takes about 100 instructions a character (`IODELAY_TERMINAL`), about six
+  times faster than a 9600-baud line.
+- **IOX +1, "data rate selection"**, on the terminals of the 3010 module is still a no
+  operation: ND-06.016.01 (B.2) names the register but gives no bit layout, so a program that
+  sets a line speed this way is not followed. On the console (IOX 301) it is a no operation on
+  the real card too (B.1). SINTRAN's `TSPEED` (DTxxR) was not traced.
+- The input waits for output to be idle before the next key, as before; whether the card
+  does that was not checked.
+- The browser build (`nd100wasm`) queues keys without the room check.
 
 ## Interrupt system
 

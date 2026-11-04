@@ -253,6 +253,9 @@ typedef struct
 
     int terminals[MC_MAX_TERMINALS];
     int terminalCount;
+    /* [terminals] baud: line speed of every terminal, the speed switch on the card
+     * (default 9600; ND-06.016.01 Appendix C.1.2, C.2.3). */
+    double terminalBaud;
 
     bool ptreader_enabled;
     bool ptpunch_enabled;

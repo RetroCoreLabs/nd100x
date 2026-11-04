@@ -1233,6 +1233,12 @@ static void *client_thread_func(void *arg)
 
     while (!atomic_load(&server->shouldExit) && rt->clientFd != ND_INVALID_SOCKET)
     {
+        // Read from the client only while the terminal can take it. With no room
+        // the socket is not polled for input: the bytes wait in TCP, and the
+        // 50 ms timeout brings the loop back to look again.
+        size_t room = rt->info.inputRoomFunc ? rt->info.inputRoomFunc(rt->info.device) : 256;
+        pfds[0].events = (room > 0) ? POLLIN : 0;
+
         int ret = nd_poll(pfds, 2, 50); // 50ms timeout to check ring buffer
 
         if (ret < 0)
@@ -1251,7 +1257,8 @@ static void *client_thread_func(void *arg)
         if (ret > 0 && (pfds[0].revents & POLLIN))
         {
             uint8_t buf[256];
-            int n = recv(ND_SOCK_NATIVE(fd), (char *)buf, (int)sizeof(buf), 0);
+            int want = (room < sizeof(buf)) ? (int)room : (int)sizeof(buf);
+            int n = recv(ND_SOCK_NATIVE(fd), (char *)buf, want, 0);
             if (n <= 0)
             {
                 // Client disconnected

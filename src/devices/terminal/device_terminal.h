@@ -33,8 +33,13 @@
 #include <stdint.h>
 #include "../devices_types.h"
 
+/* Keys waiting on the HOST side of the line: typed, pasted, or sent through --pipe or telnet,
+ * and not yet carried to the UART. The UART itself holds one character (uartInputBuf). */
 #define TERMINAL_QUEUE_SIZE 256
-#define MAX_TICKS           100 // Check for new incoming characters
+
+/* Line speed when nothing else sets it: 9600 baud, speed switch setting 7 (ND-06.016.01,
+ * Appendix C.1.2 for the console on the CPU module, C.2.3 for the 3010 terminal module). */
+#define TERMINAL_DEFAULT_BAUD 9600.0
 
 
 // Circular buffer structure for input queue
@@ -151,7 +156,12 @@ typedef struct
     bool noCarrier;
     // UART input buffer
     uint16_t uartInputBuf;
-    int checkInputQueueTick;
+
+    /* The key at the head of the input queue is on the wire: lineTicksLeft instructions are
+     * left before its last stop bit is in (terminal_tick). lineTimed is false until the head
+     * key's time has been set. Both are written on the CPU thread only. */
+    uint32_t lineTicksLeft;
+    bool lineTimed;
 
     // Add input queue
     CircularBuffer inputQueue;
@@ -177,4 +187,35 @@ Device *terminal_create_device(uint8_t thumbwheel);
  * @param keycode The keycode to queue.
  */
 void terminal_queue_key_code(Device *self, uint8_t keycode);
+
+/**
+ * @brief Free places in the terminal's input queue. A reader of keys (keyboard, --pipe,
+ *        telnet) takes no more from its source than this, so a long paste waits at the
+ *        source instead of overflowing the queue, as a real terminal waits for the line.
+ * @param self The terminal device (NULL gives 0).
+ * @return Number of keys the queue can take now.
+ */
+size_t terminal_input_room(Device *self);
+
+/**
+ * @brief Set the line speed of every terminal: the speed switch on the card. The
+ *        ND-100 speed switch offers 50 to 9600 baud (ND-06.016.01 Appendix C.1.2, C.2.3).
+ * @param baud Bits per second; values <= 0 are ignored.
+ */
+void terminal_set_baud(double baud);
+
+/**
+ * @brief The line speed set with terminal_set_baud (TERMINAL_DEFAULT_BAUD if never set).
+ */
+double terminal_get_baud(void);
+
+/**
+ * @brief Instructions one character takes on the input line: start bit, data bits, parity
+ *        bit and stop bits as the input control word sets them (IOX 303 bits 11-14), at the
+ *        line speed, counted at the emulator's real-time instruction rate
+ *        (cpu_throttle_get_mhz, the same rate the 20 ms clock is built on).
+ * @param self The terminal device.
+ * @return Instructions per character, at least 1.
+ */
+uint32_t terminal_char_ticks(Device *self);
 #endif // DEVICE_TERMINAL_H

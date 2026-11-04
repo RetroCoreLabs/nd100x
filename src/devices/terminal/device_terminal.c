@@ -34,6 +34,13 @@
 #include "../devices_types.h"
 #include "../devices_protos.h"
 
+/* cpu.c: the emulator's real-time instruction rate in MHz (0.5275 unless --throttle sets
+ * another). The 20 ms clock (device_rtc.c TICKS_20MS) is built on the same rate. */
+extern double cpu_throttle_get_mhz(void);
+
+/* Line speed of every terminal, the speed switch (terminal_set_baud). */
+static double s_terminal_baud = TERMINAL_DEFAULT_BAUD;
+
 
 // Device definitions array
 static const DeviceDefinition device_definitions[] = {
@@ -131,9 +138,10 @@ static void terminal_reset(Device *self)
     // Clear other
 }
 
-/* Tick has work only while a character waits in the input queue: it counts
- * MAX_TICKS calls and then hands the UART one character. With the queue empty
- * the count is all it does, so it is not called and the count stands still. */
+/* Tick has work only while a character waits in the input queue. The character
+ * at the head of the queue is on the line: it reaches the UART when its line
+ * time (terminal_char_ticks) has passed. With the queue empty there is nothing
+ * on the line, so tick is not called. */
 static bool terminal_tick_needed(Device *self)
 {
     TerminalData *data = (TerminalData *)self->deviceData;
@@ -156,20 +164,33 @@ static uint16_t terminal_tick(Device *self)
     // Process I/O delays
     dev_tick_io_delay(self);
 
-    // Check for new incoming characters
-
-    data->checkInputQueueTick++;
-    if (data->checkInputQueueTick > MAX_TICKS)
+    // The character at the head of the input queue is on the line. A real
+    // terminal cannot send faster than the line carries the bits: one start bit,
+    // the data bits, the parity bit and the stop bits at the line speed
+    // (ND-06.016.01 B.1, IOX 303). Until 2026-11-04 a character came every 100
+    // instructions, about ten times a 9600-baud line, and a long typed line could
+    // overflow SINTRAN's 64-character input ring buffer (DTxxR MAX) while the
+    // command reader was busy: BUGS.md T1.
+    if (data->inputQueue.count > 0)
     {
-        data->checkInputQueueTick = 0;
+        if (!data->lineTimed)
+        {
+            data->lineTicksLeft = terminal_char_ticks(self);
+            data->lineTimed = true;
+        }
+        if (data->lineTicksLeft > 0)
+        {
+            data->lineTicksLeft--;
+        }
 
-        if ((data->inputQueue.count > 0) && (!data->inputStatus.bits.deviceReadyForTransfer) &&
+        if ((data->lineTicksLeft == 0) && (!data->inputStatus.bits.deviceReadyForTransfer) &&
             (data->outputStatus.bits.readyForTransfer))
         {
 
             uint16_t value = data->inputQueue.buffer[data->inputQueue.head];
             data->inputQueue.head = (data->inputQueue.head + 1) % TERMINAL_QUEUE_SIZE;
             data->inputQueue.count--;
+            data->lineTimed = false; // the next character's line time starts now
 
             // Process character based on length
             switch (data->inputControl.bits.characterLength) // 0=8, 1=7, 2=6, 3=5)
@@ -436,7 +457,6 @@ static bool write_end(void *context, int param)
     }
 
     data->outputStatus.bits.readyForTransfer = true;
-    data->checkInputQueueTick = 0; // Make sure input check is delayed
 
     dev_set_interrupt_status(
         self, data->outputStatus.bits.interruptEnabled && data->outputStatus.bits.readyForTransfer,
@@ -471,6 +491,67 @@ void terminal_queue_key_code(Device *self, uint8_t keycode)
     data->inputQueue.tail = (data->inputQueue.tail + 1) % TERMINAL_QUEUE_SIZE;
     data->inputQueue.count++;
     dev_request_tick();
+}
+
+size_t terminal_input_room(Device *self)
+{
+    if (!self || !self->deviceData)
+    {
+        return 0;
+    }
+    TerminalData *data = (TerminalData *)self->deviceData;
+    size_t count = data->inputQueue.count;
+    return (count >= TERMINAL_QUEUE_SIZE) ? 0 : (TERMINAL_QUEUE_SIZE - count);
+}
+
+void terminal_set_baud(double baud)
+{
+    if (baud > 0.0)
+    {
+        s_terminal_baud = baud;
+    }
+}
+
+double terminal_get_baud(void)
+{
+    return s_terminal_baud;
+}
+
+uint32_t terminal_char_ticks(Device *self)
+{
+    if (!self || !self->deviceData)
+    {
+        return 1;
+    }
+    TerminalData *data = (TerminalData *)self->deviceData;
+
+    // Bits on the line, counted in half bits because 5-bit characters with bit 13
+    // = 0 have 1.5 stop bits (ND-06.016.01 B.1, IOX 303):
+    //   bits 11-12: 0 = 8, 1 = 7, 2 = 6, 3 = 5 data bits;
+    //   bit 13: 1 = one stop bit, 0 = two (1.5 for 5 bits);
+    //   bit 14: 1 = a parity bit is added.
+    uint32_t dataBits = 8u - data->inputControl.bits.characterLength;
+    uint32_t halfBits = 2u * (1u + dataBits); // start bit + data bits
+    if (data->inputControl.bits.parityGeneration)
+    {
+        halfBits += 2u;
+    }
+    if (data->inputControl.bits.stopBits)
+    {
+        halfBits += 2u;
+    }
+    else
+    {
+        halfBits += (dataBits == 5u) ? 3u : 4u;
+    }
+
+    double mhz = cpu_throttle_get_mhz();
+    double ticks = ((double)halfBits / 2.0) * mhz * 1000000.0 / s_terminal_baud;
+    if (ticks < 1.0)
+    {
+        return 1;
+    }
+    return (uint32_t)(ticks + 0.5);
 }
 
 // Character input handler for terminal devices

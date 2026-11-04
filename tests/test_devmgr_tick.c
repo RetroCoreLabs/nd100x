@@ -13,8 +13,12 @@
  *   - a callback that queues a new delay gets it counted from the next call;
  *   - the return value is the OR of the devices' interrupt bits, and follows
  *     a bit that is set or cleared between two calls;
- *   - a character queued on a terminal reaches the UART within MAX_TICKS + 1
- *     calls, also when it was queued after a long stretch with nothing to do.
+ *   - a character queued on a terminal reaches the UART after its line time:
+ *     start, data, parity and stop bits at the line speed, in instructions at
+ *     the real-time rate (BUGS.md T1), also when it was queued after a long
+ *     stretch with nothing to do;
+ *   - a burst of characters arrives whole, in order, one line time apart, and
+ *     the free room in the queue says how many more can be queued.
  *
  * SPDX-License-Identifier: MIT
  */
@@ -173,7 +177,23 @@ int main(void)
     dev_set_interrupt_status(punch, false, 10);
     CHECK(devmgr_tick() == 0, "and with both cleared nothing is left");
 
-    /* Terminal input: a queued character reaches the UART. */
+    /* The line time of one character, from the input control word (IOX 303). At
+     * 0.5275 MHz and 9600 baud one bit is 54.95 instructions. */
+    CHECK(terminal_get_baud() == 9600.0, "the line speed is 9600 baud when nothing sets it");
+    uint32_t t8n2 = terminal_char_ticks(term); /* control word 0: 8 data bits, 2 stop bits */
+    CHECK(t8n2 == 604, "8 data bits, no parity, 2 stop bits: 11 bits = 604 instructions");
+    term->Write(term, term->startAddress + TERMINAL_WRITE_INPUT_CONTROL,
+                (uint16_t)((1u << 11) | (1u << 13) | (1u << 14)));
+    CHECK(terminal_char_ticks(term) == 549, "7 data bits, parity, 1 stop bit: 10 bits = 549");
+    term->Write(term, term->startAddress + TERMINAL_WRITE_INPUT_CONTROL,
+                (uint16_t)((1u << 11) | (1u << 12)));
+    CHECK(terminal_char_ticks(term) == 412, "5 data bits, 1.5 stop bits: 7.5 bits = 412");
+    terminal_set_baud(19200.0);
+    CHECK(terminal_char_ticks(term) == 206, "and half that at 19200 baud");
+    terminal_set_baud(9600.0);
+    term->Write(term, term->startAddress + TERMINAL_WRITE_INPUT_CONTROL, 0);
+
+    /* Terminal input: a queued character reaches the UART after its line time. */
     for (int round = 0; round < 3; round++)
     {
         for (int i = 0; i < 777; i++)
@@ -188,10 +208,52 @@ int main(void)
             (void)devmgr_tick();
             calls++;
             status = term->Read(term, term->startAddress + TERMINAL_READ_INPUT_STATUS);
-        } while ((status & (1u << 3)) == 0 && calls < 500);
-        CHECK(calls <= MAX_TICKS + 1, "the character is in the UART within MAX_TICKS + 1 calls");
+        } while ((status & (1u << 3)) == 0 && calls < 5000);
+        CHECK(calls == (int)t8n2, "the character is in the UART after exactly its line time");
         uint16_t ch = term->Read(term, term->startAddress + TERMINAL_READ_INPUT_DATA);
         CHECK((ch & 0x7Fu) == (uint16_t)('A' + round), "and it is the character that was queued");
+    }
+
+    /* A burst: 300 characters, more than the queue holds. Queue while there is room,
+     * as the keyboard, --pipe and telnet readers do; read each as it arrives. */
+    {
+        CHECK(terminal_input_room(term) == TERMINAL_QUEUE_SIZE, "the queue is empty");
+        int sent = 0;
+        int got = 0;
+        int calls = 0;
+        int last = 0;
+        bool order = true;
+        bool spaced = true;
+        while (got < 300 && calls < 300 * 700)
+        {
+            while (sent < 300 && terminal_input_room(term) > 0)
+            {
+                terminal_queue_key_code(term, (uint8_t)('0' + sent % 64));
+                sent++;
+            }
+            (void)devmgr_tick();
+            calls++;
+            uint16_t status = term->Read(term, term->startAddress + TERMINAL_READ_INPUT_STATUS);
+            if ((status & (1u << 3)) != 0)
+            {
+                uint16_t ch = term->Read(term, term->startAddress + TERMINAL_READ_INPUT_DATA);
+                if ((ch & 0x3Fu) != (uint16_t)(('0' + got % 64) & 0x3F))
+                {
+                    order = false;
+                }
+                if (got > 0 && calls - last < (int)t8n2)
+                {
+                    spaced = false;
+                }
+                last = calls;
+                got++;
+            }
+        }
+        CHECK(got == 300, "all 300 characters arrive");
+        CHECK(order, "in the order they were queued");
+        CHECK(spaced, "at least one line time apart");
+        uint16_t status = term->Read(term, term->startAddress + TERMINAL_READ_INPUT_STATUS);
+        CHECK((status & (1u << 7)) == 0, "and the overrun bit is not set");
     }
 
     devmgr_destroy();

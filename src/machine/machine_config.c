@@ -193,6 +193,8 @@ void mc_init_baseline(MachineConfig *cfg)
     cfg->rtc_wall = true;  /* real-time 20 ms RTC (default); rtc = ticks counts instructions instead */
     cfg->mms = 2;          /* MMS2, 16 page tables; mms = 1 is Paging System I for NORD TSS */
 
+    cfg->terminalBaud = 9600.0; /* speed switch setting 7 */
+
     /* terminals 5-11 (console/0 is always present, not listed here) */
     int terms[] = {5, 6, 7, 8, 9, 10, 11};
     for (size_t i = 0; i < sizeof(terms) / sizeof(terms[0]); i++)
@@ -1054,11 +1056,37 @@ bool mc_load_file(MachineConfig *cfg, const char *path, char *err, size_t errlen
                     tok = strtok(NULL, ", \t");
                 }
             }
+            else if (str_ieq(keyl, "baud"))
+            {
+                /* The speeds of the ND-100 speed switch (ND-06.016.01 Appendix C.1.2,
+                 * C.2.3), and 19200, which some later lines could run. */
+                static const double speeds[] = {50,   75,   110,  134.5, 150,  200,  300,  600,
+                                                1200, 1800, 2400, 4800,  9600, 19200};
+                char *ep;
+                double b = strtod(val, &ep);
+                bool known = false;
+                for (size_t k = 0; k < sizeof(speeds) / sizeof(speeds[0]); k++)
+                {
+                    if (b == speeds[k])
+                    {
+                        known = true;
+                    }
+                }
+                if (*ep != '\0' || !known)
+                {
+                    fclose(f);
+                    return mc_err(err, errlen, path, lineno,
+                                  "[terminals] baud: '%s' is not a line speed (50, 75, 110, "
+                                  "134.5, 150, 200, 300, 600, 1200, 1800, 2400, 4800, 9600, 19200).",
+                                  val);
+                }
+                cfg->terminalBaud = b;
+            }
             else
             {
                 fclose(f);
                 return mc_err(err, errlen, path, lineno,
-                              "[terminals]: unknown key '%s' (expected 'enabled').", key);
+                              "[terminals]: unknown key '%s' (expected 'enabled' or 'baud').", key);
             }
             break;
 
@@ -2049,7 +2077,7 @@ void mc_print(const MachineConfig *cfg, FILE *out)
     {
         fprintf(out, ", %d", cfg->terminals[i]);
     }
-    fprintf(out, "\n");
+    fprintf(out, " at %g baud\n", cfg->terminalBaud);
 
     fprintf(out, "  Peripherals: papertape-reader=%s papertape-punch=%s lineprinter=%s\n",
             cfg->ptreader_enabled ? "on" : "off", cfg->ptpunch_enabled ? "on" : "off",
@@ -2196,7 +2224,7 @@ bool mc_write_file(const MachineConfig *cfg, const char *path, char *err, size_t
     {
         fprintf(f, "%s%d", i ? ", " : "", cfg->terminals[i]);
     }
-    fprintf(f, "\n\n");
+    fprintf(f, "\nbaud = %g\n\n", cfg->terminalBaud);
 
     fprintf(f, "[peripheral.papertape-reader]\nenabled = %s\n\n",
             cfg->ptreader_enabled ? "yes" : "no");

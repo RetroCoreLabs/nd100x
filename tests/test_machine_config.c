@@ -207,6 +207,43 @@ int main(void)
     mc_check_bool("LoadFile(rtc=sometimes) rejected", !mc_load_file(&cfg, path, err, sizeof(err)));
     mc_check_bool("rtc error mentions 'rtc'", strstr(err, "rtc") != NULL);
 
+    /* ---- [terminals] baud: the line speed (BUGS.md T1) ---------------- */
+    mc_set_defaults(&cfg);
+    mc_check_bool("default terminal baud is 9600", cfg.terminalBaud == 9600.0);
+    cfg.terminalBaud = 19200.0;
+    snprintf(path, sizeof(path), "%s/baud.ini", dir);
+    mc_check_bool("WriteFile(baud=19200)", mc_write_file(&cfg, path, err, sizeof(err)));
+    mc_init_baseline(&cfg);
+    mc_check_bool("LoadFile(baud=19200)", mc_load_file(&cfg, path, err, sizeof(err)));
+    mc_check_bool("round-tripped baud 19200", cfg.terminalBaud == 19200.0);
+    snprintf(path, sizeof(path), "%s/baud1345.ini", dir);
+    {
+        FILE *f = fopen(path, "w");
+        mc_check_bool("write baud1345.ini", f != NULL);
+        if (f)
+        {
+            fprintf(f, "[terminals]\nenabled = 5\nbaud = 134.5\n");
+            fclose(f);
+        }
+    }
+    mc_init_baseline(&cfg);
+    mc_check_bool("LoadFile(baud=134.5)", mc_load_file(&cfg, path, err, sizeof(err)));
+    mc_check_bool("baud 134.5 is a switch speed", cfg.terminalBaud == 134.5);
+    snprintf(path, sizeof(path), "%s/badbaud.ini", dir);
+    {
+        FILE *f = fopen(path, "w");
+        mc_check_bool("write badbaud.ini", f != NULL);
+        if (f)
+        {
+            fprintf(f, "[terminals]\nbaud = 9601\n");
+            fclose(f);
+        }
+    }
+    mc_init_baseline(&cfg);
+    err[0] = '\0';
+    mc_check_bool("LoadFile(baud=9601) rejected", !mc_load_file(&cfg, path, err, sizeof(err)));
+    mc_check_bool("baud error mentions 'baud'", strstr(err, "baud") != NULL);
+
     /* ---- [nd500] ------------------------------------------------------ */
 
     /* No section at all: no ND-500. */

@@ -85,6 +85,7 @@ void mc_apply_devices(const MachineConfig *mc)
     {
         devmgr_add_device(DEVICE_TYPE_TERMINAL, (uint8_t)mc->terminals[i]);
     }
+    terminal_set_baud(mc->terminalBaud);
 
     for (int i = 0; i < mc->controllerCount; i++)
     {

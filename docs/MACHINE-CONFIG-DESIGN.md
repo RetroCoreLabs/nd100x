@@ -138,7 +138,10 @@ with `enabled = yes|no` rather than by deleting its block, so a person can flip 
 device on/off without losing its settings. A disabled section is parsed but not
 instantiated (and skipped by the overlap validator). See the shipped default
 `nd100x.ini` for the full commented template, which also
-includes `[terminals]` (enabled = list of terminal numbers; console/0 always on)
+includes `[terminals]` (enabled = list of terminal numbers; console/0 always on;
+baud = line speed of every terminal, default 9600, the speed switch: 50, 75, 110, 134.5,
+150, 200, 300, 600, 1200, 1800, 2400, 4800, 9600 or 19200; typed and pasted keys reach the
+CPU no faster than that line carries them, BUGS.md T1)
 and `[peripheral.*]` sections (paper-tape reader/punch, line printer).
 
 ```ini
