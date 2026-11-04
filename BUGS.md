@@ -703,6 +703,40 @@ tape and back, both "- OK", and the restored disk is identical to the tape data 
 **CD-ROM:** `--scsiN=cdrom:FILE` is parsed but not implemented (`--help` says so). No ND CD-ROM
 product has been found, and none of the SCSI-TV versions lists one.
 
+## Terminal (`src/devices/terminal/device_terminal.c`)
+
+### T1. Typed keys reach SINTRAN about ten times faster than a real line carries them
+
+**Found by:** `tools/installs/backup-manager-b02/install.py`, 2026-11-04. The line
+`COPY-FILE "(SYSTEM)UE-ERMSG-EN-D05:ERR",(211075C03-EN-01D:FLOPPY-USER)UE-ERMSG-EN-D05:ERR`
+(89 characters, sent through `--pipe` in one write, 0.1 s after the `@` that followed
+ENTER-DIRECTORY of a floppy) arrived as `...FLOPPY-USER)UESG-EN-D05:ERR`: characters 71-74
+(`-ERM`) were gone, and SINTRAN answered NO SUCH FILE NAME.
+
+**Not every time:** the same steps repeated eight times on a copy of the same pack lost
+nothing, and lines of up to 120 characters typed at a quiet `@` arrived whole.
+
+**What is known:**
+
+- nd100x does not lose them. Its key queue holds 256 keys and was not full, and the only other
+  way a key is dropped, a device clear, loses at most one key, not four in a row.
+- SINTRAN does. The terminal input data field DTxxR has a ring buffer of capacity "40 + 40"
+  (ND-60.112.01 Appendix A, DTxxR, MAX), 64 characters if that is octal as the listing
+  values are (assumed, not checked against the running system). A key that arrives while the
+  buffer is full is lost. Losing keys 71-74 fits that: 64 in the buffer plus the few the command
+  reader had already taken.
+- nd100x hands the next key to the CPU about every 100 instructions once the last one was
+  read and output is idle (`terminal_tick`, `MAX_TICKS` = 100). A 9600-baud line carries one
+  character per 1.04 ms. So the 89 keys arrive in a small part of the time a real line would
+  take, and a command reader that is busy for a moment falls behind where on a real line it
+  would not.
+
+**Not known:** the instruction rate of the emulated ND-110/ND-120 in emulated time, so the real
+line time in instructions; and where the terminal's baud rate comes from on the ND-100
+terminal interface (`TSPEED` in DTxxR is SINTRAN's; whether the card takes it, or has
+switches, is not checked). Not decided: pace input in the emulator at the line rate, or have
+`tools/nd100x_expect.py` type no faster than a real line.
+
 ## Interrupt system
 
 ### I1. TPE-MON cannot clear IDENT on levels 8 to 11 at start-up
@@ -755,7 +789,12 @@ SINTRAN call returns the error. So it is not known yet whether this is the insta
 `tools/installs/backup-manager-b02/install.py` installs on a pack without the Backup
 Manager, which does not take this path, and stops if "Filename syntax error" appears.
 
-### P2. Backup Manager B02 file copy to and from the streamer: three open points
+### P2. Backup Manager B02 file copy to and from the streamer: what is still open
+
+**State 2026-11-04: backup and restore of several files, and List-volume, work.** A COPY of four
+files of user RONNY to `BMTEST-1` and back onto a pack where they were deleted gave four
+byte-identical files. Services / Tape-operations / List-volume lists the volume, but only with
+terminal type 6 (VT100); see the 036602B point below.
 
 **State 2026-11-03: single-file backup AND restore on `STREAMER-1` work.** Measured on copies
 of a pack made by the `tools/installs/` chain (BACKUP-SYSTEM I05, ND-500 monitor J04,
@@ -822,11 +861,40 @@ the repository; a `tools/installs`-style script is not written yet.
     it belongs to `HandleEOT`, the end-of-tape handling for a backup over several tapes.
   - Not verified: that a real machine prints the same line. The same SINTRAN status would come
     back from a real drive at the end of recorded data, so it is expected to.
-- **Error 33626 (octal)** on `(SYSTEM)SWAP-FILE-0:SWAP` at BM-OPERATOR start: the
-  `IMAGE-NO-COMPARE-FILE` line in BM-PARAMETER names a file this pack does not have.
+- **036602B and BM-OPERATOR exits** when Services / Tape-operations is chosen on terminal
+  type 2 (Teletype ASR 33), measured 2026-11-04. On type 6 (VT100) the same menu works. The
+  same number appeared on VT100 when EXIT was typed into a form field, without the exit. What
+  036602B means is not known; it is not in `UE-ERMSG-EN-D05`.
+- **Not tried without:** `@RT DMASRV` and `DEFINE-REMOTE-NAME` (step 4).
 - **A second COPY in the same BM-OPERATOR run** after a FAILED one took "COPY" and every answer
   after it as new commands (measured 2026-11-03, before the set-up above). Not tried again
   after a successful COPY.
+
+**Fixed in the install script (2026-11-04), `tools/installs/backup-manager-b02/`:**
+
+- **Error 33626 (octal)** on `(SYSTEM)SWAP-FILE-0:SWAP` at BM-OPERATOR start. The
+  `IMAGE-NO-COMPARE-FILE` lines in BM-PARAMETER name files that are not on the pack; this
+  machine's ND-500 swap file is `(PACK-ONE:SYSTEM)SWAP-FILE:DATA` (LIST-SWAP-FILE-INFO 0).
+  ND's notes say to edit these lines for the machine (ND-895055-3A "Information and Hints",
+  ND-895560-2 "Defining Extra Swap-Files"), at most 12 of them (ND-896058-4 item 27). The
+  script now asks the ND-500 monitor for the swap files and writes them in
+  (`bm_parameter.py`, test `bm_parameter_unit`).
+- **"An internal error has occurred ... Library UE-ERMSG-EN-D' not found"** on the first COPY
+  of a fresh pack. B02 needs the message file `(SYSTEM)UE-ERMSG-EN-D..:ERR`, does not ship it
+  and does not check for it (ND-895055-1A says B04 fixed this). The script copies
+  `UE-ERMSG-EN-D05:ERR` from floppy 211075C03-EN-01D (md5 be8441322f2c65076c48ecc3b4468eda).
+  `UE-ERMSG-EN-C05` from BACKUP-SYSTEM is not taken.
+- **A fresh pack also needs the streamer set up** (SCSI streamer 1 in S3-CONFIG and
+  `@SET-PERIPHERAL-FILE "STREAMER-1" 2226B`); without it DEVICE-FUNCTION answers ILLEGAL
+  PARAMETER and DEFINE-MASS-STORAGE-UNIT NO SUCH DEVICE NAME. That is a machine set-up step,
+  not part of this install script.
+
+**The install chain on `ND5000.IMG` (2026-11-04):** that pack now runs a boot batch
+`(SYSTEM)LOAD-MODE:BATC` (XMSG, START-SERVERS, ND-500-MON LOAD-CONTROL-STORE and
+START-SWAPPER) at every boot. The install scripts start the ND-5000 themselves, so on that pack
+they get "Other user(s) already logged on ND-500(0)", and PROMAN messages land in the middle of
+installer questions. The chain passed all five steps from a copy with that batch file removed.
+Not decided: whether the scripts should detect and use a running ND-5000.
 
 **Fixed in the emulator on the way (2026-11-02 and 2026-11-03):** CNREK cleared the wrong
 page-table slots, so the ND-500 monitor never answered on ND-110/ND-120 (`src/cpu/cpu_instr.c`);

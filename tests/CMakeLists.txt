@@ -84,6 +84,16 @@ if(NOT PLATFORM_WASM AND NOT PLATFORM_RISCV)
             TIMEOUT 120
             LABELS "unit;pipe"
         )
+        # The Backup Manager parameter-file rewrite the B02 install script does
+        # (tools/installs/backup-manager-b02/bm_parameter.py), on bytes only.
+        add_test(
+            NAME bm_parameter_unit
+            COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_bm_parameter.py
+        )
+        set_tests_properties(bm_parameter_unit PROPERTIES
+            TIMEOUT 60
+            LABELS "unit"
+        )
     endif()
 endif()
 

@@ -365,11 +365,15 @@ def check_standard_domain(listing, name, segment_file, what):
                          % (what, name, segment_file, listing))
 
 
-def install_product(a, prefix, floppy_path, installer, answers, check, needs=(), before=None):
+def install_product(a, prefix, floppy_path, installer, answers, check, needs=(), before=None,
+                    between=None):
     """The whole run for a product: copy, boot, log in, check `needs` in
     LIST-REENTRANT, call before(vm, work) if given, enter the floppy in unit 0, run
     `installer` with `answers`, then check(vm, what) after the install and again
     after a second boot, then deliver.
+    between(pack), if given, runs while no emulator has the pack open: after the
+    install run has stopped and before the second boot, so the second boot and its
+    check run on what it changed.
     When `needs` has ND-500-MONITOR, the ND-5000 is started as SYSTEM after each
     boot first (start_nd5000), as LOAD-MODE would.
     Returns what the two checks returned."""
@@ -386,6 +390,8 @@ def install_product(a, prefix, floppy_path, installer, answers, check, needs=(),
         vm.sendline(installer)
         run_installer(vm, answers, a.step_timeout)
         first = check(vm, "after install")
+    if between:
+        between(pack)
     with machine(a.nd100x, ini, work, "reboot") as vm:
         logged_in(vm)
         if nd5000:
