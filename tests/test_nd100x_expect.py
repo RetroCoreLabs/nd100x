@@ -98,6 +98,38 @@ class FetchImage(unittest.TestCase):
         self.assertEqual(self.read(ne.fetch_image(self.url, self.md5, self.out)), self.data)
 
 
+PROMAN_WARNING = (b"WARNING * 1050B:35B * 1988-12-16 09:34:12 * PROMAN.113127B\r\n"
+                  b"          Processor Manager - PROMAN\r\n"
+                  b"          No domino controllers found in system\r\n\r\n")
+MTSERV_INFO = (b"INFO    * 1012B:0B * 1988-12-16 09:34:13 * MTSERV.30212B\r\n"
+               b"          MTAD Server\r\n"
+               b"          MTAD server initiated and started\r\n\r\n")
+
+
+class LineText(unittest.TestCase):
+    """line_text(): the text match="lines" patterns are searched in (SINTRAN ends a
+    console line CR LF, measured on ND5000.IMG 2026-11-04)."""
+
+    def test_cr_left_out_and_map_back(self):
+        data = b"(Y/N): \r\n" + PROMAN_WARNING
+        text, where = ne.line_text(data)
+        self.assertNotIn(b"\r", text)
+        self.assertEqual(len(text), len(where))
+        i = text.index(b"PROMAN")
+        self.assertEqual(data[where[i]:where[i] + 6], b"PROMAN")
+
+    def test_question_line_ends_a_line_with_re_m(self):
+        import re
+        data = b">> User SYSTEM, UTILITY and BPUN will be checked (Y/N): \r\n" + PROMAN_WARNING + MTSERV_INFO
+        text, _ = ne.line_text(data)
+        self.assertIsNotNone(re.search(rb"\(Y/N\): ?$", text, re.M))
+        self.assertIsNone(re.search(rb"\(Y/N\): ?$", data))   # without line mode: hidden
+
+    def test_mode_is_checked(self):
+        with self.assertRaises(ValueError):
+            ne.Nd100x(exe=FAKE, match="anywhere")
+
+
 class Session(unittest.TestCase):
     def setUp(self):
         self.dir = tempfile.mkdtemp(prefix="ndx-expect-test-")
@@ -198,6 +230,41 @@ class Session(unittest.TestCase):
             self.assertIn("OK LIST-USERS", out)
             self.assertTrue(out.rstrip().endswith("@"))
             self.assertEqual(vm.settle(quiet=0.3, timeout=10), "")  # nothing new since
+
+    def test_question_found_past_console_messages(self):
+        with self.vm(match="lines") as vm:
+            vm.expect("RUNNING", timeout=10)
+            vm.escape(timeout=10)
+            vm.login("SYSTEM")
+            vm.sendline("QUESTION")
+            vm.wait_quiet(0.5)                  # the reports are on the screen too
+            vm.expect(ne.Regex(r"\(Y/N\): ?$"), timeout=10)
+            out = vm.command("Y", timeout=10)
+            self.assertIn("OK Y", out)
+            self.assertIn("MTAD server initiated", vm.before())
+
+    def test_poll_returns_what_came_and_moves_on(self):
+        with self.vm() as vm:
+            vm.expect("RUNNING", timeout=10)
+            vm.escape(timeout=10)
+            vm.login("SYSTEM")
+            vm.sendline("QUESTION")
+            got = ""
+            for _ in range(40):
+                got += vm.poll(0.25)
+                if "MTAD server initiated and started\r\n\r\n" in got:
+                    break
+            self.assertIn("Delete the previous version (Y/N): \r\nERROR   * 1B:12B", got)
+            self.assertEqual(vm.poll(0.2), "")  # nothing new since
+
+    def test_console_messages_hide_the_question_by_default(self):
+        with self.vm() as vm:
+            vm.expect("RUNNING", timeout=10)
+            vm.escape(timeout=10)
+            vm.login("SYSTEM")
+            vm.sendline("QUESTION")
+            with self.assertRaises(ne.ExpectTimeout):
+                vm.expect(ne.Regex(r"\(Y/N\): ?$"), timeout=1)
 
     def test_settle_abort(self):
         with self.vm() as vm:

@@ -59,6 +59,7 @@ with Nd100x(cputype="ND120CX", boot="smd", smd0="SMD0.IMG") as vm:
 | `log_file` | keep the emulator log (stderr) **out of the screen output** and write it here |
 | `log_keep` | regex: only log lines that match are written (`[pipe-control]` replies always are). Use with `--scsi-debug`, which logged 5.1 GB in one backup run |
 | `transcript` | file that receives the screen output plus one `>>>` line per step |
+| `match` | `"end"` (default) or `"lines"`. With `"end"` a pattern ending in `$` only matches at the very end of the new output, so any text printed after a prompt (a server's console report, such as PROMAN's "No domino controllers found in system" right after an installer question) hides the prompt. With `"lines"` all new output is searched with CR left out and `$` at the end of any line (`re.M`), so the prompt is found wherever it is; the screen, the transcript and `before()` keep everything. `line_text(data)` gives the same text for bytes you hold. The install scripts in `tools/installs/` use `"lines"` |
 | `cputype` | `ND100CX` … `ND110CX` … `ND120CX` |
 | `cpu_number` | SYSNO override (banner CPU NUMBER) |
 | `max_instr` | stop after N instructions (safety cap) |
@@ -114,6 +115,10 @@ with Nd100x(config="config/ND5000.ini", boot="smd", smd0="ND5000.IMG",
   do not end in a fixed character (ND's end in `:`, `?` or `type "CR"`): settle, look at the
   end of the text, answer or settle again. A silent "Wait...." also settles, so the caller
   decides whether the text is a question.
+- **`vm.poll(wait=0.5)`** — wait up to `wait` seconds for output and return everything printed
+  since the last wait, CR included (`""` when nothing came). For a caller that keeps its own
+  copy of the screen and decides itself what it means: the install scripts' state machine,
+  `tools/installs/dialogue.py`, is built on it.
 - **`vm.note(text)`** — write a step line into the transcript.
 - **`vm.pid`**, **`vm.copies`**, **`vm.log_lines()`** — the emulator's process id, the image
   copies made, the log lines kept.

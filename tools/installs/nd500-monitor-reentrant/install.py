@@ -34,7 +34,7 @@ def check(vm, what):
     if not re.search(r"\bND-500-MONITOR\b", out):
         raise SystemExit("FAIL (%s): LIST-REENTRANT has no ND-500-MONITOR:\n%s" % (what, out))
     vm.sendline("ND-500-MONITOR")
-    vm.expect(Regex(r"ND-5000?: ?$"), timeout=120, abort=Regex(r"NO SUCH|NOT FOUND"))
+    vm.expect(Regex(r"ND-5000?:"), timeout=120, abort=Regex(r"NO SUCH|NOT FOUND"))
     m = re.search(r"ND-500/5000 MONITOR +Version +(\S+)", vm.before()[-400:])
     vm.command("EXIT", timeout=60)
     if not m:
@@ -56,8 +56,8 @@ def main():
             raise SystemExit("%s is not on the pack:\n%s" % (a.monitor_file, out))
         if re.search(r"\bND-500-MONITOR\b", vm.command("LIST-REENTRANT", timeout=60)):
             raise SystemExit("ND-500-MONITOR is already reentrant on this pack; nothing to do")
-        vm.command("DUMP-PROGRAM-REENTRANT", until=Regex(r"NAME: ?$"))
-        vm.command("ND-500-MONITOR", until=Regex(r"FILE NAME: ?$"))
+        vm.command("DUMP-PROGRAM-REENTRANT", until=Regex(r"NAME:"))
+        vm.command("ND-500-MONITOR", until=Regex(r"FILE NAME:"))
         out = vm.command("%s,N5MON" % a.monitor_file, timeout=120)
         if re.search(r"NO SUCH|ILLEGAL|NOT ", out):
             raise SystemExit("DUMP-PROGRAM-REENTRANT failed:\n%s" % out)

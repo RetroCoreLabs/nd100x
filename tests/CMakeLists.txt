@@ -94,6 +94,17 @@ if(NOT PLATFORM_WASM AND NOT PLATFORM_RISCV)
             TIMEOUT 60
             LABELS "unit"
         )
+        # The state machine every install script answers ND's installers with
+        # (tools/installs/dialogue.py) and the install scripts' own tables, against
+        # a stand-in machine replaying real transcripts; no emulator.
+        add_test(
+            NAME install_dialogue_unit
+            COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_install_dialogue.py
+        )
+        set_tests_properties(install_dialogue_unit PROPERTIES
+            TIMEOUT 60
+            LABELS "unit"
+        )
     endif()
 endif()
 

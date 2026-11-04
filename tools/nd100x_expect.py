@@ -128,6 +128,23 @@ SINTRAN_ANY_PROMPT = rb"(@|ENTER|:) ?$"
 SINTRAN_ENTER = rb"ENTER ?$"
 
 
+# Matching by lines (match="lines"). Without it a pattern ending in $ only matches at
+# the very end of the new output, so ANY text printed after a prompt hides the prompt:
+# on a pack whose boot batch starts the servers, PROMAN reports "No domino
+# controllers found in system" a few seconds after log-in, right after an installer
+# question, and the script waited for the question forever. With match="lines" the
+# whole new output is searched with CR left out and $ meaning the end of any line, so
+# a prompt is found wherever it is; everything else on the screen is ignored for
+# matching and is still in the screen buffer, the transcript and before().
+
+
+def line_text(data):
+    """Return (text, where): `data` without CR bytes, and for each byte of text its
+    index in `data`."""
+    where = [i for i, c in enumerate(data) if c != 0x0D]
+    return bytes(data[i] for i in where), where
+
+
 # --- online floppy/disk catalog -------------------------------------------------
 # The SAME catalog the F12 browser and the C floppydb use. Fetching over HTTP with
 # urllib works on every platform (including Windows w64devkit, where the C build has
@@ -295,7 +312,7 @@ class Nd100x:
     def __init__(self, exe=None, boot="smd", image=None, smd0=None, cputype=None,
                  cpu_number=None, extra_args=None, max_instr=None, echo=True,
                  config=None, scsi=None, work_dir=None, keep_copies=False,
-                 log_file=None, log_keep=None, transcript=None):
+                 log_file=None, log_keep=None, transcript=None, match="end"):
         """
         exe          binary path, or a list (a command prefix, e.g. [python, script])
         config       machine INI (--config)
@@ -309,7 +326,14 @@ class Nd100x:
                      Use it with --scsi-debug: one backup run logged 5.1 GB.
                      pipe-control replies are always kept, mount()/eject() need them.
         transcript   file that receives the screen output and one line per step
+        match        "end" (default): a pattern ending in $ matches only at the end
+                     of the new output. "lines": all new output is searched with CR
+                     left out and $ at the end of any line, so text printed after a
+                     prompt (a server's console report) does not hide it.
         """
+        if match not in ("end", "lines"):
+            raise ValueError("match must be 'end' or 'lines', not %r" % (match,))
+        self.match = match
         exe = exe or DEFAULT_EXE
         self.exe = exe
         self.work_dir = work_dir
@@ -526,7 +550,7 @@ class Nd100x:
         again for a pause. Raises ExpectAbort when `abort` appears, ExpectTimeout
         when the output never goes quiet within `timeout`."""
         aborts = [] if abort is None else ([abort] if isinstance(abort, (str, bytes, Regex)) else list(abort))
-        abort_re = [_compile_pattern(p) for p in aborts]
+        abort_re = [self._pattern(p) for p in aborts]
         start = self._raw_since_match
         deadline = time.time() + timeout
         with self._lock:
@@ -537,13 +561,14 @@ class Nd100x:
             with self._lock:
                 n = len(self._buf)
                 window = bytes(self._buf[start:n])
+            text, where = self._match_text(window)
             for rx in abort_re:
-                m = rx.search(window)
+                m = rx.search(text)
                 if m:
-                    self._raw_since_match = start + m.end()
+                    self._raw_since_match = start + self._match_end(m, text, where, window)
                     raise ExpectAbort("abort pattern %r matched: ...%s" %
                                       (rx.pattern.decode(errors="replace"),
-                                       window[max(0, m.start()-40):m.end()+10].decode(errors="replace")))
+                                       text[max(0, m.start()-40):m.end()+10].decode(errors="replace")))
             now = time.time()
             if n != seen:
                 seen, changed = n, now
@@ -555,6 +580,28 @@ class Nd100x:
             if now > deadline:
                 raise ExpectTimeout("output did not settle within %ss; last output:\n%s"
                                     % (timeout, window[-200:].decode(errors="replace")))
+
+    def poll(self, wait=0.5):
+        """Wait up to `wait` seconds for output and return everything printed since the
+        previous expect()/settle()/poll(), CR bytes included; "" when nothing came.
+        The next call starts after it. For a caller that keeps its own copy of the
+        screen and decides itself what the text means (tools/installs/dialogue.py).
+        Raises ExpectTimeout when nd100x has exited and nothing is left to read."""
+        start = self._raw_since_match
+        deadline = time.time() + wait
+        while True:
+            with self._lock:
+                n = len(self._buf)
+            if n > start or time.time() >= deadline or self._proc.poll() is not None:
+                break
+            time.sleep(0.05)
+        with self._lock:
+            n = len(self._buf)
+            window = bytes(self._buf[start:n])
+        self._raw_since_match = n
+        if not window and self._proc.poll() is not None:
+            raise ExpectTimeout("nd100x exited (code %s)" % self._proc.returncode)
+        return window.decode("latin-1")
 
     # -- floppy hot-swap (--pipe control channel) --------------------------
     def _control(self, cmd):
@@ -683,25 +730,26 @@ class Nd100x:
         """
         wants = [pattern] if isinstance(pattern, (str, bytes, Regex)) else list(pattern)
         aborts = [] if abort is None else ([abort] if isinstance(abort, (str, bytes, Regex)) else list(abort))
-        wants_re = [_compile_pattern(p) for p in wants]
-        abort_re = [_compile_pattern(p) for p in aborts]
+        wants_re = [self._pattern(p) for p in wants]
+        abort_re = [self._pattern(p) for p in aborts]
 
         deadline = time.time() + timeout
         start = self._raw_since_match
         while True:
             with self._lock:
                 window = bytes(self._buf[start:])
+            text, where = self._match_text(window)
             for rx in abort_re:
-                m = rx.search(window)
+                m = rx.search(text)
                 if m:
-                    self._raw_since_match = start + m.end()
+                    self._raw_since_match = start + self._match_end(m, text, where, window)
                     raise ExpectAbort("abort pattern %r matched: ...%s" %
                                       (rx.pattern.decode(errors="replace"),
-                                       window[max(0, m.start()-40):m.end()+10].decode(errors="replace")))
+                                       text[max(0, m.start()-40):m.end()+10].decode(errors="replace")))
             for rx in wants_re:
-                m = rx.search(window)
+                m = rx.search(text)
                 if m:
-                    self._raw_since_match = start + m.end()
+                    self._raw_since_match = start + self._match_end(m, text, where, window)
                     return m.group(0).decode(errors="replace")
             if self._proc.poll() is not None and not window:
                 raise ExpectTimeout("nd100x exited before %r appeared" % wants)
@@ -710,6 +758,29 @@ class Nd100x:
                 raise ExpectTimeout("timed out after %ss waiting for %r; last output:\n%s"
                                     % (timeout, wants, tail))
             time.sleep(poll)
+
+    def _pattern(self, p):
+        """A pattern compiled for this machine's match mode (re.M for "lines")."""
+        rx = _compile_pattern(p)
+        if self.match == "lines":
+            rx = re.compile(rx.pattern, rx.flags | re.M)
+        return rx
+
+    def _match_text(self, window):
+        """The text patterns are matched against, and the map back into `window`."""
+        if self.match == "lines":
+            return line_text(window)
+        return window, None
+
+    @staticmethod
+    def _match_end(m, text, where, window):
+        """Where in `window` a match in `text` ends (a match reaching the end of the
+        text takes the whole window, CR bytes included)."""
+        if where is None:
+            return m.end()
+        if m.end() >= len(text):
+            return len(window)
+        return where[m.end()]
 
     def before(self):
         """All cleaned output captured so far (for logging / assertions)."""

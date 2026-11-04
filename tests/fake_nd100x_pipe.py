@@ -90,6 +90,17 @@ def main():
             elif state == "command":
                 if text == "EXIT":
                     return
+                if text == "QUESTION":
+                    # A question, then two console message blocks the way SINTRAN
+                    # prints a server's reports (seen on ND5000.IMG, 2026-11-04).
+                    out("Delete the previous version (Y/N): ")
+                    out("\r\nERROR   * 1B:12B * 1988-12-16 09:34:15 * PROMAN.113127B\r\n"
+                        "          SINTRAN III File System\r\n"
+                        "          Not read, write and common access\r\n\r\n"
+                        "INFO    * 1012B:0B * 1988-12-16 09:34:18 * MTSERV.30212B\r\n"
+                        "          MTAD Server\r\n"
+                        "          MTAD server initiated and started\r\n\r\n")
+                    continue
                 err("[DEBUG] scsi: TAPE1: CDB op=0x01 REWIND")
                 out("OK %s\r\n@ " % text)
             continue

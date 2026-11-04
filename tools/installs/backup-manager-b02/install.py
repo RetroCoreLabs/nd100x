@@ -12,7 +12,8 @@ SOURCE.IMG is never opened by the emulator: the run works on a copy, and only a
 run that passes every check is moved to RESULT.IMG. The six floppies are downloaded
 from the RetroCoreLabs software archive and checked by md5.
 
-Any question the script does not know stops the run with the screen shown.
+The installer is answered from a dialogue table (tools/installs/README.md); a question
+it does not know is never answered.
 """
 
 import os
@@ -25,9 +26,11 @@ import tempfile
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from bm_parameter import MAX_NO_COMPARE, fix_no_compare, swap_file_names  # noqa: E402
-from install_common import (Answer, Regex, arguments, check_standard_domain,  # noqa: E402
-                            enter_floppy, floppy, install_product, make_room,
-                            standard_answers, standard_domains, user_stat)
+from install_common import (COMMAND_PROMPT, DELETE_CURRENT_Q, DELETE_PREVIOUS_Q,  # noqa: E402
+                            PRESS_CR, REMOVE_FLOPPY, Menu, Regex, State, When, arguments,
+                            check_standard_domain, eject_floppy, enter_floppy, floppy,
+                            install_product, make_room, standard_domains, standard_start,
+                            user_stat)
 
 # The six floppies of the B02 set, by the directory name SINTRAN shows for each
 # (the label inside the image) and the md5 of the archive copy.
@@ -112,35 +115,64 @@ def change_floppy(vm, m):
     return ""
 
 
-# The Backup Manager's own questions, as seen on the screen (2026-11-02). The
-# menu, the "Press CR" boxes, the delete questions and the last eject come from
-# standard_answers(); these are checked first.
-EXTRA = [
-    # Module 4, between floppies, in a MESSAGE box:
-    #   "Remove floppy 211226B02-XX-01D and insert
-    #    floppy 211226B02-XX-02D into the floppy station 1 unit 0."
-    #   ">> Press CR to continue"
-    # The order is 01D, 02D, 03D, 04D, EN-01D. EN-02D is never asked for.
-    Answer(r"Remove floppy \S+ and insert\s+floppy (?P<name>\S+) into the floppy station 1 unit 0\."
-           r"[\s:]*>> Press CR to continue ?$", change_floppy),
-    # Module 1: ">>Backup Manager can be installed for SIBAS/R backup
-    #            >> (with SIBAS (R),without SIBAS (N)) (default:'R'): "
-    # N: no SIBAS/R-B on the pack, so BM-Operator is linked with the stub
-    # BM-SIBDUM-B02:NRF (mode file BM-DNOSIB-B02).
-    Answer(r"\(with SIBAS \(R\),without SIBAS \(N\)\) \(default:'\w'\): ?$", "N"),
-    # ">>Which language version do you want to install (default:'EN'): "
-    # EN is the only language set there is (floppies EN-01D and EN-02D).
-    Answer(r">>Which language version do you want to install \(default:'\w+'\): ?$", "EN"),
-    # Module 3, for a user that does not exist yet: "Choose between the following
-    # directories for the user BACKUP-MANAGER:" then ">>Give directory name : "
-    # (a second time with "(default:'PACK-ONE')").
-    Answer(r"for the user (ND-OPERATIONS|BACKUP-MANAGER):.*>>Give directory name"
-           r"( \(default:'[\w-]+'\))? : ?$", "PACK-ONE"),
-    # Module 5: ">>What will you do with the parameter file? : "
-    # 3 = delete it on SYSTEM and do not copy it to floppy 1 (the floppy stays
-    # as it came from the archive).
-    Answer(r">>What will you do with the parameter file\? : ?$", "3", last=True),
-]
+def dialogue():
+    """The installer's dialogue, state by state, as on the screen of a complete run
+    that defined all four standard domains (transcript of 2026-11-02). ND-OPERATIONS
+    exists before the installer starts (copy_floppies makes it with room), so module 3
+    asks for a directory for BACKUP-MANAGER only."""
+    menu = Menu({1: "m1-sibas", 2: "m2-previous", 3: "m3-directory", 4: "m4-floppy",
+                 5: "m5-parameter"})
+    return [
+        standard_start(menu),
+        menu.state(),
+        # Module 1: ">>Backup Manager can be installed for SIBAS/R backup
+        #            >> (with SIBAS (R),without SIBAS (N)) (default:'R'): "
+        # N: no SIBAS/R-B on the pack, so BM-Operator is linked with the stub
+        # BM-SIBDUM-B02:NRF (mode file BM-DNOSIB-B02).
+        State("m1-sibas", [When(r"\(with SIBAS \(R\),without SIBAS \(N\)\) \(default:'\w'\):",
+                                "N", "m1-language")]),
+        # ">>Which language version do you want to install (default:'EN'): "
+        # EN is the only language set there is (floppies EN-01D and EN-02D).
+        State("m1-language", [When(r">>Which language version do you want to install "
+                                   r"\(default:'\w+'\):", "EN", "menu")]),
+        # Module 2: the two N, "No files deleted!", then
+        # "The Delete module is finished." and Press CR.
+        State("m2-previous", [When(DELETE_PREVIOUS_Q, "N", "m2-current")]),
+        State("m2-current", [When(DELETE_CURRENT_Q, "N", "m2-finished")]),
+        State("m2-finished", [When(r"The Delete module is finished\.[\s:]*" + PRESS_CR,
+                                   "", "menu")]),
+        # Module 3: "Choose between the following directories for the user
+        # BACKUP-MANAGER:", the list, then ">>Give directory name : "; then its
+        # checks and "The environment is adequate." with Press CR.
+        State("m3-directory", [When(r"for the user BACKUP-MANAGER:.*>>Give directory name"
+                                    r"( \(default:'[\w-]+'\))? :", "PACK-ONE",
+                                    "m3-adequate")]),
+        State("m3-adequate", [When(r"The environment is adequate\.[\s:]*" + PRESS_CR,
+                                   "", "menu")]),
+        # Module 4, between floppies, in a MESSAGE box:
+        #   "Remove floppy 211226B02-XX-01D and insert
+        #    floppy 211226B02-XX-02D into the floppy station 1 unit 0."
+        #   ">> Press CR to continue"
+        # The order is 02D, 03D, 04D, EN-01D (EN-02D is never asked for), each
+        # copy taking about 20 s; then the last floppy comes out.
+        State("m4-floppy", [When(r"Remove floppy \S+ and insert\s+floppy (?P<name>\S+) into the "
+                                 r"floppy station 1 unit 0\.[\s:]*" + PRESS_CR,
+                                 change_floppy, "m4-floppy"),
+                            When(REMOVE_FLOPPY, eject_floppy, "m4-hent-note")]),
+        # Four mode files run and four standard domains are defined (about 35 s),
+        # then "Remember to append these lines to the HENT-MODE file on user
+        # SYSTEM:" with Press CR.
+        State("m4-hent-note", [When(r"Remember to append these lines to the HENT-MODE file.*?"
+                                    + PRESS_CR, "", "menu")]),
+        # Module 5: "INSTALLATION - FINISHED", what can be done with the parameter
+        # file, ">>What will you do with the parameter file? : ". 3 = delete it on
+        # SYSTEM and do not copy it to floppy 1 (the floppy stays as it came from
+        # the archive). Then the HENT-MODE / LOAD-MODE notes and @.
+        State("m5-parameter", [When(r">>What will you do with the parameter file\? :",
+                                    "3", "end")]),
+        State("end", [When(COMMAND_PROMPT, done=True)]),
+    ]
+
 
 # The four standard domains the installer defines, each with its domain file.
 DOMAINS = {
@@ -184,12 +216,12 @@ PARAMETER_FILE = "ND-OPERATIONS/BM-PARAMETER-B02:DATA"
 def swap_files(vm):
     """Ask the ND-500 monitor for every swap file: LIST-SWAP-FILE-INFO 0, 1, ... until a
     number has none. The answer has 'Swap file name:..... (PACK-ONE:SYSTEM)NAME:TYPE;1'."""
-    nd5 = Regex(r"ND-5000?: ?$")
+    nd5 = Regex(r"ND-5000?:")
     vm.sendline("ND-500-MONITOR")
     vm.expect(nd5, timeout=120)
     names = []
     for n in range(MAX_NO_COMPARE):
-        vm.command("LIST-SWAP-FILE-INFO", until=Regex(r"number: ?$"), timeout=60)
+        vm.command("LIST-SWAP-FILE-INFO", until=Regex(r"number:"), timeout=60)
         found = swap_file_names(vm.command(str(n), until=nd5, timeout=120))
         if not found:
             break
@@ -234,7 +266,7 @@ def fix_parameter_file(pack):
 def main():
     a = arguments(__doc__)
     first, second = install_product(
-        a, "install-bm-b02-", floppy(FLOPPIES[FIRST]), INSTALLER, standard_answers(EXTRA), check,
+        a, "install-bm-b02-", floppy(FLOPPIES[FIRST]), INSTALLER, dialogue, check,
         needs=("BACKUP-SYSTEM", "ND-500-MONITOR", "LINKAGE-LOADER", "LINKER"),
         before=copy_floppies, between=fix_parameter_file)
     print("PASS: Backup Manager B02 installed (pages used: %s); after a second boot: %s."

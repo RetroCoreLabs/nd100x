@@ -12,20 +12,25 @@ import re
 import shutil
 import sys
 import tempfile
+import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.normpath(os.path.join(HERE, "..", ".."))
 sys.path.insert(0, os.path.join(REPO, "tools"))
 from nd100x_expect import (Nd100x, Regex, ExpectTimeout, fetch_catalog_image,  # noqa: E402,F401
                            _md5_of_file)
+from dialogue import (State, When, run_dialogue, DialogueError, DialogueFailed,  # noqa: E402,F401
+                      OutOfOrder, DialogueTimeout)
 
 FLOPPY_CACHE = os.path.expanduser("~/.cache/nd100x/images")
 
 # config/ND5000.ini (ND-100 with MFbus memory, octobus and one ND-5000 at station
 # 070B) without the telnet server, so two runs cannot fight over a port.
+# ND120CX/32-bit as there: NUCLEUS (NKSERV) ends at once on a CPU type below 5.
 ND5000_INI = """# Written by a tools/installs script from config/ND5000.ini.
 [machine]
-cpu = 100
+cpu = ND120CX
+fpp = 32
 [controller.smd.0]
 enabled = yes
 disk0 = {pack}
@@ -51,46 +56,89 @@ station = 070B
 """
 
 
-class Answer:
-    """One installer question and what to do about it.
-
-    pattern  regex matched against the end of the screen once the output is quiet
-    reply    the text to type (Return is added), or a function (vm, match) that
-             does what is needed (mount a floppy, eject) and returns the text
-    last     True for the installer's final question: after it has been answered,
-             the @ prompt means the installer has finished. Before it, a bare @
-             (a mode job between two commands) is not taken as the end.
-    """
-
-    def __init__(self, pattern, reply, last=False):
-        self.pattern = pattern
-        self.reply = reply
-        self.last = last
-
-
-COMMAND_PROMPT = r"\n@ ?$"
-
-
 # --- ND's standard installer (IN-<product>-XX-<ver><rev>:PROG) ------------------
-# The Linkage-Loader, LINKER and Backup Manager installers are one framework: a
-# main menu of five modules ("These modules must be executed in ascending order
-# from 1 to 5"), MESSAGE boxes ending in a "Press CR" line, and the same delete,
-# floppy and parameter-file questions. The wording varies a little between
-# products; every variant below was seen on the screen (2026-11-02).
+# The Linkage-Loader, LINKER and Backup Manager installers are one framework: three
+# MESSAGE boxes ending in a "Press CR" line, then a main menu of five modules ("These
+# modules must be executed in the right order from 1 to 5"), each module going back
+# to the menu when it is done. The wording varies a little between products; every
+# pattern below was seen on the screen (transcripts of 2026-11-02 and 2026-11-04).
+# Each product's table is in its own install.py, built from these pieces.
+#
+# A prompt is matched by its own text and never has to end its line ($). A server's
+# console report can be cut by the installer's output and go on right after the
+# question, on the question's own line. Seen on ND5000.IMG with its boot batch,
+# 2026-11-04 (CR left out):
+#             MTAD server initiated and s
+#   >> Please specify which user you want the files BACKUP-SYS-I:PROG and
+#   >> BACKUP-SERV-I:PROG copied to (default: UTILITY) : tarted
+# Only the bare @ prompt keeps its $: the closing notes hold lines such as
+# "@MODE (BACKUP-MANAGER)BM-START-B02:MODE,,,,,,".
 
-class Modules:
-    """Answers the main menu with 1, 2, 3, 4, 5 in turn. The menu coming back once
-    more after 5 means a module failed; the run stops."""
+# '>> Press "CR" to continue' (Backup Manager: '>> Press CR to continue')
+PRESS_CR = r'>> Press "?CR"? to continue'
+# ">>Which module do you want to execute? (default:'1'): " (Backup Manager: no '?').
+# The default is the module the installer expects next.
+MENU = r">>Which module do you want to execute\?? \(default:'(\d)'\):"
+# Module 4: "Remove floppy 210319H--01D from station 1 unit 0." in a MESSAGE box,
+# then the Press CR line.
+REMOVE_FLOPPY = r'Remove floppy \S+ from station 1 unit 0\.[\s:]*' + PRESS_CR
+# Module 1 of the Linkage-Loader and LINKER: the installer's own defaults are taken
+# (Return), DOMAIN-USER for the domain and UTILITY for the utility files.
+DOMAIN_USER_Q = r">>On which user do you want to place the domain\? \(default:'DOMAIN-USER'\):"
+UTILITY_Q = r">>On which user do you want to place the utility files\? \(default:'UTILITY'\):"
+# Module 2. A first install has no earlier version to delete, so N:
+# ">>Do you want to delete the previous version of the product? (default:'Y'): "
+# ">>Do you want to delete the current version of the product (default:'Y'): "
+# (LINKER: no default, ends in ' : '; Backup Manager: no "the", no '?')
+DELETE_PREVIOUS_Q = (r">>Do you want to delete (the )?previous version of the product\??"
+                     r"( \(default:'\w'\))? ?:")
+DELETE_CURRENT_Q = (r">>Do you want to delete (the )?current version of the product\??"
+                    r"( \(default:'\w'\))? ?:")
+# Module 5: ">>Do you want to copy IN-NLL-XX-H02:INST to floppy number 1? (default:'N'): "
+# N: the distribution floppy stays as it came from the archive.
+COPY_INST_Q = r">>Do you want to copy \S+:INST to floppy number 1\?( \(default:'\w'\))? ?:"
+# The SINTRAN prompt the installer leaves at when it has finished.
+COMMAND_PROMPT = r"^@ ?$"
 
-    def __init__(self):
-        self.left = ["1", "2", "3", "4", "5"]
 
-    def __call__(self, vm, m):
-        if not self.left:
-            raise SystemExit("the installer's menu came back after module 5")
-        module = self.left.pop(0)
-        vm.note("menu: module %s" % module)
-        return module
+class Menu:
+    """The main menu: modules 1 to 5 in turn.
+
+    first    the state each module's first question is in, by module number;
+             "menu" for a module that asks nothing (module 3 of the Linkage-Loader
+             and LINKER checks and goes back)
+    The installer's own default ("(default:'3')") names the module it expects next.
+    A different default means the module before did not finish (the installer keeps
+    the old default), and the run stops; so does the menu coming back after 5."""
+
+    def __init__(self, first):
+        self.first = first
+        self.next = 1
+
+    def reply(self, vm, m):
+        if self.next > 5:
+            raise DialogueFailed("the installer's menu came back after module 5")
+        if m.group(1) != str(self.next):
+            raise DialogueFailed("the menu offers module %s, but module %d is next: module %d "
+                                 "did not finish" % (m.group(1), self.next, self.next - 1))
+        vm.note("menu: module %d" % self.next)
+        return str(self.next)
+
+    def goto(self, m):
+        state = self.first[self.next]
+        self.next += 1
+        return state
+
+    def when(self):
+        return When(MENU, self.reply, self.goto)
+
+    def state(self, timeout=300):
+        return State("menu", [self.when()], timeout)
+
+
+def standard_start(menu):
+    """The three opening MESSAGE boxes, each ending in Press CR, then the menu."""
+    return State("start", [When(PRESS_CR, "", "start"), menu.when()])
 
 
 def eject_floppy(vm, m):
@@ -98,39 +146,9 @@ def eject_floppy(vm, m):
     return ""
 
 
-def standard_answers(extra=()):
-    """The answers every ND standard installer needs, with the product's own
-    answers (`extra`) checked first. A fresh Modules() per call."""
-    return list(extra) + [
-        # "Remove floppy 210319H--01D from station 1 unit 0." in a MESSAGE box,
-        # then '>> Press "CR" to continue' (Backup Manager: '>> Press CR ...').
-        Answer(r'Remove floppy \S+ from station 1 unit 0\.[\s:]*>> Press "?CR"? to continue ?$',
-               eject_floppy),
-        Answer(r'>> Press "?CR"? to continue ?$', ""),
-        # ">>Which module do you want to execute? (default:'1'): "
-        # (Backup Manager: no question mark)
-        Answer(r">>Which module do you want to execute\?? \(default:'\d'\): ?$", Modules()),
-        # Module 1 of the Linkage-Loader and LINKER: the installer's own defaults,
-        # DOMAIN-USER for the domain, UTILITY for the utility files.
-        Answer(r">>On which user do you want to place the domain\? \(default:'DOMAIN-USER'\): ?$", ""),
-        Answer(r">>On which user do you want to place the utility files\? \(default:'UTILITY'\): ?$", ""),
-        # Module 2. A first install has no earlier version to delete:
-        # ">>Do you want to delete the previous version of the product? (default:'Y'): "
-        # ">>Do you want to delete the current version of the product (default:'Y'): "
-        # (LINKER: no default, ends in ' : '; Backup Manager: no "the", no '?')
-        Answer(r">>Do you want to delete (the )?previous version of the product\??"
-               r"( \(default:'\w'\))? ?: ?$", "N"),
-        Answer(r">>Do you want to delete (the )?current version of the product\??"
-               r"( \(default:'\w'\))? ?: ?$", "N"),
-        # Module 5: ">>Do you want to copy IN-NLL-XX-H02:INST to floppy number 1? (default:'N'): "
-        # N: the distribution floppy stays as it came from the archive.
-        Answer(r">>Do you want to copy \S+:INST to floppy number 1\?( \(default:'\w'\))? ?: ?$",
-               "N", last=True),
-    ]
-
-
 # Lines that mean a step of the installer failed. The installers go on after them
-# and still end "INSTALLATION - FINISHED", so the whole output is searched at the end.
+# and still end "INSTALLATION - FINISHED", so every piece of output is searched for
+# them as it arrives and the run stops at the first one.
 # Each one was seen on the screen of a failed run (2026-11-02):
 #   "NO MORE PAGES FOR THIS USER"    a file copy to a user without room
 #   "Filename syntax error"          Backup Manager joining BM-OPERATOR-B02:DO02
@@ -140,46 +158,13 @@ def standard_answers(extra=()):
 INSTALL_FAILED = r"NO MORE PAGES|Filename syntax error|NOT READ ACCESS|Error when loading"
 
 
-def run_installer(vm, answers, step_timeout=900):
-    """Answer the installer from `answers` until it is back at @ after the last one.
-    A quiet screen that matches nothing is a pause ("Wait....") until step_timeout;
-    then the run stops and shows the screen. Nothing is ever answered by a guess.
-    At the end, any INSTALL_FAILED line in the output stops the run."""
-    seen = ""
-    everything = []
-    quiet_for = 0.0
-    finished = False
-    while True:
-        out = vm.settle(quiet=3, timeout=step_timeout)
-        everything.append(out)
-        seen = (seen + out)[-3000:]
-        tail = seen.rstrip("\r\n")
-        for a in answers:
-            m = re.search(a.pattern, tail, re.S | re.I)
-            if m:
-                reply = a.reply(vm, m) if callable(a.reply) else a.reply
-                vm.sendline(reply)
-                finished = finished or a.last
-                seen, quiet_for = "", 0.0
-                break
-        else:
-            if finished and re.search(COMMAND_PROMPT, "\n" + tail):
-                bad = [line.strip() for line in "".join(everything).splitlines()
-                       if re.search(INSTALL_FAILED, line, re.I)]
-                if bad:
-                    raise SystemExit("the installer finished, but a step failed:\n  "
-                                     + "\n  ".join(bad))
-                return
-            quiet_for += 3 if not out else 0
-            if quiet_for > step_timeout:
-                raise ExpectTimeout("no known question or @ prompt for %ss; the screen ends:\n%s"
-                                    % (step_timeout, seen[-800:]))
-
-
 def machine(exe, ini, work, name):
     """The machine, not started yet (the `with` block starts and stops it).
-    boot=None: the boot device comes from [boot] in the INI."""
-    return Nd100x(exe=exe, config=ini, boot=None, echo=False,
+    boot=None: the boot device comes from [boot] in the INI.
+    match="lines": prompts are found anywhere in the new output, not only at its end
+    (nd100x_expect.line_text); a server's console report printed after a prompt does
+    not hide it."""
+    return Nd100x(exe=exe, config=ini, boot=None, echo=False, match="lines",
                   log_file=os.path.join(work, name + "-emulator.log"),
                   log_keep=r"ERROR|FATAL|pipe",
                   transcript=os.path.join(work, name + "-console.log"))
@@ -195,7 +180,7 @@ def logged_in(vm, user="SYSTEM"):
 def enter_floppy(vm, unit=0):
     """@ENTER-DIRECTORY for the floppy in FLOPPY-DISC-1 `unit` (directory name left empty:
     SINTRAN takes the name from the floppy)."""
-    vm.command("ENTER-DIRECTORY", until=Regex(r"DIRECTORY NAME: ?$"))
+    vm.command("ENTER-DIRECTORY", until=Regex(r"DIRECTORY NAME:"))
     vm.answer("")
     vm.answer("FLOPPY-DISC-1")
     vm.answer(str(unit))
@@ -218,7 +203,10 @@ def arguments(doc, extra=None):
     ap.add_argument("result", help="where the installed pack goes; must not exist")
     ap.add_argument("--nd100x", default=os.path.join(REPO, "build", "bin", "nd100x"))
     ap.add_argument("--work", help="folder for the copies and logs (default: a new temp folder)")
-    ap.add_argument("--step-timeout", type=float, default=900)
+    ap.add_argument("--silence", type=float, default=600,
+                    help="stop when the machine prints nothing for this many seconds")
+    ap.add_argument("--total", type=float, default=7200,
+                    help="stop when the installer dialogue takes longer than this (seconds)")
     if extra:
         extra(ap)
     a = ap.parse_args()
@@ -279,37 +267,94 @@ def require_reentrant(vm, names):
                          % (", ".join(missing), out))
 
 
-def start_nd5000(vm):
-    """Start the ND-5000 as SYSTEM, the way ND's (SYSTEM)LOAD-MODE:MODE does at every
-    boot (ND-896058-2, section 14):
+ND5000_PROMPT = Regex(r"ND-5000?:")
+# The monitor's own error lines, e.g. "ND-500(0) error:      ND-500(0) reserved for
+# special use". When it refuses entry it prints one and goes back to @.
+ND5000_ERROR = r"ND-500\(\d+\) error:[^\n]*"
+ND5000_REFUSED = Regex(ND5000_ERROR + r"\n\s*@")
+# The errors that mean another job holds the ND-500 just now; measured 2026-11-04 on
+# ND5000.IMG while its boot batch loaded the control store: entry refused with
+# "reserved for special use", LOAD-CONTROL-STORE and START-SWAPPER refused with
+# "Other user(s) already logged on ND-500(0)" (error 2034; the ND-500 Loader Monitor
+# manual: some system supervisor commands need the ND-500 to themselves).
+ND5000_BUSY = r"already logged on|reserved for special use"
+
+
+def nd5000_loaded(version):
+    """(swapper, microprogram) from the monitor's VERSION output when both are loaded,
+    else None. Before the start it prints "Swapper.......: " with nothing after it and
+    "Micro program.:     0"; after it "Swapper.......: REV.-K01" and
+    "Micro program.: 11930" (ND-500 Loader Monitor manual 8.9.7; measured 2026-11-04)."""
+    swapper = re.search(r"^Swapper\.+: *(\S[^\r\n]*)", version, re.M)
+    micro = re.search(r"^Micro program\.+: *(\d+)", version, re.M)
+    if swapper and micro and int(micro.group(1)) != 0:
+        return swapper.group(1).strip(), micro.group(1)
+    return None
+
+
+def start_nd5000(vm, timeout=300):
+    """Make sure the ND-5000 runs, started the way ND's (SYSTEM)LOAD-MODE:MODE starts
+    it at every boot (ND-896058-2, section 14):
 
         @ND-500-MONITOR
         LOAD-CONTROL-STORE,,,,
         START-SWAPPER
         EXIT
 
-    The packs these scripts run on have no LOAD-MODE, so nothing starts the ND-5000
-    at boot, and the first program to use it loads the control store itself, as
-    whoever runs it. The installers switch to DOMAIN-USER before they run the
+    Without it, the first program to use the ND-5000 loads the control store itself,
+    as whoever runs it. The installers switch to DOMAIN-USER before they run the
     Linkage-Loader, and DOMAIN-USER has no read access to (SYSTEM)CONTROL-STORE:DATA:
     the monitor prints "Error when loading Control Store. NOT READ ACCESS", the
     domain is not copied, and the installer still ends "INSTALLATION - FINISHED".
-    Measured 2026-11-02: the same domain copy as DOMAIN-USER works after this start."""
-    vm.sendline("ND-500-MONITOR")
-    vm.expect(Regex(r"ND-5000?: ?$"), timeout=120, abort=Regex(r"NO SUCH FILE NAME"))
-    out = vm.command("LOAD-CONTROL-STORE,,,,", until=Regex(r"ND-5000?: ?$"), timeout=300)
-    out += vm.command("START-SWAPPER", until=Regex(r"ND-5000?: ?$"), timeout=300)
-    vm.command("EXIT", timeout=60)
-    if re.search(r"error|NOT READ|NO SUCH", out, re.I) or "Loading Swapper" not in out:
-        raise SystemExit("could not start the ND-5000:\n%s" % out)
-    vm.note("ND-5000 started as SYSTEM (control store loaded, swapper started)")
+    Measured 2026-11-02: the same domain copy as DOMAIN-USER works after this start.
+
+    A pack may start the ND-5000 in its own boot batch (ND5000.IMG does, about 20 s
+    after log-in). So VERSION decides: already loaded, nothing to do. Otherwise the
+    two commands, each up to its ND-5000: prompt, with every "ND-500(0) error:" line
+    read. A busy error (ND5000_BUSY: the batch holds the ND-500 just now) means leave
+    the monitor, wait 5 s and look again; any other error stops the run. VERSION
+    after the start must show both loaded. While the script sits in the monitor it
+    holds the ND-500 too, so it only stays there for these commands."""
+    deadline = time.time() + timeout
+    while True:
+        vm.sendline("ND-500-MONITOR")
+        got = vm.expect([ND5000_PROMPT, ND5000_REFUSED], timeout=120,
+                        abort=Regex(r"NO SUCH FILE NAME"))
+        said = got
+        if not re.search(ND5000_ERROR, got):
+            said = vm.command("VERSION", until=ND5000_PROMPT, timeout=60)
+            loaded = nd5000_loaded(said)
+            if not loaded:
+                said = vm.command("LOAD-CONTROL-STORE,,,,", until=ND5000_PROMPT, timeout=300)
+                said += vm.command("START-SWAPPER", until=ND5000_PROMPT, timeout=300)
+                errors = re.findall(ND5000_ERROR + r"|Error when loading[^\n]*|NOT READ ACCESS",
+                                    said.replace("\r", ""))
+                if errors and not all(re.search(ND5000_BUSY, e) for e in errors):
+                    vm.command("EXIT", timeout=60)
+                    raise SystemExit("could not start the ND-5000:\n%s" % said)
+                version = vm.command("VERSION", until=ND5000_PROMPT, timeout=60)
+                loaded = nd5000_loaded(version)
+                if loaded:
+                    vm.note("ND-5000 started as SYSTEM (swapper %s, microprogram %s)" % loaded)
+            else:
+                vm.note("ND-5000 already running (swapper %s, microprogram %s)" % loaded)
+            vm.command("EXIT", timeout=60)
+            if loaded:
+                return
+        elif not re.search(ND5000_BUSY, got):
+            raise SystemExit("the ND-500 monitor refused: %s" % got)
+        if time.time() > deadline:
+            raise SystemExit("the ND-5000 was not running within %d s; the monitor last said:\n%s"
+                             % (timeout, said))
+        vm.note("ND-500 busy (the pack's boot batch?); again in 5 s")
+        vm.wait_quiet(5)
 
 
 def user_stat(vm, user):
     """@USER-STAT for `user`: returns (pages used, pages given), or None when the
     user does not exist."""
-    vm.command("USER-STAT", until=Regex(r"USER NAME: ?$"))
-    out = vm.command(user, until=Regex(r"OUTPUT FILE: ?$|\n@ ?$"))
+    vm.command("USER-STAT", until=Regex(r"USER NAME:"))
+    out = vm.command(user, until=Regex(r"OUTPUT FILE:|\n@ ?$"))
     if "OUTPUT FILE" in out:
         out = vm.command("", timeout=60)
     m = re.search(r"(\d+) PAGES USED OUT OF (\d+) PAGES", out)
@@ -350,8 +395,8 @@ def make_room(vm, user, pages, directory="PACK-ONE"):
 def standard_domains(vm):
     """@ND-500-MONITOR, LIST-STANDARD-DOMAINS, EXIT. Returns the listing."""
     vm.sendline("ND-500-MONITOR")
-    vm.expect(Regex(r"ND-5000?: ?$"), timeout=120, abort=Regex(r"NO SUCH FILE NAME"))
-    out = vm.command("LIST-STANDARD-DOMAINS", until=Regex(r"ND-5000?: ?$"), timeout=60)
+    vm.expect(Regex(r"ND-5000?:"), timeout=120, abort=Regex(r"NO SUCH FILE NAME"))
+    out = vm.command("LIST-STANDARD-DOMAINS", until=Regex(r"ND-5000?:"), timeout=60)
     vm.command("EXIT", timeout=60)
     return out
 
@@ -365,17 +410,19 @@ def check_standard_domain(listing, name, segment_file, what):
                          % (what, name, segment_file, listing))
 
 
-def install_product(a, prefix, floppy_path, installer, answers, check, needs=(), before=None,
+def install_product(a, prefix, floppy_path, installer, dialogue, check, needs=(), before=None,
                     between=None):
     """The whole run for a product: copy, boot, log in, check `needs` in
     LIST-REENTRANT, call before(vm, work) if given, enter the floppy in unit 0, run
-    `installer` with `answers`, then check(vm, what) after the install and again
+    `installer` and answer it with run_dialogue(dialogue()) (a function, so the menu's
+    module counter starts afresh), then check(vm, what) after the install and again
     after a second boot, then deliver.
     between(pack), if given, runs while no emulator has the pack open: after the
     install run has stopped and before the second boot, so the second boot and its
     check run on what it changed.
-    When `needs` has ND-500-MONITOR, the ND-5000 is started as SYSTEM after each
-    boot first (start_nd5000), as LOAD-MODE would.
+    When `needs` has ND-500-MONITOR, the ND-5000 must run before the installer:
+    start_nd5000() after each boot (it also copes with a pack whose boot batch
+    starts it).
     Returns what the two checks returned."""
     work, pack, ini = prepare(a, prefix, floppy_path)
     nd5000 = "ND-500-MONITOR" in needs
@@ -388,7 +435,7 @@ def install_product(a, prefix, floppy_path, installer, answers, check, needs=(),
             before(vm, work)
         enter_floppy(vm, 0)
         vm.sendline(installer)
-        run_installer(vm, answers, a.step_timeout)
+        run_dialogue(vm, dialogue(), fail=INSTALL_FAILED, silence=a.silence, total=a.total)
         first = check(vm, "after install")
     if between:
         between(pack)

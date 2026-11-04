@@ -24,8 +24,9 @@ import re
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
-from install_common import (Answer, Regex, arguments, deliver, enter_floppy,  # noqa: E402
-                            floppy, logged_in, machine, prepare, run_installer)
+from install_common import (INSTALL_FAILED, Regex, State, When, arguments,  # noqa: E402
+                            deliver, eject_floppy, enter_floppy, floppy, logged_in, machine,
+                            prepare, run_dialogue)
 
 # The floppy: archive entry "210337I05-XX-01D", label "PART 1 OF 1",
 # product/release date 881206. The archive holds a second, different image under
@@ -35,26 +36,30 @@ FLOPPY_DIR = "210337I05-XX-01D"
 INSTALLER = "(%s:FLOPPY-USER)INST-BASY-I05:PROG" % FLOPPY_DIR
 
 
-def eject_floppy(vm, m):
-    vm.eject(0)
-    return ""
-
-
-# The installer's questions, as seen on the screen of a real run (2026-11-02),
-# and the answer ND's install notes give.
-ANSWERS = [
+# The installer's dialogue, state by state, as on the screen of a real run
+# (transcript of 2026-11-04), with the answers ND's install notes give. It asks the
+# five questions in this order and has no branches. "Batch input error / No such
+# file name" before the first question is SINTRAN's (no LOAD-MODE batch file) and
+# the installer's own "The message: NO SUCH FILE NAME is ok !" note; both are
+# ignored like any other text.
+DIALOGUE = [
     # "Do you want to delete previous version of the BACKUP-SYSTEM if it exist ?
     #  User SYSTEM, UTILITY and BPUN will be checked (Y/N): "
-    Answer(r"delete previous version.*\(Y/N\) ?: ?$", "Y"),
+    State("delete-old", [When(r"delete previous version.*\(Y/N\) ?:", "Y", "user")]),
     # "...BACKUP-SYS-I:PROG and BACKUP-SERV-I:PROG copied to (default: UTILITY) : "
-    Answer(r"\(default: UTILITY\) ?: ?$", ""),
+    # after "--> Wait approx. 1 - 2 min." while it deletes.
+    State("user", [When(r"\(default: UTILITY\) ?:", "", "reentrant")]),
     # "Should the BACKUP-SYSTEM be dumped reentrant (Y/N) ? "
-    Answer(r"dumped reentrant \(Y/N\) ?\? ?$", "Y"),
-    # 'Remove floppy 210337I05-XX-01D from station 1 unit 0 and type "CR"'
-    Answer(r'Remove floppy \S+ from station 1 unit 0 and type "CR" ?$', eject_floppy),
+    State("reentrant", [When(r"dumped reentrant \(Y/N\) ?\?", "Y", "floppy")]),
+    # 'Remove floppy 210337I05-XX-01D from station 1 unit 0 and type "CR"', after the
+    # BACKUP-LOAD-I:MODE job that loads the DMA server.
+    State("floppy", [When(r'Remove floppy \S+ from station 1 unit 0 and type "CR"',
+                          eject_floppy, "return")]),
     # After the note that termination handling was reset to blanks:
-    # '>> Press "RETURN" to continue.'  Then the two IMPORTANT notes and @.
-    Answer(r'Press "RETURN" to continue\. ?$', "", last=True),
+    # '>> Press "RETURN" to continue.'
+    State("return", [When(r'Press "RETURN" to continue\.', "", "end")]),
+    # The two IMPORTANT notes, "<< Installation finished >>" and @.
+    State("end", [When(r"<< Installation finished >>\s*@ ?", done=True)]),
 ]
 
 
@@ -64,7 +69,7 @@ def check_installed(vm, what):
     if "BACKUP-SYSTEM-I" not in out:
         raise SystemExit("FAIL (%s): LIST-REENTRANT has no BACKUP-SYSTEM-I:\n%s" % (what, out))
     vm.sendline("BACKUP-SYSTEM")
-    vm.expect(Regex(r"Ba-sy: ?$"), timeout=120, abort=Regex(r"NO SUCH|NOT FOUND|ERROR"))
+    vm.expect(Regex(r"Ba-sy:"), timeout=120, abort=Regex(r"NO SUCH|NOT FOUND|ERROR"))
     banner = vm.before()[-400:]
     # I05 prints "BACKUP-SYSTEM ver I05 881107"; I02 printed "BACKUP-SYSTEM / I02  870827".
     m = re.search(r"BACKUP-SYSTEM +(?:ver|/) *(\S+) +(\d+)", banner)
@@ -84,7 +89,7 @@ def main():
         logged_in(vm)
         enter_floppy(vm, 0)
         vm.sendline(INSTALLER)
-        run_installer(vm, ANSWERS, a.step_timeout)
+        run_dialogue(vm, DIALOGUE, fail=INSTALL_FAILED, silence=a.silence, total=a.total)
         first = check_installed(vm, "after install")
 
     with machine(a.nd100x, ini, work, "reboot") as vm:
