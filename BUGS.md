@@ -882,8 +882,13 @@ the repository; a `tools/installs`-style script is not written yet.
     back from a real drive at the end of recorded data, so it is expected to.
 - **036602B and BM-OPERATOR exits** when Services / Tape-operations is chosen on terminal
   type 2 (Teletype ASR 33), measured 2026-11-04. On type 6 (VT100) the same menu works. The
-  same number appeared on VT100 when EXIT was typed into a form field, without the exit. What
-  036602B means is not known; it is not in `UE-ERMSG-EN-D05`.
+  same number appeared on VT100 when EXIT was typed into a form field, without the exit.
+  036602B is "Invalid parameter value given": group 366B "Backup Manager -
+  Operator/Definition", message 2, in `UE-ERMSG-EN-D05:ERR` (a code is group x 64 + message;
+  the file layout is in NDInsight's SCSI storage document, 10.3.6a; read 2026-11-07). The
+  earlier "not in D05" was a text search for the number, which the file does not hold. So
+  the program refused the menu word. Why it refuses the words on terminal type 2 is not
+  known; nothing points at the emulator yet.
 - **Not tried without:** `@RT DMASRV` and `DEFINE-REMOTE-NAME` (step 4).
 - **A second COPY in the same BM-OPERATOR run** after a FAILED one took "COPY" and every answer
   after it as new commands (measured 2026-11-03, before the set-up above). Not tried again
