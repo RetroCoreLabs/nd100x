@@ -779,6 +779,29 @@ until no device answers, and on these four levels some device keeps answering. W
 to clear it, is not traced. The ND manual for TPE-MON (ND-30.005) has not been checked for what
 the test expects.
 
+## Command line (`src/frontend/nd100x/nd100x.c`)
+
+### L1. With `--config`, a `--scsiN` given on the command line is dropped without a word
+
+**Measured 2026-11-08:** `nd100x --pipe --config=machine.ini --scsi1=tape:tape.img`, where the
+INI has `[controller.scsi.0] enabled = yes` and no `disk1`. SINTRAN selects SCSI ID 1 for
+`@DEVICE-FUNCTION STREAMER-1` and the selection times out every time (`SCSI/NCR: selection:
+timed out` in the `--scsi-debug` log); the log has no "unit 1 attached as tape" line and SINTRAN
+answers `NO RESPONSE FROM DEVICE`. With `disk1 = tape:tape.img` in the INI instead, the drive
+is attached and REWIND / LOAD work.
+
+**Why, from reading the code (not traced):** `apply_cli_to_machine_config()`, whose comment
+says "CLI wins over the INI", is only called on the `--show-config` / `--write-config` path
+(about line 1267). The `--config` path that builds the machine (about line 1300) loads the INI
+and never calls it, so every flag that function copies is left out on a real run - `--scsiN`
+measured; `--smdN`, `--wdN`, `--cputype`, `--fpp` and the others it handles not tried. No
+message says a flag was ignored.
+
+**Affects:** `tools/nd100x_expect.py` passes `scsi={...}` as `--scsiN`, and
+`docs/pipe-automation.md` shows `config=` together with `scsi=`; that combination does not
+attach the drive. Workaround used: none in the repo; the Backup Manager check runs of
+2026-11-08 wrote the tape into the INI. Fix not made: open.
+
 ## ND product installers (`tools/installs/`)
 
 ### P1. Backup Manager B02 reinstall: "Filename syntax error" joining BM-OPERATOR
@@ -889,7 +912,11 @@ the repository; a `tools/installs`-style script is not written yet.
   earlier "not in D05" was a text search for the number, which the file does not hold. So
   the program refused the menu word. Why it refuses the words on terminal type 2 is not
   known; nothing points at the emulator yet.
-- **Not tried without:** `@RT DMASRV` and `DEFINE-REMOTE-NAME` (step 4).
+- **`@RT DMASRV` is not needed; `DEFINE-REMOTE-NAME` is needed for a backup** (step 4),
+  measured 2026-11-08 on a pack fresh from the five install scripts. Without the name the
+  backup stops with `000021B: Illegal character in parameter` / `*XM-FIDO`, "No files
+  copied". With the name and no DMASRV: "File(s) copied: 3", and a restore onto a copy with
+  the files deleted brought all three back byte for byte, with and without the name.
 - **A second COPY in the same BM-OPERATOR run** after a FAILED one took "COPY" and every answer
   after it as new commands (measured 2026-11-03, before the set-up above). Not tried again
   after a successful COPY.
