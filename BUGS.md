@@ -781,7 +781,18 @@ the test expects.
 
 ## Command line (`src/frontend/nd100x/nd100x.c`)
 
-### L1. With `--config`, a `--scsiN` given on the command line is dropped without a word
+### L1. With `--config`, a `--scsiN` given on the command line is dropped without a word (fixed)
+
+**Fixed 2026-11-08.** `--show-config`, `--write-config` and a `--config` boot now resolve the
+machine through one function, `resolve_machine_config()`: the INI, then
+`apply_cli_to_machine_config()` on top, then the check. The command-line HDLC loop runs only
+without `--config`, since with it the lines are in the machine config already. Test
+`cli_over_ini_unit` (`tests/test_cli_over_ini.py`) boots the built nd100x with `--config` and
+checks that `--scsi1=tape:` attaches the drive, `--cputype` sets the CPU, an HDLC line is
+added once, and without the flags the INI's values stand. Run on the old `nd100x.c`, the
+tape and CPU type tests failed and the other three of the five then written passed (the HDLC
+test was added after). So `--cputype` next to `--config` was dropped as well.
+What follows is the record of the defect.
 
 **Measured 2026-11-08:** `nd100x --pipe --config=machine.ini --scsi1=tape:tape.img`, where the
 INI has `[controller.scsi.0] enabled = yes` and no `disk1`. SINTRAN selects SCSI ID 1 for
@@ -800,7 +811,7 @@ message says a flag was ignored.
 **Affects:** `tools/nd100x_expect.py` passes `scsi={...}` as `--scsiN`, and
 `docs/pipe-automation.md` shows `config=` together with `scsi=`; that combination does not
 attach the drive. Workaround used: none in the repo; the Backup Manager check runs of
-2026-11-08 wrote the tape into the INI. Fix not made: open.
+2026-11-08 wrote the tape into the INI.
 
 ## ND product installers (`tools/installs/`)
 

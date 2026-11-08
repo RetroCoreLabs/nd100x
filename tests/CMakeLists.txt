@@ -94,6 +94,17 @@ if(NOT PLATFORM_WASM AND NOT PLATFORM_RISCV)
             TIMEOUT 60
             LABELS "unit"
         )
+        # Machine flags on the command line win over a --config INI on a real boot,
+        # not only in --show-config (BUGS.md L1). Short runs of the built nd100x.
+        add_test(
+            NAME cli_over_ini_unit
+            COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/test_cli_over_ini.py
+        )
+        set_tests_properties(cli_over_ini_unit PROPERTIES
+            TIMEOUT 120
+            LABELS "unit"
+            ENVIRONMENT "ND100X_EXE=$<TARGET_FILE:nd100x>"
+        )
         # The state machine every install script answers ND's installers with
         # (tools/installs/dialogue.py) and the install scripts' own tables, against
         # a stand-in machine replaying real transcripts; no emulator.

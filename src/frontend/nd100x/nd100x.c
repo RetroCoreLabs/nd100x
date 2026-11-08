@@ -1193,6 +1193,44 @@ static bool apply_cli_to_machine_config(MachineConfig *mc, const Config *cfg)
     return true;
 }
 
+// The machine one run describes: the INI at ini_path (or the built-in defaults when
+// it is NULL), then the machine flags of this command line on top (CLI wins), then
+// validated. --show-config, --write-config and a --config boot all come through
+// here, so what --show-config prints is the machine that boots.
+// Returns false after printing the reason on stderr.
+static bool resolve_machine_config(MachineConfig *mc, const char *ini_path, const Config *cfg)
+{
+    char mc_err[MC_ERR_LEN];
+    if (ini_path)
+    {
+        /* An INI fully specifies the controllers, so start from the
+         * controller-less baseline before loading. */
+        mc_init_baseline(mc);
+        if (!mc_load_file(mc, ini_path, mc_err, sizeof(mc_err)))
+        {
+            fprintf(stderr, "Config error: %s\n", mc_err);
+            return false;
+        }
+    }
+    else
+    {
+        mc_set_defaults(mc);
+    }
+
+    // The machine flags on this command line win over the INI.
+    if (!apply_cli_to_machine_config(mc, cfg))
+    {
+        return false;
+    }
+
+    if (!mc_validate(mc, mc_err, sizeof(mc_err)))
+    {
+        fprintf(stderr, "Config error: %s\n", mc_err);
+        return false;
+    }
+    return true;
+}
+
 int main(int argc, char *argv[])
 {
 
@@ -1243,35 +1281,12 @@ int main(int argc, char *argv[])
             }
         }
 
-        if (ini_path)
+        if (!ini_path && config.showConfig)
         {
-            /* An INI fully specifies the controllers, so start from the
-             * controller-less baseline before loading. */
-            mc_init_baseline(&mc);
-            if (!mc_load_file(&mc, ini_path, mc_err, sizeof(mc_err)))
-            {
-                fprintf(stderr, "Config error: %s\n", mc_err);
-                return EXIT_FAILURE;
-            }
+            printf("(no INI file found; showing built-in defaults)\n");
         }
-        else
+        if (!resolve_machine_config(&mc, ini_path, &config))
         {
-            if (config.showConfig)
-            {
-                printf("(no INI file found; showing built-in defaults)\n");
-            }
-            mc_set_defaults(&mc);
-        }
-
-        // The machine flags on this command line win over the INI.
-        if (!apply_cli_to_machine_config(&mc, &config))
-        {
-            return EXIT_FAILURE;
-        }
-
-        if (!mc_validate(&mc, mc_err, sizeof(mc_err)))
-        {
-            fprintf(stderr, "Config error: %s\n", mc_err);
             return EXIT_FAILURE;
         }
 
@@ -1297,16 +1312,13 @@ int main(int argc, char *argv[])
     // existing invocations without --config are unaffected.
     if (config.iniFile)
     {
-        char mc_err[MC_ERR_LEN];
-        mc_init_baseline(&machine_config);
-        if (!mc_load_file(&machine_config, config.iniFile, mc_err, sizeof(mc_err)))
+        // The same resolution as --show-config, so what it prints is what boots:
+        // the INI, then the machine flags on this command line on top of it.
+        // This path used to load the INI alone, and a --scsiN, --smdN or
+        // --cputype given next to --config was dropped without a word
+        // (BUGS.md L1, measured 2026-11-08 with --scsi1=tape:).
+        if (!resolve_machine_config(&machine_config, config.iniFile, &config))
         {
-            fprintf(stderr, "Config error: %s\n", mc_err);
-            return EXIT_FAILURE;
-        }
-        if (!mc_validate(&machine_config, mc_err, sizeof(mc_err)))
-        {
-            fprintf(stderr, "Config error: %s\n", mc_err);
             return EXIT_FAILURE;
         }
         use_machine_config = true;
@@ -1622,8 +1634,10 @@ int main(int argc, char *argv[])
     }
 #endif
 
-    // Add HDLC devices if configured via command line
-    for (int i = 0; i < config.hdlcCount; i++)
+    // Add HDLC devices if configured via command line. With --config they are in
+    // machine_config already (apply_cli_to_machine_config) and mc_apply_devices()
+    // added them; adding them here as well would give each line twice.
+    for (int i = 0; !use_machine_config && i < config.hdlcCount; i++)
     {
         machine_add_hdlc(config.hdlc[i].deviceNum, config.hdlc[i].isServer, config.hdlc[i].address,
                          config.hdlc[i].port);
