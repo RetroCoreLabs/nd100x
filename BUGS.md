@@ -847,7 +847,8 @@ Manager, which does not take this path, and stops if "Filename syntax error" app
 **State 2026-11-04: backup and restore of several files, and List-volume, work.** A COPY of four
 files of user RONNY to `BMTEST-1` and back onto a pack where they were deleted gave four
 byte-identical files. Services / Tape-operations / List-volume lists the volume, but only with
-terminal type 6 (VT100); see the 036602B point below.
+terminal type 6 (VT100); on terminal type 2 the command `LIST-VOLUME` does it (see the
+036602B point below).
 
 **State 2026-11-03: single-file backup AND restore on `STREAMER-1` work.** Measured on copies
 of a pack made by the `tools/installs/` chain (BACKUP-SYSTEM I05, ND-500 monitor J04,
@@ -921,8 +922,13 @@ the repository; a `tools/installs`-style script is not written yet.
   Operator/Definition", message 2, in `UE-ERMSG-EN-D05:ERR` (a code is group x 64 + message;
   the file layout is in NDInsight's SCSI storage document, 10.3.6a; read 2026-11-07). The
   earlier "not in D05" was a text search for the number, which the file does not hold. So
-  the program refused the menu word. Why it refuses the words on terminal type 2 is not
-  known; nothing points at the emulator yet.
+  the program refused the menu word. Not an emulator fault (2026-11-08): on terminal type 2
+  the `BmOp:` prompt takes the batch command words in the `BATCH-COMMANDS` table of
+  `BM-OPERAT-EN-B02:DATA` (BACKUP-START, COPY, LIST-VOLUME, ERASE-TAPE, SET-TAPE-DENSITY,
+  plus EXIT), not the menu words. Measured: `LIST-VOLUME` lists the tape, `SERVICES` after it
+  gives 036602B and the exit, and the User Guide's name `LIST-VOLUME-ALL-OBJECTS` gives
+  036602B too. The code that reads the table was not traced, and why the program ends after
+  the error is not known.
 - **`@RT DMASRV` is not needed; `DEFINE-REMOTE-NAME` is needed for a backup** (step 4),
   measured 2026-11-08 on a pack fresh from the five install scripts. Without the name the
   backup stops with `000021B: Illegal character in parameter` / `*XM-FIDO`, "No files
