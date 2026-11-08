@@ -214,6 +214,44 @@ int main(void)
         CHECK((ch & 0x7Fu) == (uint16_t)('A' + round), "and it is the character that was queued");
     }
 
+    /* Input does not wait for output: the two channels are independent
+     * (ND-06.016.01, Example 2: Terminal Interface). A character written to the
+     * screen 10 instructions before a key's line time ends keeps the output
+     * channel busy past that point; the key still arrives on time. */
+    {
+        for (int i = 0; i < 777; i++)
+        {
+            (void)devmgr_tick();
+        }
+        terminal_queue_key_code(term, (uint8_t)'Q');
+        int calls = 0;
+        uint16_t status = 0;
+        bool outputBusyAtArrival = false;
+        do
+        {
+            if (calls == (int)t8n2 - 10)
+            {
+                term->Write(term, term->startAddress + TERMINAL_WRITE_DATA, (uint16_t)'.');
+            }
+            (void)devmgr_tick();
+            calls++;
+            status = term->Read(term, term->startAddress + TERMINAL_READ_INPUT_STATUS);
+            if ((status & (1u << 3)) != 0)
+            {
+                uint16_t out = term->Read(term, term->startAddress + TERMINAL_READ_OUTPUT_STATUS);
+                outputBusyAtArrival = (out & (1u << 3)) == 0;
+            }
+        } while ((status & (1u << 3)) == 0 && calls < 5000);
+        CHECK(outputBusyAtArrival, "the output channel is still busy when the key arrives");
+        CHECK(calls == (int)t8n2, "and the key arrives after exactly its line time all the same");
+        uint16_t ch = term->Read(term, term->startAddress + TERMINAL_READ_INPUT_DATA);
+        CHECK((ch & 0x7Fu) == (uint16_t)'Q', "and it is the key that was queued");
+        for (int i = 0; i < 777; i++)
+        {
+            (void)devmgr_tick(); /* let the output character finish */
+        }
+    }
+
     /* A burst: 300 characters, more than the queue holds. Queue while there is room,
      * as the keyboard, --pipe and telnet readers do; read each as it arrives. */
     {

@@ -171,6 +171,14 @@ static uint16_t terminal_tick(Device *self)
     // instructions, about ten times a 9600-baud line, and a long typed line could
     // overflow SINTRAN's 64-character input ring buffer (DTxxR MAX) while the
     // command reader was busy: BUGS.md T1.
+    //
+    // The input channel does not wait for the output channel. "Each channel is
+    // controlled independently and contains its own set of control, status and
+    // data registers" (ND-06.016.01, Example 2: Terminal Interface), and input
+    // status bit 3 "is never given if MOPC is active" (B.1, IOX 302) - MOPC, not a
+    // busy output, is the only thing named that holds it back. Until 2026-11-08 a
+    // key also waited here for output ready, a condition from the first commit
+    // that no manual gives.
     if (data->inputQueue.count > 0)
     {
         if (!data->lineTimed)
@@ -183,8 +191,7 @@ static uint16_t terminal_tick(Device *self)
             data->lineTicksLeft--;
         }
 
-        if ((data->lineTicksLeft == 0) && (!data->inputStatus.bits.deviceReadyForTransfer) &&
-            (data->outputStatus.bits.readyForTransfer))
+        if ((data->lineTicksLeft == 0) && (!data->inputStatus.bits.deviceReadyForTransfer))
         {
 
             uint16_t value = data->inputQueue.buffer[data->inputQueue.head];

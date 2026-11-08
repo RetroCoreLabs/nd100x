@@ -744,16 +744,29 @@ and 19200 baud; a 300-key burst arrives whole and in order), `machine_config_tes
 machine: single lines of 40, 89 and 120 characters and three pastes of 426 characters in one
 write each reached SINTRAN whole.
 
-**Still not as the hardware:**
+**Input no longer waits for output, 2026-11-08.** A key used to wait until the output channel
+was idle as well, a condition from the first commit that no manual gives. The card has two
+independent channels ("Each channel is controlled independently and contains its own set of
+control, status and data registers", ND-06.016.01, Example 2: Terminal Interface), and input
+status bit 3 is held back only while MOPC is active (B.1, IOX 302). Test: `devmgr_tick_tests`
+writes a screen character 10 instructions before a key's line time ends; the key arrives
+after exactly its line time while the output channel is still busy (this check fails with the
+old condition). On the machine, old and new code gave the same result: `LIST-FILES ,TERMINAL`
+plus eight 16-letter words in one write. SINTRAN took the first 72 typed-ahead characters
+(four words and `ELSZ`) and dropped the rest, the same on both. That is SINTRAN's own
+typeahead limit while a command prints, not the emulator.
 
-- **Output** still takes about 100 instructions a character (`IODELAY_TERMINAL`), about six
-  times faster than a 9600-baud line.
+**Output stays at full speed, by choice (Ronny, 2026-11-08).** About 100 instructions a
+character (`IODELAY_TERMINAL`), about six times faster than a 9600-baud line. It is not to be
+slowed to the line speed.
+
+**Still not as the hardware:**
 - **IOX +1, "data rate selection"**, on the terminals of the 3010 module is still a no
   operation: ND-06.016.01 (B.2) names the register but gives no bit layout, so a program that
   sets a line speed this way is not followed. On the console (IOX 301) it is a no operation on
   the real card too (B.1). SINTRAN's `TSPEED` (DTxxR) was not traced.
-- The input waits for output to be idle before the next key, as before; whether the card
-  does that was not checked.
+- Input status bit 3 is not held back while MOPC is active (B.1, IOX 302); nd100x does not
+  model that.
 - The browser build (`nd100wasm`) queues keys without the room check.
 
 ## Interrupt system
