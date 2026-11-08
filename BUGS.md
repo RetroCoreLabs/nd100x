@@ -918,8 +918,11 @@ the repository; a `tools/installs`-style script is not written yet.
   copied". With the name and no DMASRV: "File(s) copied: 3", and a restore onto a copy with
   the files deleted brought all three back byte for byte, with and without the name.
 - **A second COPY in the same BM-OPERATOR run** after a FAILED one took "COPY" and every answer
-  after it as new commands (measured 2026-11-03, before the set-up above). Not tried again
-  after a successful COPY.
+  after it as new commands (measured 2026-11-03, before the set-up above). After a
+  SUCCESSFUL COPY a second one works (measured 2026-11-08): in one run, ALPHA:DATA to
+  BMTEST-1 with mode OV, then BETA:DATA to the same volume with mode AP, "File(s) copied: 1"
+  each; a restore of the whole volume listed both and brought both back byte for byte.
+  A second COPY after a failed one was not tried again with the set-up above.
 
 **Fixed in the install script (2026-11-04), `tools/installs/backup-manager-b02/`:**
 
