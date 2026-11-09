@@ -683,6 +683,8 @@ void opcode_addd_add_two_decimal_operands(uint16_t instr)
         return; /* overflow => error return (P+1) */
     }
 
+    /* EXITS: every earlier return is the error return -> own address + 1;
+     * reaching this line is the normal return -> own address + 2 (skip). */
     gPC++; /* no error => SKIP return (P+2) */
 }
 
@@ -715,6 +717,8 @@ void opcode_subd_subtract_two_decimal_operands(uint16_t instr)
         return; /* overflow => error return (P+1) */
     }
 
+    /* EXITS: every earlier return is the error return -> own address + 1;
+     * reaching this line is the normal return -> own address + 2 (skip). */
     gPC++; /* no error => SKIP return (P+2) */
 }
 
@@ -840,6 +844,8 @@ void opcode_comd_compare_two_decimal_operands(uint16_t instr)
         gA = 0;
     }
 
+    /* EXITS: every earlier return is the error return -> own address + 1;
+     * reaching this line is the normal return -> own address + 2 (skip). */
     gPC++; /* no error => SKIP return */
 }
 
@@ -1054,6 +1060,8 @@ void opcode_shde_decimal_shift(uint16_t instr)
         return; /* significant digits lost => error return */
     }
 
+    /* EXITS: every earlier return is the error return -> own address + 1;
+     * reaching this line is the normal return -> own address + 2 (skip). */
     gPC++; /* no error => SKIP return */
 }
 
@@ -1306,6 +1314,8 @@ void opcode_pack_convert_to_decimal(uint16_t instr)
         return; /* illegal code / overflow => error return */
     }
 
+    /* EXITS: every earlier return is the error return -> own address + 1;
+     * reaching this line is the normal return -> own address + 2 (skip). */
     gPC++; /* no error => SKIP return */
 }
 
@@ -1478,5 +1488,7 @@ void opcode_unpack_convert_from_decimal(uint16_t instr)
         return; /* illegal code / overflow => error return */
     }
 
+    /* EXITS: every earlier return is the error return -> own address + 1;
+     * reaching this line is the normal return -> own address + 2 (skip). */
     gPC++; /* no error => SKIP return */
 }

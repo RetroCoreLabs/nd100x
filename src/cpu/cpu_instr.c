@@ -222,6 +222,8 @@ static void cjp(bool jmp_flag, uint16_t operand)
          * Plain wrapping 16-bit add - identical arithmetic to the old do_add() call, minus
          * the flag write-back.
          */
+        /* EXITS (JAP JAN JAZ JAF JPC JNC JXZ JXN): condition true -> own address +
+         * sign-extended 8-bit displacement; condition false -> own address + 1. */
         gPC = (uint16_t)((uint16_t)(gPC - 1) + (uint16_t)temp);
 
         if (g_disasm)
@@ -1158,6 +1160,9 @@ static void regop(uint16_t operand)
     source = (sr == 0) ? 0 : g_reg->reg[CURR_LEVEL][sr] & 0xFFFF;
     destination = (cld) ? 0 : ((dr == 0) ? 0 : g_reg->reg[CURR_LEVEL][dr] & 0xFFFF);
 
+    /* EXITS: when the destination register is P (for SWAP: the source or the
+     * destination), execution continues at the new P value; otherwise own address + 1.
+     * P read as a source here is already own address + 1. EXIT is COPY SL DP: P = L. */
     switch (rad)
     {
     case 0: /* Logical operation - SWAP RAND REXO RORA. NO dr!=0 guard: reg field 0 writes are discarded
@@ -1399,6 +1404,8 @@ static void do_exr(uint16_t instr)
     }
 
     // Execute opcode but do not touch Program Counter
+    /* EXITS: EXR does not move P itself. The executed instruction runs with P = own
+     * address + 1, so its own exits (skip, jump, ...) apply counted from the EXR. */
     cpu_do_op(exr_instr, true);
 }
 
@@ -1706,6 +1713,9 @@ static void do_bops(uint16_t operand)
 
     switch ((operand & 0x0780) >> 7)
     {
+    /* EXITS (BSET, BSTC, BSTA): when the register field is P (2) these change a bit
+     * of P itself and execution continues at the changed P; otherwise own address + 1.
+     * BSKP (cases 4-7): test true -> own address + 2 (skip); false -> own address + 1. */
     case 0: /* BSET ZRO */
         cpu_setbit(dr, bn, 0);
         break;
@@ -2837,6 +2847,7 @@ static void opcode_min_memory_increment_and_skip_if_zero(uint16_t operand)
     temp++;
     cpu_memory_write(temp, gEA, gUseAPT, 2);
 
+    /* EXITS: the word became zero -> own address + 2 (skip); otherwise own address + 1. */
     if (temp == 0)
     {
         gPC++; // Next instruction is skipped
@@ -3592,6 +3603,7 @@ static void opcode_bfill_byte_fill(uint16_t operand)
     gX = d1 + ((i + right) >> 1);
 
 
+    /* EXITS: always own address + 2 (skip return). This code has no error return. */
     gPC++; /* This function has a SKIP return on no error, which is always? */
 }
 
@@ -3726,6 +3738,7 @@ static void opcode_movb_move_byte(uint16_t instr)
     gA = addr_s + ((len + s_lr) >> 1);
     gX = addr_d + ((len + d_lr) >> 1);
 
+    /* EXITS: always own address + 2 (skip return). This code has no error return. */
     gPC++; /* This function has a SKIP return on no error, which is always? */
 }
 
@@ -3832,6 +3845,8 @@ static void opcode_movbf_move_bytes_forward(uint16_t instr)
     gD |= lens & 0x0fff; /* decremented byte counter to lowest 12 bits*/
     gT |= lend & 0x0fff; /* decremented byte counter to lowest 12 bits*/
 
+    /* EXITS: no forbidden overlap -> own address + 2 (skip return);
+     * overlap -> own address + 1 (error return). */
     if (!overlap)
     {
         gPC++; /* This function has a SKIP return on no error */
@@ -4024,6 +4039,7 @@ static void opcode_jmp_jump_unconditional(uint16_t operand)
     uint16_t old_g_pc = gPC - 1;
 
     gEA = cpu_get_effective_addr(operand, &gUseAPT);
+    /* EXITS: always the effective address. */
     gPC = gEA;
 
     if (g_disasm)
@@ -4309,6 +4325,7 @@ static void opcode_jpl_jump_if_last_result_positive(uint16_t operand)
         gL = gPC;
     }
 
+    /* EXITS: always the effective address (L = own address + 1, except in mode 5). */
     gPC = gEA;
 
     if (g_disasm)
@@ -4347,6 +4364,7 @@ static void opcode_jpl_jump_if_last_result_positive(uint16_t operand)
  */
 static void opcode_skp_skip_next_if_condition(uint16_t operand)
 {
+    /* EXITS: condition true -> own address + 2 (skip); false -> own address + 1. */
     if (is_skip(operand))
     {
         gPC++;
@@ -4389,6 +4407,9 @@ static void opcode_init_initialize_stack(uint16_t operand)
     (void)operand;
     uint16_t demand, start, maxsize, flag;
 
+    /* EXITS: gPC is already own address + 1 here. Five data words follow the
+     * instruction (own address + 1 .. + 5). Stack overflow or flag mismatch ->
+     * own address + 6 (error return); otherwise own address + 7 (normal return). */
     demand = cpu_memory_read(gPC + 0, 0);
     start = cpu_memory_read(gPC + 1, 0);
     maxsize = cpu_memory_read(gPC + 2, 0);
@@ -4444,6 +4465,9 @@ static void opcode_entr_enter_stack(uint16_t operand)
 {
     (void)operand;
     uint16_t old_b, demand, smax, stp;
+    /* EXITS: gPC is already own address + 1 here. One data word follows the
+     * instruction (the stack demand). Stack overflow -> own address + 2 (error
+     * return); otherwise own address + 3 (normal return). */
     demand = cpu_memory_read(gPC + 0, 0);
     smax = cpu_memory_read(gB - 125, 1); /* SMAX */
     if ((gB + demand - 122) > (smax))
@@ -4484,6 +4508,7 @@ static void opcode_entr_enter_stack(uint16_t operand)
 static void opcode_leave_leave_stack(uint16_t operand)
 {
     (void)operand;
+    /* EXITS: always LINK, the stack word at (B) - 200 octal. */
     gPC = cpu_memory_read(gB - 128, 1);
     gB = cpu_memory_read(gB - 127, 1);
 }
@@ -4516,6 +4541,8 @@ static void opcode_eleav_error_leave_stack(uint16_t operand)
 {
     (void)operand;
     uint16_t tmp;
+    /* EXITS: always LINK - 1 (one word before the normal return: the error return
+     * word after ENTR or INIT). LINK is decremented in the stack as well. */
     tmp = cpu_memory_read(gB - 128, 1) - 1;
     cpu_memory_write(tmp, gB - 128, 1, 2); /* LINK */
     cpu_memory_write(gA, gB - 123, 1, 2);  /* A ==> ERRCODE */
@@ -4605,6 +4632,7 @@ static void opcode_iot_nord_1_legacy_do_not_use(uint16_t operand)
         if (devmgr_iot_op(devno, func, &a, &skip))
         {
             gA = a;
+            /* EXITS: the device reports skip -> own address + 2; otherwise own address + 1. */
             if (skip)
             {
                 gPC++;
@@ -5629,6 +5657,8 @@ static void opcode_chreent_pages(uint16_t operand)
          * 004162-004163 / CHRE4 004200: a zero link ends the chain -> SKIP return
          * (extra P+1), registers unchanged.
          */
+        /* EXITS: end of chain (link 0) -> own address + 2 (skip return);
+         * a WIP page found and unlinked -> own address + 1. */
         if (link == 0)
         {
             gPC++;
@@ -6956,6 +6986,8 @@ static void opcode_mon_monitor_call(uint16_t operand)
             }
 
             g_reg->reg[14][_T] = monitor_number;
+            /* EXITS: P is not changed. The calling level resumes at own address + 1 when
+             * level 14 gives control back, unless the monitor changes the saved P. */
             cpu_interrupt(14, 1 << 1); /* Monitor Call */
             gCHKIT = true;
         }
