@@ -756,6 +756,14 @@ plus eight 16-letter words in one write. SINTRAN took the first 72 typed-ahead c
 (four words and `ELSZ`) and dropped the rest, the same on both. That is SINTRAN's own
 typeahead limit while a command prints, not the emulator.
 
+**The browser build no longer loses keys past 256, 2026-11-09.** It got every key of a paste
+or a WebSocket frame pushed in at once, and the queue dropped all past its 256. Keys that find
+the queue full now wait in a backlog (`src/devices/terminal/terminal_backlog.c`) that
+`SendKeyToTerminal` fills and `Step()` empties as the queue has room. Test:
+`terminal_backlog_tests` (3000 keys pushed at once, drained every 10000 instructions as the
+browser worker steps, all arrive in order with the overrun bit clear; the ring grows while it
+has wrapped). The browser build compiles; it was not run in a browser.
+
 **Output stays at full speed, by choice (Ronny, 2026-11-08).** About 100 instructions a
 character (`IODELAY_TERMINAL`), about six times faster than a 9600-baud line. It is not to be
 slowed to the line speed.
@@ -767,7 +775,6 @@ slowed to the line speed.
   the real card too (B.1). SINTRAN's `TSPEED` (DTxxR) was not traced.
 - Input status bit 3 is not held back while MOPC is active (B.1, IOX 302); nd100x does not
   model that.
-- The browser build (`nd100wasm`) queues keys without the room check.
 
 ## Interrupt system
 

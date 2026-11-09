@@ -639,6 +639,28 @@ add_dependencies(test_devmgr_tick cpu devices)
 
 add_test(NAME devmgr_tick_tests COMMAND test_devmgr_tick)
 
+# The browser build's key backlog: keys pushed in all at once (a paste, a WebSocket
+# frame) wait until the terminal's input queue has room, none is lost (BUGS.md T1).
+add_executable(test_terminal_backlog
+    test_terminal_backlog.c
+)
+
+target_include_directories(test_terminal_backlog PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/cpu
+    ${CMAKE_SOURCE_DIR}/src/machine
+    ${CMAKE_SOURCE_DIR}/src/devices
+    ${CMAKE_SOURCE_DIR}/src/ndlib
+)
+
+target_link_libraries(test_terminal_backlog PRIVATE
+    ${ND_LINK_GROUP_BEGIN} cpu machine devices debugger ndlib ${ND_LINK_GROUP_END} m)
+
+add_dependencies(test_terminal_backlog cpu devices)
+
+add_test(NAME terminal_backlog_tests COMMAND test_terminal_backlog)
+
 # MOVB / MOVBF on fields that start on different byte halves, run through the
 # real dispatch table. Linked against the whole emulator for the same reason as
 # test_memory_banks: the instruction file reaches the machine and the devices.

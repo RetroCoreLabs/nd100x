@@ -54,6 +54,7 @@
 #include "../machine/machine_config_apply.h"
 #include "../machine/machine_config_json.h"
 #include "../devices/terminal/device_terminal.h"
+#include "../devices/terminal/terminal_backlog.h"
 #include "../devices/papertape/device_paper_tape.h"
 #include "../devices/papertapewriter/device_paper_tape_writer.h"
 #include "../devices/scsi/device_scsi.h"
@@ -88,6 +89,12 @@ static PrintJob *wasmPrintJob = NULL;
 // Array of device references for quick access
 #define MAX_TERMINALS 16
 static Device *terminals[MAX_TERMINALS] = {NULL};
+
+// Keys that came from the page or the gateway while the terminal's input queue
+// was full, one backlog per entry of terminals[]. The page pushes a paste or a
+// WebSocket frame in all at once; without this every key past the queue's 256
+// was lost (BUGS.md T1). Step() moves them on as the queue empties.
+static TerminalBacklog terminalBacklogs[MAX_TERMINALS];
 
 /** HDLC controllers 1-4 (gateway channel = index 0-3); base addrs match devicemanager */
 #define HDLC_CHANNEL_COUNT 4
@@ -254,6 +261,7 @@ static void wasm_bind_terminals(void)
     for (int i = 0; i < MAX_TERMINALS; i++)
     {
         terminals[i] = NULL;
+        terminal_backlog_clear(&terminalBacklogs[i]); // waiting keys belong to the old machine
     }
     for (int i = 0; i < devCount && termIdx < MAX_TERMINALS; i++)
     {
@@ -568,11 +576,13 @@ EMSCRIPTEN_EXPORT int SendKeyToTerminal(int identCode, int keyCode)
 {
     // Find the terminal with matching ID
     Device *terminal = NULL;
+    int termIdx = -1;
     for (int i = 0; i < MAX_TERMINALS; i++)
     {
         if (terminals[i] && terminals[i]->identCode == identCode)
         {
             terminal = terminals[i];
+            termIdx = i;
             break;
         }
     }
@@ -584,11 +594,16 @@ EMSCRIPTEN_EXPORT int SendKeyToTerminal(int identCode, int keyCode)
         return 0; // Failure
     }
 
-    // If device is a character device, use the character input function
-    if (terminal->deviceClass == DEVICE_CLASS_CHARACTER && terminal->charCallbacks.inputFunc)
+    // The key joins the end of the backlog and goes on into the input queue at
+    // once if the queue has room, so the order is kept and a key typed by hand
+    // still arrives with no delay. A key that finds the queue full waits for
+    // Step() instead of being lost.
+    if (!terminal_backlog_push(&terminalBacklogs[termIdx], (uint8_t)keyCode))
     {
-        dev_input_character(terminal, (char)keyCode);
+        printf("Error: no memory to hold a key for terminal %d\n", identCode);
+        return 0;
     }
+    (void)terminal_backlog_drain(&terminalBacklogs[termIdx], terminal);
 
     return 1; // Success
 }
@@ -783,6 +798,16 @@ EMSCRIPTEN_EXPORT void Step(int steps)
     {
         printf("Error: System not initialized. Call Init() first.\n");
         return;
+    }
+    // Keys held back in SendKeyToTerminal() go on as the input queues empty.
+    // The worker steps 10000 instructions a call and a 256-key queue lasts about
+    // 150000 at 9600 baud, so refilling once a call keeps the line busy.
+    for (int i = 0; i < MAX_TERMINALS; i++)
+    {
+        if (terminals[i] && terminalBacklogs[i].count > 0)
+        {
+            (void)terminal_backlog_drain(&terminalBacklogs[i], terminals[i]);
+        }
     }
     machine_run(steps);
 }

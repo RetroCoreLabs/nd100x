@@ -194,7 +194,7 @@ Binary frame: [0x01] [0x2B] [0x1B]
                type   id=43   ESC
 ```
 
-- Each byte in the data payload is delivered individually to the emulated terminal device's input queue via `SendKeyToTerminal(identCode, byte)`.
+- Each byte in the data payload is delivered individually to the emulated terminal device's input queue via `SendKeyToTerminal(identCode, byte)`. The queue holds 256 keys; bytes beyond that wait in the emulator's backlog and follow at line speed, none is dropped.
 - Common input values: ESC = 0x1B (wakes SINTRAN), CR = 0x0D, printable ASCII = 0x20-0x7E.
 - The gateway server strips telnet IAC sequences (0xFF prefix) before forwarding.
 

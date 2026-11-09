@@ -1131,7 +1131,7 @@ The Worker's `runLoop()` drains the terminal ring buffer after each `Step()` bat
 
 HDLC TX frames are polled after terminal output and sent as binary frames (0x11) over the same WebSocket.
 
-**Input path**: Gateway sends binary term-input (0x01) over WebSocket. The Worker calls `Module._SendKeyToTerminal(identCode, byte)` for each byte. HDLC RX frames (0x10) are injected via `Module._HDLC_InjectRxFrame()`.
+**Input path**: Gateway sends binary term-input (0x01) over WebSocket. The Worker calls `Module._SendKeyToTerminal(identCode, byte)` for each byte. Keys that find the terminal's 256-key input queue full wait in a backlog in `nd100wasm.c` (`terminal_backlog.c`) and go on at the start of each `Step()`, so a paste or a large frame loses nothing. HDLC RX frames (0x10) are injected via `Module._HDLC_InjectRxFrame()`.
 
 ### Glass UI Config
 
