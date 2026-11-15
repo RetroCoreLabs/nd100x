@@ -92,6 +92,9 @@ tools/__pycache__/
 # working copies and must never end up in a commit.
 /*.IMG
 /*.img
+# Backup copies of disk images (SMD0.IMG.pre-x and so on) stay local too
+/*.IMG.*
+/*.img.*
 /*.image
 *:Zone.Identifier
 .gate.lock/
