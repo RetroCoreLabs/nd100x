@@ -179,6 +179,23 @@ bool devmgr_add_scsi_device_with_config(int thumbwheel, const SCSIUnitType *unit
     return success;
 }
 
+/* The modem of the HDLC card on this thumbwheel, or NULL. */
+static ModemState *hdlc_modem_for_wheel(int thumbwheel)
+{
+    // HDLC base addresses: thumbwheel 1=01640, 2=01660, 3=01700, 4=01720
+    static const uint16_t hdlc_base_addr[] = {0, 01640, 01660, 01700, 01720};
+    if (thumbwheel < 1 || thumbwheel > 4)
+    {
+        return NULL;
+    }
+    Device *dev = devmgr_get_device_by_address(hdlc_base_addr[thumbwheel]);
+    if (!dev || !dev->deviceData)
+    {
+        return NULL;
+    }
+    return ((HDLCData *)dev->deviceData)->modem;
+}
+
 bool devmgr_add_hdlc_device_with_config(int thumbwheel, bool is_server, const char *address,
                                         int port)
 {
@@ -187,19 +204,30 @@ bool devmgr_add_hdlc_device_with_config(int thumbwheel, bool is_server, const ch
     if (success)
     {
         // Find the just-added device and start its modem with TCP config
-        // HDLC base addresses: thumbwheel 1=01640, 2=01660, 3=01700, 4=01720
-        static const uint16_t hdlc_base_addr[] = {0, 01640, 01660, 01700, 01720};
-        if (thumbwheel >= 1 && thumbwheel <= 4)
+        ModemState *modem = hdlc_modem_for_wheel(thumbwheel);
+        if (modem)
         {
-            Device *dev = devmgr_get_device_by_address(hdlc_base_addr[thumbwheel]);
-            if (dev && dev->deviceData)
-            {
-                HDLCData *data = (HDLCData *)dev->deviceData;
-                if (data->modem)
-                {
-                    modem_start(data->modem, is_server, address, port);
-                }
-            }
+            modem_start(modem, is_server, address, port);
+        }
+    }
+
+    return success;
+}
+
+bool devmgr_add_hdlc_serial_device(int thumbwheel, const char *device, int baud)
+{
+    if (!device || device[0] == '\0')
+    {
+        return false;
+    }
+    bool success = devmgr_add_device(DEVICE_TYPE_HDLC, (uint8_t)thumbwheel);
+
+    if (success)
+    {
+        ModemState *modem = hdlc_modem_for_wheel(thumbwheel);
+        if (modem)
+        {
+            modem_start_serial(modem, device, baud);
         }
     }
 

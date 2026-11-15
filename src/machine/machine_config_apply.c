@@ -159,6 +159,11 @@ void mc_apply_devices(const MachineConfig *mc)
             }
             devmgr_add_scsi_device_with_config(c->wheel, types);
         }
+        else if (c->type == CTRL_HDLC && c->hdlc_is_serial)
+        {
+            machine_add_hdlc_serial(c->wheel, c->hdlc_device,
+                                    c->hdlc_baud ? c->hdlc_baud : HDLC_SERIAL_DEFAULT_BAUD);
+        }
         else if (c->type == CTRL_HDLC)
         {
             machine_add_hdlc(c->wheel, c->hdlc_is_server, c->hdlc_host[0] ? c->hdlc_host : NULL,

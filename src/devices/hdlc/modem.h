@@ -74,8 +74,10 @@ typedef struct ModemState {
 
     // Config (set once at startup, read-only after)
     bool isServer;
-    char address[256];
+    bool isSerial;      // true = host serial port; address holds the device name
+    char address[256];  // TCP host (client mode) or serial device (serial mode)
     int port;
+    int baud;           // serial line speed (serial mode only)
 
 #ifdef MODEM_HAS_NETWORKING
     // Shared state between worker thread and emulation
@@ -156,6 +158,20 @@ void modem_destroy(ModemState *modem);
  * @return void.
  */
 void modem_start(ModemState *modem, bool is_server, const char *address, int port);
+
+/**
+ * @brief Store a serial device and line speed, then start the worker thread
+ *        that opens the host serial port and moves bytes between it and the
+ *        modem queues, unchanged in both directions. If the port cannot be
+ *        opened, or disappears later (USB unplug), the worker logs it and
+ *        tries to open it again every 2 seconds. The browser build has no
+ *        serial port: there this only logs an error.
+ * @param modem Modem state to configure and start.
+ * @param device Serial device: "/dev/ttyACM0" on POSIX, "COM18" on Windows.
+ * @param baud Line speed; see hdlc_link_spec_is_valid_baud().
+ * @return void.
+ */
+void modem_start_serial(ModemState *modem, const char *device, int baud);
 
 /**
  * @brief Called once per CPU loop iteration: drain any bytes the worker

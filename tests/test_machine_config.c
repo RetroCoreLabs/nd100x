@@ -843,6 +843,109 @@ int main(void)
                       strstr(json, "},{\"slot\":2") != NULL);
     }
 
+    /* [controller.hdlc.N] mode = serial: device and baud are read, written back
+     * and exported; a bad baud and a bad mode are errors. */
+    snprintf(path, sizeof(path), "%s/hdlc_serial.ini", dir);
+    {
+        FILE *f = fopen(path, "w");
+        if (f)
+        {
+            fprintf(f, "[controller.hdlc.1]\nenabled = yes\nmode = serial\n"
+                       "device = /dev/ttyACM0\nbaud = 230400\n"
+                       "[controller.hdlc.2]\nenabled = yes\nmode = serial\ndevice = COM18\n");
+            fclose(f);
+        }
+    }
+    mc_init_baseline(&cfg);
+    mc_check_bool("LoadFile(hdlc serial)", mc_load_file(&cfg, path, err, sizeof(err)));
+    {
+        const McController *h1 = NULL;
+        const McController *h2 = NULL;
+        for (int ci = 0; ci < cfg.controllerCount; ci++)
+        {
+            if (cfg.controllers[ci].type == CTRL_HDLC && cfg.controllers[ci].wheel == 1)
+            {
+                h1 = &cfg.controllers[ci];
+            }
+            if (cfg.controllers[ci].type == CTRL_HDLC && cfg.controllers[ci].wheel == 2)
+            {
+                h2 = &cfg.controllers[ci];
+            }
+        }
+        mc_check_bool("hdlc 1 present", h1 != NULL);
+        mc_check_bool("hdlc 2 present", h2 != NULL);
+        if (h1 && h2)
+        {
+            mc_check_bool("hdlc 1 is serial", h1->hdlc_is_serial);
+            mc_check_bool("hdlc 1 device", strcmp(h1->hdlc_device, "/dev/ttyACM0") == 0);
+            mc_check("hdlc 1 baud", 230400, h1->hdlc_baud);
+            mc_check_bool("hdlc 2 is serial", h2->hdlc_is_serial);
+            mc_check_bool("hdlc 2 device", strcmp(h2->hdlc_device, "COM18") == 0);
+            mc_check("hdlc 2 baud not given = 0 (default at start)", 0, h2->hdlc_baud);
+        }
+
+        char out[300];
+        snprintf(out, sizeof(out), "%s/hdlc_serial_out.ini", dir);
+        mc_check_bool("WriteFile(hdlc serial)", mc_write_file(&cfg, out, err, sizeof(err)));
+        MachineConfig back;
+        mc_init_baseline(&back);
+        mc_check_bool("LoadFile(hdlc serial round trip)",
+                      mc_load_file(&back, out, err, sizeof(err)));
+        int serial_seen = 0;
+        for (int ci = 0; ci < back.controllerCount; ci++)
+        {
+            const McController *c = &back.controllers[ci];
+            if (c->type == CTRL_HDLC && c->hdlc_is_serial)
+            {
+                serial_seen++;
+                if (c->wheel == 1)
+                {
+                    mc_check("round-tripped hdlc 1 baud", 230400, c->hdlc_baud);
+                }
+                if (c->wheel == 2)
+                {
+                    mc_check("round-tripped hdlc 2 baud is the default", HDLC_SERIAL_DEFAULT_BAUD,
+                             c->hdlc_baud);
+                    mc_check_bool("round-tripped hdlc 2 device",
+                                  strcmp(c->hdlc_device, "COM18") == 0);
+                }
+            }
+        }
+        mc_check("round trip keeps both serial links", 2, serial_seen);
+
+        static char json[32768];
+        mc_check_bool("mc_to_json(hdlc serial)", mc_to_json(&cfg, json, sizeof(json)));
+        mc_check_bool("json hdlcMode serial", strstr(json, "\"hdlcMode\":\"serial\"") != NULL);
+        mc_check_bool("json hdlcDevice", strstr(json, "\"hdlcDevice\":\"COM18\"") != NULL);
+        mc_check_bool("json hdlcBaud", strstr(json, "\"hdlcBaud\":230400") != NULL);
+    }
+
+    snprintf(path, sizeof(path), "%s/hdlc_badbaud.ini", dir);
+    {
+        FILE *f = fopen(path, "w");
+        if (f)
+        {
+            fprintf(f, "[controller.hdlc.1]\nmode = serial\ndevice = COM18\nbaud = 307200\n");
+            fclose(f);
+        }
+    }
+    mc_init_baseline(&cfg);
+    mc_check_bool("LoadFile(hdlc baud 307200) rejected",
+                  !mc_load_file(&cfg, path, err, sizeof(err)));
+
+    snprintf(path, sizeof(path), "%s/hdlc_badmode.ini", dir);
+    {
+        FILE *f = fopen(path, "w");
+        if (f)
+        {
+            fprintf(f, "[controller.hdlc.1]\nmode = modem\n");
+            fclose(f);
+        }
+    }
+    mc_init_baseline(&cfg);
+    mc_check_bool("LoadFile(hdlc mode = modem) rejected",
+                  !mc_load_file(&cfg, path, err, sizeof(err)));
+
     printf("machine_config tests: %d checks, %d failed\n", mc_total, mc_failed);
     return mc_failed ? 1 : 0;
 }

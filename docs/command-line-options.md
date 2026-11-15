@@ -69,6 +69,8 @@ Options:
   -H CFG,  --hdlc=CFG     Enable HDLC controller (up to 4x)
                           Server: --hdlc=N:PORT  (N=1-4)
                           Client: --hdlc=N:HOST:PORT
+                          Serial: --hdlc=N:serial:DEVICE[:BAUD]  (USB HDLC gateway;
+                                  DEVICE /dev/ttyACM0 or COM18, BAUD default 115200)
   -O,      --overlay-deposit Deposit data_click at phys word 1 for kernel boot-info
   -R[N],   --ring-dump[=N]  Dump last N instructions on halt/crash (default: 50, max: 512)
   -Z[MHZ], --throttle[=MHZ] Throttle CPU to real-time speed (default: 0.5275 MHz)
@@ -113,6 +115,8 @@ Examples:
   build/bin/nd100x --debugger
   build/bin/nd100x --hdlc=1:1362                  # HDLC 1 server on port 1362
   build/bin/nd100x --hdlc=1:192.168.1.10:1362     # HDLC 1 client
+  build/bin/nd100x --hdlc=1:serial:/dev/ttyACM0  # HDLC 1 on a USB gateway (Linux)
+  build/bin/nd100x --hdlc=1:serial:COM18:115200  # HDLC 1 on a USB gateway (Windows)
   build/bin/nd100x --boot=smd --smd0=myboot.img --smd1=data.img
   build/bin/nd100x --boot=smd1                     # Boot from SMD unit 1
   build/bin/nd100x --boot=scsi0 --scsi0=hdd:SCSI-K.image  # Boot from SCSI ID 0
@@ -122,4 +126,37 @@ Examples:
   build/bin/nd100x --boot=smd --telnet=9000        # SINTRAN with telnet server
   build/bin/nd100x --boot=smd --throttle           # Real-time CPU speed
   build/bin/nd100x --boot=smd --charset=norwegian  # Norwegian 7-bit local console
+```
+
+## HDLC over a serial port (USB HDLC gateway)
+
+`--hdlc=N:serial:DEVICE[:BAUD]` connects HDLC controller N (thumbwheel 1-4) to a
+host serial port instead of TCP. This is for the USB HDLC gateways (the ESP32
+HDLCGW and the Pi Pico RC422Dev), which show up as a USB serial port:
+`/dev/ttyACM0` on Linux, `COM18` (or `\.\COM18`) on Windows.
+
+- The bytes on the port are exactly the bytes the TCP link carries: RFC 1662
+  style frames (0x7E flag, 0x7D escape, FCS). Nothing is added or changed in
+  either direction.
+- The port is opened raw at 8 data bits, no parity, 1 stop bit, with no flow
+  control. DTR and RTS are switched on, because the gateways read DTR as "a
+  host is present".
+- BAUD is one of 1200 2400 4800 9600 19200 38400 57600 115200 230400 460800
+  921600; the default is 115200.
+- If the port is missing at start, or disappears later (USB cable pulled),
+  this is logged under the `hdlc` log category and the port is tried again
+  every 2 seconds. Frames sent while the port is closed are dropped, as on a
+  TCP link that is down.
+- `serial` is a keyword in this position, so a TCP host called `serial`
+  cannot be given with `--hdlc`.
+- Not available in the browser (WASM) build: the config is refused there.
+
+The same link in the machine INI file:
+
+```ini
+[controller.hdlc.1]
+enabled = yes
+mode = serial          ; server, client or serial
+device = /dev/ttyACM0  ; or COM18 on Windows
+baud = 115200          ; optional, default 115200
 ```

@@ -480,7 +480,7 @@ Accumulates punched output in memory. In native mode, output is saved to files i
 CDC 9380 line printer emulation. In native mode, output is saved to files in the print directory (default: `./prints/`). In the Glass UI, a dedicated window shows printer output in real-time.
 
 ### HDLC Controller
-COM 5025-based HDLC (High-Level Data Link Control) communication controller. Up to 4 HDLC devices can be configured, each operating as either a TCP server or client for point-to-point serial links. Supports DMA transfers, CRC calculation, and full interrupt handling. Enable with `--hdlc=N:PORT` (server) or `--hdlc=N:HOST:PORT` (client). Live status monitoring available via the F12 menu.
+COM 5025-based HDLC (High-Level Data Link Control) communication controller. Up to 4 HDLC devices can be configured, each operating as either a TCP server or client for point-to-point serial links, or on a host serial port for a USB HDLC gateway (ESP32 HDLCGW, Pi Pico RC422Dev). Supports DMA transfers, CRC calculation, and full interrupt handling. Enable with `--hdlc=N:PORT` (server), `--hdlc=N:HOST:PORT` (client) or `--hdlc=N:serial:DEVICE[:BAUD]` (serial port, e.g. `--hdlc=1:serial:/dev/ttyACM0` or `--hdlc=1:serial:COM18`; INI `mode = serial`, `device`, `baud`; see [docs/command-line-options.md](docs/command-line-options.md)). Live status monitoring available via the F12 menu.
 
 ### Virtual Screen Switching (Native)
 The emulator window shows one screen at a time: the console, one of the extra terminals, or the output of the line printer, paper tape punch or log. **Alt+N** jumps to screen N, and **Alt+1** always takes you back to the console. F12 > 2 lists the screens with their numbers, for example:

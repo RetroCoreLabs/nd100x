@@ -598,6 +598,15 @@ Device *devmgr_get_device_by_address(uint32_t);
  * @return true if the controller was added, false on failure.
  */
 bool devmgr_add_hdlc_device_with_config(int, bool, const char *, int);
+
+/**
+ * @brief Add the HDLC controller and start its modem on a host serial port.
+ * @param thumbwheel HDLC card thumbwheel (1-4), selects the IOX base address.
+ * @param device Serial device: "/dev/ttyACM0" on POSIX, "COM18" on Windows.
+ * @param baud Serial line speed.
+ * @return true if the controller was added, false on failure.
+ */
+bool devmgr_add_hdlc_serial_device(int thumbwheel, const char *device, int baud);
 /* Ethernet II controller: thumbwheel 0-3, DRAM bank strap (0 = default),
  * differential trace file or NULL. False if the card is not built in. */
 bool devmgr_add_ethernet_device(int thumbwheel, int memory_bank, FILE *trace, const char *net_spec);

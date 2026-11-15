@@ -32,6 +32,7 @@
 
 #include "machine_types.h"               /* BOOT_TYPE */
 #include "../devices/scsi/device_scsi.h" /* SCSIUnitType, SCSI_MAX_UNITS */
+#include "../devices/hdlc/hdlc_link_spec.h" /* HDLC_SERIAL_DEFAULT_BAUD */
 
 #define MC_MAX_CONTROLLERS 16
 #define MC_MAX_DISK_SLOTS  SCSI_MAX_UNITS /* 7 - the largest slot count (SCSI) */
@@ -75,8 +76,11 @@ typedef struct
 
     /* HDLC-only settings (ignored for other types). */
     bool hdlc_is_server; /* true = server (listen), false = client */
+    bool hdlc_is_serial; /* mode = serial: host serial port; overrides hdlc_is_server */
     char hdlc_host[MC_PATH_LEN];
     int hdlc_port;
+    char hdlc_device[MC_PATH_LEN]; /* mode = serial: /dev/ttyACM0, COM18, ... */
+    int hdlc_baud;                 /* mode = serial: line speed; 0 = HDLC_SERIAL_DEFAULT_BAUD */
 
     /* Ethernet II only (ignored for other types). The INI side of --eth0,
      * --eth0-bank and --eth0-trace. */

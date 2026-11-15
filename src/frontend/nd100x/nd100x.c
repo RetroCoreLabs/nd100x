@@ -1072,9 +1072,18 @@ static bool apply_cli_to_machine_config(MachineConfig *mc, const Config *cfg)
         }
         h->enabled = true;
         h->hdlc_is_server = cfg->hdlc[i].isServer;
-        snprintf(h->hdlc_host, sizeof(h->hdlc_host), "%s",
-                 cfg->hdlc[i].address ? cfg->hdlc[i].address : "");
-        h->hdlc_port = cfg->hdlc[i].port;
+        h->hdlc_is_serial = cfg->hdlc[i].isSerial;
+        if (cfg->hdlc[i].isSerial)
+        {
+            snprintf(h->hdlc_device, sizeof(h->hdlc_device), "%s", cfg->hdlc[i].address);
+            h->hdlc_baud = cfg->hdlc[i].baud;
+        }
+        else
+        {
+            snprintf(h->hdlc_host, sizeof(h->hdlc_host), "%s",
+                     cfg->hdlc[i].address ? cfg->hdlc[i].address : "");
+            h->hdlc_port = cfg->hdlc[i].port;
+        }
     }
 
     // Ethernet II card (thumbwheel 0). Each CLI option overrides only its own key.
@@ -1639,6 +1648,12 @@ int main(int argc, char *argv[])
     // added them; adding them here as well would give each line twice.
     for (int i = 0; !use_machine_config && i < config.hdlcCount; i++)
     {
+        if (config.hdlc[i].isSerial)
+        {
+            machine_add_hdlc_serial(config.hdlc[i].deviceNum, config.hdlc[i].address,
+                                    config.hdlc[i].baud);
+            continue;
+        }
         machine_add_hdlc(config.hdlc[i].deviceNum, config.hdlc[i].isServer, config.hdlc[i].address,
                          config.hdlc[i].port);
     }

@@ -56,6 +56,16 @@ int main(void)
     total_failures += run_hdlc_frame_tests();
     printf("\n");
 
+    printf("[hdlc_link_spec]\n");
+    total_failures += run_hdlc_link_spec_tests();
+    printf("\n");
+
+#if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
+    printf("[serial_modem]\n");
+    total_failures += run_serial_modem_tests();
+    printf("\n");
+#endif
+
     if (total_failures == 0)
     {
         printf("All HDLC tests PASSED.\n");

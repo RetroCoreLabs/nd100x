@@ -160,8 +160,10 @@ typedef struct {
     struct {
         int deviceNum;       // Thumbwheel number (1-4)
         bool isServer;       // true = server (listen), false = client (connect)
-        char *address;       // IP/hostname for client mode (NULL for server)
+        bool isSerial;       // true = host serial port (--hdlc=N:serial:DEVICE[:BAUD])
+        char *address;       // IP/hostname for client mode, device for serial (NULL for server)
         int port;            // TCP port
+        int baud;            // serial line speed (serial mode only)
     } hdlc[MAX_HDLC_DEVICES];
     // Interactive shell mode (--monitor / --shell)
     bool shellEnabled;       // --monitor or --shell: enable interactive shell mode

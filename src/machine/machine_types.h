@@ -175,6 +175,15 @@ int machine_init(bool, int);
 void machine_add_hdlc(int, bool, const char *, int);
 
 /**
+ * @brief Add an HDLC device whose line is a host serial port (a USB HDLC
+ *        gateway), not TCP.
+ * @param device_num HDLC device number (thumbwheel 1-4).
+ * @param device Serial device: "/dev/ttyACM0" on POSIX, "COM18" on Windows.
+ * @param baud Serial line speed.
+ */
+void machine_add_hdlc_serial(int device_num, const char *device, int baud);
+
+/**
  * @brief Shut down the CPU and I/O, unmount every mounted drive and free the drive tables.
  */
 void machine_cleanup(void);

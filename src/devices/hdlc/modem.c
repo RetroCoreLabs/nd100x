@@ -14,6 +14,9 @@
  *   - The emulation thread (Modem_Tick / Modem_SendBytes) never touches a socket.
  *   - Communication is via two lock-protected byte queues (RX and TX).
  *   - Worker handles DNS, connect, accept, reconnect with backoff, recv, send.
+ *   - Serial mode: the worker opens a host serial port instead (serial_port.c
+ *     holds the platform code) and moves the same bytes through the same
+ *     queues. A lost port is reopened every 2 seconds.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,6 +33,7 @@
 #include <time.h>
 
 #include "../devices_types.h"
+#include "serial_port.h"
 
 #if defined(__EMSCRIPTEN__)
 /* nd100wasm.c - ring buffer consumed by HDLC_PollTxFrame in the JS worker */
@@ -571,6 +575,88 @@ static void *client_worker(void *arg)
     return NULL;
 }
 
+// ---- SERIAL WORKER ----
+// Seconds between tries to open a serial port that is missing or was lost.
+#define SERIAL_REOPEN_DELAY_S 2
+
+// Move bytes between one open serial port and the modem queues until the
+// port is lost or shutdown is asked. Same queues the TCP workers use, so
+// the HDLC device sees no difference.
+static void service_serial(ModemState *modem, SerialPort *port)
+{
+    while (!atomic_load(&modem->shutdownReq))
+    {
+        uint8_t buf[4096];
+
+        if (queue_has_data(&modem->txQueue))
+        {
+            int n = queue_read(&modem->txQueue, buf, sizeof(buf));
+            if (n > 0 && serial_port_write(port, buf, n) != 0)
+            {
+                return;
+            }
+        }
+
+        // Waits at most SERIAL_PORT_READ_TIMEOUT_MS, so TX is never held long.
+        int got = serial_port_read(port, buf, sizeof(buf));
+        if (got < 0)
+        {
+            return;
+        }
+        if (got > 0)
+        {
+            queue_write_all(&modem->rxQueue, buf, got, &modem->rxDropped);
+        }
+    }
+}
+
+static void *serial_worker(void *arg)
+{
+    ModemState *modem = (ModemState *)arg;
+    SerialPort port;
+    bool warned = false;
+
+    serial_port_init(&port);
+    while (!atomic_load(&modem->shutdownReq))
+    {
+        if (serial_port_open(&port, modem->address, modem->baud) != 0)
+        {
+            // Say it once, then keep trying quietly: a gateway may be
+            // plugged in later.
+            if (!warned)
+            {
+                LOG(LOG_CAT_HDLC, LOG_WARN,
+                    "Modem: serial port %s not available, retrying every %d s\n", modem->address,
+                    SERIAL_REOPEN_DELAY_S);
+                warned = true;
+            }
+            if (sleep_check_shutdown(modem, SERIAL_REOPEN_DELAY_S))
+            {
+                break;
+            }
+            continue;
+        }
+        warned = false;
+        atomic_store(&modem->connected, true);
+
+        service_serial(modem, &port);
+
+        atomic_store(&modem->connected, false);
+        serial_port_close(&port);
+        if (!atomic_load(&modem->shutdownReq))
+        {
+            LOG(LOG_CAT_HDLC, LOG_WARN, "Modem: serial port %s lost, will try to reopen\n",
+                modem->address);
+            if (sleep_check_shutdown(modem, SERIAL_REOPEN_DELAY_S))
+            {
+                break;
+            }
+        }
+    }
+    serial_port_close(&port);
+    return NULL;
+}
+
 #endif /* MODEM_HAS_NETWORKING */
 
 // ============================================================================
@@ -680,6 +766,47 @@ void modem_start(ModemState *modem, bool is_server, const char *address, int por
     /* Browser: defer DSR/SD until gateway TCP client connects (0x12 carrier) */
     modem->dataSetReady = false;
     modem->signalDetector = false;
+#endif
+}
+
+void modem_start_serial(ModemState *modem, const char *device, int baud)
+{
+    if (!modem || !device || device[0] == '\0')
+    {
+        return;
+    }
+
+#ifdef MODEM_HAS_NETWORKING
+    modem->isServer = false;
+    modem->isSerial = true;
+    modem->port = 0;
+    modem->baud = baud;
+    snprintf(modem->address, sizeof(modem->address), "%s", device);
+
+    atomic_store(&modem->networkStarted, true);
+    int err = pthread_create(&modem->workerThread, NULL, serial_worker, modem);
+    if (err != 0)
+    {
+        LOG(LOG_CAT_HDLC, LOG_ERROR, "Modem: Failed to create serial worker thread: %s\n",
+            strerror(err));
+        return;
+    }
+    modem->workerRunning = true;
+
+    /* Line signals up once the worker is started, as for TCP. */
+    modem->dataSetReady = true;
+    modem->signalDetector = true;
+    if (modem->onDataSetReady)
+    {
+        modem->onDataSetReady(modem->hdlcDevice, true);
+    }
+    if (modem->onSignalDetector)
+    {
+        modem->onSignalDetector(modem->hdlcDevice, true);
+    }
+#else
+    (void)baud;
+    LOG(LOG_CAT_HDLC, LOG_ERROR, "Modem: serial port %s: not available in this build\n", device);
 #endif
 }
 

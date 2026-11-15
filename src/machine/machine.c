@@ -257,6 +257,19 @@ void machine_add_hdlc(int device_num, bool is_server, const char *address, int p
     }
 }
 
+void machine_add_hdlc_serial(int device_num, const char *device, int baud)
+{
+    if (devmgr_add_hdlc_serial_device(device_num, device, baud))
+    {
+        LOG(LOG_CAT_MACHINE, LOG_INFO, "HDLC %d added (serial port %s at %d baud)\n", device_num,
+            device, baud);
+    }
+    else
+    {
+        LOG(LOG_CAT_MACHINE, LOG_ERROR, "Failed to add HDLC device %d\n", device_num);
+    }
+}
+
 void machine_cleanup(void)
 {
     cpu_cleanup();

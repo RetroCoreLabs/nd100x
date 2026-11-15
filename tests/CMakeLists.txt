@@ -26,10 +26,26 @@ add_executable(test_hdlc
     test_tcp_receive_buffer.c
     test_hdlc_crc.c
     test_hdlc_frame.c
+    test_hdlc_link_spec.c
     ${CMAKE_SOURCE_DIR}/src/devices/hdlc/tcp_receive_buffer.c
     ${CMAKE_SOURCE_DIR}/src/devices/hdlc/hdlc_frame.c
     ${CMAKE_SOURCE_DIR}/src/devices/hdlc/hdlc_crc.c
+    ${CMAKE_SOURCE_DIR}/src/devices/hdlc/hdlc_link_spec.c
 )
+
+# The serial transport, end to end through the modem layer, over a
+# pseudo-terminal pair (POSIX only; no real serial device is opened).
+if(NOT PLATFORM_WINDOWS AND NOT PLATFORM_WASM)
+    target_sources(test_hdlc PRIVATE
+        test_serial_modem.c
+        ${CMAKE_SOURCE_DIR}/src/devices/hdlc/modem.c
+        ${CMAKE_SOURCE_DIR}/src/devices/hdlc/serial_port.c
+    )
+    # modem.c logs through ndlib and its headers pull in the generated
+    # cpu_protos.h / devices_protos.h.
+    target_link_libraries(test_hdlc PRIVATE ndlib)
+    add_dependencies(test_hdlc cpu devices)
+endif()
 
 target_include_directories(test_hdlc PRIVATE
     ${CMAKE_SOURCE_DIR}/src/devices/hdlc
@@ -294,6 +310,9 @@ if(NOT PLATFORM_WINDOWS)
         # A table of names, nothing else - it keeps this test free of the
         # machine and the devices, which is the point of building it this way.
         ${CMAKE_SOURCE_DIR}/src/cpu/cpu_model.c
+        # [controller.hdlc.N] baud is checked against the HDLC link spec's
+        # list of rates; also a plain table, no device code.
+        ${CMAKE_SOURCE_DIR}/src/devices/hdlc/hdlc_link_spec.c
     )
 
     target_include_directories(test_machine_config PRIVATE

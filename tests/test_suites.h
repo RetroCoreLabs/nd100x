@@ -26,5 +26,9 @@ int run_memory_bank_tests(void);
 int run_tcp_receive_buffer_tests(void);
 int run_hdlc_frame_tests(void);
 int run_hdlc_crc_tests(void);
+int run_hdlc_link_spec_tests(void);
+#if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
+int run_serial_modem_tests(void); /* pseudo-terminal pair, POSIX only */
+#endif
 
 #endif /* TEST_SUITES_H */

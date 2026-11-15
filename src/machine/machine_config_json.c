@@ -228,8 +228,15 @@ bool mc_to_json(const MachineConfig *cfg, char *out, size_t outlen)
         put(&s, "],");
         /* HDLC settings ride along on every controller; the form shows them
          * only for an HDLC row, and reading them elsewhere is harmless. */
-        kv_str(&s, "hdlcMode", c->hdlc_is_server ? "server" : "client", 1);
+        const char *hdlc_mode = c->hdlc_is_server ? "server" : "client";
+        if (c->hdlc_is_serial)
+        {
+            hdlc_mode = "serial";
+        }
+        kv_str(&s, "hdlcMode", hdlc_mode, 1);
         kv_str(&s, "hdlcHost", c->hdlc_host, 1);
+        kv_str(&s, "hdlcDevice", c->hdlc_device, 1);
+        put(&s, "\"hdlcBaud\":%d,", c->hdlc_baud);
         put(&s, "\"hdlcPort\":%d", c->hdlc_port);
         put(&s, "}");
     }

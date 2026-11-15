@@ -34,6 +34,7 @@
 #include "nd100x_protos.h"
 #include "../../machine/machine_types.h"
 #include "../../devices/hdlc/hdlc_constants.h"
+#include "../../devices/hdlc/hdlc_link_spec.h"
 #include "../../cpu/cpu_protos.h"
 #include "../../ndlib/log.h"
 #include "nd100x_version.h" /* generated into the build dir by cmake/git_stamp.cmake */
@@ -201,6 +202,8 @@ void config_init(Config *config)
     {
         config->hdlc[i].deviceNum = 0;
         config->hdlc[i].isServer = false;
+        config->hdlc[i].isSerial = false;
+        config->hdlc[i].baud = 0;
         config->hdlc[i].address = NULL;
         config->hdlc[i].port = HDLC_DEFAULT_PORT;
     }
@@ -324,10 +327,15 @@ static bool parse_boot_spec(Config *config, const char *boot_str)
     return false;
 }
 
-// Parse HDLC config: "N:PORT" (server) or "N:HOST:PORT" (client)
-// N = device number 1-4
+// Parse HDLC config: "N:PORT" (server), "N:HOST:PORT" (client) or
+// "N:serial:DEVICE[:BAUD]" (host serial port). N = device number 1-4.
+// The text itself is parsed by hdlc_link_spec_parse(), which the HDLC unit
+// tests cover.
 static bool parse_hdlc_config(Config *config, const char *hdlc_str)
 {
+    HdlcLinkSpec spec;
+    char err[160];
+
     if (!hdlc_str || !config)
     {
         return false;
@@ -337,87 +345,39 @@ static bool parse_hdlc_config(Config *config, const char *hdlc_str)
         fprintf(stderr, "Too many HDLC devices (max %d)\n", MAX_HDLC_DEVICES);
         return false;
     }
-
-    char *str = strdup(hdlc_str);
-    if (!str)
+    if (hdlc_link_spec_parse(hdlc_str, &spec, err, sizeof(err)) != 0)
     {
-        return false;
-    }
-
-    // First token: device number
-    char *first_colon = strchr(str, ':');
-    if (!first_colon)
-    {
-        fprintf(stderr, "HDLC config must start with device number: N:PORT or N:HOST:PORT\n");
-        free(str);
-        return false;
-    }
-
-    *first_colon = '\0';
-    char *endptr;
-    int dev_num = (int)strtol(str, &endptr, 10);
-    if (*endptr != '\0' || dev_num < 1 || dev_num > 4)
-    {
-        fprintf(stderr, "HDLC device number must be 1-4, got: %s\n", str);
-        free(str);
+        fprintf(stderr, "%s\n", err);
         return false;
     }
 
     // Check for duplicate device number
     for (int i = 0; i < config->hdlcCount; i++)
     {
-        if (config->hdlc[i].deviceNum == dev_num)
+        if (config->hdlc[i].deviceNum == spec.device_num)
         {
-            fprintf(stderr, "HDLC device %d already configured\n", dev_num);
-            free(str);
+            fprintf(stderr, "HDLC device %d already configured\n", spec.device_num);
             return false;
         }
     }
-
-    char *rest = first_colon + 1;
-    char *second_colon = strchr(rest, ':');
 
     int idx = config->hdlcCount;
-    config->hdlc[idx].deviceNum = dev_num;
-
-    if (second_colon)
+    config->hdlc[idx].deviceNum = spec.device_num;
+    config->hdlc[idx].isServer = (spec.mode == HDLC_LINK_SERVER);
+    config->hdlc[idx].isSerial = (spec.mode == HDLC_LINK_SERIAL);
+    config->hdlc[idx].port = spec.port;
+    config->hdlc[idx].baud = spec.baud;
+    config->hdlc[idx].address = NULL;
+    if (spec.mode != HDLC_LINK_SERVER)
     {
-        // Client mode: "HOST:PORT"
-        *second_colon = '\0';
-        char *port_str = second_colon + 1;
-
-        config->hdlc[idx].address = strdup(rest);
+        config->hdlc[idx].address = strdup(spec.address);
         if (!config->hdlc[idx].address)
         {
-            free(str);
             return false;
         }
-
-        config->hdlc[idx].port = (int)strtol(port_str, &endptr, 10);
-        if (*endptr != '\0' || config->hdlc[idx].port <= 0 || config->hdlc[idx].port > 65535)
-        {
-            free(config->hdlc[idx].address);
-            config->hdlc[idx].address = NULL;
-            free(str);
-            return false;
-        }
-        config->hdlc[idx].isServer = false;
-    }
-    else
-    {
-        // Server mode: just PORT
-        config->hdlc[idx].port = (int)strtol(rest, &endptr, 10);
-        if (*endptr != '\0' || config->hdlc[idx].port <= 0 || config->hdlc[idx].port > 65535)
-        {
-            free(str);
-            return false;
-        }
-        config->hdlc[idx].address = NULL;
-        config->hdlc[idx].isServer = true;
     }
 
     config->hdlcCount++;
-    free(str);
     return true;
 }
 
@@ -1276,7 +1236,12 @@ bool config_parse_command_line(Config *config, int argc, char *argv[])
         printf("  Disassembly: %s\n", config->disasmEnabled ? "enabled" : "disabled");
         for (int i = 0; i < config->hdlcCount; i++)
         {
-            if (config->hdlc[i].isServer)
+            if (config->hdlc[i].isSerial)
+            {
+                printf("  HDLC %d: Serial port %s at %d baud\n", config->hdlc[i].deviceNum,
+                       config->hdlc[i].address, config->hdlc[i].baud);
+            }
+            else if (config->hdlc[i].isServer)
             {
                 printf("  HDLC %d: Server mode on port %d\n", config->hdlc[i].deviceNum,
                        config->hdlc[i].port);
@@ -1450,6 +1415,9 @@ void config_print_help(const char *prog_name)
     printf("  -H CFG,  --hdlc=CFG     Enable HDLC controller (up to 4x)\n");
     printf("                          Server: --hdlc=N:PORT  (N=1-4)\n");
     printf("                          Client: --hdlc=N:HOST:PORT\n");
+    printf("                          Serial: --hdlc=N:serial:DEVICE[:BAUD]  (USB HDLC gateway;\n");
+    printf("                                  DEVICE /dev/ttyACM0 or COM18, BAUD default %d)\n",
+           HDLC_SERIAL_DEFAULT_BAUD);
     printf("  -O,      --overlay-deposit Deposit data_click at phys word 1 for kernel boot-info\n");
     printf("  -R[N],   --ring-dump[=N]  Dump last N instructions on halt/crash (default: 50, max: "
            "65536)\n");
@@ -1478,7 +1446,10 @@ void config_print_help(const char *prog_name)
     printf("                            [controller.scsi.0-3]   enabled, disk0..disk6\n");
     printf("                                                    ([media:]path; ID 7 = card)\n");
     printf("                            [controller.wd.0]       enabled, disk0, disk1\n");
-    printf("                            [controller.hdlc.1-4]   enabled, mode, host, port\n");
+    printf("                            [controller.hdlc.1-4]   enabled, mode (server, client "
+           "or\n");
+    printf("                                                    serial), host, port, device, "
+           "baud\n");
     printf("                            [terminals]             enabled = list of terminal "
            "numbers\n");
     printf("                            [peripheral.NAME]       enabled; NAME is one of\n");
@@ -1524,6 +1495,8 @@ void config_print_help(const char *prog_name)
     printf("  %s --hdlc=1:%d                  # HDLC 1 server on port %d\n", prog_name,
            HDLC_DEFAULT_PORT, HDLC_DEFAULT_PORT);
     printf("  %s --hdlc=1:192.168.1.10:%d     # HDLC 1 client\n", prog_name, HDLC_DEFAULT_PORT);
+    printf("  %s --hdlc=1:serial:/dev/ttyACM0  # HDLC 1 on a USB gateway (Linux)\n", prog_name);
+    printf("  %s --hdlc=1:serial:COM18:115200  # HDLC 1 on a USB gateway (Windows)\n", prog_name);
     printf("  %s --boot=smd --smd0=myboot.img --smd1=data.img\n", prog_name);
     printf("  %s --boot=smd1                  # Boot from SMD unit 1\n", prog_name);
     printf("  %s --boot=scsi0 --scsi0=hdd:SCSI-K.image  # Boot from SCSI ID 0\n", prog_name);

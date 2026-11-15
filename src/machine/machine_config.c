@@ -24,6 +24,7 @@
 
 #include "../cpu/cpu_types.h" /* CpuType (ND100, ND110, ...) */
 #include "../cpu/cpu_model.h" /* CpuModel_FromName / _Name    */
+#include "../devices/hdlc/hdlc_link_spec.h" /* serial mode: baud list, availability */
 
 
 /* ------------------------------------------------------------------ */
@@ -969,18 +970,52 @@ bool mc_load_file(MachineConfig *cfg, const char *path, char *err, size_t errlen
                 if (str_ieq(val, "server"))
                 {
                     cur_ctrl->hdlc_is_server = true;
+                    cur_ctrl->hdlc_is_serial = false;
                 }
                 else if (str_ieq(val, "client"))
                 {
                     cur_ctrl->hdlc_is_server = false;
+                    cur_ctrl->hdlc_is_serial = false;
+                }
+                else if (str_ieq(val, "serial") && HDLC_SERIAL_AVAILABLE)
+                {
+                    cur_ctrl->hdlc_is_server = false;
+                    cur_ctrl->hdlc_is_serial = true;
+                }
+                else if (str_ieq(val, "serial"))
+                {
+                    fclose(f);
+                    return mc_err(err, errlen, path, lineno,
+                                  "[controller.hdlc.%d] mode = serial: not available in this "
+                                  "build (no host serial port).",
+                                  cur_wheel);
                 }
                 else
                 {
                     fclose(f);
                     return mc_err(err, errlen, path, lineno,
-                                  "[controller.hdlc.%d] mode = %s: use server or client.",
+                                  "[controller.hdlc.%d] mode = %s: use server, client or serial.",
                                   cur_wheel, val);
                 }
+            }
+            else if (d->type == CTRL_HDLC && str_ieq(keyl, "device"))
+            {
+                str_copy(cur_ctrl->hdlc_device, MC_PATH_LEN, val);
+            }
+            else if (d->type == CTRL_HDLC && str_ieq(keyl, "baud"))
+            {
+                char *ep;
+                long bd = strtol(val, &ep, 10);
+                if (*ep != '\0' || bd <= 0 || bd > 100000000 ||
+                    !hdlc_link_spec_is_valid_baud((int)bd))
+                {
+                    fclose(f);
+                    return mc_err(err, errlen, path, lineno,
+                                  "[controller.hdlc.%d] baud = %s: use 1200 2400 4800 9600 19200 "
+                                  "38400 57600 115200 230400 460800 or 921600.",
+                                  cur_wheel, val);
+                }
+                cur_ctrl->hdlc_baud = (int)bd;
             }
             else if (d->type == CTRL_HDLC && str_ieq(keyl, "host"))
             {
@@ -2061,7 +2096,12 @@ void mc_print(const MachineConfig *cfg, FILE *out)
         }
         else if (c->type == CTRL_HDLC)
         {
-            if (c->hdlc_is_server)
+            if (c->hdlc_is_serial)
+            {
+                fprintf(out, "        serial %s at %d baud\n", c->hdlc_device,
+                        c->hdlc_baud ? c->hdlc_baud : HDLC_SERIAL_DEFAULT_BAUD);
+            }
+            else if (c->hdlc_is_server)
             {
                 fprintf(out, "        server port %d\n", c->hdlc_port);
             }
@@ -2193,12 +2233,21 @@ bool mc_write_file(const MachineConfig *cfg, const char *path, char *err, size_t
         }
         else if (c->type == CTRL_HDLC)
         {
-            fprintf(f, "mode = %s\n", c->hdlc_is_server ? "server" : "client");
-            if (!c->hdlc_is_server && c->hdlc_host[0])
+            if (c->hdlc_is_serial)
             {
-                fprintf(f, "host = %s\n", c->hdlc_host);
+                fprintf(f, "mode = serial\n");
+                fprintf(f, "device = %s\n", c->hdlc_device);
+                fprintf(f, "baud = %d\n", c->hdlc_baud ? c->hdlc_baud : HDLC_SERIAL_DEFAULT_BAUD);
             }
-            fprintf(f, "port = %d\n", c->hdlc_port);
+            else
+            {
+                fprintf(f, "mode = %s\n", c->hdlc_is_server ? "server" : "client");
+                if (!c->hdlc_is_server && c->hdlc_host[0])
+                {
+                    fprintf(f, "host = %s\n", c->hdlc_host);
+                }
+                fprintf(f, "port = %d\n", c->hdlc_port);
+            }
         }
         else if (c->type == CTRL_ETHERNET)
         {
