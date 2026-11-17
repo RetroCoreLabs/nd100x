@@ -40,6 +40,12 @@ if(NOT PLATFORM_WINDOWS AND NOT PLATFORM_WASM)
         test_serial_modem.c
         ${CMAKE_SOURCE_DIR}/src/devices/hdlc/modem.c
         ${CMAKE_SOURCE_DIR}/src/devices/hdlc/serial_port.c
+        # The receive DMA displacement rule. dma_control_blocks.c logs through
+        # ndlib, which only this POSIX block links.
+        test_hdlc_displacement.c
+        ${CMAKE_SOURCE_DIR}/src/devices/hdlc/dma_control_blocks.c
+        ${CMAKE_SOURCE_DIR}/src/devices/hdlc/dma_dcb.c
+        ${CMAKE_SOURCE_DIR}/src/devices/hdlc/dma_param_buf.c
     )
     # modem.c logs through ndlib and its headers pull in the generated
     # cpu_protos.h / devices_protos.h.

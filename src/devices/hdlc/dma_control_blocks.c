@@ -397,6 +397,11 @@ void dmacb_mark_buffer_received(DMAControlBlocks *dma_cb, uint8_t rx_status)
         // Write back the updated key value to memory
         dma_control_blocks_dma_write(dma_cb, dcb_get_buffer_address(dma_cb->rxDCB), key_value);
 
+        // rx_status bit 1 (0x02) is REOM: this block ended the frame, so the next block received
+        // starts a new frame and takes Displacement 1. Without REOM the frame goes on in the next
+        // block, which takes Displacement 2.
+        dma_cb->rxNextBlockStartsFrame = (rx_status & 0x02) != 0;
+
         if (Log_IsEnabled(LOG_CAT_HDLC, LOG_DEBUG))
         {
             const char *flags = "";
@@ -488,23 +493,25 @@ static uint16_t read_dcb_words(DMAControlBlocks *dma_cb, HdlcDCB *description, u
     return key_value;
 }
 
-/* Displacement for the buffer at offset: the first buffer in the list uses
- * Displacement1, all others Displacement2 (0 without parameters). */
-static uint16_t pick_displacement(const DMAControlBlocks *dma_cb, uint16_t offset)
+/* Displacement for a buffer: Displacement1 for a block that starts a frame, Displacement2 for
+ * the other blocks of a frame (0 without parameters). Receive: rxNextBlockStartsFrame (the previous
+ * block ended a frame, or RECEIVER START). Transmit: the block's own RSOM flag in its key.
+ * Until 2026-11-16 this picked Displacement1 for list offset 0 only, which shifted every received
+ * frame in any other buffer by Displacement1 bytes for a driver with Displacement1 != Displacement2
+ * (the COSMOS X.25 link: 1 and 0). */
+static uint16_t pick_displacement(const DMAControlBlocks *dma_cb, bool starts_frame)
 {
-    if (offset == 0)
+    if (!dma_cb->parameters)
     {
-        // First buffer in the list uses Displacement1
-        return dma_cb->parameters ? (uint16_t)dma_cb->parameters->displacement1 : 0;
+        return 0;
     }
-    // All other buffers use Displacement2
-    return dma_cb->parameters ? (uint16_t)dma_cb->parameters->displacement2 : 0;
+    return starts_frame ? (uint16_t)dma_cb->parameters->displacement1
+                        : (uint16_t)dma_cb->parameters->displacement2;
 }
 
 HdlcDCB *dmacb_load_buffer_description(DMAControlBlocks *dma_cb, uint32_t list_pointer,
                                        uint16_t offset, bool is_rx)
 {
-    (void)is_rx;
     if (!dma_cb || list_pointer == 0)
     {
         return NULL;
@@ -525,8 +532,9 @@ HdlcDCB *dmacb_load_buffer_description(DMAControlBlocks *dma_cb, uint32_t list_p
 
     uint16_t key_value = read_dcb_words(dma_cb, description, actual_list_pointer);
 
-    // Set displacement based on offset
-    uint16_t displacement = pick_displacement(dma_cb, offset);
+    // Set displacement from the block's place in the frame (see pick_displacement)
+    bool starts_frame = is_rx ? dma_cb->rxNextBlockStartsFrame : dcb_has_rsom_flag(description);
+    uint16_t displacement = pick_displacement(dma_cb, starts_frame);
     dcb_set_displacement(description, displacement);
 
     if (Log_IsEnabled(LOG_CAT_HDLC, LOG_DEBUG))
@@ -551,7 +559,7 @@ HdlcDCB *dmacb_load_buffer_description(DMAControlBlocks *dma_cb, uint32_t list_p
         dma_control_blocks_log(dma_cb, "LeastAddress                  : 0x%04X",
                                dcb_get_data_memory_address(description) & 0xFFFF);
         dma_control_blocks_log(dma_cb, "Displacement                  : %d : Use Displacement%s",
-                               displacement, offset == 0 ? "1" : "2");
+                               displacement, starts_frame ? "1" : "2");
 
         if ((dcb_get_byte_count(description) > 0) &&
             (dcb_get_key(description) == KEYFLAG_BLOCK_TO_BE_TRANSMITTED))
@@ -752,9 +760,16 @@ void dmacb_write_next_byte_dma(DMAControlBlocks *dma_cb, uint8_t data, bool is_r
     bytes_written++;
     dcb_set_dma_bytes_written(description, bytes_written);
 
-    // Update DCB with bytes written as "ByteCount"
+    // Update the list entry's byte count with the number of bytes RECEIVED, not counting the
+    // displacement. The manual: the DMA processor writes "the number of bytes received into the
+    // byte count". SINTRAN's own HDLC driver proves it: MP-P2-HDLC-DRIV.NPL, 104615,
+    // "A:=LIINT.LBYTC+DISP1=:T % RECEIVED MESSAGE SIZE" adds the displacement back itself.
+    // bytes_written counts the skipped displacement bytes too (it is compared with the Max. Rec.
+    // Block Length, which the manual says includes the displacement), so take it off.
+    // Until 2026-11-16 the count included it: with the COSMOS X.25 link (Displacement1 = 1) every
+    // frame looked one byte longer than it was. Same fix as RetroCore's DMAControlBlocks.cs.
     dma_control_blocks_dma_write(dma_cb, dcb_get_list_pointer(description) + 1,
-                                 (uint16_t)bytes_written);
+                                 (uint16_t)(bytes_written - dcb_get_displacement(description)));
 
     if (Log_IsEnabled(LOG_CAT_HDLC, LOG_TRACE))
     {

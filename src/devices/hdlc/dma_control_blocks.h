@@ -64,6 +64,17 @@ typedef struct DMAControlBlocks
     uint32_t rxListPointer;
     int rxListPointerOffset;
 
+    // True when the next RECEIVE block will hold the start of a frame. The INITIALIZE parameter
+    // buffer gives Displacement 1 = "No. of bytes, first block in frame" and Displacement 2 =
+    // "No. of bytes, other blocks in frame", so the choice follows the block's place in the FRAME,
+    // not the buffer's place in the list. Set by RECEIVER START (which "selects Displacement 1 for
+    // the first buffer"; RECEIVER CONTINUE does not) and after every block that ended a frame
+    // (REOM); cleared after a block that filled up in the middle of a frame.
+    // Measured 2026-11-16 on RetroCore: the SINTRAN K COSMOS X.25 link sets Displacement1=1 and
+    // Displacement2=0, and logged "Rcvd Illegal address A,C=000020" for every frame put in a buffer
+    // other than list offset 0, which is what the old offset rule did.
+    bool rxNextBlockStartsFrame;
+
     // HDLC frame for receiving
     HDLCFrame *hdlcReceiveFrame;
 

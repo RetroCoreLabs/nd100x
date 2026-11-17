@@ -64,6 +64,10 @@ int main(void)
     printf("[serial_modem]\n");
     total_failures += run_serial_modem_tests();
     printf("\n");
+
+    printf("[hdlc_displacement]\n");
+    total_failures += run_hdlc_displacement_tests();
+    printf("\n");
 #endif
 
     if (total_failures == 0)

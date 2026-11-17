@@ -455,9 +455,12 @@ void dma_engine_command_receiver_start(DMAEngine *dma)
         dma_engine_log(dma, "DMA Receiver Start command");
     }
 
-    // Set RX pointer to current DMA address
+    // RECEIVER START selects Displacement 1 for the first buffer, so the first block of the new
+    // list is a frame start. RECEIVER CONTINUE keeps the current value. Set before
+    // dmacb_set_rx_pointer, which loads the first buffer and picks its displacement.
     if (dma->dmaCB)
     {
+        dma->dmaCB->rxNextBlockStartsFrame = true;
         dmacb_set_rx_pointer(dma->dmaCB, dma->currentDMAAddress, 0);
     }
 

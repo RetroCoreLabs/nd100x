@@ -29,6 +29,7 @@ int run_hdlc_crc_tests(void);
 int run_hdlc_link_spec_tests(void);
 #if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
 int run_serial_modem_tests(void); /* pseudo-terminal pair, POSIX only */
+int run_hdlc_displacement_tests(void); /* links ndlib, POSIX only */
 #endif
 
 #endif /* TEST_SUITES_H */
