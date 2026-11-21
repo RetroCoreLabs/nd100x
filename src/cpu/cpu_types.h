@@ -789,6 +789,8 @@ typedef struct BreakpointEntry {
     char* hitCondition;  // numeric string or expression (NULL if none)
     char* logMessage;    // log message (NULL if none)
     int hitCount;        // internal counter
+    int8_t pil;          // level the breakpoint belongs to; -1: any level
+    int32_t pcr;         // PCR of that level, ring bits removed (BKPT_PCR_MASK); -1: any
     struct BreakpointEntry* next;
 } BreakpointEntry;
 // clang-format on
@@ -799,6 +801,18 @@ typedef struct
 
     // Number of instructions to step (for single stepping when we cant set a breakpoint)
     int step_count;
+    // The program a single step belongs to (level and PCR, as in BreakpointEntry); -1: any.
+    // The step counts only instructions of that program, so it ends on the next instruction
+    // that program runs, whatever runs on other levels or in other page tables in between.
+    int8_t step_pil;
+    int32_t step_pcr;
+
+    // The program the user breakpoints belong to (the program of the debug session):
+    // level and PCR, -1 when not named. program_from_first_stop: not known yet, taken
+    // from the level and PCR of the first user breakpoint that stops.
+    int8_t program_pil;
+    int32_t program_pcr;
+    bool program_from_first_stop;
 
     // Address of last breakpoint hit (for DAP hitBreakpointIds)
     uint16_t last_hit_address;
@@ -850,6 +864,9 @@ extern uint8_t g_watchpoint_bitmap[8192]; // 64K addresses, 1 bit each
 // only does the hash walk when gPC actually has a breakpoint.
 extern int g_breakpoint_entry_count;      // live breakpoint entries (any type)
 extern int g_breakpoint_step_pending;     // nonzero while a single-step is in flight
+// The ring bits (0-1) of the PCR change while one program runs (a fetch from a page of a
+// lower ring lowers the ring, cpu_mms.c), so they are not part of which program runs.
+#define BKPT_PCR_MASK 0xFFFCu
 extern uint8_t g_breakpoint_bitmap[8192]; // 1 bit per 16-bit PC address
 
 //********** Physical Watchpoints (physical memory address breakpoints) **********
@@ -1888,6 +1905,39 @@ void bkpt_manager_step_one(void);
  * @param logMessage Optional logpoint message, copied with strdup, or NULL.
  */
 void bkpt_manager_add(uint16_t, BreakpointType, const char *, const char *, const char *);
+
+/**
+ * @brief Add a breakpoint that fires only for one program: one level and one PCR.
+ * @param pil Level 0-15, or -1 for any level.
+ * @param pcr PCR value (ring bits ignored), or -1 for any PCR.
+ * Other parameters as bkpt_manager_add().
+ */
+void bkpt_manager_add_ctx(uint16_t, BreakpointType, const char *, const char *, const char *,
+                          int8_t, int32_t);
+
+/**
+ * @brief Arm a single step that ends on the next instruction run on level pil with PCR pcr
+ *        (-1: any), after at least one instruction has run.
+ */
+void bkpt_manager_step_one_ctx(int8_t, int32_t);
+
+/**
+ * @brief The PCR of the running level without the ring bits: the page tables of the program.
+ */
+int32_t bkpt_current_pcr(void);
+
+/**
+ * @brief Name the program of the debug session: user breakpoints added with no level of
+ *        their own then fire only on that level and PCR.
+ * @param pil Level, -1 any. pcr PCR, -1 any.
+ * @param from_first_stop true: take level and PCR from the first user breakpoint that stops.
+ */
+void bkpt_program_set(int8_t, int32_t, bool);
+
+/**
+ * @brief The program of the debug session; false when it is not known.
+ */
+bool bkpt_program_get(int8_t *, int32_t *);
 
 /**
  * @brief Remove breakpoint entries at address, matching type or all types if type is -1.

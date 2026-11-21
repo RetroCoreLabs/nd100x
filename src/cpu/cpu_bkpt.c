@@ -77,7 +77,71 @@ void bkpt_manager_init(void)
     g_breakpoint_mgr = &s_mgr;
 
     g_breakpoint_mgr->step_count = 0;
+    g_breakpoint_mgr->step_pil = -1;
+    g_breakpoint_mgr->step_pcr = -1;
+    g_breakpoint_mgr->program_pil = -1;
+    g_breakpoint_mgr->program_pcr = -1;
+    g_breakpoint_mgr->program_from_first_stop = false;
     memset(g_breakpoint_mgr->buckets, 0, sizeof(g_breakpoint_mgr->buckets));
+}
+
+/// @brief The PCR of the running level without the ring bits
+/// @return The page-table fields and level field of the PCR: which page tables the running
+///         program uses (see BKPT_PCR_MASK for why the ring is left out)
+int32_t bkpt_current_pcr(void)
+{
+    return (int32_t)(g_reg->reg_PCR[CURR_LEVEL] & BKPT_PCR_MASK);
+}
+
+/// @brief Does the running program match a level and PCR (-1: any)?
+static bool context_matches(int8_t pil, int32_t pcr)
+{
+    if (pil >= 0 && pil != (int8_t)CURR_LEVEL)
+    {
+        return false;
+    }
+    if (pcr >= 0 && pcr != bkpt_current_pcr())
+    {
+        return false;
+    }
+    return true;
+}
+
+/// @brief Name the program of the debug session (see cpu_types.h)
+void bkpt_program_set(int8_t pil, int32_t pcr, bool from_first_stop)
+{
+    if (g_breakpoint_mgr == NULL)
+    {
+        bkpt_manager_init();
+    }
+    g_breakpoint_mgr->program_pil = pil;
+    g_breakpoint_mgr->program_pcr = (pcr >= 0) ? (int32_t)((uint32_t)pcr & BKPT_PCR_MASK) : -1;
+    g_breakpoint_mgr->program_from_first_stop = from_first_stop;
+}
+
+/// @brief The program of the debug session
+/// @return false when no program is named (and none taken from a first stop yet)
+bool bkpt_program_get(int8_t *pil, int32_t *pcr)
+{
+    if (g_breakpoint_mgr == NULL || g_breakpoint_mgr->program_pil < 0)
+    {
+        return false;
+    }
+    *pil = g_breakpoint_mgr->program_pil;
+    *pcr = g_breakpoint_mgr->program_pcr;
+    return true;
+}
+
+/// @brief Does a breakpoint entry belong to the program that runs now?
+/// A temporary breakpoint (a step) carries its own level and PCR. A user breakpoint without
+/// its own level belongs to the program of the session, when one is named.
+static bool entry_context_matches(const BreakpointEntry *bp)
+{
+    if (bp->pil >= 0 || bp->pcr >= 0 || bp->type == BP_TYPE_TEMPORARY)
+    {
+        return context_matches(bp->pil, bp->pcr);
+    }
+    return context_matches(g_breakpoint_mgr->program_pil, g_breakpoint_mgr->program_pcr);
 }
 
 /// @brief Cleanup the breakpoint manager
@@ -97,7 +161,24 @@ void bkpt_manager_cleanup(void)
 /// @note Used by the debugger to single step
 void bkpt_manager_step_one(void)
 {
+    bkpt_manager_step_one_ctx(-1, -1);
+}
+
+/// @brief Single step that belongs to one program
+/// @param pil Level of the program, -1 any
+/// @param pcr PCR of the program (ring bits ignored), -1 any
+/// @note The step ends before the next instruction of that program, after at least one
+///       instruction has run: instructions run meanwhile on other levels or with other page
+///       tables (SINTRAN, another program on the same level) do not end it.
+void bkpt_manager_step_one_ctx(int8_t pil, int32_t pcr)
+{
+    if (g_breakpoint_mgr == NULL)
+    {
+        bkpt_manager_init();
+    }
     g_breakpoint_mgr->step_count = 1;
+    g_breakpoint_mgr->step_pil = pil;
+    g_breakpoint_mgr->step_pcr = (pcr >= 0) ? (int32_t)((uint32_t)pcr & BKPT_PCR_MASK) : -1;
     g_breakpoint_step_pending = 1;
 }
 
@@ -109,6 +190,14 @@ void bkpt_manager_step_one(void)
 /// @param logMessage Log message (optional)
 void bkpt_manager_add(uint16_t address, BreakpointType type, const char *condition,
                       const char *hit_condition, const char *log_message)
+{
+    bkpt_manager_add_ctx(address, type, condition, hit_condition, log_message, -1, -1);
+}
+
+/// @brief Add breakpoint that fires only on one level with one PCR (see cpu_types.h)
+void bkpt_manager_add_ctx(uint16_t address, BreakpointType type, const char *condition,
+                          const char *hit_condition, const char *log_message, int8_t pil,
+                          int32_t pcr)
 {
 
     if (g_breakpoint_mgr == NULL)
@@ -140,6 +229,8 @@ void bkpt_manager_add(uint16_t address, BreakpointType type, const char *conditi
     entry->hitCondition = hit_condition ? strdup(hit_condition) : NULL;
     entry->logMessage = log_message ? strdup(log_message) : NULL;
     entry->hitCount = 0;
+    entry->pil = pil;
+    entry->pcr = (pcr >= 0) ? (int32_t)((uint32_t)pcr & BKPT_PCR_MASK) : -1;
     entry->next = g_breakpoint_mgr->buckets[h];
 
     g_breakpoint_mgr->buckets[h] = entry;
@@ -267,7 +358,9 @@ static int breakpoint_manager_check(uint16_t address, BreakpointEntry **matches[
 
     while (curr)
     {
-        if (curr->address == address)
+        // Only the breakpoints of the program that runs now: same address in another level
+        // or another page table is other code.
+        if (curr->address == address && entry_context_matches(curr))
         {
             if (curr->type == BP_TYPE_TEMPORARY)
             {
@@ -338,7 +431,10 @@ int bkpt_check_hit(void)
     uint16_t pc = gPC;
 
     // Check for single step
-    if (g_breakpoint_mgr->step_count > 0)
+    // An instruction has run since the step was armed (this check runs after each one); the
+    // step ends when the next instruction to run is one of the program the step belongs to.
+    if (g_breakpoint_mgr->step_count > 0 &&
+        context_matches(g_breakpoint_mgr->step_pil, g_breakpoint_mgr->step_pcr))
     {
         g_breakpoint_mgr->step_count--;
         if (g_breakpoint_mgr->step_count == 0)
@@ -394,6 +490,15 @@ int bkpt_check_hit(void)
                                            : stop_reason_from_breakpoint(bp->type);
                     cpu_set_stop_reason(sr);
                     cpu_set_run_mode(CPU_BREAKPOINT);
+                    // The session's program is the one that stops first, when the
+                    // session asked for that (bkpt_program_set): from now on the user
+                    // breakpoints fire only on this level with this PCR.
+                    if (bp->type != BP_TYPE_TEMPORARY && g_breakpoint_mgr->program_from_first_stop)
+                    {
+                        g_breakpoint_mgr->program_pil = (int8_t)CURR_LEVEL;
+                        g_breakpoint_mgr->program_pcr = bkpt_current_pcr();
+                        g_breakpoint_mgr->program_from_first_stop = false;
+                    }
                     // Record hit address for DAP hitBreakpointIds
                     g_breakpoint_mgr->last_hit_address = pc;
                     g_breakpoint_mgr->last_hit_valid = true;

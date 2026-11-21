@@ -1047,6 +1047,13 @@ static int step_cpu_once(DAPServer *server, StepType step_type)
     uint16_t target_pc = 0;
     bool stepping_to_line = false;
 
+    // A step belongs to the program it starts in: its level and its PCR (the page tables).
+    // Under SINTRAN the monitor and other programs run on the same addresses in between
+    // (other levels, or other page tables on the same level); the single step and the
+    // temporary breakpoints below end only on an instruction of this program.
+    int8_t step_pil = (int8_t)gPIL;
+    int32_t step_pcr = bkpt_current_pcr();
+
     // Access the step command context
     StepCommandContext *ctx = &server->current_command.context.step;
 
@@ -1066,7 +1073,7 @@ static int step_cpu_once(DAPServer *server, StepType step_type)
                 return -1;
             }
 
-            bkpt_manager_add(return_address, BP_TYPE_TEMPORARY, NULL, NULL, NULL);
+            bkpt_manager_add_ctx(return_address, BP_TYPE_TEMPORARY, NULL, NULL, NULL, step_pil, step_pcr);
             ensure_cpu_running();
             return 0;
         }
@@ -1075,7 +1082,7 @@ static int step_cpu_once(DAPServer *server, StepType step_type)
         if (cpu_instruction_is_jump())
         {
             // Tell breakpoint manager to step one instruction
-            bkpt_manager_step_one();
+            bkpt_manager_step_one_ctx(step_pil, step_pcr);
             ensure_cpu_running();
             return 0;
         }
@@ -1111,7 +1118,7 @@ static int step_cpu_once(DAPServer *server, StepType step_type)
                      "Stepping over function call, return at %06o\n", return_addr);
             dap_server_send_output_category(server, DAP_OUTPUT_CONSOLE, log_message);
 
-            bkpt_manager_add(return_addr, BP_TYPE_TEMPORARY, NULL, NULL, NULL);
+            bkpt_manager_add_ctx(return_addr, BP_TYPE_TEMPORARY, NULL, NULL, NULL, step_pil, step_pcr);
             ensure_cpu_running();
             return 0;
         }
@@ -1189,12 +1196,12 @@ static int step_cpu_once(DAPServer *server, StepType step_type)
 
             // Use the CPU's breakpoint system to set a temporary breakpoint
             // This breakpoint will be automatically removed when hit
-            bkpt_manager_add(target_pc, BP_TYPE_TEMPORARY, NULL, NULL, NULL);
+            bkpt_manager_add_ctx(target_pc, BP_TYPE_TEMPORARY, NULL, NULL, NULL, step_pil, step_pcr);
         }
         else
         {
             // Tell breakpoint manager to step one instruction
-            bkpt_manager_step_one();
+            bkpt_manager_step_one_ctx(step_pil, step_pcr);
         }
 
         ensure_cpu_running();
@@ -1215,7 +1222,7 @@ static int step_cpu_once(DAPServer *server, StepType step_type)
                  current_pc);
         dap_server_send_output_category(server, DAP_OUTPUT_CONSOLE, log_message);
 
-        bkpt_manager_step_one();
+        bkpt_manager_step_one_ctx(step_pil, step_pcr);
         ensure_cpu_running();
         return 0;
     }
@@ -1252,7 +1259,7 @@ static int step_cpu_once(DAPServer *server, StepType step_type)
             snprintf(log_message, sizeof(log_message),
                      "Stepping out of csav to function body at %06o\n", return_addr);
             dap_server_send_output_category(server, DAP_OUTPUT_CONSOLE, log_message);
-            bkpt_manager_add(return_addr, BP_TYPE_TEMPORARY, NULL, NULL, NULL);
+            bkpt_manager_add_ctx(return_addr, BP_TYPE_TEMPORARY, NULL, NULL, NULL, step_pil, step_pcr);
             ensure_cpu_running();
             return 0;
         }
@@ -1266,7 +1273,7 @@ static int step_cpu_once(DAPServer *server, StepType step_type)
             snprintf(log_message, sizeof(log_message), "Stepping out of cret to caller at %06o\n",
                      return_addr);
             dap_server_send_output_category(server, DAP_OUTPUT_CONSOLE, log_message);
-            bkpt_manager_add(return_addr, BP_TYPE_TEMPORARY, NULL, NULL, NULL);
+            bkpt_manager_add_ctx(return_addr, BP_TYPE_TEMPORARY, NULL, NULL, NULL, step_pil, step_pcr);
             ensure_cpu_running();
             return 0;
         }
@@ -1359,7 +1366,7 @@ static int step_cpu_once(DAPServer *server, StepType step_type)
         {
             snprintf(log_message, sizeof(log_message), "Stepping out to %06o\n", return_addr);
             dap_server_send_output_category(server, DAP_OUTPUT_CONSOLE, log_message);
-            bkpt_manager_add(return_addr, BP_TYPE_TEMPORARY, NULL, NULL, NULL);
+            bkpt_manager_add_ctx(return_addr, BP_TYPE_TEMPORARY, NULL, NULL, NULL, step_pil, step_pcr);
             ensure_cpu_running();
             return 0;
         }
@@ -3636,145 +3643,18 @@ static int init_symbol_support(const char *filename, SymbolType symbol_type)
 }
 
 /**
- * @brief Handle the launch request from DAP
- *
- * This function initializes the debugger environment for the specified program:
- * 1. Sets up necessary debugger state with program and source information
- * 2. Initializes execution context and resets debugger state
- * 3. Loads symbol information if map file is provided
- * 4. Sends appropriate events to the client
- *
- * @param server The DAP server instance
- * @return int 0 on success, non-zero on failure
+ * @brief Load the symbols of a debug session: the map file of the launch or attach request,
+ *        the a.out program itself, or a STABS .s file beside the program.
+ * @param server The DAP server instance (map_path from the request)
+ * @param program_path The program of a launch; NULL for an attach without one
+ * @param is_aout true when program_path is an a.out file
+ * @note Runs while the CPU thread is paused (libdap calls launch and attach between
+ *       cmd_wait_for_debugger and cmd_release_debugger): the CPU thread reads these tables.
  */
-static int cmd_launch_callback(DAPServer *server)
+static void load_session_symbols(DAPServer *server, const char *program_path, bool is_aout)
 {
-    if (!server)
-    {
-        return -1;
-    }
-
-    LOG(LOG_CAT_DAP, LOG_DEBUG, "Launch command received\n");
-
-    // Extract launch parameters from debugger state
-    const char *program_path = server->debugger_state.program_path;
-    const char *source_path = server->debugger_state.source_path;
     const char *map_path = server->debugger_state.map_path;
-    bool stop_at_entry = server->debugger_state.stop_at_entry;
-    bool no_debug = server->debugger_state.no_debug;
-
-    // Log command line arguments if provided
-    char **args = server->debugger_state.args;
-    int args_count = server->debugger_state.args_count;
-
-    if (!program_path)
-    {
-        LOG(LOG_CAT_DAP, LOG_ERROR, "Error: Missing program path in debugger state\n");
-        return -1;
-    }
-
-    LOG(LOG_CAT_DAP, LOG_DEBUG, "Launching program: %s\n", program_path ? program_path : "(null)");
-    LOG(LOG_CAT_DAP, LOG_DEBUG, "Source path: %s\n", source_path ? source_path : "(not specified)");
-    LOG(LOG_CAT_DAP, LOG_DEBUG, "Map file: %s\n", map_path ? map_path : "(not specified)");
-    LOG(LOG_CAT_DAP, LOG_DEBUG, "Stop at entry: %s\n", stop_at_entry ? "yes" : "no");
-    LOG(LOG_CAT_DAP, LOG_DEBUG, "No debug: %s\n", no_debug ? "yes" : "no");
-
-    // Log command line arguments if present
-    if (args && args_count > 0)
-    {
-        char arg_log[1024] = "Command line arguments:";
-        size_t log_pos = strlen(arg_log);
-
-        for (int i = 0; i < args_count && i < 10; i++)
-        { // Limit to 10 args in log
-            if (args[i])
-            {
-                int written =
-                    snprintf(arg_log + log_pos, sizeof(arg_log) - log_pos, " '%s'", args[i]);
-                if (written > 0)
-                {
-                    log_pos += written;
-                }
-            }
-        }
-
-        if (args_count > 10)
-        {
-            snprintf(arg_log + log_pos, sizeof(arg_log) - log_pos, " ... (%d more)",
-                     args_count - 10);
-        }
-
-        LOG(LOG_CAT_DAP, LOG_DEBUG, "%s\n", arg_log);
-    }
-
-    // Reset CPU state to appropriate values
-    // In a real debugger, this would be where we would initialize the CPU
-    // with the program's binary data
-
-    // Set debugger state
-    server->is_running = true;
-    server->attached = true;
-    server->debugger_state.has_stopped = true;
-    server->debugger_state.current_thread_id = 1; // make sure we have a thread id
-
-    server->debugger_state.source_line = 1;   // Start at line 1
-    server->debugger_state.source_column = 1; // Start at column 1
-    // Try to load symbols using different approaches
     bool symbols_loaded = false;
-
-    // Load program - only if it's a valid a.out binary.
-    // For other boot types (floppy, smd, bpun) the emulator was already
-    // booted via the command line before the debugger connected.
-    bool is_aout = false;
-    if (program_path)
-    {
-        FILE *probe = fopen(program_path, "rb");
-        if (probe)
-        {
-            aout_header_t probe_hdr;
-            if (load_header(probe, &probe_hdr, false) == 0)
-            {
-                switch (probe_hdr.a_magic)
-                {
-                case A_MAGIC1:
-                case A_MAGIC2:
-                case A_MAGIC3:
-                case A_MAGIC4:
-                case A_MAGIC5:
-                case A_MAGIC6:
-                    is_aout = true;
-                    break;
-                default:
-                    break;
-                }
-            }
-            fclose(probe);
-        }
-
-        if (is_aout)
-        {
-            LOG(LOG_CAT_DAP, LOG_DEBUG, "Attempting to load a.out program: %s\n", program_path);
-            dap_server_send_output_category(server, DAP_OUTPUT_CONSOLE,
-                                            "Loading a.out program...\n");
-            if (machine_program_load(BOOT_AOUT, 0, program_path, true,
-                                     (uint16_t)server->debugger_state.text_start, false) < 0)
-            {
-                dap_server_send_output_category(server, DAP_OUTPUT_CONSOLE,
-                                                "Loading the a.out program failed.\n");
-                return -1;
-            }
-            gPC = g_start_addr;
-        }
-        else
-        {
-            LOG(LOG_CAT_DAP, LOG_DEBUG,
-                "Program file is not a.out format (skipping load, using existing boot): %s\n",
-                program_path);
-            dap_server_send_output_category(
-                server, DAP_OUTPUT_CONSOLE,
-                "Program is not a.out format - attaching to running system.\n");
-        }
-    }
 
     // Clear old symbols and source references
     free_symbol_table();
@@ -3925,6 +3805,181 @@ static int cmd_launch_callback(DAPServer *server)
             server, DAP_OUTPUT_STDERR,
             "Warning: No symbols loaded. Source level debugging may not work correctly.\n");
     }
+}
+
+/**
+ * @brief Tie the user breakpoints to the program the launch or attach request names
+ *        (programLevel, programContext, programFromFirstStop; see libdap DebuggerState)
+ */
+static void apply_session_program(DAPServer *server)
+{
+    int level = server->debugger_state.program_level;
+    int64_t context = server->debugger_state.program_context;
+    bkpt_program_set((int8_t)((level >= 0 && level <= 15) ? level : -1),
+                     (int32_t)((context >= 0 && context <= 0xFFFF) ? context : -1),
+                     server->debugger_state.program_from_first_stop);
+}
+
+/**
+ * @brief Handle the attach request from DAP: load the map file it names and tie the
+ *        breakpoints to the program it names. The machine keeps running as it is; nothing is
+ *        loaded into memory. A program that SINTRAN starts is attached to after the boot.
+ * @param server The DAP server instance
+ * @return 0
+ */
+static int cmd_attach_callback(DAPServer *server)
+{
+    if (!server)
+    {
+        return -1;
+    }
+    load_session_symbols(server, NULL, false);
+    apply_session_program(server);
+    return 0;
+}
+
+/**
+ * @brief Handle the launch request from DAP
+ *
+ * This function initializes the debugger environment for the specified program:
+ * 1. Sets up necessary debugger state with program and source information
+ * 2. Initializes execution context and resets debugger state
+ * 3. Loads symbol information if map file is provided
+ * 4. Sends appropriate events to the client
+ *
+ * @param server The DAP server instance
+ * @return int 0 on success, non-zero on failure
+ */
+static int cmd_launch_callback(DAPServer *server)
+{
+    if (!server)
+    {
+        return -1;
+    }
+
+    LOG(LOG_CAT_DAP, LOG_DEBUG, "Launch command received\n");
+
+    // Extract launch parameters from debugger state
+    const char *program_path = server->debugger_state.program_path;
+    const char *source_path = server->debugger_state.source_path;
+    const char *map_path = server->debugger_state.map_path;
+    bool stop_at_entry = server->debugger_state.stop_at_entry;
+    bool no_debug = server->debugger_state.no_debug;
+
+    // Log command line arguments if provided
+    char **args = server->debugger_state.args;
+    int args_count = server->debugger_state.args_count;
+
+    if (!program_path)
+    {
+        LOG(LOG_CAT_DAP, LOG_ERROR, "Error: Missing program path in debugger state\n");
+        return -1;
+    }
+
+    LOG(LOG_CAT_DAP, LOG_DEBUG, "Launching program: %s\n", program_path ? program_path : "(null)");
+    LOG(LOG_CAT_DAP, LOG_DEBUG, "Source path: %s\n", source_path ? source_path : "(not specified)");
+    LOG(LOG_CAT_DAP, LOG_DEBUG, "Map file: %s\n", map_path ? map_path : "(not specified)");
+    LOG(LOG_CAT_DAP, LOG_DEBUG, "Stop at entry: %s\n", stop_at_entry ? "yes" : "no");
+    LOG(LOG_CAT_DAP, LOG_DEBUG, "No debug: %s\n", no_debug ? "yes" : "no");
+
+    // Log command line arguments if present
+    if (args && args_count > 0)
+    {
+        char arg_log[1024] = "Command line arguments:";
+        size_t log_pos = strlen(arg_log);
+
+        for (int i = 0; i < args_count && i < 10; i++)
+        { // Limit to 10 args in log
+            if (args[i])
+            {
+                int written =
+                    snprintf(arg_log + log_pos, sizeof(arg_log) - log_pos, " '%s'", args[i]);
+                if (written > 0)
+                {
+                    log_pos += written;
+                }
+            }
+        }
+
+        if (args_count > 10)
+        {
+            snprintf(arg_log + log_pos, sizeof(arg_log) - log_pos, " ... (%d more)",
+                     args_count - 10);
+        }
+
+        LOG(LOG_CAT_DAP, LOG_DEBUG, "%s\n", arg_log);
+    }
+
+    // Reset CPU state to appropriate values
+    // In a real debugger, this would be where we would initialize the CPU
+    // with the program's binary data
+
+    // Set debugger state
+    server->is_running = true;
+    server->attached = true;
+    server->debugger_state.has_stopped = true;
+    server->debugger_state.current_thread_id = 1; // make sure we have a thread id
+
+    server->debugger_state.source_line = 1;   // Start at line 1
+    server->debugger_state.source_column = 1; // Start at column 1
+
+    // Load program - only if it's a valid a.out binary.
+    // For other boot types (floppy, smd, bpun) the emulator was already
+    // booted via the command line before the debugger connected.
+    bool is_aout = false;
+    if (program_path)
+    {
+        FILE *probe = fopen(program_path, "rb");
+        if (probe)
+        {
+            aout_header_t probe_hdr;
+            if (load_header(probe, &probe_hdr, false) == 0)
+            {
+                switch (probe_hdr.a_magic)
+                {
+                case A_MAGIC1:
+                case A_MAGIC2:
+                case A_MAGIC3:
+                case A_MAGIC4:
+                case A_MAGIC5:
+                case A_MAGIC6:
+                    is_aout = true;
+                    break;
+                default:
+                    break;
+                }
+            }
+            fclose(probe);
+        }
+
+        if (is_aout)
+        {
+            LOG(LOG_CAT_DAP, LOG_DEBUG, "Attempting to load a.out program: %s\n", program_path);
+            dap_server_send_output_category(server, DAP_OUTPUT_CONSOLE,
+                                            "Loading a.out program...\n");
+            if (machine_program_load(BOOT_AOUT, 0, program_path, true,
+                                     (uint16_t)server->debugger_state.text_start, false) < 0)
+            {
+                dap_server_send_output_category(server, DAP_OUTPUT_CONSOLE,
+                                                "Loading the a.out program failed.\n");
+                return -1;
+            }
+            gPC = g_start_addr;
+        }
+        else
+        {
+            LOG(LOG_CAT_DAP, LOG_DEBUG,
+                "Program file is not a.out format (skipping load, using existing boot): %s\n",
+                program_path);
+            dap_server_send_output_category(
+                server, DAP_OUTPUT_CONSOLE,
+                "Program is not a.out format - attaching to running system.\n");
+        }
+    }
+
+    load_session_symbols(server, program_path, is_aout);
+    apply_session_program(server);
+
     // Update the server's program counter from the CPU
     server->debugger_state.program_counter = gPC;
 
@@ -5216,6 +5271,7 @@ int debugger_ndx_server_init(int port)
 
     // Register launch callback
     dap_server_register_command_callback(g_dap_server, DAP_CMD_LAUNCH, cmd_launch_callback);
+    dap_server_register_command_callback(g_dap_server, DAP_CMD_ATTACH, cmd_attach_callback);
 
     // Register configuration done callback
     dap_server_register_command_callback(g_dap_server, DAP_CMD_CONFIGURATION_DONE,

@@ -971,6 +971,27 @@ add_dependencies(test_cpu_ring cpu devices)
 
 add_test(NAME cpu_ring_tests COMMAND test_cpu_ring)
 
+# Breakpoints and single steps that belong to one program (level and PCR), and the
+# breakpoint on the first instruction a level runs after a switch; the real cpu_run().
+add_executable(test_bkpt_context
+    test_bkpt_context.c
+)
+
+target_include_directories(test_bkpt_context PRIVATE
+    /src
+    /src/cpu
+    /src/machine
+    /src/devices
+    /src/ndlib
+)
+
+target_link_libraries(test_bkpt_context PRIVATE
+     cpu machine devices debugger ndlib  m)
+
+add_dependencies(test_bkpt_context cpu devices)
+
+add_test(NAME bkpt_context_tests COMMAND test_bkpt_context)
+
 # IDENT with no device: A unchanged and the IOX error raised (ND-06.015.02 6.7.4).
 add_executable(test_ident
     test_ident.c

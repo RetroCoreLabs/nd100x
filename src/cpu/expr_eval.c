@@ -288,6 +288,13 @@ static bool lookup_register(const char *name, int len, uint16_t *value)
         *value = (uint16_t)gPIL;
         return true;
     }
+    /* PCR of the running level, the whole register (ring bits included): with PIL it names
+     * the program that runs, e.g. a breakpoint condition "PIL == 1 && PCR == 004204". */
+    if (strcmp(buf, "PCR") == 0)
+    {
+        *value = g_reg->reg_PCR[gPIL];
+        return true;
+    }
     if (strcmp(buf, "EA") == 0)
     {
         *value = gEA;

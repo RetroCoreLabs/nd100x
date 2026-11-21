@@ -1194,6 +1194,18 @@ int cpu_run(int ticks_arg)
             // Tick IO devices pr cpu tick
             IO_Tick();
 
+            // A level change asked for by this instruction or by a device interrupt takes
+            // effect between this instruction and the next. Making it here, and not only at
+            // the start of the next tick, puts the P register of the level that runs next
+            // into gPC before the breakpoint check below: the first instruction a level
+            // runs after a switch is checked like every other one. Without this, a
+            // breakpoint on the first instruction a level runs when it is entered (a
+            // SINTRAN program entered from the monitor) was never hit. The check at the top
+            // of private_cpu_tick() stays for the first tick of a run and for the tick
+            // after a page fault (longjmp to the setjmp above); it does nothing when no
+            // change is pending (gCHKIT clear).
+            check_and_switch();
+
             // CPU throttle: sleep if running ahead of target speed
             if (cpu_throttle_enabled)
             {
