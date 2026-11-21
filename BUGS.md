@@ -1017,3 +1017,16 @@ queue, never read.
 socket or accepts the next one. Whether this is in nd100x's debugger thread
 (`debugger_thread`, `dap_server_run`) or in libdap's TCP transport is not traced yet. Until it
 is fixed, one debugging session has to do everything over a single connection.
+
+### D3. A step's temporary breakpoints stay armed when a user breakpoint ends the step
+
+**Found by:** the step-over fix of 2026-11-21 (commit 8adda2b), by reading the code path it uses.
+
+**Shows up as:** a `next` over a call sets two temporary breakpoints (the word after the call
+and the word after that). If a user breakpoint inside the called routine stops the run first,
+the step ends there, but both temporary breakpoints stay armed. A `continue` then stops at one of
+them later, with no breakpoint of the user's at that place.
+
+**What is known:** a new step removes any temporary breakpoints left over, and a temporary
+breakpoint that fires removes all of them. A stop for any other reason (user breakpoint, pause)
+does not. Not yet reproduced with a test.
