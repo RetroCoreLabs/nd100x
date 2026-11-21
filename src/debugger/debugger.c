@@ -1073,7 +1073,8 @@ static int step_cpu_once(DAPServer *server, StepType step_type)
                 return -1;
             }
 
-            bkpt_manager_add_ctx(return_address, BP_TYPE_TEMPORARY, NULL, NULL, NULL, step_pil, step_pcr);
+            bkpt_manager_add_ctx(return_address, BP_TYPE_TEMPORARY, NULL, NULL, NULL, step_pil,
+                                 step_pcr);
             ensure_cpu_running();
             return 0;
         }
@@ -1118,7 +1119,8 @@ static int step_cpu_once(DAPServer *server, StepType step_type)
                      "Stepping over function call, return at %06o\n", return_addr);
             dap_server_send_output_category(server, DAP_OUTPUT_CONSOLE, log_message);
 
-            bkpt_manager_add_ctx(return_addr, BP_TYPE_TEMPORARY, NULL, NULL, NULL, step_pil, step_pcr);
+            bkpt_manager_add_ctx(return_addr, BP_TYPE_TEMPORARY, NULL, NULL, NULL, step_pil,
+                                 step_pcr);
             ensure_cpu_running();
             return 0;
         }
@@ -1196,7 +1198,8 @@ static int step_cpu_once(DAPServer *server, StepType step_type)
 
             // Use the CPU's breakpoint system to set a temporary breakpoint
             // This breakpoint will be automatically removed when hit
-            bkpt_manager_add_ctx(target_pc, BP_TYPE_TEMPORARY, NULL, NULL, NULL, step_pil, step_pcr);
+            bkpt_manager_add_ctx(target_pc, BP_TYPE_TEMPORARY, NULL, NULL, NULL, step_pil,
+                                 step_pcr);
         }
         else
         {
@@ -1259,7 +1262,8 @@ static int step_cpu_once(DAPServer *server, StepType step_type)
             snprintf(log_message, sizeof(log_message),
                      "Stepping out of csav to function body at %06o\n", return_addr);
             dap_server_send_output_category(server, DAP_OUTPUT_CONSOLE, log_message);
-            bkpt_manager_add_ctx(return_addr, BP_TYPE_TEMPORARY, NULL, NULL, NULL, step_pil, step_pcr);
+            bkpt_manager_add_ctx(return_addr, BP_TYPE_TEMPORARY, NULL, NULL, NULL, step_pil,
+                                 step_pcr);
             ensure_cpu_running();
             return 0;
         }
@@ -1273,7 +1277,8 @@ static int step_cpu_once(DAPServer *server, StepType step_type)
             snprintf(log_message, sizeof(log_message), "Stepping out of cret to caller at %06o\n",
                      return_addr);
             dap_server_send_output_category(server, DAP_OUTPUT_CONSOLE, log_message);
-            bkpt_manager_add_ctx(return_addr, BP_TYPE_TEMPORARY, NULL, NULL, NULL, step_pil, step_pcr);
+            bkpt_manager_add_ctx(return_addr, BP_TYPE_TEMPORARY, NULL, NULL, NULL, step_pil,
+                                 step_pcr);
             ensure_cpu_running();
             return 0;
         }
@@ -1366,7 +1371,8 @@ static int step_cpu_once(DAPServer *server, StepType step_type)
         {
             snprintf(log_message, sizeof(log_message), "Stepping out to %06o\n", return_addr);
             dap_server_send_output_category(server, DAP_OUTPUT_CONSOLE, log_message);
-            bkpt_manager_add_ctx(return_addr, BP_TYPE_TEMPORARY, NULL, NULL, NULL, step_pil, step_pcr);
+            bkpt_manager_add_ctx(return_addr, BP_TYPE_TEMPORARY, NULL, NULL, NULL, step_pil,
+                                 step_pcr);
             ensure_cpu_running();
             return 0;
         }
