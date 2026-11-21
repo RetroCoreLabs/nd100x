@@ -20,7 +20,10 @@
  *     session (bkpt_program_set), also the one taken from the first stop;
  *   - a single step of the program on level 0 does not end on level 1 when the
  *     instruction switches level: it ends on the next instruction of level 0,
- *     after level 1 has run and given the CPU back.
+ *     after level 1 has run and given the CPU back;
+ *   - a step over a call (debugger_step_cpu) ends where the routine comes back: one
+ *     word after the link (a skip return, the normal return of a PLANC routine) or
+ *     at the link (EXIT), and leaves no temporary breakpoint at the other one.
  *
  * The program, physical words, paging off, interrupt system on:
  *   level 0:  0: SAA 2      A = 2
@@ -39,6 +42,8 @@
 #include <stdint.h>
 
 #include "cpu_types.h"
+#include "dap_server.h"
+#include "debugger.h"
 
 // clang-format off
 #define OP_SAA_2   0170402
@@ -47,6 +52,10 @@
 #define OP_TRR_PID 0150106
 #define OP_WAIT    0151000
 #define OP_JMP_0   0124000   /* JMP, P-relative displacement 0 */
+#define OP_JPL_10  0134010   /* JPL, P-relative displacement 10 */
+#define OP_SKIP_RET 0146547  /* COPY AD1 SL DX: X = L + 1 */
+#define OP_COPY_SX_DP 0146172 /* P = X */
+#define OP_EXIT    0146142   /* COPY SL DP: P = L */
 #define L1_START   0100
 #define PCR_L0     0000000
 #define PCR_L1     0004204   /* a PCR measured for an RT program on level 1 */
@@ -117,6 +126,40 @@ static void fixture(int32_t pcr_level1)
     bkpt_program_set(-1, -1, false);
     cpu_set_stop_reason(STOP_REASON_NONE);
     cpu_set_run_mode(CPU_RUNNING);
+}
+
+/* A call on level 0, paging off, interrupts off (the PLANC call of measured N100A line 13:
+ * JPL I 5UTI4 at 000555, JPL I 5ERET at 000556, the routine came back at 000557):
+ *   0: JPL *+10    L = 1
+ *   1: JMP *+0     the word after the call (in PLANC: JPL I 5ERET, run by an ERRETURN)
+ *   2: SAA 3
+ *   3: JMP *+0
+ *  10: SAA 5
+ *  11: COPY AD1 SL DX   X = L + 1 (a skip return), or EXIT (back at L)
+ *  12: COPY SX DP       P = X */
+static void fixture_call(uint16_t return_op)
+{
+    fixture(PCR_L1);
+    gPIE = 0;
+    g_reg->reg_STS = 0;
+    mms_write_physical_memory(0, OP_JPL_10, true);
+    mms_write_physical_memory(1, OP_JMP_0, true);
+    mms_write_physical_memory(2, OP_SAA_3, true);
+    mms_write_physical_memory(3, OP_JMP_0, true);
+    mms_write_physical_memory(010, OP_SAA_5, true);
+    mms_write_physical_memory(011, return_op, true);
+    mms_write_physical_memory(012, OP_COPY_SX_DP, true);
+}
+
+/* Step over the instruction at pc as the debugger front end does (next, instruction
+ * granularity). The server is not connected: what it would send goes nowhere. */
+static int step_over_from(uint16_t pc)
+{
+    static DAPServer s_server;
+    memset(&s_server, 0, sizeof(s_server));
+    s_server.current_command.context.step.granularity = DAP_STEP_GRANULARITY_INSTRUCTION;
+    gPC = pc;
+    return debugger_step_cpu(&s_server, STEP_OVER);
 }
 
 int main(void)
@@ -196,6 +239,32 @@ int main(void)
     cpu_run(20);
     CHECK(cpu_get_stop_reason() == STOP_REASON_STEP && gPIL == 1 && gPC == L1_START,
           "a step with no program ends on the next instruction the CPU runs");
+
+    /* ---- step over a call: the program comes back one word after the link ---- */
+    fixture_call(OP_SKIP_RET);
+    CHECK(step_over_from(0) == 0, "step over the JPL is armed");
+    cpu_run(20);
+    CHECK(cpu_get_stop_reason() == STOP_REASON_STEP, "step over a skip-return call ends");
+    CHECK(gPC == 2 && gA == 5, "it ends at word 2, after the routine ran (SAA 5)");
+    cpu_set_stop_reason(STOP_REASON_NONE);
+    cpu_set_run_mode(CPU_RUNNING);
+    gPC = 1; /* the word after the call, a JMP *+0 here: a temporary left there stops it */
+    cpu_run(20);
+    CHECK(cpu_get_stop_reason() == STOP_REASON_NONE,
+          "no temporary breakpoint is left at the link after the step ended");
+
+    /* ---- step over a call: the program comes back at the link (EXIT) ---- */
+    fixture_call(OP_EXIT);
+    CHECK(step_over_from(0) == 0, "step over the JPL is armed");
+    cpu_run(20);
+    CHECK(cpu_get_stop_reason() == STOP_REASON_STEP && gPC == 1 && gA == 5,
+          "step over a call that returns with EXIT ends at the link, word 1");
+    cpu_set_stop_reason(STOP_REASON_NONE);
+    cpu_set_run_mode(CPU_RUNNING);
+    gPC = 2;
+    cpu_run(20);
+    CHECK(cpu_get_stop_reason() == STOP_REASON_NONE,
+          "no temporary breakpoint is left one word after the link");
 
     printf("\n%d checks, %d failed\n", s_checks, s_failed);
     return s_failed ? 1 : 0;

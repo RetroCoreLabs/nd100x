@@ -983,6 +983,9 @@ target_include_directories(test_bkpt_context PRIVATE
     /src/machine
     /src/devices
     /src/ndlib
+    ${CMAKE_SOURCE_DIR}/src/debugger
+    ${CMAKE_SOURCE_DIR}/external/libdap/libdap/include
+    ${CMAKE_SOURCE_DIR}/external/libsymbols/include
 )
 
 target_link_libraries(test_bkpt_context PRIVATE

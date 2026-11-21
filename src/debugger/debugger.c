@@ -991,6 +991,21 @@ void debugger_build_stack_trace(uint16_t pc, uint16_t operand)
     }
 }
 
+/// @brief Arm the end of a step over a call: the link and the word after it
+/// @param link The link of the call (L after the JPL: the word after the JPL)
+/// @param pil Level of the program the step belongs to
+/// @param pcr PCR of the program the step belongs to
+/// @details An ND-100 routine comes back at its link (EXIT copies L to P) or one word after it,
+///          a skip return that passes over the word after the call. A PLANC call has a word
+///          after it, JPL I to 5ERET, that only an ERRETURN runs; its normal return is one word
+///          after the link. Both are armed, and the first one the program reaches ends the
+///          step and removes the other (bkpt_check_hit).
+static void arm_call_return(uint16_t link, int8_t pil, int32_t pcr)
+{
+    bkpt_manager_add_ctx(link, BP_TYPE_TEMPORARY, NULL, NULL, NULL, pil, pcr);
+    bkpt_manager_add_ctx((uint16_t)(link + 1), BP_TYPE_TEMPORARY, NULL, NULL, NULL, pil, pcr);
+}
+
 /// @brief Step the CPU by the given step type: for next and step in by line, until the source line changes
 /// @param server The DAP server instance
 /// @param step_type The type of step to take
@@ -1054,6 +1069,10 @@ static int step_cpu_once(DAPServer *server, StepType step_type)
     int8_t step_pil = (int8_t)gPIL;
     int32_t step_pcr = bkpt_current_pcr();
 
+    // Temporary breakpoints left by an earlier step that a pause or a breakpoint ended belong
+    // to that step, not to this one.
+    bkpt_manager_clear_type(BP_TYPE_TEMPORARY);
+
     // Access the step command context
     StepCommandContext *ctx = &server->current_command.context.step;
 
@@ -1113,14 +1132,25 @@ static int step_cpu_once(DAPServer *server, StepType step_type)
             if (csav_sym && call_target == csav_sym->address)
             {
                 return_addr = current_pc + 2; // skip JPL + .word NNN
+                snprintf(log_message, sizeof(log_message),
+                         "Stepping over function call, return at %06o\n", return_addr);
+                dap_server_send_output_category(server, DAP_OUTPUT_CONSOLE, log_message);
+                bkpt_manager_add_ctx(return_addr, BP_TYPE_TEMPORARY, NULL, NULL, NULL, step_pil,
+                                     step_pcr);
+                ensure_cpu_running();
+                return 0;
             }
 
+            // Any other call comes back at the link (L = pc+1, EXIT) or one word after it (a
+            // skip return). PLANC calls do both: the word after the call is JPL I to 5ERET, run
+            // only by an ERRETURN, and a normal return comes back one word after the link
+            // (measured: 5UTI4 called at 000555 in N100A returns to 000557 with COPY SX DP;
+            // new-planc docs/be-nd100/code-patterns.md). The step ends at whichever comes first.
             snprintf(log_message, sizeof(log_message),
-                     "Stepping over function call, return at %06o\n", return_addr);
+                     "Stepping over function call, return at %06o or %06o\n", return_addr,
+                     (uint16_t)(return_addr + 1));
             dap_server_send_output_category(server, DAP_OUTPUT_CONSOLE, log_message);
-
-            bkpt_manager_add_ctx(return_addr, BP_TYPE_TEMPORARY, NULL, NULL, NULL, step_pil,
-                                 step_pcr);
+            arm_call_return(return_addr, step_pil, step_pcr);
             ensure_cpu_running();
             return 0;
         }
@@ -1369,10 +1399,12 @@ static int step_cpu_once(DAPServer *server, StepType step_type)
 
         if (return_addr != 0)
         {
-            snprintf(log_message, sizeof(log_message), "Stepping out to %06o\n", return_addr);
+            // The routine comes back at the return address or one word after it (a skip
+            // return, the normal return of a PLANC routine): see arm_call_return.
+            snprintf(log_message, sizeof(log_message), "Stepping out to %06o or %06o\n",
+                     return_addr, (uint16_t)(return_addr + 1));
             dap_server_send_output_category(server, DAP_OUTPUT_CONSOLE, log_message);
-            bkpt_manager_add_ctx(return_addr, BP_TYPE_TEMPORARY, NULL, NULL, NULL, step_pil,
-                                 step_pcr);
+            arm_call_return(return_addr, step_pil, step_pcr);
             ensure_cpu_running();
             return 0;
         }

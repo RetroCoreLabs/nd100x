@@ -1017,19 +1017,3 @@ queue, never read.
 socket or accepts the next one. Whether this is in nd100x's debugger thread
 (`debugger_thread`, `dap_server_run`) or in libdap's TCP transport is not traced yet. Until it
 is fixed, one debugging session has to do everything over a single connection.
-
-### D2. Step over a line that calls a SINTRAN output routine does not stop on the next line
-
-**Measured (2026-11-21, N100A.PLNC under SINTRAN, PLANC-1BANK library, attach with the map and
-`programFromFirstStop`):** the breakpoint on line 12 stops the program (PIL 1, PCR 004204) and
-`next` from line 12 stops on line 13 of the same program. `next` from line 13 (`OUTPUT`, a
-call of 5UTI4 that waits for the terminal) never stops; the program runs to its end. The step
-sets a temporary breakpoint on the return address that fires only on level 1 with PCR 004204
-(`src/cpu/cpu_bkpt.c`, `entry_context_matches`).
-
-**Not known:** whether the program comes back from the monitor call with another PCR (SINTRAN
-may give it other page tables when it is started again), or the return address is wrong.
-Not measured. A breakpoint on lines 14 and 16 with no program named stopped at 000600 with
-PCR 021606 on level 1 - another program at the same address - so that run could not show the
-PCR of N100A after the call. Next step: an instruction breakpoint at the return address with
-the condition `PIL == 1`, and print the PCR at each stop.

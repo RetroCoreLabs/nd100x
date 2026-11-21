@@ -428,6 +428,7 @@ int bkpt_check_hit(void)
     BreakpointEntry **hits;
     int hit_count;
     BreakpointType bt_type = BT_NONE;
+    bool temporary_hit = false;
     uint16_t pc = gPC;
 
     // Check for single step
@@ -506,12 +507,19 @@ int bkpt_check_hit(void)
 
                 if (bp->type == BP_TYPE_TEMPORARY)
                 {
-                    // Auto-remove temp breakpoint
-                    bkpt_manager_remove(bp->address, BP_TYPE_TEMPORARY);
+                    temporary_hit = true;
                 }
             }
         }
         free(hits); // free list
+        // A temporary breakpoint is one end of a step; a step can arm more than one (a call
+        // comes back at its link or one word after it). The step is over when one of them
+        // fires, so all of them go: one left armed would end a later run where it is.
+        // Removed after the loop: the removal frees the entries the list points to.
+        if (temporary_hit)
+        {
+            bkpt_manager_clear_type(BP_TYPE_TEMPORARY);
+        }
     }
 
     return bt_type;
