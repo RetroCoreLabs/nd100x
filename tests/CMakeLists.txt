@@ -964,36 +964,47 @@ target_include_directories(test_cpu_ring PRIVATE
     /src/ndlib
 )
 
+# A link GROUP as test_memory_banks (the libraries call each other), and
+# cjson_objects as the nd100x target links it: floppydb.c in ndlib calls cJSON.
 target_link_libraries(test_cpu_ring PRIVATE
-     cpu machine devices debugger ndlib  m)
+    ${ND_LINK_GROUP_BEGIN} cpu machine devices debugger ndlib ${ND_LINK_GROUP_END}
+    cjson_objects m)
 
 add_dependencies(test_cpu_ring cpu devices)
 
 add_test(NAME cpu_ring_tests COMMAND test_cpu_ring)
 
-# Breakpoints and single steps that belong to one program (level and PCR), and the
-# breakpoint on the first instruction a level runs after a switch; the real cpu_run().
-add_executable(test_bkpt_context
-    test_bkpt_context.c
-)
+# The code this test drives (the DAP step and breakpoint logic in debugger.c) is
+# built only with the debugger and libdap: debugger.c is empty without
+# WITH_DEBUGGER, and the top CMakeLists.txt turns the debugger off on Windows.
+if(DEBUGGER_ENABLED AND TARGET dap_objects)
+    # Breakpoints and single steps that belong to one program (level and PCR), and the
+    # breakpoint on the first instruction a level runs after a switch; the real cpu_run().
+    add_executable(test_bkpt_context
+        test_bkpt_context.c
+    )
 
-target_include_directories(test_bkpt_context PRIVATE
-    /src
-    /src/cpu
-    /src/machine
-    /src/devices
-    /src/ndlib
-    ${CMAKE_SOURCE_DIR}/src/debugger
-    ${CMAKE_SOURCE_DIR}/external/libdap/libdap/include
-    ${CMAKE_SOURCE_DIR}/external/libsymbols/include
-)
+    target_include_directories(test_bkpt_context PRIVATE
+        /src
+        /src/cpu
+        /src/machine
+        /src/devices
+        /src/ndlib
+        ${CMAKE_SOURCE_DIR}/src/debugger
+        ${CMAKE_SOURCE_DIR}/external/libdap/libdap/include
+        ${CMAKE_SOURCE_DIR}/external/libsymbols/include
+    )
 
-target_link_libraries(test_bkpt_context PRIVATE
-     cpu machine devices debugger ndlib  m)
+    # A link GROUP as test_memory_banks (the libraries call each other), and
+    # cjson_objects as the nd100x target links it: floppydb.c in ndlib calls cJSON.
+    target_link_libraries(test_bkpt_context PRIVATE
+        ${ND_LINK_GROUP_BEGIN} cpu machine devices debugger ndlib ${ND_LINK_GROUP_END}
+        cjson_objects m)
 
-add_dependencies(test_bkpt_context cpu devices)
+    add_dependencies(test_bkpt_context cpu devices)
 
-add_test(NAME bkpt_context_tests COMMAND test_bkpt_context)
+    add_test(NAME bkpt_context_tests COMMAND test_bkpt_context)
+endif()
 
 # IDENT with no device: A unchanged and the IOX error raised (ND-06.015.02 6.7.4).
 add_executable(test_ident
@@ -1008,8 +1019,11 @@ target_include_directories(test_ident PRIVATE
     /src/ndlib
 )
 
+# A link GROUP as test_memory_banks (the libraries call each other), and
+# cjson_objects as the nd100x target links it: floppydb.c in ndlib calls cJSON.
 target_link_libraries(test_ident PRIVATE
-     cpu machine devices debugger ndlib  m)
+    ${ND_LINK_GROUP_BEGIN} cpu machine devices debugger ndlib ${ND_LINK_GROUP_END}
+    cjson_objects m)
 
 add_dependencies(test_ident cpu devices)
 

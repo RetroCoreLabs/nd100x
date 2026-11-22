@@ -126,7 +126,9 @@ void mms_destroy_paging_tables(void)
     if (g_paging_tables.shadowRam)
     {
         free(g_paging_tables.shadowRam);
+        g_paging_tables.shadowRam = NULL; /* a second destroy must not free it again */
     }
+    g_paging_tables.isInitialized = 0;
 }
 
 

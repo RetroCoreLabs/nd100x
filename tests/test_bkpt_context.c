@@ -89,6 +89,7 @@ static void fixture(int32_t pcr_level1)
     g_nd_memsize = TEST_LOCAL_WORDS;
     mms_memory_banks_init();
     g_mms_type = MMS1;
+    mms_destroy_paging_tables(); /* the tables of the previous fixture */
     if (!mms_create_paging_tables())
     {
         printf("  FAIL: paging tables did not allocate\n");
@@ -267,5 +268,6 @@ int main(void)
           "no temporary breakpoint is left one word after the link");
 
     printf("\n%d checks, %d failed\n", s_checks, s_failed);
+    mms_destroy_paging_tables();
     return s_failed ? 1 : 0;
 }
