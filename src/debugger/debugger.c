@@ -196,6 +196,12 @@ char *base64_encode(const uint8_t *data, size_t len)
 // Variables at a fixed address, outside every routine: the GLOBAL lines of the .srcmap
 // (the data-elements of a PLANC module; libsymbols srcmap_debug.c)
 #define SCOPE_ID_GLOBALS   1003
+// The elements of a word array among the globals: SCOPE_ID_GLOBAL_ARRAY_BASE + its index in
+// debug_info->globals. Below SCOPE_ID_LOCALS, so no other reference falls in the range.
+#define SCOPE_ID_GLOBAL_ARRAY_BASE 2000
+#define SCOPE_ID_GLOBAL_ARRAY_END  2999
+// At most this many elements of one array are listed (the first ones)
+#define GLOBAL_ARRAY_MAX_ELEMENTS 1024
 
 #define SCOPE_ID_INTERNAL_REGISTERS_READ  1010
 #define SCOPE_ID_INTERNAL_REGISTERS_WRITE 1011
@@ -1830,9 +1836,65 @@ static void add_local_variables(DAPServer *server, char *info_message, size_t in
 }
 
 /*
- * The variables at a fixed address (GLOBAL lines of the .srcmap). A word or a byte is read as
- * the program sees it, through dbg_read_data (the trap-free read add_local_variables uses); an
- * array shows its type and address only - its elements are not listed yet.
+ * The bounds of a word array from its type, "word(LOWER:UPPER)". False for every other type:
+ * only a word array has one element per word, so only there is the address of an element known
+ * (address + index - LOWER).
+ */
+static bool global_word_array(const char *type, long *lower, long *upper)
+{
+    char tail;
+    if (type == NULL || strncmp(type, "word(", 5) != 0)
+    {
+        return false;
+    }
+    if (sscanf(type + 5, "%ld:%ld%c", lower, upper, &tail) != 3 || tail != ')' || *upper < *lower)
+    {
+        return false;
+    }
+    return true;
+}
+
+/* The elements of the word array number gi of the globals, the first GLOBAL_ARRAY_MAX_ELEMENTS. */
+static void add_global_array_elements(DAPServer *server, int gi)
+{
+    char name[32];
+    char value_str[64];
+    symbol_debug_info_t *info = s_symbol_tables.debug_info;
+    long lower;
+    long upper;
+    if (!info || gi < 0 || gi >= info->global_count ||
+        !global_word_array(info->globals[gi].type_name, &lower, &upper))
+    {
+        return;
+    }
+    long last = upper;
+    if (last - lower + 1 > GLOBAL_ARRAY_MAX_ELEMENTS)
+    {
+        last = lower + GLOBAL_ARRAY_MAX_ELEMENTS - 1;
+    }
+    for (long k = lower; k <= last; k++)
+    {
+        uint16_t addr = (uint16_t)(info->globals[gi].address + (k - lower));
+        int word = dbg_read_data(addr);
+        snprintf(name, sizeof(name), "[%ld]", k);
+        if (word == -1)
+        {
+            snprintf(value_str, sizeof(value_str), "<unreadable>");
+        }
+        else
+        {
+            snprintf(value_str, sizeof(value_str), "%d (%06o)", (int16_t)word, (uint16_t)word);
+        }
+        add_variable_to_array(server, name, value_str, "word", addr, 0, DAP_VARIABLE_KIND_DATA,
+                              DAP_VARIABLE_ATTR_NONE);
+    }
+}
+
+/*
+ * The variables at a fixed address (GLOBAL lines of the .srcmap). A word is read as the program
+ * sees it, through dbg_read_data (the trap-free read add_local_variables uses). A word array can
+ * be opened: its elements are the children (add_global_array_elements). Any other array shows its
+ * type and address only.
  */
 static void add_global_variables(DAPServer *server, char *info_message, size_t info_message_size)
 {
@@ -1848,7 +1910,18 @@ static void add_global_variables(DAPServer *server, char *info_message, size_t i
         const char *type = g->type_name ? g->type_name : "";
         if (strchr(type, '(') != NULL)
         {
+            long lower;
+            long upper;
             snprintf(value_str, sizeof(value_str), "%s at %06o", type, g->address);
+            int ref = 0;
+            if (global_word_array(type, &lower, &upper) &&
+                SCOPE_ID_GLOBAL_ARRAY_BASE + i <= SCOPE_ID_GLOBAL_ARRAY_END)
+            {
+                ref = SCOPE_ID_GLOBAL_ARRAY_BASE + i;
+            }
+            add_variable_to_array(server, g->name, value_str, type, g->address, ref,
+                                  DAP_VARIABLE_KIND_DATA, DAP_VARIABLE_ATTR_NONE);
+            continue;
         }
         else
         {
@@ -2616,6 +2689,11 @@ static int cmd_variables(DAPServer *server)
         if (variables_reference >= SCOPE_ID_PIL_BASE && variables_reference <= SCOPE_ID_PIL_END)
         {
             add_pil_register_variables(server, variables_reference - SCOPE_ID_PIL_BASE);
+        }
+        else if (variables_reference >= SCOPE_ID_GLOBAL_ARRAY_BASE &&
+                 variables_reference <= SCOPE_ID_GLOBAL_ARRAY_END)
+        {
+            add_global_array_elements(server, variables_reference - SCOPE_ID_GLOBAL_ARRAY_BASE);
         }
         else
         {
