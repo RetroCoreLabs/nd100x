@@ -1805,7 +1805,7 @@ int main(int argc, char *argv[])
     }
 #endif
 
-    if (config.debuggerEnabled)
+    if (config.debuggerEnabled && !config.debuggerNoPause)
     {
         cpu_set_run_mode(CPU_PAUSED);
     }

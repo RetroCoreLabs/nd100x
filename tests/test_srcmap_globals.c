@@ -13,6 +13,7 @@
 #include <stdint.h>
 #include <unistd.h>
 #include "symbols.h"
+#include "mapfile.h"
 
 static int failed;
 static int checks;
@@ -50,6 +51,9 @@ int main(void)
                                  "GLOBAL:B:word -> 000456\n"
                                  "GLOBAL:C:word -> 000457\n"
                                  "N100A.PLNC:5 -> 000470\n"
+                                 "CODE:000470 -> 146117 134412 000005 044606\n"
+                                 "N100A.PLNC:6 -> 000477\n"
+                                 "CODE:000477 -> 044606\n"
                                  "FUNC:MAIN -> 000470\n");
     check(path != NULL, "the map file could not be written");
     if (path == NULL)
@@ -70,7 +74,29 @@ int main(void)
         check(info->globals[3].address == 0457, "C at 457 octal");
     }
     check(info->function_count == 1 && info->functions[0].start_address == 0470, "the FUNC line still loads");
+    /* CODE:ADDRESS -> W1 W2 ...: the program's code words at a line's address (octal) */
+    check(info->code_count == 2, "two CODE lines");
+    const symbol_code_t *code = symbols_find_code(info, 0470);
+    check(code != NULL && code->count == 4 && code->words[0] == 0146117 && code->words[3] == 0044606,
+          "CODE at 470: four words, octal");
+    code = symbols_find_code(info, 0477);
+    check(code != NULL && code->count == 1 && code->words[0] == 0044606, "CODE at 477: one word");
+    check(symbols_find_code(info, 0471) == NULL, "no CODE at 471");
     symbols_debug_info_free(info);
+
+    /* the plain line reader takes only the source lines: a GLOBAL or a CODE line read as
+     * "file:line" made a source file named GLOBAL or CODE */
+    {
+        map_entry_t *entries = NULL;
+        size_t count = 0;
+        check(mapfile_parse_file(path, &entries, &count), "the line reader did not read the map");
+        check(count == 2, "two source lines, no GLOBAL or CODE line among them");
+        for (size_t i = 0; i < count; i++)
+        {
+            check(strcmp(entries[i].filename, "N100A.PLNC") == 0, "a line of another file than N100A.PLNC");
+        }
+        mapfile_free_entries(entries, count);
+    }
 
     /* a map with GLOBAL lines only is debug information too */
     path = write_map("GLOBAL:X:byte -> 000012\n");

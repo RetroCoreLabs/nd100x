@@ -70,6 +70,7 @@ typedef struct {
     bool bootStatus;     // "Booting from ..." line until first console output (default on; --no-boot-status)
     bool showHelp;
     bool debuggerEnabled;
+    bool debuggerNoPause; /* --debugger-no-pause: the debugger listens, the CPU runs from the start */
     int debuggerPort;
     bool smdDebug;
     bool bsdDebug;

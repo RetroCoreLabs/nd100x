@@ -50,6 +50,7 @@ static struct option long_options[] = {
     {"help",       no_argument,       0, 'h'},
     {"version",    no_argument,       0, 'V'},
     {"debugger",   no_argument,       0, 'd'},
+    {"debugger-no-pause", no_argument, 0, 0x190}, // the debugger on, the CPU NOT held until a client connects
     {"port",       required_argument, 0, 'p'},
     {"smd-debug",  no_argument,       0, 'S'},
     {"bsd-debug",  no_argument,       0, 'G'},
@@ -137,6 +138,7 @@ void config_init(Config *config)
     config->bootStatus = true;
     config->showHelp = false;
     config->debuggerEnabled = false;
+    config->debuggerNoPause = false;
     config->debuggerPort = 4711;
     config->smdDebug = false;
     config->bsdDebug = false;
@@ -495,6 +497,13 @@ bool config_parse_command_line(Config *config, int argc, char *argv[])
 
         case 'd':
             config->debuggerEnabled = true;
+            break;
+
+        case 0x190:
+            /* --debugger-no-pause: as --debugger, but the machine runs at once; a client can attach
+             * later (a SINTRAN program is debugged after the boot, which planc-run waits for) */
+            config->debuggerEnabled = true;
+            config->debuggerNoPause = true;
             break;
 
         case 'p':
@@ -1331,6 +1340,7 @@ void config_print_help(const char *prog_name)
     printf("  -s,      --start=ADDR   Start address (default: 0)\n");
     printf("  -a,      --disasm       Enable disassembly output\n");
     printf("  -d,      --debugger     Enable DAP debugger\n");
+    printf("           --debugger-no-pause  Enable the DAP debugger, but run at once (attach later)\n");
     printf("  -p PORT, --port=PORT    Set debugger port (default: 4711)\n");
     printf("  -S,      --smd-debug    Enable SMD disk controller debug log (stderr)\n");
     printf("           --scsi-debug   Enable SCSI disk controller debug log (stderr)\n");

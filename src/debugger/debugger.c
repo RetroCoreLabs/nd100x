@@ -3272,10 +3272,19 @@ static int cmd_set_breakpoints(DAPServer *server)
     const char *source_path = server->current_command.context.breakpoint.source_path;
     int breakpoint_count = server->current_command.context.breakpoint.breakpoint_count;
 
-    if (!source_path || breakpoint_count <= 0)
+    if (!source_path || breakpoint_count < 0)
     {
         LOG(LOG_CAT_DAP, LOG_WARN, "Missing required breakpoint information\n");
         return -1;
+    }
+    // An empty list is the client removing the last breakpoint of the source (DAP
+    // setBreakpoints replaces the whole set; VS Code sends it when the last one is removed):
+    // the old ones go. Refused here before, it left them armed and the program stopped there
+    // again after "continue" (nd-lang docs/BUGS.md P4).
+    if (breakpoint_count == 0)
+    {
+        bkpt_manager_clear_type(BP_TYPE_USER);
+        return 0;
     }
 
     // Get filename from path
@@ -3377,6 +3386,16 @@ static int cmd_set_breakpoints(DAPServer *server)
                          bp->hit_condition, // Optional hit condition
                          bp->log_message    // Optional log message
         );
+        // the program's code at that address, when the source map has it (CODE line): the
+        // breakpoint then fires only in this program (cpu_bkpt.c, entry_code_matches)
+        {
+            const symbol_code_t *code =
+                symbols_find_code(s_symbol_tables.debug_info, (uint16_t)address);
+            if (code)
+            {
+                bkpt_manager_expect_code((uint16_t)address, code->words, code->count);
+            }
+        }
 
         // Log the breakpoint addition
         char msg[256];
@@ -4220,6 +4239,10 @@ static int cmd_launch_callback(DAPServer *server)
 static int cmd_configuration_done(DAPServer *server)
 {
     LOG(LOG_CAT_DAP, LOG_DEBUG, "Configuration done command received\n");
+    /* one line on standard error that a script can wait for: the client has set its breakpoints
+     * (nd-lang tools/oracle/planc100-oracle.sh starts the program only after it) */
+    fprintf(stderr, "nd100x: debug client configured\n");
+    fflush(stderr);
 
     // Send the response
     server->debugger_state.configuration_done = true;

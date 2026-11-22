@@ -144,6 +144,48 @@ static bool entry_context_matches(const BreakpointEntry *bp)
     return context_matches(g_breakpoint_mgr->program_pil, g_breakpoint_mgr->program_pcr);
 }
 
+/// Does memory hold the breakpoint's code words at its address? Read through the page table
+/// the running level fetches with (trap-free). No words: yes.
+static bool entry_code_matches(const BreakpointEntry *bp)
+{
+    for (int k = 0; k < bp->code_count; k++)
+    {
+        int w = Dbg_ReadVirtualMemoryISpace((uint16_t)(bp->address + k));
+        if (w != (int)bp->code[k])
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+/// @brief Give the user breakpoints at an address the program's code words there
+/// @param address Breakpoint address
+/// @param words The words from that address on (the CODE line of the source map)
+/// @param count Number of words; more than BKPT_CODE_WORDS are not compared
+void bkpt_manager_expect_code(uint16_t address, const uint16_t *words, int count)
+{
+    if (g_breakpoint_mgr == NULL)
+    {
+        return;
+    }
+    if (count > BKPT_CODE_WORDS)
+    {
+        count = BKPT_CODE_WORDS;
+    }
+    for (BreakpointEntry *e = g_breakpoint_mgr->buckets[hash_address(address)]; e; e = e->next)
+    {
+        if (e->address == address && e->type != BP_TYPE_TEMPORARY)
+        {
+            for (int k = 0; k < count; k++)
+            {
+                e->code[k] = words[k];
+            }
+            e->code_count = count;
+        }
+    }
+}
+
 /// @brief Cleanup the breakpoint manager
 /// @return void
 /// @note Clean up and free the breakpoint manager memory
@@ -231,6 +273,7 @@ void bkpt_manager_add_ctx(uint16_t address, BreakpointType type, const char *con
     entry->hitCount = 0;
     entry->pil = pil;
     entry->pcr = (pcr >= 0) ? (int32_t)((uint32_t)pcr & BKPT_PCR_MASK) : -1;
+    entry->code_count = 0;
     entry->next = g_breakpoint_mgr->buckets[h];
 
     g_breakpoint_mgr->buckets[h] = entry;
@@ -359,8 +402,9 @@ static int breakpoint_manager_check(uint16_t address, BreakpointEntry **matches[
     while (curr)
     {
         // Only the breakpoints of the program that runs now: same address in another level
-        // or another page table is other code.
-        if (curr->address == address && entry_context_matches(curr))
+        // or another page table is other code, and so is other code at the same address in the
+        // same page table (entry_code_matches).
+        if (curr->address == address && entry_context_matches(curr) && entry_code_matches(curr))
         {
             if (curr->type == BP_TYPE_TEMPORARY)
             {

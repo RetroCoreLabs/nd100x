@@ -781,6 +781,9 @@ typedef enum
     BP_TYPE_INSTRUCTION
 } BreakpointType;
 
+// The most code words a breakpoint compares (SYMBOL_CODE_WORDS of libsymbols)
+#define BKPT_CODE_WORDS 4
+
 // clang-format off
 typedef struct BreakpointEntry {
     uint16_t address;
@@ -791,6 +794,12 @@ typedef struct BreakpointEntry {
     int hitCount;        // internal counter
     int8_t pil;          // level the breakpoint belongs to; -1: any level
     int32_t pcr;         // PCR of that level, ring bits removed (BKPT_PCR_MASK); -1: any
+    // The program's code at the address (the CODE line of the source map): the breakpoint
+    // fires only when memory holds these words there. SINTRAN runs other programs at the same
+    // virtual address on the same level with the same PCR, so level and PCR alone do not
+    // name the program (nd-lang docs/BUGS.md P4). code_count 0: no check.
+    int code_count;
+    uint16_t code[BKPT_CODE_WORDS];
     struct BreakpointEntry* next;
 } BreakpointEntry;
 // clang-format on
