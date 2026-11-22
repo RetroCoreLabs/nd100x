@@ -1080,3 +1080,45 @@ never stopped. One of the two stalls above happened while a second agent's debug
 was connected to port 4793, the port of that DA3 run (reported by that agent); the other was
 measured alone. The entry stays open until a stall is seen again and traced, or the cause
 of the alone run is found.
+
+**Measured 2026-11-23 (not reproduced; cause still unknown).** Seen a third time in the nd-lang gate
+run of 2026-11-22 23:36 (Debug build, many nd100x side by side), and a fourth time in the same run
+WITHOUT the debugger:
+
+- DA3 with `--debug 4793`: the boot ran, ESCAPE was answered with the banner and `ENTER `
+  (complete, with its space), `NPC\r\r` was written to the console fifo, and in 30 s not one
+  character came back. The session log (`session.log` of that run) has one oddity beside that:
+  the banner that answers ESCAPE is stamped 12.14.16, 2 min 9 s of machine time after the last
+  start-up line (12.12.07). In a good run of the same pack it is 17 s (12.12.07 to 12.12.24).
+  The clock is `rtc = ticks`, so the machine ran those two minutes; the script presses ESCAPE
+  again at least every 3 s until `ENTER` comes, and the log holds one banner only, so ESCAPE presses were
+  lost before the log-in text was too (an ESCAPE that reaches SINTRAN prints a banner each
+  time: measured, one banner per press at 0.1 s apart). No `emulator.err` was kept.
+- nd-lang `e2e_nd100` probe DA9 (no debugger, no `--debug`): the linker answered
+  `LIBRARY-MODE ON` with its `Brl: ` prompt, `LOAD PLANC-1BANK-F00` was sent, nothing came back
+  in 60 s (`load.log` of ODA9; the reported "a program file shorter than its header" is the empty
+  `ODA9.PROG` the stopped load left). The same session had loaded 100+ probes before it.
+  So the stall is NOT tied to the debugger.
+
+**Tried to reproduce, all passed:** 38 `planc-run --on 100 --debug` runs (14 side by side,
+then 24 side by side with 16 busy-loop processes, load average 20 on 20 cores) and 28 boots
+driving the log-in by hand (no debugger; log-in text 0 to 0.6 s after `ENTER`, a second ESCAPE
+0 or 0.3 s before it, ESCAPE every 0.2 to 0.6 s from the last start-up line on): the log-in text
+was echoed every time.
+
+**Ruled out by reading the code:** the POSIX reader (`src/ndlib/keyboard.c`
+`read_raw_sequence`) takes bytes with `poll`+`read`, one event per call, and a `read` that
+returns 0 or -1 only ends that call; nothing is thrown away. The 0xFF control framing eats bytes
+only after a 0xFF byte, which the scripts never send. The telnet server is off by default.
+
+**A real path that loses console text, not shown to be this stall:** in the main loop
+(`src/frontend/nd100x/nd100x.c`, the key loop after `kbd_read_key_event`) every byte read while
+the CPU is `CPU_PAUSED` or `CPU_BREAKPOINT` goes to `debugger_kbd_input`, which drops it, and
+treats `q` as "shut the machine down" and a blank as "run one instruction". With `--pipe` and a
+debug client that has the machine stopped, text the driver writes is lost that way. In the DA3
+failure no client was connected (the test attaches only after "attach now", which never came).
+
+**Next, to find it:** keep `emulator.err` and the fifo text of a failing run (nd-lang
+`planc100-oracle.sh` deletes the run folder), and add a byte log of the console input path
+(bytes read from stdin, bytes queued to the terminal, bytes taken by the CPU) so the next stall
+shows where the text stops.
