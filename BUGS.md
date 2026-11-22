@@ -1050,3 +1050,9 @@ what VS Code sends when the last breakpoint in a file is removed - gets the answ
 
 **What is known:** the DAP specification says an empty list clears the file's breakpoints and is a
 normal request. Where nd100x or libdap turns it into a failure is not traced yet.
+**Fixed 2026-11-22.** cmd_set_breakpoints (src/debugger/debugger.c) refused a list of length 0
+("Missing required breakpoint information") and returned before it cleared anything, so the old
+breakpoints stayed armed: a program stopped again where the client had removed the breakpoint
+(nd-lang tests/nd100debug/planc_dap_locals_test.js, BE01, after continue). An empty list now clears
+the source breakpoints and answers success. Measured: planc_dap_locals_100 ends with the right
+output; ctest 107 of 107.
