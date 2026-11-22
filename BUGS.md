@@ -1072,3 +1072,11 @@ BE14 and DR3 with `--debug` load on the Release build. The BRF of DA3 is the sam
 **What is known:** nothing more; whether the Release build reads uninitialised memory, races
 on the console, or something else, is not traced. Until it is, run the debugger tests on a Debug
 build.
+
+**Not reproduced (2026-11-22, later the same evening):** nd100x Release built from 09ee66b
+(the commit with the views work), nd-lang c42475fd, the same `planc_dap_views_test.js DA3`
+run eight times one after the other, alone, on port 4797: 53 of 53 checks every time, the load
+never stopped. One of the two stalls above happened while a second agent's debug client
+was connected to port 4793, the port of that DA3 run (reported by that agent); the other was
+measured alone. The entry stays open until a stall is seen again and traced, or the cause
+of the alone run is found.
