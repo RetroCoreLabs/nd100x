@@ -197,6 +197,7 @@ static uint16_t terminal_tick(Device *self)
             uint16_t value = data->inputQueue.buffer[data->inputQueue.head];
             data->inputQueue.head = (data->inputQueue.head + 1) % TERMINAL_QUEUE_SIZE;
             data->inputQueue.count--;
+            terminal_input_trace('C', self, (uint8_t)value);
             data->lineTimed = false; // the next character's line time starts now
 
             // Process character based on length
@@ -472,6 +473,31 @@ static bool write_end(void *context, int param)
     return false;
 }
 
+// The console input trace (device_terminal.h, terminal_input_trace). Opened on first use; a
+// line is flushed at once, so a stall can be read from the file while the emulator still runs.
+static FILE *s_input_trace = NULL;
+static int s_input_trace_checked = 0;
+
+void terminal_input_trace(char step, const Device *self, uint8_t byte)
+{
+    if (!s_input_trace_checked)
+    {
+        s_input_trace_checked = 1;
+        const char *name = getenv("ND100X_INPUT_TRACE");
+        if (name && name[0])
+        {
+            s_input_trace = fopen(name, "w");
+        }
+    }
+    if (!s_input_trace)
+    {
+        return;
+    }
+    fprintf(s_input_trace, "%c %06o %03o\n", step, self ? (unsigned)self->startAddress : 0u,
+            (unsigned)byte);
+    fflush(s_input_trace);
+}
+
 // Add QueueKeyCode implementation
 void terminal_queue_key_code(Device *self, uint8_t keycode)
 {
@@ -490,8 +516,10 @@ void terminal_queue_key_code(Device *self, uint8_t keycode)
     if (data->inputQueue.count >= TERMINAL_QUEUE_SIZE)
     {
         data->inputStatus.bits.overrunError = true;
+        terminal_input_trace('O', self, keycode);
         return;
     }
+    terminal_input_trace('Q', self, keycode);
 
     // Add keycode to queue
     data->inputQueue.buffer[data->inputQueue.tail] = keycode;

@@ -1977,6 +1977,7 @@ int main(int argc, char *argv[])
                 for (int i = 0; i < mapped_len; i++)
                 {
                     char ch = mapped_seq[i];
+                    terminal_input_trace('K', NULL, (uint8_t)ch);
 
 #if !defined(__EMSCRIPTEN__) && !defined(__riscv)
                     // --pipe control framing (0xFF <cmd> \n) is intercepted here as a command
@@ -1995,6 +1996,7 @@ int main(int argc, char *argv[])
 
                     if ((run_mode == CPU_PAUSED) || (run_mode == CPU_BREAKPOINT))
                     {
+                        terminal_input_trace('D', NULL, (uint8_t)ch);
                         debugger_kbd_input(ch);
                     }
                     else
@@ -2004,6 +2006,10 @@ int main(int argc, char *argv[])
                             screens[active_screen].localActive && screens[active_screen].device)
                         {
                             terminal_queue_key_code(screens[active_screen].device, ch);
+                        }
+                        else
+                        {
+                            terminal_input_trace('X', NULL, (uint8_t)ch);
                         }
                     }
                 }

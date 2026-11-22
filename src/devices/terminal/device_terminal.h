@@ -198,6 +198,21 @@ void terminal_queue_key_code(Device *self, uint8_t keycode);
 size_t terminal_input_room(Device *self);
 
 /**
+ * @brief Console input trace. With the environment variable ND100X_INPUT_TRACE set to a file
+ *        name, every console byte is written there at each step it passes, one line each:
+ *        "<step> <device address, octal> <byte, octal>". Steps: K read from the keyboard or
+ *        --pipe, Q put in a terminal's input queue, O dropped because that queue was full,
+ *        D handed to the debugger (the CPU was stopped), X dropped because no terminal took
+ *        input, C taken by the CPU from the queue. Without the variable nothing is written.
+ *        Why: BUGS.md D5 - text sent to the console was sometimes never echoed, and nothing
+ *        showed where it stopped.
+ * @param step One of K Q O D X C.
+ * @param self The terminal device, or NULL when there is none (K, D, X).
+ * @param byte The byte.
+ */
+void terminal_input_trace(char step, const Device *self, uint8_t byte);
+
+/**
  * @brief Set the line speed of every terminal: the speed switch on the card. The
  *        ND-100 speed switch offers 50 to 9600 baud (ND-06.016.01 Appendix C.1.2, C.2.3).
  * @param baud Bits per second; values <= 0 are ignored.
