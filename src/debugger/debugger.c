@@ -1944,6 +1944,10 @@ static long text_size(dbg_text t)
     {
         return 2; /* a pointer; after the arrays: "at word(0:2)" is an array of pointers */
     }
+    if (text_is(t, "real 6"))
+    {
+        return 6; /* the REAL of PLANC-100, three words */
+    }
     if (text_number(t, &i, &n) && i < t.len && t.p[i] == ' ')
     {
         return n; /* "N bytes" */
@@ -2206,6 +2210,25 @@ static void add_typed_variable(DAPServer *server, const char *name, dbg_text t, 
         else
         {
             snprintf(value_str, sizeof(value_str), "%d (%03o)", b, b);
+        }
+    }
+    else if (text_is(t, "real 6"))
+    {
+        /* the REAL of PLANC-100: three words, the 48-bit float of float.c (mkfp48), shown as
+         * the exact decimal of its bits (float48_text: no host float on the way; digits past
+         * the first 40 are cut and "..." marks that) */
+        int w0 = view_word(ba);
+        int w1 = view_word(ba + 2u);
+        int w2 = view_word(ba + 4u);
+        if (w0 == -1 || w1 == -1 || w2 == -1)
+        {
+            snprintf(value_str, sizeof(value_str), "<unreadable>");
+        }
+        else
+        {
+            char num[72];
+            float48_text((uint16_t)w0, (uint16_t)w1, (uint16_t)w2, num, sizeof num);
+            snprintf(value_str, sizeof(value_str), "%s", num);
         }
     }
     else if (text_is(t, "word") || (ba & 1u) != 0)

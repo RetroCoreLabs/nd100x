@@ -43,6 +43,8 @@
 #include <limits.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <pthread.h>
 
 #include "cpu_types.h"
@@ -903,4 +905,188 @@ void float_do_dnz32(char scaling)
     gA = (uint16_t)val;
     gD = 0;
     /* gT deliberately NOT touched. */
+}
+
+/* ---------------------------------------------------------------- */
+/*
+ * float48_text - the value of a 48-bit float as decimal text, for the debugger.
+ *
+ * The layout is the one mkfp48 above reads: word 0 the sign (bit 15) and the
+ * exponent (bits 14-0, bias 16384), words 1 and 2 the mantissa m, 32 bits,
+ * value = (-1)**s * (m / 2**32) * 2**(e - 16384). A mantissa of 0 is 0. The
+ * value is worked out from those bits with whole-number arithmetic in base
+ * 10**9, never through a host float (a host double has an 11-bit exponent;
+ * this one has 15), so every digit shown is a digit of the exact value: a
+ * negative power of two is m * 5**k with k digits behind the point.
+ *
+ * Digits past the first FLOAT48_TEXT_DIGITS significant ones are CUT (not
+ * rounded) and "..." follows; a value far from 1 (a power of ten below -20,
+ * or 40 and up) is written d.ddd[...]e+N. Returns the length written, or 0
+ * when cap is below 72 (buf is then "").
+ */
+#define FLOAT48_TEXT_DIGITS 40
+/* 32 bits times 5**16416 (exponent 0) is about 11485 digits, times 2**16351
+ * (exponent 077777) about 4932: 1300 limbs of 9 digits */
+#define FLOAT48_TEXT_LIMBS 1300
+#define FLOAT48_TEXT_BASE 1000000000u
+
+/* b = b * m (m below 2**32), n the limbs in use; 0 when it does not fit */
+static int float48_big_mul(uint32_t *b, int *n, uint32_t m)
+{
+    uint64_t carry = 0;
+    int i;
+    for (i = 0; i < *n; i++)
+    {
+        uint64_t t = ((uint64_t)b[i] * m) + carry;
+        b[i] = (uint32_t)(t % FLOAT48_TEXT_BASE);
+        carry = t / FLOAT48_TEXT_BASE;
+    }
+    while (carry != 0)
+    {
+        if (*n >= FLOAT48_TEXT_LIMBS)
+        {
+            return 0;
+        }
+        b[(*n)++] = (uint32_t)(carry % FLOAT48_TEXT_BASE);
+        carry /= FLOAT48_TEXT_BASE;
+    }
+    return 1;
+}
+
+size_t float48_text(uint16_t w0, uint16_t w1, uint16_t w2, char *buf, size_t cap)
+{
+    static const uint32_t pow5_13 = 1220703125u; /* 5**13, below 2**32 */
+    uint32_t big[FLOAT48_TEXT_LIMBS];
+    char d[(FLOAT48_TEXT_LIMBS * 9) + 1];
+    int n = 0;
+    int len;
+    int point = 0; /* digits behind the decimal point */
+    int sd;        /* significant digits: d without its trailing zeros */
+    int e10;       /* the value is d[0].d[1]d[2]... * 10**e10 */
+    int i;
+    int k;
+    size_t o = 0;
+    int negative = (w0 >> 15) & 1;
+    int scale = (int)(w0 & 0x7FFF) - 16384 - 32;
+    uint32_t m = ((uint32_t)w1 << 16) | w2;
+
+    if (cap < 72)
+    {
+        if (cap > 0)
+        {
+            buf[0] = '\0';
+        }
+        return 0;
+    }
+    if (m == 0)
+    {
+        return (size_t)snprintf(buf, cap, "0");
+    }
+    big[n++] = m % FLOAT48_TEXT_BASE;
+    if (m >= FLOAT48_TEXT_BASE)
+    {
+        big[n++] = m / FLOAT48_TEXT_BASE;
+    }
+    if (scale > 0)
+    {
+        for (k = scale; k > 0; k -= 29)
+        {
+            if (!float48_big_mul(big, &n, 1u << (k < 29 ? k : 29)))
+            {
+                buf[0] = '\0';
+                return 0;
+            }
+        }
+    }
+    else if (scale < 0)
+    {
+        point = -scale;
+        for (k = point; k > 0; k -= 13)
+        {
+            uint32_t f = pow5_13;
+            if (k < 13)
+            {
+                f = 1;
+                for (i = 0; i < k; i++)
+                {
+                    f *= 5u;
+                }
+            }
+            if (!float48_big_mul(big, &n, f))
+            {
+                buf[0] = '\0';
+                return 0;
+            }
+        }
+    }
+    len = snprintf(d, sizeof d, "%u", (unsigned)big[n - 1]);
+    for (i = n - 2; i >= 0; i--)
+    {
+        len += snprintf(d + len, sizeof d - (size_t)len, "%09u", (unsigned)big[i]);
+    }
+    /* zeros behind the point say nothing */
+    while (point > 0 && len > 1 && d[len - 1] == '0')
+    {
+        d[--len] = '\0';
+        point--;
+    }
+    sd = len;
+    while (sd > 1 && d[sd - 1] == '0')
+    {
+        sd--;
+    }
+    e10 = len - point - 1;
+    if (negative)
+    {
+        buf[o++] = '-';
+    }
+    if (e10 >= -(FLOAT48_TEXT_DIGITS / 2) && e10 < FLOAT48_TEXT_DIGITS)
+    {
+        /* written out; the digits cut all lie behind the point (at most
+         * FLOAT48_TEXT_DIGITS digits in front of it) */
+        int cut = sd > FLOAT48_TEXT_DIGITS;
+        if (cut)
+        {
+            point -= len - FLOAT48_TEXT_DIGITS;
+            len = FLOAT48_TEXT_DIGITS;
+            d[len] = '\0';
+        }
+        if (point == 0)
+        {
+            o += (size_t)snprintf(buf + o, cap - o, "%s", d);
+        }
+        else if (len > point)
+        {
+            o += (size_t)snprintf(buf + o, cap - o, "%.*s.%s", len - point, d, d + (len - point));
+        }
+        else
+        {
+            buf[o++] = '0';
+            buf[o++] = '.';
+            for (i = len; i < point; i++)
+            {
+                buf[o++] = '0';
+            }
+            o += (size_t)snprintf(buf + o, cap - o, "%s", d);
+        }
+        if (cut)
+        {
+            o += (size_t)snprintf(buf + o, cap - o, "...");
+        }
+        return o;
+    }
+    {
+        int shown = sd < FLOAT48_TEXT_DIGITS ? sd : FLOAT48_TEXT_DIGITS;
+        o += (size_t)snprintf(buf + o, cap - o, "%c", d[0]);
+        if (shown > 1)
+        {
+            o += (size_t)snprintf(buf + o, cap - o, ".%.*s", shown - 1, d + 1);
+        }
+        if (sd > shown)
+        {
+            o += (size_t)snprintf(buf + o, cap - o, "...");
+        }
+        o += (size_t)snprintf(buf + o, cap - o, "e%+d", e10);
+    }
+    return o;
 }

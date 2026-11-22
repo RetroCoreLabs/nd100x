@@ -56,6 +56,7 @@ int float_add(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r);
 int float_sub(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r);
 int float_mul(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r);
 int float_div(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r);
+size_t float48_text(uint16_t w0, uint16_t w1, uint16_t w2, char *buf, size_t cap);
 void float_do_nlz(char scaling);
 void float_do_dnz(char scaling);
 int float_add_32(uint16_t *p_a, uint16_t *p_b, uint16_t *p_r);
@@ -600,12 +601,53 @@ static void run_fp32(void)
 
 /* ---------------------------------------------------------------- */
 
+/* ---------------------------------------------------------------- */
+/*
+ * float48_text: the exact decimal of three words. The expected texts were worked
+ * out with exact rational arithmetic (Python fractions) from the layout float.c
+ * reads (mkfp48: sign, exponent with bias 16384, 32-bit mantissa below 1): 1, 6,
+ * 18, -0.375, the float nearest 0.1, the largest and the smallest exponent (cut
+ * to 40 digits, "..."), zero, and 2**33 - 2.
+ */
+static void run_text48(void)
+{
+    static const struct
+    {
+        uint16_t w0, w1, w2;
+        const char *text;
+    } cases[] = {
+        { 0040001, 0100000, 0000000, "1" },
+        { 0040003, 0140000, 0000000, "6" },
+        { 0040005, 0110000, 0000000, "18" },
+        { 0137777, 0140000, 0000000, "-0.375" },
+        { 0037775, 0146314, 0146315, "0.10000000000582076609134674072265625" },
+        { 0077777, 0177777, 0177777, "5.948657475401129076232271243478769037937...e+4931" },
+        { 0000000, 0100000, 0000000, "4.202628928890116882828347271652190753247...e-4933" },
+        { 0000000, 0000000, 0000000, "0" },
+        { 0040041, 0177777, 0177777, "8589934590" },
+    };
+    size_t i;
+    for (i = 0; i < sizeof cases / sizeof cases[0]; i++)
+    {
+        char buf[72];
+        size_t len = float48_text(cases[i].w0, cases[i].w1, cases[i].w2, buf, sizeof buf);
+        fptest_total++;
+        if (len != strlen(cases[i].text) || strcmp(buf, cases[i].text) != 0)
+        {
+            fptest_failed++;
+            printf("FAIL float48_text %06o %06o %06o: got \"%s\", expected \"%s\"\n", cases[i].w0,
+                   cases[i].w1, cases[i].w2, buf, cases[i].text);
+        }
+    }
+}
+
 int main(void)
 {
     memset(&fptest_regs, 0, sizeof(fptest_regs));
 
     run_fp48_lock();
     run_fp32();
+    run_text48();
 
     printf("float tests: %d checks, %d failed\n", fptest_total, fptest_failed);
     return fptest_failed ? 1 : 0;
