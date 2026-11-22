@@ -1030,3 +1030,13 @@ them later, with no breakpoint of the user's at that place.
 **What is known:** a new step removes any temporary breakpoints left over, and a temporary
 breakpoint that fires removes all of them. A stop for any other reason (user breakpoint, pause)
 does not. Not yet reproduced with a test.
+### T1. On Windows, `nd100x_expect_unit` fails its two FetchImage download tests
+
+**Found by:** a full ctest of a w64devkit (MinGW) build on Windows, 2026-11-22.
+
+**Shows up as:** the two FetchImage tests of `tools/nd100x_expect.py`'s unit tests stop with
+"WinError 3, the system cannot find the path specified: ''" - a path that is empty by the time it
+is used. The other 101 of 102 tests pass on Windows. CI does not see it: ctest runs only in the
+Linux ASan job.
+
+**What is known:** nothing beyond the message; the empty path's origin is not traced yet.
