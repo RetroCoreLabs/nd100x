@@ -1006,6 +1006,18 @@ if(DEBUGGER_ENABLED AND TARGET dap_objects)
     add_test(NAME bkpt_context_tests COMMAND test_bkpt_context)
 endif()
 
+# The GLOBAL lines of a .srcmap (a variable at a fixed address; libsymbols, srcmap_debug.c).
+if(TARGET symbols_objects)
+    add_executable(test_srcmap_globals
+        test_srcmap_globals.c
+    )
+    target_include_directories(test_srcmap_globals PRIVATE
+        ${CMAKE_SOURCE_DIR}/external/libsymbols/include
+    )
+    target_link_libraries(test_srcmap_globals PRIVATE symbols_objects)
+    add_test(NAME srcmap_globals_tests COMMAND test_srcmap_globals)
+endif()
+
 # IDENT with no device: A unchanged and the IOX error raised (ND-06.015.02 6.7.4).
 add_executable(test_ident
     test_ident.c

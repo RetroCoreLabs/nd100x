@@ -193,6 +193,9 @@ char *base64_encode(const uint8_t *data, size_t len)
 #define SCOPE_ID_LOCALS    1000
 #define SCOPE_ID_REGISTERS 1001
 #define SCOPE_ID_LEVELS    1002
+// Variables at a fixed address, outside every routine: the GLOBAL lines of the .srcmap
+// (the data-elements of a PLANC module; libsymbols srcmap_debug.c)
+#define SCOPE_ID_GLOBALS   1003
 
 #define SCOPE_ID_INTERNAL_REGISTERS_READ  1010
 #define SCOPE_ID_INTERNAL_REGISTERS_WRITE 1011
@@ -211,7 +214,7 @@ char *base64_encode(const uint8_t *data, size_t len)
 #define SCOPE_ID_PIL_END  1315 // inclusive: 1300..1315 = PIL 0..15
 
 #define NUM_SCOPES                                                                                 \
-    8 // Locals, Registers, Levels, Internal read, Internal write, status flags, memory PT, memory APT
+    9 // Locals, Globals, Registers, Levels, Internal read, Internal write, status flags, memory PT, memory APT
 
 // DAP server instance
 static DAPServer *g_dap_server;
@@ -1599,6 +1602,22 @@ static int cmd_scopes(DAPServer *server)
         }
     }
 
+    // Globals: the variables at a fixed address that the .srcmap names (GLOBAL lines)
+    if (s_symbol_tables.debug_info && s_symbol_tables.debug_info->global_count > 0)
+    {
+        scopes[scope_index].name = strdup("Globals");
+        scopes[scope_index].variables_reference = SCOPE_ID_GLOBALS;
+        scopes[scope_index].named_variables = s_symbol_tables.debug_info->global_count;
+        scopes[scope_index].indexed_variables = 0;
+        scopes[scope_index].expensive = false;
+        scopes[scope_index].source_path = NULL;
+        scopes[scope_index].line = 0;
+        scopes[scope_index].column = 0;
+        scopes[scope_index].end_line = 0;
+        scopes[scope_index].end_column = 0;
+        scope_index++;
+    }
+
     // Set up CPU Registers scope
     scopes[scope_index].name = strdup("CPU Registers");
     scopes[scope_index].variables_reference = SCOPE_ID_REGISTERS;
@@ -1808,6 +1827,51 @@ static void add_local_variables(DAPServer *server, char *info_message, size_t in
                                   DAP_VARIABLE_KIND_PROPERTY, DAP_VARIABLE_ATTR_NONE);
         }
     }
+}
+
+/*
+ * The variables at a fixed address (GLOBAL lines of the .srcmap). A word or a byte is read as
+ * the program sees it, through dbg_read_data (the trap-free read add_local_variables uses); an
+ * array shows its type and address only - its elements are not listed yet.
+ */
+static void add_global_variables(DAPServer *server, char *info_message, size_t info_message_size)
+{
+    char value_str[96];
+    symbol_debug_info_t *info = s_symbol_tables.debug_info;
+    if (!info)
+    {
+        return;
+    }
+    for (int i = 0; i < info->global_count; i++)
+    {
+        const symbol_global_t *g = &info->globals[i];
+        const char *type = g->type_name ? g->type_name : "";
+        if (strchr(type, '(') != NULL)
+        {
+            snprintf(value_str, sizeof(value_str), "%s at %06o", type, g->address);
+        }
+        else
+        {
+            int word = dbg_read_data(g->address);
+            if (word == -1)
+            {
+                snprintf(value_str, sizeof(value_str), "<unreadable>");
+            }
+            else if (strcmp(type, "byte") == 0)
+            {
+                /* which half of the word holds the byte is not in the map: the whole word */
+                snprintf(value_str, sizeof(value_str), "word %06o", (uint16_t)word);
+            }
+            else
+            {
+                snprintf(value_str, sizeof(value_str), "%d (%06o)", (int16_t)word,
+                         (uint16_t)word);
+            }
+        }
+        add_variable_to_array(server, g->name, value_str, type, g->address, 0,
+                              DAP_VARIABLE_KIND_DATA, DAP_VARIABLE_ATTR_NONE);
+    }
+    snprintf(info_message, info_message_size, "Globals: %d variables\n", info->global_count);
 }
 
 static void add_level_variables(DAPServer *server, char *info_message, size_t info_message_size)
@@ -2485,6 +2549,12 @@ static int cmd_variables(DAPServer *server)
     {
         // Use our helper function for local variables (C debug info or assembly)
         add_local_variables(server, info_message, sizeof(info_message));
+        break;
+    }
+
+    case SCOPE_ID_GLOBALS:
+    {
+        add_global_variables(server, info_message, sizeof(info_message));
         break;
     }
 
