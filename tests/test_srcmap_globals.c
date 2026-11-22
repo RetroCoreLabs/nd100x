@@ -105,6 +105,41 @@ int main(void)
     check(info->global_count == 1 && info->function_count == 0, "one variable, no function");
     symbols_debug_info_free(info);
 
+    /* the types planc -g of nd-lang writes for arrays, records and descriptors (its
+     * docs/debug-types.md): kept as written, braces, commas, colons and blanks and all */
+    path = write_map("GLOBAL:PR:{8;K1@0:word,K2@2:word,K4@4:word,K5@6:word} -> 000460\n"
+                     "GLOBAL:T:byte(1:4)+1 -> 000470\n"
+                     "FUNC:EL -> 000500\n"
+                     "LOCAL:EL:V:desc word -> -122\n"
+                     "LOCAL:LREC:R:ref {6;CA@0:word,CB@2:word,CC@4:word} -> -121\n"
+                     "LOCAL:LOC:NM:ptr byte(0:5) -> -122\n");
+    info = symbols_debug_info_create();
+    check(symbols_load_srcmap_debug(info, path), "the map with typed lines did not load");
+    check(info->global_count == 2 &&
+              strcmp(info->globals[0].type_name, "{8;K1@0:word,K2@2:word,K4@4:word,K5@6:word}") == 0 &&
+              strcmp(info->globals[1].type_name, "byte(1:4)+1") == 0,
+          "the record and BYTES types of the GLOBAL lines are kept");
+    {
+        int seen = 0;
+        for (int i = 0; i < info->function_count; i++)
+        {
+            int n = 0;
+            symbol_variable_t *vars = symbols_get_variables(&info->functions[i], &n);
+            for (int k = 0; k < n; k++)
+            {
+                if (strcmp(vars[k].type_name, "desc word") == 0 && vars[k].offset == -122)
+                    seen |= 1;
+                if (strcmp(vars[k].type_name, "ref {6;CA@0:word,CB@2:word,CC@4:word}") == 0 &&
+                    vars[k].offset == -121)
+                    seen |= 2;
+                if (strcmp(vars[k].type_name, "ptr byte(0:5)") == 0)
+                    seen |= 4;
+            }
+        }
+        check(seen == 7, "the desc, ref and ptr types of the LOCAL lines are kept, with their offsets");
+    }
+    symbols_debug_info_free(info);
+
     /* nothing of either kind: no debug information, as before */
     path = write_map("N100A.PLNC:5 -> 000470\n");
     info = symbols_debug_info_create();

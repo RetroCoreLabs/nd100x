@@ -1056,3 +1056,19 @@ breakpoints stayed armed: a program stopped again where the client had removed t
 (nd-lang tests/nd100debug/planc_dap_locals_test.js, BE01, after continue). An empty list now clears
 the source breakpoints and answers success. Measured: planc_dap_locals_100 ends with the right
 output; ctest 107 of 107.
+
+### D5. A Release build with --debug: the BRF linker never gets its first command (DA3 of nd-lang)
+
+**Found by:** the debugger-views work in nd-lang (tests/nd100debug/planc_dap_views_test.js), 2026-11-22.
+
+**Shows up as:** `planc-run --on 100 --debug 4793 tests/oracle100/DA3.PLNC` with nd100x built
+`-DCMAKE_BUILD_TYPE=Release` stops in the load step: load.log ends at the linker's first `Brl:`
+prompt and no `PROGRAM-FILE` command follows ("the linker did not come back in time"). Measured
+twice, once alone. The same run with a Debug build of the same source loads and passes (5 times,
+also 5 sessions side by side), and so does `planc-run` without `--debug` on the Release build.
+BE14 and DR3 with `--debug` load on the Release build. The BRF of DA3 is the same with and without
+`planc -g` (compared byte for byte), so the program file is not the difference.
+
+**What is known:** nothing more; whether the Release build reads uninitialised memory, races
+on the console, or something else, is not traced. Until it is, run the debugger tests on a Debug
+build.

@@ -196,12 +196,15 @@ char *base64_encode(const uint8_t *data, size_t len)
 // Variables at a fixed address, outside every routine: the GLOBAL lines of the .srcmap
 // (the data-elements of a PLANC module; libsymbols srcmap_debug.c)
 #define SCOPE_ID_GLOBALS   1003
-// The elements of a word array among the globals: SCOPE_ID_GLOBAL_ARRAY_BASE + its index in
-// debug_info->globals. Below SCOPE_ID_LOCALS, so no other reference falls in the range.
-#define SCOPE_ID_GLOBAL_ARRAY_BASE 2000
-#define SCOPE_ID_GLOBAL_ARRAY_END  2999
+
+// Expandable typed values get SCOPE_ID_VIEW_BASE + their number; the table is emptied at
+// every scopes request (a new stop or another frame), so a reference holds while the client
+// opens the tree of one stop.
+#define SCOPE_ID_VIEW_BASE 3000
+#define SCOPE_ID_VIEW_MAX  6000
 // At most this many elements of one array are listed (the first ones)
-#define GLOBAL_ARRAY_MAX_ELEMENTS 1024
+#define VIEW_ARRAY_MAX_ELEMENTS 1024
+static int s_view_count;
 
 #define SCOPE_ID_INTERNAL_REGISTERS_READ  1010
 #define SCOPE_ID_INTERNAL_REGISTERS_WRITE 1011
@@ -1551,6 +1554,7 @@ static int cmd_scopes(DAPServer *server)
     // Extract frame_id from the command context
     int frame_id = server->current_command.context.scopes.frame_id;
     scopes_active_frame_id = frame_id;
+    s_view_count = 0; // the typed values of the stop before are gone (add_typed_variable)
 
     // Allocate memory for the scopes
     DAPScope *scopes = (DAPScope *)calloc(NUM_SCOPES, sizeof(DAPScope));
@@ -1756,6 +1760,418 @@ static DAPVariable *add_variable_to_array(DAPServer *server, const char *name, c
     return var;
 }
 
+/*
+ * Typed values: the type text of a GLOBAL or LOCAL line of the .srcmap (planc -g of nd-lang,
+ * its docs/debug-types.md) read against memory. The grammar:
+ *
+ *     word | byte | N bytes          a simple value of 2, 1 or N bytes
+ *     bits(FIRST:WIDTH)              WIDTH bits of the word, the lowest one bit FIRST (bit 0
+ *                                    is the bottom bit); only inside a record
+ *     {SIZE;NAME@OFF:TYPE,...}       a record of SIZE bytes, each component OFF bytes in
+ *     TYPE(LO:HI)                    an array of TYPE, lowest index LO first
+ *     TYPE(LO:HI)+1                  the same, the first element in the second byte of the
+ *                                    first word (BYTES with an odd lowest index)
+ *     desc TYPE                      three words: the WORD address index 0 would have, the
+ *                                    lowest and the highest index; the elements are TYPE
+ *     ptr TYPE(LO:HI)                one word: the WORD address index 0 would have
+ *     ref TYPE                       one word: the WORD address of a TYPE
+ *
+ * Places are byte addresses here (word address * 2), because elements and components can
+ * start in either byte of a word; the first byte of a word is its high byte.
+ */
+typedef struct
+{
+    const char *p; /* the text, not ended by a NUL: len characters */
+    size_t len;
+} dbg_text;
+
+/* An expandable value: an array (its elements) or a record (its components) */
+typedef struct
+{
+    dbg_text type;     /* array: the type of an element; record: the record's type */
+    int is_array;
+    long lo;           /* array: the indexes listed */
+    long hi;
+    uint32_t base;     /* array: the byte address index 0 has; record: its byte address */
+} dbg_view;
+
+static dbg_view s_views[SCOPE_ID_VIEW_MAX];
+
+
+static bool text_is(dbg_text t, const char *s)
+{
+    size_t n = strlen(s);
+    return t.len == n && memcmp(t.p, s, n) == 0;
+}
+
+static bool text_starts(dbg_text t, const char *s)
+{
+    size_t n = strlen(s);
+    return t.len >= n && memcmp(t.p, s, n) == 0;
+}
+
+/* A number from text t at *i, with an optional minus sign; false if there is none */
+static bool text_number(dbg_text t, size_t *i, long *v)
+{
+    bool neg = false;
+    long n = 0;
+    size_t start;
+    if (*i < t.len && t.p[*i] == '-')
+    {
+        neg = true;
+        (*i)++;
+    }
+    start = *i;
+    while (*i < t.len && t.p[*i] >= '0' && t.p[*i] <= '9')
+    {
+        n = (n * 10) + (t.p[*i] - '0');
+        (*i)++;
+    }
+    *v = neg ? -n : n;
+    return *i > start;
+}
+
+/*
+ * An array type "ELEM(LO:HI)" or "ELEM(LO:HI)+1": the element's type, the bounds and the
+ * unused bytes in front of the first element. False for every other type.
+ */
+static bool text_array(dbg_text t, dbg_text *elem, long *lo, long *hi, long *pad)
+{
+    size_t end = t.len;
+    size_t i;
+    int depth = 0;
+    *pad = 0;
+    if (end >= 2 && t.p[end - 2] == '+' && t.p[end - 1] == '1')
+    {
+        *pad = 1;
+        end -= 2;
+    }
+    if (end < 5 || t.p[end - 1] != ')')
+    {
+        return false;
+    }
+    /* the '(' that opens the last group, at depth 0 */
+    for (i = end; i-- > 0;)
+    {
+        char c = t.p[i];
+        if (c == ')' || c == '}')
+        {
+            depth++;
+        }
+        else if (c == '(' || c == '{')
+        {
+            depth--;
+            if (depth == 0)
+            {
+                break;
+            }
+        }
+    }
+    if (i == (size_t)-1 || i == 0 || t.p[i] != '(' || text_starts(t, "bits("))
+    {
+        return false;
+    }
+    size_t k = i + 1;
+    if (!text_number(t, &k, lo) || k >= end || t.p[k] != ':')
+    {
+        return false;
+    }
+    k++;
+    if (!text_number(t, &k, hi) || k != end - 1 || *hi < *lo)
+    {
+        return false;
+    }
+    elem->p = t.p;
+    elem->len = i;
+    return true;
+}
+
+/* The bytes a value of type t takes; 0 if not known */
+static long text_size(dbg_text t)
+{
+    dbg_text elem;
+    long lo;
+    long hi;
+    long pad;
+    size_t i = 0;
+    long n;
+    if (text_is(t, "word"))
+    {
+        return 2;
+    }
+    if (text_is(t, "byte"))
+    {
+        return 1;
+    }
+    if (t.len > 0 && t.p[0] == '{')
+    {
+        i = 1;
+        return text_number(t, &i, &n) ? n : 0;
+    }
+    if (text_array(t, &elem, &lo, &hi, &pad))
+    {
+        long es = text_size(elem);
+        return es ? pad + ((hi - lo + 1) * es) : 0;
+    }
+    if (text_number(t, &i, &n) && i < t.len && t.p[i] == ' ')
+    {
+        return n; /* "N bytes" */
+    }
+    return 0;
+}
+
+/* The word that holds byte address ba, read as the program sees it; -1 if it cannot be read */
+static int view_word(uint32_t ba)
+{
+    return dbg_read_data((uint16_t)((ba >> 1) & 0xFFFFu));
+}
+
+/* The byte at byte address ba (the high byte of a word first); -1 if it cannot be read */
+static int view_byte(uint32_t ba)
+{
+    int w = view_word(ba);
+    if (w == -1)
+    {
+        return -1;
+    }
+    return (ba & 1u) ? (w & 0xFF) : ((w >> 8) & 0xFF);
+}
+
+/* A new expandable value; 0 when the table is full */
+static int view_add(dbg_text type, int is_array, long lo, long hi, uint32_t base)
+{
+    if (s_view_count >= SCOPE_ID_VIEW_MAX)
+    {
+        return 0;
+    }
+    dbg_view *v = &s_views[s_view_count];
+    v->type = type;
+    v->is_array = is_array;
+    v->lo = lo;
+    v->hi = hi;
+    v->base = base;
+    return SCOPE_ID_VIEW_BASE + s_view_count++;
+}
+
+/*
+ * One variable `name` of type t at byte address ba: its value, and when it is an array or a
+ * record a reference the client opens it by (add_view_children).
+ */
+static void add_typed_variable(DAPServer *server, const char *name, dbg_text t, uint32_t ba,
+                               DAPVariableKind kind)
+{
+    char value_str[160];
+    char type_str[160];
+    dbg_text elem;
+    long lo;
+    long hi;
+    long pad;
+    int ref = 0;
+    int w;
+    uint32_t mem = (ba >> 1) & 0xFFFFu;
+
+    snprintf(type_str, sizeof(type_str), "%.*s", (int)(t.len < 159 ? t.len : 159), t.p);
+    if (text_starts(t, "desc "))
+    {
+        /* the descriptor: address for index 0, lowest, highest index */
+        dbg_text et = { t.p + 5, t.len - 5 };
+        int a0 = view_word(ba);
+        int l = view_word(ba + 2);
+        int h = view_word(ba + 4);
+        long es = text_size(et);
+        if (a0 == -1 || l == -1 || h == -1)
+        {
+            snprintf(value_str, sizeof(value_str), "<unreadable>");
+        }
+        else
+        {
+            snprintf(value_str, sizeof(value_str), "(%d:%d) at %06o", (int16_t)l, (int16_t)h,
+                     (uint16_t)a0);
+            if (es > 0 && (int16_t)h >= (int16_t)l)
+            {
+                ref = view_add(et, 1, (int16_t)l, (int16_t)h, (uint32_t)a0 * 2u);
+            }
+        }
+    }
+    else if (text_starts(t, "ptr "))
+    {
+        dbg_text at = { t.p + 4, t.len - 4 };
+        int a0 = view_word(ba);
+        if (a0 == -1 || !text_array(at, &elem, &lo, &hi, &pad) || text_size(elem) == 0)
+        {
+            snprintf(value_str, sizeof(value_str), "<unreadable>");
+        }
+        else
+        {
+            snprintf(value_str, sizeof(value_str), "(%ld:%ld) at %06o", lo, hi, (uint16_t)a0);
+            ref = view_add(elem, 1, lo, hi, (uint32_t)a0 * 2u);
+        }
+    }
+    else if (text_starts(t, "ref "))
+    {
+        dbg_text rt = { t.p + 4, t.len - 4 };
+        int a = view_word(ba);
+        if (a == -1)
+        {
+            snprintf(value_str, sizeof(value_str), "<unreadable>");
+        }
+        else
+        {
+            add_typed_variable(server, name, rt, (uint32_t)a * 2u, kind);
+            return;
+        }
+    }
+    else if (text_array(t, &elem, &lo, &hi, &pad))
+    {
+        long es = text_size(elem);
+        snprintf(value_str, sizeof(value_str), "(%ld:%ld) at %06o", lo, hi, mem);
+        if (es > 0)
+        {
+            /* the byte address index 0 would have */
+            ref = view_add(elem, 1, lo, hi, (uint32_t)((long)ba + pad - (lo * es)));
+        }
+    }
+    else if (t.len > 0 && t.p[0] == '{')
+    {
+        snprintf(value_str, sizeof(value_str), "record at %06o", mem);
+        ref = view_add(t, 0, 0, 0, ba);
+    }
+    else if (text_starts(t, "bits("))
+    {
+        size_t i = 5;
+        long first;
+        long width;
+        w = view_word(ba);
+        if (!text_number(t, &i, &first) || i >= t.len || t.p[i++] != ':' ||
+            !text_number(t, &i, &width) || width < 1 || first < 0 || first + width > 16)
+        {
+            snprintf(value_str, sizeof(value_str), "<bad type>");
+        }
+        else if (w == -1)
+        {
+            snprintf(value_str, sizeof(value_str), "<unreadable>");
+        }
+        else
+        {
+            unsigned v = ((unsigned)w >> first) & ((1u << width) - 1u);
+            snprintf(value_str, sizeof(value_str), "%u (%o)", v, v);
+        }
+    }
+    else if (text_is(t, "byte"))
+    {
+        int b = view_byte(ba);
+        if (b == -1)
+        {
+            snprintf(value_str, sizeof(value_str), "<unreadable>");
+        }
+        else if (b >= 32 && b < 127)
+        {
+            snprintf(value_str, sizeof(value_str), "%d (%03o) '%c'", b, b, b);
+        }
+        else
+        {
+            snprintf(value_str, sizeof(value_str), "%d (%03o)", b, b);
+        }
+    }
+    else if (text_is(t, "word") || (ba & 1u) != 0)
+    {
+        w = view_word(ba);
+        if (w == -1)
+        {
+            snprintf(value_str, sizeof(value_str), "<unreadable>");
+        }
+        else
+        {
+            snprintf(value_str, sizeof(value_str), "%d (%06o)", (int16_t)w, (uint16_t)w);
+        }
+    }
+    else
+    {
+        /* N bytes: the words, in octal */
+        long n = text_size(t);
+        size_t len = 0;
+        value_str[0] = '\0';
+        for (long k = 0; k < n && k < 32 && len + 8 < sizeof(value_str); k += 2)
+        {
+            w = view_word(ba + (uint32_t)k);
+            len += (size_t)snprintf(value_str + len, sizeof(value_str) - len, "%s%06o",
+                                    k ? " " : "", w == -1 ? 0u : (unsigned)(uint16_t)w);
+        }
+    }
+    add_variable_to_array(server, name, value_str, type_str, mem, ref, kind,
+                          DAP_VARIABLE_ATTR_NONE);
+}
+
+/* The elements of an array view, or the components of a record view */
+static void add_view_children(DAPServer *server, int vi)
+{
+    char name[48];
+    if (vi < 0 || vi >= s_view_count)
+    {
+        return;
+    }
+    const dbg_view v = s_views[vi];
+    if (v.is_array)
+    {
+        long es = text_size(v.type);
+        long last = v.hi;
+        if (last - v.lo + 1 > VIEW_ARRAY_MAX_ELEMENTS)
+        {
+            last = v.lo + VIEW_ARRAY_MAX_ELEMENTS - 1;
+        }
+        for (long k = v.lo; k <= last; k++)
+        {
+            snprintf(name, sizeof(name), "[%ld]", k);
+            add_typed_variable(server, name, v.type, (uint32_t)((long)v.base + (k * es)) & 0x1FFFFu,
+                               DAP_VARIABLE_KIND_DATA);
+        }
+        return;
+    }
+    /* {SIZE;NAME@OFF:TYPE,...}: the components, each type up to the ',' or '}' at depth 0 */
+    dbg_text t = v.type;
+    size_t i = 1;
+    while (i < t.len && t.p[i] != ';')
+    {
+        i++;
+    }
+    i++;
+    while (i < t.len && t.p[i] != '}')
+    {
+        size_t ns = i;
+        while (i < t.len && t.p[i] != '@')
+        {
+            i++;
+        }
+        size_t ne = i++;
+        long off;
+        if (!text_number(t, &i, &off) || i >= t.len || t.p[i] != ':')
+        {
+            return;
+        }
+        size_t ts = ++i;
+        int depth = 0;
+        while (i < t.len && !(depth == 0 && (t.p[i] == ',' || t.p[i] == '}')))
+        {
+            if (t.p[i] == '{' || t.p[i] == '(')
+            {
+                depth++;
+            }
+            else if (t.p[i] == '}' || t.p[i] == ')')
+            {
+                depth--;
+            }
+            i++;
+        }
+        dbg_text ft = { t.p + ts, i - ts };
+        snprintf(name, sizeof(name), "%.*s", (int)(ne - ns < 47 ? ne - ns : 47), t.p + ns);
+        add_typed_variable(server, name, ft, v.base + (uint32_t)off, DAP_VARIABLE_KIND_PROPERTY);
+        if (i < t.len && t.p[i] == ',')
+        {
+            i++;
+        }
+    }
+}
+
 /**
  * @brief Add local variables to the variables array
  *
@@ -1793,6 +2209,16 @@ static void add_local_variables(DAPServer *server, char *info_message, size_t in
                 // Parameters: B + offset (positive offsets, e.g. B+2)
                 // Locals: B + offset (negative offsets, e.g. B-1)
                 uint16_t addr = (uint16_t)((int16_t)frame_b + vars[i].offset);
+                if (vars[i].type_name && strcmp(vars[i].type_name, "word") != 0)
+                {
+                    // an array, record, descriptor, ...: its type says how to read it
+                    // (add_typed_variable)
+                    dbg_text t = { vars[i].type_name, strlen(vars[i].type_name) };
+                    add_typed_variable(server, vars[i].name, t, (uint32_t)addr * 2u,
+                                       vars[i].is_parameter ? DAP_VARIABLE_KIND_DATA
+                                                            : DAP_VARIABLE_KIND_PROPERTY);
+                    continue;
+                }
                 // Trap-free read (see dbg_read_data); returns -1 on a bad frame
                 // address, making the guard below live.
                 int word = dbg_read_data(addr);
@@ -1836,69 +2262,12 @@ static void add_local_variables(DAPServer *server, char *info_message, size_t in
 }
 
 /*
- * The bounds of a word array from its type, "word(LOWER:UPPER)". False for every other type:
- * only a word array has one element per word, so only there is the address of an element known
- * (address + index - LOWER).
- */
-static bool global_word_array(const char *type, long *lower, long *upper)
-{
-    char tail;
-    if (type == NULL || strncmp(type, "word(", 5) != 0)
-    {
-        return false;
-    }
-    if (sscanf(type + 5, "%ld:%ld%c", lower, upper, &tail) != 3 || tail != ')' || *upper < *lower)
-    {
-        return false;
-    }
-    return true;
-}
-
-/* The elements of the word array number gi of the globals, the first GLOBAL_ARRAY_MAX_ELEMENTS. */
-static void add_global_array_elements(DAPServer *server, int gi)
-{
-    char name[32];
-    char value_str[64];
-    symbol_debug_info_t *info = s_symbol_tables.debug_info;
-    long lower;
-    long upper;
-    if (!info || gi < 0 || gi >= info->global_count ||
-        !global_word_array(info->globals[gi].type_name, &lower, &upper))
-    {
-        return;
-    }
-    long last = upper;
-    if (last - lower + 1 > GLOBAL_ARRAY_MAX_ELEMENTS)
-    {
-        last = lower + GLOBAL_ARRAY_MAX_ELEMENTS - 1;
-    }
-    for (long k = lower; k <= last; k++)
-    {
-        uint16_t addr = (uint16_t)(info->globals[gi].address + (k - lower));
-        int word = dbg_read_data(addr);
-        snprintf(name, sizeof(name), "[%ld]", k);
-        if (word == -1)
-        {
-            snprintf(value_str, sizeof(value_str), "<unreadable>");
-        }
-        else
-        {
-            snprintf(value_str, sizeof(value_str), "%d (%06o)", (int16_t)word, (uint16_t)word);
-        }
-        add_variable_to_array(server, name, value_str, "word", addr, 0, DAP_VARIABLE_KIND_DATA,
-                              DAP_VARIABLE_ATTR_NONE);
-    }
-}
-
-/*
- * The variables at a fixed address (GLOBAL lines of the .srcmap). A word is read as the program
- * sees it, through dbg_read_data (the trap-free read add_local_variables uses). A word array can
- * be opened: its elements are the children (add_global_array_elements). Any other array shows its
- * type and address only.
+ * The variables at a fixed address (GLOBAL lines of the .srcmap), read as the program sees
+ * them through dbg_read_data (the trap-free read add_local_variables uses). Arrays and
+ * records open to their elements and components (add_typed_variable).
  */
 static void add_global_variables(DAPServer *server, char *info_message, size_t info_message_size)
 {
-    char value_str[96];
     symbol_debug_info_t *info = s_symbol_tables.debug_info;
     if (!info)
     {
@@ -1907,42 +2276,22 @@ static void add_global_variables(DAPServer *server, char *info_message, size_t i
     for (int i = 0; i < info->global_count; i++)
     {
         const symbol_global_t *g = &info->globals[i];
-        const char *type = g->type_name ? g->type_name : "";
-        if (strchr(type, '(') != NULL)
+        dbg_text t = { g->type_name ? g->type_name : "word",
+                       strlen(g->type_name ? g->type_name : "word") };
+        if (text_is(t, "byte"))
         {
-            long lower;
-            long upper;
-            snprintf(value_str, sizeof(value_str), "%s at %06o", type, g->address);
-            int ref = 0;
-            if (global_word_array(type, &lower, &upper) &&
-                SCOPE_ID_GLOBAL_ARRAY_BASE + i <= SCOPE_ID_GLOBAL_ARRAY_END)
-            {
-                ref = SCOPE_ID_GLOBAL_ARRAY_BASE + i;
-            }
-            add_variable_to_array(server, g->name, value_str, type, g->address, ref,
+            /* a byte by itself: which half of its word holds it is not in the map, so the
+             * whole word */
+            char value_str[32];
+            int word = dbg_read_data(g->address);
+            snprintf(value_str, sizeof(value_str), word == -1 ? "<unreadable>" : "word %06o",
+                     (uint16_t)word);
+            add_variable_to_array(server, g->name, value_str, "byte", g->address, 0,
                                   DAP_VARIABLE_KIND_DATA, DAP_VARIABLE_ATTR_NONE);
             continue;
         }
-        else
-        {
-            int word = dbg_read_data(g->address);
-            if (word == -1)
-            {
-                snprintf(value_str, sizeof(value_str), "<unreadable>");
-            }
-            else if (strcmp(type, "byte") == 0)
-            {
-                /* which half of the word holds the byte is not in the map: the whole word */
-                snprintf(value_str, sizeof(value_str), "word %06o", (uint16_t)word);
-            }
-            else
-            {
-                snprintf(value_str, sizeof(value_str), "%d (%06o)", (int16_t)word,
-                         (uint16_t)word);
-            }
-        }
-        add_variable_to_array(server, g->name, value_str, type, g->address, 0,
-                              DAP_VARIABLE_KIND_DATA, DAP_VARIABLE_ATTR_NONE);
+        add_typed_variable(server, g->name, t, (uint32_t)g->address * 2u,
+                           DAP_VARIABLE_KIND_DATA);
     }
     snprintf(info_message, info_message_size, "Globals: %d variables\n", info->global_count);
 }
@@ -2690,10 +3039,11 @@ static int cmd_variables(DAPServer *server)
         {
             add_pil_register_variables(server, variables_reference - SCOPE_ID_PIL_BASE);
         }
-        else if (variables_reference >= SCOPE_ID_GLOBAL_ARRAY_BASE &&
-                 variables_reference <= SCOPE_ID_GLOBAL_ARRAY_END)
+        else if (variables_reference >= SCOPE_ID_VIEW_BASE &&
+                 variables_reference < SCOPE_ID_VIEW_BASE + SCOPE_ID_VIEW_MAX)
         {
-            add_global_array_elements(server, variables_reference - SCOPE_ID_GLOBAL_ARRAY_BASE);
+            // an array or record a typed variable opens to (add_typed_variable)
+            add_view_children(server, variables_reference - SCOPE_ID_VIEW_BASE);
         }
         else
         {
