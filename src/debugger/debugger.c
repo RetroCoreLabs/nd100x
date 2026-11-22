@@ -1768,16 +1768,24 @@ static DAPVariable *add_variable_to_array(DAPServer *server, const char *name, c
  *     bits(FIRST:WIDTH)              WIDTH bits of the word, the lowest one bit FIRST (bit 0
  *                                    is the bottom bit); only inside a record
  *     {SIZE;NAME@OFF:TYPE,...}       a record of SIZE bytes, each component OFF bytes in
- *     TYPE(LO:HI)                    an array of TYPE, lowest index LO first
- *     TYPE(LO:HI)+1                  the same, the first element in the second byte of the
- *                                    first word (BYTES with an odd lowest index)
+ *     TYPE(LO:HI)                    an array of TYPE, lowest index LO first. TYPE can be an
+ *                                    array itself: "word(0:3)(0:2)" is m(0:2,0:3), the last
+ *                                    group the first dimension, rows one behind the other
+ *     TYPE(LO:HI)+N                  the same, the first element N bytes into the first word
+ *                                    (BYTES with an odd lowest index: +1)
+ *     bit(LO:HI)+F                   a row of bits (BOOLEAN ARRAY PACKED): element i is bit
+ *                                    F + (i - LO) counted from the top bit of the first byte
  *     desc TYPE                      three words: the WORD address index 0 would have, the
  *                                    lowest and the highest index; the elements are TYPE
  *     ptr TYPE(LO:HI)                one word: the WORD address index 0 would have
  *     ref TYPE                       one word: the WORD address of a TYPE
+ *     at TYPE                        a pointer: one word, the WORD address of a TYPE, NIL 0
+ *     at ^K                          a pointer to the record whose component it is (K = 1),
+ *                                    or to the record K - 1 records further out
  *
  * Places are byte addresses here (word address * 2), because elements and components can
- * start in either byte of a word; the first byte of a word is its high byte.
+ * start in either byte of a word; the first byte of a word is its high byte. An element of a
+ * row of bits has a BIT address (byte address * 8 + bit, bit 0 the top bit).
  */
 typedef struct
 {
@@ -1785,14 +1793,27 @@ typedef struct
     size_t len;
 } dbg_text;
 
-/* An expandable value: an array (its elements) or a record (its components) */
+/* What a view opens to */
+typedef enum
+{
+    VIEW_RECORD, /* the components of a record */
+    VIEW_ARRAY,  /* the elements of an array */
+    VIEW_BITS,   /* the elements of a row of bits */
+    VIEW_TARGET  /* what a pointer points at: one child, IND */
+} dbg_view_kind;
+
+/* An expandable value: an array (its elements), a record (its components), a pointer */
 typedef struct
 {
-    dbg_text type;     /* array: the type of an element; record: the record's type */
-    int is_array;
-    long lo;           /* array: the indexes listed */
+    dbg_text type;      /* array: the type of an element; record: the record's type; pointer:
+                           the type of what it points at */
+    dbg_view_kind kind;
+    long lo;            /* array: the indexes listed */
     long hi;
-    uint32_t base;     /* array: the byte address index 0 has; record: its byte address */
+    uint32_t base;      /* array: the byte address index 0 has (bits: the bit address);
+                           record, pointer: the byte address of the value */
+    int parent;         /* the record view this value is a component of (an element: the
+                           one its array is in); -1 none. "at ^K" is found through it */
 } dbg_view;
 
 static dbg_view s_views[SCOPE_ID_VIEW_MAX];
@@ -1832,8 +1853,8 @@ static bool text_number(dbg_text t, size_t *i, long *v)
 }
 
 /*
- * An array type "ELEM(LO:HI)" or "ELEM(LO:HI)+1": the element's type, the bounds and the
- * unused bytes in front of the first element. False for every other type.
+ * An array type "ELEM(LO:HI)" or "ELEM(LO:HI)+N": the element's type, the bounds and the
+ * unused bytes (bits for "bit") in front of the first element. False for every other type.
  */
 static bool text_array(dbg_text t, dbg_text *elem, long *lo, long *hi, long *pad)
 {
@@ -1841,10 +1862,16 @@ static bool text_array(dbg_text t, dbg_text *elem, long *lo, long *hi, long *pad
     size_t i;
     int depth = 0;
     *pad = 0;
-    if (end >= 2 && t.p[end - 2] == '+' && t.p[end - 1] == '1')
+    i = end;
+    while (i > 0 && t.p[i - 1] >= '0' && t.p[i - 1] <= '9')
     {
-        *pad = 1;
-        end -= 2;
+        i--;
+    }
+    if (i < end && i >= 2 && t.p[i - 1] == '+' && t.p[i - 2] == ')')
+    {
+        size_t k = i;
+        (void)text_number(t, &k, pad);
+        end = i - 1;
     }
     if (end < 5 || t.p[end - 1] != ')')
     {
@@ -1913,11 +1940,34 @@ static long text_size(dbg_text t)
         long es = text_size(elem);
         return es ? pad + ((hi - lo + 1) * es) : 0;
     }
+    if (text_starts(t, "at "))
+    {
+        return 2; /* a pointer; after the arrays: "at word(0:2)" is an array of pointers */
+    }
     if (text_number(t, &i, &n) && i < t.len && t.p[i] == ' ')
     {
         return n; /* "N bytes" */
     }
     return 0;
+}
+
+/*
+ * The bytes from where an array whose element type is elem has index 0 to where the storage of
+ * its element 0 starts: 0 for a simple element; for an element that is an array (a row of an
+ * array of two dimensions) its lowest index times the bytes of its element, because a row lies
+ * from its first element on. Needed where the address of index 0 is in memory (desc, ptr).
+ */
+static long text_row_shift(dbg_text elem)
+{
+    dbg_text inner;
+    long lo;
+    long hi;
+    long pad;
+    if (!text_array(elem, &inner, &lo, &hi, &pad) || text_is(inner, "bit"))
+    {
+        return 0;
+    }
+    return (lo * text_size(inner)) + text_row_shift(inner);
 }
 
 /* The word that holds byte address ba, read as the program sees it; -1 if it cannot be read */
@@ -1938,7 +1988,7 @@ static int view_byte(uint32_t ba)
 }
 
 /* A new expandable value; 0 when the table is full */
-static int view_add(dbg_text type, int is_array, long lo, long hi, uint32_t base)
+static int view_add(dbg_text type, dbg_view_kind kind, long lo, long hi, uint32_t base, int parent)
 {
     if (s_view_count >= SCOPE_ID_VIEW_MAX)
     {
@@ -1946,19 +1996,32 @@ static int view_add(dbg_text type, int is_array, long lo, long hi, uint32_t base
     }
     dbg_view *v = &s_views[s_view_count];
     v->type = type;
-    v->is_array = is_array;
+    v->kind = kind;
     v->lo = lo;
     v->hi = hi;
     v->base = base;
+    v->parent = parent;
     return SCOPE_ID_VIEW_BASE + s_view_count++;
 }
 
+/* The reference an array of element type elem opens by, index 0 at byte address base: a row of
+ * bits by bit address (base is then the bit address of index 0) */
+static int view_add_array(dbg_text elem, long lo, long hi, uint32_t base, int parent)
+{
+    if (text_is(elem, "bit"))
+    {
+        return view_add(elem, VIEW_BITS, lo, hi, base, parent);
+    }
+    return text_size(elem) > 0 ? view_add(elem, VIEW_ARRAY, lo, hi, base, parent) : 0;
+}
+
 /*
- * One variable `name` of type t at byte address ba: its value, and when it is an array or a
- * record a reference the client opens it by (add_view_children).
+ * One variable `name` of type t at byte address ba (an element of a row of bits: bit address):
+ * its value, and when it is an array, a record or a pointer a reference the client opens it by
+ * (add_view_children). ctx: the record view it is a component of, -1 none.
  */
 static void add_typed_variable(DAPServer *server, const char *name, dbg_text t, uint32_t ba,
-                               DAPVariableKind kind)
+                               DAPVariableKind kind, int ctx)
 {
     char value_str[160];
     char type_str[160];
@@ -1971,14 +2034,28 @@ static void add_typed_variable(DAPServer *server, const char *name, dbg_text t, 
     uint32_t mem = (ba >> 1) & 0xFFFFu;
 
     snprintf(type_str, sizeof(type_str), "%.*s", (int)(t.len < 159 ? t.len : 159), t.p);
-    if (text_starts(t, "desc "))
+    if (text_is(t, "bit"))
+    {
+        /* ba is a bit address: byte ba / 8, bit ba % 8 counted from the top */
+        int b = view_byte(ba >> 3);
+        mem = (ba >> 4) & 0xFFFFu;
+        if (b == -1)
+        {
+            snprintf(value_str, sizeof(value_str), "<unreadable>");
+        }
+        else
+        {
+            int v = (b >> (7 - (int)(ba & 7u))) & 1;
+            snprintf(value_str, sizeof(value_str), "%d (%s)", v, v ? "TRUE" : "FALSE");
+        }
+    }
+    else if (text_starts(t, "desc "))
     {
         /* the descriptor: address for index 0, lowest, highest index */
         dbg_text et = { t.p + 5, t.len - 5 };
         int a0 = view_word(ba);
         int l = view_word(ba + 2);
         int h = view_word(ba + 4);
-        long es = text_size(et);
         if (a0 == -1 || l == -1 || h == -1)
         {
             snprintf(value_str, sizeof(value_str), "<unreadable>");
@@ -1987,9 +2064,10 @@ static void add_typed_variable(DAPServer *server, const char *name, dbg_text t, 
         {
             snprintf(value_str, sizeof(value_str), "(%d:%d) at %06o", (int16_t)l, (int16_t)h,
                      (uint16_t)a0);
-            if (es > 0 && (int16_t)h >= (int16_t)l)
+            if ((int16_t)h >= (int16_t)l && !text_is(et, "bit"))
             {
-                ref = view_add(et, 1, (int16_t)l, (int16_t)h, (uint32_t)a0 * 2u);
+                ref = view_add_array(et, (int16_t)l, (int16_t)h,
+                                     (uint32_t)((long)a0 * 2 + text_row_shift(et)), ctx);
             }
         }
     }
@@ -2004,7 +2082,8 @@ static void add_typed_variable(DAPServer *server, const char *name, dbg_text t, 
         else
         {
             snprintf(value_str, sizeof(value_str), "(%ld:%ld) at %06o", lo, hi, (uint16_t)a0);
-            ref = view_add(elem, 1, lo, hi, (uint32_t)a0 * 2u);
+            ref = view_add_array(elem, lo, hi, (uint32_t)((long)a0 * 2 + text_row_shift(elem)),
+                                 ctx);
         }
     }
     else if (text_starts(t, "ref "))
@@ -2017,24 +2096,80 @@ static void add_typed_variable(DAPServer *server, const char *name, dbg_text t, 
         }
         else
         {
-            add_typed_variable(server, name, rt, (uint32_t)a * 2u, kind);
+            add_typed_variable(server, name, rt, (uint32_t)a * 2u, kind, ctx);
             return;
         }
     }
     else if (text_array(t, &elem, &lo, &hi, &pad))
     {
-        long es = text_size(elem);
         snprintf(value_str, sizeof(value_str), "(%ld:%ld) at %06o", lo, hi, mem);
-        if (es > 0)
+        if (text_is(elem, "bit"))
+        {
+            /* the bit address index 0 would have */
+            ref = view_add_array(elem, lo, hi, (uint32_t)(((long)ba * 8) + pad - lo), ctx);
+        }
+        else
         {
             /* the byte address index 0 would have */
-            ref = view_add(elem, 1, lo, hi, (uint32_t)((long)ba + pad - (lo * es)));
+            ref = view_add_array(elem, lo, hi, (uint32_t)((long)ba + pad - (lo * text_size(elem))),
+                                 ctx);
+        }
+    }
+    else if (text_starts(t, "at "))
+    {
+        /* a pointer: what it points at opens as IND. After the arrays: "at word(0:2)" is an
+         * array of pointers, a pointer to an array has no such text */
+        dbg_text pt = { t.p + 3, t.len - 3 };
+        int pctx = ctx;
+        bool known = true;
+        int a = view_word(ba);
+        if (pt.len > 1 && pt.p[0] == '^')
+        {
+            /* the record K - 1 records out from the one it is a component of */
+            size_t i = 1;
+            long k = 0;
+            int r = ctx;
+            if (!text_number(pt, &i, &k) || i != pt.len || k < 1)
+            {
+                known = false;
+            }
+            for (; known && k > 1 && r >= 0; k--)
+            {
+                r = s_views[r].parent;
+            }
+            if (!known || r < 0 || s_views[r].kind != VIEW_RECORD)
+            {
+                known = false;
+            }
+            else
+            {
+                pt = s_views[r].type;
+                pctx = s_views[r].parent;
+                snprintf(type_str, sizeof(type_str), "at %.*s",
+                         (int)(pt.len < 150 ? pt.len : 150), pt.p);
+            }
+        }
+        if (a == -1)
+        {
+            snprintf(value_str, sizeof(value_str), "<unreadable>");
+        }
+        else if (a == 0)
+        {
+            snprintf(value_str, sizeof(value_str), "NIL");
+        }
+        else
+        {
+            snprintf(value_str, sizeof(value_str), "%06o", (uint16_t)a);
+            if (known)
+            {
+                ref = view_add(pt, VIEW_TARGET, 0, 0, (uint32_t)a * 2u, pctx);
+            }
         }
     }
     else if (t.len > 0 && t.p[0] == '{')
     {
         snprintf(value_str, sizeof(value_str), "record at %06o", mem);
-        ref = view_add(t, 0, 0, 0, ba);
+        ref = view_add(t, VIEW_RECORD, 0, 0, ba, ctx);
     }
     else if (text_starts(t, "bits("))
     {
@@ -2102,7 +2237,7 @@ static void add_typed_variable(DAPServer *server, const char *name, dbg_text t, 
                           DAP_VARIABLE_ATTR_NONE);
 }
 
-/* The elements of an array view, or the components of a record view */
+/* The elements of an array view, the components of a record view, or what a pointer points at */
 static void add_view_children(DAPServer *server, int vi)
 {
     char name[48];
@@ -2111,9 +2246,16 @@ static void add_view_children(DAPServer *server, int vi)
         return;
     }
     const dbg_view v = s_views[vi];
-    if (v.is_array)
+    if (v.kind == VIEW_TARGET)
     {
-        long es = text_size(v.type);
+        add_typed_variable(server, "IND", v.type, v.base, DAP_VARIABLE_KIND_DATA, v.parent);
+        return;
+    }
+    if (v.kind == VIEW_ARRAY || v.kind == VIEW_BITS)
+    {
+        long es = v.kind == VIEW_BITS ? 1 : text_size(v.type);
+        /* a byte address has 17 bits, a bit address 20 */
+        uint32_t mask = v.kind == VIEW_BITS ? 0xFFFFFu : 0x1FFFFu;
         long last = v.hi;
         if (last - v.lo + 1 > VIEW_ARRAY_MAX_ELEMENTS)
         {
@@ -2122,8 +2264,8 @@ static void add_view_children(DAPServer *server, int vi)
         for (long k = v.lo; k <= last; k++)
         {
             snprintf(name, sizeof(name), "[%ld]", k);
-            add_typed_variable(server, name, v.type, (uint32_t)((long)v.base + (k * es)) & 0x1FFFFu,
-                               DAP_VARIABLE_KIND_DATA);
+            add_typed_variable(server, name, v.type, (uint32_t)((long)v.base + (k * es)) & mask,
+                               DAP_VARIABLE_KIND_DATA, v.parent);
         }
         return;
     }
@@ -2164,7 +2306,8 @@ static void add_view_children(DAPServer *server, int vi)
         }
         dbg_text ft = { t.p + ts, i - ts };
         snprintf(name, sizeof(name), "%.*s", (int)(ne - ns < 47 ? ne - ns : 47), t.p + ns);
-        add_typed_variable(server, name, ft, v.base + (uint32_t)off, DAP_VARIABLE_KIND_PROPERTY);
+        add_typed_variable(server, name, ft, v.base + (uint32_t)off, DAP_VARIABLE_KIND_PROPERTY,
+                           vi);
         if (i < t.len && t.p[i] == ',')
         {
             i++;
@@ -2216,7 +2359,8 @@ static void add_local_variables(DAPServer *server, char *info_message, size_t in
                     dbg_text t = { vars[i].type_name, strlen(vars[i].type_name) };
                     add_typed_variable(server, vars[i].name, t, (uint32_t)addr * 2u,
                                        vars[i].is_parameter ? DAP_VARIABLE_KIND_DATA
-                                                            : DAP_VARIABLE_KIND_PROPERTY);
+                                                            : DAP_VARIABLE_KIND_PROPERTY,
+                                       -1);
                     continue;
                 }
                 // Trap-free read (see dbg_read_data); returns -1 on a bad frame
@@ -2291,7 +2435,7 @@ static void add_global_variables(DAPServer *server, char *info_message, size_t i
             continue;
         }
         add_typed_variable(server, g->name, t, (uint32_t)g->address * 2u,
-                           DAP_VARIABLE_KIND_DATA);
+                           DAP_VARIABLE_KIND_DATA, -1);
     }
     snprintf(info_message, info_message_size, "Globals: %d variables\n", info->global_count);
 }
