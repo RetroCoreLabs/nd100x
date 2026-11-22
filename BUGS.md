@@ -1040,3 +1040,13 @@ is used. The other 101 of 102 tests pass on Windows. CI does not see it: ctest r
 Linux ASan job.
 
 **What is known:** nothing beyond the message; the empty path's origin is not traced yet.
+### D4. Clearing a file's breakpoints answers "Command failed"
+
+**Found by:** the PLANC debugging work in nd-lang (planc-run --debug), 2026-11-22.
+
+**Shows up as:** a DAP `setBreakpoints` request for a source file with an empty breakpoint list -
+what VS Code sends when the last breakpoint in a file is removed - gets the answer
+"Command failed" instead of success with an empty list.
+
+**What is known:** the DAP specification says an empty list clears the file's breakpoints and is a
+normal request. Where nd100x or libdap turns it into a failure is not traced yet.
