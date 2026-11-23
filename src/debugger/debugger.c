@@ -2287,7 +2287,20 @@ static void add_typed_variable(DAPServer *server, const char *name, dbg_text t, 
             char at[24];
             num_text(at, sizeof at, (uint32_t)a0, 16, false);
             snprintf(value_str, sizeof(value_str), "(%d:%d) at %s", (int16_t)l, (int16_t)h, at);
-            if ((int16_t)h >= (int16_t)l && !text_is(et, "bit"))
+            if (text_is(et, "bit"))
+            {
+                /* "desc bit", a BOOLEAN ARRAY PACKED parameter: element i is bit i counted
+                 * from the top bit of the word at a0 (word i / 16, bit i % 16), so the bit
+                 * address of index 0 is a0 * 16. Measured on the real PLANC-100 F (nd-lang
+                 * probes DBK1, DBP1: the callee takes the word by SAD ZIN SHR 4 and the bit by
+                 * SHD ZIN SHR 14; the caller passes the word of index 0 of fb(1:20), lowest 1).
+                 * A negative lowest index was not measured: not opened. */
+                if ((int16_t)l >= 0 && (int16_t)h >= (int16_t)l)
+                {
+                    ref = view_add_array(et, (int16_t)l, (int16_t)h, (uint32_t)a0 * 16u, ctx);
+                }
+            }
+            else if ((int16_t)h >= (int16_t)l)
             {
                 ref = view_add_array(et, (int16_t)l, (int16_t)h,
                                      (uint32_t)((long)a0 * 2 + text_row_shift(et)), ctx);
