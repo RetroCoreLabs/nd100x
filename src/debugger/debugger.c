@@ -730,10 +730,36 @@ static bool line_step_continue(DAPServer *server, CpuStopReason reason)
     return false;
 }
 
+/* -- Logpoints -- */
+
+/* The texts of logpoints hit on the CPU thread, sent by cmd_check_cpu_events as output events
+ * (a send from the CPU thread would race the DAP thread on the socket). */
+static pthread_mutex_t s_log_lock = PTHREAD_MUTEX_INITIALIZER;
+static char s_log_buf[8192];
+static size_t s_log_len = 0;
+
+static void dbg_flush_log(DAPServer *server)
+{
+    char out[sizeof s_log_buf];
+    pthread_mutex_lock(&s_log_lock);
+    size_t n = s_log_len;
+    if (n)
+    {
+        memcpy(out, s_log_buf, n + 1);
+    }
+    s_log_len = 0;
+    pthread_mutex_unlock(&s_log_lock);
+    if (n)
+    {
+        dap_server_send_output_category(server, DAP_OUTPUT_CONSOLE, out);
+    }
+}
+
 static int cmd_check_cpu_events(DAPServer *server)
 {
     // Flush any buffered console output (from CPU thread ring buffers)
     flush_console_output();
+    dbg_flush_log(server);
 
     CpuStopReason reason = cpu_get_stop_reason();
     if (reason != STOP_REASON_NONE)
@@ -2024,6 +2050,61 @@ static int view_add_array(dbg_text elem, long lo, long hi, uint32_t base, int pa
  * its value, and when it is an array, a record or a pointer a reference the client opens it by
  * (add_view_children). ctx: the record view it is a component of, -1 none.
  */
+/*
+ * The text of a simple value of type text t at byte address ba: a byte, a word, or a REAL
+ * ("real 6", the 48-bit float of float.c shown as the exact decimal of its bits by
+ * float48_text: no host float on the way; digits past the first 40 are cut and "..." marks
+ * that). The Variables view (add_typed_variable) and logpoints (log_lookup) both use it, so
+ * they show the same text. A byte at an odd byte address is read as a byte only when t says
+ * "byte"; any other t at an odd address is the word there.
+ */
+static void scalar_value_text(dbg_text t, uint32_t ba, char *out, size_t cap)
+{
+    if (text_is(t, "byte"))
+    {
+        int b = view_byte(ba);
+        if (b == -1)
+        {
+            snprintf(out, cap, "<unreadable>");
+        }
+        else if (b >= 32 && b < 127)
+        {
+            snprintf(out, cap, "%d (%03o) '%c'", b, b, b);
+        }
+        else
+        {
+            snprintf(out, cap, "%d (%03o)", b, b);
+        }
+        return;
+    }
+    if (text_is(t, "real 6"))
+    {
+        int w0 = view_word(ba);
+        int w1 = view_word(ba + 2u);
+        int w2 = view_word(ba + 4u);
+        if (w0 == -1 || w1 == -1 || w2 == -1)
+        {
+            snprintf(out, cap, "<unreadable>");
+        }
+        else
+        {
+            char num[72];
+            float48_text((uint16_t)w0, (uint16_t)w1, (uint16_t)w2, num, sizeof num);
+            snprintf(out, cap, "%s", num);
+        }
+        return;
+    }
+    int w = view_word(ba);
+    if (w == -1)
+    {
+        snprintf(out, cap, "<unreadable>");
+    }
+    else
+    {
+        snprintf(out, cap, "%d (%06o)", (int16_t)w, (uint16_t)w);
+    }
+}
+
 static void add_typed_variable(DAPServer *server, const char *name, dbg_text t, uint32_t ba,
                                DAPVariableKind kind, int ctx)
 {
@@ -2196,52 +2277,9 @@ static void add_typed_variable(DAPServer *server, const char *name, dbg_text t, 
             snprintf(value_str, sizeof(value_str), "%u (%o)", v, v);
         }
     }
-    else if (text_is(t, "byte"))
+    else if (text_is(t, "byte") || text_is(t, "real 6") || text_is(t, "word") || (ba & 1u) != 0)
     {
-        int b = view_byte(ba);
-        if (b == -1)
-        {
-            snprintf(value_str, sizeof(value_str), "<unreadable>");
-        }
-        else if (b >= 32 && b < 127)
-        {
-            snprintf(value_str, sizeof(value_str), "%d (%03o) '%c'", b, b, b);
-        }
-        else
-        {
-            snprintf(value_str, sizeof(value_str), "%d (%03o)", b, b);
-        }
-    }
-    else if (text_is(t, "real 6"))
-    {
-        /* the REAL of PLANC-100: three words, the 48-bit float of float.c (mkfp48), shown as
-         * the exact decimal of its bits (float48_text: no host float on the way; digits past
-         * the first 40 are cut and "..." marks that) */
-        int w0 = view_word(ba);
-        int w1 = view_word(ba + 2u);
-        int w2 = view_word(ba + 4u);
-        if (w0 == -1 || w1 == -1 || w2 == -1)
-        {
-            snprintf(value_str, sizeof(value_str), "<unreadable>");
-        }
-        else
-        {
-            char num[72];
-            float48_text((uint16_t)w0, (uint16_t)w1, (uint16_t)w2, num, sizeof num);
-            snprintf(value_str, sizeof(value_str), "%s", num);
-        }
-    }
-    else if (text_is(t, "word") || (ba & 1u) != 0)
-    {
-        w = view_word(ba);
-        if (w == -1)
-        {
-            snprintf(value_str, sizeof(value_str), "<unreadable>");
-        }
-        else
-        {
-            snprintf(value_str, sizeof(value_str), "%d (%06o)", (int16_t)w, (uint16_t)w);
-        }
+        scalar_value_text(t, ba, value_str, sizeof(value_str));
     }
     else
     {
@@ -2258,6 +2296,97 @@ static void add_typed_variable(DAPServer *server, const char *name, dbg_text t, 
     }
     add_variable_to_array(server, name, value_str, type_str, mem, ref, kind,
                           DAP_VARIABLE_ATTR_NONE);
+}
+
+/* The value of {NAME} in a log message: a Local of the routine of the PC (read at B + its
+ * offset, as add_local_variables does) or a Global of the source map, when its type is a
+ * simple value (scalar_value_text: word, byte, REAL); else a register (expr_eval_condition's
+ * names are not used: the text is the value, not a truth). 0 when there is none. */
+static int log_lookup(const char *name, size_t n, char *out, size_t cap)
+{
+    symbol_debug_info_t *info = s_symbol_tables.debug_info;
+    if (info)
+    {
+        symbol_function_t *func = symbols_find_function_at(info, gPC);
+        if (func)
+        {
+            int var_count = 0;
+            symbol_variable_t *vars = symbols_get_variables(func, &var_count);
+            for (int i = 0; i < var_count; i++)
+            {
+                const char *ty = vars[i].type_name ? vars[i].type_name : "word";
+                dbg_text t = { ty, strlen(ty) };
+                if (strlen(vars[i].name) == n && strncasecmp(vars[i].name, name, n) == 0 &&
+                    (text_is(t, "word") || text_is(t, "byte") || text_is(t, "real 6")))
+                {
+                    uint16_t addr = (uint16_t)((int16_t)gB + vars[i].offset);
+                    scalar_value_text(t, (uint32_t)addr * 2u, out, cap);
+                    return 1;
+                }
+            }
+        }
+        for (int i = 0; i < info->global_count; i++)
+        {
+            const symbol_global_t *g = &info->globals[i];
+            const char *ty = g->type_name ? g->type_name : "word";
+            dbg_text t = { ty, strlen(ty) };
+            if (strlen(g->name) == n && strncasecmp(g->name, name, n) == 0)
+            {
+                if (text_is(t, "byte"))
+                {
+                    /* as add_global_variables: which half of its word holds it is not in
+                     * the map, so the whole word */
+                    int word = dbg_read_data(g->address);
+                    snprintf(out, cap, word == -1 ? "<unreadable>" : "word %06o",
+                             (uint16_t)word);
+                    return 1;
+                }
+                if (text_is(t, "word") || text_is(t, "real 6"))
+                {
+                    scalar_value_text(t, (uint32_t)g->address * 2u, out, cap);
+                    return 1;
+                }
+            }
+        }
+    }
+    return 0;
+}
+
+/* bkpt_log_hook: the message with each {NAME} replaced by its value (an unknown name stays
+ * as written), one line, queued for the client. Runs on the CPU thread. */
+static void dbg_log_hook(const char *text)
+{
+    char line[512];
+    size_t o = 0;
+    for (const char *p = text; *p && o + 1 < sizeof line; p++)
+    {
+        const char *close = (*p == '{') ? strchr(p, '}') : NULL;
+        char val[96];
+        if (close && log_lookup(p + 1, (size_t)(close - p - 1), val, sizeof val))
+        {
+            size_t k = strlen(val);
+            if (o + k >= sizeof line - 1)
+            {
+                k = sizeof line - 2 - o;
+            }
+            memcpy(line + o, val, k);
+            o += k;
+            p = close;
+        }
+        else
+        {
+            line[o++] = *p;
+        }
+    }
+    line[o++] = '\n';
+    line[o] = '\0';
+    pthread_mutex_lock(&s_log_lock);
+    if (s_log_len + o < sizeof s_log_buf)
+    {
+        memcpy(s_log_buf + s_log_len, line, o + 1);
+        s_log_len += o;
+    }
+    pthread_mutex_unlock(&s_log_lock);
 }
 
 /* The elements of an array view, the components of a record view, or what a pointer points at */
@@ -6090,6 +6219,7 @@ int debugger_ndx_server_init(int port)
 
     // Configure which capabilities are supported
     set_default_dap_capabilities(g_dap_server);
+    bkpt_set_log_hook(dbg_log_hook); // logpoints: their text to the client (dbg_log_hook)
 
     // Start server and transport layer
     int result = dap_server_start(g_dap_server);

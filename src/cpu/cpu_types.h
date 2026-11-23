@@ -1916,6 +1916,16 @@ void bkpt_manager_step_one(void);
 void bkpt_manager_add(uint16_t, BreakpointType, const char *, const char *, const char *);
 
 /**
+ * @brief Called on the CPU thread when a logpoint (a breakpoint with a log message) is hit,
+ * with its message. The debugger sets it (src/debugger/debugger.c, dbg_log_hook) to send the
+ * text to the DAP client; with none set the message goes to the emulator log only.
+ */
+typedef void (*BkptLogHook)(const char *message);
+
+/** @brief Set the logpoint hook (NULL: none). */
+void bkpt_set_log_hook(BkptLogHook hook);
+
+/**
  * @brief Add a breakpoint that fires only for one program: one level and one PCR.
  * @param pil Level 0-15, or -1 for any level.
  * @param pcr PCR value (ring bits ignored), or -1 for any PCR.

@@ -224,6 +224,15 @@ void bkpt_manager_step_one_ctx(int8_t pil, int32_t pcr)
     g_breakpoint_step_pending = 1;
 }
 
+/* the logpoint hook (bkpt_set_log_hook, cpu_types.h) */
+static BkptLogHook s_log_hook = NULL;
+
+/// @brief Set the logpoint hook (NULL: none)
+void bkpt_set_log_hook(BkptLogHook hook)
+{
+    s_log_hook = hook;
+}
+
 /// @brief Add breakpoint (create new entry or append to list)
 /// @param address Memory address to add breakpoint to
 /// @param type Breakpoint type (user, function, data, instruction, temporary)
@@ -523,8 +532,13 @@ int bkpt_check_hit(void)
             {
                 if (bp->logMessage)
                 {
-                    // Expand log message vars (simple demo)
+                    // a logpoint does not stop: its text goes to the debugger (which
+                    // replaces each {NAME} by its value and sends it to the client)
                     LOG(LOG_CAT_DAP, LOG_INFO, "[LOGPOINT] %s", bp->logMessage);
+                    if (s_log_hook)
+                    {
+                        s_log_hook(bp->logMessage);
+                    }
                 }
                 else
                 {
