@@ -170,6 +170,7 @@ typedef struct {
     bool shellEnabled;       // --monitor or --shell: enable interactive shell mode
     char *nd100Root;         // --nd100-root: directory containing BPUN/PROG files (default: current dir)
     char *scriptPath;        // --script: path to script file with shell commands
+    int consoleRadix;        // --radix: the radix the shell prints numbers in (nd_radix, default octal)
     char *logSpec;           // --log=SPEC: per-category log levels, applied after the .ini [runtime] log key
     bool traceNd110;         // --trace-nd110[=FILE]: ND-110-only opcode trace
     char *traceNd110File;    // its output file; NULL = stdout

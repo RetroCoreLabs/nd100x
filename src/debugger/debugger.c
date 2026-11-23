@@ -349,6 +349,7 @@ static atomic_bool debugger_thread_should_exit = false;
 
 #include "debugger_protos.h"
 #include "debugger.h"
+#include "../ndlib/nd_radix.h"
 static int set_default_dap_capabilities(DAPServer *);
 
 
@@ -369,12 +370,11 @@ static int set_default_dap_capabilities(DAPServer *);
  * debug-console command "radix octal|decimal|hex"; a variables or evaluate request with
  * format {"hex": true} (VS Code "View as hex") is answered in hex.
  */
-typedef enum
-{
-    DBG_RADIX_OCTAL = 0,
-    DBG_RADIX_DECIMAL,
-    DBG_RADIX_HEX
-} dbg_radix;
+/* The forms and their text are in ndlib/nd_radix.h, shared with the console shell */
+typedef nd_radix dbg_radix;
+#define DBG_RADIX_OCTAL ND_RADIX_OCTAL
+#define DBG_RADIX_DECIMAL ND_RADIX_DECIMAL
+#define DBG_RADIX_HEX ND_RADIX_HEX
 
 static dbg_radix s_radix = DBG_RADIX_OCTAL; /* the session's radix */
 static int s_radix_override = -1; /* the radix of the request being answered, -1 for none */
@@ -387,62 +387,19 @@ static dbg_radix radix_now(void)
 /* "octal", "decimal" or "hex" (any case) to *out; returns 0, or -1 for another word */
 static int radix_from_word(const char *w, dbg_radix *out)
 {
-    if (!w)
-    {
-        return -1;
-    }
-    if (strcasecmp(w, "octal") == 0)
-    {
-        *out = DBG_RADIX_OCTAL;
-        return 0;
-    }
-    if (strcasecmp(w, "decimal") == 0)
-    {
-        *out = DBG_RADIX_DECIMAL;
-        return 0;
-    }
-    if (strcasecmp(w, "hex") == 0)
-    {
-        *out = DBG_RADIX_HEX;
-        return 0;
-    }
-    return -1;
+    return nd_radix_from_word(w, out);
 }
 
 static const char *radix_word(dbg_radix r)
 {
-    return r == DBG_RADIX_DECIMAL ? "decimal" : r == DBG_RADIX_HEX ? "hex" : "octal";
+    return nd_radix_word(r);
 }
 
 /* The text of a whole number of `bits` bits (1 to 32) in the radix of the moment; with
  * is_signed, decimal shows the top bit as the sign. */
 static void num_text(char *out, size_t cap, uint32_t v, int bits, bool is_signed)
 {
-    uint32_t mask = bits >= 32 ? 0xFFFFFFFFu : ((1u << bits) - 1u);
-    v &= mask;
-    switch (radix_now())
-    {
-    case DBG_RADIX_DECIMAL:
-        if (is_signed && ((v >> (bits - 1)) & 1u) != 0)
-        {
-            snprintf(out, cap, "%lld", (long long)v - (1LL << bits));
-        }
-        else
-        {
-            snprintf(out, cap, "%lu", (unsigned long)v);
-        }
-        break;
-    case DBG_RADIX_HEX:
-    {
-        char d[16];
-        snprintf(d, sizeof d, "%0*lX", (bits + 3) / 4, (unsigned long)v);
-        snprintf(out, cap, "%s%sH", d[0] >= 'A' ? "0" : "", d);
-        break;
-    }
-    default:
-        snprintf(out, cap, "%0*loB", (bits + 2) / 3, (unsigned long)v);
-        break;
-    }
+    nd_num_text(out, cap, v, bits, is_signed, radix_now());
 }
 
 /* A whole number typed by the user (setVariable): digits with a B suffix are octal, with an H

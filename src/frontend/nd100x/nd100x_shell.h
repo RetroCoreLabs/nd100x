@@ -60,4 +60,9 @@
  */
 int nd100x_shell_run(const char *nd100_root, const char *script_path);
 
+#include "../../ndlib/nd_radix.h"
+
+/* The radix the shell prints numbers in (--radix, shell command RADIX); octal by default */
+void nd100x_shell_set_radix(nd_radix r);
+
 #endif /* ND100X_SHELL_H */

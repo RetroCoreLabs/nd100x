@@ -31,6 +31,7 @@
 #include <getopt.h>
 
 #include "nd100x_types.h"
+#include "../../ndlib/nd_radix.h"
 #include "nd100x_protos.h"
 #include "../../machine/machine_types.h"
 #include "../../devices/hdlc/hdlc_constants.h"
@@ -110,6 +111,7 @@ static struct option long_options[] = {
     {"shell",      no_argument,       0, 0x160}, // --shell : alias for --monitor
     {"nd100-root", required_argument, 0, 0x161}, // --nd100-root=PATH : directory for BPUN/PROG files (default: current dir)
     {"script",     required_argument, 0, 0x162}, // --script=FILE : load shell commands from script file
+    {"radix",      required_argument, 0, 0x191}, // --radix=octal|decimal|hex : numbers the console shell prints (default octal)
     {"no-boot-status", no_argument,   0, 0x163}, // --no-boot-status : no "Booting from ..." line at start-up
     {"log",        required_argument, 0, 0x154}, // --log=SPEC : per-category log levels, e.g. smd:debug,*:warn
     {"trace-nd110", optional_argument, 0, 0x155}, // --trace-nd110[=FILE] : trace ND-110-only opcodes
@@ -213,6 +215,7 @@ void config_init(Config *config)
     config->shellEnabled = false;
     config->nd100Root = NULL;
     config->scriptPath = NULL;
+    config->consoleRadix = ND_RADIX_OCTAL;
     config->logSpec = NULL;
     config->traceNd110 = false;
     config->traceNd110File = NULL;
@@ -1131,6 +1134,18 @@ bool config_parse_command_line(Config *config, int argc, char *argv[])
             config->bootStatus = false;
             break;
 
+        case 0x191: /* --radix=octal|decimal|hex : the radix the console shell prints numbers in */
+        {
+            nd_radix r;
+            if (nd_radix_from_word(optarg, &r) != 0)
+            {
+                fprintf(stderr, "--radix is octal, decimal or hex, not '%s'\n", optarg);
+                return false;
+            }
+            config->consoleRadix = r;
+            break;
+        }
+
         case 0x162: /* --script=FILE : load shell commands from script file */
             config->scriptPath = strdup(optarg);
             if (!config->scriptPath)
@@ -1496,6 +1511,8 @@ void config_print_help(const char *prog_name)
     printf("           --nd100-root=PATH    Directory containing BPUN/PROG files (default: current "
            "dir)\n");
     printf("           --script=FILE        Load shell commands from a script file\n");
+    printf("           --radix=octal|decimal|hex  Numbers the shell prints: octal 177773B (default),\n");
+    printf("                          decimal 65531, hex 0FFFBH. The shell command RADIX switches it\n");
     printf("  -h,      --help         Show this help message\n");
     printf("  -V,      --version      Show version, git hash and build time, then exit\n\n");
     printf("Examples:\n");

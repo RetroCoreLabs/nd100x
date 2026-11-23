@@ -46,6 +46,22 @@
 #endif
 
 #define SHELL_PROMPT "@"
+
+/* The radix the shell prints numbers in (ndlib/nd_radix.h forms: 177773B, -5, 0FFFBH). Octal
+ * by default, as the ND tools print numbers; --radix and the command RADIX change it. */
+static nd_radix g_shell_radix = ND_RADIX_OCTAL;
+
+void nd100x_shell_set_radix(nd_radix r)
+{
+    g_shell_radix = r;
+}
+
+/* The text of a 16-bit word in the shell's radix (unsigned) */
+static const char *shell_word(char *buf, size_t cap, uint32_t v)
+{
+    nd_num_text(buf, cap, v, 16, false, g_shell_radix);
+    return buf;
+}
 #define MAX_CMD_LEN  256
 #define MAX_TOKENS   10
 
@@ -63,6 +79,7 @@ static int cmd_exit(const char *nd100_root, int argc, char **argv);
 static int cmd_list_files(const char *nd100_root, int argc, char **argv);
 static int cmd_run_program(const char *nd100_root, int argc, char **argv);
 static int cmd_show_regs(const char *nd100_root, int argc, char **argv);
+static int cmd_radix(const char *nd100_root, int argc, char **argv);
 
 // clang-format off
 static ShellCommand commands[] = {
@@ -70,6 +87,7 @@ static ShellCommand commands[] = {
     {"LIST-FILES",    "LI-FI", "List BPUN/PROG files", cmd_list_files},
     {"RUN-PROGRAM",   "RU-PR", "Load and run a program", cmd_run_program},
     {"SHOW-REGISTERS","SH-RE", "Display CPU registers", cmd_show_regs},
+    {"RADIX",         "RA",   "Show or set the radix numbers are printed in (octal, decimal, hex)", cmd_radix},
     {"EXIT",          "EX",   "Exit the shell", cmd_exit},
     {NULL, NULL, NULL, NULL}
 };
@@ -396,7 +414,9 @@ static int cmd_run_program(const char *nd100_root, int argc, char **argv)
 
         gPC = phdr.startAddress;
         cpu_set_run_mode(CPU_RUNNING);
-        printf("Starting at 0o%o - handing control to the ND-100...\n\n", phdr.startAddress);
+        char at[24];
+        printf("Starting at %s - handing control to the ND-100...\n\n",
+               shell_word(at, sizeof at, phdr.startAddress));
         return SHELL_RESULT_RUN;
     }
 
@@ -429,8 +449,10 @@ static int cmd_run_program(const char *nd100_root, int argc, char **argv)
         /* Non-autostart image: leave the CPU halted with P = start, like a
          * real ND-100 would sit in OPCOM. Stay at the shell prompt. */
         cpu_set_run_mode(CPU_STOPPED);
-        printf("Loaded. Action=0o%o (non-autostart): P set to 0o%o, CPU held.\n", hdr.action,
-               hdr.start);
+        char act[24];
+        char at[24];
+        printf("Loaded. Action=%s (non-autostart): P set to %s, CPU held.\n",
+               shell_word(act, sizeof act, hdr.action), shell_word(at, sizeof at, hdr.start));
         printf("Use the debugger to run it, or load an autostart image.\n");
         return 0;
     }
@@ -439,7 +461,8 @@ static int cmd_run_program(const char *nd100_root, int argc, char **argv)
      * hand control back to the caller (main), which drives the real machine
      * run loop - reusing all terminal I/O, menu and telnet plumbing. */
     cpu_set_run_mode(CPU_RUNNING);
-    printf("Starting at 0o%o - handing control to the ND-100...\n\n", hdr.start);
+    char at[24];
+    printf("Starting at %s - handing control to the ND-100...\n\n", shell_word(at, sizeof at, hdr.start));
 
     return SHELL_RESULT_RUN;
 }
@@ -458,16 +481,40 @@ static int cmd_show_regs(const char *nd100_root, int argc, char **argv)
 
     if (g_reg)
     {
-        printf("  A:     0o%06o\n", g_reg->reg[gPIL][_A]);
-        printf("  B:     0o%06o\n", g_reg->reg[gPIL][_B]);
-        printf("  D:     0o%06o\n", g_reg->reg[gPIL][_D]);
-        printf("  X:     0o%06o\n", g_reg->reg[gPIL][_X]);
-        printf("  L:     0o%06o\n", g_reg->reg[gPIL][_L]);
-        printf("  T:     0o%06o\n", g_reg->reg[gPIL][_T]);
-        printf("  P:     0o%06o\n", g_reg->reg[gPIL][_P]);
-        printf("  STS:   0o%06o\n", g_reg->reg_STS);
+        static const struct
+        {
+            const char *name;
+            int index;
+        } rows[] = {{"A:  ", _A}, {"B:  ", _B}, {"D:  ", _D}, {"X:  ", _X},
+                    {"L:  ", _L}, {"T:  ", _T}, {"P:  ", _P}};
+        char v[24];
+        for (size_t i = 0; i < sizeof rows / sizeof rows[0]; i++)
+        {
+            printf("  %s   %s\n", rows[i].name, shell_word(v, sizeof v, g_reg->reg[gPIL][rows[i].index]));
+        }
+        printf("  STS:   %s\n", shell_word(v, sizeof v, g_reg->reg_STS));
     }
 
+    return 0;
+}
+
+/**
+ * RADIX: print the radix numbers are shown in, or switch it (RADIX OCTAL|DECIMAL|HEX)
+ */
+static int cmd_radix(const char *nd100_root, int argc, char **argv)
+{
+    (void)nd100_root;
+    if (argc >= 2)
+    {
+        nd_radix r;
+        if (nd_radix_from_word(argv[1], &r) != 0)
+        {
+            printf("Radix is OCTAL, DECIMAL or HEX, not %s\n", argv[1]);
+            return -1;
+        }
+        g_shell_radix = r;
+    }
+    printf("Radix: %s\n", nd_radix_word(g_shell_radix));
     return 0;
 }
 

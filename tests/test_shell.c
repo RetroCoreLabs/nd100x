@@ -527,6 +527,58 @@ static void test_exit(void)
 }
 
 /* ======================================================================== */
+/* ======================================================================== */
+/* Test: RADIX and SHOW-REGISTERS print numbers in the radix (ndlib/nd_radix.h) */
+/* ======================================================================== */
+static int exec_out(const char *cmd, char *sink, size_t sink_size)
+{
+    char buf[MAX_CMD_LEN];
+    snprintf(buf, sizeof(buf), "%s", cmd);
+    int rc = 0;
+    struct
+    {
+        char *line;
+        int *rc;
+    } a = {buf, &rc};
+    capture_stdout(run_exec, &a, sink, sink_size);
+    return rc;
+}
+
+static void test_radix(void)
+{
+    printf("TEST: RADIX and SHOW-REGISTERS in octal, decimal and hex\n");
+    char out[4096];
+    g_fake_regs.reg[gPIL][_A] = 0177773; /* -5 as a word */
+    g_fake_regs.reg[gPIL][_P] = 0164316;
+    g_fake_regs.reg_STS = 0;
+
+    CHECK(exec_out("RADIX", out, sizeof out) == 0 && strstr(out, "Radix: octal") != NULL,
+          "RADIX alone reports the default, octal; got: %s", out);
+    CHECK(exec_out("SHOW-REGISTERS", out, sizeof out) == 0, "SHOW-REGISTERS returns 0");
+    CHECK(strstr(out, "  A:     177773B\n") != NULL, "A in octal, 6 digits and B; got: %s", out);
+    CHECK(strstr(out, "  P:     164316B\n") != NULL, "P in octal");
+    CHECK(strstr(out, "  STS:   000000B\n") != NULL, "STS in octal with leading zeros");
+
+    CHECK(exec_out("RA DECIMAL", out, sizeof out) == 0 && strstr(out, "Radix: decimal") != NULL,
+          "RA DECIMAL switches; got: %s", out);
+    exec_out("SH-RE", out, sizeof out);
+    CHECK(strstr(out, "  A:     65531\n") != NULL, "A in decimal (a register is unsigned); got: %s", out);
+
+    CHECK(exec_out("radix hex", out, sizeof out) == 0, "radix hex (any case)");
+    exec_out("SH-RE", out, sizeof out);
+    CHECK(strstr(out, "  A:     0FFFBH\n") != NULL, "A in hex, 0 before a letter, H; got: %s", out);
+    CHECK(strstr(out, "  P:     0E8CEH\n") != NULL, "P in hex");
+
+    CHECK(exec_out("RADIX ROMAN", out, sizeof out) == -1 && strstr(out, "not ROMAN") != NULL,
+          "a word other than octal/decimal/hex is an error; got: %s", out);
+    exec_out("SH-RE", out, sizeof out);
+    CHECK(strstr(out, "0FFFBH") != NULL, "a bad word leaves the radix as it was");
+
+    nd100x_shell_set_radix(ND_RADIX_OCTAL); /* as --radix=octal */
+    exec_out("SH-RE", out, sizeof out);
+    CHECK(strstr(out, "  A:     177773B\n") != NULL, "nd100x_shell_set_radix (--radix) switches back");
+}
+
 int main(void)
 {
     printf("\n========================================\n");
@@ -539,6 +591,7 @@ int main(void)
     test_run_program_path();
     test_list_files();
     test_exit();
+    test_radix();
 
     printf("\n========================================\n");
     printf("Checks: %d   Failures: %d\n", g_checks, g_fails);

@@ -1825,6 +1825,7 @@ int main(int argc, char *argv[])
         ndlib_unsetcbreak();
         setvbuf(stdout, NULL, _IOLBF, 0);
         printf("\n=== ND-100 Interactive Shell Mode ===\n");
+        nd100x_shell_set_radix((nd_radix)config.consoleRadix);
         int shell_result = nd100x_shell_run(config.nd100Root, config.scriptPath);
         if (shell_result == SHELL_RESULT_RUN)
         {
