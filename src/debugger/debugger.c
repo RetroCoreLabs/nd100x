@@ -352,6 +352,180 @@ static atomic_bool debugger_thread_should_exit = false;
 static int set_default_dap_capabilities(DAPServer *);
 
 
+/*
+ * The radix whole numbers are shown in. The real ND tools print them in octal (measured: the
+ * ND-100 prints "PC=037613", a word as 6 digits with leading zeros), so octal is the default.
+ * The forms, the same in every view (variables, registers, frame names, evaluate, logpoints):
+ *   octal    the digits with the B suffix, filled with zeros to the width of the value as the
+ *            ND-100 prints it: 6 digits for a word (177773B), 3 for a byte (141B)
+ *   decimal  plain, signed where the value is signed (an INTEGER: -5)
+ *   hex      the digits with the H suffix (ND style), filled to the width (4 digits for a word),
+ *            and a 0 in front when the first digit is a letter, as the ND assemblers need it
+ *            (0FFFBH)
+ * A REAL is not a whole number and is always decimal. Index bounds and element names
+ * ("(1:10)", "[3]") are source-level numbers and are decimal, as they are written in the
+ * program. memoryReference and the other DAP ids are not shown text and do not change.
+ * The radix comes from the launch/attach argument "radix", the custom request setRadix, and the
+ * debug-console command "radix octal|decimal|hex"; a variables or evaluate request with
+ * format {"hex": true} (VS Code "View as hex") is answered in hex.
+ */
+typedef enum
+{
+    DBG_RADIX_OCTAL = 0,
+    DBG_RADIX_DECIMAL,
+    DBG_RADIX_HEX
+} dbg_radix;
+
+static dbg_radix s_radix = DBG_RADIX_OCTAL; /* the session's radix */
+static int s_radix_override = -1; /* the radix of the request being answered, -1 for none */
+
+static dbg_radix radix_now(void)
+{
+    return s_radix_override >= 0 ? (dbg_radix)s_radix_override : s_radix;
+}
+
+/* "octal", "decimal" or "hex" (any case) to *out; returns 0, or -1 for another word */
+static int radix_from_word(const char *w, dbg_radix *out)
+{
+    if (!w)
+    {
+        return -1;
+    }
+    if (strcasecmp(w, "octal") == 0)
+    {
+        *out = DBG_RADIX_OCTAL;
+        return 0;
+    }
+    if (strcasecmp(w, "decimal") == 0)
+    {
+        *out = DBG_RADIX_DECIMAL;
+        return 0;
+    }
+    if (strcasecmp(w, "hex") == 0)
+    {
+        *out = DBG_RADIX_HEX;
+        return 0;
+    }
+    return -1;
+}
+
+static const char *radix_word(dbg_radix r)
+{
+    return r == DBG_RADIX_DECIMAL ? "decimal" : r == DBG_RADIX_HEX ? "hex" : "octal";
+}
+
+/* The text of a whole number of `bits` bits (1 to 32) in the radix of the moment; with
+ * is_signed, decimal shows the top bit as the sign. */
+static void num_text(char *out, size_t cap, uint32_t v, int bits, bool is_signed)
+{
+    uint32_t mask = bits >= 32 ? 0xFFFFFFFFu : ((1u << bits) - 1u);
+    v &= mask;
+    switch (radix_now())
+    {
+    case DBG_RADIX_DECIMAL:
+        if (is_signed && ((v >> (bits - 1)) & 1u) != 0)
+        {
+            snprintf(out, cap, "%lld", (long long)v - (1LL << bits));
+        }
+        else
+        {
+            snprintf(out, cap, "%lu", (unsigned long)v);
+        }
+        break;
+    case DBG_RADIX_HEX:
+    {
+        char d[16];
+        snprintf(d, sizeof d, "%0*lX", (bits + 3) / 4, (unsigned long)v);
+        snprintf(out, cap, "%s%sH", d[0] >= 'A' ? "0" : "", d);
+        break;
+    }
+    default:
+        snprintf(out, cap, "%0*loB", (bits + 2) / 3, (unsigned long)v);
+        break;
+    }
+}
+
+/* A whole number typed by the user (setVariable): digits with a B suffix are octal, with an H
+ * suffix or a 0x prefix hex, with a 0 prefix octal (the form read before), otherwise decimal,
+ * with an optional minus sign. Returns 0, or -1 when the text is not a number. */
+static int num_parse(const char *text, unsigned long *out)
+{
+    char buf[40];
+    size_t n = text ? strlen(text) : 0;
+    while (n > 0 && (text[n - 1] == ' ' || text[n - 1] == '\t'))
+    {
+        n--;
+    }
+    while (n > 0 && (*text == ' ' || *text == '\t'))
+    {
+        text++;
+        n--;
+    }
+    if (n == 0 || n >= sizeof buf)
+    {
+        return -1;
+    }
+    memcpy(buf, text, n);
+    buf[n] = '\0';
+    bool neg = buf[0] == '-';
+    char *d = neg ? buf + 1 : buf;
+    size_t dl = strlen(d);
+    int base = 10;
+    if (dl > 1 && (d[dl - 1] == 'B' || d[dl - 1] == 'b'))
+    {
+        base = 8;
+        d[--dl] = '\0';
+    }
+    else if (dl > 1 && (d[dl - 1] == 'H' || d[dl - 1] == 'h'))
+    {
+        base = 16;
+        d[--dl] = '\0';
+    }
+    else if (dl > 2 && d[0] == '0' && (d[1] == 'x' || d[1] == 'X'))
+    {
+        base = 16;
+        d += 2;
+    }
+    else if (dl > 1 && d[0] == '0')
+    {
+        base = 8;
+    }
+    char *end = NULL;
+    unsigned long v = strtoul(d, &end, base);
+    if (end == d || *end != '\0')
+    {
+        return -1;
+    }
+    *out = neg ? (unsigned long)(-(long)v) : v;
+    return 0;
+}
+
+static int radix_from_session_argument(DAPServer *server);
+
+/* libdap's frame names ("NAME +OFFSET @ADDRESS"): both numbers in the radix */
+static void radix_frame_number(char *out, size_t cap, uint32_t value)
+{
+    num_text(out, cap, value, 16, false);
+}
+
+/* After the radix changed: VS Code asks again for what it shows (DAP "invalidated") */
+static void radix_send_invalidated(DAPServer *server)
+{
+    cJSON *body = cJSON_CreateObject();
+    cJSON *areas = cJSON_CreateArray();
+    if (!body || !areas)
+    {
+        cJSON_Delete(body);
+        cJSON_Delete(areas);
+        return;
+    }
+    cJSON_AddItemToArray(areas, cJSON_CreateString("variables"));
+    cJSON_AddItemToArray(areas, cJSON_CreateString("stacks"));
+    cJSON_AddItemToObject(body, "areas", areas);
+    dap_server_send_event(server, "invalidated", body);
+}
+
+
 #ifndef __EMSCRIPTEN__
 // Signal handler for the debugger thread
 static void debugger_signal_handler(int sig)
@@ -779,12 +953,16 @@ static int cmd_check_cpu_events(DAPServer *server)
         char description[256];
         if (line > 0 && file)
         {
-            snprintf(description, sizeof(description), "Stopped at %s:%d (PC=%06o)", file, line,
-                     gPC);
+            char pcs[24];
+            num_text(pcs, sizeof pcs, gPC, 16, false);
+            snprintf(description, sizeof(description), "Stopped at %s:%d (PC=%s)", file, line,
+                     pcs);
         }
         else
         {
-            snprintf(description, sizeof(description), "Stopped at PC=%06o", gPC);
+            char pcs[24];
+            num_text(pcs, sizeof pcs, gPC, 16, false);
+            snprintf(description, sizeof(description), "Stopped at PC=%s", pcs);
         }
 
         if (dap_server_send_stopped_event(server, dap_reason_str, description) == 0)
@@ -2069,11 +2247,13 @@ static void scalar_value_text(dbg_text t, uint32_t ba, char *out, size_t cap)
         }
         else if (b >= 32 && b < 127)
         {
-            snprintf(out, cap, "%d (%03o) '%c'", b, b, b);
+            char n[24];
+            num_text(n, sizeof n, (uint32_t)b, 8, false);
+            snprintf(out, cap, "%s '%c'", n, b);
         }
         else
         {
-            snprintf(out, cap, "%d (%03o)", b, b);
+            num_text(out, cap, (uint32_t)b, 8, false);
         }
         return;
     }
@@ -2101,7 +2281,7 @@ static void scalar_value_text(dbg_text t, uint32_t ba, char *out, size_t cap)
     }
     else
     {
-        snprintf(out, cap, "%d (%06o)", (int16_t)w, (uint16_t)w);
+        num_text(out, cap, (uint32_t)w, 16, true);
     }
 }
 
@@ -2147,8 +2327,9 @@ static void add_typed_variable(DAPServer *server, const char *name, dbg_text t, 
         }
         else
         {
-            snprintf(value_str, sizeof(value_str), "(%d:%d) at %06o", (int16_t)l, (int16_t)h,
-                     (uint16_t)a0);
+            char at[24];
+            num_text(at, sizeof at, (uint32_t)a0, 16, false);
+            snprintf(value_str, sizeof(value_str), "(%d:%d) at %s", (int16_t)l, (int16_t)h, at);
             if ((int16_t)h >= (int16_t)l && !text_is(et, "bit"))
             {
                 ref = view_add_array(et, (int16_t)l, (int16_t)h,
@@ -2166,7 +2347,9 @@ static void add_typed_variable(DAPServer *server, const char *name, dbg_text t, 
         }
         else
         {
-            snprintf(value_str, sizeof(value_str), "(%ld:%ld) at %06o", lo, hi, (uint16_t)a0);
+            char addr[24];
+            num_text(addr, sizeof addr, (uint32_t)a0, 16, false);
+            snprintf(value_str, sizeof(value_str), "(%ld:%ld) at %s", lo, hi, addr);
             ref = view_add_array(elem, lo, hi, (uint32_t)((long)a0 * 2 + text_row_shift(elem)),
                                  ctx);
         }
@@ -2187,7 +2370,9 @@ static void add_typed_variable(DAPServer *server, const char *name, dbg_text t, 
     }
     else if (text_array(t, &elem, &lo, &hi, &pad))
     {
-        snprintf(value_str, sizeof(value_str), "(%ld:%ld) at %06o", lo, hi, mem);
+        char at[24];
+        num_text(at, sizeof at, mem, 16, false);
+        snprintf(value_str, sizeof(value_str), "(%ld:%ld) at %s", lo, hi, at);
         if (text_is(elem, "bit"))
         {
             /* the bit address index 0 would have */
@@ -2244,7 +2429,7 @@ static void add_typed_variable(DAPServer *server, const char *name, dbg_text t, 
         }
         else
         {
-            snprintf(value_str, sizeof(value_str), "%06o", (uint16_t)a);
+            num_text(value_str, sizeof(value_str), (uint32_t)a, 16, false);
             if (known)
             {
                 ref = view_add(pt, VIEW_TARGET, 0, 0, (uint32_t)a * 2u, pctx);
@@ -2253,7 +2438,9 @@ static void add_typed_variable(DAPServer *server, const char *name, dbg_text t, 
     }
     else if (t.len > 0 && t.p[0] == '{')
     {
-        snprintf(value_str, sizeof(value_str), "record at %06o", mem);
+        char at[24];
+        num_text(at, sizeof at, mem, 16, false);
+        snprintf(value_str, sizeof(value_str), "record at %s", at);
         ref = view_add(t, VIEW_RECORD, 0, 0, ba, ctx);
     }
     else if (text_starts(t, "bits("))
@@ -2274,7 +2461,7 @@ static void add_typed_variable(DAPServer *server, const char *name, dbg_text t, 
         else
         {
             unsigned v = ((unsigned)w >> first) & ((1u << width) - 1u);
-            snprintf(value_str, sizeof(value_str), "%u (%o)", v, v);
+            num_text(value_str, sizeof(value_str), v, (int)width, false);
         }
     }
     else if (text_is(t, "byte") || text_is(t, "real 6") || text_is(t, "word") || (ba & 1u) != 0)
@@ -2283,15 +2470,17 @@ static void add_typed_variable(DAPServer *server, const char *name, dbg_text t, 
     }
     else
     {
-        /* N bytes: the words, in octal */
+        /* N bytes: the words, in the radix */
         long n = text_size(t);
         size_t len = 0;
         value_str[0] = '\0';
-        for (long k = 0; k < n && k < 32 && len + 8 < sizeof(value_str); k += 2)
+        for (long k = 0; k < n && k < 32 && len + 10 < sizeof(value_str); k += 2)
         {
+            char wt[24];
             w = view_word(ba + (uint32_t)k);
-            len += (size_t)snprintf(value_str + len, sizeof(value_str) - len, "%s%06o",
-                                    k ? " " : "", w == -1 ? 0u : (unsigned)(uint16_t)w);
+            num_text(wt, sizeof wt, w == -1 ? 0u : (uint32_t)(uint16_t)w, 16, false);
+            len += (size_t)snprintf(value_str + len, sizeof(value_str) - len, "%s%s",
+                                    k ? " " : "", wt);
         }
     }
     add_variable_to_array(server, name, value_str, type_str, mem, ref, kind,
@@ -2337,8 +2526,9 @@ static int log_lookup(const char *name, size_t n, char *out, size_t cap)
                     /* as add_global_variables: which half of its word holds it is not in
                      * the map, so the whole word */
                     int word = dbg_read_data(g->address);
-                    snprintf(out, cap, word == -1 ? "<unreadable>" : "word %06o",
-                             (uint16_t)word);
+                    char wt[24];
+                    num_text(wt, sizeof wt, (uint32_t)(uint16_t)word, 16, false);
+                    snprintf(out, cap, word == -1 ? "<unreadable>" : "word %s", wt);
                     return 1;
                 }
                 if (text_is(t, "word") || text_is(t, "real 6"))
@@ -2521,8 +2711,7 @@ static void add_local_variables(DAPServer *server, char *info_message, size_t in
 
                 if (word != -1)
                 {
-                    snprintf(value_str, sizeof(value_str), "%d (%06o)", (int16_t)word,
-                             (uint16_t)word);
+                    num_text(value_str, sizeof(value_str), (uint32_t)word, 16, true);
                 }
                 else
                 {
@@ -2580,8 +2769,9 @@ static void add_global_variables(DAPServer *server, char *info_message, size_t i
              * whole word */
             char value_str[32];
             int word = dbg_read_data(g->address);
-            snprintf(value_str, sizeof(value_str), word == -1 ? "<unreadable>" : "word %06o",
-                     (uint16_t)word);
+            char wt[24];
+            num_text(wt, sizeof wt, (uint32_t)(uint16_t)word, 16, false);
+            snprintf(value_str, sizeof(value_str), word == -1 ? "<unreadable>" : "word %s", wt);
             add_variable_to_array(server, g->name, value_str, "byte", g->address, 0,
                                   DAP_VARIABLE_KIND_DATA, DAP_VARIABLE_ATTR_NONE);
             continue;
@@ -2600,7 +2790,7 @@ static void add_level_variables(DAPServer *server, char *info_message, size_t in
     char value_str[100];
 
     // ADD PIL
-    snprintf(value_str, sizeof(value_str), "%06o", gPIL);
+    num_text(value_str, sizeof(value_str), gPIL, 16, false);
     add_variable_to_array(server,
                           "PIL",     // name
                           value_str, // value
@@ -2612,7 +2802,7 @@ static void add_level_variables(DAPServer *server, char *info_message, size_t in
     );
 
     // ADD PVL
-    snprintf(value_str, sizeof(value_str), "%06o", gPVL);
+    num_text(value_str, sizeof(value_str), gPVL, 16, false);
     add_variable_to_array(server,
                           "PVL",     // name
                           value_str, // value
@@ -2645,7 +2835,9 @@ static void add_level_variables(DAPServer *server, char *info_message, size_t in
             apt = (r_pcr >> 7) & 0x03;
         }
         char pcr_str[100];
-        snprintf(pcr_str, sizeof(pcr_str), "Ring[%d] PT[%d] APT[%d] P[%06d]", ring, pt, apt, r_p);
+        char ps[24];
+        num_text(ps, sizeof ps, (uint32_t)r_p, 16, false);
+        snprintf(pcr_str, sizeof(pcr_str), "Ring[%d] PT[%d] APT[%d] P[%s]", ring, pt, apt, ps);
 
         char name[20];
         snprintf(name, sizeof(name), "Level %d", i);
@@ -2689,14 +2881,14 @@ static void add_pil_register_variables(DAPServer *server, int pil)
     for (size_t r = 0; r < sizeof(regs) / sizeof(regs[0]); r++)
     {
         uint16_t v = g_reg->reg[pil][regs[r].idx];
-        snprintf(value_str, sizeof(value_str), "%06o", v);
+        num_text(value_str, sizeof(value_str), v, 16, false);
         add_variable_to_array(server, regs[r].name, value_str, "integer", v, 0,
                               DAP_VARIABLE_KIND_DATA, DAP_VARIABLE_ATTR_NONE);
     }
 
     // Also include the per-level paging control register so callers can
     // verify ring/PT/APT/priority/PTM-readiness for that level.
-    snprintf(value_str, sizeof(value_str), "%06o", g_reg->reg_PCR[pil]);
+    num_text(value_str, sizeof(value_str), g_reg->reg_PCR[pil], 16, false);
     add_variable_to_array(server, "PCR", value_str, "integer", 0, 0, DAP_VARIABLE_KIND_DATA,
                           DAP_VARIABLE_ATTR_NONE);
 }
@@ -2720,7 +2912,7 @@ static void add_register_variables(DAPServer *server, char *info_message, size_t
     char value_str[32];
 
     // Add the ST register (Status register)
-    snprintf(value_str, sizeof(value_str), "%06o", gSTSr);
+    num_text(value_str, sizeof(value_str), gSTSr, 16, false);
     add_variable_to_array(server,
                           "STS",     // name
                           value_str, // value
@@ -2733,7 +2925,7 @@ static void add_register_variables(DAPServer *server, char *info_message, size_t
     );
 
     // Add the D register (Data register)
-    snprintf(value_str, sizeof(value_str), "%06o", gD);
+    num_text(value_str, sizeof(value_str), gD, 16, false);
     add_variable_to_array(server,
                           "D",                    // name
                           value_str,              // value
@@ -2745,7 +2937,7 @@ static void add_register_variables(DAPServer *server, char *info_message, size_t
     );
 
     // Add the P register (Program Counter)
-    snprintf(value_str, sizeof(value_str), "%06o", gPC);
+    num_text(value_str, sizeof(value_str), gPC, 16, false);
     add_variable_to_array(server,
                           "P",                    // name
                           value_str,              // value
@@ -2757,7 +2949,7 @@ static void add_register_variables(DAPServer *server, char *info_message, size_t
     );
 
     // Add the B register (B register)
-    snprintf(value_str, sizeof(value_str), "%06o", gB);
+    num_text(value_str, sizeof(value_str), gB, 16, false);
     add_variable_to_array(server,
                           "B",                    // name
                           value_str,              // value
@@ -2769,7 +2961,7 @@ static void add_register_variables(DAPServer *server, char *info_message, size_t
     );
 
     // Add the L register (Link register)
-    snprintf(value_str, sizeof(value_str), "%06o", gL);
+    num_text(value_str, sizeof(value_str), gL, 16, false);
     add_variable_to_array(server,
                           "L",                    // name
                           value_str,              // value
@@ -2781,7 +2973,7 @@ static void add_register_variables(DAPServer *server, char *info_message, size_t
     );
 
     // Add the A register (Accumulator)
-    snprintf(value_str, sizeof(value_str), "%06o", gA);
+    num_text(value_str, sizeof(value_str), gA, 16, false);
     add_variable_to_array(server,
                           "A",                    // name
                           value_str,              // value
@@ -2793,7 +2985,7 @@ static void add_register_variables(DAPServer *server, char *info_message, size_t
     );
 
     // Add the T register (T register)
-    snprintf(value_str, sizeof(value_str), "%06o", gT);
+    num_text(value_str, sizeof(value_str), gT, 16, false);
     add_variable_to_array(server,
                           "T",                    // name
                           value_str,              // value
@@ -2805,7 +2997,7 @@ static void add_register_variables(DAPServer *server, char *info_message, size_t
     );
 
     // Add the X register (Index register)
-    snprintf(value_str, sizeof(value_str), "%06o", gX);
+    num_text(value_str, sizeof(value_str), gX, 16, false);
     add_variable_to_array(server,
                           "X",                    // name
                           value_str,              // value
@@ -2817,7 +3009,7 @@ static void add_register_variables(DAPServer *server, char *info_message, size_t
     );
 
     // Add the Effective address register
-    snprintf(value_str, sizeof(value_str), "%06o", gEA);
+    num_text(value_str, sizeof(value_str), gEA, 16, false);
     add_variable_to_array(server,
                           "EA",                   // name
                           value_str,              // value
@@ -2876,7 +3068,7 @@ static void add_internal_registers_read_variables(DAPServer *server, char *info_
     for (int i = 0; i < num_regs; i++)
     {
         // Format the register value in octal
-        snprintf(value_str, sizeof(value_str), "%06o", *(internal_regs[i].reg_ptr));
+        num_text(value_str, sizeof(value_str), *(internal_regs[i].reg_ptr), 16, false);
 
         // Add the register to the variable array
         add_variable_to_array(server,
@@ -2935,7 +3127,7 @@ static void add_internal_registers_write_variables(DAPServer *server, char *info
     for (int i = 0; i < num_regs; i++)
     {
         // Format the register value in octal
-        snprintf(value_str, sizeof(value_str), "%06o", *(internal_regs[i].reg_ptr));
+        num_text(value_str, sizeof(value_str), *(internal_regs[i].reg_ptr), 16, false);
 
         // Add the register to the variable array
         add_variable_to_array(server,
@@ -3242,7 +3434,24 @@ static void add_page_table_entries(DAPServer *server, char *info_message, size_t
  * @param server The DAP server instance
  * @return int 0 on success, non-zero on failure
  */
+static int cmd_variables_in_radix(DAPServer *server);
+
+/* variables: in hex when the request has format {"hex": true}, else in the session's radix */
 static int cmd_variables(DAPServer *server)
+{
+    if (!server)
+    {
+        return -1;
+    }
+    s_radix_override = server->current_command.context.variables.format_options.hex
+                           ? (int)DBG_RADIX_HEX
+                           : -1;
+    int r = cmd_variables_in_radix(server);
+    s_radix_override = -1;
+    return r;
+}
+
+static int cmd_variables_in_radix(DAPServer *server)
 {
     if (!server)
     {
@@ -3418,19 +3627,24 @@ void debugger_update_stack_frame(DAPServer *server, int frame_index, int frame_i
         // If we have a symbol, use it to create a frame name
         if (symbol && symbol->name)
         {
-            snprintf(frame_name, sizeof(frame_name), "%s at %06o", symbol->name, memory_reference);
+            char at[24];
+            num_text(at, sizeof at, (uint32_t)memory_reference, 16, false);
+            snprintf(frame_name, sizeof(frame_name), "%s at %s", symbol->name, at);
         }
         else
         {
             // No symbol, use PC as frame name
             if (symbol && symbol->name)
             {
-                snprintf(frame_name, sizeof(frame_name), "%s at %06o", symbol->name,
-                         memory_reference);
+                char at[24];
+                num_text(at, sizeof at, (uint32_t)memory_reference, 16, false);
+                snprintf(frame_name, sizeof(frame_name), "%s at %s", symbol->name, at);
             }
             else
             {
-                snprintf(frame_name, sizeof(frame_name), "frame at %06o", memory_reference);
+                char at[24];
+                num_text(at, sizeof at, (uint32_t)memory_reference, 16, false);
+                snprintf(frame_name, sizeof(frame_name), "frame at %s", at);
             }
         }
 
@@ -3446,7 +3660,9 @@ void debugger_update_stack_frame(DAPServer *server, int frame_index, int frame_i
     {
         // No source information found, use PC as frame name
         char frame_name[256];
-        snprintf(frame_name, sizeof(frame_name), "frame at %06o", memory_reference);
+        char at[24];
+        num_text(at, sizeof at, (uint32_t)memory_reference, 16, false);
+        snprintf(frame_name, sizeof(frame_name), "frame at %s", at);
         frame->name = strdup(frame_name);
     }
 
@@ -4220,14 +4436,15 @@ static int cmd_data_breakpoint_info(DAPServer *server)
         ctx->data_id = strdup(data_id);
 
         char desc[128];
+        char at[24];
+        num_text(at, sizeof at, (uint32_t)address, 16, false);
         if (resolved_name)
         {
-            snprintf(desc, sizeof(desc), "Watch '%s' at %s address %06o", resolved_name, space,
-                     address);
+            snprintf(desc, sizeof(desc), "Watch '%s' at %s address %s", resolved_name, space, at);
         }
         else
         {
-            snprintf(desc, sizeof(desc), "Watch %s memory at address %06o", space, address);
+            snprintf(desc, sizeof(desc), "Watch %s memory at address %s", space, at);
         }
         ctx->description = strdup(desc);
 
@@ -4684,6 +4901,10 @@ static int cmd_attach_callback(DAPServer *server)
     {
         return -1;
     }
+    if (radix_from_session_argument(server) != 0)
+    {
+        return -1;
+    }
     load_session_symbols(server, NULL, false);
     apply_session_program(server);
     return 0;
@@ -4709,6 +4930,10 @@ static int cmd_launch_callback(DAPServer *server)
     }
 
     LOG(LOG_CAT_DAP, LOG_DEBUG, "Launch command received\n");
+    if (radix_from_session_argument(server) != 0)
+    {
+        return -1;
+    }
 
     // Extract launch parameters from debugger state
     const char *program_path = server->debugger_state.program_path;
@@ -5028,20 +5253,11 @@ static int cmd_set_variable(DAPServer *server)
         return -1;
     }
 
-    /* Parse the value - support octal (0-prefix), hex (0x-prefix), decimal */
-    char *endp;
+    /* Parse the value - the forms num_parse reads (B suffix octal, H suffix hex, ...) */
     unsigned long val;
-    if (value_str[0] == '0' && (value_str[1] == 'x' || value_str[1] == 'X'))
+    if (num_parse(value_str, &val) != 0)
     {
-        val = strtoul(value_str, &endp, 16);
-    }
-    else if (value_str[0] == '0' && value_str[1] >= '0' && value_str[1] <= '7')
-    {
-        val = strtoul(value_str, &endp, 8);
-    }
-    else
-    {
-        val = strtoul(value_str, &endp, 10);
+        return -1;
     }
 
     uint16_t word = (uint16_t)(val & 0xFFFF);
@@ -5082,9 +5298,9 @@ static int cmd_set_variable(DAPServer *server)
             return -1;
         }
 
-        /* Set the return value in octal */
-        char buf[16];
-        snprintf(buf, sizeof(buf), "%06o", word);
+        /* The new value in the radix */
+        char buf[24];
+        num_text(buf, sizeof buf, word, 16, false);
         server->current_command.context.set_variable.new_value = strdup(buf);
         server->current_command.context.set_variable.type = strdup("integer");
         return 0;
@@ -5107,8 +5323,8 @@ static int cmd_set_variable(DAPServer *server)
                     // WriteVirtualMemory() would raise an emulated MPV/PF and
                     // longjmp() out of this DAP handler on a bad address.
                     dbg_write_data(addr, word);
-                    char buf[16];
-                    snprintf(buf, sizeof(buf), "%06o", word);
+                    char buf[24];
+                    num_text(buf, sizeof buf, word, 16, true);
                     server->current_command.context.set_variable.new_value = strdup(buf);
                     server->current_command.context.set_variable.type = strdup(vars[i].type_name);
                     return 0;
@@ -5123,7 +5339,99 @@ static int cmd_set_variable(DAPServer *server)
 /// @brief DAP command to evaluate an expression
 /// @param server
 /// @return
+static int cmd_evaluate_in_radix(DAPServer *server);
+
+/* The debug-console command "radix" (report) or "radix octal|decimal|hex" (switch). Only from
+ * the debug console (context "repl"), so a program variable named RADIX still evaluates in a
+ * watch. Returns 1 when expr was the command (the result is set), 0 when it was not. */
+static int radix_console_command(DAPServer *server, const char *expr)
+{
+    const char *ctx = server->current_command.context.evaluate.context;
+    if (!ctx || strcmp(ctx, "repl") != 0 || strncasecmp(expr, "radix", 5) != 0 ||
+        (expr[5] != '\0' && expr[5] != ' '))
+    {
+        return 0;
+    }
+    const char *w = expr + 5;
+    while (*w == ' ')
+    {
+        w++;
+    }
+    char buf[96];
+    if (*w == '\0')
+    {
+        snprintf(buf, sizeof buf, "radix %s", radix_word(s_radix));
+    }
+    else
+    {
+        dbg_radix r;
+        if (radix_from_word(w, &r) != 0)
+        {
+            snprintf(buf, sizeof buf, "Error: radix is octal, decimal or hex, not '%.40s'", w);
+            server->current_command.context.evaluate.result = strdup(buf);
+            server->current_command.context.evaluate.type = strdup("error");
+            return 1;
+        }
+        s_radix = r;
+        snprintf(buf, sizeof buf, "radix %s", radix_word(s_radix));
+        radix_send_invalidated(server);
+    }
+    server->current_command.context.evaluate.result = strdup(buf);
+    server->current_command.context.evaluate.type = strdup("string");
+    return 1;
+}
+
+/* evaluate: in hex when the request has format {"hex": true}, else in the session's radix */
 static int cmd_evaluate(DAPServer *server)
+{
+    const char *expr = server->current_command.context.evaluate.expression;
+    if (expr && radix_console_command(server, expr))
+    {
+        return 0;
+    }
+    s_radix_override = server->current_command.context.evaluate.format_options.hex
+                           ? (int)DBG_RADIX_HEX
+                           : -1;
+    int r = cmd_evaluate_in_radix(server);
+    s_radix_override = -1;
+    return r;
+}
+
+/* setRadix (custom request): {"radix": "octal" | "decimal" | "hex"} */
+static int cmd_set_radix(DAPServer *server)
+{
+    dbg_radix r;
+    if (radix_from_word(server->current_command.context.set_radix.radix, &r) != 0)
+    {
+        return -1;
+    }
+    s_radix = r;
+    radix_send_invalidated(server);
+    return 0;
+}
+
+/* The "radix" argument of a launch or attach; "" keeps the radix. Returns -1 for an unknown
+ * word, which fails the request (said on the console). */
+static int radix_from_session_argument(DAPServer *server)
+{
+    if (server->radix_argument[0] == '\0')
+    {
+        return 0;
+    }
+    dbg_radix r;
+    if (radix_from_word(server->radix_argument, &r) != 0)
+    {
+        char msg[96];
+        snprintf(msg, sizeof msg, "radix is octal, decimal or hex, not '%.40s'\n",
+                 server->radix_argument);
+        dap_server_send_output_category(server, DAP_OUTPUT_STDERR, msg);
+        return -1;
+    }
+    s_radix = r;
+    return 0;
+}
+
+static int cmd_evaluate_in_radix(DAPServer *server)
 {
     const char *expr = server->current_command.context.evaluate.expression;
     if (!expr)
@@ -5144,9 +5452,9 @@ static int cmd_evaluate(DAPServer *server)
         return 0;
     }
 
-    /* Format result as both octal and decimal */
+    /* The result in the radix */
     char buf[64];
-    snprintf(buf, sizeof(buf), "%06o (%u)", val, val);
+    num_text(buf, sizeof buf, val, 16, false);
     server->current_command.context.evaluate.result = strdup(buf);
     server->current_command.context.evaluate.type = strdup("integer");
     server->current_command.context.evaluate.memory_reference = val;
@@ -6216,6 +6524,9 @@ int debugger_ndx_server_init(int port)
                                          cmd_set_cpu_tracing);
     dap_server_register_command_callback(g_dap_server, DAP_CMD_GET_CPU_TRACE_RING,
                                          cmd_get_cpu_trace_ring);
+    // The radix whole numbers are shown in (custom, ND emulators)
+    dap_server_register_command_callback(g_dap_server, DAP_CMD_SET_RADIX, cmd_set_radix);
+    g_dap_server->format_number = radix_frame_number;
 
     // Configure which capabilities are supported
     set_default_dap_capabilities(g_dap_server);
@@ -6695,6 +7006,8 @@ static int set_default_dap_capabilities(DAPServer *server)
         // Core session management
         DAP_CAP_CONFIG_DONE_REQUEST, true, DAP_CAP_RESTART_REQUEST, true, DAP_CAP_TERMINATE_REQUEST,
         true, DAP_CAP_TERMINATE_DEBUGGEE, true,
+        // VS Code "View as hex" sends format {"hex": true} only when this is set (cmd_variables)
+        DAP_CAP_VALUE_FORMATTING_OPTIONS, true,
 
         // Memory operations
         DAP_CAP_READ_MEMORY_REQUEST, true, DAP_CAP_WRITE_MEMORY_REQUEST, true,
