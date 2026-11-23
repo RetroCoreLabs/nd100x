@@ -224,6 +224,19 @@ void bkpt_manager_step_one_ctx(int8_t pil, int32_t pcr)
     g_breakpoint_step_pending = 1;
 }
 
+/// @brief The step that was running is over: a breakpoint, a watchpoint or a pause stopped the
+///        run. Its temporary breakpoints and its pending single step go with it.
+void bkpt_step_end(void)
+{
+    if (g_breakpoint_mgr == NULL)
+    {
+        return;
+    }
+    g_breakpoint_mgr->step_count = 0;
+    g_breakpoint_step_pending = 0;
+    bkpt_manager_clear_type(BP_TYPE_TEMPORARY);
+}
+
 /* the logpoint hook (bkpt_set_log_hook, cpu_types.h) */
 static BkptLogHook s_log_hook = NULL;
 
@@ -279,6 +292,7 @@ void bkpt_manager_add_ctx(uint16_t address, BreakpointType type, const char *con
     entry->condition = condition ? strdup(condition) : NULL;
     entry->hitCondition = hit_condition ? strdup(hit_condition) : NULL;
     entry->logMessage = log_message ? strdup(log_message) : NULL;
+    entry->source = NULL;
     entry->hitCount = 0;
     entry->pil = pil;
     entry->pcr = (pcr >= 0) ? (int32_t)((uint32_t)pcr & BKPT_PCR_MASK) : -1;
@@ -317,6 +331,7 @@ void bkpt_manager_remove(uint16_t address, int type)
             free(to_delete->condition);
             free(to_delete->hitCondition);
             free(to_delete->logMessage);
+            free(to_delete->source);
             free(to_delete);
             curr = (prev) ? prev->next : g_breakpoint_mgr->buckets[h];
         }
@@ -343,6 +358,7 @@ void bkpt_manager_clear(void)
             free(curr->condition);
             free(curr->hitCondition);
             free(curr->logMessage);
+            free(curr->source);
             free(curr);
             curr = next;
         }
@@ -352,9 +368,8 @@ void bkpt_manager_clear(void)
     g_breakpoint_entry_count = 0;
 }
 
-/// @brief Clear only breakpoints of a specific type
-/// @param type Breakpoint type to clear (BP_TYPE_USER, BP_TYPE_FUNCTION, etc.)
-void bkpt_manager_clear_type(BreakpointType type)
+/// @brief Remove the breakpoints of one type; with source not NULL only those of that source
+static void clear_matching(BreakpointType type, const char *source)
 {
     if (!g_breakpoint_mgr)
     {
@@ -368,7 +383,8 @@ void bkpt_manager_clear_type(BreakpointType type)
         while (curr)
         {
             BreakpointEntry *next = curr->next;
-            if (curr->type == type)
+            if (curr->type == type &&
+                (source == NULL || (curr->source != NULL && strcmp(curr->source, source) == 0)))
             {
                 if (prev)
                 {
@@ -381,6 +397,7 @@ void bkpt_manager_clear_type(BreakpointType type)
                 free(curr->condition);
                 free(curr->hitCondition);
                 free(curr->logMessage);
+                free(curr->source);
                 free(curr);
             }
             else
@@ -391,6 +408,36 @@ void bkpt_manager_clear_type(BreakpointType type)
         }
     }
     breakpoint_bitmap_rebuild();
+}
+
+/// @brief Clear only breakpoints of a specific type
+/// @param type Breakpoint type to clear (BP_TYPE_USER, BP_TYPE_FUNCTION, etc.)
+void bkpt_manager_clear_type(BreakpointType type)
+{
+    clear_matching(type, NULL);
+}
+
+void bkpt_manager_clear_source(const char *source)
+{
+    if (source != NULL)
+    {
+        clear_matching(BP_TYPE_USER, source);
+    }
+}
+
+void bkpt_manager_set_source(uint16_t address, const char *source)
+{
+    if (!g_breakpoint_mgr || source == NULL)
+    {
+        return;
+    }
+    for (BreakpointEntry *e = g_breakpoint_mgr->buckets[hash_address(address)]; e; e = e->next)
+    {
+        if (e->address == address && e->type == BP_TYPE_USER && e->source == NULL)
+        {
+            e->source = strdup(source);
+        }
+    }
 }
 
 /// @brief Query breakpoints at address
@@ -572,11 +619,13 @@ int bkpt_check_hit(void)
         free(hits); // free list
         // A temporary breakpoint is one end of a step; a step can arm more than one (a call
         // comes back at its link or one word after it). The step is over when one of them
-        // fires, so all of them go: one left armed would end a later run where it is.
+        // fires, and also when another breakpoint stops the run first (a user breakpoint
+        // inside the called routine): either way all of them go, as one left armed would end
+        // a later run where it is (BUGS.md D3). A logpoint does not stop, so it leaves them.
         // Removed after the loop: the removal frees the entries the list points to.
-        if (temporary_hit)
+        if (temporary_hit || bt_type != BT_NONE)
         {
-            bkpt_manager_clear_type(BP_TYPE_TEMPORARY);
+            bkpt_step_end();
         }
     }
 

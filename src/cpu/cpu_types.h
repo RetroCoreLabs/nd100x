@@ -791,6 +791,9 @@ typedef struct BreakpointEntry {
     char* condition;     // expression string (NULL if none)
     char* hitCondition;  // numeric string or expression (NULL if none)
     char* logMessage;    // log message (NULL if none)
+    // The source file a DAP setBreakpoints request set it for (NULL: none). That request
+    // replaces the breakpoints of its own source only, so those of another unit's source stay.
+    char* source;
     int hitCount;        // internal counter
     int8_t pil;          // level the breakpoint belongs to; -1: any level
     int32_t pcr;         // PCR of that level, ring bits removed (BKPT_PCR_MASK); -1: any
@@ -1975,6 +1978,27 @@ void bkpt_manager_clear(void);
  * @param type Breakpoint type to remove.
  */
 void bkpt_manager_clear_type(BreakpointType);
+
+/**
+ * @brief End the step that was running (a breakpoint, a watchpoint or a pause stopped the run):
+ *        remove its temporary breakpoints and its pending single step.
+ */
+void bkpt_step_end(void);
+
+/**
+ * @brief Name the source file of the user breakpoints at an address that have none yet (the
+ *        ones a DAP setBreakpoints request just added).
+ * @param address Address of the breakpoint.
+ * @param source  Source file path as the request gives it.
+ */
+void bkpt_manager_set_source(uint16_t address, const char *source);
+
+/**
+ * @brief Remove the user breakpoints of one source file (DAP setBreakpoints replaces the set of
+ *        its own source; the breakpoints of other sources stay).
+ * @param source Source file path as the request gives it.
+ */
+void bkpt_manager_clear_source(const char *source);
 
 /**
  * @brief Advance one pending single step, then check the current PC against

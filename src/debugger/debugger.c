@@ -4100,9 +4100,11 @@ static int cmd_set_breakpoints(DAPServer *server)
     // setBreakpoints replaces the whole set; VS Code sends it when the last one is removed):
     // the old ones go. Refused here before, it left them armed and the program stopped there
     // again after "continue" (nd-lang docs/BUGS.md P4).
+    // Only this source's: the breakpoints of the other source files (the other units of the
+    // program) stay (BUGS.md D6).
     if (breakpoint_count == 0)
     {
-        bkpt_manager_clear_type(BP_TYPE_USER);
+        bkpt_manager_clear_source(source_path);
         return 0;
     }
 
@@ -4119,8 +4121,9 @@ static int cmd_set_breakpoints(DAPServer *server)
 
     LOG(LOG_CAT_DAP, LOG_DEBUG, "Setting %d breakpoints in %s\n", breakpoint_count, source_path);
 
-    // Clear existing source (user) breakpoints only, preserve instruction/function/data BPs
-    bkpt_manager_clear_type(BP_TYPE_USER);
+    // Clear the user breakpoints of this source only: instruction/function/data breakpoints and
+    // the breakpoints of other source files stay (BUGS.md D6)
+    bkpt_manager_clear_source(source_path);
 
     // Process each breakpoint
     for (int i = 0; i < breakpoint_count; i++)
@@ -4205,6 +4208,7 @@ static int cmd_set_breakpoints(DAPServer *server)
                          bp->hit_condition, // Optional hit condition
                          bp->log_message    // Optional log message
         );
+        bkpt_manager_set_source((uint16_t)address, source_path);
         // the program's code at that address, when the source map has it (CODE line): the
         // breakpoint then fires only in this program (cpu_bkpt.c, entry_code_matches)
         {
@@ -5085,7 +5089,14 @@ static int cmd_pause(DAPServer *server)
 {
     s_line_step.active = false; // a pause ends a source-line step, which would otherwise start the CPU again
     // Request the CPU to pause (same mechanism as cmd_wait_for_debugger)
-    return cmd_wait_for_debugger(server);
+    int rc = cmd_wait_for_debugger(server);
+    if (rc == 0)
+    {
+        // The CPU is held: a step that was running is over, its temporary breakpoints go
+        // (BUGS.md D3)
+        bkpt_step_end();
+    }
+    return rc;
 }
 
 /// @brief Handle the restart request from DAP

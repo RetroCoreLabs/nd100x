@@ -566,6 +566,7 @@ void cpu_watchpoint_triggered(uint32_t addr, bool is_write)
 {
     cpu_set_stop_reason(STOP_REASON_DATA_BREAKPOINT);
     cpu_set_run_mode(CPU_BREAKPOINT);
+    bkpt_step_end(); // a step that was running is over (BUGS.md D3)
     if (!gDebuggerEnabled)
     {
         LOG(LOG_CAT_CPU, LOG_INFO, "--- CPU stopped: watchpoint %s at %06o (PC=%06o) ---",

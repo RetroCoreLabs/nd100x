@@ -1018,7 +1018,7 @@ socket or accepts the next one. Whether this is in nd100x's debugger thread
 (`debugger_thread`, `dap_server_run`) or in libdap's TCP transport is not traced yet. Until it
 is fixed, one debugging session has to do everything over a single connection.
 
-### D3. A step's temporary breakpoints stay armed when a user breakpoint ends the step
+### D3. A step's temporary breakpoints stay armed when a user breakpoint ends the step (fixed)
 
 **Found by:** the step-over fix of 2026-11-21 (commit 8adda2b), by reading the code path it uses.
 
@@ -1029,7 +1029,17 @@ them later, with no breakpoint of the user's at that place.
 
 **What is known:** a new step removes any temporary breakpoints left over, and a temporary
 breakpoint that fires removes all of them. A stop for any other reason (user breakpoint, pause)
-does not. Not yet reproduced with a test.
+does not.
+
+**Fixed 2026-11-23.** Any stop now ends the step that was running: `bkpt_step_end()` in
+`src/cpu/cpu_bkpt.c` removes the step's temporary breakpoints and its pending single step. It is
+called when a breakpoint other than a logpoint stops the run (`bkpt_check_hit`), when a watchpoint
+stops it (`cpu_watchpoint_triggered`, `src/cpu/cpu.c`) and when a DAP pause holds the CPU
+(`cmd_pause`, `src/debugger/debugger.c`). Test: `tests/test_bkpt_context.c`, "step over a call, a
+user breakpoint inside the routine ends the step" - a next over a JPL with a user breakpoint in the
+routine stops at the breakpoint, and a continue then runs through the return word to the end
+without a stop. It failed 2 of 28 checks before the fix and passes 28 of 28 after. The watchpoint
+and pause paths have no test of their own.
 ### T1. On Windows, `nd100x_expect_unit` fails its two FetchImage download tests
 
 **Found by:** a full ctest of a w64devkit (MinGW) build on Windows, 2026-11-22.
@@ -1122,3 +1132,22 @@ failure no client was connected (the test attaches only after "attach now", whic
 `planc100-oracle.sh` deletes the run folder), and add a byte log of the console input path
 (bytes read from stdin, bytes queued to the terminal, bytes taken by the CPU) so the next stall
 shows where the text stops.
+### D6. Setting the breakpoints of one source file removed those of every other file (fixed)
+
+**Found by:** the two-unit debug test of nd-lang (`tests/nd100debug/planc_dap_units_test.js`, MA1 +
+MA2), 2026-11-23.
+
+**Shows up as:** a DAP `setBreakpoints` request for MA2.PLNC, sent after the one for MA1.PLNC,
+left only MA2's breakpoint armed: the program ran past the breakpoint on MA1 line 15 and stopped
+first in MA2. DAP says a `setBreakpoints` request replaces the breakpoints of its own source only.
+
+**Cause:** `cmd_set_breakpoints` (`src/debugger/debugger.c`) cleared every user breakpoint
+(`bkpt_manager_clear_type(BP_TYPE_USER)`), whatever its source file, and the breakpoint entry
+did not record a source file.
+
+**Fixed 2026-11-23.** A breakpoint entry has the field `source` (`src/cpu/cpu_types.h`), set by
+`bkpt_manager_set_source` for the breakpoints a request adds; the request removes only the
+breakpoints of its own source (`bkpt_manager_clear_source`, `src/cpu/cpu_bkpt.c`), also when
+its list is empty. Tests: `tests/test_bkpt_context.c` ("setBreakpoints of one source keeps the
+breakpoints of another") and the nd-lang test above, which failed with the stop in MA2 before the
+fix and passes 13 of 13 checks after.

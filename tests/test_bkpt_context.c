@@ -23,7 +23,10 @@
  *     after level 1 has run and given the CPU back;
  *   - a step over a call (debugger_step_cpu) ends where the routine comes back: one
  *     word after the link (a skip return, the normal return of a PLANC routine) or
- *     at the link (EXIT), and leaves no temporary breakpoint at the other one.
+ *     at the link (EXIT), and leaves no temporary breakpoint at the other one;
+ *   - a user breakpoint inside the routine ends that step, and a continue after it does
+ *     not stop at a temporary breakpoint the step had armed.
+ *   - clearing the breakpoints of one source file leaves those of another source file.
  *
  * The program, physical words, paging off, interrupt system on:
  *   level 0:  0: SAA 2      A = 2
@@ -266,6 +269,35 @@ int main(void)
     cpu_run(20);
     CHECK(cpu_get_stop_reason() == STOP_REASON_NONE,
           "no temporary breakpoint is left one word after the link");
+
+    /* ---- step over a call, a user breakpoint inside the routine ends the step (BUGS.md D3) ---- */
+    fixture_call(OP_SKIP_RET);
+    bkpt_manager_add(010, BP_TYPE_USER, NULL, NULL, NULL);
+    CHECK(step_over_from(0) == 0, "step over the JPL is armed");
+    cpu_run(20);
+    CHECK(cpu_get_stop_reason() == STOP_REASON_BREAKPOINT && gPC == 010 && gA == 0,
+          "the user breakpoint at word 10 in the routine ends the step before SAA 5");
+    cpu_set_stop_reason(STOP_REASON_NONE);
+    cpu_set_run_mode(CPU_RUNNING);
+    cpu_run(20); /* continue: the routine comes back to word 2, then JMP *+0 at word 3 */
+    CHECK(cpu_get_stop_reason() == STOP_REASON_NONE,
+          "continue after the breakpoint does not stop at a temporary breakpoint of the step");
+    CHECK(gPC == 3 && gA == 3, "the program ran on through word 2 to the JMP at word 3");
+
+    /* ---- setBreakpoints of one source keeps the breakpoints of another (BUGS.md D6) ---- */
+    fixture_call(OP_SKIP_RET);
+    bkpt_manager_add(010, BP_TYPE_USER, NULL, NULL, NULL);
+    bkpt_manager_set_source(010, "/src/B.PLNC");
+    bkpt_manager_add(2, BP_TYPE_USER, NULL, NULL, NULL);
+    bkpt_manager_set_source(2, "/src/A.PLNC");
+    bkpt_manager_clear_source("/src/A.PLNC"); /* the request for A, with no breakpoints */
+    cpu_run(20);
+    CHECK(cpu_get_stop_reason() == STOP_REASON_BREAKPOINT && gPC == 010,
+          "the breakpoint of B.PLNC at word 10 is still armed after A.PLNC's were cleared");
+    cpu_set_stop_reason(STOP_REASON_NONE);
+    cpu_set_run_mode(CPU_RUNNING);
+    cpu_run(20);
+    CHECK(cpu_get_stop_reason() == STOP_REASON_NONE, "the breakpoint of A.PLNC at word 2 is gone");
 
     printf("\n%d checks, %d failed\n", s_checks, s_failed);
     mms_destroy_paging_tables();
